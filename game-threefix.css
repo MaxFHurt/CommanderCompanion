@@ -2875,3 +2875,10 @@ body.cc-modal-open #gameScreen > .floating-live-controls{pointer-events:none!imp
 #modal #modalActions>button[data-menu-semantic="help"],#modal .modal-tray-buttons>button[data-menu-semantic="help"]{background-image:url('./ui-help.png')!important;color:transparent!important;text-shadow:none!important}
 dialog .modal-back-row [data-navigation="back"]{background:transparent url('./ui-back.png') center/100% 100% no-repeat!important;color:transparent!important;text-shadow:none!important;padding-left:15px!important}
 @media(max-width:540px){#modal #modalActions>button,#modal .modal-tray-buttons>button{flex:1 1 calc(50% - 7px)!important;min-width:0!important}#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{margin-right:0!important}#modal #modalActions>button[data-action-role="current"],#modal .modal-tray-buttons>button[data-action-role="current"]{margin-left:0!important}}
+
+
+/* V0.8.0 B2.1 — menu architecture correction.
+   Render the approved Back control as the actual PNG, not button text/background. */
+#modal .modal-back-row{display:flex!important;justify-content:center!important;align-items:center!important;padding:10px 12px!important}
+#modal .modal-back-row #modalClose{width:min(335px,72vw)!important;height:auto!important;min-width:0!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;line-height:0!important;overflow:visible!important}
+#modal .modal-back-row #modalClose img{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;pointer-events:none!important}
