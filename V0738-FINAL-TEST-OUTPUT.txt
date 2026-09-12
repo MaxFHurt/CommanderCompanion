@@ -1,0 +1,23 @@
+Commander Companion V0.7.9.34 FINAL VISUAL QA
+====================================================
+PASS — version 07934
+PASS — six dock tools
+PASS — no help game tool
+PASS — rescue wired
+PASS — home wired
+PASS — mana over green
+PASS — mana even white
+PASS — mana under red
+PASS — life heart red
+PASS — life total white
+PASS — native chassis ratio
+PASS — six equal dock widths
+PASS — battlefield transparent
+PASS — battle cards proportional
+PASS — phase cue
+PASS — mana icons square
+PASS — CSS brace balance (0)
+PASS — Uploaded 1st file count 99 (<=99)
+PASS — Uploaded 2nd file count 20 (<=99)
+
+Native lower-chassis asset: 976x320. CSS renders it at exactly width * 320/976, preventing vertical or horizontal distortion of the center jewel.
