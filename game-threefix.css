@@ -1576,7 +1576,8 @@ html::-webkit-scrollbar,body::-webkit-scrollbar,#gameScreen::-webkit-scrollbar,#
   width:100%!important;
   text-align:center!important;
 }
-\n
+
+
 /* ============================================================
    V0.7.9.23 — Smart-action guidance behavior.
    Smart jewel performs contextual actions only; it never changes phases.
@@ -2851,3 +2852,26 @@ body.cc-modal-open #gameScreen > .floating-live-controls{pointer-events:none!imp
 #modal [data-menu-semantic="confirm"],#modal [data-menu-semantic="save"],dialog [data-menu-semantic="confirm"],dialog [data-menu-semantic="save"]{background-repeat:no-repeat;background-position:10px center;background-size:auto 62%;padding-left:46px}
 #modal [data-menu-semantic="confirm"],dialog [data-menu-semantic="confirm"]{background-image:url("./ui-confirm.png")}
 #modal [data-menu-semantic="save"],dialog [data-menu-semantic="save"]{background-image:url("./ui-save.png")}
+
+
+/* ======================================================================
+   V0.8.0 BATCH 2 — MENU / DOCK BINDING ONLY
+   Contextual Back stays in the existing top row; footer Cancel/current
+   actions remain anchored left/right. Known actions use approved PNGs;
+   custom actions retain exact live text on the neutral forged asset.
+   ====================================================================== */
+#modal #modalActions,#modal .modal-tray-buttons{display:flex!important;align-items:stretch!important;gap:7px!important;flex-wrap:wrap!important}
+#modal #modalActions>button,#modal .modal-tray-buttons>button{flex:0 1 auto!important;background:transparent url('./ref-button-blank.png') center/100% 100% no-repeat!important;padding-left:18px!important;padding-right:18px!important;color:#fff!important;text-shadow:0 1px 2px #000!important}
+#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{margin-right:auto!important;background-image:url('./ui-cancel.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-action-role="current"],#modal .modal-tray-buttons>button[data-action-role="current"]{margin-left:auto!important}
+#modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"]{background-image:url('./ui-confirm.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="save"],#modal .modal-tray-buttons>button[data-menu-semantic="save"]{background-image:url('./ui-save.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="delete"],#modal .modal-tray-buttons>button[data-menu-semantic="delete"]{background-image:url('./ui-delete.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="undo"],#modal .modal-tray-buttons>button[data-menu-semantic="undo"]{background-image:url('./ui-undo.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="home"],#modal .modal-tray-buttons>button[data-menu-semantic="home"]{background-image:url('./ui-home.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="settings"],#modal .modal-tray-buttons>button[data-menu-semantic="settings"]{background-image:url('./ui-settings.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="profile"],#modal .modal-tray-buttons>button[data-menu-semantic="profile"]{background-image:url('./ui-profile.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="game-log"],#modal .modal-tray-buttons>button[data-menu-semantic="game-log"]{background-image:url('./ui-game-log.png')!important;color:transparent!important;text-shadow:none!important}
+#modal #modalActions>button[data-menu-semantic="help"],#modal .modal-tray-buttons>button[data-menu-semantic="help"]{background-image:url('./ui-help.png')!important;color:transparent!important;text-shadow:none!important}
+dialog .modal-back-row [data-navigation="back"]{background:transparent url('./ui-back.png') center/100% 100% no-repeat!important;color:transparent!important;text-shadow:none!important;padding-left:15px!important}
+@media(max-width:540px){#modal #modalActions>button,#modal .modal-tray-buttons>button{flex:1 1 calc(50% - 7px)!important;min-width:0!important}#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{margin-right:0!important}#modal #modalActions>button[data-action-role="current"],#modal .modal-tray-buttons>button[data-action-role="current"]{margin-left:0!important}}

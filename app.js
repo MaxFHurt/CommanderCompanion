@@ -311,7 +311,22 @@ function manaIcon(k,n=1){return `<span class="calc-pip"><img src="mana-${MANA_IC
 function manaReqIcons(req={}){let out='';for(const k of ['W','U','B','R','G','C'])if(req[k])out+=manaIcon(k,req[k]);if(req.generic)out+=`<span class="generic-pip" aria-label="Generic mana ${req.generic}">${req.generic}</span>`;return out||'<span class="muted">No mana</span>'}
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
 function manaCalculator(player,cost='',tax=0){const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=Object.fromEntries(keys.map(k=>[k,Math.max(0,Number(player.mana?.available?.[k]||0))])),plan=planMana(pool,cost,tax),rows=[];for(const k of keys){const needed=Math.max(0,Number(req[k]||0));if(!needed)continue;const have=pool[k],state=have>=needed?'sufficient':'insufficient';rows.push(`<div class="mana-required-row" aria-label="${k} mana ${needed} of ${have} available"><span class="mana-required-icon">${manaIcon(k,1)}</span><strong><span class="mana-required-value">${needed}</span><em>/</em><span class="mana-available-value ${state}">${have}</span></strong></div>`)}if(req.generic){const coloredReserved=keys.reduce((n,k)=>n+Math.max(0,Number(req[k]||0)),0),totalAvailable=keys.reduce((n,k)=>n+pool[k],0),genericAvailable=Math.max(0,totalAvailable-coloredReserved),state=genericAvailable>=req.generic?'sufficient':'insufficient';rows.push(`<div class="mana-required-row generic-required-row" aria-label="Generic mana ${req.generic} of ${genericAvailable} available"><span class="generic-pip">◇</span><strong><span class="mana-required-value">${req.generic}</span><em>/</em><span class="mana-available-value ${state}">${genericAvailable}</span></strong></div>`)}return `<section class="mana-calculator mana-required-only ${plan.ok?'payable':'unpayable'}"><div class="mana-required-list">${rows.join('')}</div></section>`}
-function openModal(title,html,actions=[],trayHtml=''){try{document.activeElement?.blur?.()}catch{} const modal=$('#modal'),content=$('#modalContent'),footer=$('#modalActions');if(modal.open)modal.close();modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!actions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);let buttonTarget=footer;if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}for(const a of actions){const b=document.createElement('button');b.textContent=a.label;b.className=a.className||'';const semantic=String(a.semantic||a.label||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(semantic)b.dataset.menuSemantic=semantic;if(/^back$/i.test(a.label||''))b.dataset.navigation='back';if(/^cancel$/i.test(a.label||''))b.dataset.actionRole='cancel';b.disabled=!!a.disabled;b.onclick=()=>a.onClick?.(b);buttonTarget?.appendChild(b)}document.body.classList.add('cc-modal-open');modal.showModal();requestAnimationFrame(()=>{content.scrollTop=0})}
+function menuSemantic(action={}){const label=String(action.label||'').trim(),explicit=String(action.semantic||'').trim();if(explicit)return explicit.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(/^back$/i.test(label))return'back';if(/^cancel$/i.test(label))return'cancel';if(/^confirm(?:\b|$)/i.test(label))return'confirm';if(/^save(?:\b|$)/i.test(label))return'save';if(/^delete(?:\b|$)/i.test(label))return'delete';if(/^undo(?:\b|$)/i.test(label))return'undo';if(/^home$|^return home$/i.test(label))return'home';if(/^settings$/i.test(label))return'settings';if(/^profile$/i.test(label))return'profile';if(/^game logs?$/i.test(label))return'game-log';if(/^help$/i.test(label))return'help';return'custom'}
+function openModal(title,html,actions=[],trayHtml=''){
+  try{document.activeElement?.blur?.()}catch{}
+  const modal=$('#modal'),content=$('#modalContent'),footer=$('#modalActions'),topBack=$('#modalClose');
+  if(modal.open)modal.close();
+  modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
+  const backAction=actions.find(a=>menuSemantic(a)==='back');
+  const footerActions=actions.filter(a=>a!==backAction);
+  if(topBack){topBack.textContent='‹ BACK';topBack.dataset.navigation='back';topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
+  let buttonTarget=footer;
+  if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
+  const ordered=[...footerActions.filter(a=>menuSemantic(a)==='cancel'),...footerActions.filter(a=>menuSemantic(a)!=='cancel')];
+  ordered.forEach((a,index)=>{const b=document.createElement('button');b.textContent=a.label;b.className=a.className||'';const semantic=menuSemantic(a);b.dataset.menuSemantic=semantic;if(semantic==='cancel')b.dataset.actionRole='cancel';if(index===ordered.length-1&&semantic!=='cancel')b.dataset.actionRole='current';b.disabled=!!a.disabled;b.addEventListener('click',()=>a.onClick?.(b));buttonTarget?.appendChild(b)});
+  document.body.classList.add('cc-modal-open');modal.showModal();requestAnimationFrame(()=>{content.scrollTop=0})
+}
 function closeModal(){clearPriorityResponseTimer();const m=$('#modal');try{document.activeElement?.blur?.()}catch{} if(m.open)m.close();document.body.classList.remove('cc-modal-open');m.classList.remove('game-history-modal');const y=Number(m.dataset.returnScroll||0);requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'auto'}))}
 function openGameHistory(){
   const rows=(game?.log||[]).map((e,index)=>({e,index})).sort((a,b)=>Number(b.e?.turn||0)-Number(a.e?.turn||0)||a.index-b.index);
@@ -361,6 +376,7 @@ function applyGuidedOperation(p,ctx){
   }catch(e){toast(e?.message||'That guided operation could not be applied.',true)}
 }
 $('#modalClose').onclick=closeModal;$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+bindPersistentGameDelegates();
 
 function playerPanel(i){
   const saved=listDecks(),fullTracked=selectedMode==='fully-tracked',hasDeck=selectedMode!=='table-tracker';
@@ -501,6 +517,8 @@ function commitAction(action){
   return result;
 }
 function localTurnAllowed(){if(network?.host&&!network?.localPlayerId)return false;return !network?.localPlayerId||game.activePlayerId===network.localPlayerId}
+function openHubAction(kind){({'card-id':()=>openGlobalPicker(),chat:openChat,rescue:openRescue,settings:openSettings,profile:openProfile,home:()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}])}[kind]?.())}
+function bindPersistentGameDelegates(){const screen=$('#gameScreen');if(!screen||screen.dataset.ccDelegatesBound==='1')return;screen.dataset.ccDelegatesBound='1';screen.addEventListener('click',e=>{const hub=e.target.closest('[data-hub]');if(!hub||!screen.contains(hub))return;e.preventDefault();openHubAction(hub.dataset.hub)})}
 function confirmUndoLastStep(onDone=null){
   if(!engine?.undo)return toast('Nothing to undo',true);
   openModal('CONFIRM UNDO','<p>Undo the most recent game action?</p><p class="muted">Only the latest recorded step will be reversed.</p>',[
@@ -519,7 +537,8 @@ function bindGameActions(){
   $$('[data-collapse-opponent]').forEach(b=>b.onclick=()=>{inspectedPlayerId=null;render();window.scrollTo(0,0)});
   $$('[data-hand-card]').forEach(b=>b.onclick=()=>openHandCard(b.dataset.handCard));
   $$('[data-board-open]').forEach(b=>b.onclick=e=>{if(e.target.closest('button,[data-instance],[data-zone-open]'))return;openBoard()});
-  $$('[data-hub]').forEach(b=>b.onclick=()=>({'card-id':()=>openGlobalPicker(),chat:openChat,rescue:openRescue,settings:openSettings,profile:openProfile,home:()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}])}[b.dataset.hub]?.()));
+  // Bottom-dock controls use one persistent delegated listener; do not bind them per render.
+
   $$('[data-play-card]').forEach(b=>b.onclick=()=>openHandCard(b.dataset.playCard));
   $$('[data-instance]').forEach(b=>b.onclick=()=>openBattleCard(b.dataset.instance));
   $$('[data-public-instance]').forEach(b=>b.onclick=()=>{const p=game.players.find(x=>x.playerId===b.dataset.publicPlayer),c=p&&instance(p,b.dataset.publicInstance);if(c)openModal(defOf(game,c)?.name||'CARD',renderCardDetail(game,c)+`<p class="muted">Public card view — gameplay controls are hidden while inspecting another player.</p>`,[{label:'CLOSE',onClick:closeModal}])});
