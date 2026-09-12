@@ -1,0 +1,5 @@
+Commander Companion V0.7.9 — GitHub flat-root release
+
+Upload EVERY file from this extracted folder to the repository root, replacing the prior release files. Do not upload the ZIP itself as the only repository file.
+
+If an older deployment was open in Safari, reload after GitHub Pages finishes publishing so the V0.7.9 service worker can replace the prior cache.

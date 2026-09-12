@@ -1,0 +1,2853 @@
+/* V0.7.9 — GAME-ONLY THREE FIXES. Landing page intentionally untouched. */
+#gameScreen .game-brand-strip{position:relative!important;display:block!important;height:52px!important;min-height:52px!important;margin:0 0 5px!important;padding:0 8px!important;overflow:hidden!important;background:#050307 url('ui-assets/ref/header-page.png') center/100% 100% no-repeat!important;border:0!important;box-shadow:0 5px 14px #000b!important}
+#gameScreen .game-turn-badge{position:absolute!important;left:10px!important;top:50%!important;transform:translateY(-50%)!important;width:min(31%,170px)!important;height:40px!important;min-width:0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:6px!important;padding:0 3px!important;overflow:hidden!important}
+#gameScreen .game-turn-copy{min-width:0!important;overflow:hidden!important}
+#gameScreen .game-turn-copy b,#gameScreen .game-turn-copy small{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+#gameScreen .game-horizon-logo{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:min(42%,196px)!important;height:38px!important;max-width:196px!important;max-height:38px!important;object-fit:contain!important;object-position:center!important;margin:0!important;padding:0!important;z-index:2!important}
+#gameScreen .game-top-more{position:absolute!important;right:9px!important;top:50%!important;transform:translateY(-50%)!important;width:50px!important;height:40px!important;min-width:50px!important;min-height:40px!important;margin:0!important;z-index:3!important}
+
+/* Battlefield + Phase share one compact header. Keep Phase visible, just smaller. */
+#gameScreen .battle-panel{margin-top:4px!important;padding-top:5px!important}
+#gameScreen .shared-battle-phase-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;min-height:38px!important;margin:0 1px 4px!important;padding:3px 6px!important;gap:6px!important;overflow:visible!important;background:#07050b url('ui-assets/ref/row-frame.png') center/100% 100% no-repeat!important}
+#gameScreen .shared-battle-phase-head h3{display:block!important;margin:0!important;padding:0 3px!important;font-size:clamp(19px,4vw,26px)!important;line-height:1!important;white-space:nowrap!important}
+#gameScreen .battle-phase-indicator{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:flex-end!important;min-width:max-content!important;gap:3px!important;padding:0 2px!important;font:900 clamp(11px,2.5vw,15px)/1 var(--head)!important;color:#f2edf7!important;white-space:nowrap!important}
+#gameScreen .battle-phase-indicator span,#gameScreen .battle-phase-indicator b{display:inline!important}
+#gameScreen .battle-phase-indicator b{color:#b85cff!important}
+#gameScreen .battle-phase-indicator i{display:grid!important;place-items:center!important;width:21px!important;height:21px!important;margin-left:2px!important;font:900 17px/1 var(--head)!important;color:#efe5ff!important;text-shadow:0 0 6px #b75cff!important;font-style:normal!important}
+#gameScreen .phase-line,#gameScreen .battle-tap-hint{display:none!important}
+
+/* Clean center emblem: remove source artifact and align the jewel itself to socket center. */
+#gameScreen .hub-logo-crop{position:absolute!important;inset:3px!important;display:block!important;overflow:hidden!important;border-radius:50%!important}
+#gameScreen .hub-logo-crop img{position:absolute!important;width:112%!important;height:112%!important;max-width:none!important;left:50%!important;top:50%!important;transform:translate(-52.1%,-50%)!important;clip-path:none!important;object-fit:contain!important;filter:drop-shadow(0 0 5px #bc6aff88)!important}
+#gameScreen .hub-mark{overflow:hidden!important;box-shadow:inset 0 2px 7px #ddabff55,inset 0 -6px 12px #000a,0 0 0 2px #8f58ae,0 0 0 4px #24102f,0 0 12px #8e3aca88!important}
+
+@media(max-width:600px){
+ #gameScreen .game-brand-strip{height:50px!important;min-height:50px!important}
+ #gameScreen .game-turn-badge{left:7px!important;width:31%!important;height:38px!important;gap:4px!important}
+ #gameScreen .game-horizon-logo{width:min(40%,178px)!important;height:34px!important;max-width:178px!important;max-height:34px!important}
+ #gameScreen .game-top-more{right:6px!important;width:43px!important;min-width:43px!important;height:36px!important;min-height:36px!important}
+ #gameScreen .shared-battle-phase-head{min-height:34px!important;padding:2px 4px!important;gap:3px!important}
+ #gameScreen .shared-battle-phase-head h3{font-size:18px!important}
+ #gameScreen .battle-phase-indicator{font-size:11px!important;gap:2px!important}
+ #gameScreen .battle-phase-indicator i{width:19px!important;height:19px!important;font-size:15px!important;margin-left:1px!important}
+}
+
+/* ======================================================================
+   V0.7.9 CORE GAME UI RESTORE — GAME ONLY. LANDING REMAINS LOCKED.
+   ====================================================================== */
+
+/* Horizon header logo: transparent artwork sits OVER the forged header and ignores its internal borders. */
+#gameScreen .game-brand-strip{
+  overflow:visible!important;
+  isolation:isolate!important;
+}
+#gameScreen .game-horizon-logo{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  width:min(31vw,158px)!important;
+  height:auto!important;
+  max-width:158px!important;
+  max-height:none!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  transform:translate(-50%,-50%)!important;
+  z-index:20!important;
+  background:transparent!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+  pointer-events:none!important;
+}
+@media(max-width:600px){
+  #gameScreen .game-horizon-logo{width:min(30vw,142px)!important;max-width:142px!important}
+}
+
+/* Compact live game log — always directly above the player card; current + immediately previous turn. */
+#gameScreen .inline-game-log{
+  position:relative!important;
+  margin:4px 5px 5px!important;
+  padding:5px 6px 6px!important;
+  min-height:78px!important;
+  max-height:118px!important;
+  overflow:hidden!important;
+  background:linear-gradient(180deg,rgba(15,9,20,.96),rgba(4,3,7,.96)),url('ui-assets/forged-bg.svg') center/cover no-repeat!important;
+  border:1px solid #756280!important;
+  border-radius:6px!important;
+  box-shadow:inset 0 0 0 2px #08050b,inset 0 0 0 3px #8c57ad55,0 3px 9px #000a!important;
+}
+#gameScreen .inline-game-log:before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  pointer-events:none!important;
+  background:url('ui-assets/panel-frame.svg') center/100% 100% no-repeat!important;
+  opacity:.34!important;
+  z-index:0!important;
+}
+#gameScreen .inline-game-log-head{
+  position:relative!important;
+  z-index:1!important;
+  height:22px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  gap:8px!important;
+  padding:0 7px 3px!important;
+  border-bottom:1px solid #6e4d7d!important;
+  font-family:var(--head)!important;
+  letter-spacing:.075em!important;
+}
+#gameScreen .inline-game-log-head b{font-size:13px!important;color:#fff!important}
+#gameScreen .inline-game-log-head span{font-size:9px!important;color:#cfa7e8!important}
+#gameScreen .inline-game-log-scroll{
+  position:relative!important;
+  z-index:1!important;
+  height:76px!important;
+  overflow-y:auto!important;
+  overscroll-behavior:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  padding:3px 5px 5px!important;
+  scrollbar-width:thin!important;
+}
+#gameScreen .inline-log-turn{
+  position:sticky!important;
+  top:0!important;
+  display:flex!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:7px!important;
+  padding:2px 4px!important;
+  background:rgba(6,4,9,.92)!important;
+  border-bottom:1px solid #3a2545!important;
+  font:900 9px/1.2 var(--head)!important;
+  letter-spacing:.05em!important;
+  color:#a965d2!important;
+}
+#gameScreen .inline-log-turn b{color:#e8d9f3!important}
+#gameScreen .inline-log-event{
+  display:grid!important;
+  grid-template-columns:28px minmax(0,1fr)!important;
+  gap:5px!important;
+  align-items:start!important;
+  padding:3px 4px!important;
+  border-bottom:1px solid #201725!important;
+  font-size:11px!important;
+  line-height:1.28!important;
+  color:#d8d2dc!important;
+}
+#gameScreen .inline-log-event i{font:900 9px/1.25 var(--head)!important;color:#b56cdf!important;font-style:normal!important}
+#gameScreen .inline-log-empty{padding:4px!important;font-size:10px!important;color:#817887!important;font-style:italic!important}
+
+/* Player cards: proper forged Commander Companion surfaces, not generic black rectangles. */
+#gameScreen .player-card.new-visual-master,
+#gameScreen .opponent-bar{
+  position:relative!important;
+  overflow:hidden!important;
+  background:radial-gradient(circle at 55% 5%,rgba(122,55,160,.22),transparent 42%),linear-gradient(155deg,rgba(27,17,34,.98),rgba(5,4,8,.99) 43%,rgba(11,6,15,.99)),url('ui-assets/forged-bg.svg') center/cover no-repeat!important;
+  border:1px solid #76647f!important;
+  box-shadow:inset 0 0 0 2px #07050a,inset 0 0 0 3px #8f57ae44,0 3px 11px #000b,0 0 8px #70339a22!important;
+}
+#gameScreen .player-card.new-visual-master:after,
+#gameScreen .opponent-bar:after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  background:url('ui-assets/panel-frame.svg') center/100% 100% no-repeat!important;
+  opacity:.25!important;
+}
+#gameScreen .player-card.new-visual-master>*,
+#gameScreen .opponent-bar>*{position:relative!important;z-index:1!important}
+#gameScreen .player-card.new-visual-master.inspected-opponent{background:radial-gradient(circle at 70% 0,rgba(88,55,134,.24),transparent 44%),linear-gradient(155deg,#17101f,#050407 48%,#0a0710),url('ui-assets/forged-bg.svg') center/cover no-repeat!important}
+
+@media(max-width:600px){
+  #gameScreen .inline-game-log{margin:3px 4px 4px!important;min-height:72px!important;max-height:104px!important;padding:4px 5px 5px!important}
+  #gameScreen .inline-game-log-scroll{height:65px!important}
+  #gameScreen .inline-log-event{font-size:10px!important;padding:2px 3px!important}
+}
+
+/* V0.7.9 targeted fix: opponent commander thumbnails must remain beneath the fixed hand/control dock. */
+#gameScreen .opponent-bar,
+#gameScreen .opponent-summary,
+#gameScreen .opponent-summary img{
+  z-index:1!important;
+}
+#gameScreen .hand-hub{
+  z-index:2147483000!important;
+  isolation:isolate!important;
+}
+
+
+/* V0.7.9 targeted compact-log / header-logo / lower-hand fixes. GAME SCREEN ONLY. */
+#gameScreen .game-turn-badge{
+  width:min(28%,150px)!important;
+  padding-left:5px!important;
+}
+#gameScreen .game-turn-loop{display:none!important}
+#gameScreen .game-turn-copy small{display:none!important}
+#gameScreen .game-turn-copy b{
+  font-size:clamp(13px,3vw,17px)!important;
+  line-height:1!important;
+}
+
+/* Approved Horizon transparent logo: center it over the header and allow slight border overrun. */
+#gameScreen .game-brand-strip{
+  overflow:visible!important;
+  isolation:isolate!important;
+}
+#gameScreen .game-horizon-logo{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:min(29vw,132px)!important;
+  height:auto!important;
+  max-width:132px!important;
+  max-height:none!important;
+  object-fit:contain!important;
+  overflow:visible!important;
+  z-index:50!important;
+  pointer-events:none!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+}
+
+/* Eliminate redundant turn row and wasted gap; current events begin immediately under GAME LOG. */
+#gameScreen .inline-game-log{
+  margin:3px 5px 1px!important;
+  padding:4px 6px 4px!important;
+  min-height:0!important;
+  max-height:88px!important;
+}
+#gameScreen .inline-game-log-head{
+  height:20px!important;
+  padding:0 7px 2px!important;
+}
+#gameScreen .inline-game-log-scroll{
+  height:48px!important;
+  padding:2px 5px 2px!important;
+}
+#gameScreen .inline-log-turn.last-turn-only{
+  position:static!important;
+  padding:2px 4px!important;
+  margin-top:1px!important;
+}
+#gameScreen .inline-log-empty{
+  padding:3px 4px!important;
+  line-height:1.15!important;
+}
+#gameScreen .player-card.new-visual-master{
+  margin-top:1px!important;
+}
+
+/* Lower the fixed hand/control chassis so the browser-bottom area is not wasted. Safari may cover the lowest edge. */
+#gameScreen .hand-hub{
+  bottom:-54px!important;
+}
+#gameScreen.game-screen{
+  padding-bottom:100px!important;
+}
+
+@media(max-width:600px){
+  #gameScreen .game-turn-badge{left:8px!important;width:27%!important}
+  #gameScreen .game-turn-copy b{font-size:13px!important}
+  #gameScreen .game-horizon-logo{width:min(31vw,128px)!important;max-width:128px!important}
+  #gameScreen .inline-game-log{margin:2px 4px 1px!important;max-height:78px!important;padding:3px 5px!important}
+  #gameScreen .inline-game-log-head{height:19px!important}
+  #gameScreen .inline-game-log-scroll{height:43px!important;padding-top:1px!important}
+  #gameScreen .hand-hub{bottom:-58px!important}
+  #gameScreen.game-screen{padding-bottom:94px!important}
+}
+
+/* V0.7.9.14 — EXACT USER-SUPPLIED GAME VISUAL MASTER
+   Scope: game screen only. The user-supplied 1024x1536 reference is the literal geometry master.
+   The outer frame + footer chassis are direct crops from that reference; live controls sit on top. */
+html,body{background:#000!important}
+#gameScreen{
+  position:relative!important;
+  width:min(100%,820px)!important;
+  max-width:820px!important;
+  margin:0 auto!important;
+  padding:0 0 28px!important;
+  border:0!important;
+  background:#000!important;
+  overflow:visible!important;
+  isolation:isolate!important;
+}
+#gameScreen .game-brand-strip{display:none!important}
+#gameScreen::before{
+  content:""!important;
+  position:absolute!important;
+  z-index:100!important;
+  pointer-events:none!important;
+  left:0!important;right:0!important;top:8px!important;
+  width:100%!important;
+  aspect-ratio:2/3!important;
+  background:url('game-frame-overlay.png?v=07914') top center/100% 100% no-repeat!important;
+}
+#gameContent{
+  position:relative!important;
+  z-index:2!important;
+  width:100%!important;
+  padding:calc(min(100vw,820px)*.136) calc(min(100vw,820px)*.071) 0!important;
+  background:#07050b!important;
+  color:#f7f4fb!important;
+  overflow:visible!important;
+}
+#gameContent::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,#08050d 0%,#07040b 62%,#030205 100%);
+}
+/* GAME LOG — exact reference proportions */
+#gameScreen .inline-game-log{
+  height:calc(min(100vw,820px)*.108)!important;
+  min-height:0!important;
+  margin:0 0 calc(min(100vw,820px)*.014)!important;
+  padding:calc(min(100vw,820px)*.012) calc(min(100vw,820px)*.018)!important;
+  border:1px solid #8e60b7!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,#08070b,#050409)!important;
+  box-shadow:inset 0 0 0 2px #25132f,0 0 8px #8b39ca33!important;
+  overflow:hidden!important;
+}
+#gameScreen .inline-game-log-head{
+  display:grid!important;grid-template-columns:1fr 1fr!important;align-items:center!important;
+  height:28%!important;padding:0!important;margin:0!important;border-bottom:1px solid #72528b!important;
+}
+#gameScreen .inline-game-log-head b,#gameScreen .inline-game-log-head span{
+  display:block!important;margin:0!important;padding:0!important;text-align:center!important;
+  font:900 clamp(13px,2.9vw,25px)/1 var(--head)!important;letter-spacing:.06em!important;color:#fff!important;
+}
+#gameScreen .inline-game-log-head span{color:#b85cff!important;text-align:right!important}
+#gameScreen .inline-game-log-scroll{height:72%!important;padding:4px 0 0!important;overflow:auto!important;text-align:center!important}
+#gameScreen .inline-log-empty,#gameScreen .inline-log-event{
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+  min-height:100%!important;font-size:clamp(11px,2.1vw,17px)!important;font-style:italic!important;color:#aaa3ad!important;
+}
+/* ACTIVE PLAYER PANEL */
+#gameScreen .player-card.active.new-visual-master{
+  margin:0!important;padding:0!important;border:1px solid #734690!important;border-radius:8px!important;
+  background:linear-gradient(100deg,#160b1e 0%,#21102b 38%,#14091c 100%)!important;
+  box-shadow:inset 0 0 0 2px #281431,0 0 9px #7f33ba33!important;
+  overflow:visible!important;
+}
+#gameScreen .player-hero{
+  display:grid!important;grid-template-columns:26% 74%!important;gap:0!important;
+  min-height:calc(min(100vw,820px)*.302)!important;padding:calc(min(100vw,820px)*.012)!important;
+}
+#gameScreen .commanders{display:block!important;overflow:visible!important;border-radius:5px!important}
+#gameScreen .commander-card{
+  position:relative!important;width:100%!important;height:100%!important;min-height:0!important;padding:0!important;
+  border:1px solid #a997b9!important;border-radius:5px!important;background:#09080c!important;overflow:hidden!important;
+  box-shadow:0 0 0 4px #211529,0 0 8px #8e50c655!important;
+}
+#gameScreen .commander-card img{width:100%!important;height:100%!important;object-fit:cover!important}
+#gameScreen .commander-card .cmd-name{display:none!important}
+#gameScreen .tax-badge{
+  left:auto!important;right:2%!important;bottom:8%!important;transform:none!important;
+  padding:5px 8px!important;border:1px solid #9f65d0!important;border-radius:3px!important;
+  color:#fff!important;background:#16051f!important;font:900 clamp(9px,1.8vw,14px)/1 var(--head)!important;
+}
+#gameScreen .player-info{display:flex!important;flex-direction:column!important;min-width:0!important;padding-left:2%!important}
+#gameScreen .player-head{
+  flex:0 0 52%!important;display:grid!important;grid-template-columns:24% 76%!important;grid-template-rows:34% 66%!important;
+  gap:0!important;align-items:stretch!important;padding:0!important;border:0!important;position:relative!important;
+}
+#gameScreen .player-name{
+  grid-column:1/-1!important;grid-row:1!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  border-bottom:1px solid #6b576f!important;text-align:center!important;font:900 clamp(20px,4vw,36px)/1 var(--head)!important;
+  color:#fff!important;letter-spacing:.02em!important;
+}
+#gameScreen .status-indicator{
+  grid-column:1!important;grid-row:2!important;position:relative!important;inset:auto!important;transform:none!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;width:100%!important;height:100%!important;
+  border:0!important;border-right:1px solid #63526a!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+#gameScreen .status-indicator::before{
+  content:"STATUS";position:absolute;top:10%;left:0;right:0;text-align:center;color:#fff;
+  font:900 clamp(8px,1.5vw,12px)/1 var(--head);letter-spacing:.06em;
+}
+#gameScreen .healthy-light{width:18px!important;height:18px!important;border-radius:50%!important;background:#23ef47!important;border:2px solid #caffd0!important;box-shadow:0 0 7px #20ff44,0 0 16px #20ff4488!important;display:block!important;margin-top:18px!important}
+#gameScreen .status-cycle{font-size:clamp(15px,3vw,26px)!important;color:#d8c6e9!important;margin-top:18px!important}
+#gameScreen .status-affected .status-cycle{animation:cc-status-rotate calc(var(--status-count)*2.6s) steps(1,end) infinite!important;opacity:0!important;position:absolute!important}
+#gameScreen .status-affected .status-cycle:nth-child(1){animation-delay:0s!important}
+#gameScreen .status-affected .status-cycle:nth-child(2){animation-delay:-2.6s!important}
+#gameScreen .status-affected .status-cycle:nth-child(3){animation-delay:-5.2s!important}
+#gameScreen .status-affected .status-cycle:nth-child(4){animation-delay:-7.8s!important}
+@keyframes cc-status-rotate{0%,24.999%{opacity:1}25%,100%{opacity:0}}
+#gameScreen .player-stats-line{
+  grid-column:2!important;grid-row:2!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;align-items:stretch!important;min-width:0!important;
+}
+#gameScreen .player-stats-line .stat{
+  display:grid!important;grid-template-columns:auto auto!important;grid-template-rows:1fr auto!important;align-content:center!important;justify-content:center!important;
+  gap:0 5px!important;border-right:1px solid #63526a!important;padding:7% 2% 4%!important;
+}
+#gameScreen .player-stats-line .stat:last-child{border-right:0!important}
+#gameScreen .player-stats-line .stat .icon{font-size:clamp(15px,3vw,27px)!important;align-self:center!important;color:#c054f0!important}
+#gameScreen .player-stats-line .stat strong{font:900 clamp(20px,4.3vw,39px)/1 var(--head)!important;align-self:center!important;color:#fff!important}
+#gameScreen .player-stats-line .stat small{grid-column:1/-1!important;text-align:center!important;color:#ddd6e1!important;font-size:clamp(7px,1.3vw,11px)!important}
+#gameScreen .mana-box{
+  flex:1 1 auto!important;min-height:0!important;margin:0!important;padding:5px 2px!important;border:0!important;border-top:1px solid #3c2c43!important;border-radius:0!important;
+  background:#09070c!important;display:grid!important;grid-template-rows:auto 1fr!important;
+}
+#gameScreen .mana-box h3{margin:0!important;padding:2px 0 5px!important;text-align:center!important;font:900 clamp(12px,2.3vw,21px)/1 var(--head)!important;color:#fff!important}
+#gameScreen .mana-row{display:grid!important;grid-template-columns:repeat(var(--mana-count,6),1fr)!important;gap:1px!important;align-items:end!important}
+#gameScreen .mana-pip{display:flex!important;flex-direction:column!important;gap:2px!important;align-items:center!important;justify-content:end!important}
+#gameScreen .mana-pip b{order:0!important;font:900 clamp(10px,2vw,18px)/1 var(--head)!important;color:#fff!important}
+#gameScreen .mana-pip img{order:1!important;width:clamp(26px,6.2vw,50px)!important;height:clamp(26px,6.2vw,50px)!important;filter:drop-shadow(0 0 4px #7d35bb88)!important}
+/* Battlefield and zone row */
+#gameScreen .battle-panel{
+  margin:calc(min(100vw,820px)*.012) 0 0!important;padding:0!important;border:1px solid #7f56a3!important;border-radius:7px!important;
+  background:#06050a!important;box-shadow:inset 0 0 0 2px #211329!important;overflow:visible!important;
+}
+#gameScreen .shared-battle-phase-head{
+  min-height:calc(min(100vw,820px)*.047)!important;margin:0!important;padding:0 2.2%!important;display:grid!important;grid-template-columns:1fr 1fr!important;
+  align-items:center!important;background:#08070b!important;border-bottom:0!important;
+}
+#gameScreen .shared-battle-phase-head h3,#gameScreen .battle-phase-indicator{
+  margin:0!important;text-align:center!important;justify-content:center!important;font:900 clamp(12px,2.5vw,23px)/1 var(--head)!important;color:#fff!important;
+}
+#gameScreen .battle-phase-indicator{display:flex!important;gap:4px!important}.battle-phase-indicator b{color:#b85cff!important}
+#gameScreen .battle-phase-indicator i{display:none!important}
+#gameScreen .battlefield-wrap{position:relative!important;margin:0!important;padding:0!important}
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.287)!important;height:calc(min(100vw,820px)*.287)!important;margin:0!important;padding:6% 2% 2%!important;
+  background:url('game-battlefield-clean.jpg?v=07914') center/cover no-repeat!important;
+  display:flex!important;gap:1.2%!important;align-items:flex-end!important;justify-content:center!important;flex-wrap:wrap!important;overflow:hidden!important;
+}
+#gameScreen .battle-card{flex:0 0 14.5%!important;width:14.5%!important;height:55%!important;border:1px solid #aa9ab4!important;border-radius:2px!important;background:#09070b!important;overflow:hidden!important}
+#gameScreen .battle-card img{width:100%!important;height:100%!important;object-fit:cover!important}.battle-card .card-label{display:none!important}
+#gameScreen .untap-overlay{z-index:8!important}
+#gameScreen .zones{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:1.1%!important;padding:1.6% 1.5% 1.8%!important;margin:0!important;background:#09070c!important}
+#gameScreen .zones button{
+  aspect-ratio:2.05/1!important;min-height:0!important;border:0!important;border-radius:0!important;background-position:center!important;background-size:100% 100%!important;background-repeat:no-repeat!important;
+  color:transparent!important;font-size:0!important;padding:0!important;box-shadow:none!important;overflow:hidden!important;
+}
+#gameScreen .zones button span{color:transparent!important;font-size:0!important}
+#gameScreen .zones .zone-graveyard{background-image:url('game-graveyard.png?v=07914')!important}
+#gameScreen .zones .zone-exile{background-image:url('game-exile.png?v=07914')!important}
+#gameScreen .zones .zone-tokens{background-image:url('game-tokens.png?v=07914')!important}
+#gameScreen .zones .zone-attachments{background-image:url('game-attachments.png?v=07914')!important}
+#gameScreen .visual-actions-hidden{display:none!important}
+/* Hand is a real interactive layer inside the exact reference hand region. */
+#gameScreen .visual-hand-zone{margin:1.3% 1.1% 0!important;padding:1.1% 1.2% 1.6%!important;border:1px solid #7f56a3!important;border-radius:7px!important;background:#08070b!important;box-shadow:inset 0 0 0 2px #211329!important}
+#gameScreen .visual-hand-zone h3{margin:0 0 1.2%!important;text-align:center!important;color:#fff!important;font:900 clamp(10px,2.2vw,20px)/1 var(--head)!important;letter-spacing:.02em!important}
+#gameScreen .visual-hand-zone .hand-strip{display:flex!important;gap:1.5%!important;justify-content:center!important;overflow-x:auto!important;padding:0!important;min-height:0!important}
+#gameScreen .visual-hand-zone .hand-card{flex:0 0 13.2%!important;width:13.2%!important;height:auto!important;aspect-ratio:63/88!important;border:1px solid #6d596d!important;border-radius:2px!important;background:#0a080c!important;overflow:hidden!important}
+#gameScreen .visual-hand-zone .hand-card img{width:100%!important;height:100%!important;object-fit:cover!important}
+/* Bottom chassis: exact image remains visible; live controls are transparent hit targets above it. */
+#gameScreen .visual-bottom-controls{
+  position:relative!important;height:calc(min(100vw,820px)*.296)!important;margin:0!important;padding:0!important;
+  background:url('game-bottom-chassis.jpg?v=07914') center/100% 100% no-repeat!important;
+  z-index:30!important;overflow:visible!important;
+}
+#gameScreen .hub-phase-controls{position:absolute!important;left:11.6%!important;right:11.6%!important;top:17.3%!important;height:27%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8.8%!important;z-index:4!important}
+#gameScreen .hub-phase-controls button{border:0!important;background:transparent!important;color:transparent!important;box-shadow:none!important;min-height:0!important;padding:0!important}
+#gameScreen .hub-phase-controls button span{color:transparent!important;font-size:0!important}
+#gameScreen .hand-hub-icons{position:absolute!important;left:7.2%!important;right:7.1%!important;bottom:10%!important;height:33%!important;display:grid!important;grid-template-columns:1fr 1fr 1.55fr 1fr 1fr 1fr!important;gap:2.1%!important;align-items:stretch!important;z-index:5!important;background:transparent!important}
+#gameScreen .hand-hub-icons button{height:auto!important;min-height:0!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;color:transparent!important}
+#gameScreen .hand-hub-icons button::before,#gameScreen .hand-hub-icons button::after{display:none!important;content:none!important}
+#gameScreen .hand-hub-icons .dock-glyph{opacity:0!important;width:100%!important;height:100%!important}
+#gameScreen .hub-mark{display:block!important;width:100%!important;height:100%!important;background:transparent!important;overflow:visible!important}
+#gameScreen .hub-mark img{opacity:0!important}
+/* Opponents continue below the visual master and can never cover it. */
+#gameScreen .opponent-bar{position:relative!important;z-index:1!important;margin:12px 7.1%!important}
+/* hard no-Magic-branding rule for placeholders generated by this layout */
+#gameScreen .readonly-slot,#gameScreen .add-card{display:none!important}
+@media(max-width:600px){
+  #gameContent{padding-left:7.1%!important;padding-right:7.1%!important}
+  #gameScreen .inline-game-log{border-radius:6px!important}
+  #gameScreen .player-card.active.new-visual-master,#gameScreen .battle-panel,#gameScreen .visual-hand-zone{border-radius:5px!important}
+}
+
+/* ============================================================
+   V0.7.9.15 — SINGLE FLOATING GAME FRAME / HAND CHASSIS
+   Replaces V0.7.9.14's full-screen static reference overlay. Exactly one fixed frame.
+   ============================================================ */
+html,body{background:#000!important}
+#gameScreen{
+  width:min(100%,820px)!important;max-width:820px!important;margin:0 auto!important;
+  padding:0!important;background:#000!important;overflow:visible!important;isolation:isolate!important;
+}
+/* One frame only: crown + rails + bottom chassis, all fixed to the viewport. */
+#gameScreen::before{
+  content:""!important;position:fixed!important;z-index:100!important;pointer-events:none!important;
+  top:env(safe-area-inset-top)!important;bottom:0!important;left:50%!important;transform:translateX(-50%)!important;
+  width:min(100vw,820px)!important;height:auto!important;aspect-ratio:auto!important;
+  background:
+    url('game-top-frame-v07915.jpg') top center/100% auto no-repeat,
+    url('game-left-rail-v07915.jpg') left center/5.2% 100% no-repeat,
+    url('game-right-rail-v07915.jpg') right center/5.2% 100% no-repeat,
+    url('game-bottom-chassis.jpg?v=07915') bottom center/100% auto no-repeat,
+    linear-gradient(180deg,transparent 0 58%,#08060b 72% 100%) bottom center/100% 42% no-repeat!important;
+}
+#gameScreen .game-brand-strip{display:none!important}
+/* Board is the scrolling window behind the fixed frame. Reserve crown and floating hand/chassis space. */
+#gameContent{
+  position:relative!important;z-index:2!important;width:100%!important;
+  padding:calc(env(safe-area-inset-top) + min(13.3vw,109px)) min(7.1vw,58px) calc(min(47vw,385px) + env(safe-area-inset-bottom))!important;
+  background:#07050b!important;overflow:visible!important;
+}
+/* Header/log starts below crown and stays inside rails. */
+#gameScreen .inline-game-log{margin-top:0!important}
+/* Player panel: larger commander, more compact right-side information. */
+#gameScreen .player-hero{grid-template-columns:31% 69%!important;min-height:calc(min(100vw,820px)*.278)!important;padding:calc(min(100vw,820px)*.009)!important}
+#gameScreen .player-info{padding-left:1.3%!important}
+#gameScreen .player-head{flex:0 0 46%!important;grid-template-columns:20% 80%!important;grid-template-rows:30% 70%!important}
+#gameScreen .player-name{font-size:clamp(17px,3.5vw,30px)!important}
+#gameScreen .status-indicator::before{top:6%!important;font-size:clamp(7px,1.3vw,10px)!important}
+#gameScreen .healthy-light,#gameScreen .status-cycle{margin-top:13px!important}
+#gameScreen .player-stats-line .stat{padding:4% 1% 2%!important;gap:0 3px!important}
+#gameScreen .player-stats-line .stat .icon{font-size:clamp(12px,2.5vw,22px)!important}
+#gameScreen .player-stats-line .stat strong{font-size:clamp(17px,3.5vw,31px)!important}
+#gameScreen .player-stats-line .stat small{font-size:clamp(6px,1.05vw,9px)!important}
+/* No AVAILABLE MANA heading; numbers are the emphasis. */
+#gameScreen .mana-box{grid-template-rows:1fr!important;padding:2px 1px 4px!important}
+#gameScreen .mana-box h3{display:none!important}
+#gameScreen .mana-pip b{font:1000 clamp(14px,2.7vw,23px)/1 var(--head)!important;text-shadow:0 1px 0 #000,0 0 5px #fff3!important}
+#gameScreen .mana-pip img{width:clamp(25px,5.8vw,46px)!important;height:clamp(25px,5.8vw,46px)!important}
+/* Consolidate board vertically without removing controls. */
+#gameScreen .battle-panel{margin-top:calc(min(100vw,820px)*.008)!important}
+#gameScreen .shared-battle-phase-head{min-height:calc(min(100vw,820px)*.040)!important}
+#gameScreen .battlefield{min-height:calc(min(100vw,820px)*.245)!important;height:calc(min(100vw,820px)*.245)!important;padding-top:4%!important}
+#gameScreen .zones{padding:1.0% 1.2% 1.1%!important}
+/* Live hand floats ABOVE the fixed frame background. */
+#gameScreen .visual-hand-zone{
+  position:fixed!important;z-index:120!important;left:50%!important;transform:translateX(-50%)!important;
+  width:min(86vw,705px)!important;bottom:calc(min(29.6vw,243px) + env(safe-area-inset-bottom))!important;
+  height:min(17vw,139px)!important;margin:0!important;padding:3px 5px 5px!important;
+  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;
+}
+#gameScreen .visual-hand-zone h3{height:18px!important;margin:0 0 2px!important;font-size:clamp(9px,1.9vw,16px)!important}
+#gameScreen .visual-hand-zone .hand-strip{height:calc(100% - 20px)!important;align-items:flex-end!important;justify-content:center!important;overflow-x:auto!important;overflow-y:visible!important;gap:1.2%!important}
+#gameScreen .visual-hand-zone .hand-card{flex:0 0 min(12.8%,82px)!important;width:min(12.8%,82px)!important;height:100%!important;aspect-ratio:63/88!important;position:relative!important;z-index:121!important}
+#gameScreen .visual-hand-zone .hand-card:focus,#gameScreen .visual-hand-zone .hand-card:active{transform:translateY(-8px)!important;z-index:124!important}
+/* Single live control layer over the ONE fixed chassis background. No second static chassis. */
+#gameScreen .visual-bottom-controls{
+  position:fixed!important;z-index:130!important;left:50%!important;transform:translateX(-50%)!important;bottom:env(safe-area-inset-bottom)!important;
+  width:min(100vw,820px)!important;height:min(29.6vw,243px)!important;margin:0!important;padding:0!important;
+  background:none!important;background-image:none!important;box-shadow:none!important;overflow:visible!important;pointer-events:none!important;
+}
+#gameScreen .visual-bottom-controls .hub-phase-controls,#gameScreen .visual-bottom-controls .hand-hub-icons{pointer-events:auto!important}
+#gameScreen .hub-phase-controls{left:11.6%!important;right:11.6%!important;top:17.3%!important;height:27%!important}
+#gameScreen .hand-hub-icons{left:7.2%!important;right:7.1%!important;bottom:10%!important;height:33%!important}
+/* Transparent hit targets: artwork belongs to the single fixed frame. */
+#gameScreen .hub-phase-controls button,#gameScreen .hand-hub-icons button{background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important}
+#gameScreen .hub-phase-controls button span{color:transparent!important;font-size:0!important}
+#gameScreen .hand-hub-icons .dock-glyph,#gameScreen .hub-mark img{opacity:0!important}
+/* Opponents are scroll content behind frame/hand/chassis. */
+#gameScreen .opponent-bar{position:relative!important;z-index:1!important;margin:8px 7.1%!important}
+@media(max-width:600px){
+  #gameContent{padding-left:7.1%!important;padding-right:7.1%!important}
+}
+
+/* ============================================================
+   V0.7.9.16 — VIEWPORT WINDOW / LIVE HAND / FULL PLAYER CARDS
+   Targeted correction of V0.7.9.15 only.
+   ============================================================ */
+html,body{background:#000!important;overflow-x:hidden!important;scrollbar-width:none!important}
+html::-webkit-scrollbar,body::-webkit-scrollbar,#gameScreen::-webkit-scrollbar,#gameContent::-webkit-scrollbar,#gameScreen *::-webkit-scrollbar{width:0!important;height:0!important;display:none!important}
+#gameScreen,#gameContent,#gameScreen .hand-strip{scrollbar-width:none!important;-ms-overflow-style:none!important}
+
+/* The frame is the viewport window: almost edge-to-edge on phone, black beyond it. */
+#gameScreen{width:min(calc(100vw - 2px),820px)!important;max-width:820px!important;background:#000!important;overflow:visible!important}
+#gameScreen::before{
+  width:min(calc(100vw - 2px),820px)!important;
+  left:50%!important;right:auto!important;
+  top:env(safe-area-inset-top)!important;bottom:0!important;
+  z-index:400!important;pointer-events:none!important;
+  background:
+    url('game-top-frame-v07915.jpg') top center/100% auto no-repeat,
+    url('game-left-rail-v07915.jpg') left center/4.2% 100% no-repeat,
+    url('game-right-rail-v07915.jpg') right center/4.2% 100% no-repeat,
+    url('game-bottom-chassis.jpg?v=07916') bottom center/100% auto no-repeat!important;
+}
+/* black walls outside the framed window on wider displays */
+#gameScreen::after{content:""!important;position:fixed!important;inset:0!important;z-index:0!important;pointer-events:none!important;background:#000!important}
+#gameContent{z-index:2!important;padding-left:min(5.0vw,41px)!important;padding-right:min(5.0vw,41px)!important;padding-top:calc(env(safe-area-inset-top) + min(13.3vw,109px))!important;padding-bottom:calc(min(43vw,353px) + env(safe-area-inset-bottom))!important;background:#07050b!important}
+#gameContent>*{position:relative!important;z-index:3!important}
+
+/* Battlefield art is now only the battlefield window. Live zone controls render once below it. */
+#gameScreen .battlefield{
+  background:url('game-battlefield-window-v07916.jpg') center/cover no-repeat!important;
+  min-height:calc(min(100vw,820px)*.245)!important;height:calc(min(100vw,820px)*.245)!important;
+  padding:5% 2% 2%!important;
+}
+#gameScreen .zones{padding:.8% 1.0% 1.0%!important;gap:1.0%!important;background:#09070c!important}
+
+/* Mana: compact, evenly distributed instead of stretched edge-to-edge. */
+#gameScreen .mana-row{grid-template-columns:repeat(var(--mana-count,6),minmax(34px,52px))!important;justify-content:space-evenly!important;column-gap:clamp(2px,1.0vw,8px)!important;padding:0 3%!important}
+#gameScreen .mana-pip{min-width:0!important;justify-self:center!important}
+#gameScreen .mana-pip b{font-weight:1000!important;font-size:clamp(15px,2.8vw,24px)!important}
+
+/* Status indicator centered vertically in its dedicated cell. */
+#gameScreen .status-indicator{align-self:stretch!important;display:grid!important;place-items:center!important;padding-top:0!important}
+#gameScreen .status-indicator::before{top:5%!important}
+#gameScreen .healthy-light,#gameScreen .status-cycle{margin-top:0!important;align-self:center!important}
+
+/* Live hand overlaps the upper chassis: cards remain above frame artwork and interactive. */
+#gameScreen .visual-hand-zone{
+  z-index:520!important;width:min(90vw,738px)!important;
+  bottom:calc(min(18.2vw,149px) + env(safe-area-inset-bottom))!important;
+  height:min(20vw,164px)!important;pointer-events:auto!important;
+}
+#gameScreen .visual-hand-zone h3{display:none!important}
+#gameScreen .visual-hand-zone .hand-strip{height:100%!important;overflow-x:auto!important;overflow-y:visible!important;justify-content:flex-start!important;padding:0 2%!important;gap:1.0%!important;pointer-events:auto!important}
+#gameScreen .visual-hand-zone .hand-card{height:100%!important;flex:0 0 min(14%,88px)!important;width:min(14%,88px)!important;z-index:521!important;pointer-events:auto!important}
+
+/* One control hit layer over one chassis. Make every button explicitly tappable. */
+#gameScreen .visual-bottom-controls{z-index:600!important;pointer-events:none!important;width:min(calc(100vw - 2px),820px)!important}
+#gameScreen .visual-bottom-controls .hub-phase-controls,#gameScreen .visual-bottom-controls .hand-hub-icons{z-index:610!important;pointer-events:auto!important}
+#gameScreen .visual-bottom-controls button,#gameScreen .hub-phase-controls button,#gameScreen .hand-hub-icons button{position:relative!important;z-index:620!important;pointer-events:auto!important;touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important}
+
+/* Every player now uses the same complete card geometry. Opponents are read-only board views. */
+#gameScreen .full-opponent-card{margin-top:10px!important;margin-bottom:10px!important;z-index:3!important}
+#gameScreen .full-opponent-card .visual-bottom-controls,#gameScreen .full-opponent-card .visual-hand-zone{display:none!important}
+#gameScreen .full-opponent-card [aria-disabled="true"]{pointer-events:none!important}
+
+@media(max-width:600px){
+  #gameContent{padding-left:5%!important;padding-right:5%!important}
+}
+
+/* ============================================================
+   V0.7.9.17 — GAME LOG / TURN / LIVE FRAME CONTROL CORRECTION
+   Targeted pass only: log, battlefield turn label, player palettes,
+   live public board controls, floating hand/control portal geometry.
+   ============================================================ */
+
+/* Game log: no strike-through/divider; label anchored left. */
+#gameScreen .inline-game-log-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  border-bottom:0!important;
+  padding:0!important;
+}
+#gameScreen .inline-game-log-head::before,
+#gameScreen .inline-game-log-head::after{content:none!important;display:none!important}
+#gameScreen .inline-game-log-head b{
+  width:auto!important;
+  text-align:left!important;
+  padding-left:1%!important;
+}
+#gameScreen .inline-game-log-scroll{
+  text-align:left!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+#gameScreen .inline-log-turn{
+  min-height:18px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  padding:2px 3px!important;
+  margin:1px 0!important;
+  border:0!important;
+  background:transparent!important;
+}
+#gameScreen .inline-log-turn b{
+  font:900 clamp(9px,1.8vw,14px)/1 var(--head)!important;
+  color:#b85cff!important;
+  letter-spacing:.05em!important;
+}
+#gameScreen .inline-log-event,
+#gameScreen .inline-log-empty{
+  justify-content:flex-start!important;
+  text-align:left!important;
+  min-height:18px!important;
+  padding:2px 3px!important;
+}
+
+/* Battlefield header: BATTLEFIELD | TURN | PHASE. */
+#gameScreen .shared-battle-phase-head{
+  grid-template-columns:minmax(0,1fr) auto auto!important;
+  align-items:center!important;
+}
+#gameScreen .battle-turn-indicator{
+  font:900 clamp(11px,2.35vw,18px)/1 var(--head)!important;
+  color:#f3edf8!important;
+  letter-spacing:.04em!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  padding:0 5px!important;
+}
+
+/* Player palette swaps. Geometry stays identical. */
+#gameScreen .player-card.player-slot-1{--playerA:#21102b;--playerB:#14091c;--playerGlow:#7f33ba;--playerEdge:#734690}
+#gameScreen .player-card.player-slot-2{--playerA:#0d1b32;--playerB:#07111f;--playerGlow:#347ee0;--playerEdge:#3d69a3}
+#gameScreen .player-card.player-slot-3{--playerA:#321015;--playerB:#1d070b;--playerGlow:#d84b58;--playerEdge:#9b4550}
+#gameScreen .player-card.player-slot-4{--playerA:#0d291d;--playerB:#07170f;--playerGlow:#38b976;--playerEdge:#438465}
+#gameScreen .player-card.player-slot-5{--playerA:#30200b;--playerB:#1c1105;--playerGlow:#d69a31;--playerEdge:#9f793d}
+#gameScreen .player-card.player-slot-6{--playerA:#08292b;--playerB:#041719;--playerGlow:#31b9bf;--playerEdge:#3d8589}
+#gameScreen .player-card.active.new-visual-master{
+  border-color:var(--playerEdge,#734690)!important;
+  background:linear-gradient(100deg,var(--playerB,#160b1e) 0%,var(--playerA,#21102b) 38%,var(--playerB,#14091c) 100%)!important;
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--playerEdge,#734690) 32%,#110917),0 0 9px color-mix(in srgb,var(--playerGlow,#7f33ba) 28%,transparent)!important;
+}
+
+/* Public opponent board controls are live for viewing their public zones/cards. */
+#gameScreen .zones button,
+#gameScreen .battle-card,
+#gameScreen .commander-card,
+#gameScreen [data-public-zone],
+#gameScreen [data-public-instance],
+#gameScreen [data-public-commander]{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  position:relative!important;
+  z-index:20!important;
+}
+#gameScreen .full-opponent-card [data-public-zone],
+#gameScreen .full-opponent-card [data-public-instance],
+#gameScreen .full-opponent-card [data-public-commander],
+#gameScreen .full-opponent-card [data-status-indicator]{pointer-events:auto!important}
+
+/* The live hand/control portal is a sibling of gameContent so it can sit above the frame art. */
+#gameScreen > .floating-live-hand{
+  position:fixed!important;
+  z-index:520!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  width:min(91vw,746px)!important;
+  bottom:min(15.4vw,126px)!important;
+  height:min(20.5vw,168px)!important;
+  margin:0!important;
+  padding:0 4px!important;
+  pointer-events:auto!important;
+  overflow:visible!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  height:100%!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:flex-start!important;
+  gap:1%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  padding:0 2%!important;
+  pointer-events:auto!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  height:100%!important;
+  flex:0 0 min(14%,88px)!important;
+  width:min(14%,88px)!important;
+  pointer-events:auto!important;
+  z-index:521!important;
+}
+#gameScreen > .floating-live-controls{
+  position:fixed!important;
+  z-index:700!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  bottom:-1px!important;
+  width:min(calc(100vw - 2px),820px)!important;
+  height:min(29.6vw,243px)!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+  pointer-events:none!important;
+  overflow:visible!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls,
+#gameScreen > .floating-live-controls .hand-hub-icons{
+  pointer-events:auto!important;
+  z-index:710!important;
+}
+#gameScreen > .floating-live-controls button{
+  pointer-events:auto!important;
+  z-index:720!important;
+  touch-action:manipulation!important;
+}
+
+/* Lower frame/chassis reaches the actual viewport bottom. */
+#gameScreen::before{bottom:-1px!important}
+
+@media(max-width:600px){
+  #gameScreen > .floating-live-hand{
+    width:92vw!important;
+    bottom:15.0vw!important;
+    height:20.8vw!important;
+  }
+  #gameScreen .battle-turn-indicator{font-size:11px!important;padding:0 3px!important}
+}
+#gameScreen .inline-game-log::before{content:none!important;display:none!important;background:none!important}
+
+/* ============================================================
+   V0.7.9.18 — SINGLE PLAYER WINDOW / FINAL LAYER CORRECTION
+   One touchable player board at a time. Fixed frame, log, hand tray,
+   and control chassis. No document-style player scrolling.
+   ============================================================ */
+
+/* The game screen itself is the phone viewport. Nothing can leak outside it. */
+#gameScreen:not([hidden]){
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  max-width:none!important;
+  height:100dvh!important;
+  overflow:hidden!important;
+  margin:0!important;
+  background:#000!important;
+  overscroll-behavior:none!important;
+}
+#gameScreen:not([hidden]) #gameContent{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  background:#000!important;
+}
+
+/* Stretch the ONE frame to the phone edges. Black beyond the window. */
+#gameScreen::after{
+  content:""!important;
+  position:fixed!important;
+  inset:0!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  background:#000!important;
+}
+#gameScreen::before{
+  content:""!important;
+  position:fixed!important;
+  left:0!important;
+  right:0!important;
+  top:env(safe-area-inset-top)!important;
+  bottom:0!important;
+  width:100vw!important;
+  max-width:none!important;
+  transform:none!important;
+  z-index:400!important;
+  pointer-events:none!important;
+  background:
+    url('game-top-frame-v07915.jpg') top center/100% auto no-repeat,
+    url('game-left-rail-v07915.jpg') left center/2.8% 100% no-repeat,
+    url('game-right-rail-v07915.jpg') right center/2.8% 100% no-repeat,
+    url('game-bottom-chassis.jpg?v=07918') bottom center/100% auto no-repeat!important;
+}
+
+/* Game log is fixed directly beneath the crown/top frame. */
+#gameScreen .inline-game-log{
+  position:fixed!important;
+  z-index:430!important;
+  top:calc(env(safe-area-inset-top) + min(12.0vw,98px))!important;
+  left:4.3vw!important;
+  right:4.3vw!important;
+  height:min(15.2vw,108px)!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0 2.2%!important;
+  border:1px solid #744b8d!important;
+  border-radius:7px!important;
+  background:#07050aee!important;
+  overflow:hidden!important;
+  box-shadow:inset 0 0 0 2px #24132d!important;
+}
+#gameScreen .inline-game-log-head{
+  height:32%!important;
+  min-height:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  padding:0!important;
+  border:0!important;
+}
+#gameScreen .inline-game-log-head b{
+  display:flex!important;
+  align-items:center!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:left!important;
+  font:900 clamp(12px,2.7vw,22px)/1 var(--head)!important;
+}
+#gameScreen .inline-game-log-scroll{
+  height:68%!important;
+  padding:0 0 2px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  text-align:left!important;
+}
+#gameScreen .inline-log-event,#gameScreen .inline-log-empty,#gameScreen .inline-log-turn{
+  min-height:16px!important;
+  padding:1px 0!important;
+  margin:0!important;
+  border:0!important;
+  background:transparent!important;
+  text-align:left!important;
+}
+#gameScreen .inline-log-event i{display:none!important}
+#gameScreen .inline-log-turn b{color:#b85cff!important;font-size:clamp(8px,1.7vw,13px)!important}
+
+/* One player board window only. Switching is via arrows, not page scroll. */
+#gameScreen .player-window{
+  position:fixed!important;
+  z-index:20!important;
+  top:calc(env(safe-area-inset-top) + min(28.2vw,231px))!important;
+  left:3.8vw!important;
+  right:3.8vw!important;
+  bottom:calc(min(31.5vw,258px) + env(safe-area-inset-bottom))!important;
+  overflow:hidden!important;
+  margin:0!important;
+  padding:0!important;
+  background:#050308!important;
+}
+#gameScreen .player-window > .player-card{
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  position:relative!important;
+  z-index:21!important;
+}
+#gameScreen .player-window .inspection-banner{display:none!important}
+
+/* Player pager — the only way to move between full player boards. */
+#gameScreen .player-pager{
+  position:fixed!important;
+  z-index:470!important;
+  left:0!important;
+  right:0!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  height:0!important;
+  pointer-events:none!important;
+}
+#gameScreen .player-pager button{
+  position:absolute!important;
+  top:-24px!important;
+  width:38px!important;
+  height:48px!important;
+  min-width:0!important;
+  padding:0!important;
+  border:1px solid #8960a1!important;
+  border-radius:6px!important;
+  background:linear-gradient(180deg,#26142f,#09060d)!important;
+  color:#fff!important;
+  font:900 34px/42px system-ui,sans-serif!important;
+  box-shadow:0 0 10px #000, inset 0 0 0 1px #c68cff33!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+#gameScreen .player-pager button[data-player-nav="prev"]{left:1px!important}
+#gameScreen .player-pager button[data-player-nav="next"]{right:1px!important}
+#gameScreen .player-pager span{
+  position:absolute!important;
+  left:50%!important;
+  top:-12px!important;
+  transform:translateX(-50%)!important;
+  color:#bca8c9!important;
+  font:800 clamp(7px,1.7vw,12px)/1 var(--head)!important;
+  letter-spacing:.08em!important;
+  opacity:.72!important;
+  pointer-events:none!important;
+}
+
+/* Commander tax belongs centered on the commander display. */
+#gameScreen .tax-badge{
+  left:50%!important;
+  right:auto!important;
+  bottom:7%!important;
+  transform:translateX(-50%)!important;
+  white-space:nowrap!important;
+}
+
+/* Exact three-way battlefield header alignment. */
+#gameScreen .shared-battle-phase-head{
+  display:grid!important;
+  grid-template-columns:1fr 1fr 1fr!important;
+  align-items:center!important;
+  padding:0 1.7%!important;
+}
+#gameScreen .shared-battle-phase-head h3{
+  justify-self:start!important;
+  text-align:left!important;
+}
+#gameScreen .battle-turn-indicator{
+  justify-self:center!important;
+  text-align:center!important;
+  padding:0!important;
+}
+#gameScreen .battle-phase-indicator{
+  justify-self:end!important;
+  text-align:right!important;
+  justify-content:flex-end!important;
+  white-space:nowrap!important;
+}
+
+/* Status light centered in its box. */
+#gameScreen .status-indicator{display:grid!important;place-items:center!important}
+#gameScreen .status-indicator::before{top:4%!important}
+#gameScreen .healthy-light,#gameScreen .status-cycle{margin-top:8%!important}
+
+/* Mana remains compact and evenly distributed. */
+#gameScreen .mana-row{
+  grid-template-columns:repeat(var(--mana-count,6),minmax(30px,48px))!important;
+  justify-content:space-evenly!important;
+  column-gap:clamp(2px,.8vw,7px)!important;
+  padding:0 2.5%!important;
+}
+#gameScreen .mana-pip b{font-weight:1000!important}
+
+/* Live hand is fixed ABOVE frame art but BELOW the button/control layer.
+   Cards deliberately tuck behind the chassis. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  position:fixed!important;
+  z-index:430!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  width:92vw!important;
+  height:min(21vw,172px)!important;
+  bottom:calc(min(13.2vw,108px) + env(safe-area-inset-bottom))!important;
+  margin:0!important;
+  padding:0 2%!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  pointer-events:auto!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  height:100%!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:flex-start!important;
+  gap:1%!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  padding:0 1%!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  height:100%!important;
+  width:min(14%,88px)!important;
+  flex:0 0 min(14%,88px)!important;
+  z-index:431!important;
+  pointer-events:auto!important;
+}
+
+/* Exactly one live bottom hit layer. It stays ABOVE the hand. */
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  position:fixed!important;
+  z-index:520!important;
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  transform:none!important;
+  width:100vw!important;
+  max-width:none!important;
+  height:min(29.6vw,243px)!important;
+  margin:0!important;
+  padding:0!important;
+  background:transparent!important;
+  background-image:none!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+  pointer-events:none!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls,
+#gameScreen > .floating-live-controls .hand-hub-icons{pointer-events:auto!important;z-index:530!important}
+#gameScreen > .floating-live-controls button{pointer-events:auto!important;z-index:540!important;touch-action:manipulation!important}
+
+/* The extra translucent center circle is deleted. The baked chassis jewel remains. */
+#gameScreen .hub-mark{
+  background:none!important;
+  background-image:none!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+  overflow:visible!important;
+}
+#gameScreen .hub-mark::before,#gameScreen .hub-mark::after{content:none!important;display:none!important}
+#gameScreen .hub-mark img{display:none!important;opacity:0!important}
+
+/* Only the displayed board can receive touches. No hidden player cards exist in the DOM. */
+#gameScreen .player-window .player-card{pointer-events:auto!important}
+
+@media(max-width:600px){
+  #gameScreen .player-window{left:3.2vw!important;right:3.2vw!important}
+  #gameScreen .inline-game-log{left:4.0vw!important;right:4.0vw!important}
+  #gameScreen .player-pager button{width:34px!important;height:46px!important;font-size:30px!important}
+}
+
+/* ============================================================
+   V0.7.9.19 — targeted viewport spacing / mana stack / hand tray fix.
+   Preserve the V0.7.9.18 single-player-window architecture.
+   ============================================================ */
+
+/* Give the displayed player board a real clear zone beneath the fixed crown + Game Log. */
+#gameScreen .player-window{
+  top:calc(env(safe-area-inset-top) + min(29.8vw,244px))!important;
+}
+
+/* Mana reads icon first, count underneath, with a clean gap between them. */
+#gameScreen .mana-pip{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(5px,1.15vw,9px)!important;
+}
+#gameScreen .mana-pip img{
+  order:0!important;
+  margin:0!important;
+}
+#gameScreen .mana-pip b{
+  order:1!important;
+  display:block!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:1!important;
+}
+#gameScreen .mana-row{
+  align-items:center!important;
+  padding-top:3px!important;
+  padding-bottom:5px!important;
+}
+
+/* Hand is a fixed tray BEHIND the phase/control chassis.
+   Only the upper selectable portion rises out of the chassis. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  z-index:455!important;
+  width:92vw!important;
+  height:min(18.5vw,152px)!important;
+  bottom:calc(min(7.7vw,63px) + env(safe-area-inset-bottom))!important;
+  overflow:visible!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  height:100%!important;
+  align-items:flex-end!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  padding:0 1%!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  height:100%!important;
+  z-index:456!important;
+}
+/* Chassis/buttons remain above the cards and hide their lower portion naturally. */
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  z-index:520!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls,
+#gameScreen > .floating-live-controls .hand-hub-icons,
+#gameScreen > .floating-live-controls button{
+  z-index:540!important;
+}
+
+/* V0.7.9.19.1 HOTFIX — hand tray only.
+   Move the live hand into the reserved black tray space directly beneath the battlefield,
+   above and behind the fixed bottom chassis/buttons. No other game geometry changes. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  z-index:455!important;
+  bottom:calc(min(29.6vw,243px) + env(safe-area-inset-bottom) + 6px)!important;
+  height:min(15.5vw,112px)!important;
+  width:92vw!important;
+  overflow:visible!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  height:100%!important;
+  align-items:flex-end!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  padding:0 1%!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  height:100%!important;
+  z-index:456!important;
+}
+
+/* ============================================================
+   V0.7.9.20 — integrated player navigation / three-segment log / frame seam / hand fit.
+   Scope: game screen only. Preserve menu system and established player geometry.
+   ============================================================ */
+
+/* Top crown is the top border. Rails begin below it so the corner pieces do not double-stack
+   or intrude into the Game Log. Bottom chassis remains the single lower frame. */
+#gameScreen::before{
+  background:
+    url('game-top-frame-v07915.jpg') top center/100% auto no-repeat,
+    url('game-left-rail-v07915.jpg') left bottom/2.8% calc(100% - min(13.3vw,109px)) no-repeat,
+    url('game-right-rail-v07915.jpg') right bottom/2.8% calc(100% - min(13.3vw,109px)) no-repeat,
+    url('game-bottom-chassis.jpg?v=07920') bottom center/100% auto no-repeat!important;
+}
+
+/* Three-segment Game Log: stacked label | scrolling feed | stacked turn count. */
+#gameScreen .inline-game-log{
+  top:calc(env(safe-area-inset-top) + min(13.6vw,112px))!important;
+  left:3.9vw!important;
+  right:3.9vw!important;
+  height:min(15.4vw,112px)!important;
+  display:grid!important;
+  grid-template-columns:16% minmax(0,1fr) 16%!important;
+  align-items:stretch!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+#gameScreen .inline-game-log-head{display:none!important}
+#gameScreen .inline-log-label,
+#gameScreen .inline-log-turn-count{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:center!important;
+  gap:2px!important;
+  min-width:0!important;
+  padding:4px 2px!important;
+  background:linear-gradient(180deg,#0e0913,#050308)!important;
+  font-family:var(--head)!important;
+  font-weight:900!important;
+  letter-spacing:.035em!important;
+  text-align:center!important;
+  line-height:.93!important;
+}
+#gameScreen .inline-log-label{border-right:1px solid #58386c!important}
+#gameScreen .inline-log-turn-count{border-left:1px solid #58386c!important}
+#gameScreen .inline-log-label b,
+#gameScreen .inline-log-turn-count b{
+  font-size:clamp(11px,2.45vw,20px)!important;
+  color:#f4eef8!important;
+}
+#gameScreen .inline-log-turn-count strong{
+  font:900 clamp(15px,3.25vw,27px)/.95 var(--head)!important;
+  color:#b85cff!important;
+}
+#gameScreen .inline-game-log-scroll{
+  height:100%!important;
+  min-height:0!important;
+  padding:6px 9px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  text-align:left!important;
+  scrollbar-width:none!important;
+  overscroll-behavior:contain!important;
+}
+#gameScreen .inline-game-log-scroll::-webkit-scrollbar{display:none!important}
+#gameScreen .inline-log-event,
+#gameScreen .inline-log-empty,
+#gameScreen .inline-log-turn{
+  min-height:auto!important;
+  padding:2px 0!important;
+  margin:0!important;
+  justify-content:flex-start!important;
+  text-align:left!important;
+  font-size:clamp(10px,2.15vw,17px)!important;
+  line-height:1.15!important;
+}
+#gameScreen .inline-log-turn{padding-top:5px!important;margin-top:3px!important;border-top:1px solid #3f2a4b!important}
+
+/* Board starts after the anchored log; no player content can sit underneath the crown/log. */
+#gameScreen .player-window{
+  top:calc(env(safe-area-inset-top) + min(30.2vw,248px))!important;
+}
+
+/* Remove the old floating side pager completely. Navigation is now inside the battlefield header. */
+#gameScreen .player-pager{display:none!important}
+#gameScreen .shared-battle-phase-head{
+  grid-template-columns:minmax(0,1fr) minmax(132px,1.35fr) minmax(0,1fr)!important;
+  gap:5px!important;
+  padding:0 1.6%!important;
+}
+#gameScreen .shared-battle-phase-head h3{
+  justify-self:start!important;
+  text-align:left!important;
+  white-space:nowrap!important;
+}
+#gameScreen .battle-player-nav{
+  justify-self:center!important;
+  display:grid!important;
+  grid-template-columns:30px minmax(70px,auto) 30px!important;
+  align-items:center!important;
+  gap:2px!important;
+  min-width:0!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:auto!important;
+}
+#gameScreen .battle-player-nav span{
+  min-width:0!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  font:900 clamp(8px,1.8vw,13px)/1 var(--head)!important;
+  color:#d7c8df!important;
+  letter-spacing:.04em!important;
+}
+#gameScreen .battle-player-nav button{
+  width:30px!important;
+  height:30px!important;
+  min-width:30px!important;
+  min-height:30px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:#f7efff!important;
+  font:900 25px/28px system-ui,sans-serif!important;
+  text-shadow:0 0 7px #a758d8!important;
+  touch-action:manipulation!important;
+}
+#gameScreen .battle-player-nav button:active{transform:scale(.9)!important;color:#d08aff!important}
+#gameScreen .battle-phase-indicator{
+  justify-self:end!important;
+  text-align:right!important;
+  justify-content:flex-end!important;
+}
+
+/* Hand tray: use the black space efficiently, larger cards, centered as a seven-card set.
+   Cards stay below the live controls in z-order and above the fixed frame background. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  width:91vw!important;
+  height:min(18.2vw,132px)!important;
+  bottom:calc(min(29.6vw,243px) + env(safe-area-inset-bottom) + 6px)!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+#gameScreen > .floating-live-hand h3{display:none!important}
+#gameScreen > .floating-live-hand .hand-strip{
+  width:100%!important;
+  height:100%!important;
+  margin:0!important;
+  padding:0 1.2%!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  gap:clamp(3px,.75vw,7px)!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  scrollbar-width:none!important;
+}
+#gameScreen > .floating-live-hand .hand-strip::-webkit-scrollbar{display:none!important}
+#gameScreen > .floating-live-hand .hand-card{
+  flex:0 0 min(12.2vw,86px)!important;
+  width:min(12.2vw,86px)!important;
+  height:min(17.4vw,124px)!important;
+  margin:0!important;
+}
+
+@media(max-width:600px){
+  #gameScreen .inline-game-log{left:3.8vw!important;right:3.8vw!important}
+  #gameScreen .shared-battle-phase-head{grid-template-columns:minmax(0,.9fr) minmax(126px,1.35fr) minmax(0,.9fr)!important;gap:2px!important}
+  #gameScreen .battle-player-nav{grid-template-columns:26px minmax(68px,auto) 26px!important}
+  #gameScreen .battle-player-nav button{width:26px!important;height:28px!important;min-width:26px!important;min-height:28px!important;font-size:23px!important}
+  #gameScreen .battle-player-nav span{font-size:8px!important}
+  #gameScreen > .floating-live-hand{width:92vw!important;height:18.8vw!important}
+  #gameScreen > .floating-live-hand .hand-card{flex-basis:12.25vw!important;width:12.25vw!important;height:17.7vw!important}
+}
+
+/* ============================================================
+   V0.7.9.20.1 HOTFIX — frame alignment / hand tray fit / live hit zones.
+   Scope is limited to the fixed game frame, live hand tray, and bottom-control hit geometry.
+   ============================================================ */
+
+/* The visible top metal frame is cropped to its real edges and stretched to the same outside width
+   as the side rails. Side rails stop at the top edge of the bottom chassis, so the frame truly ends
+   with the hub instead of continuing below it. */
+#gameScreen::before{
+  --cc-top-h:min(13.25vw,106px);
+  --cc-bottom-h:min(32.79vw,262px);
+  background:
+    url('game-top-frame-v07920-hotfix.jpg') top center/100% var(--cc-top-h) no-repeat,
+    url('game-left-rail-v07915.jpg') left var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-right-rail-v07915.jpg') right var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-bottom-chassis.jpg?v=079201') bottom center/100% var(--cc-bottom-h) no-repeat!important;
+}
+
+/* Bottom live-control layer must use the exact same aspect ratio/height as the chassis artwork.
+   This keeps every hit target registered over the button it visually belongs to. */
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  height:min(32.79vw,262px)!important;
+  bottom:0!important;
+  overflow:visible!important;
+  pointer-events:none!important;
+}
+
+/* Exact phase-button hit zones from the chassis artwork. */
+#gameScreen > .floating-live-controls .hub-phase-controls{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  pointer-events:none!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button{
+  position:absolute!important;
+  top:16.7%!important;
+  height:24.5%!important;
+  width:34.8%!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:auto!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{left:11.4%!important;right:auto!important}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{left:53.8%!important;right:auto!important}
+
+/* Exact utility-button hit zones. Do not use a stretched grid: the central jewel creates a large
+   non-clickable gap, so each live target is positioned over its own visible button. */
+#gameScreen > .floating-live-controls .hand-hub-icons{
+  position:absolute!important;
+  inset:0!important;
+  display:block!important;
+  pointer-events:none!important;
+  background:transparent!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button{
+  position:absolute!important;
+  top:51.0%!important;
+  height:27.0%!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:auto!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(1){left:6.4%!important;width:13.8%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(2){left:20.8%!important;width:13.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(3){left:66.2%!important;width:9.7%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(4){left:76.1%!important;width:9.2%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(5){left:85.4%!important;width:9.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark{
+  position:absolute!important;
+  left:34%!important;
+  width:32%!important;
+  top:39%!important;
+  height:57%!important;
+  pointer-events:none!important;
+}
+
+/* Hand occupies the full open tray between the battlefield and the chassis, centered and evenly fit. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  left:3.1vw!important;
+  right:3.1vw!important;
+  width:auto!important;
+  height:min(18.8vw,136px)!important;
+  bottom:calc(min(32.79vw,262px) - min(2.4vw,18px))!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  margin:0!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-end!important;
+  gap:clamp(3px,.65vw,6px)!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  flex:1 1 0!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:min(13.1vw,94px)!important;
+  height:100%!important;
+  margin:0!important;
+}
+
+@media(max-width:600px){
+  #gameScreen::before{
+    --cc-top-h:13.25vw;
+    --cc-bottom-h:32.79vw;
+  }
+  #gameScreen > .floating-live-hand,
+  #gameScreen .visual-hand-zone.floating-live-hand{
+    left:3.0vw!important;
+    right:3.0vw!important;
+    height:18.8vw!important;
+    bottom:calc(32.79vw - 2.2vw)!important;
+  }
+}
+
+/* ============================================================
+   V0.7.9.21 — lower-console usability pass only.
+   Hand fills the open tray; chassis sits lower; phase controls and
+   utility hit targets are enlarged; center jewel is the Smart Action.
+   ============================================================ */
+
+/* Plant the chassis lower on the phone so its lower metal edge meets the browser HUD area. */
+#gameScreen::before{
+  --cc-bottom-drop:min(5.4vw,42px);
+  background:
+    url('game-top-frame-v07920-hotfix.jpg') top center/100% var(--cc-top-h) no-repeat,
+    url('game-left-rail-v07915.jpg') left var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h) + var(--cc-bottom-drop)) no-repeat,
+    url('game-right-rail-v07915.jpg') right var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h) + var(--cc-bottom-drop)) no-repeat,
+    url('game-bottom-chassis.jpg?v=07921') center calc(100% + var(--cc-bottom-drop))/100% var(--cc-bottom-h) no-repeat!important;
+}
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  bottom:calc(-1 * min(5.4vw,42px))!important;
+}
+
+/* Hand owns the entire open black tray above the phase controls. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  left:3.2vw!important;
+  right:3.2vw!important;
+  width:auto!important;
+  height:min(22.2vw,158px)!important;
+  bottom:calc(min(27.4vw,220px) + env(safe-area-inset-bottom))!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  width:100%!important;height:100%!important;padding:0 1%!important;margin:0!important;
+  display:flex!important;align-items:flex-end!important;justify-content:center!important;
+  gap:clamp(3px,.62vw,6px)!important;overflow-x:auto!important;overflow-y:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  flex:1 1 0!important;min-width:0!important;max-width:min(13.25vw,96px)!important;
+  height:min(21.5vw,153px)!important;width:auto!important;margin:0!important;
+}
+
+/* Give NEXT PHASE and END TURN more of the chassis face and larger independent hit targets. */
+#gameScreen > .floating-live-controls .hub-phase-controls button{
+  top:12.8%!important;height:29.5%!important;width:38.0%!important;
+  touch-action:manipulation!important;z-index:8!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{left:7.0%!important}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{left:55.0%!important}
+
+/* Utility icons use nearly all of each existing metal opening without growing the chassis. */
+#gameScreen > .floating-live-controls .hand-hub-icons button:not(.hub-mark){
+  top:49.0%!important;height:31.5%!important;z-index:9!important;touch-action:manipulation!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(1){left:4.7%!important;width:15.7%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(2){left:20.7%!important;width:14.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(4){left:65.0%!important;width:11.6%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(5){left:76.5%!important;width:10.6%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button:nth-of-type(6){left:87.0%!important;width:9.2%!important}
+#gameScreen > .floating-live-controls .dock-glyph{width:82%!important;height:82%!important;max-width:none!important;max-height:none!important}
+
+/* The center jewel is now the context-sensitive Smart Action button. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button{
+  position:absolute!important;left:35.0%!important;top:39.0%!important;width:30.0%!important;height:57.0%!important;
+  display:grid!important;place-items:center!important;margin:0!important;padding:0 8%!important;
+  border:0!important;border-radius:50%!important;pointer-events:auto!important;z-index:12!important;
+  background:radial-gradient(circle at 50% 43%,rgba(188,99,255,.9) 0 13%,rgba(92,26,128,.94) 28%,rgba(25,8,37,.98) 58%,rgba(4,2,7,1) 74%)!important;
+  box-shadow:inset 0 0 0 2px rgba(230,199,255,.72),inset 0 0 0 6px rgba(77,31,103,.9),0 0 15px rgba(176,77,255,.8)!important;
+  color:#fff!important;text-shadow:0 2px 3px #000,0 0 7px #c879ff!important;touch-action:manipulation!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button:before,
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button:after{display:none!important;content:none!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button span{
+  font:900 clamp(8px,2.15vw,15px)/1 var(--head)!important;letter-spacing:.035em!important;text-align:center!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button:active{transform:scale(.96)!important}
+
+@media(max-width:600px){
+  #gameScreen > .floating-live-hand,#gameScreen .visual-hand-zone.floating-live-hand{
+    left:3.0vw!important;right:3.0vw!important;height:22.2vw!important;bottom:calc(27.4vw + env(safe-area-inset-bottom))!important;
+  }
+  #gameScreen > .floating-live-hand .hand-card{height:21.5vw!important;max-width:13.25vw!important}
+}
+
+/* ============================================================
+   V0.7.9.22 — Game Log alignment hotfix only.
+   Center the live log content inside the middle Game Log segment.
+   ============================================================ */
+#gameScreen .inline-game-log-scroll{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:center!important;
+  text-align:center!important;
+}
+#gameScreen .inline-game-log-scroll > *{
+  width:100%!important;
+  text-align:center!important;
+}
+\n
+/* ============================================================
+   V0.7.9.23 — Smart-action guidance behavior.
+   Smart jewel performs contextual actions only; it never changes phases.
+   ============================================================ */
+@keyframes ccSmartGemGlow{
+  0%,100%{filter:brightness(1);box-shadow:inset 0 0 0 2px rgba(230,199,255,.72),inset 0 0 0 6px rgba(77,31,103,.9),0 0 13px rgba(176,77,255,.72)}
+  50%{filter:brightness(1.28);box-shadow:inset 0 0 0 2px rgba(244,226,255,.95),inset 0 0 0 6px rgba(114,49,151,.95),0 0 28px rgba(198,105,255,1),0 0 48px rgba(126,48,190,.62)}
+}
+@keyframes ccGuidancePulse{
+  0%,100%{filter:brightness(1);transform:scale(1)}
+  50%{filter:brightness(1.42);transform:scale(1.025)}
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live{
+  animation:ccSmartGemGlow 1.55s ease-in-out infinite!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-idle{
+  animation:none!important;filter:brightness(.72)!important;box-shadow:inset 0 0 0 2px rgba(196,170,214,.38),inset 0 0 0 6px rgba(57,34,69,.74),0 0 6px rgba(102,55,131,.3)!important;
+  cursor:default!important;pointer-events:none!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-next,
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-end{
+  animation:ccGuidancePulse 1.15s ease-in-out infinite!important;
+  transform-origin:center center!important;
+}
+
+/* ============================================================
+   V0.7.9.23 — tappable full-screen Game History.
+   ============================================================ */
+#gameScreen .inline-game-log{cursor:pointer!important;touch-action:manipulation!important}
+#modal.game-history-modal{
+  width:100vw!important;max-width:none!important;height:100dvh!important;max-height:none!important;
+  margin:0!important;border:0!important;border-radius:0!important;padding:0!important;
+  background:#050407!important;color:#fff!important;
+}
+#modal.game-history-modal .modal-shell{width:100%!important;height:100%!important;max-height:none!important;border-radius:0!important;display:flex!important;flex-direction:column!important}
+#modal.game-history-modal #modalContent{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:10px 12px 96px!important;-webkit-overflow-scrolling:touch!important}
+#modal.game-history-modal #modalActions{position:sticky!important;bottom:0!important;z-index:4!important;background:#08060b!important;padding-bottom:calc(10px + env(safe-area-inset-bottom))!important}
+.game-history-list{display:flex;flex-direction:column;gap:8px}
+.game-history-entry{border:1px solid #493653;background:linear-gradient(180deg,#15101a,#09070c);padding:10px 12px;text-align:left}
+.game-history-entry small{display:block;color:#b990d1;font:800 11px/1.2 var(--head);letter-spacing:.06em;margin-bottom:5px}
+.game-history-entry p{margin:0;color:#f4eff7;font-size:14px;line-height:1.35}
+.game-history-empty{display:grid;place-items:center;min-height:45vh;color:#a99cad;text-align:center}
+
+
+/* ============================================================
+   V0.7.9.24 — FINAL VISUAL MASTER candidate.
+   Scope: mana stack/status colors, selected-card mana calculator,
+   hand tray alignment, iPhone-safe lower hub geometry, and animated
+   Smart Play jewel cue only.
+   ============================================================ */
+
+/* Mana pips: icon first, current count directly underneath. */
+#gameScreen .mana-pip{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(2px,.45vw,4px)!important;
+}
+#gameScreen .mana-pip img{order:0!important;margin:0!important}
+#gameScreen .mana-pip b{
+  order:1!important;
+  margin:0!important;
+  line-height:1!important;
+  text-align:center!important;
+}
+#gameScreen .mana-pip.mana-over b{color:#62f58d!important;text-shadow:0 1px 0 #000,0 0 7px rgba(71,255,126,.58)!important}
+#gameScreen .mana-pip.mana-even b{color:#fff!important;text-shadow:0 1px 0 #000,0 0 5px rgba(255,255,255,.20)!important}
+#gameScreen .mana-pip.mana-under b{color:#ff6262!important;text-shadow:0 1px 0 #000,0 0 7px rgba(255,65,65,.50)!important}
+
+/* Selected-card mana calculator: show only transaction requirements as cost / available. */
+.mana-calculator.mana-required-only{padding:8px 10px!important}
+.mana-calculator.mana-required-only h3{margin:0 0 7px!important;text-align:center!important}
+.mana-required-list{display:flex!important;justify-content:center!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important}
+.mana-required-row{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;min-width:58px!important}
+.mana-required-row .calc-pip{display:block!important}
+.mana-required-row .calc-pip img{width:25px!important;height:25px!important;display:block!important}
+.mana-required-row .calc-pip b{display:none!important}
+.mana-required-row strong{font:1000 15px/1 var(--head)!important;color:#fff!important;white-space:nowrap!important}
+.mana-required-row strong em{font-style:normal!important;color:#9b7bab!important;padding:0 2px!important}
+.generic-required-row .generic-pip{width:25px!important;height:25px!important;font-size:12px!important}
+
+/* iPhone-safe lower console: restore the hub above the browser's solid bottom HUD. */
+#gameScreen::before{
+  --cc-bottom-drop:0px!important;
+  background:
+    url('game-top-frame-v07920-hotfix.jpg') top center/100% var(--cc-top-h) no-repeat,
+    url('game-left-rail-v07915.jpg') left var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-right-rail-v07915.jpg') right var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-bottom-chassis.jpg?v=07924') bottom center/100% var(--cc-bottom-h) no-repeat!important;
+}
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  bottom:env(safe-area-inset-bottom)!important;
+  height:min(32.79vw,262px)!important;
+  pointer-events:none!important;
+}
+
+/* Align the live hand to the visible black tray, not the viewport edge. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  left:4.0vw!important;
+  right:4.0vw!important;
+  width:auto!important;
+  height:min(18.9vw,137px)!important;
+  bottom:calc(min(32.79vw,262px) + env(safe-area-inset-bottom) - min(2.2vw,16px))!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-strip{
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  margin:0 auto!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:flex-end!important;
+  gap:clamp(3px,.72vw,6px)!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-card{
+  flex:0 0 min(12.4vw,89px)!important;
+  width:min(12.4vw,89px)!important;
+  max-width:min(12.4vw,89px)!important;
+  height:min(18.3vw,132px)!important;
+  margin:0!important;
+}
+
+/* Exact tap zones over visible phase buttons. */
+#gameScreen > .floating-live-controls .hub-phase-controls{
+  position:absolute!important;inset:0!important;display:block!important;pointer-events:none!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button{
+  position:absolute!important;top:15.0%!important;height:27.5%!important;width:36.5%!important;
+  margin:0!important;padding:0!important;pointer-events:auto!important;touch-action:manipulation!important;z-index:20!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{left:10.2%!important;right:auto!important}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{left:53.3%!important;right:auto!important}
+
+/* Exact tap zones over the five visible utility controls. */
+#gameScreen > .floating-live-controls .hand-hub-icons{
+  position:absolute!important;inset:0!important;display:block!important;pointer-events:none!important;background:transparent!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button:not(.hub-mark){
+  position:absolute!important;top:52.0%!important;height:29.5%!important;margin:0!important;padding:0!important;
+  pointer-events:auto!important;touch-action:manipulation!important;z-index:21!important;background:transparent!important;border:0!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="card-id"]{left:5.6%!important;width:14.9%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="chat"]{left:20.5%!important;width:14.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="help"]{left:65.4%!important;width:11.2%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="settings"]{left:76.3%!important;width:10.9%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="profile"]{left:86.7%!important;width:9.7%!important}
+#gameScreen > .floating-live-controls .dock-glyph{width:88%!important;height:88%!important;max-width:none!important;max-height:none!important}
+
+/* Smart Play uses the existing jewel artwork. Never draw a stretched purple oval over it. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button{
+  position:absolute!important;
+  left:34.5%!important;top:43%!important;width:31%!important;height:55%!important;
+  padding:0!important;margin:0!important;border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;filter:none!important;color:transparent!important;
+  pointer-events:none!important;overflow:visible!important;z-index:25!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button span{display:none!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live{
+  pointer-events:auto!important;animation:none!important;touch-action:manipulation!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-idle{
+  pointer-events:none!important;animation:none!important;background:transparent!important;box-shadow:none!important;filter:none!important;
+}
+@keyframes ccSmartJewelStrobe{
+  0%,100%{opacity:.42;transform:translate(-50%,-50%) scale(.88);filter:blur(.2px)}
+  22%{opacity:1;transform:translate(-50%,-50%) scale(1.08);filter:blur(0)}
+  46%{opacity:.58;transform:translate(-50%,-50%) scale(.96);filter:blur(.1px)}
+  68%{opacity:1;transform:translate(-50%,-50%) scale(1.16);filter:blur(0)}
+}
+@keyframes ccSmartJewelHalo{
+  0%,100%{opacity:.18;transform:translate(-50%,-50%) scale(.86)}
+  50%{opacity:.95;transform:translate(-50%,-50%) scale(1.28)}
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before{
+  content:""!important;display:block!important;position:absolute!important;
+  left:50%!important;top:67%!important;width:min(17vw,122px)!important;aspect-ratio:1/1!important;height:auto!important;
+  border-radius:50%!important;transform:translate(-50%,-50%)!important;
+  background:radial-gradient(circle,rgba(246,218,255,.72) 0 8%,rgba(191,92,255,.48) 20%,rgba(131,39,199,.22) 42%,rgba(92,24,146,0) 70%)!important;
+  box-shadow:0 0 13px rgba(220,149,255,.95),0 0 26px rgba(178,75,255,.85),0 0 44px rgba(116,39,188,.68)!important;
+  animation:ccSmartJewelStrobe .72s ease-in-out infinite!important;pointer-events:none!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{
+  content:""!important;display:block!important;position:absolute!important;
+  left:50%!important;top:67%!important;width:min(12.5vw,90px)!important;aspect-ratio:1/1!important;height:auto!important;
+  border-radius:50%!important;transform:translate(-50%,-50%)!important;border:2px solid rgba(231,188,255,.92)!important;
+  box-shadow:0 0 11px rgba(229,177,255,.95),inset 0 0 12px rgba(194,91,255,.68)!important;
+  animation:ccSmartJewelHalo .72s ease-in-out infinite reverse!important;pointer-events:none!important;
+}
+
+@media(max-width:600px){
+  #gameScreen > .floating-live-controls,#gameScreen .visual-bottom-controls.floating-live-controls{bottom:env(safe-area-inset-bottom)!important}
+  #gameScreen > .floating-live-hand,#gameScreen .visual-hand-zone.floating-live-hand{
+    left:4vw!important;right:4vw!important;height:18.9vw!important;
+    bottom:calc(32.79vw + env(safe-area-inset-bottom) - 2.2vw)!important;
+  }
+  #gameScreen > .floating-live-hand .hand-card{flex-basis:12.4vw!important;width:12.4vw!important;max-width:12.4vw!important;height:18.3vw!important}
+}
+
+/* ============================================================
+   V0.7.9.25 — VERIFIED HAND / MANA / TAP-MAP CORRECTION.
+   Scope: live hand geometry, mana vertical stack/calculator, lower hub hit mapping only.
+   ============================================================ */
+
+/* MANA: completely neutralize the old absolute number-above-icon rules. */
+#gameScreen .new-visual-master .mana-box.available-only .mana-pip,
+#gameScreen .mana-box.available-only .mana-pip,
+#gameScreen .mana-pip{
+  position:relative!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:clamp(2px,.45vw,4px)!important;
+  padding-top:0!important;
+  min-width:0!important;
+}
+#gameScreen .new-visual-master .mana-box.available-only .mana-pip img,
+#gameScreen .mana-box.available-only .mana-pip img,
+#gameScreen .mana-pip img{
+  position:static!important;
+  order:0!important;
+  grid-area:auto!important;
+  transform:none!important;
+  margin:0!important;
+}
+#gameScreen .new-visual-master .mana-box.available-only .mana-pip b,
+#gameScreen .mana-box.available-only .mana-pip b,
+#gameScreen .mana-pip b{
+  position:static!important;
+  order:1!important;
+  top:auto!important;
+  right:auto!important;
+  bottom:auto!important;
+  left:auto!important;
+  transform:none!important;
+  width:auto!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:1!important;
+  text-align:center!important;
+  z-index:auto!important;
+  -webkit-text-stroke:0!important;
+}
+#gameScreen .mana-pip.mana-over b{color:#62f58d!important;text-shadow:0 1px 0 #000,0 0 7px rgba(71,255,126,.58)!important}
+#gameScreen .mana-pip.mana-even b{color:#fff!important;text-shadow:0 1px 0 #000,0 0 5px rgba(255,255,255,.20)!important}
+#gameScreen .mana-pip.mana-under b{color:#ff6262!important;text-shadow:0 1px 0 #000,0 0 7px rgba(255,65,65,.50)!important}
+
+/* HAND: reset the old translateX centering rule that was physically shifting the tray left. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  position:fixed!important;
+  left:4vw!important;
+  right:4vw!important;
+  transform:none!important;
+  width:auto!important;
+  max-width:none!important;
+  box-sizing:border-box!important;
+  height:min(18.9vw,137px)!important;
+  bottom:calc(min(32.79vw,262px) - min(2.2vw,16px))!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  display:block!important;
+  pointer-events:auto!important;
+}
+#gameScreen > .floating-live-hand h3,
+#gameScreen .visual-hand-zone.floating-live-hand h3{display:none!important}
+#gameScreen > .floating-live-hand .hand-strip,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-strip{
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  transform:none!important;
+  width:100%!important;
+  height:100%!important;
+  box-sizing:border-box!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:flex-end!important;
+  justify-content:center!important;
+  gap:clamp(3px,.72vw,6px)!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  scrollbar-width:none!important;
+}
+#gameScreen > .floating-live-hand .hand-strip::-webkit-scrollbar,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-strip::-webkit-scrollbar{display:none!important}
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex:0 0 min(12.4vw,89px)!important;
+  width:min(12.4vw,89px)!important;
+  min-width:min(12.4vw,89px)!important;
+  max-width:min(12.4vw,89px)!important;
+  height:min(18.3vw,132px)!important;
+  margin:0!important;
+  transform:none!important;
+}
+
+/* LOWER HUB TAP MAP: one coordinate system, aligned to the chassis artwork itself.
+   Important: no safe-area translation here — the artwork and taps share bottom:0. */
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  position:fixed!important;
+  left:0!important;
+  right:0!important;
+  bottom:0!important;
+  transform:none!important;
+  width:100vw!important;
+  max-width:none!important;
+  height:min(32.79vw,262px)!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:none!important;
+  overflow:visible!important;
+  z-index:700!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls,
+#gameScreen > .floating-live-controls .hand-hub-icons{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  transform:none!important;
+  display:block!important;
+  pointer-events:none!important;
+  z-index:701!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button,
+#gameScreen > .floating-live-controls .hand-hub-icons button{
+  position:absolute!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  z-index:702!important;
+}
+/* Phase buttons — conservative zones fully inside the visible purple plates. */
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{
+  left:12.0%!important;right:auto!important;top:15.8%!important;width:33.0%!important;height:24.0%!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{
+  left:55.0%!important;right:auto!important;top:15.8%!important;width:33.0%!important;height:24.0%!important;
+}
+/* Utility buttons — each zone is isolated and cannot overlap a phase plate or the jewel. */
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="card-id"]{left:6.4%!important;top:52.4%!important;width:13.2%!important;height:26.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="chat"]{left:21.0%!important;top:52.4%!important;width:12.8%!important;height:26.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="help"]{left:66.6%!important;top:52.4%!important;width:9.2%!important;height:26.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="settings"]{left:77.0%!important;top:52.4%!important;width:9.0%!important;height:26.0%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="profile"]{left:87.2%!important;top:52.4%!important;width:8.3%!important;height:26.0%!important}
+/* Smart jewel occupies only the actual center jewel. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button{
+  left:36.0%!important;top:48.0%!important;width:28.0%!important;height:48.0%!important;
+  transform:none!important;z-index:703!important;
+}
+
+@media(max-width:600px){
+  #gameScreen > .floating-live-hand,#gameScreen .visual-hand-zone.floating-live-hand{
+    left:4vw!important;right:4vw!important;transform:none!important;width:auto!important;
+    height:18.9vw!important;bottom:calc(32.79vw - 2.2vw)!important;
+  }
+  #gameScreen > .floating-live-controls,#gameScreen .visual-bottom-controls.floating-live-controls{
+    bottom:0!important;height:32.79vw!important;
+  }
+}
+/* Seven tracked hand cards must fit inside the tray without centered overflow. */
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex-basis:min(11.8vw,85px)!important;
+  width:min(11.8vw,85px)!important;
+  min-width:min(11.8vw,85px)!important;
+  max-width:min(11.8vw,85px)!important;
+  height:min(16.5vw,119px)!important;
+}
+@media(max-width:600px){
+  #gameScreen > .floating-live-hand .hand-card,
+  #gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+    flex-basis:11.8vw!important;width:11.8vw!important;min-width:11.8vw!important;max-width:11.8vw!important;height:16.5vw!important;
+  }
+}
+
+/* ============================================================
+   V0.7.9.26 — FINAL VISUAL LOCK CANDIDATE
+   Scope: compact mana calculator, centered Back controls,
+   secured/raised hand, enlarged bottom hub, smart-jewel alignment.
+   ============================================================ */
+
+/* Selected-card mana tray: no descriptive heading/copy — only icon + required/available. */
+.cc-modal .mana-calculator.mana-required-only h3,
+.cc-modal .mana-calculator.mana-required-only .muted{display:none!important}
+.cc-modal .mana-calculator.mana-required-only{padding:4px 6px!important;margin:0!important}
+.cc-modal .mana-required-list{display:flex!important;align-items:center!important;justify-content:center!important;gap:clamp(8px,2.2vw,18px)!important;min-height:42px!important}
+.cc-modal .mana-required-row{display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;margin:0!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
+.cc-modal .mana-required-row strong{display:flex!important;align-items:baseline!important;gap:3px!important;font:1000 clamp(18px,5vw,28px)/1 var(--head)!important;color:#fff!important}
+.cc-modal .mana-required-row em{font-style:normal!important;color:#b9afc3!important;font-size:.72em!important}
+.cc-modal .mana-required-icon img{width:clamp(25px,7vw,38px)!important;height:clamp(25px,7vw,38px)!important;object-fit:contain!important}
+.cc-modal .generic-pip{display:grid!important;place-items:center!important;width:clamp(25px,7vw,38px)!important;height:clamp(25px,7vw,38px)!important;border:1px solid #80748b!important;border-radius:50%!important;color:#ddd5e5!important;font-size:clamp(17px,4.2vw,24px)!important}
+.cc-modal .mana-available-value.sufficient{color:#62f58d!important;text-shadow:0 0 7px rgba(71,255,126,.5)!important}
+.cc-modal .mana-available-value.insufficient{color:#ff6262!important;text-shadow:0 0 7px rgba(255,65,65,.48)!important}
+
+/* Back controls: true center instead of left-biased row alignment. */
+.modal-back-row{justify-content:center!important;padding-left:0!important;padding-right:0!important}
+.dialog-back{margin-left:auto!important;margin-right:auto!important}
+.modal-actions:has(>button:only-child),.modal-tray-buttons:has(>button:only-child){justify-content:center!important}
+.modal-actions:has(>button:only-child)>button,.modal-tray-buttons:has(>button:only-child)>button{margin-left:auto!important;margin-right:auto!important}
+
+/* Scale the whole lower chassis upward from the same bottom anchor. */
+#gameScreen::before{--cc-bottom-h:min(36.5vw,292px)!important}
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  left:0!important;right:0!important;bottom:0!important;width:100vw!important;max-width:none!important;
+  height:min(36.5vw,292px)!important;transform:none!important;
+}
+
+/* The hand now owns the full viewport-width tray coordinate space, so flex centering cannot inherit a narrow parent. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  position:fixed!important;left:0!important;right:0!important;width:100vw!important;max-width:none!important;
+  height:min(21.8vw,174px)!important;bottom:calc(min(36.5vw,292px) - min(1.0vw,8px))!important;
+  margin:0!important;padding:0 4vw!important;transform:none!important;box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-strip,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-strip{
+  position:static!important;width:100%!important;max-width:none!important;height:100%!important;
+  margin:0!important;padding:0!important;transform:none!important;box-sizing:border-box!important;
+  display:flex!important;align-items:flex-end!important;justify-content:center!important;
+  gap:clamp(3px,.72vw,6px)!important;overflow-x:auto!important;overflow-y:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex:0 0 min(11.75vw,84px)!important;width:min(11.75vw,84px)!important;min-width:min(11.75vw,84px)!important;max-width:min(11.75vw,84px)!important;
+  height:min(20.6vw,148px)!important;margin:0!important;transform:none!important;
+}
+
+/* Enlarged hub tap map, scaled with the taller chassis while preserving the artwork layout. */
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{left:11.4%!important;top:14.6%!important;width:34.7%!important;height:27.5%!important}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{left:53.9%!important;top:14.6%!important;width:34.7%!important;height:27.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="card-id"]{left:5.7%!important;top:50.2%!important;width:14.2%!important;height:30.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="chat"]{left:20.4%!important;top:50.2%!important;width:14.0%!important;height:30.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="help"]{left:65.8%!important;top:50.2%!important;width:10.8%!important;height:30.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="settings"]{left:76.7%!important;top:50.2%!important;width:10.2%!important;height:30.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="profile"]{left:87.0%!important;top:50.2%!important;width:9.4%!important;height:30.5%!important}
+
+/* Smart action = jewel only. Align button and animation to the actual circular center jewel. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button{
+  left:38.0%!important;top:43.0%!important;width:24.0%!important;height:31.5%!important;transform:none!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before,
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{
+  left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before{width:min(18vw,130px)!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{width:min(13vw,94px)!important}
+
+@media(max-width:600px){
+  #gameScreen::before{--cc-bottom-h:36.5vw!important}
+  #gameScreen > .floating-live-controls,#gameScreen .visual-bottom-controls.floating-live-controls{height:36.5vw!important;bottom:0!important}
+  #gameScreen > .floating-live-hand,#gameScreen .visual-hand-zone.floating-live-hand{left:0!important;right:0!important;width:100vw!important;height:21.8vw!important;bottom:35.5vw!important;padding:0 4vw!important}
+  #gameScreen > .floating-live-hand .hand-card,#gameScreen .visual-hand-zone.floating-live-hand .hand-card{flex-basis:11.75vw!important;width:11.75vw!important;min-width:11.75vw!important;max-width:11.75vw!important;height:20.6vw!important}
+}
+
+/* V0.7.9.28 — final pre-playtest functional/visual lock. */
+
+/* Entire player surface adopts its player palette, not only the outer shell. */
+#gameScreen .player-card.active.new-visual-master .player-hero,
+#gameScreen .player-card.active.new-visual-master .player-info,
+#gameScreen .player-card.active.new-visual-master .player-head,
+#gameScreen .player-card.active.new-visual-master .mana-box,
+#gameScreen .player-card.active.new-visual-master .battle-panel,
+#gameScreen .player-card.active.new-visual-master .zones{
+  border-color:color-mix(in srgb,var(--playerEdge) 78%,#d8c9e4)!important;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--playerA) 86%,#08060b),var(--playerB))!important;
+  box-shadow:inset 0 0 18px color-mix(in srgb,var(--playerGlow) 18%,transparent)!important;
+}
+#gameScreen .player-card.active.new-visual-master .battle-head,
+#gameScreen .player-card.active.new-visual-master .player-name,
+#gameScreen .player-card.active.new-visual-master .battle-phase-indicator,
+#gameScreen .player-card.active.new-visual-master .battle-player-nav{
+  color:color-mix(in srgb,var(--playerGlow) 42%,#fff)!important;
+}
+
+/* Battlefield is a playmat, not a row of unused placeholder slots. */
+#gameScreen .battlefield{
+  min-height:clamp(190px,36vw,300px)!important;
+  background:
+    radial-gradient(ellipse at 50% 42%,color-mix(in srgb,var(--playerGlow) 18%,transparent) 0%,transparent 48%),
+    radial-gradient(circle at 16% 20%,rgba(255,255,255,.055) 0 1px,transparent 1.5px),
+    radial-gradient(circle at 78% 68%,rgba(255,255,255,.045) 0 1px,transparent 1.5px),
+    linear-gradient(135deg,rgba(255,255,255,.025),transparent 38%,rgba(0,0,0,.34)),
+    #08060b!important;
+  background-size:auto,27px 27px,33px 33px,auto,auto!important;
+  align-items:flex-start!important;
+  align-content:flex-start!important;
+}
+#gameScreen .battlefield::before{
+  content:""!important;position:absolute!important;inset:8% 10%!important;pointer-events:none!important;
+  border:1px solid color-mix(in srgb,var(--playerGlow) 24%,transparent)!important;border-radius:50%!important;
+  box-shadow:0 0 35px color-mix(in srgb,var(--playerGlow) 12%,transparent),inset 0 0 45px rgba(0,0,0,.48)!important;
+  opacity:.55!important;
+}
+#gameScreen .battlefield{position:relative!important}
+#gameScreen .battlefield .add-card{display:none!important}
+#gameScreen .battlefield .battle-card{
+  flex:0 0 min(11.75vw,84px)!important;width:min(11.75vw,84px)!important;height:min(20.6vw,148px)!important;
+  z-index:2!important;
+}
+
+/* Slower, centered smart-jewel pulse. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before,
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{
+  left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+  animation-duration:1.8s!important;
+}
+
+/* DRAW is a separate, unmistakable action over the hand tray. */
+#gameScreen > .floating-live-hand .hand-smart-draw,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-smart-draw{
+  position:absolute!important;left:50%!important;top:-3px!important;transform:translate(-50%,-100%)!important;
+  z-index:10040!important;min-width:132px!important;min-height:48px!important;padding:0 22px!important;
+  border:1px solid #b27ae0!important;border-radius:8px!important;background:linear-gradient(#43215a,#170c20)!important;
+  color:#fff!important;font:1000 18px/1 var(--head)!important;letter-spacing:.08em!important;
+  box-shadow:0 0 16px rgba(177,83,255,.72)!important;pointer-events:auto!important;touch-action:manipulation!important;
+}
+
+/* Six utility controls + center jewel: three on each side, one non-overlapping tap map. */
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub]{top:50.2%!important;height:30.5%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="card-id"]{left:4.5%!important;width:9.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="chat"]{left:14.6%!important;width:9.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="home"]{left:24.7%!important;width:9.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="help"]{left:65.9%!important;width:9.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="settings"]{left:76.0%!important;width:9.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="profile"]{left:86.1%!important;width:9.4%!important}
+
+/* Compact game log gets a dedicated undo control without blocking the log/open gesture. */
+#gameScreen .inline-game-log{position:relative!important}
+#gameScreen .inline-log-undo{
+  position:absolute!important;right:12.8%!important;bottom:4px!important;z-index:35!important;
+  min-width:64px!important;height:28px!important;padding:0 8px!important;border:1px solid #765c94!important;border-radius:5px!important;
+  background:linear-gradient(#281636,#0b080f)!important;color:#fff!important;font:900 10px/1 var(--head)!important;letter-spacing:.05em!important;
+  pointer-events:auto!important;touch-action:manipulation!important;
+}
+
+/* Full history controls remain visible and tappable above iPhone safe-area/UI. */
+.cc-modal.game-history-modal .modal-actions,
+#modal.game-history-modal .modal-actions{
+  position:sticky!important;bottom:0!important;z-index:100!important;padding-bottom:calc(10px + env(safe-area-inset-bottom))!important;
+  background:linear-gradient(180deg,rgba(7,5,10,.94),#050307)!important;
+}
+
+/* V0.7.9.28 — battlefield playmat correction: no fake card-slot placeholders. */
+#gameScreen .battlefield{
+  background:
+    radial-gradient(ellipse at 50% 44%,color-mix(in srgb,var(--playerGlow) 22%,transparent) 0%,transparent 46%),
+    radial-gradient(circle at 18% 24%,rgba(255,255,255,.065) 0 1px,transparent 1.6px),
+    radial-gradient(circle at 79% 67%,rgba(255,255,255,.05) 0 1px,transparent 1.6px),
+    linear-gradient(160deg,rgba(255,255,255,.035),transparent 34%,rgba(0,0,0,.42)),
+    #08060b!important;
+  padding:4% 3% 3%!important;
+  gap:1.5%!important;
+  justify-content:flex-start!important;
+  align-items:flex-start!important;
+  align-content:flex-start!important;
+}
+#gameScreen .battlefield .add-card,
+#gameScreen .battlefield .readonly-slot,
+#gameScreen .battlefield [class*="placeholder"]{display:none!important}
+#gameScreen .battlefield .battle-card{
+  flex:0 0 min(11.75vw,84px)!important;
+  width:min(11.75vw,84px)!important;
+  min-width:min(11.75vw,84px)!important;
+  max-width:min(11.75vw,84px)!important;
+  height:min(20.6vw,148px)!important;
+  min-height:min(20.6vw,148px)!important;
+  max-height:min(20.6vw,148px)!important;
+}
+
+
+/* V0.7.9.29 — functional input/land/card inspection hotfix. */
+body.cc-modal-open #gameScreen > .floating-live-hand,
+body.cc-modal-open #gameScreen > .floating-live-controls{pointer-events:none!important;}
+#modal[open]{z-index:2147483000!important;pointer-events:auto!important;}
+#modal[open] .modal-shell,#modal[open] .modal-content{pointer-events:auto!important;}
+#modal[open] #cardSearchInput{position:relative!important;z-index:2147483001!important;pointer-events:auto!important;touch-action:manipulation!important;user-select:text!important;-webkit-user-select:text!important;font-size:16px!important;}
+#modal[open] .card-search-row{position:relative!important;z-index:2147483001!important;pointer-events:auto!important;}
+
+/* ============================================================
+   V0.7.9.30 — targeted visual correction only.
+   - Restore functional zone row beneath open battlefield playmat.
+   - Complete player-card palette swap.
+   - Life heart always red; life total follows player palette.
+   - No floating DRAW label/button (markup removed in ui-render.js).
+   ============================================================ */
+
+/* The playmat keeps its open surface, but must leave the permanent zone row visible. */
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.287)!important;
+  height:calc(min(100vw,820px)*.287)!important;
+}
+#gameScreen .zones{
+  display:grid!important;
+  grid-template-columns:repeat(4,1fr)!important;
+  visibility:visible!important;
+  opacity:1!important;
+  position:relative!important;
+  z-index:24!important;
+  flex:none!important;
+  min-height:0!important;
+}
+#gameScreen .zones button{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  pointer-events:auto!important;
+}
+
+/* Complete player palette: purple decorative UI inside a player's card follows that player's assigned color. */
+#gameScreen .player-card.active.new-visual-master .player-hero,
+#gameScreen .player-card.active.new-visual-master .player-info,
+#gameScreen .player-card.active.new-visual-master .player-head,
+#gameScreen .player-card.active.new-visual-master .mana-box{
+  border-color:var(--playerEdge)!important;
+}
+#gameScreen .player-card.active.new-visual-master .player-head,
+#gameScreen .player-card.active.new-visual-master .player-info,
+#gameScreen .player-card.active.new-visual-master .mana-box{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--playerEdge) 55%,transparent),
+             inset 0 0 18px color-mix(in srgb,var(--playerGlow) 13%,transparent)!important;
+}
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat,
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat + .stat{
+  border-color:color-mix(in srgb,var(--playerEdge) 72%,transparent)!important;
+}
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat .icon,
+#gameScreen .player-card.active.new-visual-master .player-name,
+#gameScreen .player-card.active.new-visual-master .mana-pip b{
+  color:color-mix(in srgb,var(--playerGlow) 64%,#fff)!important;
+}
+#gameScreen .player-card.active.new-visual-master .mana-pip img{
+  filter:drop-shadow(0 0 5px color-mix(in srgb,var(--playerGlow) 62%,transparent))!important;
+}
+
+/* Life has one universal symbol, while the value identifies the player palette. */
+#gameScreen .player-card.active.new-visual-master .life-stat .icon{
+  color:#ef3f4c!important;
+  text-shadow:0 0 7px rgba(239,63,76,.5)!important;
+}
+#gameScreen .player-card.active.new-visual-master .life-stat strong{
+  color:var(--playerGlow)!important;
+  text-shadow:0 0 7px color-mix(in srgb,var(--playerGlow) 42%,transparent)!important;
+}
+
+/* Defensive suppression in case stale CSS for the retired overlay is cached. */
+#gameScreen .hand-smart-draw{display:none!important}
+
+/* ============================================================
+   V0.7.9.32 — battlefield card proportion / zone-row correction.
+   Targeted only: restore MTG card proportions on battlefield and
+   use the recovered vertical room to keep the zone row above hand.
+   ============================================================ */
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.245)!important;
+  height:calc(min(100vw,820px)*.245)!important;
+}
+#gameScreen .battlefield .battle-card{
+  flex:0 0 min(11.75vw,84px)!important;
+  width:min(11.75vw,84px)!important;
+  min-width:min(11.75vw,84px)!important;
+  max-width:min(11.75vw,84px)!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  aspect-ratio:63 / 88!important;
+}
+#gameScreen .battlefield .battle-card > img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  display:block!important;
+}
+#gameScreen .zones{
+  margin-top:0!important;
+  position:relative!important;
+  z-index:40!important;
+}
+
+/* ============================================================
+   V0.7.9.33 — battlefield tray removal / vertical compaction.
+   Targeted only: remove decorative inner play-zone art, center live
+   permanents, eliminate excess top/bottom battlefield space, and
+   reclaim that height so the bottom battlefield controls sit higher.
+   ============================================================ */
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.178)!important;
+  height:auto!important;
+  margin:0!important;
+  padding:.8% 1.2%!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  gap:1.2%!important;
+  justify-content:center!important;
+  align-items:center!important;
+  align-content:center!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+#gameScreen .battlefield::before{display:none!important;content:none!important}
+#gameScreen .battlefield .battle-card{
+  margin:0!important;
+  align-self:center!important;
+}
+#gameScreen .zones{
+  margin-top:0!important;
+  padding-top:.45%!important;
+  padding-bottom:.55%!important;
+}
+
+
+/* ============================================================
+   V0.7.9.34 — FINAL VISUAL LOCK / PROPORTION + SIX-TOOL DOCK
+   This block intentionally wins the cascade. It only corrects the
+   approved finishing-pass geometry/colors; unrelated UI stays unchanged.
+   ============================================================ */
+
+/* A. Never distort the 976x320 lower chassis. 100vw / 3.05 = 32.7869vw. */
+#gameScreen::before{--cc-bottom-h:calc(100vw * 320 / 976)!important}
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  left:0!important;right:0!important;bottom:0!important;width:100vw!important;max-width:none!important;
+  height:calc(100vw * 320 / 976)!important;aspect-ratio:976/320!important;transform:none!important;
+  background:url('game-bottom-chassis.jpg?v=07934') center/100% 100% no-repeat!important;
+  overflow:visible!important;
+}
+
+/* B. Hand tray remains proportional and sits directly above the corrected chassis. */
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  left:0!important;right:0!important;width:100vw!important;max-width:none!important;
+  height:min(18.9vw,151px)!important;
+  bottom:calc((100vw * 320 / 976) - min(1vw,8px))!important;
+  padding:0 4vw!important;transform:none!important;
+}
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex:0 0 min(11.75vw,84px)!important;width:min(11.75vw,84px)!important;
+  min-width:min(11.75vw,84px)!important;max-width:min(11.75vw,84px)!important;
+  height:auto!important;aspect-ratio:63/88!important;object-fit:contain!important;
+}
+#gameScreen > .floating-live-hand .hand-card img,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card img{width:100%!important;height:100%!important;object-fit:cover!important}
+
+/* C. Phase-control hit targets align to the unchanged artwork and pulse only when guided as the sole remaining progression. */
+#gameScreen > .floating-live-controls .hub-phase-controls button:first-child{left:12.2%!important;top:16.8%!important;width:33.5%!important;height:24.5%!important}
+#gameScreen > .floating-live-controls .hub-phase-controls button:last-child{left:53.8%!important;top:16.8%!important;width:34.2%!important;height:24.5%!important}
+@keyframes ccFinalPhaseFlash{
+  0%,100%{filter:brightness(1);box-shadow:0 0 0 rgba(190,82,255,0)}
+  45%{filter:brightness(1.48);box-shadow:0 0 15px rgba(220,143,255,.95),0 0 30px rgba(156,59,231,.72)}
+  70%{filter:brightness(1.16);box-shadow:0 0 7px rgba(209,124,255,.52)}
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-next,
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-end{
+  animation:ccFinalPhaseFlash .92s ease-in-out infinite!important;
+  border-radius:9px!important;transform:none!important;
+}
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-next::after,
+#gameScreen > .floating-live-controls .hub-phase-controls button.smart-cue-end::after{
+  content:""!important;display:block!important;position:absolute!important;inset:4%!important;border-radius:8px!important;
+  border:1px solid rgba(226,174,255,.78)!important;box-shadow:inset 0 0 11px rgba(190,82,255,.56),0 0 15px rgba(190,82,255,.58)!important;
+  pointer-events:none!important;
+}
+
+/* D. Six equal, evenly spaced, visible utility buttons: 3 left + jewel + 3 right. */
+#gameScreen > .floating-live-controls .hand-hub-icons{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;z-index:35!important;pointer-events:none!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub]{
+  position:absolute!important;top:51.2%!important;width:10.3%!important;height:31.3%!important;
+  min-width:0!important;min-height:0!important;margin:0!important;padding:4px 2px 3px!important;
+  border:0!important;border-radius:0!important;background:linear-gradient(180deg,#17101e 0%,#09060d 58%,#040306 100%)!important;
+  border:1px solid #75607f!important;border-radius:9px!important;box-shadow:inset 0 0 0 1px #1d1424,0 0 0 1px rgba(164,91,208,.18)!important;color:#fff!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+  gap:1px!important;pointer-events:auto!important;touch-action:manipulation!important;overflow:visible!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="home"]{left:3.4%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="card-id"]{left:14.6%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="chat"]{left:25.8%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="rescue"]{left:63.9%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="settings"]{left:75.1%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub="profile"]{left:86.3%!important}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub] .dock-glyph{
+  opacity:1!important;width:min(5.7vw,42px)!important;height:min(5.7vw,42px)!important;max-width:52%!important;max-height:58%!important;
+  flex:0 0 auto!important;display:block!important;transform:none!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons button[data-hub] > span{
+  display:block!important;color:#fff!important;font:900 clamp(5px,1.15vw,10px)/1 var(--head)!important;letter-spacing:.025em!important;
+  text-align:center!important;white-space:normal!important;text-shadow:0 1px 2px #000!important;
+}
+
+/* E. Center jewel: artwork stays 1:1 because chassis aspect is locked; smart-action overlay is also strictly circular. */
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button{
+  position:absolute!important;left:39.3%!important;top:38.3%!important;width:21.4%!important;height:53.4%!important;
+  margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;
+  pointer-events:none!important;overflow:visible!important;z-index:45!important;transform:none!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live{pointer-events:auto!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before,
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{
+  left:50%!important;top:50%!important;height:auto!important;aspect-ratio:1/1!important;border-radius:50%!important;
+  transform:translate(-50%,-50%)!important;
+}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::before{width:min(18vw,130px)!important}
+#gameScreen > .floating-live-controls .hand-hub-icons .hub-mark.smart-action-button.smart-action-live::after{width:min(13vw,94px)!important}
+
+/* F. Battlefield remains the approved compact transparent play surface, with proportional centered permanents only. */
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.178)!important;height:auto!important;margin:0!important;padding:.8% 1.2%!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;gap:1.2%!important;
+  justify-content:center!important;align-items:center!important;align-content:center!important;overflow-x:auto!important;overflow-y:hidden!important;
+}
+#gameScreen .battlefield::before{display:none!important;content:none!important}
+#gameScreen .battlefield .battle-card{
+  flex:0 0 min(11.75vw,84px)!important;width:min(11.75vw,84px)!important;min-width:min(11.75vw,84px)!important;max-width:min(11.75vw,84px)!important;
+  height:auto!important;min-height:0!important;max-height:none!important;aspect-ratio:63/88!important;margin:0!important;align-self:center!important;
+}
+#gameScreen .battlefield .battle-card > img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important}
+#gameScreen .zones{margin-top:0!important;padding-top:.45%!important;padding-bottom:.55%!important}
+
+/* G. Player-card text is white. Life heart alone is always red. Hand/library icons are white. */
+#gameScreen .player-card.active.new-visual-master .player-name,
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat strong,
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat small,
+#gameScreen .player-card.active.new-visual-master .status-indicator::before,
+#gameScreen .player-card.active.new-visual-master .tax-badge{color:#fff!important;text-shadow:0 1px 2px #000!important}
+#gameScreen .player-card.active.new-visual-master .player-stats-line .stat:not(.life-stat) .icon{color:#fff!important;text-shadow:0 1px 2px #000!important}
+#gameScreen .player-card.active.new-visual-master .life-stat .icon{color:#ef3f4c!important;text-shadow:0 0 7px rgba(239,63,76,.55)!important}
+#gameScreen .player-card.active.new-visual-master .life-stat strong{color:#fff!important;text-shadow:0 1px 2px #000!important}
+
+/* H. Mana geometry stays square/proportional. Numbers are state-only: green / white / red — never blue/player-colored. */
+#gameScreen .player-card.active.new-visual-master .mana-pip img,
+#gameScreen .new-visual-master .mana-box.available-only .mana-pip img,
+#gameScreen .mana-box.available-only .mana-pip img{
+  width:clamp(26px,6.2vw,50px)!important;height:clamp(26px,6.2vw,50px)!important;
+  min-width:0!important;max-width:none!important;aspect-ratio:1/1!important;object-fit:contain!important;transform:none!important;
+  filter:drop-shadow(0 0 4px rgba(125,53,187,.42))!important;
+}
+#gameScreen .player-card.active.new-visual-master .mana-pip.mana-over b,
+#gameScreen .mana-pip.mana-over b{color:#62f58d!important;text-shadow:0 1px 0 #000,0 0 7px rgba(71,255,126,.58)!important}
+#gameScreen .player-card.active.new-visual-master .mana-pip.mana-even b,
+#gameScreen .mana-pip.mana-even b{color:#fff!important;text-shadow:0 1px 0 #000,0 0 5px rgba(255,255,255,.20)!important}
+#gameScreen .player-card.active.new-visual-master .mana-pip.mana-under b,
+#gameScreen .mana-pip.mana-under b{color:#ff6262!important;text-shadow:0 1px 0 #000,0 0 7px rgba(255,65,65,.50)!important}
+
+@media(max-width:600px){
+  #gameScreen::before{--cc-bottom-h:calc(100vw * 320 / 976)!important}
+  #gameScreen > .floating-live-controls,#gameScreen .visual-bottom-controls.floating-live-controls{height:calc(100vw * 320 / 976)!important;bottom:0!important}
+  #gameScreen > .floating-live-hand,#gameScreen .visual-hand-zone.floating-live-hand{height:18.9vw!important;bottom:calc((100vw * 320 / 976) - 1vw)!important;padding:0 4vw!important}
+}
+
+/* ============================================================
+   V0.7.9.36 — VERTICALITY / INTEGRATED UNDO / HORIZON HEADER HOTFIX
+   Preserve all .35 behavior. Card geometry is immutable 63:88.
+   ============================================================ */
+/* Main log: the undo glyph is a true fourth segment in the bar, never an overlay. */
+#gameScreen .inline-game-log{
+  position:fixed!important;
+  grid-template-columns:16% minmax(0,1fr) 9% 16%!important;
+  align-items:stretch!important;
+}
+#gameScreen .inline-log-undo{
+  position:static!important;inset:auto!important;right:auto!important;bottom:auto!important;
+  align-self:stretch!important;justify-self:stretch!important;
+  width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;
+  margin:0!important;padding:0!important;border:0!important;border-left:1px solid #58386c!important;
+  border-radius:0!important;background:linear-gradient(180deg,#0e0913,#050308)!important;
+  box-shadow:none!important;color:#f7f2fb!important;font:900 clamp(20px,4.4vw,34px)/1 sans-serif!important;
+  display:grid!important;place-items:center!important;letter-spacing:0!important;
+  pointer-events:auto!important;touch-action:manipulation!important;
+}
+#gameScreen .inline-log-undo:active{background:#24142e!important}
+
+/* Restore vertical breathing room only in flexible/non-card regions. */
+#gameScreen .battlefield{
+  min-height:calc(min(100vw,820px)*.205)!important;
+  padding:10px 5px!important;
+  align-items:center!important;
+}
+#gameScreen .battle-card,#gameScreen .add-card{
+  flex:0 0 calc((100% - 30px)/7)!important;width:calc((100% - 30px)/7)!important;
+  height:auto!important;aspect-ratio:63/88!important;
+}
+#gameScreen .zones{margin:5px 0 6px!important;gap:5px!important}
+#gameScreen .zones button{height:68px!important;min-height:68px!important}
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex:0 0 calc((100% - 24px)/7)!important;width:calc((100% - 24px)/7)!important;
+  min-width:calc((100% - 24px)/7)!important;max-width:calc((100% - 24px)/7)!important;
+  height:auto!important;aspect-ratio:63/88!important;
+}
+
+/* Re-expose the real Horizon artwork above the baked crown without cropping it.
+   Only the logo is shown; game controls in this legacy strip stay hidden. */
+#gameScreen .game-brand-strip{
+  display:block!important;position:fixed!important;z-index:445!important;
+  left:50%!important;top:env(safe-area-inset-top)!important;transform:translateX(-50%)!important;
+  width:44vw!important;max-width:330px!important;height:min(12.7vw,104px)!important;min-height:0!important;
+  margin:0!important;padding:0!important;overflow:visible!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;pointer-events:none!important;
+}
+#gameScreen .game-brand-strip>*:not(.game-horizon-logo){display:none!important}
+#gameScreen .game-brand-strip .game-horizon-logo{
+  display:block!important;position:absolute!important;left:50%!important;top:0!important;
+  transform:translateX(-50%)!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  object-fit:contain!important;object-position:center top!important;filter:drop-shadow(0 2px 5px #000)!important;pointer-events:none!important;
+}
+
+/* Life feedback: white normally; gain green / loss red for the existing 20s timer. */
+#gameScreen [data-life-player]{color:#fff!important;transition:color .18s ease,text-shadow .18s ease}
+#gameScreen [data-life-player].life-gain-flash{color:#62f58d!important;text-shadow:0 1px 0 #000,0 0 7px rgba(71,255,126,.58)!important}
+#gameScreen [data-life-player].life-loss-flash{color:#ff6262!important;text-shadow:0 1px 0 #000,0 0 7px rgba(255,65,65,.50)!important}
+#gameScreen .life-stat .icon{color:#ef3f4c!important}
+
+/* Lower chassis and every jewel layer stay geometrically round/proportional. */
+#gameScreen > .floating-live-controls,#gameScreen .visual-bottom-controls.floating-live-controls{aspect-ratio:976/320!important}
+#gameScreen .hub-mark,#gameScreen .hub-logo-crop,#gameScreen .hub-mark::before,#gameScreen .hub-mark::after{aspect-ratio:1/1!important;border-radius:50%!important}
+
+@media(max-width:600px){
+  #gameScreen .battlefield{min-height:20.5vw!important;padding:8px 5px!important}
+  #gameScreen .zones button{height:64px!important;min-height:64px!important}
+  #gameScreen .game-brand-strip{width:46vw!important;height:13.4vw!important}
+}
+
+/* ============================================================
+   V0.7.9.37 — FINAL MASTER CANDIDATE: battlefield geometry only
+   Approved visual: proportional cards, centered play row, clean zones.
+   ============================================================ */
+/* Give the play surface enough height for the complete 63:88 card, then center it
+   between the battlefield header and the permanent zone controls. */
+#gameScreen .battlefield-wrap{
+  position:relative!important;
+  min-height:25.5vw!important;
+  height:25.5vw!important;
+  overflow:hidden!important;
+}
+#gameScreen .battlefield{
+  box-sizing:border-box!important;
+  width:100%!important;height:100%!important;min-height:0!important;
+  padding:1.35vw 1.2vw!important;margin:0!important;
+  display:flex!important;flex-wrap:nowrap!important;
+  align-items:center!important;align-content:center!important;justify-content:center!important;
+  gap:1.0vw!important;overflow-x:auto!important;overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+/* Seven-card standard. Never distort a Magic card to fill available height. */
+#gameScreen .battlefield .battle-card,
+#gameScreen .battlefield .add-card{
+  box-sizing:border-box!important;
+  flex:0 0 calc((100% - 6vw)/7)!important;
+  width:calc((100% - 6vw)/7)!important;
+  min-width:calc((100% - 6vw)/7)!important;
+  max-width:calc((100% - 6vw)/7)!important;
+  height:auto!important;min-height:0!important;max-height:none!important;
+  aspect-ratio:63/88!important;
+  padding:0!important;margin:0!important;
+  border:0!important;outline:0!important;border-radius:3px!important;
+  background:transparent!important;box-shadow:none!important;
+  overflow:visible!important;align-self:center!important;
+}
+#gameScreen .battlefield .battle-card > img{
+  box-sizing:border-box!important;display:block!important;
+  width:100%!important;height:100%!important;aspect-ratio:63/88!important;
+  object-fit:cover!important;border:0!important;outline:0!important;
+  border-radius:3px!important;box-shadow:none!important;
+}
+/* Keep gameplay badges but remove the old white selection/frame treatment. */
+#gameScreen .battlefield .battle-card::before,
+#gameScreen .battlefield .battle-card::after{border:0!important;outline:0!important;box-shadow:none!important}
+#gameScreen .battlefield .battle-card:focus,
+#gameScreen .battlefield .battle-card:focus-visible,
+#gameScreen .battlefield .battle-card:hover{
+  border:0!important;outline:0!important;box-shadow:none!important;
+}
+/* Restore the four battlefield-zone buttons to the approved, fully visible scale. */
+#gameScreen .zones{
+  box-sizing:border-box!important;display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:.65vw!important;margin:0!important;padding:.7vw 1.15vw .8vw!important;
+  height:17.2vw!important;min-height:17.2vw!important;max-height:17.2vw!important;
+  overflow:hidden!important;align-items:stretch!important;
+}
+#gameScreen .zones button{
+  box-sizing:border-box!important;width:100%!important;height:100%!important;
+  min-width:0!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:0!important;background-size:100% 100%!important;
+  background-position:center!important;background-repeat:no-repeat!important;
+  border:0!important;outline:0!important;box-shadow:none!important;
+}
+@media(max-width:600px){
+  #gameScreen .battlefield-wrap{min-height:25.5vw!important;height:25.5vw!important}
+  #gameScreen .battlefield{padding:1.35vw 1.2vw!important;gap:1vw!important}
+  #gameScreen .zones{height:17.2vw!important;min-height:17.2vw!important;max-height:17.2vw!important;padding:.7vw 1.15vw .8vw!important}
+}
+
+/* V0.7.9.38 — final integrated top bar only; active .37 frame footprint preserved */
+#gameScreen .game-brand-strip{display:none!important}
+
+/* V0.7.9.39 — compact combat target picker only */
+.attack-target-picker{
+  display:grid;
+  gap:14px;
+  padding:2px 0 6px;
+}
+.attack-target-attacker{
+  display:grid;
+  grid-template-columns:72px minmax(0,1fr);
+  gap:12px;
+  align-items:center;
+  padding:10px;
+  border:1px solid #5b3a71;
+  border-radius:10px;
+  background:linear-gradient(180deg,#110b17,#08060c);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
+}
+.attack-target-attacker img{
+  display:block;
+  width:72px;
+  aspect-ratio:63/88;
+  object-fit:cover;
+  border-radius:6px;
+}
+.attack-target-attacker-copy{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+.attack-target-attacker-copy small{
+  font-size:11px;
+  letter-spacing:.12em;
+  color:#aa8cc2;
+}
+.attack-target-attacker-copy strong{
+  font-size:18px;
+  line-height:1.15;
+  color:#fff;
+  overflow-wrap:anywhere;
+}
+.attack-target-attacker-copy span{
+  font-size:15px;
+  color:#d9cbe4;
+}
+.attack-target-list{
+  display:grid;
+  gap:10px;
+}
+.attack-target-option{
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  min-height:64px;
+  padding:8px 14px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  border:1px solid #6c4585;
+  border-radius:8px;
+  background:linear-gradient(180deg,#17101f,#08060d);
+  color:#fff;
+  text-align:left;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 0 14px rgba(99,45,128,.13);
+}
+.attack-target-option:active{
+  transform:translateY(1px);
+}
+.attack-target-name{
+  font-weight:800;
+  font-size:18px;
+  line-height:1.1;
+  overflow-wrap:anywhere;
+}
+.attack-target-life{
+  min-width:58px;
+  display:grid;
+  justify-items:center;
+  line-height:1;
+}
+.attack-target-life b{
+  font-size:24px;
+  color:#fff;
+}
+.attack-target-life small{
+  margin-top:4px;
+  font-size:9px;
+  letter-spacing:.08em;
+  color:#a99bb4;
+}
+@media(max-width:600px){
+  .attack-target-attacker{
+    grid-template-columns:58px minmax(0,1fr);
+    gap:10px;
+    padding:8px;
+  }
+  .attack-target-attacker img{width:58px}
+  .attack-target-attacker-copy strong{font-size:17px}
+  .attack-target-option{min-height:58px}
+}
+
+/* V0.7.9.40 — FORCE FINAL TOP-BAR SWAP.
+   Unique asset filename defeats stale GitHub/browser caches. */
+#gameScreen .game-brand-strip{display:none!important}
+#gameScreen::before{
+  background:
+    url('game-top-frame-v07940.jpg?v=07940') top center/100% var(--cc-top-h) no-repeat,
+    url('game-left-rail-v07915.jpg') left var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-right-rail-v07915.jpg') right var(--cc-top-h)/2.8% calc(100% - var(--cc-top-h) - var(--cc-bottom-h)) no-repeat,
+    url('game-bottom-chassis.jpg?v=07924') bottom center/100% var(--cc-bottom-h) no-repeat!important;
+}
+
+/* V0.7.9.41 — locked-layout micro-polish: life heart + game log only. */
+#gameScreen .player-card.active.new-visual-master .life-stat .icon{
+  color:#ff3b45!important;
+  -webkit-text-fill-color:#ff3b45!important;
+  text-shadow:0 0 5px rgba(255,59,69,.72),0 1px 2px #000!important;
+  filter:none!important;
+  opacity:1!important;
+}
+
+/* Stronger framed log without changing its locked footprint. */
+#gameScreen .inline-game-log{
+  border:1px solid #8553a4!important;
+  box-shadow:
+    inset 0 0 0 1px rgba(213,177,235,.18),
+    inset 0 0 12px rgba(92,39,124,.18),
+    0 0 5px rgba(102,48,137,.28)!important;
+}
+#gameScreen .inline-game-log-scroll{
+  justify-content:flex-start!important;
+  align-items:center!important;
+  text-align:center!important;
+  padding-top:5px!important;
+  scroll-behavior:auto!important;
+}
+#gameScreen .inline-game-log-scroll > *,
+#gameScreen .inline-log-event,
+#gameScreen .inline-log-event span,
+#gameScreen .inline-log-empty{
+  width:100%!important;
+  text-align:center!important;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+
+/* Undo remains the same locked segment, with stronger visual identity. */
+#gameScreen .inline-log-undo{
+  color:#fff!important;
+  background:
+    radial-gradient(circle at 50% 46%,rgba(159,74,205,.34),transparent 52%),
+    linear-gradient(180deg,#1a0d24,#07040b)!important;
+  border-left:1px solid #9b62ba!important;
+  box-shadow:
+    inset 0 0 0 1px rgba(232,199,250,.10),
+    inset 0 0 10px rgba(135,57,176,.28)!important;
+  text-shadow:0 0 7px rgba(207,133,255,.85),0 1px 2px #000!important;
+}
+#gameScreen .inline-log-undo::before{
+  content:""!important;
+  position:absolute!important;
+  inset:18% 22%!important;
+  border:1px solid rgba(194,126,231,.28)!important;
+  border-radius:50%!important;
+  pointer-events:none!important;
+}
+#gameScreen .inline-log-undo{position:relative!important}
+#gameScreen .inline-log-undo:active{
+  background:radial-gradient(circle at 50% 46%,rgba(190,91,241,.48),transparent 58%),#21102c!important;
+}
+
+/* V0.7.9.42 — FINAL GAME-SCREEN VISUAL MASTER: approved Game Log Undo asset only. */
+#gameScreen .inline-log-undo{
+  position:relative!important;
+  overflow:visible!important;
+  color:transparent!important;
+  text-shadow:none!important;
+  background:
+    url('game-log-undo-v07942.png?v=07942') center/96% 88% no-repeat!important;
+  border-left:1px solid #74458e!important;
+  box-shadow:none!important;
+}
+#gameScreen .inline-log-undo::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:
+    url('game-log-undo-v07942.png?v=07942') center/96% 88% no-repeat!important;
+  opacity:.24!important;
+  filter:brightness(1.22) saturate(1.22) drop-shadow(0 0 4px rgba(190,88,255,.72))!important;
+  pointer-events:none!important;
+  animation:ccUndoAssetPulse 2.25s ease-in-out infinite!important;
+}
+#gameScreen .inline-log-undo:active{
+  transform:translateY(1px)!important;
+  filter:brightness(1.22)!important;
+}
+@keyframes ccUndoAssetPulse{
+  0%,100%{opacity:.10;filter:brightness(1.05) saturate(1.08) drop-shadow(0 0 2px rgba(171,72,225,.35))}
+  50%{opacity:.42;filter:brightness(1.42) saturate(1.38) drop-shadow(0 0 7px rgba(205,103,255,.95))}
+}
+
+/* V0.7.9.47 — Player Rescue Strategy Advisor destination panel only. */
+.cc-modal .strategy-advisor-panel{
+  margin:0 0 14px!important;
+  padding:12px 13px!important;
+  border:1px solid #70478a!important;
+  border-radius:8px!important;
+  background:linear-gradient(180deg,rgba(68,31,84,.22),rgba(8,5,11,.92))!important;
+  box-shadow:inset 0 0 16px rgba(142,74,177,.12)!important;
+}
+.cc-modal .strategy-advisor-panel h3{margin-top:0!important}
+.cc-modal .strategy-advisor-message{
+  margin:.4rem 0 .55rem!important;
+  padding:.65rem .75rem!important;
+  border-left:3px solid #a767c9!important;
+  background:rgba(0,0,0,.28)!important;
+}
+.cc-modal .strategy-advisor-panel ul{margin:.45rem 0 0 1.1rem!important;padding:0!important}
+
+/* V0.7.9.50 — destination-menu control rail + approved button assets. */
+.cc-modal .modal-actions.sticky-actions{position:sticky!important;bottom:0!important;z-index:8!important;display:flex!important;justify-content:center!important;align-items:center!important;gap:8px!important;padding:10px 12px!important;background:linear-gradient(180deg,rgba(7,5,10,.72),rgba(7,5,10,.98))!important;border-top:1px solid rgba(153,89,185,.55)!important}
+.cc-modal .modal-actions button{min-height:44px!important;min-width:118px!important;padding:8px 15px!important;border:0!important;border-radius:0!important;color:#fff!important;background:transparent url('ui-confirm.png?v=07950') center/100% 100% no-repeat!important;font-weight:800!important;letter-spacing:.045em!important;text-shadow:0 1px 2px #000!important}
+.cc-modal .modal-actions button.danger,.cc-modal .modal-actions button[data-kind="danger"]{background-image:url('ui-cancel.png?v=07950')!important}
+.cc-modal .dialog-back,.cc-modal .modal-back-row .dialog-back{min-height:42px!important;min-width:128px!important;padding:7px 15px!important;border:0!important;color:#fff!important;background:transparent url('ui-back.png?v=07950') center/100% 100% no-repeat!important;font-weight:900!important;text-shadow:0 1px 2px #000!important}
+.cc-modal .counter-grid button,.cc-modal .profile-quick-edit,.cc-modal .chat-compose button{min-height:44px!important;border:0!important;color:#fff!important;background:transparent url('ui-confirm.png?v=07950') center/100% 100% no-repeat!important;font-weight:800!important;text-shadow:0 1px 2px #000!important}
+
+/* V0.7.9.51 — Available Actions inside existing Player Rescue destination only. */
+.cc-modal .available-actions-panel{margin:0 0 14px!important;padding:12px 13px!important;border:1px solid #5d4969!important;border-radius:8px!important;background:rgba(5,4,8,.72)!important}
+.cc-modal .available-actions-panel h3{margin-top:0!important}
+.cc-modal .available-actions-group{margin:.65rem 0!important}
+.cc-modal .available-actions-group h4{margin:0 0 .35rem!important;font-size:.78rem!important;letter-spacing:.08em!important;color:#d8c3e4!important}
+.cc-modal .available-action-row{display:flex!important;flex-direction:column!important;gap:2px!important;margin:0 0 6px!important;padding:8px 9px!important;border-left:2px solid #8854a3!important;background:rgba(92,49,111,.13)!important}
+.cc-modal .available-action-row small{opacity:.72!important;line-height:1.25!important}
+
+/* V0.7.9.52 — persistent Game Logs + Player Stats destinations only. */
+.cc-modal .persistent-log-section{margin:0 0 16px!important}
+.cc-modal .persistent-log-row,.cc-modal .persistent-game-card{margin:0 0 7px!important;padding:9px 10px!important;border-left:2px solid #82509d!important;background:rgba(79,43,95,.14)!important}
+.cc-modal .persistent-log-row{display:grid!important;grid-template-columns:auto 1fr!important;gap:8px!important;align-items:start!important}
+.cc-modal .persistent-log-row b{font-size:.7rem!important;white-space:nowrap!important}
+.cc-modal .persistent-game-card>div{display:flex!important;justify-content:space-between!important;gap:10px!important}
+.cc-modal .persistent-game-card small{opacity:.7!important;text-align:right!important}
+.cc-modal .persistent-game-card p{margin:.35rem 0 0!important}
+.cc-modal .stats-summary-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:7px!important;margin:0 0 12px!important}
+.cc-modal .stats-summary-grid>div{padding:10px 4px!important;text-align:center!important;border:1px solid #654276!important;background:rgba(70,36,84,.16)!important}
+.cc-modal .stats-summary-grid b,.cc-modal .stats-summary-grid small{display:block!important}
+.cc-modal .stats-summary-grid b{font-size:1.2rem!important}.cc-modal .stats-summary-grid small{font-size:.62rem!important;opacity:.72!important}
+
+
+/* V0.7.9.75 menu semantics only — sealed landing/game screen unchanged */
+#modal [data-navigation="back"],dialog [data-navigation="back"]{background-image:url("./ui-back.png");background-repeat:no-repeat;background-position:10px center;background-size:auto 62%;padding-left:46px}
+#modal [data-action-role="cancel"],dialog [data-action-role="cancel"]{background-image:url("./ui-cancel.png");background-repeat:no-repeat;background-position:10px center;background-size:auto 62%;padding-left:46px}
+#modal [data-menu-semantic="confirm"],#modal [data-menu-semantic="save"],dialog [data-menu-semantic="confirm"],dialog [data-menu-semantic="save"]{background-repeat:no-repeat;background-position:10px center;background-size:auto 62%;padding-left:46px}
+#modal [data-menu-semantic="confirm"],dialog [data-menu-semantic="confirm"]{background-image:url("./ui-confirm.png")}
+#modal [data-menu-semantic="save"],dialog [data-menu-semantic="save"]{background-image:url("./ui-save.png")}

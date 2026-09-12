@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#08060d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Commander Companion">
+  <title>Commander Companion V0.7.39</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="cc-app-icon-192.png">
+  <link rel="stylesheet" href="styles-v0739.css?v=079-landing-centered-primary">
+  <link rel="stylesheet" href="ipad-layout.css?v=0738">
+</head>
+<body>
+  <div id="toast" class="toast" hidden></div>
+  <div id="bootError" class="boot-error" hidden><strong>COMMANDER COMPANION COULD NOT START</strong><p id="bootErrorText"></p><button onclick="location.reload()">RETRY</button></div>
+
+  <main id="landing" class="screen landing-screen landing-rebuild-079">
+    <section class="landing079-shell" aria-label="Commander Companion home">
+      <div class="landing079-brand">
+        <img src="horizon-full-logo.png" class="landing079-logo" alt="Commander Companion">
+      </div>
+
+      <div class="landing079-copy">
+        <p>YOUR COMMANDER TABLE. TRACKED, GUIDED, AND READY TO PLAY.</p>
+      </div>
+
+      <div class="landing079-primary-actions">
+        <button id="startGameBtn" class="mode-launch landing079-start" type="button"><img class="landing-static-label" src="landing-btn-start-centered-v079.png?v=079-centered-primary" alt="START GAME"></button>
+        <button id="continueBtn" class="landing079-continue" type="button" aria-label="Continue Game"><img class="landing-static-label" src="landing-btn-continue-centered-v079.png?v=079-centered-primary" alt="CONTINUE GAME"></button>
+      </div>
+
+      <div class="landing079-feature-actions" aria-label="Profile, deck, settings, and help tools">
+        <button id="profileLandingBtn" type="button"><img class="landing-static-label" src="landing-btn-profile.png" alt="PROFILE"></button>
+        <button id="deckBuilderVisibleBtn" type="button"><img class="landing-static-label" src="landing-btn-deck-builder.png" alt="DECK BUILDER"></button>
+        <button id="settingsLandingBtnBottom" type="button"><img class="landing-static-label" src="landing-btn-settings.png" alt="SETTINGS"></button>
+        <button id="helpLandingBtn" type="button"><img class="landing-static-label" src="landing-btn-help-stack.png" alt="HELP"></button>
+      </div>
+
+      <div class="landing079-legacy-hooks" hidden aria-hidden="true">
+        <button id="joinGameLandingBtn" type="button">JOIN GAME</button>
+        <button id="myDecksLandingBtn" type="button">MY DECKS</button>
+        <button id="myAccountBtn" type="button">PROFILE</button>
+        <button id="learnBtn" type="button">LEARN</button>
+        <button id="cardSearchLandingBtn" type="button">CARD SEARCH</button>
+        <button id="deckBuilderLandingBtn" type="button">DECK BUILDER</button>
+        <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
+      </div>
+
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.7.9.9</div>
+    </section>
+    <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
+    <button id="versionNotesBtn" hidden aria-hidden="true"></button>
+  </main>
+
+  <main id="gameScreen" class="screen game-screen" hidden>
+    <link rel="stylesheet" href="game-threefix.css?v=07914-exact-master">
+    <header class="game-brand-strip" aria-label="Game status bar">
+      <div class="game-turn-badge" aria-live="polite">
+        <span class="game-turn-copy"><b id="gameTurnNumber">Player</b><small id="gameTurnPlayer"></small></span>
+      </div>
+      <img class="game-horizon-logo" src="horizon-header-logo-v079.png?v=079-compact-log-hand" alt="Commander Companion">
+      <button id="gameTopMore" class="game-top-more" type="button" data-hub="settings" aria-label="Game settings">•••</button>
+    </header>
+
+    <section id="gameContent" aria-live="polite"></section>
+
+
+  </main>
+
+  <main id="tabletopScreen" class="tabletop-screen" hidden>
+    <div id="tabletopNow"></div>
+    <button id="exitTabletop" class="primary">EXIT TABLETOP</button>
+  </main>
+
+  <dialog id="modal" class="cc-modal">
+    <div class="modal-shell">
+      <header><h2 id="modalTitle">COMMANDER COMPANION</h2></header>
+      <div class="modal-back-row"><button id="modalClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div id="modalContent" class="modal-content"></div>
+      <footer id="modalActions" class="modal-actions"></footer>
+    </div>
+  </dialog>
+
+  <dialog id="gameModeDialog" class="cc-modal game-mode-dialog">
+    <div class="modal-shell game-mode-shell">
+      <header><h2>CHOOSE GAME MODE</h2></header>
+      <div class="modal-back-row"><button id="gameModeClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div class="modal-content game-mode-content">
+        <div class="mode-choice-menu">
+          <button type="button" data-game-mode="fully-tracked"><b>FULLY GUIDED</b><span>Full rules guidance, legality checks, tracked deck and hand.</span></button>
+          <button type="button" data-game-mode="freeplay"><b>FREEPLAY</b><span>Commander tracking with minimal interference.</span></button>
+          <button type="button" data-game-mode="table-tracker"><b>TABLE TRACKER</b><span>Fast shared-table life, commander, and board tracking.</span></button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="modeSetupDialog" class="cc-modal mode-setup-dialog">
+    <div class="modal-shell">
+      <header><h2 id="modeSetupTitle">GAME SETUP</h2></header>
+      <div class="modal-back-row"><button id="modeSetupBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div id="modeSetupContent" class="modal-content"></div>
+      <footer id="modeSetupActions" class="modal-actions"></footer>
+    </div>
+  </dialog>
+
+  <dialog id="setupDialog" class="cc-modal">
+    <div class="modal-shell">
+      <header><h2>NEW GAME SETUP</h2></header>
+      <div class="modal-back-row"><button id="setupDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div class="modal-content">
+        <div class="setup-line">
+          <label>Players<select id="playerCount"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
+          <label id="guidanceSettingWrap">Guidance<select id="defaultGuidance"><option value="guided">MAX GUIDANCE</option></select></label>
+        </div>
+        <label id="virtualHandWrap" class="check" hidden><input id="virtualHand" type="checkbox" checked> Virtual Hand</label>
+        <div id="playerSetupPanels"></div>
+        <div id="setupProgress" class="progress-text"></div>
+      </div>
+      <footer class="modal-actions"><button class="dialog-close">CANCEL</button><button id="startSetupBtn" class="primary">START SETUP</button></footer>
+    </div>
+  </dialog>
+
+  <dialog id="deckDialog" class="cc-modal">
+    <div class="modal-shell">
+      <header><h2>DECK EDITOR</h2></header>
+      <div class="modal-back-row"><button id="deckDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div class="modal-content">
+        <div class="deck-editor-grid">
+          <aside><button id="newDeckBtn">NEW DECK</button><button id="copyDeckBtn">COPY DECK</button><button id="preconCatalogBtn">PRECON CATALOG</button><button id="importManaBoxBtn">IMPORT MANABOX FILE</button><input id="manaBoxFileInput" type="file" accept=".txt,.csv,text/plain,text/csv" hidden><div id="savedDeckList"></div></aside>
+          <section>
+            <label>Deck Name<input id="deckNameInput"></label>
+            <div class="setup-line"><label>Commander 1<input id="deckCommander1" readonly><button type="button" id="deckPickCommander1">SELECT FROM DECK</button></label><label id="deckCommander2Wrap" hidden>Commander 2<input id="deckCommander2" readonly><button type="button" id="deckPickCommander2">SELECT LEGAL PARTNER</button></label></div>
+            <div class="card-search-row"><input id="deckCardSearch" placeholder="Type a card name to add"><span>Card search</span></div><div id="deckCardResults" class="card-search-results compact-results"></div><label>Deck List<textarea id="deckListInput" rows="20"></textarea></label>
+            <div id="deckEditorStatus" class="progress-text"></div><div id="deckAnalytics" class="deck-analytics-wrap"><div class="muted">Validate the deck to calculate curve, land count, card types, and color identity.</div></div>
+          </section>
+        </div>
+      </div>
+      <footer class="modal-actions"><button id="deleteDeckBtn" class="danger">DELETE</button><button id="validateDeckBtn">VALIDATE</button><button id="saveDeckBtn" class="primary">SAVE DECK</button></footer>
+    </div>
+  </dialog>
+
+  <dialog id="networkDialog" class="cc-modal">
+    <div class="modal-shell">
+      <header><h2 id="networkTitle">MULTI-DEVICE</h2></header>
+      <div class="modal-back-row"><button id="networkDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back">‹ BACK</button></div>
+      <div id="networkContent" class="modal-content"></div>
+      <footer id="networkActions" class="modal-actions"></footer>
+    </div>
+  </dialog>
+
+  <script>
+    (function(){
+      var isIPad=/iPad/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+      if(isIPad&&!location.pathname.endsWith('/ipad.html')&&!location.pathname.endsWith('ipad.html')){location.replace('./ipad.html'+location.search+location.hash);return;}
+    })();
+    window.__ccBootComplete=false;
+    window.__ccAppReady=false;
+    window.__ccShowBootError=function(error){
+      console.error('Commander Companion startup failure:',error);
+      var box=document.getElementById('bootError'),txt=document.getElementById('bootErrorText');
+      var detail=(error&&error.message)?error.message:String(error||'Unknown startup error');
+      if(box&&txt){txt.textContent='Startup failed: '+detail+' — V0.7.39 has already cleared legacy Commander Companion caches. Reload once; if this remains visible, send this exact message.';box.hidden=false;}
+    };
+    window.addEventListener('error',function(e){if(window.__ccBootComplete)return;if(!e.error&&e.target&&e.target!==window)return;window.__ccShowBootError(e.error||e.message)});
+    window.addEventListener('unhandledrejection',function(e){if(!window.__ccBootComplete)window.__ccShowBootError(e.reason)});
+  </script>
+  <script type="module">
+    (async()=>{
+      try{
+        const hadController=!!navigator.serviceWorker?.controller;
+        if('serviceWorker' in navigator){
+          const regs=navigator.serviceWorker.getRegistrations?await navigator.serviceWorker.getRegistrations():[];
+          await Promise.all(regs.map(r=>r.unregister().catch(()=>false)));
+        }
+        if('caches' in window){
+          const keys=await caches.keys();
+          await Promise.all(keys.filter(k=>k.startsWith('commander-companion-')).map(k=>caches.delete(k)));
+        }
+        const fresh=new URL(location.href);
+        if(hadController&&fresh.searchParams.get('ccFresh')!=='079-threefix'){
+          fresh.searchParams.set('ccFresh','079-threefix');
+          location.replace(fresh.toString());
+          return;
+        }
+        await import('./app.js?v=079201-frame-hand-hitbox-hotfix');
+        if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
+        window.__ccBootComplete=true;
+        const b=document.getElementById('bootError');if(b)b.hidden=true;
+      }catch(e){window.__ccShowBootError(e)}
+    })();
+  </script>
+</body>
+</html>
