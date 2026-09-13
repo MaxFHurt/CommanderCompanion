@@ -11,7 +11,7 @@ export async function initDeckStore(storage=globalThis.localStorage){
 }
 export function listDecks(storage=globalThis.localStorage){if(cache)return structuredClone(cache);return structuredClone(localRead(storage))}
 export async function saveDeck(deck,storage=globalThis.localStorage){
-  const all=listDecks(storage),i=all.findIndex(d=>d.id===deck.id),row={...deck,id:deck.id||crypto.randomUUID(),updatedAt:new Date().toISOString()};if(i>=0)all[i]=row;else all.push(row);cache=all;
+  const all=listDecks(storage),i=all.findIndex(d=>d.id===deck.id),now=new Date().toISOString(),previous=i>=0?all[i]:null,row={...deck,id:deck.id||crypto.randomUUID(),createdAt:deck.createdAt||previous?.createdAt||now,updatedAt:now};if(i>=0)all[i]=row;else all.push(row);cache=all;
   const localOk=localWrite(all,storage);let durableOk=false;try{await durableSet(DURABLE_KEY,all);durableOk=true}catch{}
   if(!localOk&&!durableOk)throw new Error('This device could not save the deck. Both browser recovery stores are unavailable.');return structuredClone(row)
 }

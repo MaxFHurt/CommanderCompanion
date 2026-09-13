@@ -34,7 +34,7 @@ export async function saveAccountProfile(account={},storage=globalThis.localStor
 export function accountSetupDefaults(storage=globalThis.localStorage){const p=loadProfile(storage),a=p.account||{};const inferred=Object.values(p.players||{}).sort((x,y)=>String(y.lastPlayedAt||'').localeCompare(String(x.lastPlayedAt||''))).map(x=>x.name).filter(Boolean);const names=[...(a.preferredPlayerNames||[]),a.displayName,...inferred].map(x=>String(x||'').trim()).filter(Boolean);return {displayName:a.displayName||'',tagline:a.tagline||'',avatarGlyph:a.avatarGlyph||'CC',playerNames:[...new Set(names)].slice(0,6),favoriteDeckId:a.favoriteDeckId||''}}
 export async function recordDeckCreated(deck,storage=globalThis.localStorage){
   const p=loadProfile(storage),id=deck?.id||deck?.name||crypto.randomUUID(),now=new Date().toISOString();
-  p.decks[id]={...(p.decks[id]||{}),id,name:deck?.name||'Untitled Deck',commander1:deck?.commander1||'',commander2:deck?.commander2||'',analytics:deck?.analytics?structuredClone(deck.analytics):p.decks[id]?.analytics||null,createdOrSavedAt:p.decks[id]?.createdOrSavedAt||now,updatedAt:deck?.updatedAt||now,source:'deck-editor'};
+  p.decks[id]={...(p.decks[id]||{}),id,name:deck?.name||'Untitled Deck',commander1:deck?.commander1||'',commander2:deck?.commander2||'',analytics:deck?.analytics?structuredClone(deck.analytics):p.decks[id]?.analytics||null,importMeta:deck?.importMeta?structuredClone(deck.importMeta):p.decks[id]?.importMeta||null,createdOrSavedAt:p.decks[id]?.createdOrSavedAt||now,updatedAt:deck?.updatedAt||now,source:deck?.importMeta?.source||'deck-editor'};
   await persistReliable(p,storage);return p
 }
 export async function recordDeckDeleted(id,storage=globalThis.localStorage){
