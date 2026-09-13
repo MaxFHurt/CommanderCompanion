@@ -41,13 +41,33 @@ export function parseManaCost(cost=''){
   for(const s of symbols){ if(/^\d+$/.test(s))req.generic+=+s; else if(COLORS.includes(s))req[s]++; }
   return req;
 }
-export function planMana(available,cost,tax=0){
-  const req=parseManaCost(cost); req.generic+=tax; const pool={...available}; const chosen={W:0,U:0,B:0,R:0,G:0,C:0};
-  for(const c of COLORS){ if(c==='C')continue; if((pool[c]||0)<req[c])return {ok:false,reason:`Need ${req[c]} ${c} mana`}; pool[c]-=req[c];chosen[c]+=req[c]; }
-  if((pool.C||0)<req.C)return {ok:false,reason:`Need ${req.C} true colorless mana`}; pool.C-=req.C;chosen.C+=req.C;
-  let generic=req.generic; for(const c of ['C','W','U','B','R','G']){const use=Math.min(pool[c]||0,generic);chosen[c]+=use;pool[c]-=use;generic-=use;if(!generic)break;}
-  return generic?{ok:false,reason:`Need ${generic} more generic mana`}:{ok:true,required:req,chosen,remaining:pool};
+function manaCapacitySourceUsable(game,card){
+  const def=game?.cardDefinitions?.[card?.definitionId];if(!/Creature/i.test(String(def?.typeLine||'')))return true;
+  const haste=(def?.keywords||[]).some(k=>String(k).toLowerCase()==='haste')||/\bHaste\b/i.test(String(def?.oracleText||''))||(card?.temporaryEffects||[]).some(e=>e?.kind==='keyword'&&e?.enabled!==false&&String(e.keyword||'').toLowerCase()==='haste');
+  if(haste)return true;return Number(card?.controlSinceTurn??card?.enteredTurn??-1)<Number(game?.turnNumber||0);
 }
+export function playerManaAvailability(player,game=null){
+  const base=Object.fromEntries(COLORS.map(c=>[c,Math.max(0,Number(player?.mana?.available?.[c]||0))]));
+  const flex=(player?.deck?.battlefield||[]).filter(c=>!c.tapped&&manaCapacitySourceUsable(game,c)&&c.manaCapacityRegistered&&Array.isArray(c.manaCapacityOptions)&&c.manaCapacityOptions.length>1).map(c=>({instanceId:c.instanceId,options:[...new Set(c.manaCapacityOptions.filter(x=>COLORS.includes(x)))]})).filter(x=>x.options.length>1);
+  return {...base,__flex:flex};
+}
+export function planMana(available,cost,tax=0){
+  const req=parseManaCost(cost); req.generic+=Math.max(0,Number(tax||0));
+  const pool=Object.fromEntries(COLORS.map(c=>[c,Math.max(0,Number(available?.[c]||0))]));
+  const flex=(Array.isArray(available?.__flex)?available.__flex:[]).map(x=>({instanceId:x.instanceId,options:[...new Set((x.options||[]).filter(c=>COLORS.includes(c)))]})).filter(x=>x.instanceId&&x.options.length);
+  const chosen={W:0,U:0,B:0,R:0,G:0,C:0};const assignments=[];const usedFlex=new Set();
+  const takeFlex=(color,count)=>{for(let n=0;n<count;n++){const src=flex.find(x=>!usedFlex.has(x.instanceId)&&x.options.includes(color));if(!src)return false;usedFlex.add(src.instanceId);assignments.push({instanceId:src.instanceId,color});}return true};
+  for(const c of ['W','U','B','R','G']){const need=Math.max(0,Number(req[c]||0)),fixed=Math.min(pool[c],need);chosen[c]+=fixed;pool[c]-=fixed;const deficit=need-fixed;if(deficit&&!takeFlex(c,deficit))return {ok:false,reason:`Need ${deficit} more ${c} mana`};}
+  {const need=Math.max(0,Number(req.C||0)),fixed=Math.min(pool.C,need);chosen.C+=fixed;pool.C-=fixed;const deficit=need-fixed;if(deficit&&!takeFlex('C',deficit))return {ok:false,reason:`Need ${deficit} more true colorless mana`};}
+  let generic=Math.max(0,Number(req.generic||0));
+  const cUse=Math.min(pool.C,generic);chosen.C+=cUse;pool.C-=cUse;generic-=cUse;
+  while(generic>0){const src=flex.find(x=>!usedFlex.has(x.instanceId));if(!src)break;usedFlex.add(src.instanceId);const color=src.options.includes('C')?'C':src.options[0];assignments.push({instanceId:src.instanceId,color,generic:true});generic--;}
+  for(const c of ['W','U','B','R','G']){if(!generic)break;const use=Math.min(pool[c],generic);chosen[c]+=use;pool[c]-=use;generic-=use;}
+  if(generic)return {ok:false,reason:`Need ${generic} more generic mana`};
+  if(assignments.length)chosen.__sourceAssignments=assignments;
+  return {ok:true,required:req,chosen,remaining:{...pool,__flex:flex.filter(x=>!usedFlex.has(x.instanceId))},sourceAssignments:assignments};
+}
+
 export function validatePlay({game,player,definition,instance,kind='cast',commander=null,definitions}){
   const reasons=[]; const warnings=[];
   if(!definition||!isCardDefinitionComplete(definition)) reasons.push('Card data is unresolved or incomplete.');
@@ -62,7 +82,7 @@ export function validatePlay({game,player,definition,instance,kind='cast',comman
   const rules=normalizeRulesConfig(game?.rulesConfig);
   const identity=definitions?effectiveIdentity(player,definitions):[];
   if(rules.colorIdentity!==false&&definition&&identity.length&&definition.colorIdentity.some(c=>!identity.includes(c))) reasons.push('Card color identity is outside the commander identity.');
-  const tax=commander&&rules.commanderTax!==false?commander.commanderTax:0; const payment=kind==='land'?{ok:true,chosen:{}}:planMana(player.mana.available,definition?.manaCost||'',tax);
+  const tax=commander&&rules.commanderTax!==false?commander.commanderTax:0; const payment=kind==='land'?{ok:true,chosen:{}}:planMana(playerManaAvailability(player,game),definition?.manaCost||'',tax);
   if(!payment.ok) reasons.push(payment.reason);
   if(rules.ruleZeroOverrides&&reasons.length){warnings.push(...reasons.map(x=>`Rule Zero override: ${x}`));return {legal:true,reasons:[],requiredMana:payment.required||{},suggestedPayment:payment.chosen||{},warnings,overridden:true};}
   return {legal:reasons.length===0,reasons,requiredMana:payment.required||{},suggestedPayment:payment.chosen||{},warnings};
@@ -303,7 +323,7 @@ export function validateActivatedAbilityFull({game,player,instance,definition,ab
   if(ability?.sacrificesSelf&&instance?.zone!=='battlefield')reasons.push('The source permanent is no longer on the battlefield to sacrifice.');
   const cost=String(ability?.cost||'');
   const manaCost=(cost.match(/(?:\{(?:\d+|[WUBRGC])\})+/g)||[]).join('');
-  if(manaCost&&player){const payment=planMana(player.mana?.available||{},manaCost,0);if(!payment.ok)reasons.push(payment.reason)}
+  if(manaCost&&player){const payment=planMana(playerManaAvailability(player,game),manaCost,0);if(!payment.ok)reasons.push(payment.reason)}
   if(ability?.lifeCost&&player&&Number(player.life||0)<Number(ability.lifeCost))reasons.push('Not enough life to pay this activation cost.');
   if(Number(ability?.loyaltyDelta)<0&&Number(instance?.counters?.loyalty||0)<Math.abs(Number(ability.loyaltyDelta)))reasons.push('Not enough loyalty to pay this activation cost.');
   if(ability?.discards&&player&&(player.deck?.hand?.length||0)<Math.max(1,ability.discardCount||1))reasons.push('Not enough cards in hand to pay this activation cost.');
