@@ -516,7 +516,7 @@ function commitAction(action){
   return result;
 }
 function localTurnAllowed(){if(network?.host&&!network?.localPlayerId)return false;return !network?.localPlayerId||game.activePlayerId===network.localPlayerId}
-function openHubAction(kind){({'card-id':()=>openGlobalPicker(),chat:openChat,rescue:openRescue,settings:openSettings,profile:openProfile,home:()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}])}[kind]?.())}
+function openHubAction(kind){({'card-id':()=>openGlobalPicker(),chat:openChat,rescue:openHelp,settings:openSettings,profile:openProfile,home:()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}])}[kind]?.())}
 function confirmUndoLastStep(onDone=null){
   if(!engine?.undo)return toast('Nothing to undo',true);
   openModal('CONFIRM UNDO','<p>Undo the most recent game action?</p><p class="muted">Only the latest recorded step will be reversed.</p>',[

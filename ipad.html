@@ -49,14 +49,14 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.7.9.9</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AA</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-b22-dock-fix">
+    <link rel="stylesheet" href="game-threefix.css?v=080-b23-aa">
     <header class="game-brand-strip" aria-label="Game status bar">
       <div class="game-turn-badge" aria-live="polite">
         <span class="game-turn-copy"><b id="gameTurnNumber">Player</b><small id="gameTurnPlayer"></small></span>
@@ -186,7 +186,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-b22-dock-fix');
+        await import('./app.js?v=080-b23-aa');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
