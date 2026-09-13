@@ -48,14 +48,14 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AF</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AG</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-b23-aa">
+    <link rel="stylesheet" href="game-threefix.css?v=080-b56-ag">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -182,7 +182,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-b56-af-deck-binding');
+        await import('./app.js?v=080-b56-ag');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
