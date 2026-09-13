@@ -1,5 +1,5 @@
-import { loadProfile } from './profile.js?v=07948';
-import { listDecks } from './deck-store.js?v=07948';
+import { loadProfile } from './profile.js?v=080-b4-ac';
+import { listDecks } from './deck-store.js?v=080-b4-ac';
 import { durableSet } from './userdata-db.js?v=0738';
 
 const PROFILE_KEY='ccv07-profile';

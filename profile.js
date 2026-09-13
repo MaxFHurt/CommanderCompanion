@@ -32,6 +32,29 @@ export function playerProfileToken(storage=globalThis.localStorage){
 }
 export async function saveAccountProfile(account={},storage=globalThis.localStorage){const p=loadProfile(storage),now=new Date().toISOString();const names=(account.preferredPlayerNames||[]).map(x=>String(x||'').trim()).filter(Boolean).slice(0,6);p.account={...p.account,...account,displayName:String(account.displayName??p.account.displayName??'').trim(),tagline:String(account.tagline??p.account.tagline??'').trim().slice(0,80),avatarGlyph:String(account.avatarGlyph??p.account.avatarGlyph??'CC').trim().slice(0,3)||'CC',preferredPlayerNames:names,favoriteDeckId:String(account.favoriteDeckId??p.account.favoriteDeckId??''),createdAt:p.account.createdAt||now,updatedAt:now};await persistReliable(p,storage);return p}
 export function accountSetupDefaults(storage=globalThis.localStorage){const p=loadProfile(storage),a=p.account||{};const inferred=Object.values(p.players||{}).sort((x,y)=>String(y.lastPlayedAt||'').localeCompare(String(x.lastPlayedAt||''))).map(x=>x.name).filter(Boolean);const names=[...(a.preferredPlayerNames||[]),a.displayName,...inferred].map(x=>String(x||'').trim()).filter(Boolean);return {displayName:a.displayName||'',tagline:a.tagline||'',avatarGlyph:a.avatarGlyph||'CC',playerNames:[...new Set(names)].slice(0,6),favoriteDeckId:a.favoriteDeckId||''}}
+
+export async function reconcileProfileDeckLibrary(decks=[],storage=globalThis.localStorage){
+  const p=loadProfile(storage),now=new Date().toISOString(),rows=Array.isArray(decks)?decks:[],byId=new Map(rows.filter(d=>d?.id).map(d=>[String(d.id),d]));
+  let changed=false;
+  p.decks=p.decks||{};
+  for(const [id,d] of byId){
+    const old=p.decks[id]||{};
+    const next={...old,id,name:d.name||old.name||'Untitled Deck',commander1:d.commander1||'',commander2:d.commander2||'',analytics:d.analytics?structuredClone(d.analytics):old.analytics||null,importMeta:d.importMeta?structuredClone(d.importMeta):old.importMeta||null,createdOrSavedAt:old.createdOrSavedAt||d.createdAt||now,updatedAt:d.updatedAt||old.updatedAt||now,source:d.importMeta?.source||old.source||'deck-editor'};
+    if(JSON.stringify(old)!==JSON.stringify(next)){p.decks[id]=next;changed=true}
+  }
+  for(const id of Object.keys(p.decks))if(!byId.has(String(id))){delete p.decks[id];changed=true}
+  for(const row of Object.values(p.players||{})){
+    if(!row?.decks)continue;
+    for(const [id,link] of Object.entries(row.decks)){
+      const d=byId.get(String(id));if(!d)continue;
+      const name=d.name||link.name||id,commander1=d.commander1||link.commander1||'',commander2=d.commander2||link.commander2||'';
+      if(link.name!==name||link.commander1!==commander1||link.commander2!==commander2){row.decks[id]={...link,name,commander1,commander2};changed=true}
+    }
+  }
+  if(p.account?.favoriteDeckId&&!byId.has(String(p.account.favoriteDeckId))){p.account.favoriteDeckId='';p.account.updatedAt=now;changed=true}
+  if(changed)await persistReliable(p,storage);
+  return structuredClone(p)
+}
 export async function recordDeckCreated(deck,storage=globalThis.localStorage){
   const p=loadProfile(storage),id=deck?.id||deck?.name||crypto.randomUUID(),now=new Date().toISOString();
   p.decks[id]={...(p.decks[id]||{}),id,name:deck?.name||'Untitled Deck',commander1:deck?.commander1||'',commander2:deck?.commander2||'',analytics:deck?.analytics?structuredClone(deck.analytics):p.decks[id]?.analytics||null,importMeta:deck?.importMeta?structuredClone(deck.importMeta):p.decks[id]?.importMeta||null,createdOrSavedAt:p.decks[id]?.createdOrSavedAt||now,updatedAt:deck?.updatedAt||now,source:deck?.importMeta?.source||'deck-editor'};

@@ -5,10 +5,10 @@ import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable,
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
 import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers } from './rules-v0725.js?v=07973';
 import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=0727';
-import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b3-ab';
+import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
-import { initProfileStore, loadProfile, saveAccountProfile, accountSetupDefaults, recordGame, recordDeckCreated, recordDeckDeleted, recordDeckSelection } from './profile.js?v=080-b3-ab';
+import { initProfileStore, loadProfile, saveAccountProfile, accountSetupDefaults, recordGame, recordDeckCreated, recordDeckDeleted, recordDeckSelection, reconcileProfileDeckLibrary } from './profile.js?v=080-b4-ac';
 import { guidanceFor } from './guidance.js?v=0722';
 import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=0722';
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
@@ -20,8 +20,8 @@ import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriori
 import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=0729';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
 import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
-import { parseManaBoxFileContents } from './deck-import.js?v=080-b3-ab';
-import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=07948';
+import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
+import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
 import { getAvailableActions } from './available-actions.js?v=07974';
 import { analyzeDeck, deckAnalyticsHtml } from './deck-analytics.js?v=07964';
@@ -30,7 +30,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const STORAGE_KEY='commander-companion-v0.7';
 let game=null,engine=null,selectedMode='fully-tracked',editingDeckId=null,editingDeckImportMeta=null,network=null,chat=[],lastSaveError=null,statusCycleTimer=null,inspectedPlayerId=null,pendingRules={...DEFAULT_COMMANDER_RULES};const approvalCallbacks=new Map();const hostApprovals=new Map();
 const definitionsMap=()=>new Map(Object.entries(game?.cardDefinitions||{}));
-const userDataReady=Promise.allSettled([initDeckStore(),initProfileStore()]);
+const userDataReady=(async()=>{const init=await Promise.allSettled([initDeckStore(),initProfileStore()]);try{await reconcileProfileDeckLibrary(listDecks())}catch(e){console.warn('Commander Companion profile/deck reconciliation skipped:',e)}return init})();
 
 function toast(msg,bad=false){const t=$('#toast');t.textContent=msg;t.classList.toggle('bad',bad);t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
 function friendlySetupError(error){const raw=String(error?.message||error||'').trim();if(/quota|storage|exceeded|full/i.test(raw))return 'Local browser storage is temporarily unavailable. Setup can continue, but this game may not be saved until storage is available.';if(/fetch|network|failed to fetch|collection lookup|card search/i.test(raw))return 'Card lookup is temporarily unavailable. Already-saved local data remains available; retry the lookup when the connection recovers.';return raw||'Setup could not be completed. Check the highlighted setup fields and try again.'}
