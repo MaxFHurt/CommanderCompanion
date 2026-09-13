@@ -141,7 +141,7 @@ function resolveStackTop(game){
   return{obj,notes};
 }
 function restore(game,before){for(const k of Object.keys(game))delete game[k];Object.assign(game,structuredClone(before))}
-function event(game,action){game.log.unshift({id:`event:${Date.now()}:${Math.random()}`,turn:game.turnNumber,type:action.type,playerId:action.playerId,text:action.label||action.type,at:new Date().toISOString()})}
+function event(game,action){game.log.unshift({id:`event:${Date.now()}:${Math.random()}`,turn:game.turnNumber,phase:game.phase,type:action.type,playerId:action.playerId,affectedPlayerIds:action.playerId?[action.playerId]:[],text:action.label||action.type,at:new Date().toISOString()})}
 function resetManaAtBoundary(game){
   // Available mana is modeled as currently usable untapped-source capacity plus explicit floating mana.
   // Sources remain represented by their card tap state; transaction actions maintain available counts.
@@ -196,7 +196,7 @@ export function createTransactionEngine(game){
     else if(action.type==='poison')player.poison=Math.max(0,player.poison+action.delta);
     else if(action.type==='counter')player.counters[action.counter]=Math.max(0,Number(player.counters[action.counter]||0)+action.delta);
     else if(action.type==='card-counter'){const hit=locate(deck,action.instanceId);if(!hit)throw new Error('Card not found');hit.card.counters=hit.card.counters||{};hit.card.counters[action.counter]=Math.max(0,Number(hit.card.counters[action.counter]||0)+action.delta);emit(game,{type:'counter-added',targetId:hit.card.instanceId,controllerId:hit.card.controllerId||player.playerId,counter:action.counter,amount:action.delta})}
-    else if(action.type==='status'){const set=new Set(player.statuses);action.enabled===false?set.delete(action.status):set.add(action.status);player.statuses=[...set]}
+    else if(action.type==='status'){const set=new Set(player.statuses);action.enabled===false?set.delete(action.status):set.add(action.status);player.statuses=[...set];if(!action.label)action.label=`${player.displayName} ${action.enabled===false?'loses':'gains'} status: ${action.status}.`}
     else if(action.type==='mana-total'){player.mana.total[action.color]=Math.max(0,Number(player.mana.total[action.color]||0)+action.delta);player.mana.available[action.color]=Math.max(0,Number(player.mana.available[action.color]||0)+action.delta)}
     else if(action.type==='mana-available')player.mana.available[action.color]=Math.max(0,Number(player.mana.available[action.color]||0)+action.delta);
     else if(action.type==='cast-commander'){
