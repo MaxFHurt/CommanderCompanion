@@ -48,7 +48,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AC</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AE</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -182,7 +182,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-b4-ac');
+        await import('./app.js?v=080-b56-ae-mulligan');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;

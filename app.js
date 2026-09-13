@@ -1,7 +1,7 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=0727';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=07953';
+import { createTransactionEngine } from './transactions.js?v=080-b56-ad';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
 import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers } from './rules-v0725.js?v=07973';
 import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=0727';
@@ -443,15 +443,42 @@ async function startSetup(){const btn=$('#startSetupBtn');btn.disabled=true;try{
 $('#startSetupBtn').onclick=startSetup;
 
 
-function openingHandHtml(p){return `<p>Review ${esc(p.displayName)}'s private opening hand. Only this player's cards should be visible while this screen is open.</p><div class="hand-panel"><h3>OPENING HAND (${p.deck.hand.length})</h3><div class="hand-strip">${p.deck.hand.map(c=>{const d=def(c.definitionId);return `<button class="hand-card" data-opening-card="${c.instanceId}">${d?`<img src="${imageOf(d)}" alt="${esc(d.name)}">`:'<span class="fallback">UNRESOLVED</span>'}</button>`}).join('')}</div></div>`}
+function mulliganRuleInfo(rules){
+  const rule=String(rules?.mulligan||'commander');
+  if(rule==='free')return {rule,label:'Free mulligans',penalty:n=>0};
+  if(rule==='london')return {rule,label:'London mulligan',penalty:n=>Math.max(0,n)};
+  return {rule:'commander',label:'Commander — first mulligan free',penalty:n=>Math.max(0,n-1)};
+}
+function mulliganPenalty(p,rules){return mulliganRuleInfo(rules).penalty(Number(p?.deck?.mulliganCount||0))}
+function takeMulligan(p,rules,{saveState=false,onComplete}={}){
+  p.deck.mulliganCount=Number(p.deck.mulliganCount||0)+1;
+  p.deck.remainingLibrary.push(...p.deck.hand.splice(0).map(c=>({...c,zone:'library'})));
+  shuffleLibrary(p.deck);drawOpeningHand(p.deck,7);sync(p.deck);if(saveState)save();onComplete?.();
+}
+function openingHandHtml(p){
+  const info=mulliganRuleInfo(game?.rulesConfig);const count=Number(p.deck.mulliganCount||0),bottom=mulliganPenalty(p,game?.rulesConfig);
+  const mulliganNote=count?`<p class="muted">${esc(info.label)} • Mulligans taken: ${count}${bottom?` • If you keep this hand, put ${bottom} card${bottom===1?'':'s'} on the bottom of your library.`:' • No cards need to be put on the bottom if you keep.'}</p>`:`<p class="muted">Mulligan rule: ${esc(info.label)}</p>`;
+  return `<p>Review ${esc(p.displayName)}'s private opening hand. Only this player's cards should be visible while this screen is open.</p>${mulliganNote}<div class="hand-panel"><h3>OPENING HAND (${p.deck.hand.length})</h3><div class="hand-strip">${p.deck.hand.map(c=>{const d=def(c.definitionId);return `<button class="hand-card" data-opening-card="${c.instanceId}">${d?`<img src="${imageOf(d)}" alt="${esc(d.name)}">`:'<span class="fallback">UNRESOLVED</span>'}</button>`}).join('')}</div></div>`
+}
+function keepOpeningHand(p,index){
+  const bottom=mulliganPenalty(p,game?.rulesConfig);
+  const finish=()=>{game.openingHandState={active:true,index:index+1};save();closeModal();openOpeningHands(index+1)};
+  if(!bottom)return finish();
+  const selected=new Set();
+  openModal(`${p.displayName} — BOTTOM ${bottom}`,`<p>Keep this hand by choosing exactly ${bottom} card${bottom===1?'':'s'} to put on the bottom of your library.</p><div id="mulliganBottomCount" class="progress-text">Selected 0/${bottom}</div><div class="card-search-results">${p.deck.hand.map(c=>{const d=def(c.definitionId);return `<label class="search-result"><input type="checkbox" data-mulligan-bottom="${c.instanceId}"><img src="${imageOf(d)}"><span>${esc(d?.name||'Unresolved')}</span></label>`}).join('')}</div>`,[
+    {label:'BACK',onClick:()=>openOpeningHands(index)},
+    {label:'KEEP HAND',className:'primary',onClick:()=>{if(selected.size!==bottom)return toast(`Choose exactly ${bottom} card${bottom===1?'':'s'} to put on the bottom.`,true);const kept=[];const bottomed=[];for(const c of p.deck.hand){if(selected.has(c.instanceId)){c.zone='library';bottomed.push(c)}else kept.push(c)}p.deck.hand=kept;p.deck.remainingLibrary.push(...bottomed);sync(p.deck);save();finish()}}
+  ]);
+  $$('[data-mulligan-bottom]').forEach(c=>c.onchange=()=>{c.checked?selected.add(c.dataset.mulliganBottom):selected.delete(c.dataset.mulliganBottom);$('#mulliganBottomCount').textContent=`Selected ${selected.size}/${bottom}`});
+}
 function openOpeningHands(index=0){
   game.openingHandState={active:true,index};save();
   if(index>=game.players.length){game.openingHandState={active:false,index:game.players.length};save();showGame();toast('Opening hands confirmed — autosave active');return}
   const p=game.players[index];if(!p.deck.hand.length){return openOpeningHands(index+1)}
   openModal(`${p.displayName} — OPENING HAND`,openingHandHtml(p),[
-    {label:'RANDOM HAND',onClick:()=>{p.deck.remainingLibrary.push(...p.deck.hand.splice(0).map(c=>({...c,zone:'library'})));shuffleLibrary(p.deck);drawOpeningHand(p.deck,7);sync(p.deck);save();openOpeningHands(index)}},
+    {label:'MULLIGAN',onClick:()=>takeMulligan(p,game?.rulesConfig,{saveState:true,onComplete:()=>openOpeningHands(index)})},
     {label:'CUSTOMIZE',onClick:()=>customizeOpeningHand(p,index)},
-    {label:index===game.players.length-1?'START GAME':'CONFIRM & NEXT',className:'primary',onClick:()=>{game.openingHandState={active:true,index:index+1};save();closeModal();openOpeningHands(index+1)}}
+    {label:index===game.players.length-1?'START GAME':'CONFIRM & NEXT',className:'primary',onClick:()=>keepOpeningHand(p,index)}
   ]);
 }
 async function customizeOpeningHand(p,index){
@@ -496,14 +523,47 @@ function render(){if(!game)return;captureLifeVisualState();if(statusCycleTimer){
 function publicGameForNetwork(){return publicBroadcastState(game)}
 
 
-function notificationSnapshot(){return new Map((game?.players||[]).map(p=>[p.playerId,{life:Number(p.life||0),poison:Number(p.poison||0),statuses:new Set(p.statuses||[]),battlefield:new Map((p.deck?.battlefield||[]).map(c=>[c.instanceId,defOf(game,c)?.name||'Card'])),graveyard:new Set((p.deck?.graveyard||[]).map(c=>c.instanceId))}]))}
+function notificationSnapshot(){
+  const zoneNames=['hand','battlefield','graveyard','exile','commandZone','remainingLibrary'];
+  return new Map((game?.players||[]).map(p=>{
+    const zones=new Map();
+    for(const zone of zoneNames)for(const c of p.deck?.[zone]||[])zones.set(c.instanceId,{zone,name:defOf(game,c)?.name||'Card',definitionId:c.definitionId});
+    return [p.playerId,{life:Number(p.life||0),poison:Number(p.poison||0),statuses:new Set(p.statuses||[]),zones}];
+  }))
+}
+function notificationEvent({text,playerId,kind}){
+  game.log.unshift({
+    id:`notice:${Date.now()}:${Math.random()}`,
+    text,
+    turn:game.turnNumber,
+    phase:game.phase,
+    at:new Date().toISOString(),
+    type:'player-notification',kind,
+    affectedPlayerIds:playerId?[playerId]:[],attention:!!playerId
+  })
+}
 function appendStateNotifications(before,action){
-  if(!before||!game)return;const source=String(action?.label||'Game action').replace(/\.$/,'');
-  for(const p of game.players||[]){const b=before.get(p.playerId);if(!b)continue;const affected=[p.playerId];const life=Number(p.life||0),poison=Number(p.poison||0);
-    if(life!==b.life){const diff=life-b.life;game.log.unshift({text:`${source}. ${p.displayName} ${diff<0?'loses':'gains'} ${Math.abs(diff)} life (${b.life} → ${life}).`,turn:game.turnNumber,type:'player-notification',kind:diff<0?'life-loss':'life-gain',affectedPlayerIds:affected,attention:true})}
-    if(poison!==b.poison){const diff=poison-b.poison;game.log.unshift({text:`${source}. ${p.displayName} ${diff<0?'loses':'gains'} ${Math.abs(diff)} poison counter${Math.abs(diff)===1?'':'s'} (${b.poison} → ${poison}).`,turn:game.turnNumber,type:'player-notification',kind:'poison-change',affectedPlayerIds:affected,attention:true})}
-    const nowStatuses=new Set(p.statuses||[]);for(const st of nowStatuses)if(!b.statuses.has(st))game.log.unshift({text:`${source}. ${p.displayName} gains status: ${st}.`,turn:game.turnNumber,type:'player-notification',kind:'status-gained',affectedPlayerIds:affected,attention:true});for(const st of b.statuses)if(!nowStatuses.has(st))game.log.unshift({text:`${source}. ${p.displayName} loses status: ${st}.`,turn:game.turnNumber,type:'player-notification',kind:'status-lost',affectedPlayerIds:affected,attention:true});
-    const nowBattle=new Set((p.deck?.battlefield||[]).map(c=>c.instanceId)),nowGrave=new Set((p.deck?.graveyard||[]).map(c=>c.instanceId));for(const [id,name] of b.battlefield)if(!nowBattle.has(id)){const destination=nowGrave.has(id)?'was put into the graveyard':'left the battlefield';game.log.unshift({text:`${source}. ${name} ${destination} for ${p.displayName}.`,turn:game.turnNumber,type:'player-notification',kind:nowGrave.has(id)?'permanent-graveyard':'permanent-left',affectedPlayerIds:affected,attention:true})}
+  if(!before||!game)return;
+  const source=String(action?.label||'Game action').replace(/\.$/,'');
+  for(const p of game.players||[]){
+    const b=before.get(p.playerId);if(!b)continue;
+    const life=Number(p.life||0),poison=Number(p.poison||0);
+    if(life!==b.life){const diff=life-b.life;notificationEvent({playerId:p.playerId,kind:diff<0?'life-loss':'life-gain',text:`${source}. ${p.displayName} ${diff<0?'loses':'gains'} ${Math.abs(diff)} life (${b.life} → ${life}).`})}
+    if(poison!==b.poison){const diff=poison-b.poison;notificationEvent({playerId:p.playerId,kind:'poison-change',text:`${source}. ${p.displayName} ${diff<0?'loses':'gains'} ${Math.abs(diff)} poison counter${Math.abs(diff)===1?'':'s'} (${b.poison} → ${poison}).`})}
+    const nowStatuses=new Set(p.statuses||[]);
+    for(const st of nowStatuses)if(!b.statuses.has(st))notificationEvent({playerId:p.playerId,kind:'status-gained',text:`${source}. ${p.displayName} gains status: ${st}.`});
+    for(const st of b.statuses)if(!nowStatuses.has(st))notificationEvent({playerId:p.playerId,kind:'status-lost',text:`${source}. ${p.displayName} loses status: ${st}.`});
+    const nowZones=new Map();
+    for(const zone of ['hand','battlefield','graveyard','exile','commandZone','remainingLibrary'])for(const c of p.deck?.[zone]||[])nowZones.set(c.instanceId,{zone,name:defOf(game,c)?.name||b.zones.get(c.instanceId)?.name||'Card'});
+    for(const [id,prior] of b.zones){
+      const next=nowZones.get(id);if(!next||next.zone===prior.zone)continue;
+      // Publicly meaningful movement only. Hand/library identity stays private unless the card was already public.
+      const publicZone=z=>['battlefield','graveyard','exile','commandZone'].includes(z);
+      if(!publicZone(prior.zone)&&!publicZone(next.zone))continue;
+      const friendly=z=>({battlefield:'battlefield',graveyard:'graveyard',exile:'exile',commandZone:'command zone',hand:'hand',remainingLibrary:'library'}[z]||z);
+      const kind=prior.zone==='battlefield'&&next.zone==='graveyard'?'permanent-graveyard':'zone-move';
+      notificationEvent({playerId:p.playerId,kind,text:`${source}. ${prior.name} moves from ${friendly(prior.zone)} to ${friendly(next.zone)} for ${p.displayName}.`});
+    }
   }
 }
 function commitAction(action){
@@ -672,7 +732,7 @@ function openCommanderPair(){
 }
 function openCommander(id){const p=activePlayer(),cmd=p.commanders.find(c=>c.id===id),d=def(cmd?.cardId);if(!cmd||!d)return;const readOnly=!localTurnAllowed();const inst=p.deck.commandZone.find(c=>c.definitionId===cmd.cardId)||p.deck.battlefield.find(c=>c.definitionId===cmd.cardId);const v=validatePlay({game,player:p,definition:d,instance:inst,kind:'cast',commander:cmd,definitions:definitionsMap()});const inCommand=cmd.zone==='command';openModal(d.name,renderCardDetail(game,inst||{definitionId:d.definitionId})+`<p><b>Commander Tax:</b> ${game.rulesConfig?.commanderTax===false?'OFF':cmd.commanderTax}</p><div class="${v.legal?'good':'bad'}">${esc(v.reasons.join(' • ')||'Legal commander cast.')}</div>`,[{label:'CLOSE',onClick:closeModal},...(!readOnly&&inCommand&&v.legal?[{label:'CAST COMMANDER',className:'primary',onClick:()=>{commitAction({type:'cast-commander',playerId:p.playerId,commanderId:cmd.id,payment:v.suggestedPayment,label:`${p.displayName} casts ${d.name} from the command zone.`});closeModal();render()}}]:[])],manaCalculator(p,d.manaCost||'',cmd.commanderTax||0))}
 function openPublicZone(playerId,zone){const p=game.players.find(x=>x.playerId===playerId);if(!p)return;openModal(`${p.displayName} — ${zone.toUpperCase()}`,zoneModal(game,p,zone),[{label:'CLOSE',onClick:closeModal}]);$$('.mini-card[data-instance]').forEach(b=>b.onclick=()=>{const c=instance(p,b.dataset.instance);if(!c)return;closeModal();openModal(defOf(game,c)?.name||'CARD',renderCardDetail(game,c),[{label:'CLOSE',onClick:closeModal}])})}
-function openZone(zone){const p=activePlayer();const actions=[{label:'CLOSE',onClick:closeModal}];if(localTurnAllowed()&&zone==='tokens')actions.unshift({label:'ADD TOKEN',className:'primary',onClick:()=>openGlobalPicker({title:'ADD TOKEN',onSelect:d=>{game.cardDefinitions[d.definitionId]=d;const c={instanceId:`${p.playerId}:${d.definitionId}:token:${crypto.randomUUID()}`,definitionId:d.definitionId,ownerId:p.playerId,controllerId:p.playerId,zone:'tokens',tapped:false,counters:{},attachments:[],temporaryEffects:[]};p.deck.tokens.push(c);sync(p.deck);game.log.unshift({text:`${p.displayName} creates ${d.name} token.`,turn:game.turnNumber});closeModal();render()}})});openModal(zone.toUpperCase(),zoneModal(game,p,zone),actions);$$('.mini-card[data-instance]').forEach(b=>b.onclick=()=>{const c=instance(p,b.dataset.instance);closeModal();openBattleCard(c.instanceId)})}
+function openZone(zone){const p=activePlayer();const actions=[{label:'CLOSE',onClick:closeModal}];if(localTurnAllowed()&&zone==='tokens')actions.unshift({label:'ADD TOKEN',className:'primary',onClick:()=>openGlobalPicker({title:'ADD TOKEN',onSelect:d=>{game.cardDefinitions[d.definitionId]=d;const c={instanceId:`${p.playerId}:${d.definitionId}:token:${crypto.randomUUID()}`,definitionId:d.definitionId,ownerId:p.playerId,controllerId:p.playerId,zone:'tokens',tapped:false,counters:{},attachments:[],temporaryEffects:[]};p.deck.tokens.push(c);sync(p.deck);game.log.unshift({text:`${p.displayName} creates ${d.name} token.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString(),affectedPlayerIds:[p.playerId]});save();closeModal();render()}})});openModal(zone.toUpperCase(),zoneModal(game,p,zone),actions);$$('.mini-card[data-instance]').forEach(b=>b.onclick=()=>{const c=instance(p,b.dataset.instance);closeModal();openBattleCard(c.instanceId)})}
 
 function bindHostDashboard(){
   $$('[data-host-adjust]').forEach(b=>b.onclick=()=>{const p=game?.players.find(x=>x.playerId===b.dataset.hostAdjust);if(p)openCounters(p)});
@@ -813,7 +873,7 @@ function openDefenseAssignments(attackingPlayer,defender,assignments){
   ]);
   $$('[data-assign-blocker]').forEach(b=>b.onclick=()=>openDefenseAssignments(attackingPlayer,defender,[...assignments,{attackerId:b.dataset.assignAttacker,blockerId:b.dataset.assignBlocker}]))
 }
-function confirmDefense(attackingPlayer,defender,assignments){game.phase='declare-blockers';const legality=validateBlockAssignments({game,defender,assignments});if(!legality.legal)return toast(legality.reasons[0]||'Those blocker assignments are illegal.',true);if(network?.client){network.client.send({type:'combat-defense',defenderId:defender.playerId,assignments:structuredClone(assignments),stateStamp:networkStateStamp(game)});closeModal();toast('Blocks submitted. Waiting for combat to resolve.');return}game.combatState.blocks[defender.playerId]={confirmed:true,assignments};defender.confirmations.blocks=true;for(const a of game.combatState.attackers.filter(x=>x.defenderId===defender.playerId))a.blocksConfirmed=true;for(const x of assignments){const blocker=instance(defender,x.blockerId),attacker=game.combatState.attackers.find(a=>a.instanceId===x.attackerId);if(blocker&&attacker)queueTriggers(game,{type:'blocks',blockerId:blocker.instanceId,attackerId:attacker.instanceId,sourceId:blocker.instanceId,controllerId:defender.playerId})}game.log.unshift({text:assignments.length?`${defender.displayName} confirms ${assignments.length} blocker assignment${assignments.length===1?'':'s'}.`:`${defender.displayName} passes with no blocks.`,turn:game.turnNumber});closeModal();beginNextDefense(attackingPlayer)}
+function confirmDefense(attackingPlayer,defender,assignments){game.phase='declare-blockers';const legality=validateBlockAssignments({game,defender,assignments});if(!legality.legal)return toast(legality.reasons[0]||'Those blocker assignments are illegal.',true);if(network?.client){network.client.send({type:'combat-defense',defenderId:defender.playerId,assignments:structuredClone(assignments),stateStamp:networkStateStamp(game)});closeModal();toast('Blocks submitted. Waiting for combat to resolve.');return}game.combatState.blocks[defender.playerId]={confirmed:true,assignments};defender.confirmations.blocks=true;for(const a of game.combatState.attackers.filter(x=>x.defenderId===defender.playerId))a.blocksConfirmed=true;for(const x of assignments){const blocker=instance(defender,x.blockerId),attacker=game.combatState.attackers.find(a=>a.instanceId===x.attackerId);if(blocker&&attacker)queueTriggers(game,{type:'blocks',blockerId:blocker.instanceId,attackerId:attacker.instanceId,sourceId:blocker.instanceId,controllerId:defender.playerId})}game.log.unshift({text:assignments.length?`${defender.displayName} confirms ${assignments.length} blocker assignment${assignments.length===1?'':'s'}.`:`${defender.displayName} passes with no blocks.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString(),affectedPlayerIds:[defender.playerId]});save();closeModal();beginNextDefense(attackingPlayer)}
 function resolveCombatSet(p){
   try{
     game.phase='combat-damage';
@@ -916,7 +976,7 @@ function openSelectMove(p){const cards=['battlefield','graveyard','exile','hand'
 function openSelectCounter(p){const cards=p.deck.battlefield;openModal('CARD COUNTERS',cards.map(c=>{const d=defOf(game,c);return `<button class="search-result" data-counter-select="${c.instanceId}"><img src="${imageOf(d)}"><span>${esc(d?.name)}</span></button>`}).join(''),[{label:'CANCEL',onClick:closeModal}]);$$('[data-counter-select]').forEach(b=>b.onclick=()=>openCardCounters(p,instance(p,b.dataset.counterSelect)))}
 
 async function openAddCard(p){if(game.mode==='fully-tracked'){const cards=await pickerPool({mode:game.mode,source:trackedDeckSource(p.deck,{zones:['hand']})});openModal('ADD TRACKED CARD',`<p>Full Play Tracking restricts this picker to cards already in the authoritative tracked hand.</p><div class="card-search-results">${cards.map(c=>{const d=defOf(game,c);return `<button class="search-result" data-add-tracked="${c.instanceId}"><img src="${imageOf(d)}"><span>${esc(d?.name)}</span></button>`}).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);$$('[data-add-tracked]').forEach(b=>b.onclick=()=>openHandCard(b.dataset.addTracked));return}openGlobalPicker({title:'ADD CARD',onSelect:d=>addFreeplayCard(p,d)})}
-function addFreeplayCard(p,d){game.cardDefinitions[d.definitionId]=d;game.abilityCoverage=auditDefinitions(game.cardDefinitions);const c={instanceId:`${p.playerId}:${d.definitionId}:${crypto.randomUUID()}`,definitionId:d.definitionId,ownerId:p.playerId,controllerId:p.playerId,zone:'battlefield',tapped:false,counters:{},attachments:[],temporaryEffects:[]};p.deck.battlefield.push(c);sync(p.deck);game.log.unshift({text:`${p.displayName} adds ${d.name} to the battlefield.`});closeModal();render()}
+function addFreeplayCard(p,d){game.cardDefinitions[d.definitionId]=d;game.abilityCoverage=auditDefinitions(game.cardDefinitions);const c={instanceId:`${p.playerId}:${d.definitionId}:${crypto.randomUUID()}`,definitionId:d.definitionId,ownerId:p.playerId,controllerId:p.playerId,zone:'battlefield',tapped:false,counters:{},attachments:[],temporaryEffects:[]};p.deck.battlefield.push(c);sync(p.deck);game.log.unshift({text:`${p.displayName} adds ${d.name} to the battlefield.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString(),affectedPlayerIds:[p.playerId]});save();closeModal();render()}
 
 function openGlobalPicker({title='CARD ID',onSelect=null}={}){
   let basicOnly=false,timer=null,lastQuery='',lastCategory='all';
@@ -968,7 +1028,7 @@ function openBoard(){const p=activePlayer();openModal('BOARD',`<div class="board
 function openStats(){openModal('GAME STATS',game.players.map(p=>`<div class="zone-row"><h3>${esc(p.displayName)}</h3><p>Life ${p.life} • Poison ${p.poison||0} • Hand ${p.deck.hand.length} • Library ${p.deck.remainingLibrary.length} • Battlefield ${p.deck.battlefield.length}</p></div>`).join(''),[{label:'END GAME',className:'danger',onClick:openEndGame},{label:'CLOSE',onClick:closeModal}])}
 function openSettings(){const p=activePlayer();const neutralHost=!!network?.host&&!network?.localPlayerId;const advice=!neutralHost?buildStrategyAdvice({game,player:p}):null;openModal('GAME CONTROLS & SETTINGS',`<div class="counter-grid"><button id="saveNow">SAVE GAME</button><button id="undoNow">↶ UNDO</button><button id="rulesNow">RULE MODIFICATIONS</button><button id="homeNow">HOME</button><button id="tabletopNow">TABLETOP VIEW</button>${neutralHost?'<button id="gmNow">GM OPTIONS</button>':''}<button id="concedeNow">CONCEDE</button><button id="endNow">END GAME</button></div>${neutralHost?'<h3>HOST ROLE</h3><p>Neutral judge view. Use GM Options for authorized overrides; private hands remain hidden.</p>':`<h3>PLAYER DIRECTION</h3><p><b>${esc(advice?.headline||guidanceFor({game,player:p}))}</b></p><p class="muted">${esc(advice?.why||guidanceFor({game,player:p}))}</p>`}`,[]);$('#saveNow').onclick=()=>{save();toast('Game saved')};$('#undoNow').onclick=()=>confirmUndoLastStep();$('#rulesNow').onclick=openRules;$('#homeNow').onclick=()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}]);$('#tabletopNow').onclick=()=>{closeModal();openTabletop()};if($('#gmNow'))$('#gmNow').onclick=()=>{if(!neutralHost)return toast('GM Options require the Host / Judge toggle.',true);openGMOptions()};$('#concedeNow').onclick=()=>{const cp=network?.localPlayerId?game.players.find(x=>x.playerId===network.localPlayerId):activePlayer();if(!cp||cp.eliminated)return toast('No active player is available to concede.',true);openModal('CONFIRM CONCESSION',`<p><b>${esc(cp.displayName)}</b> will leave this game.</p><p class="muted">If this ends the game, the result is recorded automatically.</p>`,[{label:'CANCEL',onClick:closeModal},{label:'CONCEDE',className:'danger',onClick:()=>{closeModal();commitAction({type:'concede',playerId:cp.playerId,label:`${cp.displayName} concedes`});render()}}])};$('#endNow').onclick=openEndGame}
 
-function openGMOptions(){openModal('GM OPTIONS',`<p>Administrative override controls are intentionally separated from normal player actions.</p><label>Active Player<select id="gmActive">${game.players.map(p=>`<option value="${p.playerId}" ${p.playerId===game.activePlayerId?'selected':''}>${esc(p.displayName)}</option>`).join('')}</select></label><label>Phase<select id="gmPhase">${['untap','upkeep','draw','precombat-main','begin-combat','declare-attackers','declare-blockers','combat-damage','end-combat','postcombat-main','end-step','cleanup'].map(x=>`<option value="${x}" ${x===game.phase?'selected':''}>${phaseLabel(x)}</option>`).join('')}</select></label><label>Turn Number<input id="gmTurn" type="number" min="1" value="${game.turnNumber}"></label>`,[{label:'CANCEL',onClick:closeModal},{label:'APPLY OVERRIDE',className:'primary',onClick:()=>{game.activePlayerId=$('#gmActive').value;game.phase=$('#gmPhase').value;configurePhaseGates(game,game.phase);game.turnNumber=Math.max(1,+$('#gmTurn').value||1);game.log.unshift({text:'GM override applied.',turn:game.turnNumber});closeModal();render()}}])}
+function openGMOptions(){openModal('GM OPTIONS',`<p>Administrative override controls are intentionally separated from normal player actions.</p><label>Active Player<select id="gmActive">${game.players.map(p=>`<option value="${p.playerId}" ${p.playerId===game.activePlayerId?'selected':''}>${esc(p.displayName)}</option>`).join('')}</select></label><label>Phase<select id="gmPhase">${['untap','upkeep','draw','precombat-main','begin-combat','declare-attackers','declare-blockers','combat-damage','end-combat','postcombat-main','end-step','cleanup'].map(x=>`<option value="${x}" ${x===game.phase?'selected':''}>${phaseLabel(x)}</option>`).join('')}</select></label><label>Turn Number<input id="gmTurn" type="number" min="1" value="${game.turnNumber}"></label>`,[{label:'CANCEL',onClick:closeModal},{label:'APPLY OVERRIDE',className:'primary',onClick:()=>{game.activePlayerId=$('#gmActive').value;game.phase=$('#gmPhase').value;configurePhaseGates(game,game.phase);game.turnNumber=Math.max(1,+$('#gmTurn').value||1);game.log.unshift({text:'GM override applied.',turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()});save();closeModal();render()}}])}
 function rulesEditorHtml(r){return `<div class="rules-grid"><label class="check"><input id="ruleCommanderDamage" type="checkbox" ${r.commanderDamage!==false?'checked':''}> Commander Damage loss (21 from one commander)</label><label class="check"><input id="rulePoisonLoss" type="checkbox" ${r.poisonLoss!==false?'checked':''}> Poison loss (10 counters)</label><label>Starting Life<input id="ruleStartingLife" type="number" min="1" max="999" value="${Number(r.startingLife||40)}"></label><label class="check"><input id="ruleCommanderTax" type="checkbox" ${r.commanderTax!==false?'checked':''}> Commander Tax (+2 each prior command-zone cast)</label><label class="check"><input id="ruleBanned" type="checkbox" ${r.bannedList!==false?'checked':''}> Commander banned-list enforcement</label><label class="check"><input id="ruleColorIdentity" type="checkbox" ${r.colorIdentity!==false?'checked':''}> Color-identity deck restriction</label><label class="check"><input id="ruleSingleton" type="checkbox" ${r.singleton!==false?'checked':''}> Singleton deck restriction</label><label class="check"><input id="ruleWishes" type="checkbox" ${r.wishes?'checked':''}> Allow outside-the-game / Wish effects <span class="house-tag">HOUSE RULE</span></label><label>Mulligan Rule<select id="ruleMulligan"><option value="commander" ${r.mulligan==='commander'?'selected':''}>Commander / London + first free mulligan</option><option value="london" ${r.mulligan==='london'?'selected':''}>London mulligan only</option><option value="free" ${r.mulligan==='free'?'selected':''}>Free mulligans (house rule)</option></select></label><label class="check"><input id="ruleZero" type="checkbox" ${r.ruleZeroOverrides?'checked':''}> Allow Rule Zero / normally illegal play overrides <span class="house-tag">HOUSE RULE</span></label><label class="check"><input id="ruleFirstDraw" type="checkbox" ${r.firstPlayerDraw!==false?'checked':''}> Track draw confirmation</label><label class="check"><input id="ruleEndConfirm" type="checkbox" ${r.endTurnConfirm!==false?'checked':''}> Confirm End Turn</label><label class="check"><input id="ruleSecondLand" type="checkbox" ${r.allowExtraLand?'checked':''}> Allow one additional normal land play <span class="house-tag">HOUSE RULE</span></label></div>`}
 function readRulesEditor(){return normalizeRulesConfig({...game?.rulesConfig,...pendingRules,commanderDamage:$('#ruleCommanderDamage')?.checked!==false,poisonLoss:$('#rulePoisonLoss')?.checked!==false,startingLife:Math.max(1,Number($('#ruleStartingLife')?.value||40)),commanderTax:$('#ruleCommanderTax')?.checked!==false,bannedList:$('#ruleBanned')?.checked!==false,colorIdentity:$('#ruleColorIdentity')?.checked!==false,singleton:$('#ruleSingleton')?.checked!==false,wishes:!!$('#ruleWishes')?.checked,mulligan:$('#ruleMulligan')?.value||'commander',ruleZeroOverrides:!!$('#ruleZero')?.checked,firstPlayerDraw:$('#ruleFirstDraw')?.checked!==false,endTurnConfirm:$('#ruleEndConfirm')?.checked!==false,allowExtraLand:!!$('#ruleSecondLand')?.checked})}
 function openRules(){const r=normalizeRulesConfig(game.rulesConfig);openModal('RULE MODIFICATIONS',`<p class="muted">Official Commander defaults are enabled. Any changed option is a table house rule and affects legality/win checks.</p>${rulesEditorHtml(r)}`,[{label:'CANCEL',onClick:closeModal},{label:'SAVE RULES',className:'primary',onClick:()=>{game.rulesConfig=readRulesEditor();game.log.unshift({text:'Rule modifications updated for this game.',turn:game.turnNumber,phase:game.phase});save();closeModal();render()}}])}
@@ -1051,12 +1111,24 @@ function bundleDefinition(bundle,id){return bundle?.defs?.[id]||bundle?.commande
 function configurePrivateOpeningHand(bundle,{title='PRIVATE OPENING HAND'}={}){
   return new Promise(resolve=>{
     const p=bundle.player;
+    const rules=()=>normalizeRulesConfig(game?.rulesConfig||pendingRules);
+    const confirmPrivateHand=()=>{
+      const bottom=mulliganPenalty(p,rules());if(!bottom){closeModal();resolve(bundle);return}
+      const selected=new Set();
+      openModal(`${p.displayName} — BOTTOM ${bottom}`,`<p>Keep this hand by choosing exactly ${bottom} card${bottom===1?'':'s'} to put on the bottom of your library.</p><div id="netMulliganBottomCount" class="progress-text">Selected 0/${bottom}</div><div class="card-search-results">${p.deck.hand.map(c=>{const d=bundleDefinition(bundle,c.definitionId);return `<label class="search-result"><input type="checkbox" data-net-mulligan-bottom="${c.instanceId}"><img src="${imageOf(d)}"><span>${esc(d?.name||'Unresolved')}</span></label>`}).join('')}</div>`,[
+        {label:'BACK',onClick:show},
+        {label:'CONFIRM HAND',className:'primary confirm-hand-btn',onClick:()=>{if(selected.size!==bottom)return toast(`Choose exactly ${bottom} card${bottom===1?'':'s'} to put on the bottom.`,true);const kept=[],bottomed=[];for(const c of p.deck.hand){if(selected.has(c.instanceId)){c.zone='library';bottomed.push(c)}else kept.push(c)}p.deck.hand=kept;p.deck.remainingLibrary.push(...bottomed);sync(p.deck);closeModal();resolve(bundle)}}
+      ]);
+      $$('[data-net-mulligan-bottom]').forEach(c=>c.onchange=()=>{c.checked?selected.add(c.dataset.netMulliganBottom):selected.delete(c.dataset.netMulliganBottom);$('#netMulliganBottomCount').textContent=`Selected ${selected.size}/${bottom}`});
+    };
     const show=()=>{
+      const info=mulliganRuleInfo(rules()),count=Number(p.deck.mulliganCount||0),bottom=mulliganPenalty(p,rules());
       const hand=p.deck.hand.map(c=>{const d=bundleDefinition(bundle,c.definitionId);return `<button class="hand-card" type="button">${d?`<img src="${imageOf(d)}" alt="${esc(d.name)}">`:'<span class="fallback">UNRESOLVED</span>'}</button>`}).join('');
-      openModal(`${p.displayName} — ${title}`,`<p>This hand exists only on this device. Review it before marking this player Ready.</p><div class="hand-panel"><h3>OPENING HAND (${p.deck.hand.length})</h3><div class="hand-strip">${hand}</div></div>`,[
-        {label:'RANDOM HAND',onClick:()=>{p.deck.remainingLibrary.push(...p.deck.hand.splice(0).map(c=>({...c,zone:'library'})));shuffleLibrary(p.deck);drawOpeningHand(p.deck,7);sync(p.deck);show()}},
+      const note=count?`<p class="muted">${esc(info.label)} • Mulligans taken: ${count}${bottom?` • Keep = bottom ${bottom}.`:' • Keep = no cards bottomed.'}</p>`:`<p class="muted">Mulligan rule: ${esc(info.label)}</p>`;
+      openModal(`${p.displayName} — ${title}`,`<p>This hand exists only on this device. Review it before marking this player Ready.</p>${note}<div class="hand-panel"><h3>OPENING HAND (${p.deck.hand.length})</h3><div class="hand-strip">${hand}</div></div>`,[
+        {label:'MULLIGAN',onClick:()=>takeMulligan(p,rules(),{onComplete:show})},
         {label:'CUSTOMIZE',onClick:customize},
-        {label:'CONFIRM HAND',className:'primary confirm-hand-btn',onClick:()=>{closeModal();resolve(bundle)}}
+        {label:'CONFIRM HAND',className:'primary confirm-hand-btn',onClick:confirmPrivateHand}
       ]);
     };
     const customize=()=>{

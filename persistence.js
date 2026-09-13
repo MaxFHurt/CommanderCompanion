@@ -45,8 +45,13 @@ export function chooseNewestSerializedGame(localText,durableText){
 function normalizeLoadedGame(game){
   if(!game||typeof game!=='object'||!Array.isArray(game.players)||game.players.length<2)throw new Error('The saved game is incomplete or corrupt. Start a new game; the damaged save was not loaded.');
   game.schemaVersion=SCHEMA_VERSION;
-  game.log=Array.isArray(game.log)?game.log:[];game.undoHistory=[];game.phaseGates=game.phaseGates||{};
+  game.log=Array.isArray(game.log)?game.log:[];game.undoHistory=[];game.phaseGates=game.phaseGates&&typeof game.phaseGates==='object'?game.phaseGates:{};
   game.cardDefinitions=game.cardDefinitions&&typeof game.cardDefinitions==='object'?game.cardDefinitions:{};
+  game.rulesConfig=game.rulesConfig&&typeof game.rulesConfig==='object'?game.rulesConfig:{};
+  game.stack=Array.isArray(game.stack)?game.stack:[];game.pendingTriggers=Array.isArray(game.pendingTriggers)?game.pendingTriggers:[];
+  game.priorityState=game.priorityState&&typeof game.priorityState==='object'?game.priorityState:null;
+  game.multiplayer=game.multiplayer&&typeof game.multiplayer==='object'?game.multiplayer:null;
+  game.status=game.status||'active';game.winner=game.winner||null;game.postGame=game.postGame&&typeof game.postGame==='object'?game.postGame:null;
   if(!game.activePlayerId||!game.players.some(p=>p.playerId===game.activePlayerId))game.activePlayerId=game.players[0]?.playerId||null;
   game.turnNumber=Math.max(1,Number(game.turnNumber||1));
   game.phase=game.phase||'untap';
@@ -57,10 +62,11 @@ function normalizeLoadedGame(game){
   game.combatState.blocks=game.combatState.blocks&&typeof game.combatState.blocks==='object'?game.combatState.blocks:{};
   game.combatState.damage=Array.isArray(game.combatState.damage)?game.combatState.damage:[];
   for(const p of game.players){
-    p.statuses=Array.isArray(p.statuses)?p.statuses:[];p.commanderDamage=p.commanderDamage||{};p.counters=p.counters||{};p.confirmations=p.confirmations||{};p.settings=p.settings||{};
-    p.mana=p.mana||{};p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0,...(p.mana.total||{})};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0,...(p.mana.available||{})};
-    p.deck=p.deck||{};for(const z of ['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'])p.deck[z]=Array.isArray(p.deck[z])?p.deck[z]:[];
-    for(const c of p.commanders||[])if(!c.card&&c.cardId&&game.cardDefinitions?.[c.cardId])c.card=game.cardDefinitions[c.cardId];
+    p.statuses=Array.isArray(p.statuses)?p.statuses:[];p.commanderDamage=p.commanderDamage&&typeof p.commanderDamage==='object'?p.commanderDamage:{};p.counters=p.counters&&typeof p.counters==='object'?p.counters:{};p.confirmations=p.confirmations&&typeof p.confirmations==='object'?p.confirmations:{};p.settings=p.settings&&typeof p.settings==='object'?p.settings:{};
+    p.mana=p.mana&&typeof p.mana==='object'?p.mana:{};p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0,...(p.mana.total||{})};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0,...(p.mana.available||{})};
+    p.deck=p.deck&&typeof p.deck==='object'?p.deck:{};for(const z of ['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'])p.deck[z]=Array.isArray(p.deck[z])?p.deck[z]:[];
+    p.commanders=Array.isArray(p.commanders)?p.commanders:[];
+    for(const c of p.commanders){c.castCount=Math.max(0,Number(c.castCount||0));c.commanderTax=Math.max(0,Number(c.commanderTax||0));c.status=c.status&&typeof c.status==='object'?c.status:{};if(!c.card&&c.cardId&&game.cardDefinitions?.[c.cardId])c.card=game.cardDefinitions[c.cardId]}
     if(game.mode==='fully-tracked'||p.guidanceLevel==='guided'){p.guidanceLevel='guided';p.settings.handTracking=true;p.deck.virtualDrawEnabled=true;}else if(game.mode==='freeplay'){p.settings.handTracking=!!p.settings.handTracking;p.deck.virtualDrawEnabled=!!p.settings.handTracking;}
   }
   return game;
