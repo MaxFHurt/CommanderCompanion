@@ -8,10 +8,15 @@ export function nextPhase(game){
   const phase=game.phase==='beginning'?'untap':game.phase==='ending'?'end-step':(['begin-combat','declare-attackers','declare-blockers','combat-damage','end-combat'].includes(game.phase)?'combat':game.phase);
   const i=TURN_STEPS.indexOf(phase);return i<0?TURN_STEPS[0]:TURN_STEPS[(i+1)%TURN_STEPS.length];
 }
-export function resetTurnPlayer(player){
+function manaSourceUsable(game,card){
+  const def=game?.cardDefinitions?.[card?.definitionId];if(!/Creature/i.test(String(def?.typeLine||'')))return true;
+  const haste=(def?.keywords||[]).some(k=>String(k).toLowerCase()==='haste')||/\bHaste\b/i.test(String(def?.oracleText||''))||(card?.temporaryEffects||[]).some(e=>e?.kind==='keyword'&&e?.enabled!==false&&String(e.keyword||'').toLowerCase()==='haste');
+  if(haste)return true;return Number(card?.controlSinceTurn??card?.enteredTurn??-1)<Number(game?.turnNumber||0);
+}
+export function resetTurnPlayer(player,game=null){
   player.counters=player.counters||{};player.counters.landsPlayedThisTurn=0;player.counters.extraLandPlaysThisTurn=0;player.counters.cardsDrawnThisTurn=0;
   player.confirmations={draw:false,untap:false,attackers:false,blocks:false};
-  player.mana.available={...(player.mana.total||{})};player.mana.floating={W:0,U:0,B:0,R:0,G:0,C:0};
+  const fixed={W:0,U:0,B:0,R:0,G:0,C:0},registered={W:0,U:0,B:0,R:0,G:0,C:0};for(const c of player.deck?.battlefield||[]){if(!c.manaCapacityRegistered)continue;const opts=Array.isArray(c.manaCapacityOptions)?c.manaCapacityOptions:(c.manaCapacityColor?[c.manaCapacityColor]:[]);if(opts.length===1){const amount=Math.max(1,Number(c.manaCapacityAmount||1));registered[opts[0]]+=amount;if(!c.tapped&&manaSourceUsable(game,c))fixed[opts[0]]+=amount;}}for(const color of ['W','U','B','R','G','C'])fixed[color]+=Math.max(0,Number(player.mana?.total?.[color]||0)-registered[color]);player.mana.available=fixed;player.mana.floating={W:0,U:0,B:0,R:0,G:0,C:0};
 }
 export function requiredGatesForPhase(game,phase,player){
   const gates={};
@@ -37,7 +42,7 @@ export function cleanupEndCombatEffects(game){for(const p of game.players||[])fo
 export function advanceTurn(game){
   cleanupTemporaryEffects(game);
   const i=game.players.findIndex(p=>p.playerId===game.activePlayerId);let step=1,next=null;game.extraTurnQueue=game.extraTurnQueue||[];while(game.extraTurnQueue.length&&!next){const id=game.extraTurnQueue.shift(),candidate=game.players.find(p=>p.playerId===id);if(candidate&&!candidate.eliminated)next=candidate}if(!next){next=game.players[(i+step)%game.players.length];while(next?.eliminated&&step<game.players.length){step++;next=game.players[(i+step)%game.players.length]}if(!next)next=game.players[(i+1)%game.players.length];if((i+step)>=game.players.length)game.roundNumber++;}game.turnNumber++;game.activePlayerId=next.playerId;game.phase='untap';game.priorityState=null;game.stack=game.stack||[];game.pendingTriggers=game.pendingTriggers||[];
-  game.combatState={attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:false};resetTurnPlayer(next);configurePhaseGates(game,'untap');return next;
+  game.combatState={attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:false};resetTurnPlayer(next,game);configurePhaseGates(game,'untap');return next;
 }
 export function setGate(game,key,required=true){game.phaseGates[key]={required,satisfied:false}}
 export function satisfyGate(game,key){if(game.phaseGates[key])game.phaseGates[key].satisfied=true;const p=game.players?.find(x=>x.playerId===game.activePlayerId);if(p?.confirmations)p.confirmations[key]=true;return !phaseLocked(game)}

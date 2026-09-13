@@ -2902,3 +2902,39 @@ dialog .modal-back-row [data-navigation="back"]{background:transparent url('./ui
     background-size:contain!important;
   }
 }
+
+
+/* V0.8 AH — shared menu semantic cleanup + flexible mana source display. */
+dialog .modal-back-row [data-navigation="back"]{
+  width:min(335px,72vw)!important;height:auto!important;min-width:0!important;min-height:0!important;
+  padding:0!important;margin:0 auto!important;border:0!important;background:none!important;box-shadow:none!important;
+  color:transparent!important;text-shadow:none!important;line-height:0!important;overflow:visible!important;
+}
+dialog .modal-back-row [data-navigation="back"] img{display:block!important;width:100%!important;height:auto!important;pointer-events:none!important}
+#modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"]{
+  background-image:url('./ui-confirm.png')!important;color:transparent!important;text-shadow:none!important;
+  aspect-ratio:459/138!important;min-height:0!important;height:auto!important;padding:0!important;background-size:contain!important;
+}
+#modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{
+  background-image:url('./ui-cancel.png')!important;color:transparent!important;text-shadow:none!important;
+  aspect-ratio:434/136!important;min-height:0!important;height:auto!important;padding:0!important;background-size:contain!important;
+}
+.mana-row .mana-flex{min-width:34px!important}
+.mana-flex-icons{display:flex;align-items:center;justify-content:center;position:relative;width:34px;height:24px}
+.mana-flex-icons img{width:22px!important;height:22px!important;position:absolute;top:1px}
+.mana-flex-icons img:first-child{left:1px;clip-path:polygon(0 0,62% 0,42% 100%,0 100%)}
+.mana-flex-icons img:nth-child(2){right:1px;clip-path:polygon(58% 0,100% 0,100% 100%,38% 100%)}
+.mana-pip.mana-flex b{color:#fff!important}
+.mana-calculator.mana-compare .mana-compare-seven{grid-template-columns:repeat(7,minmax(28px,1fr))!important;max-width:390px!important}
+.mana-calculator.mana-compare .mana-compare-seven .calc-pip{display:grid!important;justify-items:center!important;gap:1px!important}
+.mana-calculator.mana-compare .mana-compare-seven .calc-pip img{width:24px!important;height:24px!important;object-fit:contain!important}
+.mana-calculator.mana-compare .mana-compare-seven .calc-pip b{display:block!important;font-size:9px!important}
+.mana-flex-available{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;margin-top:5px!important;flex-wrap:wrap!important}
+.mana-flex-available>small{font:900 9px/1 var(--head)!important;letter-spacing:.06em!important;opacity:.72!important}
+.calc-flex-pip{display:grid!important;grid-template-columns:auto auto!important;gap:3px!important;align-items:center!important}
+.calc-flex-pip>span{position:relative!important;display:block!important;width:34px!important;height:24px!important}
+.calc-flex-pip img{position:absolute!important;top:1px!important;width:22px!important;height:22px!important;object-fit:contain!important}
+.calc-flex-pip img:first-child{left:1px!important;clip-path:polygon(0 0,62% 0,42% 100%,0 100%)!important}
+.calc-flex-pip img:nth-child(2){right:1px!important;clip-path:polygon(58% 0,100% 0,100% 100%,38% 100%)!important}
+.calc-flex-pip b{font:900 11px/1 var(--head)!important;color:#fff!important}
