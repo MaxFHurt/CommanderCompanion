@@ -1,4 +1,4 @@
-import { isCardDefinitionComplete } from './schema.js?v=0722';
+import { isCardDefinitionComplete } from './schema.js?v=080-ap';
 const COLORS=['W','U','B','R','G','C'];
 
 export const DEFAULT_COMMANDER_RULES=Object.freeze({
@@ -291,7 +291,7 @@ export function validateCommanderDeck({manifest=[],definitions=[],commanders=[],
 
 
 export function isBasicLand(definition){return /\bBasic\b.*\bLand\b/i.test(definition?.typeLine||'')}
-export function basicLandManaColor(definition){const t=definition?.typeLine||'';if(/Plains/i.test(t))return'W';if(/Island/i.test(t))return'U';if(/Swamp/i.test(t))return'B';if(/Mountain/i.test(t))return'R';if(/Forest/i.test(t))return'G';return null}
+export function basicLandManaColor(definition){const t=definition?.typeLine||'';if(!isBasicLand(definition))return null;if(/Plains/i.test(t))return'W';if(/Island/i.test(t))return'U';if(/Swamp/i.test(t))return'B';if(/Mountain/i.test(t))return'R';if(/Forest/i.test(t))return'G';return null}
 export function parseActivatedAbilities(definition){
   const raw=String(definition?.oracleText||'').replace(/\r/g,'');
   const lines=raw.split('\n').map(x=>x.trim()).filter(Boolean);

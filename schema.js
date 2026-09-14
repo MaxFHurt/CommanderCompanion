@@ -130,6 +130,7 @@ export function createCardDefinition(overrides = {}) {
     colorIdentity: [],
     colors: [],
     imageUris: null,
+    cardFaces: [],
     set: null,
     language: null,
     collectorNumber: null,
@@ -164,6 +165,7 @@ export function createCardInstance(overrides = {}) {
     counters: {},
     attachments: [],
     temporaryEffects: [],
+    activeFaceIndex: null,
     sourceDeckSlot: null,
     ...overrides
   };

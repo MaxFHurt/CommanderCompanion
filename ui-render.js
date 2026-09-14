@@ -1,17 +1,17 @@
-import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-an';
+import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ap';
 import { modePolicy } from './modes.js?v=0722';
 import { phaseLabel } from './phase.js?v=0727';
 const MANA=[['W','white'],['U','blue'],['B','black'],['R','red'],['G','green'],['C','colorless']];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-const defOf=(game,instanceOrId)=>{const id=typeof instanceOrId==='string'?instanceOrId:instanceOrId?.definitionId;return game.cardDefinitions?.[id]||null};
+const defOf=(game,instanceOrId)=>{const id=typeof instanceOrId==='string'?instanceOrId:instanceOrId?.definitionId,base=game.cardDefinitions?.[id]||null;if(!base||typeof instanceOrId==='string')return base;const i=Number.isInteger(instanceOrId?.activeFaceIndex)?instanceOrId.activeFaceIndex:null,face=i===null?null:base.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base};
 const imageOf=d=>d?.imageUris?.normal||d?.imageUris?.large||d?.imageUris?.small||'cc-commander-fallback.png';
 function legalManaKeys(game,p,{includeColorless=true}={}){const set=new Set();for(const cmd of p?.commanders||[]){const d=game?.cardDefinitions?.[cmd.cardId];for(const c of d?.colorIdentity||[])if(['W','U','B','R','G'].includes(c))set.add(c)}if(includeColorless)set.add('C');return set}
 function flexibleManaMarkup(options=[],count=1){
   const opts=[...new Set((options||[]).filter(k=>MANA.some(([mk])=>mk===k)))];
-  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-an" alt="Any color"><b>${count}</b></span>`;
+  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ap" alt="Any color"><b>${count}</b></span>`;
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-an" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ap" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
@@ -98,7 +98,7 @@ function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true
 }
 
 function renderInlineGameLog(game){
-  const current=Math.max(1,Number(game.turnNumber||1)),previous=Math.max(1,current-1);
+  const current=Math.max(1,Number(game.turnNumber||1)),previous=Math.max(1,current-1),displayRound=Math.max(1,Number(game.roundNumber||1));
   const events=(game.log||[]).filter(e=>{const t=Number(e?.turn||current);return t===current||t===previous}).slice(0,80);
   const rows=[];
   const currentEvents=events.filter(e=>Number(e?.turn||current)===current);
@@ -110,7 +110,7 @@ function renderInlineGameLog(game){
     if(previousEvents.length) rows.push(...previousEvents.map(e=>`<div class="inline-log-event"><span>${esc(e?.text||'Game update')}</span></div>`));
     else rows.push(`<div class="inline-log-empty">No recorded events on the previous turn.</div>`);
   }
-  return `<section class="inline-game-log" aria-label="Current and previous turn game log"><div class="inline-log-label" aria-hidden="true"><b>GAME</b><b>LOG</b></div><div class="inline-game-log-scroll">${rows.join('')}</div><button class="inline-log-undo" data-log-undo="1" aria-label="Undo last game step" title="Undo last game step">↶</button><div class="inline-log-turn-count" aria-label="Turn ${current}"><b>TURN</b><strong>${current}</strong></div></section>`;
+  return `<section class="inline-game-log" aria-label="Current and previous turn game log"><div class="inline-log-label" aria-hidden="true"><b>GAME</b><b>LOG</b></div><div class="inline-game-log-scroll">${rows.join('')}</div><button class="inline-log-undo" data-log-undo="1" aria-label="Undo last game step" title="Undo last game step">↶</button><div class="inline-log-turn-count" aria-label="Turn ${displayRound}"><b>TURN</b><strong>${displayRound}</strong></div></section>`;
 }
 
 export function renderActivePlayer(game,p,{controls=true,privateHand=true,inspected=false,includeDock=true}={}){const tracking=game.mode!=='freeplay'||p.settings?.handTracking!==false;const playerSlot=Math.max(1,(game.players||[]).findIndex(x=>x.playerId===p.playerId)+1);const handCount=p.deck.sourceType==='network-public'?(p.publicCounts?.hand||0):(p.deck?.hand?.length||0),libCount=p.deck.sourceType==='network-public'?(p.publicCounts?.library||0):(p.deck?.remainingLibrary?.length||0);return `<section class="player-card active player-slot-${playerSlot}${inspected?' inspected-opponent':''} new-visual-master" data-player="${esc(p.playerId)}"><div class="player-hero"><div class="commanders" style="--commander-count:${Math.max(1,p.commanders.length)}">${p.commanders.map(c=>commanderHtml(game,c,controls,p.playerId)).join('')}</div><div class="player-info"><header class="player-head"><h2 class="player-name">${esc(p.displayName)}</h2>${statusIndicator(p)}<div class="player-stats-line"><span class="stat life-stat"><i class="icon">♥</i><strong data-life-player="${esc(p.playerId)}">${p.life}</strong><small>LIFE</small></span>${tracking?`<span class="stat"><i class="icon">▤</i><strong>${handCount}</strong><small>HAND</small></span><span class="stat"><i class="icon">▱</i><strong>${libCount}</strong><small>LIBRARY</small></span>`:''}</div></header>${modePolicy(game.mode).battlefield?manaBox(game,'AVAILABLE MANA',p,'available',controls):''}</div></div>${battlefieldHtml(game,p,{controls,privateHand,includeDock})}</section>`}

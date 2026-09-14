@@ -1,14 +1,14 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aj';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ap';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-aj';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ap';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-aj';
-import { queueTriggers } from './trigger-engine.js?v=07968';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ap';
+import { queueTriggers } from './trigger-engine.js?v=080-ap';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
 function locate(deck,id){for(const z of ZONES){const a=deck[z]||[];const i=a.findIndex(c=>c.instanceId===id);if(i>=0)return{z,a,i,card:a[i]}}return null}
 function zoneKey(zone){return zone==='library'?'remainingLibrary':zone==='command'?'commandZone':zone}
-function defFor(game,card){return card&&game.cardDefinitions?.[card.definitionId]}
+function defFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function commanderIdentity(game,player){const out=new Set();for(const cmd of player?.commanders||[]){for(const c of game?.cardDefinitions?.[cmd.cardId]?.colorIdentity||[])if(['W','U','B','R','G'].includes(c))out.add(c)}return out}
 function manaAbilityAmount(row){const effect=String(row?.ability?.effect||row?.text||'');const symbols=[...effect.matchAll(/\{([WUBRGC])\}/g)].map(x=>x[1]);if(symbols.length){if(/\bor\b/i.test(effect))return 1;return Math.max(1,symbols.length)}const m=effect.match(/Add (one|two|three|four|five|\d+) mana/i),words={one:1,two:2,three:3,four:4,five:5};return Math.max(1,Number(m?.[1])||words[String(m?.[1]||'').toLowerCase()]||1)}
@@ -78,7 +78,7 @@ function applyTrackedEffects(game,player,effects=[],bindings={}){
 }
 
 function putSpellOnStack(game,player,action,deck){
-  const allowed=Array.isArray(action.fromZones)&&action.fromZones.length?action.fromZones:['hand','commandZone'];const {card,from}=removeFromZone(deck,action.instanceId,allowed);payMana(game,player,action.payment);card.zone='stack';
+  const allowed=Array.isArray(action.fromZones)&&action.fromZones.length?action.fromZones:['hand','commandZone'];const {card,from}=removeFromZone(deck,action.instanceId,allowed);payMana(game,player,action.payment);if(Number.isInteger(action.activeFaceIndex))card.activeFaceIndex=action.activeFaceIndex;card.zone='stack';
   game.stack=game.stack||[];
   const stackObject={
     id:action.stackId||`stack:${Date.now()}:${Math.random()}`,kind:'spell',controllerId:player.playerId,ownerId:card.ownerId,card,sourceDefinitionId:card.definitionId,
@@ -131,6 +131,7 @@ function resolveStackTop(game){
     applySearchResult(game,player,obj);
     notes.push(...applyTrackedEffects(game,player,obj.effects||[],{...obj.effectBindings,sourceId:card.instanceId}));
     if(!isCopy&&to==='battlefield')emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,ownerId:card.ownerId,typeLine:def?.typeLine||''});
+    if(!isCopy&&to!=='battlefield')card.activeFaceIndex=null;
     if(obj.commanderId){const cmd=player.commanders.find(c=>c.id===obj.commanderId);if(cmd){cmd.zone=to;cmd.commandZone=to==='command'}}
     emit(game,{type:isCopy?'spell-copy-resolved':'spell-resolved',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,destination:to});
   }else if(obj.kind==='ability'||obj.kind==='trigger'){
@@ -166,18 +167,19 @@ export function createTransactionEngine(game){
       card.zone=action.to;card.tapped=action.to==='battlefield'?!!action.tapped:false;card.controllerId=action.to==='battlefield'?(action.controllerId||player.playerId):card.ownerId;const owner=ownerFor(game,card,player),target=(action.to==='battlefield'?(game.players.find(p=>p.playerId===card.controllerId)||owner):owner).deck[zoneKey(action.to)];if(!target)throw new Error('Invalid target zone');if(action.to==='library'&&action.position==='top')target.unshift(card);else if(!(card.token&&action.to!=='battlefield'))target.push(card);
       if(from==='battlefield'&&action.to!=='battlefield'){emit(game,{type:'leaves-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:fromController,ownerId:card.ownerId,destination:action.to,typeLine:def?.typeLine||'',wasTapped:wasTappedBeforeMove});if(action.to==='graveyard'&&/Creature/i.test(def?.typeLine||''))emit(game,{type:'dies',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:fromController,ownerId:card.ownerId,typeLine:def?.typeLine||'',token:!!card.token})}
       if(action.to==='battlefield'){card.enteredTurn=game.turnNumber;card.controlSinceTurn=game.turnNumber;emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:card.controllerId,ownerId:card.ownerId,typeLine:def?.typeLine||''})}
+      else if(action.to!=='stack')card.activeFaceIndex=null;
       const cmd=player.commanders.find(x=>x.cardId===card.definitionId);if(cmd){cmd.zone=action.to;cmd.commandZone=action.to==='command'}
     }
     else if(action.type==='play-land'){
-      const hit=locate(deck,action.instanceId);if(!hit||hit.z!=='hand')throw new Error('Land must be in hand');const [card]=hit.a.splice(hit.i,1);card.zone='battlefield';card.controllerId=player.playerId;card.enteredTurn=game.turnNumber;card.controlSinceTurn=game.turnNumber;card.tapped=!!action.entersTapped;if(action.asEntersChoices?.color)card.chosenColor=action.asEntersChoices.color;if(action.asEntersChoices?.creatureType)card.chosenCreatureType=action.asEntersChoices.creatureType;if(action.asEntersChoices?.cardName)card.chosenCardName=action.asEntersChoices.cardName;if(action.asEntersChoices?.playerId)card.chosenPlayerId=action.asEntersChoices.playerId;deck.battlefield.push(card);player.counters.landsPlayedThisTurn=Number(player.counters.landsPlayedThisTurn||0)+1;
+      const hit=locate(deck,action.instanceId);if(!hit||hit.z!=='hand')throw new Error('Land must be in hand');const [card]=hit.a.splice(hit.i,1);if(Number.isInteger(action.activeFaceIndex))card.activeFaceIndex=action.activeFaceIndex;card.zone='battlefield';card.controllerId=player.playerId;card.enteredTurn=game.turnNumber;card.controlSinceTurn=game.turnNumber;card.tapped=!!action.entersTapped;if(action.asEntersChoices?.color)card.chosenColor=action.asEntersChoices.color;if(action.asEntersChoices?.creatureType)card.chosenCreatureType=action.asEntersChoices.creatureType;if(action.asEntersChoices?.cardName)card.chosenCardName=action.asEntersChoices.cardName;if(action.asEntersChoices?.playerId)card.chosenPlayerId=action.asEntersChoices.playerId;deck.battlefield.push(card);player.counters.landsPlayedThisTurn=Number(player.counters.landsPlayedThisTurn||0)+1;
       if(action.basicManaColor)card.manaCapacityColor=action.basicManaColor
       emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,ownerId:card.ownerId,typeLine:defFor(game,card)?.typeLine||''});
     }
     else if(action.type==='cast-card'){
       // Legacy immediate-resolution path retained for older callers/tests. New UI routes spells through cast-spell + priority.
-      const hit=locate(deck,action.instanceId);if(!hit||!['hand','commandZone'].includes(hit.z))throw new Error('Card is not castable from that zone');const [card]=hit.a.splice(hit.i,1);payMana(game,player,action.payment);card.zone=action.to||'battlefield';const def=defFor(game,card);
+      const hit=locate(deck,action.instanceId);if(!hit||!['hand','commandZone'].includes(hit.z))throw new Error('Card is not castable from that zone');const [card]=hit.a.splice(hit.i,1);payMana(game,player,action.payment);if(Number.isInteger(action.activeFaceIndex))card.activeFaceIndex=action.activeFaceIndex;card.zone=action.to||'battlefield';const def=defFor(game,card);
       if(card.zone==='battlefield'){card.controllerId=player.playerId;card.enteredTurn=game.turnNumber;card.controlSinceTurn=game.turnNumber;card.tapped=!!action.entersTapped;if(action.asEntersChoices?.color)card.chosenColor=action.asEntersChoices.color;if(action.manaCapacityColor)card.manaCapacityColor=action.manaCapacityColor}
-      const owner=ownerFor(game,card,player),target=(card.zone==='battlefield'?player.deck:owner.deck)[zoneKey(card.zone)];target.push(card);if(card.zone==='battlefield')emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,ownerId:card.ownerId,typeLine:def?.typeLine||''});const effectNotes=applyTrackedEffects(game,player,action.effects||[],{...action.effectBindings,sourceId:card.instanceId});if(effectNotes.length)action.label=`${action.label||'Spell resolved.'} ${effectNotes.join(' ')}`;
+      const owner=ownerFor(game,card,player),target=(card.zone==='battlefield'?player.deck:owner.deck)[zoneKey(card.zone)];target.push(card);if(card.zone==='battlefield')emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,ownerId:card.ownerId,typeLine:def?.typeLine||''});const effectNotes=applyTrackedEffects(game,player,action.effects||[],{...action.effectBindings,sourceId:card.instanceId});if(card.zone!=='battlefield')card.activeFaceIndex=null;if(effectNotes.length)action.label=`${action.label||'Spell resolved.'} ${effectNotes.join(' ')}`;
     }
     else if(action.type==='tap-card'){
       const hit=locate(deck,action.instanceId);if(!hit)throw new Error('Card instance not found');const card=hit.card;if(action.tapped===false&&!action.allowUntap)throw new Error('A tapped permanent can only untap during the untap step or because a rule/card effect permits it.');if(action.tapped!==false&&card.tapped)throw new Error('This permanent is already tapped.');setTappedWithCapacity(game,player,card,action.tapped!==false);emit(game,{type:card.tapped?'tapped':'untapped',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:card.controllerId||player.playerId});
@@ -203,6 +205,9 @@ export function createTransactionEngine(game){
     }
     else if(action.type==='commander-to-command'){const cmd=player.commanders.find(c=>c.id===action.commanderId);if(!cmd)throw new Error('Commander not found');const hit=locate(deck,action.instanceId);if(hit){const [card]=hit.a.splice(hit.i,1);card.zone='command';card.controllerId=player.playerId;deck.commandZone.push(card)}cmd.zone='command';cmd.commandZone=true}
     else if(action.type==='phase'){
+      // Keep phase-ending confirmations inside the same transaction so Undo restores
+      // the exact pre-confirmation combat state rather than a half-advanced state.
+      if(action.noAttackCombat){player.confirmations=player.confirmations||{};player.confirmations.attackers=true;game.combatState={attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:true};}
       resetManaAtBoundary(game);if(action.phase==='postcombat-main')cleanupEndCombatEffects(game);game.phase=action.phase;configurePhaseGates(game,action.phase);if(action.phase==='upkeep')emit(game,{type:'upkeep',playerId:game.activePlayerId});if(action.phase==='end-step')emit(game,{type:'end-step',playerId:game.activePlayerId});if(action.phase==='begin-combat'||action.phase==='combat')emit(game,{type:'begin-combat',playerId:game.activePlayerId});
     }
     else if(action.type==='end-turn')advanceTurn(game);
@@ -221,8 +226,8 @@ export function createTransactionEngine(game){
     }for(const x of losses.newly||[]){const q=game.players.find(p=>p.playerId===x.playerId);game.log.unshift({text:`${q?.displayName||'A player'} loses the game (${x.reason}).`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()})}
     if(game.status!=='complete'&&!game.winner&&game.players.find(p=>p.playerId===game.activePlayerId)?.eliminated){
       const currentIndex=Math.max(0,game.players.findIndex(p=>p.playerId===game.activePlayerId));
-      let next=null;for(let step=1;step<=game.players.length;step++){const candidate=game.players[(currentIndex+step)%game.players.length];if(candidate&&!candidate.eliminated){next=candidate;break}}
-      if(next){game.activePlayerId=next.playerId;game.turnNumber=Math.max(1,Number(game.turnNumber||1)+1);game.phase='untap';configurePhaseGates(game,'untap');game.log.unshift({text:`Turn passes to ${next.displayName} because the active player was eliminated.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()})}
+      let next=null,nextStep=0;for(let step=1;step<=game.players.length;step++){const candidate=game.players[(currentIndex+step)%game.players.length];if(candidate&&!candidate.eliminated){next=candidate;nextStep=step;break}}
+      if(next){if((currentIndex+nextStep)>=game.players.length)game.roundNumber=Math.max(1,Number(game.roundNumber||1)+1);game.activePlayerId=next.playerId;game.turnNumber=Math.max(1,Number(game.turnNumber||1)+1);game.phase='untap';configurePhaseGates(game,'untap');game.log.unshift({text:`Turn passes to ${next.displayName} because the active player was eliminated.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()})}
     }
     game.undoHistory.push({action:structuredClone(action),before});if(game.status!=='complete'&&!game.winner)game.status='active';return game;
   }
