@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-am';
+import { createTransactionEngine } from './transactions.js?v=080-an';
 import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-am';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-am';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-an';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-an';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,10 +14,10 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-am';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-an';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-am';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-an';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
 import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
@@ -176,17 +176,25 @@ function onStackObjectAdded(player,label,{continuation=null}={}){
       try{recordPriorityResponse(game,{playerId:player.playerId,label})}catch(e){return toast(e.message,true)}
       closeModal();render();save();openPriorityPrompt();return;
     }
-    beginPriority(`${label} is on the stack.`,'stack',continuation||(()=>render()),player.playerId);
+    if(continuation)priorityContinuation=continuation;
+    const responder=firstLegalOpponentResponder(player.playerId);
+    if(!responder){
+      game.log.unshift({text:`Response window skipped — no opponent has a relevant activated response or castable instant/flash card to ${label}.`,turn:game.turnNumber,phase:game.phase});
+      save();render();return resolveAfterAllPass();
+    }
+    beginPriority(`${label} is on the stack.`,'stack',null,responder.playerId);
   });
 }
 function priorityAbilityRelevant(definition,ability){
   const effect=String(ability?.effect||'').toLowerCase();
-  const text=`${String(definition?.oracleText||'').toLowerCase()} ${effect}`;
-  // Smart priority should not promote routine resource/deck setup as a response.
-  if(/search your library/.test(effect)&&!/target|counter|spell|damage|destroy|exile|return|prevent|copy/.test(effect))return false;
-  if(/add (?:one|two|three|\{)/.test(effect)&&!/counter target|target spell|copy target|change the target/.test(effect))return false;
-  if(/scry|surveil/.test(effect)&&!/target|counter|spell/.test(effect))return false;
-  return /target|counter|spell|copy|change the target|destroy|exile|return|damage|prevent|hexproof|indestructible|protection|can(?:not|'t)|sacrifice target|tap target|untap target/.test(text);
+  const top=(game?.stack||[]).at(-1)||null;
+  if(!top)return false;
+  // Only surface activated abilities that actually interact with the current stack object.
+  // Routine fetch, mana, scry, sacrifice-for-value, or board setup abilities remain legal,
+  // but they are not promoted as "responses" to an unrelated play.
+  if(top.kind==='spell')return /counter target spell|copy target spell|change (?:the )?target|target spell/.test(effect);
+  if(top.kind==='ability'||top.kind==='trigger')return /counter target (?:activated|triggered) ability|copy target (?:activated|triggered) ability|target (?:activated|triggered) ability/.test(effect);
+  return false;
 }
 function legalPriorityOptions(holder){
   const gravePermission=(holder.temporaryPermissions||[]).some(x=>x?.kind==='cast-from-zone'&&x?.zone==='graveyard');
@@ -199,6 +207,16 @@ function legalPriorityOptions(holder){
   return {hand,abilities};
 }
 
+function firstLegalOpponentResponder(controllerId){
+  const seats=game?.players||[];if(!seats.length)return null;
+  const i=seats.findIndex(p=>p.playerId===controllerId);
+  for(let step=1;step<seats.length;step++){
+    const p=seats[(Math.max(0,i)+step)%seats.length];
+    if(!p||p.eliminated||p.playerId===controllerId)continue;
+    const o=legalPriorityOptions(p);if(o.hand.length||o.abilities.length)return p;
+  }
+  return null;
+}
 function anyPlayerHasLegalResponse(){
   return (game?.players||[]).filter(p=>!p.eliminated).some(p=>{const o=legalPriorityOptions(p);return o.hand.length||o.abilities.length});
 }
@@ -273,6 +291,13 @@ function openPriorityPrompt(){
   const ps=game?.priorityState;
   if(!ps?.active)return resolveAfterAllPass();
   const holder=priorityHolder(game);if(!holder)return;
+  const top=(game.stack||[]).at(-1)||null;
+  if(top&&top.controllerId===holder.playerId){
+    const result=passPriority(game,holder.playerId);
+    game.log.unshift({text:`${holder.displayName} retains no response prompt to their own current stack object.`,turn:game.turnNumber,phase:game.phase});
+    if(result.complete)return resolveAfterAllPass();
+    return openPriorityPrompt();
+  }
   const {hand,abilities}=legalPriorityOptions(holder);
   if(!hand.length&&!abilities.length){
     const result=passPriority(game,holder.playerId);
@@ -333,10 +358,10 @@ function openAbilityReview(p,c,d,ability){
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-am" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-an" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-am" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-an" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -355,7 +380,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-am" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-an" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -1077,7 +1102,16 @@ async function openScanner({onSelect=null}={}){
 }
 function logViewerId(){return network?.localPlayerId||game?.activePlayerId||game?.players?.[0]?.playerId||null}
 function logEventHtml(e){const viewer=logViewerId(),hit=!!viewer&&Array.isArray(e.affectedPlayerIds)&&e.affectedPlayerIds.includes(viewer);return `<div class="log-event${hit?' player-attention':''}"><b>Turn ${e.turn||game.turnNumber}</b> • ${esc(e.text)}</div>`}
-function openGameLog(){openModal('GAME LOG',`<div class="log-list">${game.log.map(logEventHtml).join('')||'<p>No game activity yet.</p>'}</div>`,[{label:'UNDO',onClick:()=>confirmUndoLastStep()},{label:'CLOSE',onClick:closeModal}])}
+function openGameLog(){
+  const live=(game.stack?.length||game.priorityState?.active)?`<section class="live-stack-panel"><h3>LIVE STACK</h3>${stackSummary()}${game.priorityState?.active?`<p class="muted">Priority: ${esc(priorityHolder(game)?.displayName||'Waiting')} • ${esc(game.priorityState.reason||'Response window')}</p>`:'<p class="muted">The stack has unresolved objects. Resume to continue legal priority and resolution.</p>'}</section>`:'';
+  const actions=[{label:'UNDO',onClick:()=>confirmUndoLastStep()}];
+  if(game.stack?.length){
+    if(game.priorityState?.active)actions.push({label:'RETURN TO RESPONSE',className:'primary',onClick:()=>{closeModal();openPriorityPrompt()}});
+    else actions.push({label:'RESUME STACK',className:'primary',onClick:()=>{closeModal();const top=(game.stack||[]).at(-1),responder=top?firstLegalOpponentResponder(top.controllerId):null;if(responder)beginPriority('Resume stack resolution.','stack-recovery',null,responder.playerId);else resolveAfterAllPass()}});
+  }
+  actions.push({label:'CLOSE',onClick:closeModal});
+  openModal('GAME LOG',`${live}<div class="log-list">${game.log.map(logEventHtml).join('')||'<p>No game activity yet.</p>'}</div>`,actions);
+}
 function openBoard(){const p=activePlayer();openModal('BOARD',`<div class="board-menu"><button id="boardZones">BOARD & ZONES</button><button id="boardStats">GAME STATS</button><button id="boardLog">GAME LOG</button></div><div id="boardPanelBody">${zoneModal(game,p,'battlefield')}</div>`,[{label:'CLOSE',onClick:closeModal}]);$('#boardZones').onclick=()=>{$('#boardPanelBody').innerHTML=['battlefield','graveyard','exile','command'].map(z=>zoneModal(game,p,z)).join('')};$('#boardStats').onclick=()=>{$('#boardPanelBody').innerHTML=game.players.map(x=>`<div class="zone-row"><h3>${esc(x.displayName)}</h3><p>Life ${x.life} • Poison ${x.poison||0} • Hand ${x.deck.hand.length} • Library ${x.deck.remainingLibrary.length} • Battlefield ${x.deck.battlefield.length}</p></div>`).join('')};$('#boardLog').onclick=()=>{$('#boardPanelBody').innerHTML=`<div class="log-list">${game.log.map(logEventHtml).join('')||'<p>No game activity yet.</p>'}</div>`}}
 function openStats(){openModal('GAME STATS',game.players.map(p=>`<div class="zone-row"><h3>${esc(p.displayName)}</h3><p>Life ${p.life} • Poison ${p.poison||0} • Hand ${p.deck.hand.length} • Library ${p.deck.remainingLibrary.length} • Battlefield ${p.deck.battlefield.length}</p></div>`).join(''),[{label:'END GAME',className:'danger',onClick:openEndGame},{label:'CLOSE',onClick:closeModal}])}
 function openSettings(){const p=activePlayer();const neutralHost=!!network?.host&&!network?.localPlayerId;const advice=!neutralHost?buildStrategyAdvice({game,player:p}):null;openModal('GAME CONTROLS & SETTINGS',`<div class="counter-grid"><button id="saveNow">SAVE GAME</button><button id="undoNow">↶ UNDO</button><button id="rulesNow">RULE MODIFICATIONS</button><button id="homeNow">HOME</button><button id="tabletopNow">TABLETOP VIEW</button>${neutralHost?'<button id="gmNow">GM OPTIONS</button>':''}<button id="concedeNow">CONCEDE</button><button id="endNow">END GAME</button></div>${neutralHost?'<h3>HOST ROLE</h3><p>Neutral judge view. Use GM Options for authorized overrides; private hands remain hidden.</p>':`<h3>PLAYER DIRECTION</h3><p><b>${esc(advice?.headline||guidanceFor({game,player:p}))}</b></p><p class="muted">${esc(advice?.why||guidanceFor({game,player:p}))}</p>`}`,[]);$('#saveNow').onclick=()=>{save();toast('Game saved')};$('#undoNow').onclick=()=>confirmUndoLastStep();$('#rulesNow').onclick=openRules;$('#homeNow').onclick=()=>openModal('RETURN HOME','<p>Close this game and return to the Commander Companion home screen?</p>',[{label:'CANCEL',onClick:closeModal},{label:'RETURN HOME',className:'primary',onClick:()=>{save();closeModal();showLanding()}}]);$('#tabletopNow').onclick=()=>{closeModal();openTabletop()};if($('#gmNow'))$('#gmNow').onclick=()=>{if(!neutralHost)return toast('GM Options require the Host / Judge toggle.',true);openGMOptions()};$('#concedeNow').onclick=()=>{const cp=network?.localPlayerId?game.players.find(x=>x.playerId===network.localPlayerId):activePlayer();if(!cp||cp.eliminated)return toast('No active player is available to concede.',true);openModal('CONFIRM CONCESSION',`<p><b>${esc(cp.displayName)}</b> will leave this game.</p><p class="muted">If this ends the game, the result is recorded automatically.</p>`,[{label:'CANCEL',onClick:closeModal},{label:'CONCEDE',className:'danger',onClick:()=>{closeModal();commitAction({type:'concede',playerId:cp.playerId,label:`${cp.displayName} concedes`});render()}}])};$('#endNow').onclick=openEndGame}

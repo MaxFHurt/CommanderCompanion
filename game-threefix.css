@@ -1,5 +1,5 @@
 /* V0.7.9 — GAME-ONLY THREE FIXES. Landing page intentionally untouched. */
-#gameScreen .game-brand-strip{position:relative!important;display:block!important;height:52px!important;min-height:52px!important;margin:0 0 5px!important;padding:0 8px!important;overflow:hidden!important;background:#050307 url('ui-assets/ref/header-page.png') center/100% 100% no-repeat!important;border:0!important;box-shadow:0 5px 14px #000b!important}
+#gameScreen .game-brand-strip{position:relative!important;display:block!important;height:52px!important;min-height:52px!important;margin:0 0 5px!important;padding:0 8px!important;overflow:hidden!important;background:#050307 url('ref-header-page.png') center/100% 100% no-repeat!important;border:0!important;box-shadow:0 5px 14px #000b!important}
 #gameScreen .game-turn-badge{position:absolute!important;left:10px!important;top:50%!important;transform:translateY(-50%)!important;width:min(31%,170px)!important;height:40px!important;min-width:0!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:6px!important;padding:0 3px!important;overflow:hidden!important}
 #gameScreen .game-turn-copy{min-width:0!important;overflow:hidden!important}
 #gameScreen .game-turn-copy b,#gameScreen .game-turn-copy small{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
@@ -8,7 +8,7 @@
 
 /* Battlefield + Phase share one compact header. Keep Phase visible, just smaller. */
 #gameScreen .battle-panel{margin-top:4px!important;padding-top:5px!important}
-#gameScreen .shared-battle-phase-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;min-height:38px!important;margin:0 1px 4px!important;padding:3px 6px!important;gap:6px!important;overflow:visible!important;background:#07050b url('ui-assets/ref/row-frame.png') center/100% 100% no-repeat!important}
+#gameScreen .shared-battle-phase-head{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;min-height:38px!important;margin:0 1px 4px!important;padding:3px 6px!important;gap:6px!important;overflow:visible!important;background:#07050b url('ref-row-frame.png') center/100% 100% no-repeat!important}
 #gameScreen .shared-battle-phase-head h3{display:block!important;margin:0!important;padding:0 3px!important;font-size:clamp(19px,4vw,26px)!important;line-height:1!important;white-space:nowrap!important}
 #gameScreen .battle-phase-indicator{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center!important;justify-content:flex-end!important;min-width:max-content!important;gap:3px!important;padding:0 2px!important;font:900 clamp(11px,2.5vw,15px)/1 var(--head)!important;color:#f2edf7!important;white-space:nowrap!important}
 #gameScreen .battle-phase-indicator span,#gameScreen .battle-phase-indicator b{display:inline!important}
@@ -72,7 +72,7 @@
   min-height:78px!important;
   max-height:118px!important;
   overflow:hidden!important;
-  background:linear-gradient(180deg,rgba(15,9,20,.96),rgba(4,3,7,.96)),url('ui-assets/forged-bg.svg') center/cover no-repeat!important;
+  background:linear-gradient(180deg,rgba(15,9,20,.96),rgba(4,3,7,.96)),url('ui-forged-bg.svg') center/cover no-repeat!important;
   border:1px solid #756280!important;
   border-radius:6px!important;
   box-shadow:inset 0 0 0 2px #08050b,inset 0 0 0 3px #8c57ad55,0 3px 9px #000a!important;
@@ -82,7 +82,7 @@
   position:absolute!important;
   inset:0!important;
   pointer-events:none!important;
-  background:url('ui-assets/panel-frame.svg') center/100% 100% no-repeat!important;
+  background:url('ui-panel-frame.svg') center/100% 100% no-repeat!important;
   opacity:.34!important;
   z-index:0!important;
 }
@@ -145,7 +145,7 @@
 #gameScreen .opponent-bar{
   position:relative!important;
   overflow:hidden!important;
-  background:radial-gradient(circle at 55% 5%,rgba(122,55,160,.22),transparent 42%),linear-gradient(155deg,rgba(27,17,34,.98),rgba(5,4,8,.99) 43%,rgba(11,6,15,.99)),url('ui-assets/forged-bg.svg') center/cover no-repeat!important;
+  background:radial-gradient(circle at 55% 5%,rgba(122,55,160,.22),transparent 42%),linear-gradient(155deg,rgba(27,17,34,.98),rgba(5,4,8,.99) 43%,rgba(11,6,15,.99)),url('ui-forged-bg.svg') center/cover no-repeat!important;
   border:1px solid #76647f!important;
   box-shadow:inset 0 0 0 2px #07050a,inset 0 0 0 3px #8f57ae44,0 3px 11px #000b,0 0 8px #70339a22!important;
 }
@@ -156,12 +156,12 @@
   inset:0!important;
   z-index:0!important;
   pointer-events:none!important;
-  background:url('ui-assets/panel-frame.svg') center/100% 100% no-repeat!important;
+  background:url('ui-panel-frame.svg') center/100% 100% no-repeat!important;
   opacity:.25!important;
 }
 #gameScreen .player-card.new-visual-master>*,
 #gameScreen .opponent-bar>*{position:relative!important;z-index:1!important}
-#gameScreen .player-card.new-visual-master.inspected-opponent{background:radial-gradient(circle at 70% 0,rgba(88,55,134,.24),transparent 44%),linear-gradient(155deg,#17101f,#050407 48%,#0a0710),url('ui-assets/forged-bg.svg') center/cover no-repeat!important}
+#gameScreen .player-card.new-visual-master.inspected-opponent{background:radial-gradient(circle at 70% 0,rgba(88,55,134,.24),transparent 44%),linear-gradient(155deg,#17101f,#050407 48%,#0a0710),url('ui-forged-bg.svg') center/cover no-repeat!important}
 
 @media(max-width:600px){
   #gameScreen .inline-game-log{margin:3px 4px 4px!important;min-height:72px!important;max-height:104px!important;padding:4px 5px 5px!important}
@@ -3074,3 +3074,19 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 }
 /* Any-color is now a real matching asset, not the old CSS placeholder wheel. */
 .mana-any-color{display:none!important}
+
+/* V0.8 AN — shared mana renderer: calculator uses the same asset geometry as the main Available Mana row. */
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip{
+  display:grid!important;grid-template-columns:1fr!important;grid-template-rows:auto auto!important;
+  justify-items:center!important;align-items:center!important;gap:2px!important;position:relative!important;
+}
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>img.mana-flex-split,
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>img.mana-any-color-icon{
+  position:static!important;left:auto!important;right:auto!important;top:auto!important;
+  clip-path:none!important;display:block!important;width:30px!important;height:30px!important;
+  min-width:30px!important;min-height:30px!important;max-width:30px!important;max-height:30px!important;
+  object-fit:contain!important;margin:0!important;transform:none!important;
+}
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>b{
+  display:block!important;position:static!important;margin:0!important;line-height:1!important;text-align:center!important;
+}
