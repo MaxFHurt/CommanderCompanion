@@ -1,8 +1,8 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities } from './rules-v0725.js?v=080-ah';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities } from './rules-v0725.js?v=080-ai';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ah';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ai';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ah';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ai';
 import { queueTriggers } from './trigger-engine.js?v=07968';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];

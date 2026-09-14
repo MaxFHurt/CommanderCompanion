@@ -48,7 +48,13 @@ function manaCapacitySourceUsable(game,card){
 }
 export function playerManaAvailability(player,game=null){
   const base=Object.fromEntries(COLORS.map(c=>[c,Math.max(0,Number(player?.mana?.available?.[c]||0))]));
-  const flex=(player?.deck?.battlefield||[]).filter(c=>!c.tapped&&manaCapacitySourceUsable(game,c)&&c.manaCapacityRegistered&&Array.isArray(c.manaCapacityOptions)&&c.manaCapacityOptions.length>1).map(c=>({instanceId:c.instanceId,options:[...new Set(c.manaCapacityOptions.filter(x=>COLORS.includes(x)))]})).filter(x=>x.options.length>1);
+  const identity=new Set();for(const cmd of player?.commanders||[])for(const c of game?.cardDefinitions?.[cmd.cardId]?.colorIdentity||[])if(COLORS.includes(c))identity.add(c);
+  const flex=[];for(const card of player?.deck?.battlefield||[]){
+    if(card?.tapped||!manaCapacitySourceUsable(game,card))continue;
+    let options=Array.isArray(card?.manaCapacityOptions)?card.manaCapacityOptions.filter(x=>COLORS.includes(x)):[];
+    if(options.length<2){const def=game?.cardDefinitions?.[card?.definitionId];options=[...new Set(tapManaAbilities(def).flatMap(row=>row.options||[]).filter(x=>COLORS.includes(x)))];if(/commander(?:'s|’s)? color identity/i.test(String(def?.oracleText||''))&&identity.size)options=options.filter(x=>identity.has(x));}
+    options=[...new Set(options)];if(options.length>1)flex.push({instanceId:card.instanceId,options});
+  }
   return {...base,__flex:flex};
 }
 export function planMana(available,cost,tax=0){
