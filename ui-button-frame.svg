@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="260" viewBox="0 0 1000 260" preserveAspectRatio="none">
+<defs>
+ <linearGradient id="m" x2="0" y2="1"><stop stop-color="#d7d9df"/><stop offset=".15" stop-color="#4e5059"/><stop offset=".34" stop-color="#131319"/><stop offset=".7" stop-color="#292932"/><stop offset="1" stop-color="#8e929b"/></linearGradient>
+ <linearGradient id="f" x2="0" y2="1"><stop stop-color="#282330"/><stop offset=".28" stop-color="#111017"/><stop offset="1" stop-color="#060609"/></linearGradient>
+ <linearGradient id="p" x2="1"><stop stop-color="#6d28d9"/><stop offset=".5" stop-color="#d8b4fe"/><stop offset="1" stop-color="#6d28d9"/></linearGradient>
+ <filter id="g"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<path d="M28 3H972L997 28V232L972 257H28L3 232V28z" fill="url(#f)" stroke="url(#m)" stroke-width="6"/>
+<path d="M45 17H955L983 45V215L955 243H45L17 215V45z" fill="none" stroke="#1e1d25" stroke-width="12"/>
+<path d="M52 25H948L975 52V208L948 235H52L25 208V52z" fill="none" stroke="url(#p)" stroke-width="3" filter="url(#g)"/>
+<path d="M12 72L72 12h72l-30 30H82L42 82v42H12zm976 0l-60-60h-72l30 30h32l40 40v42h30zM12 188l60 60h72l-30-30H82l-40-40v-42H12zm976 0l-60 60h-72l30-30h32l40-40v-42h30z" fill="url(#m)"/>
+</svg>

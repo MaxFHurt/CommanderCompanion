@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" preserveAspectRatio="none">
+<defs>
+ <linearGradient id="m" x2="0" y2="1"><stop stop-color="#f0f1f4"/><stop offset=".08" stop-color="#747984"/><stop offset=".2" stop-color="#171820"/><stop offset=".48" stop-color="#40424c"/><stop offset=".75" stop-color="#0d0e13"/><stop offset="1" stop-color="#9da1aa"/></linearGradient>
+ <linearGradient id="p" x2="1"><stop stop-color="#4c1d95"/><stop offset=".5" stop-color="#d8b4fe"/><stop offset="1" stop-color="#4c1d95"/></linearGradient>
+ <filter id="g"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<path d="M12 8H1188V292L1138 332H62L12 292z" fill="#060509" stroke="url(#m)" stroke-width="8"/>
+<path d="M34 27H1166V278L1122 312H78L34 278z" fill="#0d0a12" stroke="#2e2b36" stroke-width="12"/>
+<path d="M55 48H1145V264L1108 292H92L55 264z" fill="none" stroke="url(#p)" stroke-width="4" filter="url(#g)"/>
+<path d="M0 26l126 0 70 65-34 32-66-55H0zm1200 0h-126l-70 65 34 32 66-55h96z" fill="url(#m)" stroke="#16161b" stroke-width="4"/>
+<path d="M430 0h340l62 72-52 84H420l-52-84z" fill="#0a080f" stroke="url(#m)" stroke-width="7"/>
+<path d="M454 14h292l50 59-39 62H443l-39-62z" fill="none" stroke="url(#p)" stroke-width="4" filter="url(#g)"/>
+</svg>

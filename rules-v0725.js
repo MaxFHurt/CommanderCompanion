@@ -84,6 +84,34 @@ export function planMana(available,cost,tax=0){
   return {ok:true,required:req,chosen,remaining:{...pool,__flex:flex.filter(x=>!usedFlex.has(x.instanceId))},sourceAssignments:assignments};
 }
 
+
+function definitionLookup(definitions,game,instance){
+  if(!instance)return null;
+  if(definitions instanceof Map)return definitions.get(instance.definitionId)||null;
+  return definitions?.[instance.definitionId]||game?.cardDefinitions?.[instance.definitionId]||null;
+}
+function spellTargetLegalityIssues({game,player,definition,definitions}={}){
+  const text=String(definition?.oracleText||'');
+  const issues=[];
+  if(!/\btarget\b/i.test(text))return issues;
+  const graveRows=(ownerOnly=false)=>{
+    const players=ownerOnly?[player]:(game?.players||[]);
+    return players.filter(Boolean).flatMap(p=>p.deck?.graveyard||[]);
+  };
+  if(/target creature card (?:from|in) your graveyard/i.test(text)){
+    const legal=graveRows(true).some(c=>/Creature/i.test(definitionLookup(definitions,game,c)?.typeLine||''));
+    if(!legal)issues.push('No creature card is available in your graveyard to target.');
+  }else if(/target creature card (?:from|in) (?:a|any) graveyard/i.test(text)){
+    const legal=graveRows(false).some(c=>/Creature/i.test(definitionLookup(definitions,game,c)?.typeLine||''));
+    if(!legal)issues.push('No creature card is available in a graveyard to target.');
+  }else if(/target card (?:from|in) your graveyard/i.test(text)){
+    if(!graveRows(true).length)issues.push('No card is available in your graveyard to target.');
+  }else if(/target card (?:from|in) (?:a|any) graveyard/i.test(text)){
+    if(!graveRows(false).length)issues.push('No card is available in a graveyard to target.');
+  }
+  return issues;
+}
+
 export function validatePlay({game,player,definition,instance,kind='cast',commander=null,definitions}){
   const reasons=[]; const warnings=[];
   if(!definition||!isCardDefinitionComplete(definition)) reasons.push('Card data is unresolved or incomplete.');
@@ -95,6 +123,7 @@ export function validatePlay({game,player,definition,instance,kind='cast',comman
     const landLimit=(game.rulesConfig?.allowExtraLand?2:1)+Number(player.counters?.extraLandPlaysThisTurn||0);
     if((player.counters?.landsPlayedThisTurn||0)>=landLimit) reasons.push('Normal land play for this turn has already been used.');
   } else if(!main && /Sorcery|Creature|Artifact|Enchantment|Planeswalker/i.test(type)) reasons.push('This card normally requires main-phase timing.');
+  if(kind!=='land'&&definition)reasons.push(...spellTargetLegalityIssues({game,player,definition,definitions}));
   const rules=normalizeRulesConfig(game?.rulesConfig);
   const identity=definitions?effectiveIdentity(player,definitions):[];
   if(rules.colorIdentity!==false&&definition&&identity.length&&definition.colorIdentity.some(c=>!identity.includes(c))) reasons.push('Card color identity is outside the commander identity.');

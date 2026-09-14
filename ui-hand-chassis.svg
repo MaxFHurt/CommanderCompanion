@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" preserveAspectRatio="none">
+<defs>
+ <linearGradient id="m" x2="0" y2="1"><stop stop-color="#d9dbe2"/><stop offset=".12" stop-color="#5b5e67"/><stop offset=".3" stop-color="#111218"/><stop offset=".52" stop-color="#3c3d47"/><stop offset=".82" stop-color="#0d0d12"/><stop offset="1" stop-color="#7b7f88"/></linearGradient>
+ <linearGradient id="p" x2="1"><stop stop-color="#6d28d9"/><stop offset=".5" stop-color="#e9d5ff"/><stop offset="1" stop-color="#6d28d9"/></linearGradient>
+ <filter id="g"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<path d="M14 42L62 8h412l42 48h168l42-48h412l48 34v280H14z" fill="#060509" stroke="url(#m)" stroke-width="8"/>
+<path d="M34 57L74 28h388l42 48h192l42-48h388l40 29v243H34z" fill="#0b0910" stroke="#2f2c36" stroke-width="12"/>
+<path d="M56 68L86 46h364l42 48h216l42-48h364l30 22v210H56z" fill="none" stroke="url(#p)" stroke-width="4" filter="url(#g)"/>
+<path d="M20 40h150l-55 47H20zm1160 0h-150l55 47h95z" fill="url(#m)"/>
+</svg>
