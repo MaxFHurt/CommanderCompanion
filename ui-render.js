@@ -1,4 +1,4 @@
-import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-aj';
+import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ak';
 import { modePolicy } from './modes.js?v=0722';
 import { phaseLabel } from './phase.js?v=0727';
 const MANA=[['W','white'],['U','blue'],['B','black'],['R','red'],['G','green'],['C','colorless']];
@@ -9,8 +9,9 @@ function legalManaKeys(game,p,{includeColorless=true}={}){const set=new Set();fo
 function flexibleManaMarkup(options=[],count=1){
   const opts=[...new Set((options||[]).filter(k=>MANA.some(([mk])=>mk===k)))];
   if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><span class="mana-flex-circle mana-any-color"><i>✦</i></span><b>${count}</b></span>`;
-  const pair=opts.slice(0,2),icons=pair.map((k,i)=>{const n=MANA.find(x=>x[0]===k)?.[1]||'colorless';return `<img class="mana-half mana-half-${i+1}" src="mana-${n}.png" alt="${k}">`}).join('');
-  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><span class="mana-flex-circle">${icons}</span><b>${count}</b></span>`;
+  const pair=opts.slice(0,2);if(pair.length<2)return '';
+  const key=[...pair].sort().join('-');
+  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ak" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
@@ -18,7 +19,7 @@ function manaBox(game,title,p,pool,interactive=true){
   const groups=new Map();for(const src of availability.__flex||[]){const opts=(src.options||[]).filter(k=>MANA.some(([mk])=>mk===k));if(opts.length>1){const key=opts.join('/');groups.set(key,(groups.get(key)||0)+1)}}
   const flex=[...groups.entries()].map(([key,count])=>flexibleManaMarkup(key.split('/'),count)).join('');
   const items=fixed.map(([k,n])=>{const a=Math.max(0,Number(available[k]||0)),t=Math.max(0,Number(total[k]||0)),state=a>t?'mana-over':a<t?'mana-under':'mana-even';return `<span class="mana-pip ${state}"><img src="mana-${n}.png" alt="${k}"><b>${a}</b></span>`}).join('')+flex;
-  return `<button class="mana-box mana-box-button available-only" ${interactive?'data-mana-pool="available"':'aria-disabled="true"'} aria-label="Available mana"><div class="mana-row" style="--mana-count:${Math.max(1,fixed.length+groups.size)}">${items||''}</div></button>`
+  return `<button class="mana-box mana-box-button available-only" ${interactive?'data-mana-pool="available"':'aria-disabled="true"'} aria-label="Available mana"><h3>${esc(title||'AVAILABLE MANA')}</h3><div class="mana-row" style="--mana-count:${Math.max(1,fixed.length+groups.size)}">${items||''}</div></button>`
 }
 function statusGlyph(name=''){const s=String(name).toLowerCase();if(s.includes('monarch'))return'♛';if(s.includes('initiative'))return'◆';if(s.includes('city'))return'◇';if(s.includes('poison'))return'☠';if(s.includes('stun'))return'✦';return'●'}
 function statusIndicator(p){const rows=(p.statuses||[]).filter(Boolean);if(!rows.length)return `<span class="status-indicator status-healthy" aria-label="Healthy" title="Healthy"><span class="status-cycle active"><i class="healthy-light"></i></span></span>`;return `<button class="status-indicator status-affected" data-status-indicator="${esc(p.playerId)}" aria-label="View active statuses">${rows.map((s,i)=>`<span class="status-cycle" style="--status-index:${i};--status-count:${rows.length}" title="${esc(s)}">${statusGlyph(s)}</span>`).join('')}</button>`}
