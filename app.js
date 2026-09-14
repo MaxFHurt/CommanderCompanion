@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-an';
+import { createTransactionEngine } from './transactions.js?v=080-ao';
 import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-an';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-an';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ao';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ao';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,10 +14,10 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-an';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ao';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-an';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ao';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
 import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
@@ -358,10 +358,10 @@ function openAbilityReview(p,c,d,ability){
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-an" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ao" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-an" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ao" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -380,7 +380,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-an" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ao" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -391,8 +391,16 @@ function openModal(title,html,actions=[],trayHtml=''){
 function closeModal(){clearPriorityResponseTimer();const m=$('#modal');try{document.activeElement?.blur?.()}catch{} if(m.open)m.close();document.body.classList.remove('cc-modal-open');m.classList.remove('game-history-modal');const y=Number(m.dataset.returnScroll||0);requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'auto'}))}
 function openGameHistory(){
   const rows=(game?.log||[]).map((e,index)=>({e,index})).sort((a,b)=>Number(b.e?.turn||0)-Number(a.e?.turn||0)||a.index-b.index);
-  const html=rows.length?`<div class="game-history-list">${rows.map(({e})=>{const turn=Math.max(1,Number(e?.turn||1));const player=e?.playerName||e?.player||e?.displayName||'';const phase=e?.phase||'';const meta=[`TURN ${turn}`,player,phase].filter(Boolean).map(esc).join(' • ');return `<article class="game-history-entry"><small>${meta}</small><p>${esc(e?.text||'Game update')}</p></article>`}).join('')}</div>`:'<div class="game-history-empty">No recorded game actions yet.</div>';
-  openModal('GAME HISTORY',html,[{label:'UNDO LAST STEP',onClick:()=>confirmUndoLastStep()}]);
+  const history=rows.length?`<div class="game-history-list">${rows.map(({e})=>{const turn=Math.max(1,Number(e?.turn||1));const player=e?.playerName||e?.player||e?.displayName||'';const phase=e?.phase||'';const meta=[`TURN ${turn}`,player,phase].filter(Boolean).map(esc).join(' • ');return `<article class="game-history-entry"><small>${meta}</small><p>${esc(e?.text||'Game update')}</p></article>`}).join('')}</div>`:'<div class="game-history-empty">No recorded game actions yet.</div>';
+  const hasStack=!!(game?.stack?.length),hasPriority=!!game?.priorityState?.active;
+  const live=(hasStack||hasPriority)?`<section class="live-stack-panel game-history-live-stack"><h3>LIVE STACK</h3>${stackSummary()}${hasPriority?`<p class="live-stack-priority">Priority: <b>${esc(priorityHolder(game)?.displayName||'Waiting')}</b><br><span>${esc(game.priorityState.reason||'Response window')}</span></p>`:'<p class="live-stack-priority">Unresolved stack objects are waiting for legal priority and resolution.</p>'}</section>`:'';
+  const actions=[];
+  if(hasStack){
+    if(hasPriority)actions.push({label:'RETURN TO RESPONSE',className:'primary',onClick:()=>{closeModal();openPriorityPrompt()}});
+    else actions.push({label:'RESUME STACK',className:'primary',onClick:()=>{closeModal();const top=(game.stack||[]).at(-1),responder=top?firstLegalOpponentResponder(top.controllerId):null;if(responder)beginPriority('Resume stack resolution.','stack-recovery',null,responder.playerId);else resolveAfterAllPass()}});
+  }
+  actions.push({label:'UNDO LAST STEP',onClick:()=>confirmUndoLastStep()});
+  openModal('GAME HISTORY',`${live}${history}`,actions);
   $('#modal')?.classList.add('game-history-modal');
 }
 function guidedAllCards(){const rows=[];for(const p of game.players||[])for(const zone of ['hand','battlefield','graveyard','exile'])for(const c of p.deck?.[zone]||[])rows.push({id:c.instanceId,label:defOf(game,c)?.name||'Card',sub:`${p.displayName} — ${zone}`,playerId:p.playerId,zone});return rows}

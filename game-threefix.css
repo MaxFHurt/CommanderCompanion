@@ -3075,7 +3075,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 /* Any-color is now a real matching asset, not the old CSS placeholder wheel. */
 .mana-any-color{display:none!important}
 
-/* V0.8 AN — shared mana renderer: calculator uses the same asset geometry as the main Available Mana row. */
+/* V0.8 AO — shared mana renderer: calculator uses the same asset geometry as the main Available Mana row. */
 .mana-calculator.mana-compare .mana-available-inline .calc-flex-pip{
   display:grid!important;grid-template-columns:1fr!important;grid-template-rows:auto auto!important;
   justify-items:center!important;align-items:center!important;gap:2px!important;position:relative!important;
@@ -3089,4 +3089,109 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 }
 .mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>b{
   display:block!important;position:static!important;margin:0!important;line-height:1!important;text-align:center!important;
+}
+
+/* ============================================================
+   V0.8 AO — LIVE STACK HISTORY + FIXED LOWER-UI GEOMETRY
+   Keep the hand/dock anchored to the viewport without allowing the
+   floating hand to creep upward into battlefield/zone controls.
+   ============================================================ */
+#gameScreen{
+  --cc-ao-chassis-h:calc(100vw * 320 / 976);
+  --cc-ao-hand-h:min(15.6vw,122px);
+}
+#gameScreen > .floating-live-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls{
+  bottom:0!important;
+  height:var(--cc-ao-chassis-h)!important;
+  max-height:292px!important;
+  aspect-ratio:976/320!important;
+}
+#gameScreen > .floating-live-hand,
+#gameScreen .visual-hand-zone.floating-live-hand{
+  position:fixed!important;
+  left:0!important;right:0!important;
+  width:100vw!important;max-width:none!important;
+  bottom:calc(var(--cc-ao-chassis-h) - 1px)!important;
+  height:var(--cc-ao-hand-h)!important;
+  min-height:0!important;
+  padding:0 4vw!important;
+  margin:0!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+#gameScreen > .floating-live-hand .hand-strip,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-strip{
+  height:100%!important;
+  align-items:flex-end!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+}
+#gameScreen > .floating-live-hand .hand-card,
+#gameScreen .visual-hand-zone.floating-live-hand .hand-card{
+  flex:0 0 min(10.3vw,76px)!important;
+  width:min(10.3vw,76px)!important;
+  min-width:min(10.3vw,76px)!important;
+  max-width:min(10.3vw,76px)!important;
+  height:auto!important;
+  max-height:calc(var(--cc-ao-hand-h) - 2px)!important;
+  aspect-ratio:63/88!important;
+  margin:0!important;
+  transform:none!important;
+}
+
+/* Game History owns the live stack instead of merely logging stack events. */
+#modal.game-history-modal #modalContent{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  padding:10px 12px 12px!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+#modal.game-history-modal .game-history-live-stack{
+  position:relative!important;
+  margin:0 0 12px!important;
+  padding:12px!important;
+  border:2px solid #934ad0!important;
+  background:linear-gradient(180deg,#170b1c,#09060c)!important;
+  box-shadow:inset 0 0 0 1px #2b1832!important;
+}
+#modal.game-history-modal .game-history-live-stack h3{
+  margin:0 0 9px!important;
+  font:900 clamp(18px,4.2vw,28px)/1 var(--head)!important;
+  color:#fff!important;
+}
+#modal.game-history-modal .stack-summary{display:grid!important;gap:6px!important}
+#modal.game-history-modal .stack-row{
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:8px!important;
+  padding:8px!important;
+  border:1px solid #4d3559!important;
+  background:#0a070d!important;
+}
+#modal.game-history-modal .stack-row span{font-weight:900!important;color:#c685ef!important}
+#modal.game-history-modal .stack-row strong{min-width:0!important;overflow-wrap:anywhere!important}
+#modal.game-history-modal .stack-row small{opacity:.78!important;text-align:right!important}
+#modal.game-history-modal .live-stack-priority{margin:10px 0 0!important;line-height:1.35!important}
+#modal.game-history-modal #modalActions.sticky-actions{
+  position:relative!important;
+  flex:0 0 auto!important;
+  bottom:auto!important;
+  margin:0!important;
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom))!important;
+  background:#08060b!important;
+  border-top:1px solid #653b78!important;
+  overflow:visible!important;
+}
+#modal.game-history-modal #modalActions>button{
+  min-height:58px!important;
+  max-width:360px!important;
+  flex:1 1 180px!important;
+  margin:0!important;
+}
+@media(max-width:600px){
+  #gameScreen{--cc-ao-hand-h:15.6vw}
+  #modal.game-history-modal #modalActions>button{min-height:54px!important;flex:1 1 calc(50% - 8px)!important}
 }
