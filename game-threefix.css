@@ -2989,3 +2989,53 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
   #modal #modalActions>button[data-menu-semantic="cancel"]::before,#modal .modal-tray-buttons>button[data-menu-semantic="cancel"]::before,
   #modal #modalActions>button[data-action-role="cancel"]::before,#modal .modal-tray-buttons>button[data-action-role="cancel"]::before{left:11px!important;font-size:20px!important}
 }
+
+/* V0.8 AJ — mana presentation + shared navigation/action cleanup. */
+/* Static dialog Back controls contain the artwork as an <img>; never paint a second background copy. */
+.cc-modal .modal-back-row .dialog-back[data-navigation="back"],
+.cc-modal .modal-back-row button.dialog-back[data-navigation="back"]{
+  width:min(335px,72vw)!important;height:auto!important;min-width:0!important;min-height:0!important;
+  padding:0!important;margin:0 auto!important;border:0!important;border-radius:0!important;
+  background:none!important;background-image:none!important;box-shadow:none!important;
+  color:transparent!important;text-shadow:none!important;line-height:0!important;overflow:visible!important;
+}
+.cc-modal .modal-back-row .dialog-back[data-navigation="back"]::before,
+.cc-modal .modal-back-row .dialog-back[data-navigation="back"]::after{content:none!important;display:none!important;background:none!important}
+.cc-modal .modal-back-row .dialog-back[data-navigation="back"]>img{display:block!important;width:100%!important;height:auto!important;max-width:100%!important;pointer-events:none!important}
+
+/* Keep footer labels optically centered; status glyphs remain independently anchored at the left. */
+#modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"],
+#modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+  padding:10px 48px!important;line-height:1.05!important;
+}
+@media(max-width:540px){
+  #modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"],
+  #modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+  #modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{padding:8px 38px!important}
+}
+
+/* Flexible mana uses one circular split badge in the same row as fixed available mana. */
+.mana-row{justify-content:center!important;align-items:center!important}
+.mana-row .mana-flex{min-width:32px!important}
+.mana-flex-circle{position:relative!important;display:block!important;width:30px!important;height:30px!important;border-radius:50%!important;overflow:hidden!important;border:1px solid rgba(255,255,255,.68)!important;box-shadow:0 0 5px rgba(190,142,255,.32),inset 0 0 0 1px rgba(0,0,0,.35)!important;background:#0d0b12!important}
+.mana-flex-circle .mana-half{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:cover!important;margin:0!important;border-radius:50%!important}
+.mana-flex-circle .mana-half-1{clip-path:polygon(0 0,100% 0,0 100%)!important}
+.mana-flex-circle .mana-half-2{clip-path:polygon(100% 0,100% 100%,0 100%)!important}
+.mana-flex-circle::after{content:""!important;position:absolute!important;left:-4px!important;bottom:14px!important;width:38px!important;height:1px!important;background:rgba(255,255,255,.72)!important;transform:rotate(-45deg)!important;transform-origin:center!important;pointer-events:none!important}
+.mana-any-color{display:grid!important;place-items:center!important;background:conic-gradient(#f3e7a1 0 20%,#8ed5ff 20% 40%,#b8b0c8 40% 60%,#ff8c72 60% 80%,#91d58a 80% 100%)!important}
+.mana-any-color::after{display:none!important}
+.mana-any-color i{font-style:normal!important;font:900 17px/1 var(--head)!important;color:#17121b!important;text-shadow:0 1px 0 rgba(255,255,255,.65)!important}
+.mana-pip.mana-flex b{display:block!important;margin-top:2px!important;color:#fff!important}
+
+/* Casting/payment screen: show only mana that is currently available; no zero placeholders and no separate FLEX row. */
+.mana-calculator.mana-compare .mana-cost-inline,
+.mana-calculator.mana-compare .mana-available-inline{display:flex!important;align-items:center!important;justify-content:center!important;gap:10px!important;flex-wrap:wrap!important;min-height:38px!important;margin:2px auto 7px!important}
+.mana-calculator.mana-compare .mana-available-inline .calc-pip,
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip{display:grid!important;justify-items:center!important;align-items:center!important;gap:2px!important}
+.mana-calculator.mana-compare .mana-available-inline .calc-pip img{width:28px!important;height:28px!important;object-fit:contain!important}
+.mana-calculator.mana-compare .mana-available-inline .calc-pip b,
+.mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>b{font:900 11px/1 var(--head)!important;color:#fff!important}
+.mana-calculator.mana-compare .mana-available-inline .mana-flex-circle{width:30px!important;height:30px!important}
+.mana-flex-available{display:none!important}

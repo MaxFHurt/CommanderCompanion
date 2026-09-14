@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-ai';
+import { createTransactionEngine } from './transactions.js?v=080-aj';
 import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability } from './rules-v0725.js?v=080-ai';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ai';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aj';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-aj';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,10 +14,10 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ai';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-aj';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ai';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-aj';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
 import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
@@ -330,7 +330,21 @@ function openAbilityReview(p,c,d,ability){
   openModal(`ACTIVATE — ${d.name}`,`<section class="ability-review"><h3>COST</h3><div class="ability-cost-chips">${abilityCostChips(ability,d)}</div>${chooser}<h3>EFFECT</h3><p class="ability-effect-compact">${esc(effect)}</p></section>`,[{label:'CANCEL',onClick:closeModal},{label:'USE ABILITY',className:'primary',onClick:()=>{const manaColor=$('#abilityInlineMana')?.value||null;beginAbilityActivation(p,c,d,ability,{manaColor})}}]);
 }
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
-function manaCalculator(game,player,cost='',tax=0){const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);const costCells=keys.map(k=>`<div>${req[k]?manaIcon(k,req[k]):'<span class="mana-empty-slot"></span>'}</div>`).join('')+`<div>${req.generic?`<span class="generic-pip">${req.generic}</span>`:'<span class="mana-empty-slot"></span>'}</div>`;const availableCells=keys.map(k=>`<div>${manaIcon(k,pool[k]||0)}</div>`).join('')+`<div><span class="generic-pip mana-total-generic">${keys.reduce((n,k)=>n+Math.max(0,Number(pool[k]||0)),0)+(pool.__flex?.length||0)}</span></div>`;const flexGroups=new Map();for(const src of pool.__flex||[]){const key=(src.options||[]).join('/');if(key)flexGroups.set(key,(flexGroups.get(key)||0)+1)}const flex=[...flexGroups.entries()].map(([key,count])=>{const icons=key.split('/').slice(0,2).map(k=>`<img src="mana-${MANA_ICON[k]}.png" alt="${k}">`).join('');return `<span class="calc-flex-pip"><span>${icons}</span><b>${count}</b></span>`}).join('');return `<section class="mana-calculator mana-compare ${plan.ok?'payable':'unpayable'}"><div class="mana-compare-label">COST</div><div class="mana-compare-grid mana-compare-seven">${costCells}</div><div class="mana-compare-label">AVAILABLE</div><div class="mana-compare-grid mana-compare-seven">${availableCells}</div>${flex?`<div class="mana-flex-available"><small>FLEX</small>${flex}</div>`:''}</section>`}
+function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
+  const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><span class="mana-flex-circle mana-any-color"><i>✦</i></span><b>${count}</b></span>`}
+  const pair=opts.slice(0,2),icons=pair.map((k,i)=>`<img class="mana-half mana-half-${i+1}" src="mana-${MANA_ICON[k]}.png" alt="${k}">`).join('');
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><span class="mana-flex-circle">${icons}</span><b>${count}</b></span>`;
+}
+function manaCalculator(game,player,cost='',tax=0){
+  const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
+  const costCells=keys.filter(k=>req[k]).map(k=>manaIcon(k,req[k])).join('')+(req.generic?`<span class="generic-pip">${req.generic}</span>`:'');
+  const fixed=keys.filter(k=>Number(pool[k]||0)>0).map(k=>manaIcon(k,pool[k])).join('');
+  const flexGroups=new Map();for(const src of pool.__flex||[]){const key=[...new Set(src.options||[])].join('/');if(key)flexGroups.set(key,(flexGroups.get(key)||0)+1)}
+  const flex=[...flexGroups.entries()].map(([key,count])=>flexManaBadge(key.split('/'),count)).join('');
+  const available=fixed+flex||'<span class="muted mana-none">NONE</span>';
+  return `<section class="mana-calculator mana-compare ${plan.ok?'payable':'unpayable'}"><div class="mana-compare-label">COST</div><div class="mana-cost-inline">${costCells||'<span class="muted">NO MANA</span>'}</div><div class="mana-compare-label">AVAILABLE</div><div class="mana-available-inline">${available}</div></section>`
+}
 function menuSemantic(action={}){const label=String(action.label||'').trim(),explicit=String(action.semantic||'').trim();if(explicit)return explicit.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(/^back$/i.test(label))return'back';if(/^(cancel|deny|reject)(?:\b|$)/i.test(label))return'cancel';if(/^save(?:\b|$)/i.test(label))return'save';if(/^delete(?:\b|$)/i.test(label))return'delete';if(/^undo(?:\b|$)/i.test(label))return'undo';if(/^home$|^return home$/i.test(label))return'home';if(/^settings$/i.test(label))return'settings';if(/^profile$/i.test(label))return'profile';if(/^game logs?$/i.test(label))return'game-log';if(/^help$/i.test(label))return'help';if(/^confirm(?:\b|$)/i.test(label)||/^(end turn|start game|confirm & next|use selected 7|keep hand|apply operation|effect resolved|cast(?: card| commander)?|play(?: land| card)?|approve|accept|done)(?:\b|$)/i.test(label)||String(action.className||'').split(/\s+/).includes('primary'))return'confirm';return'custom'}
 function openModal(title,html,actions=[],trayHtml=''){
   try{document.activeElement?.blur?.()}catch{}
@@ -339,7 +353,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ai" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-aj" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -758,7 +772,7 @@ function openBattleCard(id){const p=activePlayer(),c=instance(p,id);if(!c)return
   ...(parseActivatedAbilities(d).length?[{label:'ABILITIES',onClick:()=>openCardAbility(id)}]:[]),{label:'MOVE',onClick:()=>openMoveCard(p,c)},{label:'COUNTERS',onClick:()=>openCardCounters(p,c)}
 ];openModal(d?.name||'Card',renderCardDetail(game,c)+(tapAbilities.length?`<p class="good"><b>${tapAbilities.length} tap-cost ${tapAbilities.length===1?'ability':'abilities'} detected.</b> Choose the ability before paying {T}.</p>`:'')+(readOnly?'<p class="muted">Public card view — actions belong to the active player device.</p>':''),[...actions,{label:'CLOSE',onClick:closeModal}])}
 function openMoveCard(p,c){const d=defOf(game,c);openModal(`MOVE ${d?.name||'CARD'}`,`<p>Select destination.</p>`,['battlefield','graveyard','exile','hand','library','command'].map(z=>({label:z.toUpperCase(),onClick:()=>{commitAction({type:'move-card',playerId:p.playerId,instanceId:c.instanceId,to:z,position:z==='library'?'top':undefined,label:`${d?.name||'Card'} moved to ${z}.`});closeModal();render()}})))}
-function openCardCounters(p,c){const d=defOf(game,c);const names=['+1/+1','-1/-1','stun','charge','loyalty'];openModal(`${d?.name||'CARD'} COUNTERS`,names.map(n=>`<div class="counter-control"><b>${esc(n)}</b><span>${c.counters?.[n]||0}</span><button data-cc="${esc(n)}" data-d="1">+</button><button data-cc="${esc(n)}" data-d="-1">−</button></div>`).join(''),[{label:'DONE',onClick:closeModal}]);$$('[data-cc]').forEach(b=>b.onclick=()=>{commitAction({type:'card-counter',playerId:p.playerId,instanceId:c.instanceId,counter:b.dataset.cc,delta:+b.dataset.d,label:`${d?.name}: ${b.dataset.d>0?'added':'removed'} ${b.dataset.cc} counter.`});openCardCounters(p,instance(p,c.instanceId));render()})}
+function openCardCounters(p,c){const d=defOf(game,c);const names=['+1/+1','-1/-1','stun','charge','loyalty',...(/^Gemstone Caverns$/i.test(String(d?.name||''))?['luck']:[])];openModal(`${d?.name||'CARD'} COUNTERS`,names.map(n=>`<div class="counter-control"><b>${esc(n)}</b><span>${c.counters?.[n]||0}</span><button data-cc="${esc(n)}" data-d="1">+</button><button data-cc="${esc(n)}" data-d="-1">−</button></div>`).join(''),[{label:'DONE',onClick:closeModal}]);$$('[data-cc]').forEach(b=>b.onclick=()=>{commitAction({type:'card-counter',playerId:p.playerId,instanceId:c.instanceId,counter:b.dataset.cc,delta:+b.dataset.d,label:`${d?.name}: ${b.dataset.d>0?'added':'removed'} ${b.dataset.cc} counter.`});openCardCounters(p,instance(p,c.instanceId));render()})}
 function openCommanderPair(){
   const p=activePlayer();if(p.commanders.length<2)return openCommander(p.commanders[0]?.id);
   const cards=p.commanders.map(cmd=>{const d=def(cmd.cardId),inst=p.deck.commandZone.find(c=>c.definitionId===cmd.cardId)||p.deck.battlefield.find(c=>c.definitionId===cmd.cardId);const v=d?validatePlay({game,player:p,definition:d,instance:inst,kind:'cast',commander:cmd,definitions:definitionsMap()}):{legal:false,reasons:['Card data unresolved']};return {cmd,d,inst,v}});
@@ -934,7 +948,7 @@ function targetCandidates(effect,p){
   return out;
 }
 function modeRequirement(ability){const m=ability.modeCount;if(m==='one')return{min:1,max:1};if(m==='two')return{min:2,max:2};if(m==='three')return{min:3,max:3};if(m==='one or more')return{min:1,max:ability.modes.length};return{min:0,max:0}}
-function legalManaOptionsForAbility(p,ability,source=null){let options=[...(ability.manaOptions||[])];if(/chosen color/i.test(ability.effect||'')&&source?.chosenColor)options.push(source.chosenColor);if(/commander(?:’|'|)s color identity/i.test(ability.effect||'')){const allowed=new Set();for(const cmd of p.commanders||[]){const d=def(cmd.cardId);for(const c of d?.colorIdentity||[])allowed.add(c)}options=options.filter(c=>allowed.has(c))}return [...new Set(options)]}
+function legalManaOptionsForAbility(p,ability,source=null){const definition=source?defOf(game,source):null;let options=source?effectiveManaOptionsForSource({game,player:p,card:source,definition,ability}):[...(ability.manaOptions||[])];if(/chosen color/i.test(ability.effect||'')&&source?.chosenColor)options.push(source.chosenColor);if(/commander(?:’|'|)s color identity/i.test(ability.effect||'')){const allowed=new Set();for(const cmd of p.commanders||[]){const d=def(cmd.cardId);for(const c of d?.colorIdentity||[])allowed.add(c)}options=options.filter(c=>allowed.has(c))}return [...new Set(options)]}
 function librarySearchSpec(effect=''){
   const text=String(effect||'').replace(/\s+/g,' ').trim();
   if(!/search your library/i.test(text))return null;
