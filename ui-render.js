@@ -1,4 +1,4 @@
-import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ak';
+import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-am';
 import { modePolicy } from './modes.js?v=0722';
 import { phaseLabel } from './phase.js?v=0727';
 const MANA=[['W','white'],['U','blue'],['B','black'],['R','red'],['G','green'],['C','colorless']];
@@ -8,10 +8,10 @@ const imageOf=d=>d?.imageUris?.normal||d?.imageUris?.large||d?.imageUris?.small|
 function legalManaKeys(game,p,{includeColorless=true}={}){const set=new Set();for(const cmd of p?.commanders||[]){const d=game?.cardDefinitions?.[cmd.cardId];for(const c of d?.colorIdentity||[])if(['W','U','B','R','G'].includes(c))set.add(c)}if(includeColorless)set.add('C');return set}
 function flexibleManaMarkup(options=[],count=1){
   const opts=[...new Set((options||[]).filter(k=>MANA.some(([mk])=>mk===k)))];
-  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><span class="mana-flex-circle mana-any-color"><i>✦</i></span><b>${count}</b></span>`;
+  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-am" alt="Any color"><b>${count}</b></span>`;
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ak" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-am" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
