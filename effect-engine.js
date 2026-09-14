@@ -31,7 +31,7 @@ export function locateCardInGame(game,id){
   if(stack)return {player:game.players.find(p=>p.playerId===stack.controllerId)||null,zone:'stack',array:game.stack,index:game.stack.indexOf(stack),card:stack.card,stackObject:stack};
   return null;
 }
-export function definitionFor(game,card){return card ? (game.cardDefinitions?.[card.definitionId]||null) : null}
+export function definitionFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function ownerFor(game,card,fallback){return game.players.find(p=>p.playerId===card?.ownerId)||fallback||null}
 function currentController(game,card,fallback){return game.players.find(p=>p.playerId===card?.controllerId)||fallback||ownerFor(game,card,fallback)}
 function emit(bindings,event){try{bindings?.onEvent?.(event)}catch(e){console.error('Effect event bridge failed',e)}}

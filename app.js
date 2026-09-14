@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-ao';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ao';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ao';
+import { createTransactionEngine } from './transactions.js?v=080-ap';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-ap';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-ap';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ap';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ap';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ao';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ap';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ao';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ap';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-ap';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -157,9 +157,18 @@ function beginPriority(reason,stage,continuation=null,startingPlayerId=null){
   game.log.unshift({text:`Priority window opens: ${reason}.`,turn:game.turnNumber});
   openPriorityPrompt();
 }
+function continueAutomaticStackResolution(){
+  if(!game?.stack?.length){const next=priorityContinuation;priorityContinuation=null;render();save();next?.();return}
+  const top=game.stack[game.stack.length-1];
+  const responder=firstLegalOpponentResponder(top.controllerId);
+  if(responder){render();save();return beginPriority('Stack object resolved. Players may respond before the next object resolves.','stack-resolution',null,responder.playerId)}
+  game.log.unshift({text:`Stack continues automatically — no opponent has a legal response to ${top.label||'the next stack object'}.`,turn:game.turnNumber,phase:game.phase});
+  render();save();
+  setTimeout(()=>resolveAfterAllPass(),0);
+}
 function resolveAfterAllPass(){
   if(resolvingPriority)return;resolvingPriority=true;
-  const afterObject=()=>processPendingTriggers(()=>{resolvingPriority=false;render();save();if(game.stack?.length)return beginPriority('Stack object resolved. Players may respond before the next object resolves.','stack-resolution',null,game.activePlayerId);const next=priorityContinuation;priorityContinuation=null;next?.()});
+  const afterObject=()=>processPendingTriggers(()=>{resolvingPriority=false;continueAutomaticStackResolution()});
   try{
     clearPriority(game);
     if(game.stack?.length){
@@ -167,7 +176,7 @@ function resolveAfterAllPass(){
       if(top.guidedResolution){const gp=game.players.find(p=>p.playerId===top.controllerId)||activePlayer();return openGuidedResolver({player:gp,title:top.guidedResolution.title||`RESOLVE — ${top.label||'STACK OBJECT'}`,oracleText:top.guidedResolution.oracleText||'',unsupported:top.guidedResolution.unsupported||[],mustComplete:true,onComplete:()=>{try{engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`});afterObject()}catch(e){resolvingPriority=false;toast(e?.message||'The guided stack object could not finish resolving.',true);render()}}})}
       engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`});return afterObject();
     }
-    const next=priorityContinuation;priorityContinuation=null;resolvingPriority=false;next?.();
+    const next=priorityContinuation;priorityContinuation=null;resolvingPriority=false;render();save();next?.();
   }catch(e){resolvingPriority=false;toast(e?.message||'The stack could not resolve.',true);render()}
 }
 function onStackObjectAdded(player,label,{continuation=null}={}){
@@ -358,10 +367,10 @@ function openAbilityReview(p,c,d,ability){
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ao" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ap" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ao" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ap" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -380,7 +389,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ao" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ap" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -393,7 +402,7 @@ function openGameHistory(){
   const rows=(game?.log||[]).map((e,index)=>({e,index})).sort((a,b)=>Number(b.e?.turn||0)-Number(a.e?.turn||0)||a.index-b.index);
   const history=rows.length?`<div class="game-history-list">${rows.map(({e})=>{const turn=Math.max(1,Number(e?.turn||1));const player=e?.playerName||e?.player||e?.displayName||'';const phase=e?.phase||'';const meta=[`TURN ${turn}`,player,phase].filter(Boolean).map(esc).join(' • ');return `<article class="game-history-entry"><small>${meta}</small><p>${esc(e?.text||'Game update')}</p></article>`}).join('')}</div>`:'<div class="game-history-empty">No recorded game actions yet.</div>';
   const hasStack=!!(game?.stack?.length),hasPriority=!!game?.priorityState?.active;
-  const live=(hasStack||hasPriority)?`<section class="live-stack-panel game-history-live-stack"><h3>LIVE STACK</h3>${stackSummary()}${hasPriority?`<p class="live-stack-priority">Priority: <b>${esc(priorityHolder(game)?.displayName||'Waiting')}</b><br><span>${esc(game.priorityState.reason||'Response window')}</span></p>`:'<p class="live-stack-priority">Unresolved stack objects are waiting for legal priority and resolution.</p>'}</section>`:'';
+  const live=(hasStack||hasPriority)?`<section class="live-stack-panel game-history-live-stack"><h3>LIVE STACK</h3>${stackSummary()}${hasPriority?`<p class="live-stack-priority">Priority: <b>${esc(priorityHolder(game)?.displayName||'Waiting')}</b><br><span>${esc(game.priorityState.reason||'Response window')}</span></p>`:'<p class="live-stack-priority">Automatic stack resolution is paused. Resume Stack is available only as a recovery control.</p>'}</section>`:'';
   const actions=[];
   if(hasStack){
     if(hasPriority)actions.push({label:'RETURN TO RESPONSE',className:'primary',onClick:()=>{closeModal();openPriorityPrompt()}});
@@ -586,7 +595,7 @@ function chooseManaColorForAbility(d,line,onChoose){
 function finishLandPlay(p,c,d,choices=null){
   const basic=isBasicLand(d),basicManaColor=basic?basicLandManaColor(d):null;const fixed=landManaOptions(d),trackedManaColor=fixed.length===1?fixed[0]:basicManaColor;
   const entersTapped=choices?.forceEntersUntapped?false:choices?.forceEntersTapped?true:(basic?false:entersBattlefieldTapped({definition:d,battlefield:p.deck.battlefield,definitions:game.cardDefinitions}));
-  commitAction({type:'play-land',playerId:p.playerId,instanceId:c.instanceId,basicManaColor:trackedManaColor,entersTapped,asEntersChoices:choices||null,label:`${p.displayName} plays ${d.name}${entersTapped?' tapped':''}.`});closeModal();processPendingTriggers(()=>render());
+  commitAction({type:'play-land',playerId:p.playerId,instanceId:c.instanceId,activeFaceIndex:Number.isInteger(d?.faceIndex)?d.faceIndex:null,basicManaColor:trackedManaColor,entersTapped,asEntersChoices:choices||null,label:`${p.displayName} plays ${d.name}${entersTapped?' tapped':''}.`});closeModal();processPendingTriggers(()=>render());
 }
 function playLandFromHand(p,c,d){
   const spec=asEntersChoiceSpec(d);if(spec)return beginAsEntersChoice(p,c,d,'land',null,spec);
@@ -694,7 +703,22 @@ function bindGameActions(){
   $$('[data-status-indicator]').forEach(b=>b.onclick=()=>openStatusExplanation(game.players.find(p=>p.playerId===b.dataset.statusIndicator)||activePlayer()));
   const cycles=$$('.status-indicator');cycles.forEach(ind=>{const items=[...ind.querySelectorAll('.status-cycle')];if(items.length)items[0].classList.add('active')});if(cycles.some(ind=>ind.querySelectorAll('.status-cycle').length>1)){statusCycleTimer=setInterval(()=>{cycles.forEach(ind=>{const items=[...ind.querySelectorAll('.status-cycle')];if(items.length<2)return;let i=items.findIndex(x=>x.classList.contains('active'));if(i<0)i=0;items.forEach(x=>x.classList.remove('active'));items[(i+1)%items.length].classList.add('active')})},2600)}
 }
-function openHandCard(id){const p=activePlayer(),c=instance(p,id),d=defOf(game,c);if(!c||!d)return;if(!localTurnAllowed())return toast(`Waiting for ${p.displayName}'s private actions on their device.`,true);const v=playable(game,p,c);const kind=/Land/i.test(d.typeLine)?'land':'cast';openModal(d.name,renderCardDetail(game,c)+`<div class="${v.legal?'good':'bad'}"><b>${v.legal?'LEGAL PLAY':'NOT CURRENTLY PLAYABLE'}</b><br>${esc(v.reasons.join(' • ')||'Ready to play.')}</div>`,[{label:'CLOSE',onClick:closeModal},...(v.legal?[{label:kind==='land'?'PLAY LAND':'CAST CARD',className:'primary',onClick:()=>playFromHand(p,c,d,kind,v)}]:(game.deviceMode==='multi-device'&&network?[{label:'ASK TABLE',className:'primary',onClick:()=>requestIllegalApproval(p,c,d,kind,v)}]:[]))],kind==='land'?'':manaCalculator(game,p,d.manaCost||'',0))}
+function definitionFace(base,index){const face=base?.cardFaces?.[index];return face?{...base,...face,faceIndex:index,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:null}
+function openHandCardFace(p,c,d,kind,v){
+  const view={...c,activeFaceIndex:Number.isInteger(d?.faceIndex)?d.faceIndex:null};
+  openModal(d.name,renderCardDetail(game,view)+`<div class="${v.legal?'good':'bad'}"><b>${v.legal?'LEGAL PLAY':'NOT CURRENTLY PLAYABLE'}</b><br>${esc(v.reasons.join(' • ')||'Ready to play.')}</div>`,[{label:'BACK',onClick:()=>openHandCard(c.instanceId)},...(v.legal?[{label:kind==='land'?'PLAY LAND':'CAST SPELL',className:'primary',onClick:()=>playFromHand(p,c,d,kind,v)}]:(game.deviceMode==='multi-device'&&network?[{label:'ASK TABLE',className:'primary',onClick:()=>requestIllegalApproval(p,c,d,kind,v)}]:[]))],kind==='land'?'':manaCalculator(game,p,d.manaCost||'',0));
+}
+function openHandCard(id){
+  const p=activePlayer(),c=instance(p,id),base=c&&game.cardDefinitions?.[c.definitionId],d=defOf(game,c);if(!c||!d)return;if(!localTurnAllowed())return toast(`Waiting for ${p.displayName}'s private actions on their device.`,true);
+  const faces=Array.isArray(base?.cardFaces)?base.cardFaces:[];
+  if(faces.length>1){
+    const rows=faces.map((face,i)=>{const fd=definitionFace(base,i),kind=/\bLand\b/i.test(fd?.typeLine||'')?'land':'cast',v=validatePlay({game,player:p,definition:fd,instance:c,kind,definitions:definitionsMap()}),reason=v.reasons.join(' • ')||(v.legal?'Legal play':'Not currently playable');return {fd,kind,v,html:`<button class="mdfc-face-option ${v.legal?'available':'unplayable'}" data-mdfc-face="${i}" ${v.legal?'':'disabled aria-disabled="true"'}><img src="${esc(imageOf(fd))}" alt="${esc(fd?.name||'Card face')}"><strong>${esc(fd?.name||`Face ${i+1}`)}</strong><small>${esc(kind==='land'?'PLAY LAND':'CAST SPELL')} — ${esc(reason)}</small></button>`}});
+    openModal(base?.combinedName||faces.map(x=>x.name).join(' // ')||d.name,`<p>Choose the face you want to play. Legality is checked separately for each face.</p><div class="mdfc-face-grid">${rows.map(x=>x.html).join('')}</div>`,[{label:'CLOSE',onClick:closeModal}]);
+    $$('[data-mdfc-face]').forEach(b=>b.onclick=()=>{const row=rows[Number(b.dataset.mdfcFace)];if(row?.v?.legal)openHandCardFace(p,c,row.fd,row.kind,row.v)});
+    return;
+  }
+  const v=playable(game,p,c);const kind=/Land/i.test(d.typeLine)?'land':'cast';openModal(d.name,renderCardDetail(game,c)+`<div class="${v.legal?'good':'bad'}"><b>${v.legal?'LEGAL PLAY':'NOT CURRENTLY PLAYABLE'}</b><br>${esc(v.reasons.join(' • ')||'Ready to play.')}</div>`,[{label:'CLOSE',onClick:closeModal},...(v.legal?[{label:kind==='land'?'PLAY LAND':'CAST SPELL',className:'primary',onClick:()=>playFromHand(p,c,d,kind,v)}]:(game.deviceMode==='multi-device'&&network?[{label:'ASK TABLE',className:'primary',onClick:()=>requestIllegalApproval(p,c,d,kind,v)}]:[]))],kind==='land'?'':manaCalculator(game,p,d.manaCost||'',0))
+}
 
 function numberWord(v){const m={one:1,two:2,three:3,four:4,five:5};return Number(v)||m[String(v||'').toLowerCase()]||0}
 function modalSpellSpec(d){const text=String(d?.oracleText||'').replace(/\r/g,'');const head=text.match(/Choose\s+(one|two|three|four|five|\d+)\s*[—-]/i);if(!head)return null;const after=text.slice((head.index||0)+head[0].length);let modes=after.split(/\n\s*[•·]\s*/).map(x=>x.trim()).filter(Boolean);if(modes.length<2)modes=after.split(/\s*[•·]\s*/).map(x=>x.trim()).filter(Boolean);if(modes.length<2)return null;return{count:numberWord(head[1]),modes:modes.map(x=>x.replace(/^[-–—]\s*/,''))}}
@@ -753,7 +777,7 @@ function collectCompiledBindings(p,d,compiled,onDone,index=0,bindings={}){
 function putCompiledSpellOnStack(p,c,d,v,compiled,bindings={},asEntersChoices=null,searchResult=null,guidedResolution=null){
   const fresh=validatePlay({game,player:p,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});if(!fresh.legal)return toast(fresh.reasons.join(' • ')||'This spell is no longer legal.',true);
   const permanent=!/Instant|Sorcery/i.test(d.typeLine||''),cap=permanent?landManaOptions(d):[];
-  const sourceZone=c.zone==='graveyard'?'graveyard':c.zone==='command'?'commandZone':c.zone||'hand';commitAction({type:'cast-spell',playerId:p.playerId,instanceId:c.instanceId,fromZones:[sourceZone],to:permanent?'battlefield':'graveyard',payment:fresh.suggestedPayment,effects:compiled?.effects||[],effectBindings:{...bindings,sourceId:c.instanceId},searchResult,guidedResolution,asEntersChoices,manaCapacityColor:cap.length===1?cap[0]:null,label:`${p.displayName} casts ${d.name}${sourceZone==='graveyard'?' from the graveyard':''}.`});closeModal();onStackObjectAdded(p,`${d.name} cast`);
+  const sourceZone=c.zone==='graveyard'?'graveyard':c.zone==='command'?'commandZone':c.zone||'hand';commitAction({type:'cast-spell',playerId:p.playerId,instanceId:c.instanceId,activeFaceIndex:Number.isInteger(d?.faceIndex)?d.faceIndex:null,fromZones:[sourceZone],to:permanent?'battlefield':'graveyard',payment:fresh.suggestedPayment,effects:compiled?.effects||[],effectBindings:{...bindings,sourceId:c.instanceId},searchResult,guidedResolution,asEntersChoices,manaCapacityColor:cap.length===1?cap[0]:null,label:`${p.displayName} casts ${d.name}${sourceZone==='graveyard'?' from the graveyard':''}.`});closeModal();onStackObjectAdded(p,`${d.name} cast`);
 }
 function finishCompiledSpellCast(p,c,d,v,compiled,bindings){putCompiledSpellOnStack(p,c,d,v,compiled,bindings,null)}
 function beginCompiledSpellCast(p,c,d,v,compiled){collectCompiledBindings(p,d,compiled,bindings=>finishCompiledSpellCast(p,c,d,v,compiled,bindings))}
@@ -785,7 +809,7 @@ function beginAsEntersChoice(p,c,d,kind,v,spec){
 }
 function beginGenericModalSpellCast(p,c,d,v,modal){const count=Math.min(modal.count,modal.modes.length);const selects=Array.from({length:count},(_,i)=>`<label>CHOICE ${i+1}<select data-spell-mode>${modal.modes.map((m,j)=>`<option value="${j}">${esc(m)}</option>`).join('')}</select></label>`).join('');openModal(`${d.name} — CHOOSE ${count}`,`<p>Choose exactly ${count} different mode${count===1?'':'s'}.</p><div class="compact-choice-grid">${selects}</div>`,[{label:'CANCEL',onClick:closeModal},{label:'CONTINUE',className:'primary',onClick:()=>{const idx=$$('[data-spell-mode]').map(x=>Number(x.value));if(new Set(idx).size!==count)return toast(`Choose ${count} different modes.`,true);const chosen=idx.map(i=>modal.compiledModes[i]);if(chosen.some(x=>!x?.supported))return putCompiledSpellOnStack(p,c,d,v,{effects:[],requirements:[]},{},null,null,{title:`${d.name} — GUIDED MODE`,oracleText:d.oracleText,unsupported:chosen.flatMap(x=>x?.unsupported||[])});const combined={supported:true,effects:chosen.flatMap(x=>x.effects),requirements:chosen.flatMap(x=>x.requirements),unsupported:[]};collectCompiledBindings(p,d,combined,bindings=>putCompiledSpellOnStack(p,c,d,v,combined,bindings,null))}}])}
 
-function finishModalSpellCast(p,c,d,v,effects,modes){const fresh=validatePlay({game,player:p,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});if(!fresh.legal)return toast(fresh.reasons.join(' • ')||'This spell is no longer legal.',true);commitAction({type:'cast-card',playerId:p.playerId,instanceId:c.instanceId,to:'graveyard',payment:fresh.suggestedPayment,effects,label:`${p.displayName} casts ${d.name} choosing ${modes.join(' / ')}.`});closeModal();render()}
+function finishModalSpellCast(p,c,d,v,effects,modes){const fresh=validatePlay({game,player:p,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});if(!fresh.legal)return toast(fresh.reasons.join(' • ')||'This spell is no longer legal.',true);commitAction({type:'cast-card',playerId:p.playerId,instanceId:c.instanceId,activeFaceIndex:Number.isInteger(d?.faceIndex)?d.faceIndex:null,to:'graveyard',payment:fresh.suggestedPayment,effects,label:`${p.displayName} casts ${d.name} choosing ${modes.join(' / ')}.`});closeModal();render()}
 function collectModalSpellEffects(p,c,d,v,modes,index=0,effects=[]){
   if(index>=modes.length)return finishModalSpellCast(p,c,d,v,effects,modes);
   const mode=modes[index],next=()=>collectModalSpellEffects(p,c,d,v,modes,index+1,effects);
@@ -877,13 +901,19 @@ function legalAttackersFor(p){
   const defenders=game.players.filter(x=>x.playerId!==p.playerId&&!x.eliminated);
   return p.deck.battlefield.filter(c=>defenders.some(d=>validateAttack({game:{...game,phase:'declare-attackers'},attackerId:p.playerId,defenderId:d.playerId,instance:c,definition:defOf(game,c)}).legal))
 }
+function finishNoAttackCombat(p,message='Attack skipped — player declared no attackers.'){
+  const required=validateRequiredAttackers({game,player:p,draft:[]});if(!required.legal)return toast(required.reasons[0],true);
+  closeModal();
+  commitAction({type:'phase',playerId:p.playerId,phase:'postcombat-main',noAttackCombat:true,label:`${message} Combat ends and phase advances to Main 2.`});
+  render();runSmartPhaseSkips();
+}
 function openAttack(p,draft=[]){
   if(!['combat','begin-combat','declare-attackers'].includes(game.phase))return toast('Attack is available during combat.',true);
-  const legal=legalAttackersFor(p);if(!legal.length){return openModal('DECLARE ATTACKERS',`<div class="combat-handoff"><b>DECLARE ATTACKERS — CRITICAL STOP</b><p>${esc(p.displayName)} has no creatures that can legally attack right now. The attack step still requires acknowledgement before combat can continue.</p></div>`,[{label:'ACKNOWLEDGE — NO ATTACKS',className:'primary',onClick:()=>{const required=validateRequiredAttackers({game,player:p,draft:[]});if(!required.legal)return toast(required.reasons[0],true);p.confirmations.attackers=true;if(game.phaseGates?.combat)satisfyGate(game,'combat');game.combatState={attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:true};game.log.unshift({text:`${p.displayName} acknowledges the Declare Attackers step with no legal attackers.`,turn:game.turnNumber});closeModal();save();render();runSmartPhaseSkips()}},{label:'CANCEL',onClick:closeModal}])}
+  const legal=legalAttackersFor(p);if(!legal.length){return openModal('DECLARE ATTACKERS',`<div class="combat-handoff"><b>DECLARE ATTACKERS — CRITICAL STOP</b><p>${esc(p.displayName)} has no creatures that can legally attack right now. Confirming ends combat with no attackers and advances directly to Main 2.</p></div>`,[{label:'END PHASE WITH NO ATTACKERS',className:'primary',onClick:()=>finishNoAttackCombat(p,`${p.displayName} ends combat with no legal attackers.`)},{label:'CANCEL',onClick:closeModal}])}
   const chosen=new Map(draft.map(x=>[x.instanceId,x]));
   const rows=legal.map(c=>{const d=defOf(game,c),pick=chosen.get(c.instanceId),defender=pick&&game.players.find(x=>x.playerId===pick.defenderId);return `<button class="search-result ${pick?'available':''}" data-attacker="${c.instanceId}"><img src="${imageOf(d)}"><span><b>${esc(d.name)}</b><small>${pick?`Attacking ${esc(defender?.displayName||'defender')}`:'Tap to add to attack'}</small></span></button>`}).join('');
   openModal('DECLARE ATTACKERS',`<p>Select every creature you want to attack with. Nothing is tapped or committed until Confirm Attack.</p><div class="card-search-results">${rows}</div>`,[
-    {label:'NO ATTACKS',onClick:()=>{const required=validateRequiredAttackers({game,player:p,draft:[]});if(!required.legal)return toast(required.reasons[0],true);p.confirmations.attackers=true;if(game.phaseGates?.combat)satisfyGate(game,'combat');game.combatState={attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:true};game.log.unshift({text:'Attack skipped — player declared no attackers.',turn:game.turnNumber});closeModal();render();runSmartPhaseSkips()}},
+    {label:'END PHASE WITH NO ATTACKERS',onClick:()=>finishNoAttackCombat(p)},
     {label:`CONFIRM ATTACK${draft.length?` (${draft.length})`:''}`,className:'primary',disabled:!draft.length,onClick:()=>commitAttackSet(p,draft)},
     {label:'CANCEL',onClick:closeModal}
   ]);
@@ -1111,7 +1141,7 @@ async function openScanner({onSelect=null}={}){
 function logViewerId(){return network?.localPlayerId||game?.activePlayerId||game?.players?.[0]?.playerId||null}
 function logEventHtml(e){const viewer=logViewerId(),hit=!!viewer&&Array.isArray(e.affectedPlayerIds)&&e.affectedPlayerIds.includes(viewer);return `<div class="log-event${hit?' player-attention':''}"><b>Turn ${e.turn||game.turnNumber}</b> • ${esc(e.text)}</div>`}
 function openGameLog(){
-  const live=(game.stack?.length||game.priorityState?.active)?`<section class="live-stack-panel"><h3>LIVE STACK</h3>${stackSummary()}${game.priorityState?.active?`<p class="muted">Priority: ${esc(priorityHolder(game)?.displayName||'Waiting')} • ${esc(game.priorityState.reason||'Response window')}</p>`:'<p class="muted">The stack has unresolved objects. Resume to continue legal priority and resolution.</p>'}</section>`:'';
+  const live=(game.stack?.length||game.priorityState?.active)?`<section class="live-stack-panel"><h3>LIVE STACK</h3>${stackSummary()}${game.priorityState?.active?`<p class="muted">Priority: ${esc(priorityHolder(game)?.displayName||'Waiting')} • ${esc(game.priorityState.reason||'Response window')}</p>`:'<p class="muted">Automatic stack resolution is paused. Resume Stack is a recovery control; normal legal plays resolve automatically.</p>'}</section>`:'';
   const actions=[{label:'UNDO',onClick:()=>confirmUndoLastStep()}];
   if(game.stack?.length){
     if(game.priorityState?.active)actions.push({label:'RETURN TO RESPONSE',className:'primary',onClick:()=>{closeModal();openPriorityPrompt()}});

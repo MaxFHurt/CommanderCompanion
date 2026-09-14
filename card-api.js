@@ -1,4 +1,4 @@
-import { createCardDefinition } from './schema.js?v=0722';
+import { createCardDefinition } from './schema.js?v=080-ap';
 
 const API='https://api.scryfall.com';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -9,19 +9,34 @@ export const CARD_DATA_SOURCE=Object.freeze({
   note:'ManaBox imports are parsed locally, then card names/printings are resolved against the live Scryfall catalog.'
 });
 export function scryfallToDefinition(c){
-  const face=c.card_faces?.[0];
+  const rawFaces=Array.isArray(c.card_faces)?c.card_faces:[];
+  const face=rawFaces[0];
+  const cardFaces=rawFaces.map((f,index)=>({
+    faceIndex:index,
+    name:f.name||c.name,
+    manaCost:f.mana_cost||'',
+    typeLine:f.type_line||'',
+    oracleText:f.oracle_text??'',
+    power:f.power??null,
+    toughness:f.toughness??null,
+    keywords:f.keywords||[],
+    colors:f.colors||[],
+    imageUris:f.image_uris||c.image_uris||null
+  }));
   return createCardDefinition({
     definitionId:c.id,
-    name:c.name,
+    name:face?.name||c.name,
+    combinedName:c.name,
     manaCost:c.mana_cost||face?.mana_cost||'',
-    typeLine:c.type_line||face?.type_line||'',
-    oracleText:c.oracle_text??face?.oracle_text??'',
-    power:c.power??face?.power??null,
-    toughness:c.toughness??face?.toughness??null,
-    keywords:c.keywords||face?.keywords||[],
+    typeLine:face?.type_line||c.type_line||'',
+    oracleText:face?.oracle_text??c.oracle_text??'',
+    power:face?.power??c.power??null,
+    toughness:face?.toughness??c.toughness??null,
+    keywords:face?.keywords||c.keywords||[],
     colorIdentity:c.color_identity||[],
-    colors:c.colors||face?.colors||[],
-    imageUris:c.image_uris||face?.image_uris||null,
+    colors:face?.colors||c.colors||[],
+    imageUris:face?.image_uris||c.image_uris||null,
+    cardFaces,
     set:c.set,
     language:c.lang,
     collectorNumber:c.collector_number,

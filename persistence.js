@@ -54,6 +54,7 @@ function normalizeLoadedGame(game){
   game.status=game.status||'active';game.winner=game.winner||null;game.postGame=game.postGame&&typeof game.postGame==='object'?game.postGame:null;
   if(!game.activePlayerId||!game.players.some(p=>p.playerId===game.activePlayerId))game.activePlayerId=game.players[0]?.playerId||null;
   game.turnNumber=Math.max(1,Number(game.turnNumber||1));
+  game.roundNumber=Math.max(1,Number(game.roundNumber||1));
   game.phase=game.phase||'untap';
   game.openingHandState=game.openingHandState&&typeof game.openingHandState==='object'?game.openingHandState:{active:false,index:0};
   game.combatState=game.combatState&&typeof game.combatState==='object'?game.combatState:{attackers:[],defenders:[],blocks:{},damage:[],waitingFor:null,resolved:false};
