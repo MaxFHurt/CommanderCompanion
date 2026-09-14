@@ -3039,3 +3039,19 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 .mana-calculator.mana-compare .mana-available-inline .calc-flex-pip>b{font:900 11px/1 var(--head)!important;color:#fff!important}
 .mana-calculator.mana-compare .mana-available-inline .mana-flex-circle{width:30px!important;height:30px!important}
 .mana-flex-available{display:none!important}
+
+/* V0.8 AK — focused correction: available-mana heading, polished split assets, footer label centering. */
+#gameScreen .mana-box.available-only{grid-template-rows:auto 1fr!important;padding:2px 1px 4px!important}
+#gameScreen .mana-box.available-only h3{display:block!important;margin:0!important;padding:1px 0 3px!important;text-align:center!important;font:900 clamp(8px,1.45vw,12px)/1 var(--head)!important;letter-spacing:.055em!important;color:#ddd6e1!important;opacity:.92!important}
+#gameScreen .mana-flex-split,
+.mana-calculator .mana-flex-split{display:block!important;width:clamp(28px,5.8vw,46px)!important;height:clamp(28px,5.8vw,46px)!important;object-fit:contain!important;filter:drop-shadow(0 0 4px rgba(125,53,187,.38))!important}
+.mana-calculator .mana-flex-split{width:30px!important;height:30px!important}
+/* Retire the clipped-half renderer completely. */
+.mana-flex-circle .mana-half{display:none!important}
+/* Keep action text centered as a block even when the left status glyph exists. */
+#modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"],
+#modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{
+  display:grid!important;place-items:center!important;text-align:center!important;line-height:1.02!important;
+  padding:8px 46px!important;box-sizing:border-box!important;white-space:normal!important;
+}

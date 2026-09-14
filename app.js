@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-aj';
+import { createTransactionEngine } from './transactions.js?v=080-ak';
 import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-b56-ad';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=07966';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aj';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-aj';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ak';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ak';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,10 +14,10 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-aj';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ak';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-aj';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ak';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
 import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=07968';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
@@ -179,6 +179,15 @@ function onStackObjectAdded(player,label,{continuation=null}={}){
     beginPriority(`${label} is on the stack.`,'stack',continuation||(()=>render()),player.playerId);
   });
 }
+function priorityAbilityRelevant(definition,ability){
+  const effect=String(ability?.effect||'').toLowerCase();
+  const text=`${String(definition?.oracleText||'').toLowerCase()} ${effect}`;
+  // Smart priority should not promote routine resource/deck setup as a response.
+  if(/search your library/.test(effect)&&!/target|counter|spell|damage|destroy|exile|return|prevent|copy/.test(effect))return false;
+  if(/add (?:one|two|three|\{)/.test(effect)&&!/counter target|target spell|copy target|change the target/.test(effect))return false;
+  if(/scry|surveil/.test(effect)&&!/target|counter|spell/.test(effect))return false;
+  return /target|counter|spell|copy|change the target|destroy|exile|return|damage|prevent|hexproof|indestructible|protection|can(?:not|'t)|sacrifice target|tap target|untap target/.test(text);
+}
 function legalPriorityOptions(holder){
   const gravePermission=(holder.temporaryPermissions||[]).some(x=>x?.kind==='cast-from-zone'&&x?.zone==='graveyard');
   const hand=[...(holder.deck?.hand||[]),...(gravePermission?(holder.deck?.graveyard||[]):[])].filter(c=>{
@@ -186,7 +195,7 @@ function legalPriorityOptions(holder){
     const v=validatePlay({game,player:holder,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});
     return !!v.legal;
   });
-  const abilities=(holder.deck?.battlefield||[]).filter(c=>parseActivatedAbilities(defOf(game,c)).some(a=>!a.manaAbility&&validateActivatedAbilityFull({game,player:holder,instance:c,definition:defOf(game,c),ability:a,definitions:definitionsMap()}).legal));
+  const abilities=(holder.deck?.battlefield||[]).filter(c=>{const d=defOf(game,c);return parseActivatedAbilities(d).some(a=>!a.manaAbility&&priorityAbilityRelevant(d,a)&&validateActivatedAbilityFull({game,player:holder,instance:c,definition:d,ability:a,definitions:definitionsMap()}).legal)});
   return {hand,abilities};
 }
 
@@ -246,22 +255,13 @@ function runSmartPhaseSkips(){
       moved=true;continue;
     }
     if(phase==='end-step'){
-      if(anyPlayerHasLegalResponse())break;
-      smartPhaseTransition('end-step','cleanup','no end-step trigger or legal response is available to any player');
-      moved=true;break; // NEVER end the turn automatically
+      // Cleanup is an internal rules step. Do not expose it as a normal player phase.
+      break;
     }
     break;
   }
   if(moved){
     configurePhaseGates(game,game.phase);
-    if(game.phase==='cleanup'){
-      const guidanceKey=`${game.turnNumber}:${p.playerId}`;
-      if(game.endTurnGuidanceKey!==guidanceKey){
-        game.endTurnGuidanceKey=guidanceKey;
-        game.log.unshift({text:'No cards available to play. End your turn.',turn:game.turnNumber,type:'player-notification',kind:'end-turn-guidance',affectedPlayerIds:[p.playerId],attention:true});
-        toast('No cards available to play. End your turn.');
-      }
-    }
     save();render()
   }
   return moved;
@@ -284,9 +284,9 @@ function openPriorityPrompt(){
   if(ps.responseDeadlineHolderId!==holder.playerId||!ps.responseDeadlineAt){ps.responseDeadlineHolderId=holder.playerId;ps.responseDeadlineAt=Date.now()+PRIORITY_RESPONSE_SECONDS*1000}
   const secondsLeft=()=>Math.max(0,Math.ceil((Number(ps.responseDeadlineAt)-Date.now())/1000));
   const html=`${stackSummary()}<div class="combat-handoff"><b>${esc(holder.displayName)} can respond.</b><p>${esc(ps.reason)} The active turn player remains ${esc(activePlayer()?.displayName||'active player')}.</p><div class="priority-countdown">RESPONSE WINDOW <strong id="priorityCountdown">${secondsLeft()}</strong>s</div></div>${hand.length?`<label>INSTANT / FLASH RESPONSE<select id="prioritySpell"><option value="">Choose a response…</option>${hand.map(c=>`<option value="${esc(c.instanceId)}">${esc(defOf(game,c)?.name||'Card')}</option>`).join('')}</select></label>`:''}${abilities.length?`<label>ACTIVATED ABILITY<select id="priorityAbility"><option value="">Choose an ability source…</option>${abilities.map(c=>`<option value="${esc(c.instanceId)}">${esc(defOf(game,c)?.name||'Permanent')}</option>`).join('')}</select></label>`:''}<p class="muted">Respond only if you want to. Decline keeps your cards and resources untouched. Players with no legal response are skipped automatically.</p>`;
-  const actions=[{label:'DECLINE / PASS',className:'primary',onClick:()=>priorityPassNow(holder,ps)}];
-  if(hand.length)actions.unshift({label:'CAST RESPONSE',onClick:()=>{const id=$('#prioritySpell')?.value;if(!id)return toast('Choose an instant or flash card first.',true);const c=instance(holder,id),d=defOf(game,c),v=validatePlay({game,player:holder,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});if(!v.legal)return toast(v.reasons.join(' • ')||'That response is not legal.',true);playFromHand(holder,c,d,'cast',v)}});
-  if(abilities.length)actions.unshift({label:'USE ABILITY',onClick:()=>{const id=$('#priorityAbility')?.value;if(!id)return toast('Choose an ability source first.',true);openPriorityAbility(holder,id)}});
+  const actions=[{label:'DECLINE / PASS',semantic:'cancel',onClick:()=>priorityPassNow(holder,ps)}];
+  if(hand.length)actions.unshift({label:'CAST RESPONSE',className:'primary',onClick:()=>{const id=$('#prioritySpell')?.value;if(!id)return toast('Choose an instant or flash card first.',true);const c=instance(holder,id),d=defOf(game,c),v=validatePlay({game,player:holder,definition:d,instance:c,kind:'cast',definitions:definitionsMap()});if(!v.legal)return toast(v.reasons.join(' • ')||'That response is not legal.',true);playFromHand(holder,c,d,'cast',v)}});
+  if(abilities.length)actions.unshift({label:'USE ABILITY',className:'primary',onClick:()=>{const id=$('#priorityAbility')?.value;if(!id)return toast('Choose an ability source first.',true);openPriorityAbility(holder,id)}});
   openModal(`RESPOND — ${holder.displayName}`,html,actions);
   priorityResponseTimer=setInterval(()=>{const remaining=secondsLeft(),el=$('#priorityCountdown');if(el)el.textContent=String(remaining);if(remaining<=0){clearPriorityResponseTimer();if(game?.priorityState?.active&&game.priorityState.holderId===holder.playerId)priorityPassNow(holder,ps,{timeout:true})}},250);
 }
@@ -299,9 +299,10 @@ function beginCombatPriority(reason,stage,continuation){
 }
 function openPriorityAbility(p,id){
   const c=instance(p,id),d=defOf(game,c);if(!c||!d)return;
-  const rows=parseActivatedAbilities(d).map(a=>({ability:a,...validateActivatedAbilityFull({game,player:p,instance:c,definition:d,ability:a,definitions:definitionsMap()})})).filter(x=>x.legal&&!x.ability.manaAbility);
-  if(!rows.length)return toast('No legal non-mana activated response is available from that permanent.',true);
-  openModal(`RESPOND — ${d.name}`,`<p>Select the activated ability to put on the stack.</p><div class="ability-choice-list">${rows.map((r,i)=>`<button class="ability-choice available" data-priority-ability-line="${i}"><strong>${esc(r.ability.cost)}</strong><span>${esc(r.ability.effect)}</span></button>`).join('')}</div>`,[{label:'BACK',onClick:openPriorityPrompt}]);
+  const rows=parseActivatedAbilities(d).map(a=>({ability:a,...validateActivatedAbilityFull({game,player:p,instance:c,definition:d,ability:a,definitions:definitionsMap()})})).filter(x=>x.legal&&!x.ability.manaAbility&&priorityAbilityRelevant(d,x.ability));
+  if(!rows.length)return toast('No relevant activated response is available from that permanent.',true);
+  if(rows.length===1)return beginAbilityActivation(p,c,d,rows[0].ability);
+  openModal(`RESPOND — ${d.name}`,`<p>Select the ability to use in response.</p><div class="ability-choice-list">${rows.map((r,i)=>`<button class="ability-choice available" data-priority-ability-line="${i}"><strong>${esc(r.ability.cost)}</strong><span>${esc(r.ability.effect)}</span></button>`).join('')}</div>`,[{label:'BACK',onClick:openPriorityPrompt}]);
   $$('[data-priority-ability-line]').forEach(b=>b.onclick=()=>beginAbilityActivation(p,c,d,rows[Number(b.dataset.priorityAbilityLine)].ability));
 }
 function def(id){return game?.cardDefinitions?.[id]||null}
@@ -333,8 +334,9 @@ function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
   if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><span class="mana-flex-circle mana-any-color"><i>✦</i></span><b>${count}</b></span>`}
-  const pair=opts.slice(0,2),icons=pair.map((k,i)=>`<img class="mana-half mana-half-${i+1}" src="mana-${MANA_ICON[k]}.png" alt="${k}">`).join('');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><span class="mana-flex-circle">${icons}</span><b>${count}</b></span>`;
+  const pair=opts.slice(0,2);if(pair.length<2)return '';
+  const key=[...pair].sort().join('-');
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ak" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -345,7 +347,7 @@ function manaCalculator(game,player,cost='',tax=0){
   const available=fixed+flex||'<span class="muted mana-none">NONE</span>';
   return `<section class="mana-calculator mana-compare ${plan.ok?'payable':'unpayable'}"><div class="mana-compare-label">COST</div><div class="mana-cost-inline">${costCells||'<span class="muted">NO MANA</span>'}</div><div class="mana-compare-label">AVAILABLE</div><div class="mana-available-inline">${available}</div></section>`
 }
-function menuSemantic(action={}){const label=String(action.label||'').trim(),explicit=String(action.semantic||'').trim();if(explicit)return explicit.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(/^back$/i.test(label))return'back';if(/^(cancel|deny|reject)(?:\b|$)/i.test(label))return'cancel';if(/^save(?:\b|$)/i.test(label))return'save';if(/^delete(?:\b|$)/i.test(label))return'delete';if(/^undo(?:\b|$)/i.test(label))return'undo';if(/^home$|^return home$/i.test(label))return'home';if(/^settings$/i.test(label))return'settings';if(/^profile$/i.test(label))return'profile';if(/^game logs?$/i.test(label))return'game-log';if(/^help$/i.test(label))return'help';if(/^confirm(?:\b|$)/i.test(label)||/^(end turn|start game|confirm & next|use selected 7|keep hand|apply operation|effect resolved|cast(?: card| commander)?|play(?: land| card)?|approve|accept|done)(?:\b|$)/i.test(label)||String(action.className||'').split(/\s+/).includes('primary'))return'confirm';return'custom'}
+function menuSemantic(action={}){const label=String(action.label||'').trim(),explicit=String(action.semantic||'').trim();if(explicit)return explicit.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');if(/^back$/i.test(label))return'back';if(/^(cancel|deny|reject|decline|pass)(?:\b|$)/i.test(label))return'cancel';if(/^save(?:\b|$)/i.test(label))return'save';if(/^delete(?:\b|$)/i.test(label))return'delete';if(/^undo(?:\b|$)/i.test(label))return'undo';if(/^home$|^return home$/i.test(label))return'home';if(/^settings$/i.test(label))return'settings';if(/^profile$/i.test(label))return'profile';if(/^game logs?$/i.test(label))return'game-log';if(/^help$/i.test(label))return'help';if(/^confirm(?:\b|$)/i.test(label)||/^(end turn|start game|confirm & next|use selected 7|keep hand|apply operation|effect resolved|cast(?: card| commander)?|play(?: land| card)?|approve|accept|done)(?:\b|$)/i.test(label)||String(action.className||'').split(/\s+/).includes('primary'))return'confirm';return'custom'}
 function openModal(title,html,actions=[],trayHtml=''){
   try{document.activeElement?.blur?.()}catch{}
   const modal=$('#modal'),content=$('#modalContent'),footer=$('#modalActions'),topBack=$('#modalClose');
@@ -353,7 +355,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-aj" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ak" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -808,7 +810,7 @@ function advancePhase(p){
     return;
   }
   if(phaseLocked(game)){toast(game.phase==='untap'?'Untap your cards before continuing.':game.phase==='draw'?'Confirm the draw before continuing.':isCombatPhase(game.phase)?'Confirm attackers before continuing.':'A required confirmation is still pending.',true);return}
-  let n=nextPhase(game);if(n==='untap')return endTurn(p);
+  let n=nextPhase(game);if(n==='cleanup'||n==='untap')return endTurn(p);
   if(['begin-combat','declare-attackers'].includes(n)){openAttack(p);return}
   commitAction({type:'phase',playerId:p.playerId,phase:n,label:`Phase advances to ${phaseLabel(n)}.`});render();
   if(runSmartPhaseSkips())return;
@@ -1012,7 +1014,8 @@ function beginAbilityActivation(p,c,d,ability,preset={}){
 function openCardAbility(id){
   const p=activePlayer(),c=instance(p,id),d=defOf(game,c);if(!c||!d)return;
   const rows=availableActivatedAbilities({game,instance:c,definition:d}).map(row=>{const full=validateActivatedAbilityFull({game,player:p,instance:c,definition:d,ability:row.ability,definitions:definitionsMap()});return {...row,legal:full.legal,reasons:full.reasons}});if(!rows.length)return toast('No tracked activated ability is available for this card.',true);
-  openModal(`ACTIVATE — ${d.name}`,`<h3>AVAILABLE ACTIVATED ABILITIES</h3><div class="ability-choice-list compact-ability-list">${rows.map((row,i)=>`<button class="ability-choice ${row.legal?'available':'unplayable'}" data-ability-line="${i}" ${row.legal?'':'disabled'}><strong class="ability-cost-chips">${abilityCostChips(row.ability,d)}</strong><span class="ability-effect-compact">${esc(compactAbilityEffect(row.ability.effect))}</span>${row.legal?'':`<small>${esc(row.reasons.join(' • '))}</small>`}</button>`).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);
+  const legalRows=rows.filter(row=>row.legal);if(legalRows.length===1)return openAbilityReview(p,c,d,legalRows[0].ability);
+  openModal(`ACTIVATE — ${d.name}`,`<h3>AVAILABLE ABILITIES</h3><div class="ability-choice-list compact-ability-list">${rows.map((row,i)=>`<button class="ability-choice ${row.legal?'available':'unplayable'}" data-ability-line="${i}" ${row.legal?'':'disabled'}><strong class="ability-cost-chips">${abilityCostChips(row.ability,d)}</strong><span class="ability-effect-compact">${esc(compactAbilityEffect(row.ability.effect))}</span>${row.legal?'':`<small>${esc(row.reasons.join(' • '))}</small>`}</button>`).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);
   $$('[data-ability-line]').forEach(b=>b.onclick=()=>openAbilityReview(p,c,d,rows[+b.dataset.abilityLine].ability));
 }
 
