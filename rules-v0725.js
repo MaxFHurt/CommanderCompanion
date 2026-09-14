@@ -46,14 +46,24 @@ function manaCapacitySourceUsable(game,card){
   const haste=(def?.keywords||[]).some(k=>String(k).toLowerCase()==='haste')||/\bHaste\b/i.test(String(def?.oracleText||''))||(card?.temporaryEffects||[]).some(e=>e?.kind==='keyword'&&e?.enabled!==false&&String(e.keyword||'').toLowerCase()==='haste');
   if(haste)return true;return Number(card?.controlSinceTurn??card?.enteredTurn??-1)<Number(game?.turnNumber||0);
 }
+function counterAmount(card,name){const counters=card?.counters||{};const target=String(name||'').toLowerCase();for(const [k,v] of Object.entries(counters))if(String(k).toLowerCase()===target)return Math.max(0,Number(v||0));return 0}
+export function effectiveManaOptionsForSource({game,player,card,definition=null,ability=null}={}){
+  const def=definition||game?.cardDefinitions?.[card?.definitionId];if(!card||!def)return[];
+  // Gemstone Caverns is conditional: without a luck counter it produces only {C};
+  // with a luck counter, the replacement effect makes it one mana of any color instead.
+  if(/^Gemstone Caverns$/i.test(String(def?.name||''))){return counterAmount(card,'luck')>0?['W','U','B','R','G']:['C']}
+  let options=ability?.manaOptions?.length?[...ability.manaOptions]:Array.isArray(card?.manaCapacityOptions)?card.manaCapacityOptions.filter(x=>COLORS.includes(x)):[];
+  if(options.length<2&&!ability){options=[...new Set(tapManaAbilities(def).flatMap(row=>row.options||[]).filter(x=>COLORS.includes(x)))]}
+  const identity=new Set();for(const cmd of player?.commanders||[])for(const c of game?.cardDefinitions?.[cmd.cardId]?.colorIdentity||[])if(COLORS.includes(c))identity.add(c);
+  if(/commander(?:'s|’s)? color identity/i.test(String(def?.oracleText||''))&&identity.size)options=options.filter(x=>identity.has(x));
+  return [...new Set(options.filter(x=>COLORS.includes(x)))];
+}
 export function playerManaAvailability(player,game=null){
   const base=Object.fromEntries(COLORS.map(c=>[c,Math.max(0,Number(player?.mana?.available?.[c]||0))]));
-  const identity=new Set();for(const cmd of player?.commanders||[])for(const c of game?.cardDefinitions?.[cmd.cardId]?.colorIdentity||[])if(COLORS.includes(c))identity.add(c);
   const flex=[];for(const card of player?.deck?.battlefield||[]){
     if(card?.tapped||!manaCapacitySourceUsable(game,card))continue;
-    let options=Array.isArray(card?.manaCapacityOptions)?card.manaCapacityOptions.filter(x=>COLORS.includes(x)):[];
-    if(options.length<2){const def=game?.cardDefinitions?.[card?.definitionId];options=[...new Set(tapManaAbilities(def).flatMap(row=>row.options||[]).filter(x=>COLORS.includes(x)))];if(/commander(?:'s|’s)? color identity/i.test(String(def?.oracleText||''))&&identity.size)options=options.filter(x=>identity.has(x));}
-    options=[...new Set(options)];if(options.length>1)flex.push({instanceId:card.instanceId,options});
+    const def=game?.cardDefinitions?.[card?.definitionId];const options=effectiveManaOptionsForSource({game,player,card,definition:def});
+    if(options.length>1)flex.push({instanceId:card.instanceId,options});
   }
   return {...base,__flex:flex};
 }

@@ -1,8 +1,8 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities } from './rules-v0725.js?v=080-ai';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aj';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ai';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-aj';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ai';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-aj';
 import { queueTriggers } from './trigger-engine.js?v=07968';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
@@ -15,7 +15,7 @@ function manaAbilityAmount(row){const effect=String(row?.ability?.effect||row?.t
 function inferredManaCapacitySpec(game,player,card){
   if(!card)return null;const def=defFor(game,card),basic=basicLandManaColor(def);if(basic)return{options:[basic],amount:1};
   const abilities=tapManaAbilities(def).filter(row=>String(row?.ability?.cost||'').replace(/\s+/g,'')==='{T}');if(!abilities.length)return null;
-  let options=[...new Set(abilities.flatMap(a=>a.options||[]))];if(/commander(?:'s|’s)? color identity/i.test(String(def?.oracleText||''))){const id=commanderIdentity(game,player);options=options.filter(c=>id.has(c));}
+  let options=effectiveManaOptionsForSource({game,player,card,definition:def});
   if(!options.length&&['W','U','B','R','G','C'].includes(card.chosenColor))options=[card.chosenColor];if(!options.length)return null;
   const amount=Math.max(1,...abilities.map(manaAbilityAmount));return{options,amount:options.length>1?1:amount};
 }
@@ -193,7 +193,7 @@ export function createTransactionEngine(game){
     else if(action.type==='life'){const before=player.life;player.life=Math.max(0,player.life+action.delta);emit(game,{type:action.delta>=0?'life-gained':'life-lost',playerId:player.playerId,amount:Math.abs(player.life-before),controllerId:player.playerId})}
     else if(action.type==='poison')player.poison=Math.max(0,player.poison+action.delta);
     else if(action.type==='counter')player.counters[action.counter]=Math.max(0,Number(player.counters[action.counter]||0)+action.delta);
-    else if(action.type==='card-counter'){const hit=locate(deck,action.instanceId);if(!hit)throw new Error('Card not found');hit.card.counters=hit.card.counters||{};hit.card.counters[action.counter]=Math.max(0,Number(hit.card.counters[action.counter]||0)+action.delta);emit(game,{type:'counter-added',targetId:hit.card.instanceId,controllerId:hit.card.controllerId||player.playerId,counter:action.counter,amount:action.delta})}
+    else if(action.type==='card-counter'){const hit=locate(deck,action.instanceId);if(!hit)throw new Error('Card not found');const refreshMana=hit.z==='battlefield'&&!!hit.card.manaCapacityRegistered;if(refreshMana)unregisterManaSource(player,hit.card,{wasTapped:hit.card.tapped});hit.card.counters=hit.card.counters||{};hit.card.counters[action.counter]=Math.max(0,Number(hit.card.counters[action.counter]||0)+action.delta);if(refreshMana)registerManaSource(game,player,hit.card);emit(game,{type:'counter-added',targetId:hit.card.instanceId,controllerId:hit.card.controllerId||player.playerId,counter:action.counter,amount:action.delta})}
     else if(action.type==='status'){const set=new Set(player.statuses);action.enabled===false?set.delete(action.status):set.add(action.status);player.statuses=[...set];if(!action.label)action.label=`${player.displayName} ${action.enabled===false?'loses':'gains'} status: ${action.status}.`}
     else if(action.type==='mana-total'){player.mana.total[action.color]=Math.max(0,Number(player.mana.total[action.color]||0)+action.delta);player.mana.available[action.color]=Math.max(0,Number(player.mana.available[action.color]||0)+action.delta)}
     else if(action.type==='mana-available')player.mana.available[action.color]=Math.max(0,Number(player.mana.available[action.color]||0)+action.delta);
