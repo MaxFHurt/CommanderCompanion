@@ -2938,3 +2938,54 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 .calc-flex-pip img:first-child{left:1px!important;clip-path:polygon(0 0,62% 0,42% 100%,0 100%)!important}
 .calc-flex-pip img:nth-child(2){right:1px!important;clip-path:polygon(58% 0,100% 0,100% 100%,38% 100%)!important}
 .calc-flex-pip b{font:900 11px/1 var(--head)!important;color:#fff!important}
+
+
+/* V0.8 AI — action-specific labels + compact activated-ability flow. */
+#modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"]{
+  color:#fff!important;text-shadow:0 2px 3px #000!important;aspect-ratio:auto!important;min-height:54px!important;height:auto!important;
+  padding:10px 18px 10px 48px!important;background-image:none!important;
+  border:1px solid rgba(178,255,203,.72)!important;border-radius:7px!important;
+  background:linear-gradient(180deg,rgba(20,126,56,.98),rgba(4,49,20,.98))!important;
+  box-shadow:inset 0 0 0 2px rgba(214,230,220,.22),inset 0 0 18px rgba(113,255,153,.18),0 0 10px rgba(51,232,103,.22)!important;
+  position:relative!important;font-family:var(--head)!important;font-weight:900!important;letter-spacing:.055em!important;
+}
+#modal #modalActions>button[data-menu-semantic="confirm"]::before,#modal .modal-tray-buttons>button[data-menu-semantic="confirm"]::before{
+  content:"✓"!important;position:absolute!important;left:16px!important;top:50%!important;transform:translateY(-53%)!important;font-size:24px!important;color:#baffc8!important;text-shadow:0 0 8px rgba(82,255,128,.75)!important;
+}
+#modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+#modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{
+  color:#fff!important;text-shadow:0 2px 3px #000!important;aspect-ratio:auto!important;min-height:54px!important;height:auto!important;
+  padding:10px 18px 10px 48px!important;background-image:none!important;
+  border:1px solid rgba(255,174,174,.72)!important;border-radius:7px!important;
+  background:linear-gradient(180deg,rgba(157,26,32,.98),rgba(57,5,9,.98))!important;
+  box-shadow:inset 0 0 0 2px rgba(231,210,212,.18),inset 0 0 18px rgba(255,82,91,.16),0 0 10px rgba(231,49,58,.2)!important;
+  position:relative!important;font-family:var(--head)!important;font-weight:900!important;letter-spacing:.055em!important;
+}
+#modal #modalActions>button[data-menu-semantic="cancel"]::before,#modal .modal-tray-buttons>button[data-menu-semantic="cancel"]::before,
+#modal #modalActions>button[data-action-role="cancel"]::before,#modal .modal-tray-buttons>button[data-action-role="cancel"]::before{
+  content:"✕"!important;position:absolute!important;left:16px!important;top:50%!important;transform:translateY(-53%)!important;font-size:22px!important;color:#ffb5b8!important;text-shadow:0 0 8px rgba(255,67,78,.75)!important;
+}
+#modal #modalActions:has(>button:only-child)>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons:has(>button:only-child)>button[data-menu-semantic="confirm"]{
+  flex:0 1 min(100%,459px)!important;width:min(100%,459px)!important;max-width:459px!important;
+}
+.cc-modal .compact-ability-list{display:grid!important;gap:9px!important;margin-top:8px!important}
+.cc-modal .compact-ability-list .ability-choice{display:grid!important;grid-template-columns:1fr!important;gap:8px!important;padding:12px!important;text-align:left!important;min-height:0!important}
+.cc-modal .ability-cost-chips{display:flex!important;align-items:center!important;gap:7px!important;flex-wrap:wrap!important}
+.cc-modal .ability-cost-chip{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:34px!important;padding:6px 10px!important;border:1px solid #73528a!important;border-radius:999px!important;background:linear-gradient(180deg,rgba(71,44,84,.88),rgba(17,10,23,.96))!important;color:#fff!important;font:900 12px/1 var(--head)!important;letter-spacing:.04em!important;white-space:nowrap!important}
+.cc-modal .ability-cost-chip .calc-pip{display:inline-grid!important;grid-template-columns:auto auto!important;gap:3px!important;align-items:center!important}
+.cc-modal .ability-cost-chip .calc-pip img{width:22px!important;height:22px!important}
+.cc-modal .ability-cost-life{border-color:#99464e!important}.cc-modal .ability-cost-sacrifice{border-color:#8b5b97!important}
+.cc-modal .ability-review{display:grid!important;gap:10px!important;padding:4px 0 8px!important}
+.cc-modal .ability-review h3{margin:4px 0 0!important;font-size:1rem!important;letter-spacing:.06em!important}
+.cc-modal .ability-effect-compact{margin:0!important;font-size:1rem!important;line-height:1.35!important;max-width:100%!important}
+.cc-modal .ability-inline-choice{display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important;margin:6px 0!important;padding:10px!important;border:1px solid #68417c!important;background:rgba(44,21,54,.35)!important}
+.cc-modal .ability-inline-choice>span{font:900 12px/1 var(--head)!important;letter-spacing:.06em!important}
+.cc-modal .ability-inline-choice select{width:100%!important;min-height:44px!important;font-size:16px!important}
+@media(max-width:540px){
+  #modal #modalActions>button[data-menu-semantic="confirm"],#modal .modal-tray-buttons>button[data-menu-semantic="confirm"],
+  #modal #modalActions>button[data-menu-semantic="cancel"],#modal .modal-tray-buttons>button[data-menu-semantic="cancel"],
+  #modal #modalActions>button[data-action-role="cancel"],#modal .modal-tray-buttons>button[data-action-role="cancel"]{min-height:52px!important;padding:8px 10px 8px 38px!important;font-size:.82rem!important}
+  #modal #modalActions>button[data-menu-semantic="confirm"]::before,#modal .modal-tray-buttons>button[data-menu-semantic="confirm"]::before,
+  #modal #modalActions>button[data-menu-semantic="cancel"]::before,#modal .modal-tray-buttons>button[data-menu-semantic="cancel"]::before,
+  #modal #modalActions>button[data-action-role="cancel"]::before,#modal .modal-tray-buttons>button[data-action-role="cancel"]::before{left:11px!important;font-size:20px!important}
+}
