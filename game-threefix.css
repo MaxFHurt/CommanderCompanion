@@ -3040,7 +3040,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 .mana-calculator.mana-compare .mana-available-inline .mana-flex-circle{width:30px!important;height:30px!important}
 .mana-flex-available{display:none!important}
 
-/* V0.8 AK — focused correction: available-mana heading, polished split assets, footer label centering. */
+/* V0.8 AL — focused correction: available-mana heading, polished split assets, footer label centering. */
 #gameScreen .mana-box.available-only{grid-template-rows:auto 1fr!important;padding:2px 1px 4px!important}
 #gameScreen .mana-box.available-only h3{display:block!important;margin:0!important;padding:1px 0 3px!important;text-align:center!important;font:900 clamp(8px,1.45vw,12px)/1 var(--head)!important;letter-spacing:.055em!important;color:#ddd6e1!important;opacity:.92!important}
 #gameScreen .mana-flex-split,
