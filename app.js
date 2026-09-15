@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-aq';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-aq';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-aq';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aq';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-aq';
+import { createTransactionEngine } from './transactions.js?v=080-ar';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-ar';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-ar';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ar';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ar';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-aq';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ar';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-aq';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ar';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-aq';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-ar';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -368,10 +368,11 @@ function openAbilityReview(p,c,d,ability){
 function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon(k,pool[k]||0)).join('')}
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-aq" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length===1)return `<span class="${cls} mana-zone-source" aria-label="${opts[0]} mana source, ${count} available">${manaIcon(opts[0],count)}</span>`;
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ar" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-aq" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ar" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -390,7 +391,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-aq" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ar" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -912,9 +913,8 @@ function endTurn(p){
   openModal('END TURN?',`<p>End ${esc(p.displayName)}'s turn and pass to the next player?</p>`,[{label:'CANCEL',onClick:closeModal},{label:'END TURN',className:'primary',onClick:()=>{closeModal();go()}}])
 }
 function openCleanupDiscard(p,done){
-  const need=p.deck.hand.length-7;
-  openModal('CLEANUP — DISCARD',`<p>${esc(p.displayName)} must discard ${need} card${need===1?'':'s'} before the turn can end.</p><div class="hand-strip">${p.deck.hand.map(c=>{const d=def(c.definitionId);return `<button class="hand-card" data-discard="${c.instanceId}"><img src="${imageOf(d)}" alt="${esc(d?.name||'Card')}"></button>`}).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);
-  $$('[data-discard]').forEach(b=>b.onclick=()=>{const c=instance(p,b.dataset.discard),d=def(c.definitionId);commitAction({type:'move-card',playerId:p.playerId,instanceId:c.instanceId,to:'graveyard',label:`${p.displayName} discards ${d?.name||'a card'} during cleanup.`});if(p.deck.hand.length<=7){p.confirmations.cleanup=true;p.confirmations.discard=true;if(game.phaseGates?.discard)satisfyGate(game,'discard');closeModal();done()}else openCleanupDiscard(p,done)})
+  const need=Math.max(0,p.deck.hand.length-7);if(!need){p.confirmations.cleanup=true;p.confirmations.discard=true;if(game.phaseGates?.discard)satisfyGate(game,'discard');return done()}
+  const showPicker=()=>{const remaining=Math.max(0,p.deck.hand.length-7);openModal('CLEANUP — DISCARD',`<p>${esc(p.displayName)} must discard ${remaining} more card${remaining===1?'':'s'} before the turn can end. Tap a card to review it.</p><div class="hand-strip">${p.deck.hand.map(c=>{const d=def(c.definitionId);return `<button class="hand-card" data-discard-review="${c.instanceId}"><img src="${imageOf(d)}" alt="${esc(d?.name||'Card')}"></button>`}).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);$$('[data-discard-review]').forEach(b=>b.onclick=()=>{const c=instance(p,b.dataset.discardReview);if(!c)return showPicker();const d=defOf(game,c);openModal(`DISCARD — ${d?.name||'CARD'}`,renderCardDetail(game,c)+`<p class="muted">This card remains in your hand until you explicitly confirm the cleanup discard.</p>`,[{label:'CANCEL',onClick:showPicker},{label:'CONFIRM DISCARD',className:'primary',onClick:()=>{const live=instance(p,c.instanceId);if(!live||live.zone!=='hand')return showPicker();commitAction({type:'move-card',playerId:p.playerId,instanceId:live.instanceId,to:'graveyard',label:`${p.displayName} discards ${d?.name||'a card'} during cleanup.`});if(p.deck.hand.length<=7){p.confirmations.cleanup=true;p.confirmations.discard=true;if(game.phaseGates?.discard)satisfyGate(game,'discard');closeModal();done()}else showPicker()}}])})};showPicker();
 }
 function openMana(p,pool='available'){const colors=[['W','WHITE'],['U','BLUE'],['B','BLACK'],['R','RED'],['G','GREEN'],['C','COLORLESS']],isTotal=pool==='total',obj=isTotal?p.mana.total:p.mana.available;openModal(isTotal?'TOTAL MANA':'AVAILABLE MANA THIS TURN',`<p>${isTotal?'Adjust this player’s tracked mana capacity.':'Adjust mana currently available to spend this turn.'}</p><div class="counter-grid">${colors.map(([c,n])=>`<div class="counter-control"><b>${n}</b><span>${obj[c]||0}</span><button data-mana="${c}" data-delta="1">+</button><button data-mana="${c}" data-delta="-1">−</button></div>`).join('')}</div>`,[{label:'DONE',onClick:closeModal}]);$$('[data-mana]').forEach(b=>b.onclick=()=>{commitAction({type:isTotal?'mana-total':'mana-available',playerId:p.playerId,color:b.dataset.mana,delta:+b.dataset.delta,label:`${p.displayName} adjusts ${isTotal?'total':'available'} ${b.dataset.mana} mana.`});closeModal();render();openMana(p,pool)})}
 function openStatusExplanation(p){const rows=(p.statuses||[]).filter(Boolean);if(!rows.length)return;openModal(`${p.displayName} — STATUS`,`<div class="status-explain-list">${rows.map(s=>`<section><b>${esc(s)}</b><p>${esc(statusExplanation(s))}</p></section>`).join('')}</div>`,[{label:'CLOSE',onClick:closeModal}])}

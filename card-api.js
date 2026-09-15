@@ -1,4 +1,4 @@
-import { createCardDefinition } from './schema.js?v=080-aq';
+import { createCardDefinition } from './schema.js?v=080-ar';
 
 const API='https://api.scryfall.com';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
