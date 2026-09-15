@@ -48,14 +48,14 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AT</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 AV</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-au">
+    <link rel="stylesheet" href="game-threefix.css?v=080-av">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -74,7 +74,7 @@
   <dialog id="modal" class="cc-modal">
     <div class="modal-shell">
       <header><h2 id="modalTitle">COMMANDER COMPANION</h2></header>
-      <div class="modal-back-row"><button id="modalClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="modalClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div id="modalContent" class="modal-content"></div>
       <footer id="modalActions" class="modal-actions"></footer>
     </div>
@@ -83,7 +83,7 @@
   <dialog id="gameModeDialog" class="cc-modal game-mode-dialog">
     <div class="modal-shell game-mode-shell">
       <header><h2>CHOOSE GAME MODE</h2></header>
-      <div class="modal-back-row"><button id="gameModeClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="gameModeClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div class="modal-content game-mode-content">
         <div class="mode-choice-menu">
           <button type="button" data-game-mode="fully-tracked"><b>FULLY GUIDED</b><span>Full rules guidance, legality checks, tracked deck and hand.</span></button>
@@ -97,7 +97,7 @@
   <dialog id="modeSetupDialog" class="cc-modal mode-setup-dialog">
     <div class="modal-shell">
       <header><h2 id="modeSetupTitle">GAME SETUP</h2></header>
-      <div class="modal-back-row"><button id="modeSetupBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="modeSetupBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div id="modeSetupContent" class="modal-content"></div>
       <footer id="modeSetupActions" class="modal-actions"></footer>
     </div>
@@ -106,7 +106,7 @@
   <dialog id="setupDialog" class="cc-modal">
     <div class="modal-shell">
       <header><h2>NEW GAME SETUP</h2></header>
-      <div class="modal-back-row"><button id="setupDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="setupDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div class="modal-content">
         <div class="setup-line">
           <label>Players<select id="playerCount"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
@@ -123,7 +123,7 @@
   <dialog id="deckDialog" class="cc-modal">
     <div class="modal-shell">
       <header><h2>DECK EDITOR</h2></header>
-      <div class="modal-back-row"><button id="deckDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="deckDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div class="modal-content">
         <div class="deck-editor-grid">
           <aside><button id="newDeckBtn">NEW DECK</button><button id="copyDeckBtn">COPY DECK</button><button id="preconCatalogBtn">PRECON CATALOG</button><button id="importManaBoxBtn">IMPORT MANABOX FILE</button><input id="manaBoxFileInput" type="file" accept=".txt,.csv,text/plain,text/csv" hidden><div id="savedDeckList"></div></aside>
@@ -142,7 +142,7 @@
   <dialog id="networkDialog" class="cc-modal">
     <div class="modal-shell">
       <header><h2 id="networkTitle">MULTI-DEVICE</h2></header>
-      <div class="modal-back-row"><button id="networkDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-au" alt=""></button></div>
+      <div class="modal-back-row"><button id="networkDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-av" alt=""></button></div>
       <div id="networkContent" class="modal-content"></div>
       <footer id="networkActions" class="modal-actions"></footer>
     </div>
@@ -182,7 +182,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-au');
+        await import('./app.js?v=080-av');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;

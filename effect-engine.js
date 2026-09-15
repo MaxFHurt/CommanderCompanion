@@ -220,7 +220,7 @@ function applyProliferate(game,controller,effect,bindings,notes){
 }
 
 function preventDamage(game,targetId,amount){let left=Math.max(0,Number(amount||0));for(const shield of game.damagePrevention||[]){if(left<=0)break;if(shield.targetId!==targetId||Number(shield.amount||0)<=0)continue;const used=Math.min(left,Number(shield.amount||0));shield.amount-=used;left-=used}game.damagePrevention=(game.damagePrevention||[]).filter(s=>Number(s.amount||0)>0);return left}
-export function applyEffects(game,controllerId,effects=[],bindings={}){
+function applyEffectsUnsafe(game,controllerId,effects=[],bindings={}){
   const controller=game.players.find(p=>p.playerId===controllerId);if(!controller)throw new Error('Effect controller is unavailable.');
   const notes=[];
   for(const effect of effects||[]){
@@ -382,6 +382,19 @@ export function applyEffects(game,controllerId,effects=[],bindings={}){
     throw new Error(`Unsupported tracked effect kind: ${effect.kind}`);
   }
   return notes;
+}
+
+// AV Effects + Triggers: effect packages are atomic. If any later effect in a
+// multi-effect spell/ability fails validation, restore the complete pre-effect
+// game state so a partially applied result can never leak into Guided play.
+function restoreGameSnapshot(game,snapshot){
+  for(const key of Object.keys(game))delete game[key];
+  Object.assign(game,structuredClone(snapshot));
+}
+export function applyEffects(game,controllerId,effects=[],bindings={}){
+  const snapshot=structuredClone(game);
+  try{return applyEffectsUnsafe(game,controllerId,effects,bindings)}
+  catch(error){restoreGameSnapshot(game,snapshot);throw error}
 }
 
 function countExprFromPhrase(phrase){
