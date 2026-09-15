@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-ay';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-ay';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-ay';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ay';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ay';
+import { createTransactionEngine } from './transactions.js?v=080-az';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-az';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-az';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-az';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-az';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ay';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-az';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ay';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-az';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-ay';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-az';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -435,10 +435,10 @@ function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
   if(opts.length===1)return `<span class="${cls} mana-zone-source" aria-label="${opts[0]} mana source, ${count} available">${manaIcon(opts[0],count)}</span>`;
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ay" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-az" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ay" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-az" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -457,7 +457,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ay" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-az" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}

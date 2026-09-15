@@ -3421,7 +3421,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 #gameScreen .battle-card-stack .battle-attachment-layer{position:absolute!important;left:0!important;top:calc(var(--attach-index) * 17px)!important;z-index:calc(20 - var(--attach-index))!important;width:var(--cc-ap-card-w)!important;height:var(--cc-ap-card-h)!important;}
 #gameScreen .battle-card-stack .battle-card{margin:0!important;}
 
-/* V0.8 AY — AX visual corrections re-applied with valid CSS, plus resolution-attention routing. */
+/* V0.8 AZ — AX visual corrections re-applied with valid CSS, plus resolution-attention routing. */
 /* Remove scan/host-image edge bleed without changing Magic card proportions. */
 #gameScreen .hand-card,
 #gameScreen .battle-card,
