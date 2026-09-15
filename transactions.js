@@ -1,9 +1,9 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ar';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-as';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ar';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-as';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ar';
-import { queueTriggers } from './trigger-engine.js?v=080-ar';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-as';
+import { queueTriggers } from './trigger-engine.js?v=080-as';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
 function locate(deck,id){for(const z of ZONES){const a=deck[z]||[];const i=a.findIndex(c=>c.instanceId===id);if(i>=0)return{z,a,i,card:a[i]}}return null}
