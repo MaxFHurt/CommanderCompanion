@@ -1,9 +1,9 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-at';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-au';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-at';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-au';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-at';
-import { queueTriggers } from './trigger-engine.js?v=080-at';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-au';
+import { queueTriggers } from './trigger-engine.js?v=080-au';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
 function locate(deck,id){for(const z of ZONES){const a=deck[z]||[];const i=a.findIndex(c=>c.instanceId===id);if(i>=0)return{z,a,i,card:a[i]}}return null}
@@ -137,6 +137,12 @@ function resolveStackTop(game){
   }else if(obj.kind==='ability'||obj.kind==='trigger'){
     applySearchResult(game,player,obj);notes.push(...applyTrackedEffects(game,player,obj.effects||[],{...obj.effectBindings,sourceId:obj.sourceId}));emit(game,{type:obj.kind==='ability'?'ability-resolved':'trigger-resolved',sourceId:obj.sourceId,definitionId:obj.sourceDefinitionId,controllerId:player.playerId});
   }else throw new Error(`Unsupported stack object kind: ${obj.kind}`);
+  // AU invariant: a non-copy spell may not disappear during resolution.
+  if((obj.kind==='spell')&&!obj.isCopy){
+    const expected=obj.to||(/Instant|Sorcery/i.test(defFor(game,obj.card)?.typeLine||'')?'graveyard':'battlefield');
+    const owner=ownerFor(game,obj.card,player);const host=expected==='battlefield'?player:owner;const zone=host?.deck?.[zoneKey(expected)]||[];
+    if(!zone.some(c=>c.instanceId===obj.card.instanceId))throw new Error(`Resolution invariant failed: ${defFor(game,obj.card)?.name||'spell'} did not reach ${expected}.`);
+  }
   return{obj,notes};
 }
 function restore(game,before){for(const k of Object.keys(game))delete game[k];Object.assign(game,structuredClone(before))}
