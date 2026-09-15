@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-as';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-as';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-as';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-as';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-as';
+import { createTransactionEngine } from './transactions.js?v=080-at';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-at';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-at';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-at';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-at';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-as';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-at';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-as';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-at';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-as';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-at';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -82,6 +82,7 @@ function createAutosavingEngine(g){
 function activePlayer(){return game?.players.find(p=>p.playerId===game.activePlayerId)||game?.players[0]}
 let priorityContinuation=null;
 let resolvingPriority=false;
+let stackAutomationEpoch=0;
 let priorityResponseTimer=null;
 const PRIORITY_RESPONSE_SECONDS=69;
 function clearPriorityResponseTimer(){if(priorityResponseTimer){clearInterval(priorityResponseTimer);priorityResponseTimer=null}}
@@ -165,7 +166,8 @@ function continueAutomaticStackResolution(){
   if(responder){render();save();return beginPriority('Stack object resolved. Players may respond before the next object resolves.','stack-resolution',null,responder.playerId)}
   game.log.unshift({text:`Stack continues automatically — no opponent has a legal response to ${top.label||'the next stack object'}.`,turn:game.turnNumber,phase:game.phase});
   render();save();
-  setTimeout(()=>resolveAfterAllPass(),0);
+  const epoch=stackAutomationEpoch;
+  setTimeout(()=>{if(epoch===stackAutomationEpoch)resolveAfterAllPass()},0);
 }
 function resolveAfterAllPass(){
   if(resolvingPriority)return;resolvingPriority=true;
@@ -181,7 +183,7 @@ function resolveAfterAllPass(){
       if(top.guidedResolution){
         game.log.unshift({text:`${top.label||'Stack object'} contains card-specific behavior not yet hard-coded. Stack resolution continues without guessing that unsupported effect.`,turn:game.turnNumber,phase:game.phase,type:'guided-deferred'});
       }
-      engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`});return afterObject();
+      engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`,__internalStackStep:true});return afterObject();
     }
     const next=priorityContinuation;priorityContinuation=null;resolvingPriority=false;render();save();next?.();
   }catch(e){resolvingPriority=false;toast(e?.message||'The stack could not resolve.',true);render()}
@@ -375,10 +377,10 @@ function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
   if(opts.length===1)return `<span class="${cls} mana-zone-source" aria-label="${opts[0]} mana source, ${count} available">${manaIcon(opts[0],count)}</span>`;
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-as" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-at" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-as" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-at" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -397,7 +399,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-as" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-at" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -626,7 +628,7 @@ function render(){if(!game)return;
   // gameplay state. Drain it automatically on the next tick. This also repairs stale saves
   // created by earlier builds where Resume Stack was required manually.
   if((game.stack?.length||0)>0&&!game.priorityState?.active&&!resolvingPriority){
-    clearTimeout(render._stackDrainTimer);render._stackDrainTimer=setTimeout(()=>{if(game&&(game.stack?.length||0)>0&&!game.priorityState?.active&&!resolvingPriority)resolveAfterAllPass()},0);
+    clearTimeout(render._stackDrainTimer);const epoch=stackAutomationEpoch;render._stackDrainTimer=setTimeout(()=>{if(epoch===stackAutomationEpoch&&game&&(game.stack?.length||0)>0&&!game.priorityState?.active&&!resolvingPriority)resolveAfterAllPass()},0);
   }
   captureLifeVisualState();if(statusCycleTimer){clearInterval(statusCycleTimer);statusCycleTimer=null}const neutralHost=!!network?.host&&!network?.localPlayerId;const playerClient=!!network?.localPlayerId;const referencePlayerId=playerClient?network.localPlayerId:game.activePlayerId;if(inspectedPlayerId===referencePlayerId||!game.players.some(p=>p.playerId===inspectedPlayerId))inspectedPlayerId=null;const active=game.players.find(p=>p.playerId===game.activePlayerId)||game.players[0];const turnEl=$('#gameTurnNumber'),turnPlayer=$('#gameTurnPlayer');if(turnEl)turnEl.textContent=active?.displayName||'Player';if(turnPlayer)turnPlayer.textContent='';document.querySelectorAll('#gameScreen > .visual-hand-zone,#gameScreen > .visual-bottom-controls').forEach(n=>n.remove());$('#gameContent').innerHTML=neutralHost?renderHostDashboard(game):(playerClient?renderPlayerClient(game,network.localPlayerId,inspectedPlayerId):renderGame(game,inspectedPlayerId));if(!neutralHost){const screen=$('#gameScreen'),hand=$('#gameContent .visual-hand-zone'),controls=$('#gameContent .visual-bottom-controls');if(hand){hand.classList.add('floating-live-hand');screen.appendChild(hand)}if(controls){controls.classList.add('floating-live-controls');screen.appendChild(controls)}}bindGameActions();bindHostDashboard();document.querySelectorAll('.inline-game-log-scroll').forEach(el=>{el.scrollTop=0});applyLifeVisualState();if(network?.host?.broadcast)network.host.broadcast({type:'state',game:publicGameForNetwork()})}
 function publicGameForNetwork(){return publicBroadcastState(game)}
@@ -690,7 +692,16 @@ function confirmUndoLastStep(onDone=null){
   openModal('CONFIRM UNDO','<p>Undo the most recent game action?</p><p class="muted">Only the latest recorded step will be reversed.</p>',[
     {label:'CANCEL',onClick:closeModal},
     {label:'UNDO LAST STEP',className:'primary',onClick:()=>{
-      if(engine.undo()){closeModal();render();toast('Last game step undone');if(typeof onDone==='function')onDone()}
+      if(engine.undo()){
+        // Invalidate every queued auto-resolution callback from the action we just undid.
+        // Undo restores the root player action; the old stack worker must never replay it.
+        stackAutomationEpoch++;
+        resolvingPriority=false;
+        priorityContinuation=null;
+        clearTimeout(render._stackDrainTimer);
+        clearPriorityResponseTimer();
+        closeModal();save();render();toast('Last game action undone');if(typeof onDone==='function')onDone()
+      }
       else toast('Nothing to undo',true)
     }}
   ]);

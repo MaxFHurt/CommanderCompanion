@@ -3197,7 +3197,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 }
 
 /* ============================================================
-   V0.8 AS — DETERMINISTIC LIVE BOARD GEOMETRY
+   V0.8 AT — DETERMINISTIC LIVE BOARD GEOMETRY
    The fixed lower chassis, live hand and player viewport reserve one
    shared set of dimensions so repeated renders cannot crawl upward.
    Hand and battlefield cards share one immutable 63:88 size.
@@ -3414,7 +3414,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 .mdfc-face-option strong{color:#fff!important}.mdfc-face-option small{color:#c8b8d0!important}
 
 
-/* V0.8 AS — attachment cascade and reclaimed battlefield depth. */
+/* V0.8 AT — attachment cascade and reclaimed battlefield depth. */
 #gameScreen .battlefield{overflow-y:auto!important;align-items:flex-start!important;align-content:flex-start!important;padding-top:min(1.4vw,10px)!important;}
 #gameScreen .battle-card-stack{position:relative!important;flex:0 0 var(--cc-ap-card-w)!important;width:var(--cc-ap-card-w)!important;height:calc(var(--cc-ap-card-h) + 34px)!important;margin:0 3px!important;}
 #gameScreen .battle-card-stack .battle-host-layer{position:absolute!important;left:0!important;top:0!important;z-index:20!important;width:var(--cc-ap-card-w)!important;height:var(--cc-ap-card-h)!important;}
