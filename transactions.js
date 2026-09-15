@@ -1,9 +1,9 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-as';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-at';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-as';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-at';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-as';
-import { queueTriggers } from './trigger-engine.js?v=080-as';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-at';
+import { queueTriggers } from './trigger-engine.js?v=080-at';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
 function locate(deck,id){for(const z of ZONES){const a=deck[z]||[];const i=a.findIndex(c=>c.instanceId===id);if(i>=0)return{z,a,i,card:a[i]}}return null}
@@ -230,7 +230,12 @@ export function createTransactionEngine(game){
       let next=null,nextStep=0;for(let step=1;step<=game.players.length;step++){const candidate=game.players[(currentIndex+step)%game.players.length];if(candidate&&!candidate.eliminated){next=candidate;nextStep=step;break}}
       if(next){if((currentIndex+nextStep)>=game.players.length)game.roundNumber=Math.max(1,Number(game.roundNumber||1)+1);game.activePlayerId=next.playerId;game.turnNumber=Math.max(1,Number(game.turnNumber||1)+1);game.phase='untap';configurePhaseGates(game,'untap');game.log.unshift({text:`Turn passes to ${next.displayName} because the active player was eliminated.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()})}
     }
-    game.undoHistory.push({action:structuredClone(action),before});if(game.status!=='complete'&&!game.winner)game.status='active';return game;
+    // AT stack/undo stabilization: stack bookkeeping is part of the player's root action,
+    // not a separate undoable game action. Keep the pre-cast/pre-activation snapshot as
+    // the Undo boundary while automatic trigger placement and stack resolution run inside it.
+    const internalStackStep = action.__internalStackStep===true || action.type==='resolve-stack' || action.type==='put-trigger-stack';
+    if(!internalStackStep)game.undoHistory.push({action:structuredClone(action),before});
+    if(game.status!=='complete'&&!game.winner)game.status='active';return game;
   }
   function preview(action){game.pendingTransaction={action:structuredClone(action),createdAt:new Date().toISOString()};return structuredClone(game.pendingTransaction)}
   function cancel(){game.pendingTransaction=null}
