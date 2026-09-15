@@ -525,6 +525,7 @@ function compileSingleClause(clause,{sourceName='Effect'}={}){
   if((m=c.match(/^Surveil (one|two|three|four|five|\d+|X)\.?$/i))){const amount=numberFromText(m[1])??m[1].toUpperCase(),bind=`surveil${requirements.length}`;requirements.push({kind:'surveil',bind,amount,label:`Surveil ${m[1]}`});effects.push({kind:'surveil',scope:'you',amount,bind});return{effects,requirements,unsupported}}
 
   // Mana / shuffle.
+  if((m=c.match(/^Add ((?:\{[WUBRGC]\}){2,})\.?$/i))){const symbols=[...m[1].matchAll(/\{([WUBRGC])\}/gi)].map(x=>x[1].toUpperCase());const same=symbols.every(x=>x===symbols[0]);if(same){effects.push({kind:'add-mana',amount:symbols.length,color:symbols[0]});return{effects,requirements,unsupported}}}
   if((m=c.match(/^Add (\{[WUBRGC]\}|one mana of any color|one mana of any type)(?: for each (.+))?\.?$/i))){let color=null,colorBind=null;if(/^\{/.test(m[1]))color=m[1][1];else{colorBind=`manaColor${requirements.length}`;requirements.push({kind:'color',bind:colorBind,includeColorless:/any type/i.test(m[1]),label:m[1]})}effects.push({kind:'add-mana',amount:m[2]?countExprFromPhrase(m[2]):1,color,colorBind});return{effects,requirements,unsupported}}
   if(/^Shuffle(?: your library)?\.?$/i.test(c)){effects.push({kind:'shuffle'});return{effects,requirements,unsupported}}
 
