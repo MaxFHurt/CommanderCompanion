@@ -13,7 +13,7 @@ export function numberFromText(value){
   const s=String(value ?? '').trim().toLowerCase();
   return /^\d+$/.test(s) ? Number(s) : (WORD_NUMBERS[s] ?? null);
 }
-function cleanOracle(s=''){return String(s||'').replace(/\r/g,'').replace(/[’‘]/g,"'").replace(/[–—]/g,'—').replace(/\u2212/g,'-').trim()}
+function cleanOracle(s=''){let out=String(s||'').replace(/\r/g,'').replace(/[’‘]/g,"'").replace(/[–—]/g,'—').replace(/\u2212/g,'-');for(let i=0;i<4;i++)out=out.replace(/\([^()]*\)/g,' ');return out.replace(/\s+/g,' ').trim()}
 function zoneArray(deck,zone){
   if(zone==='library'||zone==='remainingLibrary')return deck?.remainingLibrary;
   if(zone==='command'||zone==='commandZone')return deck?.commandZone;

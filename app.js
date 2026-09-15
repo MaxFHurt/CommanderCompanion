@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-av';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-av';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-av';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-av';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-av';
+import { createTransactionEngine } from './transactions.js?v=080-aw';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-aw';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-aw';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aw';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-aw';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-av';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-aw';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-av';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-aw';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-av';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-aw';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -387,10 +387,10 @@ function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
   if(opts.length===1)return `<span class="${cls} mana-zone-source" aria-label="${opts[0]} mana source, ${count} available">${manaIcon(opts[0],count)}</span>`;
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-av" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-aw" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-av" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-aw" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -409,7 +409,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-av" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-aw" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -437,11 +437,11 @@ function guidedPermanentRows(){return guidedAllCards().filter(x=>x.zone==='battl
 function openGuidedResolver({player,title='GUIDED ORACLE RESOLUTION',oracleText='',unsupported=[],onComplete=()=>{},state=null,mustComplete=false}={}){
   const p=player||activePlayer(),st=state||{mutations:0};
   const playerOptions=(game.players||[]).map(q=>`<option value="${esc(q.playerId)}">${esc(q.displayName)}</option>`).join('');
-  const html=`<div class="guided-resolver"><div class="guided-warning"><b>GUIDED RESOLUTION</b><p>This Oracle text contains a rule pattern that is not safe to automate. Commander Companion will not pretend it resolved. Apply the actual state changes below, then confirm.</p></div><p class="oracle">${esc(oracleText)}</p>${unsupported?.length?`<div class="unsupported-lines">${unsupported.map(x=>`<div>${esc(x)}</div>`).join('')}</div>`:''}<label>STATE OPERATION<select id="guidedKind"><option value="life">Life gain / loss</option><option value="poison">Poison counters</option><option value="draw">Draw cards</option><option value="discard">Discard a card</option><option value="mill">Mill cards</option><option value="move">Move a card between zones</option><option value="tap">Tap / untap permanent</option><option value="counter">Add / remove counter</option><option value="pump">Power / toughness until end of turn</option><option value="token">Create creature token</option><option value="control">Change control</option><option value="rule">Track temporary rule / permission</option></select></label><div id="guidedFields"></div><p class="progress-text">Applied operations: <b>${st.mutations}</b></p></div>`;
+  const html=`<div class="guided-resolver"><div class="guided-warning"><b>GUIDED RESOLUTION</b><p>This Oracle text contains a rule pattern that is not safe to automate. Commander Companion will not pretend it resolved. Apply the actual state changes below, then confirm.</p></div><p class="oracle">${esc(oracleText)}</p>${unsupported?.length?`<div class="unsupported-lines">${unsupported.map(x=>`<div>${esc(x)}</div>`).join('')}</div>`:''}<label>STATE OPERATION<select id="guidedKind"><option value="life">Life gain / loss</option><option value="poison">Poison counters</option><option value="draw">Draw cards</option><option value="discard">Discard a card</option><option value="mill">Mill cards</option><option value="scry">Scry cards</option><option value="surveil">Surveil cards</option><option value="move">Move a card between zones</option><option value="tap">Tap / untap permanent</option><option value="counter">Add / remove counter</option><option value="pump">Power / toughness until end of turn</option><option value="token">Create creature token</option><option value="control">Change control</option><option value="rule">Track temporary rule / permission</option></select></label><div id="guidedFields"></div><p class="progress-text">Applied operations: <b>${st.mutations}</b></p></div>`;
   const actions=[...(!mustComplete?[{label:'CANCEL',onClick:closeModal}]:[]),{label:'APPLY OPERATION',className:'primary',onClick:()=>applyGuidedOperation(p,{title,oracleText,unsupported,onComplete,state:st})},{label:'EFFECT RESOLVED',disabled:st.mutations<1,onClick:()=>{closeModal();onComplete?.()}}];
   openModal(title,html,actions);
   const renderFields=()=>{const kind=$('#guidedKind')?.value,perms=guidedPermanentRows(),all=guidedAllCards();let out='';
-    if(['life','poison','draw','mill'].includes(kind))out=`<label>PLAYER<select id="guidedPlayer">${playerOptions}</select></label><label>AMOUNT<input id="guidedAmount" type="number" min="0" value="1"></label>${kind==='life'?'<label>DIRECTION<select id="guidedDirection"><option value="gain">Gain life</option><option value="lose">Lose life</option></select></label>':''}`;
+    if(['life','poison','draw','mill','scry','surveil'].includes(kind))out=`<label>PLAYER<select id="guidedPlayer">${playerOptions}</select></label><label>AMOUNT<input id="guidedAmount" type="number" min="0" value="1"></label>${kind==='life'?'<label>DIRECTION<select id="guidedDirection"><option value="gain">Gain life</option><option value="lose">Lose life</option></select></label>':''}`;
     else if(kind==='discard')out=`<label>PLAYER<select id="guidedPlayer">${playerOptions}</select></label><label>CARD<select id="guidedCard"></select></label>`;
     else if(kind==='move')out=`<label>CARD<select id="guidedCard">${all.map(x=>`<option value="${esc(x.id)}">${esc(x.label)} — ${esc(x.sub)}</option>`).join('')}</select></label><label>DESTINATION<select id="guidedZone"><option value="battlefield">Battlefield</option><option value="hand">Hand</option><option value="graveyard">Graveyard</option><option value="exile">Exile</option><option value="library">Library</option><option value="command">Command Zone</option></select></label>`;
     else if(kind==='tap')out=`<label>PERMANENT<select id="guidedCard">${perms.map(x=>`<option value="${esc(x.id)}">${esc(x.label)} — ${esc(x.sub)}</option>`).join('')}</select></label><label>STATE<select id="guidedTap"><option value="tap">Tap</option><option value="untap">Untap</option></select></label>`;
@@ -462,6 +462,13 @@ function applyGuidedOperation(p,ctx){
     else if(kind==='draw'){const q=game.players.find(x=>x.playerId===$('#guidedPlayer').value),n=Math.max(0,Number($('#guidedAmount').value||0));for(let i=0;i<n;i++)engine.commit({__internalStackStep:true,type:'draw',playerId:q.playerId,label:`${q.displayName} draws a card (guided Oracle resolution).`})}
     else if(kind==='discard'){const q=game.players.find(x=>x.playerId===$('#guidedPlayer').value),id=$('#guidedCard').value;commitAction({__internalStackStep:true,type:'resolve-effects',playerId:p.playerId,effects:[{kind:'discard',scope:'you',playerId:q.playerId,amount:1,cardIds:[id]}],label:`Guided Oracle resolution: ${q.displayName} discards a card.`})}
     else if(kind==='mill'){const q=$('#guidedPlayer').value,n=Math.max(0,Number($('#guidedAmount').value||0));commitAction({__internalStackStep:true,type:'resolve-effects',playerId:p.playerId,effects:[{kind:'mill',scope:'you',playerId:q,amount:n}],label:`Guided Oracle resolution: mill ${n}.`})}
+    else if(kind==='scry'||kind==='surveil'){
+      const q=game.players.find(x=>x.playerId===$('#guidedPlayer').value)||p,n=Math.max(0,Number($('#guidedAmount').value||0)),top=(q.deck?.remainingLibrary||[]).slice(0,n);
+      if(!top.length){commitAction({__internalStackStep:true,type:'resolve-effects',playerId:p.playerId,effects:[{kind,scope:'you',playerId:q.playerId,amount:0,decision:{top:[],...(kind==='scry'?{bottom:[]}:{graveyard:[]})}}],label:`Guided Oracle resolution: ${kind} 0.`});ctx.state.mutations++;save();return openGuidedResolver(ctx)}
+      const dest=kind==='scry'?'BOTTOM OF LIBRARY':'GRAVEYARD';
+      const rows=top.map((c,i)=>`<div class="guided-look-row" data-guided-look="${esc(c.instanceId)}"><span><b>${i+1}. ${esc(defOf(game,c)?.name||'Card')}</b></span><select class="guided-look-dest"><option value="top">KEEP ON TOP</option><option value="other">${dest}</option></select><span class="guided-order-controls"><button type="button" class="guided-up">↑</button><button type="button" class="guided-down">↓</button></span></div>`).join('');
+      return openModal(`GUIDED ${kind.toUpperCase()} ${n}`,`<p>Choose a destination for every viewed card. Use ↑/↓ to set the final top-to-bottom order of cards kept on top.</p><div id="guidedLookRows">${rows}</div>`,[{label:'BACK',semantic:'back',onClick:()=>openGuidedResolver(ctx)},{label:`CONFIRM ${kind.toUpperCase()}`,className:'primary',onClick:()=>{const ordered=[...document.querySelectorAll('[data-guided-look]')],kept=ordered.filter(r=>r.querySelector('.guided-look-dest').value==='top').map(r=>r.dataset.guidedLook),other=ordered.filter(r=>r.querySelector('.guided-look-dest').value==='other').map(r=>r.dataset.guidedLook),decision=kind==='scry'?{top:kept,bottom:other}:{top:kept,graveyard:other};commitAction({__internalStackStep:true,type:'resolve-effects',playerId:p.playerId,effects:[{kind,scope:'you',playerId:q.playerId,amount:n,decision}],label:`Guided Oracle resolution: ${kind} ${n}.`});ctx.state.mutations++;save();openGuidedResolver(ctx)}}]);
+    }
     else if(kind==='move'){commitAction({__internalStackStep:true,type:'move-card',playerId:p.playerId,instanceId:$('#guidedCard').value,to:$('#guidedZone').value,label:'Guided Oracle resolution moves a card.'})}
     else if(kind==='tap'){const id=$('#guidedCard').value,tap=$('#guidedTap').value==='tap';commitAction({__internalStackStep:true,type:'tap-card',playerId:p.playerId,instanceId:id,tapped:tap,allowUntap:!tap,label:`Guided Oracle resolution: ${tap?'tap':'untap'} permanent.`})}
     else if(kind==='counter'){const id=$('#guidedCard').value,name=$('#guidedCounter').value.trim()||'+1/+1',delta=Number($('#guidedAmount').value||0);commitAction({__internalStackStep:true,type:'card-counter',playerId:p.playerId,instanceId:id,counter:name,delta,label:`Guided Oracle resolution: ${delta>=0?'+':''}${delta} ${name} counter.`})}
@@ -473,6 +480,7 @@ function applyGuidedOperation(p,ctx){
     ctx.state.mutations++;save();openGuidedResolver(ctx);
   }catch(e){toast(e?.message||'That guided operation could not be applied.',true)}
 }
+document.addEventListener('click',e=>{const b=e.target.closest?.('.guided-up,.guided-down');if(!b)return;const row=b.closest('[data-guided-look]'),box=row?.parentElement;if(!row||!box)return;if(b.classList.contains('guided-up')&&row.previousElementSibling)box.insertBefore(row,row.previousElementSibling);else if(b.classList.contains('guided-down')&&row.nextElementSibling)box.insertBefore(row.nextElementSibling,row);});
 $('#modalClose').onclick=closeModal;$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 
 function playerPanel(i){
