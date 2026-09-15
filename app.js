@@ -1,10 +1,10 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-ar';
-import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-ar';
-import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-ar';
-import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ar';
-import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-ar';
+import { createTransactionEngine } from './transactions.js?v=080-as';
+import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-as';
+import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-as';
+import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-as';
+import { nextPhase, phaseLocked, satisfyGate, configurePhaseGates, isCombatPhase, phaseLabel } from './phase.js?v=080-as';
 import { initDeckStore, listDecks, saveDeck, deleteDeck } from './deck-store.js?v=080-b4-ac';
 import { listPrecons, loadPrecon } from './precons.js?v=0722';
 import { buildPostGame } from './postgame.js?v=0722';
@@ -14,12 +14,12 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ar';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-as';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
-import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ar';
+import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-as';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=0727';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-ar';
+import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-as';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -174,7 +174,13 @@ function resolveAfterAllPass(){
     clearPriority(game);
     if(game.stack?.length){
       const top=game.stack[game.stack.length-1];
-      if(top.guidedResolution){const gp=game.players.find(p=>p.playerId===top.controllerId)||activePlayer();return openGuidedResolver({player:gp,title:top.guidedResolution.title||`RESOLVE — ${top.label||'STACK OBJECT'}`,oracleText:top.guidedResolution.oracleText||'',unsupported:top.guidedResolution.unsupported||[],mustComplete:true,onComplete:()=>{try{engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`});afterObject()}catch(e){resolvingPriority=false;toast(e?.message||'The guided stack object could not finish resolving.',true);render()}}})}
+      // AS stack stabilization: the stack orders Magic responses; it must never become a
+      // card-judgement holding area. Unsupported/guided card text is deferred to the later
+      // hard-coded card-interaction registry, while the spell/ability itself still completes
+      // its mechanical stack resolution so one unknown card cannot deadlock the game.
+      if(top.guidedResolution){
+        game.log.unshift({text:`${top.label||'Stack object'} contains card-specific behavior not yet hard-coded. Stack resolution continues without guessing that unsupported effect.`,turn:game.turnNumber,phase:game.phase,type:'guided-deferred'});
+      }
       engine.commit({type:'resolve-stack',playerId:top.controllerId,label:`Resolve ${top.label||'stack object'}`});return afterObject();
     }
     const next=priorityContinuation;priorityContinuation=null;resolvingPriority=false;render();save();next?.();
@@ -369,10 +375,10 @@ function manaPoolIcons(pool={}){return ['W','U','B','R','G','C'].map(k=>manaIcon
 function flexManaBadge(options=[],count=1,cls='calc-flex-pip'){
   const opts=[...new Set((options||[]).filter(k=>MANA_ICON[k]))];
   if(opts.length===1)return `<span class="${cls} mana-zone-source" aria-label="${opts[0]} mana source, ${count} available">${manaIcon(opts[0],count)}</span>`;
-  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ar" alt="Any color"><b>${count}</b></span>`}
+  if(opts.length>=5){return `<span class="${cls} mana-flex-any" aria-label="Any-color flexible mana, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-as" alt="Any color"><b>${count}</b></span>`}
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ar" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="${cls}" aria-label="${pair.join(' or ')} flexible mana, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-as" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaCalculator(game,player,cost='',tax=0){
   const req=parseManaCost(cost);req.generic=Math.max(0,Number(req.generic||0)+Number(tax||0));const keys=['W','U','B','R','G','C'],pool=playerManaAvailability(player,game),plan=planMana(pool,cost,tax);
@@ -391,7 +397,7 @@ function openModal(title,html,actions=[],trayHtml=''){
   modal.dataset.returnScroll=String(window.scrollY||0);$('#modalTitle').textContent=title;
   const backAction=actions.find(a=>menuSemantic(a)==='back');
   const footerActions=actions.filter(a=>a!==backAction);
-  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-ar" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
+  if(topBack){topBack.innerHTML='<img src="ui-back.png?v=080-as" alt="Back">';topBack.dataset.navigation='back';topBack.setAttribute('aria-label','Back');topBack.onclick=()=>backAction?.onClick?backAction.onClick(topBack):closeModal()}
   const useTray=!!trayHtml;content.innerHTML=html;footer.innerHTML='';footer.hidden=!footerActions.length&&!useTray;footer.classList.toggle('with-calculator',useTray);footer.classList.toggle('sticky-actions',!useTray);
   let buttonTarget=footer;
   if(useTray){const tray=document.createElement('div');tray.className='modal-mana-tray';tray.innerHTML=trayHtml;footer.appendChild(tray);const row=document.createElement('div');row.className='modal-tray-buttons';footer.appendChild(row);buttonTarget=row}
@@ -615,7 +621,14 @@ function playLandFromHand(p,c,d){
 const lifeVisualState=new Map();
 function captureLifeVisualState(){if(!game)return;const now=Date.now();for(const p of game.players||[]){const prev=lifeVisualState.get(p.playerId);const life=Number(p.life||0);if(prev&&prev.life!==life)lifeVisualState.set(p.playerId,{life,direction:life>prev.life?'gain':'loss',until:now+20000});else if(!prev)lifeVisualState.set(p.playerId,{life,direction:null,until:0});else if(prev.life!==life)lifeVisualState.set(p.playerId,{...prev,life});}}
 function applyLifeVisualState(){const now=Date.now();let nextExpiry=Infinity;document.querySelectorAll('[data-life-player]').forEach(el=>{const st=lifeVisualState.get(el.dataset.lifePlayer);el.classList.remove('life-gain-flash','life-loss-flash');if(st?.until>now){el.classList.add(st.direction==='gain'?'life-gain-flash':'life-loss-flash');nextExpiry=Math.min(nextExpiry,st.until)}});if(Number.isFinite(nextExpiry))setTimeout(()=>applyLifeVisualState(),Math.max(20,nextExpiry-Date.now()+25));}
-function render(){if(!game)return;captureLifeVisualState();if(statusCycleTimer){clearInterval(statusCycleTimer);statusCycleTimer=null}const neutralHost=!!network?.host&&!network?.localPlayerId;const playerClient=!!network?.localPlayerId;const referencePlayerId=playerClient?network.localPlayerId:game.activePlayerId;if(inspectedPlayerId===referencePlayerId||!game.players.some(p=>p.playerId===inspectedPlayerId))inspectedPlayerId=null;const active=game.players.find(p=>p.playerId===game.activePlayerId)||game.players[0];const turnEl=$('#gameTurnNumber'),turnPlayer=$('#gameTurnPlayer');if(turnEl)turnEl.textContent=active?.displayName||'Player';if(turnPlayer)turnPlayer.textContent='';document.querySelectorAll('#gameScreen > .visual-hand-zone,#gameScreen > .visual-bottom-controls').forEach(n=>n.remove());$('#gameContent').innerHTML=neutralHost?renderHostDashboard(game):(playerClient?renderPlayerClient(game,network.localPlayerId,inspectedPlayerId):renderGame(game,inspectedPlayerId));if(!neutralHost){const screen=$('#gameScreen'),hand=$('#gameContent .visual-hand-zone'),controls=$('#gameContent .visual-bottom-controls');if(hand){hand.classList.add('floating-live-hand');screen.appendChild(hand)}if(controls){controls.classList.add('floating-live-controls');screen.appendChild(controls)}}bindGameActions();bindHostDashboard();document.querySelectorAll('.inline-game-log-scroll').forEach(el=>{el.scrollTop=0});applyLifeVisualState();if(network?.host?.broadcast)network.host.broadcast({type:'state',game:publicGameForNetwork()})}
+function render(){if(!game)return;
+  // AS deadlock watchdog: a non-empty stack with no live priority window is not a stable
+  // gameplay state. Drain it automatically on the next tick. This also repairs stale saves
+  // created by earlier builds where Resume Stack was required manually.
+  if((game.stack?.length||0)>0&&!game.priorityState?.active&&!resolvingPriority){
+    clearTimeout(render._stackDrainTimer);render._stackDrainTimer=setTimeout(()=>{if(game&&(game.stack?.length||0)>0&&!game.priorityState?.active&&!resolvingPriority)resolveAfterAllPass()},0);
+  }
+  captureLifeVisualState();if(statusCycleTimer){clearInterval(statusCycleTimer);statusCycleTimer=null}const neutralHost=!!network?.host&&!network?.localPlayerId;const playerClient=!!network?.localPlayerId;const referencePlayerId=playerClient?network.localPlayerId:game.activePlayerId;if(inspectedPlayerId===referencePlayerId||!game.players.some(p=>p.playerId===inspectedPlayerId))inspectedPlayerId=null;const active=game.players.find(p=>p.playerId===game.activePlayerId)||game.players[0];const turnEl=$('#gameTurnNumber'),turnPlayer=$('#gameTurnPlayer');if(turnEl)turnEl.textContent=active?.displayName||'Player';if(turnPlayer)turnPlayer.textContent='';document.querySelectorAll('#gameScreen > .visual-hand-zone,#gameScreen > .visual-bottom-controls').forEach(n=>n.remove());$('#gameContent').innerHTML=neutralHost?renderHostDashboard(game):(playerClient?renderPlayerClient(game,network.localPlayerId,inspectedPlayerId):renderGame(game,inspectedPlayerId));if(!neutralHost){const screen=$('#gameScreen'),hand=$('#gameContent .visual-hand-zone'),controls=$('#gameContent .visual-bottom-controls');if(hand){hand.classList.add('floating-live-hand');screen.appendChild(hand)}if(controls){controls.classList.add('floating-live-controls');screen.appendChild(controls)}}bindGameActions();bindHostDashboard();document.querySelectorAll('.inline-game-log-scroll').forEach(el=>{el.scrollTop=0});applyLifeVisualState();if(network?.host?.broadcast)network.host.broadcast({type:'state',game:publicGameForNetwork()})}
 function publicGameForNetwork(){return publicBroadcastState(game)}
 
 
