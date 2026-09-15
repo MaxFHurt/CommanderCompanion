@@ -1,4 +1,4 @@
-import { isCardDefinitionComplete } from './schema.js?v=080-av';
+import { isCardDefinitionComplete } from './schema.js?v=080-ax';
 const COLORS=['W','U','B','R','G','C'];
 
 export const DEFAULT_COMMANDER_RULES=Object.freeze({
