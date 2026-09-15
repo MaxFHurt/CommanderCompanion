@@ -1,6 +1,6 @@
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
-import { compileEffectText, applyEffects } from './effect-engine.js?v=080-aq';
+import { compileEffectText, applyEffects } from './effect-engine.js?v=080-ar';
 
 function defFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function escRe(s){return String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
