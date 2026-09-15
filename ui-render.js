@@ -1,4 +1,4 @@
-import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ap';
+import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-aq';
 import { modePolicy } from './modes.js?v=0722';
 import { phaseLabel } from './phase.js?v=0727';
 const MANA=[['W','white'],['U','blue'],['B','black'],['R','red'],['G','green'],['C','colorless']];
@@ -8,10 +8,10 @@ const imageOf=d=>d?.imageUris?.normal||d?.imageUris?.large||d?.imageUris?.small|
 function legalManaKeys(game,p,{includeColorless=true}={}){const set=new Set();for(const cmd of p?.commanders||[]){const d=game?.cardDefinitions?.[cmd.cardId];for(const c of d?.colorIdentity||[])if(['W','U','B','R','G'].includes(c))set.add(c)}if(includeColorless)set.add('C');return set}
 function flexibleManaMarkup(options=[],count=1){
   const opts=[...new Set((options||[]).filter(k=>MANA.some(([mk])=>mk===k)))];
-  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ap" alt="Any color"><b>${count}</b></span>`;
+  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-aq" alt="Any color"><b>${count}</b></span>`;
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ap" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-aq" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
@@ -77,7 +77,9 @@ function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true
   if(!modePolicy(game.mode).battlefield)return'';
   const drawAvailable=game.phase==='draw'&&!p.confirmations?.draw;
   const basic=p.deck.battlefield.filter(c=>/Basic Land/i.test(defOf(game,c)?.typeLine||''));
-  const normal=p.deck.battlefield.filter(c=>!/Basic Land/i.test(defOf(game,c)?.typeLine||''));
+  const normal=p.deck.battlefield.filter(c=>!/Basic Land/i.test(defOf(game,c)?.typeLine||'')&&!c.attachedTo);
+  const attachedByHost=new Map();for(const c of p.deck.battlefield.filter(c=>c.attachedTo)){if(!attachedByHost.has(c.attachedTo))attachedByHost.set(c.attachedTo,[]);attachedByHost.get(c.attachedTo).push(c)}
+  const battlefieldCardHtml=normal.map(c=>{const at=attachedByHost.get(c.instanceId)||[];if(!at.length)return cardButton(game,c,'battle-card',p.playerId,controls);return `<div class="battle-card-stack">${at.map((a,i)=>`<div class="battle-attachment-layer" style="--attach-index:${i+1}">${cardButton(game,a,'battle-card attachment-card',p.playerId,controls)}</div>`).join('')}<div class="battle-host-layer">${cardButton(game,c,'battle-card host-card',p.playerId,controls)}</div></div>`}).join('');
   const groups=new Map();for(const c of basic){const d=defOf(game,c),k=d?.name||'Basic Land';if(!groups.has(k))groups.set(k,{d,count:0,cards:[]});const g=groups.get(k);g.count++;g.cards.push(c)}
   const basicHtml=[...groups.values()].map(({d,count,cards})=>{const representative=cards.find(c=>!c.tapped)||cards[0];return `<button class="battle-card basic-land-stack${representative?.tapped?' tapped':''}" data-instance="${esc(representative?.instanceId||'')}" title="${esc(d?.name)}" aria-disabled="${controls?'false':'true'}"><img src="${esc(imageOf(d))}" alt="${esc(d?.name)}"><span class="multiple-badge">×${count}</span><span class="card-label">${esc(d?.name)}</span></button>`}).join('');
   const attackers=p.deck.battlefield.filter(c=>{const d=defOf(game,c);return validateAttack({game,attackerId:p.playerId,defenderId:'other',instance:c,definition:d}).legal});
@@ -94,7 +96,7 @@ function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true
   const zoneButton=(zone,label,count)=>`<button class="zone-${zone}" ${controls?`data-zone-open="${zone}"`:`data-public-zone="${zone}" data-public-player="${esc(p.playerId)}"`} aria-label="${label} ${count}"><span>${label}</span></button>`;
   const players=game.players||[],playerIndex=Math.max(0,players.findIndex(x=>x.playerId===p.playerId)),playerCount=Math.max(1,players.length);
   const playerNav=`<nav class="battle-player-nav" aria-label="Player board navigation"><button data-player-nav="prev" aria-label="Previous player">‹</button><span>PLAYER ${playerIndex+1} OF ${playerCount}</span><button data-player-nav="next" aria-label="Next player">›</button></nav>`;
-  return `<section class="battle-panel" data-board-open="1"><div class="battle-head shared-battle-phase-head"><h3>BATTLEFIELD</h3>${playerNav}<div class="battle-phase-indicator"><span>Phase:</span> <b>${phaseLabel(game.phase)}</b></div></div><div class="battlefield-wrap"><div class="battlefield">${normal.map(c=>cardButton(game,c,'battle-card',p.playerId,controls)).join('')}${basicHtml}</div>${controls?overlay:''}</div><div class="zones">${zoneButton('graveyard','GRAVEYARD',p.deck.graveyard.length)}${zoneButton('exile','EXILE',p.deck.exile.length)}${zoneButton('tokens','TOKENS',p.deck.tokens.length)}${zoneButton('attachments','ATTACHMENTS',p.deck.attachments.length)}</div>${controlHtml}</section>`
+  return `<section class="battle-panel" data-board-open="1"><div class="battle-head shared-battle-phase-head"><h3>BATTLEFIELD</h3>${playerNav}<div class="battle-phase-indicator"><span>Phase:</span> <b>${phaseLabel(game.phase)}</b></div></div><div class="battlefield-wrap"><div class="battlefield">${battlefieldCardHtml}${basicHtml}</div>${controls?overlay:''}</div><div class="zones">${zoneButton('graveyard','GRAVEYARD',p.deck.graveyard.length)}${zoneButton('exile','EXILE',p.deck.exile.length)}${zoneButton('tokens','TOKENS',p.deck.tokens.length)}${zoneButton('attachments','ATTACHMENTS',p.deck.attachments.length)}</div>${controlHtml}</section>`
 }
 
 function renderInlineGameLog(game){

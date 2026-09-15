@@ -1,9 +1,9 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-ap';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-aq';
 import { sync } from './deck.js?v=0722';
-import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-ap';
+import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-aq';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-ap';
-import { queueTriggers } from './trigger-engine.js?v=080-ap';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard } from './effect-engine.js?v=080-aq';
+import { queueTriggers } from './trigger-engine.js?v=080-aq';
 
 const ZONES=['remainingLibrary','hand','battlefield','graveyard','exile','tokens','attachments','commandZone'];
 function locate(deck,id){for(const z of ZONES){const a=deck[z]||[];const i=a.findIndex(c=>c.instanceId===id);if(i>=0)return{z,a,i,card:a[i]}}return null}
@@ -54,7 +54,7 @@ function payMana(game,player,payment){
     let produced=0;for(const src of sources){if(produced>=remaining)break;src.tapped=true;produced+=Math.max(1,Number(src.manaCapacityAmount||1));}
     player.mana.available[color]=Math.max(0,available-amount);
   }
-  for(const a of assignments){const card=(player.deck?.battlefield||[]).find(c=>c.instanceId===a.instanceId);if(card&&!card.tapped)card.tapped=true;}
+  for(const a of assignments){if(a.zoneManaAbility||a.zone==='hand'){const hit=locate(player.deck,a.instanceId);if(!hit||hit.z!=='hand')throw new Error('Chosen hand mana source is no longer available');const [card]=hit.a.splice(hit.i,1);card.zone='exile';card.tapped=false;player.deck.exile.push(card);continue}const card=(player.deck?.battlefield||[]).find(c=>c.instanceId===a.instanceId);if(card&&!card.tapped)card.tapped=true;}
 }
 function addMana(player,color,amount=1){const n=Number(amount||0);player.mana.available[color]=Number(player.mana.available[color]||0)+n;player.mana.floating=player.mana.floating||{W:0,U:0,B:0,R:0,G:0,C:0};player.mana.floating[color]=Number(player.mana.floating[color]||0)+n}
 function setTappedWithCapacity(game,player,card,nextTapped){const next=!!nextTapped,prev=!!card.tapped;if(prev===next){card.tapped=next;return}const opts=Array.isArray(card.manaCapacityOptions)?card.manaCapacityOptions:(card.manaCapacityColor?[card.manaCapacityColor]:[]);if(opts.length===1&&manaSourceUsable(game,card)){const mc=opts[0],amount=Math.max(1,Number(card.manaCapacityAmount||1)),delta=(next?-1:1)*amount;player.mana.available[mc]=Math.max(0,Number(player.mana.available[mc]||0)+delta)}card.tapped=next}
@@ -153,6 +153,7 @@ export function createTransactionEngine(game){
     const before=structuredClone({...game,undoHistory:[],pendingTransaction:null});const deck=player.deck;
     if(action.type==='cast-spell')putSpellOnStack(game,player,action,deck);
     else if(action.type==='activate-ability-stack')putAbilityOnStack(game,player,action,deck);
+    else if(action.type==='activate-zone-mana-ability'){const hit=locate(deck,action.instanceId);if(!hit||hit.z!==(action.fromZone||'hand'))throw new Error('Ability source is not in the required zone');const [card]=hit.a.splice(hit.i,1);card.zone=action.toZone||'exile';card.tapped=false;deck[zoneKey(card.zone)].push(card);addMana(player,action.manaColor,Math.max(1,Number(action.manaAmount||1)));}
     else if(action.type==='put-trigger-stack'){
       game.stack=game.stack||[];game.stack.push({id:action.stackId||`stack:${Date.now()}:${Math.random()}`,kind:'trigger',controllerId:player.playerId,sourceId:action.sourceId||null,sourceDefinitionId:action.sourceDefinitionId||null,effects:structuredClone(action.effects||[]),effectBindings:structuredClone(action.effectBindings||{}),label:action.label||'Triggered ability',abilityText:action.abilityText||'',guidedResolution:structuredClone(action.guidedResolution||null),createdAt:new Date().toISOString()});
     }

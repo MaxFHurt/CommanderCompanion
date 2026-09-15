@@ -1,4 +1,4 @@
-import { isCardDefinitionComplete } from './schema.js?v=080-ap';
+import { isCardDefinitionComplete } from './schema.js?v=080-aq';
 const COLORS=['W','U','B','R','G','C'];
 
 export const DEFAULT_COMMANDER_RULES=Object.freeze({
@@ -63,21 +63,23 @@ export function playerManaAvailability(player,game=null){
   const flex=[];for(const card of player?.deck?.battlefield||[]){
     if(card?.tapped||!manaCapacitySourceUsable(game,card))continue;
     const def=game?.cardDefinitions?.[card?.definitionId];const options=effectiveManaOptionsForSource({game,player,card,definition:def});
-    if(options.length>1)flex.push({instanceId:card.instanceId,options});
+    if(options.length>1)flex.push({instanceId:card.instanceId,options,zone:'battlefield'});
   }
+  // Zone-aware mana abilities explicitly permitted from hand (Spirit Guides and similar cards).
+  for(const card of player?.deck?.hand||[]){const def=game?.cardDefinitions?.[card?.definitionId];for(const ability of parseActivatedAbilities(def)){const cost=String(ability?.cost||'').trim();if(!ability?.manaAbility||!/^Exile\s+(?:this card|[^:]+?)\s+from your hand$/i.test(cost))continue;const options=[...new Set(ability.manaOptions||[])];if(options.length)flex.push({instanceId:card.instanceId,options,zone:'hand',zoneManaAbility:true});}}
   return {...base,__flex:flex};
 }
 export function planMana(available,cost,tax=0){
   const req=parseManaCost(cost); req.generic+=Math.max(0,Number(tax||0));
   const pool=Object.fromEntries(COLORS.map(c=>[c,Math.max(0,Number(available?.[c]||0))]));
-  const flex=(Array.isArray(available?.__flex)?available.__flex:[]).map(x=>({instanceId:x.instanceId,options:[...new Set((x.options||[]).filter(c=>COLORS.includes(c)))]})).filter(x=>x.instanceId&&x.options.length);
+  const flex=(Array.isArray(available?.__flex)?available.__flex:[]).map(x=>({instanceId:x.instanceId,options:[...new Set((x.options||[]).filter(c=>COLORS.includes(c)))],zone:x.zone||'battlefield',zoneManaAbility:!!x.zoneManaAbility})).filter(x=>x.instanceId&&x.options.length);
   const chosen={W:0,U:0,B:0,R:0,G:0,C:0};const assignments=[];const usedFlex=new Set();
-  const takeFlex=(color,count)=>{for(let n=0;n<count;n++){const src=flex.find(x=>!usedFlex.has(x.instanceId)&&x.options.includes(color));if(!src)return false;usedFlex.add(src.instanceId);assignments.push({instanceId:src.instanceId,color});}return true};
+  const takeFlex=(color,count)=>{for(let n=0;n<count;n++){const src=flex.find(x=>!usedFlex.has(x.instanceId)&&x.options.includes(color));if(!src)return false;usedFlex.add(src.instanceId);assignments.push({instanceId:src.instanceId,color,zone:src.zone,zoneManaAbility:src.zoneManaAbility});}return true};
   for(const c of ['W','U','B','R','G']){const need=Math.max(0,Number(req[c]||0)),fixed=Math.min(pool[c],need);chosen[c]+=fixed;pool[c]-=fixed;const deficit=need-fixed;if(deficit&&!takeFlex(c,deficit))return {ok:false,reason:`Need ${deficit} more ${c} mana`};}
   {const need=Math.max(0,Number(req.C||0)),fixed=Math.min(pool.C,need);chosen.C+=fixed;pool.C-=fixed;const deficit=need-fixed;if(deficit&&!takeFlex('C',deficit))return {ok:false,reason:`Need ${deficit} more true colorless mana`};}
   let generic=Math.max(0,Number(req.generic||0));
   const cUse=Math.min(pool.C,generic);chosen.C+=cUse;pool.C-=cUse;generic-=cUse;
-  while(generic>0){const src=flex.find(x=>!usedFlex.has(x.instanceId));if(!src)break;usedFlex.add(src.instanceId);const color=src.options.includes('C')?'C':src.options[0];assignments.push({instanceId:src.instanceId,color,generic:true});generic--;}
+  while(generic>0){const src=flex.find(x=>!usedFlex.has(x.instanceId));if(!src)break;usedFlex.add(src.instanceId);const color=src.options.includes('C')?'C':src.options[0];assignments.push({instanceId:src.instanceId,color,generic:true,zone:src.zone,zoneManaAbility:src.zoneManaAbility});generic--;}
   for(const c of ['W','U','B','R','G']){if(!generic)break;const use=Math.min(pool[c],generic);chosen[c]+=use;pool[c]-=use;generic-=use;}
   if(generic)return {ok:false,reason:`Need ${generic} more generic mana`};
   if(assignments.length)chosen.__sourceAssignments=assignments;
@@ -400,6 +402,9 @@ export function canActivateTapAbility({game,instance,definition}){
 export function entersBattlefieldTapped({definition,battlefield=[],definitions={}}={}){
   const text=String(definition?.oracleText||'');if(!/enters(?: the battlefield)? tapped/i.test(text))return false;
   const getDef=c=>definitions instanceof Map?definitions.get(c.definitionId):definitions?.[c.definitionId];
+  const fewer=text.match(/enters(?: the battlefield)? tapped unless you control (\d+|one|two|three|four|five|six|seven|eight|nine|ten) or fewer other lands/i);
+  if(fewer){const words={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};const max=Number(fewer[1])||words[String(fewer[1]).toLowerCase()]||0;const otherLands=(battlefield||[]).filter(c=>/\bLand\b/i.test(String(getDef(c)?.typeLine||''))).length;return otherLands>max;}
+
   // Count-based tracked-state clauses, e.g. "unless you control two or more basic lands."
   const count=text.match(/enters(?: the battlefield)? tapped unless you control (\d+|one|two|three|four|five|six|seven|eight|nine|ten) or more ([^.]+?)(?: cards?| permanents?| lands?)?\./i);
   if(count){
