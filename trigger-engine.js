@@ -1,16 +1,23 @@
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
-import { compileEffectText, applyEffects } from './effect-engine.js?v=080-ay';
+import { compileEffectText, applyEffects } from './effect-engine.js?v=080-az';
 
 function defFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function escRe(s){return String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
 function sourceRows(game,event){
   const rows=[];
-  for(const p of game.players||[]){if(p.eliminated)continue;for(const c of p.deck?.battlefield||[])rows.push({player:p,card:c,definition:defFor(game,c),lastKnown:false})}
+  for(const p of game.players||[]){
+    if(p.eliminated)continue;
+    for(const c of p.deck?.battlefield||[])rows.push({player:p,card:c,definition:defFor(game,c),zone:'battlefield',lastKnown:false});
+    // Some triggered abilities explicitly function from another zone. Only expose those cards
+    // as trigger sources when their own Oracle text requires that zone; do not globally turn
+    // graveyards/hands/exile into active trigger-source zones.
+    for(const c of p.deck?.graveyard||[]){const d=defFor(game,c);if(/(?:when|whenever|at)[\s\S]*if this card is in your graveyard/i.test(String(d?.oracleText||'')))rows.push({player:p,card:c,definition:d,zone:'graveyard',lastKnown:false})}
+  }
   // Last-known information for a source that just left the battlefield / died.
   if(event?.sourceId&&!rows.some(r=>r.card.instanceId===event.sourceId)){
     for(const p of game.players||[]){if(p.eliminated)continue;for(const zone of ['graveyard','exile','hand','commandZone']){
-      const c=(p.deck?.[zone]||[]).find(x=>x.instanceId===event.sourceId);if(c){rows.push({player:p,card:c,definition:defFor(game,c),lastKnown:true});break}
+      const c=(p.deck?.[zone]||[]).find(x=>x.instanceId===event.sourceId);if(c){rows.push({player:p,card:c,definition:defFor(game,c),zone,lastKnown:true});break}
     }}
   }
   return rows;
@@ -35,8 +42,22 @@ function eventSpellDef(game,event){return game.cardDefinitions?.[event?.definiti
 function isYourEvent(row,event){return event?.controllerId===row.player.playerId||event?.playerId===row.player.playerId}
 function otherThanSource(row,event){return event?.sourceId!==row.card.instanceId}
 function countForTurn(player,key){player.counters=player.counters||{};return Number(player.counters[key]||0)}
+function selfZoneConditionMatches(row,ability){
+  const text=`${ability?.trigger||''} ${ability?.effect||''}`;
+  if(/if this card is in your graveyard/i.test(text))return row.zone==='graveyard';
+  if(/if this card is in exile/i.test(text))return row.zone==='exile';
+  if(/if this card is in your hand/i.test(text))return row.zone==='hand';
+  if(/if this (?:card|permanent) is on the battlefield/i.test(text))return row.zone==='battlefield';
+  return true;
+}
+function attackedWithCommander(game,row,event){
+  if(event?.controllerId!==row.player.playerId)return false;
+  const ids=new Set(event?.attackers||[]);if(!ids.size)return false;
+  const commanderDefIds=new Set((row.player.commanders||[]).map(c=>c.cardId).filter(Boolean));
+  return (row.player.deck?.battlefield||[]).some(c=>ids.has(c.instanceId)&&commanderDefIds.has(c.definitionId));
+}
 function triggerMatches(game,row,ability,event){
-  const t=String(ability.trigger||''),d=row.definition;if(!event)return false;
+  const t=String(ability.trigger||''),d=row.definition;if(!event||!selfZoneConditionMatches(row,ability))return false;
   const self=refersToSelf(t,d),your=isYourEvent(row,event),typeLine=event.typeLine||eventSpellDef(game,event)?.typeLine||'';
 
   if(event.type==='enters-battlefield'){
@@ -67,6 +88,7 @@ function triggerMatches(game,row,ability,event){
   }
   if(event.type==='attackers-declared'){
     if(/^(?:When|Whenever) one or more creatures you control attack/i.test(t))return event.controllerId===row.player.playerId&&(event.attackers||[]).length>0;
+    if(/^Whenever you attack with your commander/i.test(t))return attackedWithCommander(game,row,event);
     if(/^Whenever you attack/i.test(t))return event.controllerId===row.player.playerId&&(event.attackers||[]).length>0;
   }
   if(event.type==='attacks'){
