@@ -1,4 +1,4 @@
-import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ax';
+import { validatePlay, validateAttack, availableActivatedAbilities, validateActivatedAbilityFull, playerManaAvailability } from './rules-v0725.js?v=080-ay';
 import { modePolicy } from './modes.js?v=0722';
 import { phaseLabel } from './phase.js?v=0727';
 const MANA=[['W','white'],['U','blue'],['B','black'],['R','red'],['G','green'],['C','colorless']];
@@ -9,10 +9,10 @@ function legalManaKeys(game,p,{includeColorless=true}={}){const set=new Set();fo
 function flexibleManaMarkup(options=[],count=1){
   const opts=[...new Set((options||[]).filter(k=>MANA.some(([mk])=>mk===k)))];
   if(opts.length===1){const row=MANA.find(([mk])=>mk===opts[0]);return `<span class="mana-pip mana-flex mana-zone-source" aria-label="${opts[0]} mana source, ${count} available"><img src="mana-${row?.[1]||'colorless'}.png" alt="${opts[0]}"><b>${count}</b></span>`;}
-  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ax" alt="Any color"><b>${count}</b></span>`;
+  if(opts.length>=5)return `<span class="mana-pip mana-flex mana-flex-any" aria-label="Any-color flexible mana source, ${count} available"><img class="mana-flex-split mana-any-color-icon" src="mana-any-color.png?v=080-ay" alt="Any color"><b>${count}</b></span>`;
   const pair=opts.slice(0,2);if(pair.length<2)return '';
   const key=[...pair].sort().join('-');
-  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ax" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
+  return `<span class="mana-pip mana-flex" aria-label="${pair.join(' or ')} flexible mana source, ${count} available"><img class="mana-flex-split" src="mana-split-${key}.png?v=080-ay" alt="${pair.join(' / ')}"><b>${count}</b></span>`;
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
@@ -65,8 +65,9 @@ function handHtml(game,p,privateVisible=true,controls=true,actionPlayer=p){
   const cards=showHand&&privateVisible?p.deck.hand:[];
   const cardHtml=privateVisible?cards.map(c=>{const d=defOf(game,c),v=controls?playable(game,p,c):{legal:true};return `<button class="hand-card${v.legal?'':' unplayable'}${controls?'':' inspection-only'}" data-hand-card="${esc(c.instanceId)}" data-hand-player="${esc(p.playerId)}">${d?`<img src="${esc(imageOf(d))}" alt="${esc(d.name)}">`:`<span class="fallback">UNRESOLVED</span>`}${v.legal?'':'<i class="reason-dot"></i>'}</button>`}).join(''):'<span class="muted">Private hand</span>';
   const smart=smartAction(game,actionPlayer||p);
-  const nextCue=smart.cue==='next-phase'?' smart-cue-next':'';
-  const endCue=smart.cue==='end-turn'?' smart-cue-end':'';
+  const stackPending=!!(game.stack||[]).length;
+  const nextCue=!stackPending&&smart.cue==='next-phase'?' smart-cue-next':'';
+  const endCue=!stackPending&&smart.cue==='end-turn'?' smart-cue-end':'';
   const smartButton=smart.available
     ?`<button class="hub-mark smart-action-button smart-action-live" data-action="${smart.action}" aria-label="Smart action: ${smart.label}"><span>${smart.label}</span></button>`
     :`<button class="hub-mark smart-action-button smart-action-idle" type="button" aria-label="No smart action available" aria-disabled="true" disabled><span></span></button>`;
@@ -119,7 +120,7 @@ function renderInlineGameLog(game){
     else rows.push(`<div class="inline-log-empty">No recorded events on the previous turn.</div>`);
   }
   const top=(game.stack||[]).at(-1)||null,pending=!!top,pendingGuided=!!top?.guidedResolution;
-  if(pending)rows.unshift(`<div class="inline-resolution-required"><b>${pendingGuided?'RESOLUTION REQUIRED':'STACK PENDING'}</b><span>Tap Game Log to ${pendingGuided?'resolve now':'return to the stack'}.</span></div>`);
+  if(pending)rows.unshift(`<div class="inline-resolution-required"><b>${pendingGuided?'RESOLUTION REQUIRED':'STACK PENDING'}</b></div>`);
   return `<section class="inline-game-log${pending?' resolution-required':''}" aria-label="${pending?'Unresolved stack object. Tap to open Game Log.':'Current and previous turn game log'}"><div class="inline-log-label" aria-hidden="true"><b>GAME</b><b>LOG</b></div><div class="inline-game-log-scroll">${rows.join('')}</div><button class="inline-log-undo" data-log-undo="1" aria-label="Undo last game step" title="Undo last game step">↶</button><div class="inline-log-turn-count" aria-label="Turn ${displayRound}"><b>TURN</b><strong>${displayRound}</strong></div></section>`;
 }
 
