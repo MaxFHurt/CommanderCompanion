@@ -3197,7 +3197,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 }
 
 /* ============================================================
-   V0.8 AP — DETERMINISTIC LIVE BOARD GEOMETRY
+   V0.8 AQ — DETERMINISTIC LIVE BOARD GEOMETRY
    The fixed lower chassis, live hand and player viewport reserve one
    shared set of dimensions so repeated renders cannot crawl upward.
    Hand and battlefield cards share one immutable 63:88 size.
@@ -3208,7 +3208,7 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
   --cc-ap-card-h:calc(var(--cc-ap-card-w) * 88 / 63);
   --cc-ap-hand-h:calc(var(--cc-ap-card-h) + min(1.1vw,8px));
   --cc-ap-hero-h:min(34vw,244px);
-  --cc-ap-battle-h:calc(var(--cc-ap-card-h) + min(2.2vw,16px));
+  --cc-ap-battle-h:calc(var(--cc-ap-card-h) + min(8vw,58px));
 }
 
 /* Reserve the complete hand + chassis footprint inside the viewport.
@@ -3412,3 +3412,11 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
 .mdfc-face-option img{display:block!important;width:min(100%,190px)!important;height:auto!important;aspect-ratio:63/88!important;object-fit:cover!important;margin:0 auto!important;border-radius:4px!important}
 .mdfc-face-option.unplayable{opacity:.38!important;filter:grayscale(.6)!important;pointer-events:none!important}
 .mdfc-face-option strong{color:#fff!important}.mdfc-face-option small{color:#c8b8d0!important}
+
+
+/* V0.8 AQ — attachment cascade and reclaimed battlefield depth. */
+#gameScreen .battlefield{overflow-y:auto!important;align-items:flex-start!important;align-content:flex-start!important;padding-top:min(1.4vw,10px)!important;}
+#gameScreen .battle-card-stack{position:relative!important;flex:0 0 var(--cc-ap-card-w)!important;width:var(--cc-ap-card-w)!important;height:calc(var(--cc-ap-card-h) + 34px)!important;margin:0 3px!important;}
+#gameScreen .battle-card-stack .battle-host-layer{position:absolute!important;left:0!important;top:0!important;z-index:20!important;width:var(--cc-ap-card-w)!important;height:var(--cc-ap-card-h)!important;}
+#gameScreen .battle-card-stack .battle-attachment-layer{position:absolute!important;left:0!important;top:calc(var(--attach-index) * 17px)!important;z-index:calc(20 - var(--attach-index))!important;width:var(--cc-ap-card-w)!important;height:var(--cc-ap-card-h)!important;}
+#gameScreen .battle-card-stack .battle-card{margin:0!important;}

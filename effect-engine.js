@@ -540,7 +540,7 @@ function compileSingleClause(clause,{sourceName='Effect'}={}){
 
   // Chosen values attached to a permanent.
   if(/^Choose a color\.?$/i.test(c)){const bind=`color${requirements.length}`;requirements.push({kind:'color',bind,includeColorless:false,label:'Choose a color'});effects.push({kind:'choose-color',colorBind:bind});return{effects,requirements,unsupported}}
-  if(/^Choose a creature type\.?$/i.test(c)){const bind=`creatureType${requirements.length}`;requirements.push({kind:'text-choice',bind,label:'Choose a creature type'});effects.push({kind:'choose-creature-type',bind});return{effects,requirements,unsupported}}
+  if(/^Choose a creature type\.?$/i.test(c)){const bind=`creatureType${requirements.length}`;requirements.push({kind:'creature-type-choice',bind,label:'Choose a creature type'});effects.push({kind:'choose-creature-type',bind});return{effects,requirements,unsupported}}
 
   // "Then sacrifice it" / pronoun continuations used after a source-creature choice.
   if(/^Sacrifice it\.?$/i.test(c)){effects.push({kind:'sacrifice',bind:'lastTarget'});return{effects,requirements,unsupported}}
