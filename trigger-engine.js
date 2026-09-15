@@ -1,6 +1,6 @@
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
-import { compileEffectText, applyEffects } from './effect-engine.js?v=080-au';
+import { compileEffectText, applyEffects } from './effect-engine.js?v=080-av';
 
 function defFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function escRe(s){return String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
@@ -21,11 +21,11 @@ export function parseTriggeredAbilities(definition){
   for(const line of lines){
     const start=triggeredLine(line);
     if(start){if(current)out.push(current);current=start}
-    else if(current&&(/^[•—-]/.test(line)||/^if\b/i.test(line)||/^you may\b/i.test(line))){current+=`\n${line}`}
+    else if(current&&(/^[•—-]/.test(line)||/^if\b/i.test(line)||/^you may\b/i.test(line)||/^this ability triggers only once each turn\.?$/i.test(line))){current+=`\n${line}`}
     else if(current){out.push(current);current=null}
   }
   if(current)out.push(current);
-  return out.map((line,index)=>{const comma=line.indexOf(',');const trigger=comma>=0?line.slice(0,comma).trim():line;const effect=comma>=0?line.slice(comma+1).trim():'';const modes=[...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x=>x[1].trim());const uniquePerTurn=/choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect);return{id:`trigger-${index}`,text:line,trigger,effect,modes,uniquePerTurn}});
+  return out.map((line,index)=>{const comma=line.indexOf(',');const trigger=comma>=0?line.slice(0,comma).trim():line;const rawEffect=comma>=0?line.slice(comma+1).trim():'';const oncePerTurn=/this ability triggers only once each turn/i.test(rawEffect);const effect=rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig,'').trim();const modes=[...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x=>x[1].trim());const uniquePerTurn=/choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect);return{id:`trigger-${index}`,text:line,trigger,effect,modes,uniquePerTurn,oncePerTurn}});
 }
 function refersToSelf(trigger,definition){
   const name=String(definition?.name||'').split(' // ')[0];return /\bthis (?:creature|permanent|artifact|enchantment|land|planeswalker|card)\b/i.test(trigger)||(name&&new RegExp(`\\b${escRe(name)}\\b`,'i').test(trigger));
@@ -123,7 +123,7 @@ function triggerMatches(game,row,ability,event){
 export function collectTriggers(game,event){
   const out=[];const seen=new Set();
   for(const row of sourceRows(game,event))for(const ability of parseTriggeredAbilities(row.definition)){
-    if(!triggerMatches(game,row,ability,event))continue;const key=`${row.card.instanceId}:${ability.id}:${event.type}:${event.batchId||event.sourceId||event.playerId||''}`;if(seen.has(key))continue;seen.add(key);
+    if(!triggerMatches(game,row,ability,event))continue;const turnKey=`${ability.id}:${Number(game.turnNumber||0)}`;row.card.triggerFireLedger=row.card.triggerFireLedger||{};if(ability.oncePerTurn&&row.card.triggerFireLedger[turnKey])continue;const key=`${row.card.instanceId}:${ability.id}:${event.type}:${event.batchId||event.sourceId||event.playerId||''}`;if(seen.has(key))continue;seen.add(key);if(ability.oncePerTurn)row.card.triggerFireLedger[turnKey]=true;
     const compiled=ability.modes?.length?{supported:true,effects:[],requirements:[],unsupported:[]}:compileEffectText(ability.effect,{sourceName:row.definition?.name||'Triggered ability'});
     out.push({id:`trigger:${Date.now()}:${Math.random()}`,controllerId:row.player.playerId,sourceId:row.card.instanceId,sourceDefinitionId:row.card.definitionId,sourceName:row.definition?.name||'Card',abilityId:ability.id,abilityText:ability.text,effectText:ability.effect,modal:ability.modes?.length?{modes:ability.modes,uniquePerTurn:!!ability.uniquePerTurn}:null,compiled,event:structuredClone(event),createdAt:new Date().toISOString()});
   }
