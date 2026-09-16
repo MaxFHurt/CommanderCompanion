@@ -1,0 +1,289 @@
+name: Commander Companion Automation Bridge
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: read
+  pages: write
+
+concurrency:
+  group: commander-companion-automation
+  cancel-in-progress: false
+
+jobs:
+  apply-test-commit:
+    if: >-
+      github.event.issue.user.login == 'MaxFHurt' &&
+      github.event.comment.user.login == 'MaxFHurt' &&
+      startsWith(github.event.issue.title, '[CC-AUTO]') &&
+      startsWith(github.event.comment.body, 'CC-BRIDGE-RUN:')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Fetch and verify automation payload
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_COMMENT: ${{ github.event.comment.body }}
+          EXPECTED_OWNER: MaxFHurt
+        run: |
+          python3 <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+          import urllib.request
+
+          token = os.environ["GITHUB_TOKEN"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          issue_number = os.environ["ISSUE_NUMBER"]
+          run_comment = os.environ["RUN_COMMENT"].strip()
+          expected_owner = os.environ["EXPECTED_OWNER"]
+
+          m = re.fullmatch(r"CC-BRIDGE-RUN:([A-Za-z0-9._-]{8,80})", run_comment)
+          if not m:
+              raise SystemExit("Invalid bridge run command.")
+          payload_id = m.group(1)
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "CommanderCompanionBridge/1.0",
+          }
+
+          def get_json(url):
+              req = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.load(response)
+
+          issue = get_json(f"https://api.github.com/repos/{repo}/issues/{issue_number}")
+          if issue.get("user", {}).get("login") != expected_owner:
+              raise SystemExit("Automation issue was not created by the repository owner.")
+          if not issue.get("title", "").startswith("[CC-AUTO]"):
+              raise SystemExit("Invalid automation issue title.")
+
+          body = issue.get("body") or ""
+          prefix = "CC_MANIFEST_V1\n"
+          if not body.startswith(prefix):
+              raise SystemExit("Missing CC_MANIFEST_V1 manifest.")
+          try:
+              manifest = json.loads(body[len(prefix):])
+          except json.JSONDecodeError as exc:
+              raise SystemExit(f"Manifest JSON is invalid: {exc}")
+
+          if manifest.get("payload_id") != payload_id:
+              raise SystemExit("Payload ID does not match the run command.")
+
+          current_head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          if manifest.get("base_sha") != current_head:
+              raise SystemExit(
+                  f"Stale payload. Manifest base {manifest.get('base_sha')} "
+                  f"does not match current main {current_head}."
+              )
+
+          files = manifest.get("files")
+          if not isinstance(files, list) or not files or len(files) > 100:
+              raise SystemExit("Manifest must contain between 1 and 100 file operations.")
+
+          comments = []
+          page = 1
+          while True:
+              batch = get_json(
+                  f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
+                  f"?per_page=100&page={page}"
+              )
+              if not batch:
+                  break
+              comments.extend(batch)
+              if len(batch) < 100:
+                  break
+              page += 1
+
+          chunks = {}
+          for comment in comments:
+              if comment.get("user", {}).get("login") != expected_owner:
+                  continue
+              cbody = comment.get("body") or ""
+              if not cbody.startswith("CC_CHUNK_V1\n"):
+                  continue
+              try:
+                  item = json.loads(cbody.split("\n", 1)[1])
+              except Exception:
+                  continue
+              if item.get("payload_id") != payload_id:
+                  continue
+              key = (item.get("file_index"), item.get("chunk_index"))
+              if not all(isinstance(v, int) and v >= 0 for v in key):
+                  raise SystemExit("Invalid chunk index.")
+              data = item.get("data")
+              if not isinstance(data, str):
+                  raise SystemExit("Invalid chunk data.")
+              if key in chunks:
+                  raise SystemExit(f"Duplicate chunk {key}.")
+              chunks[key] = data
+
+          root = pathlib.Path.cwd().resolve()
+          total_decoded = 0
+          max_total = 20 * 1024 * 1024
+
+          def safe_path(raw):
+              if not isinstance(raw, str) or not raw or any(c in raw for c in ("\x00", "\n", "\r")):
+                  raise SystemExit("Invalid file path.")
+              p = pathlib.PurePosixPath(raw)
+              if p.is_absolute() or ".." in p.parts:
+                  raise SystemExit(f"Unsafe path: {raw}")
+              if p.parts and p.parts[0] == ".git":
+                  raise SystemExit("The bridge may not modify .git.")
+              if tuple(p.parts[:2]) == (".github", "workflows"):
+                  raise SystemExit(
+                      "The bridge may not modify workflow files. "
+                      "Workflow changes require an explicit manual update."
+                  )
+              resolved = (root / pathlib.Path(*p.parts)).resolve()
+              try:
+                  resolved.relative_to(root)
+              except ValueError:
+                  raise SystemExit(f"Path escapes repository: {raw}")
+              return resolved
+
+          touched_paths = []
+
+          for file_index, spec in enumerate(files):
+              if not isinstance(spec, dict):
+                  raise SystemExit(f"Invalid file specification at index {file_index}.")
+              op = spec.get("op")
+              raw_path = spec.get("path")
+              target = safe_path(raw_path)
+              touched_paths.append(raw_path)
+
+              if op == "delete":
+                  if target.exists():
+                      if target.is_dir():
+                          raise SystemExit(f"Refusing to delete directory: {spec.get('path')}")
+                      target.unlink()
+                  continue
+
+              if op != "write":
+                  raise SystemExit(f"Unsupported operation {op!r}.")
+
+              chunk_count = spec.get("chunks")
+              expected_sha = spec.get("sha256")
+              expected_size = spec.get("size")
+              if (
+                  not isinstance(chunk_count, int)
+                  or chunk_count < 1
+                  or chunk_count > 500
+                  or not isinstance(expected_sha, str)
+                  or not re.fullmatch(r"[0-9a-f]{64}", expected_sha)
+                  or not isinstance(expected_size, int)
+                  or expected_size < 0
+              ):
+                  raise SystemExit(f"Invalid write metadata for {spec.get('path')}.")
+
+              encoded_parts = []
+              for chunk_index in range(chunk_count):
+                  key = (file_index, chunk_index)
+                  if key not in chunks:
+                      raise SystemExit(
+                          f"Missing chunk {chunk_index + 1}/{chunk_count} "
+                          f"for {spec.get('path')}."
+                      )
+                  encoded_parts.append(chunks[key])
+
+              try:
+                  decoded = base64.b64decode("".join(encoded_parts), validate=True)
+              except Exception as exc:
+                  raise SystemExit(f"Base64 decode failed for {spec.get('path')}: {exc}")
+
+              total_decoded += len(decoded)
+              if total_decoded > max_total:
+                  raise SystemExit("Payload exceeds the 20 MiB safety limit.")
+              if len(decoded) != expected_size:
+                  raise SystemExit(f"Size mismatch for {spec.get('path')}.")
+              actual_sha = hashlib.sha256(decoded).hexdigest()
+              if actual_sha != expected_sha:
+                  raise SystemExit(f"SHA-256 mismatch for {spec.get('path')}.")
+
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(decoded)
+
+          pathlib.Path("/tmp/cc-bridge-paths.txt").write_text("\n".join(touched_paths) + "\n")
+          print("Payload reconstructed and verified.")
+          PY
+
+      - name: Show candidate changes
+        run: |
+          git status --short
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Payload produced no repository changes."
+            exit 1
+          fi
+
+      - name: Install test dependencies
+        run: npm install --no-package-lock
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full Commander Companion browser regression suite
+        run: npx playwright test
+
+      - name: Save failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: commander-companion-bridge-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Commit verified candidate to main
+        if: success()
+        run: |
+          git config user.name "Commander Companion Automation"
+          git config user.email "actions@users.noreply.github.com"
+          while IFS= read -r path; do
+            [ -n "$path" ] && git add -A -- "$path"
+          done < /tmp/cc-bridge-paths.txt
+          if git diff --cached --quiet; then
+            echo "No intended payload changes remain to commit."
+            exit 1
+          fi
+          git commit -m "Commander Companion automated verified update"
+          git push origin HEAD:main
+
+      - name: Request GitHub Pages rebuild
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail-with-body -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds"
