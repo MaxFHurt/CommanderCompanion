@@ -3498,3 +3498,6 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
   border-color:#a84cff!important;
   box-shadow:0 0 18px rgba(177,72,255,.45),inset 0 0 12px rgba(177,72,255,.18)!important;
 }
+
+/* BA: Counter badges stay inside the existing card dimensions. */
+.card-counter-badge{position:absolute;top:3px;right:2px;left:2px;z-index:3;border:1px solid #c5b5d4;border-radius:3px;background:#241332ee;color:#fff;font-size:10px;line-height:1.2;text-align:center;padding:2px;pointer-events:none;white-space:normal}

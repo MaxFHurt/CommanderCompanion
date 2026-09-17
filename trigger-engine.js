@@ -1,6 +1,6 @@
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
-import { compileEffectText, applyEffects } from './effect-engine.js?v=080-az';
+import { compileEffectText, applyEffects } from './effect-engine.js?v=080-bm';
 
 function defFor(game,card){if(!card)return null;const base=game.cardDefinitions?.[card.definitionId]||null,i=Number.isInteger(card?.activeFaceIndex)?card.activeFaceIndex:null,face=i===null?null:base?.cardFaces?.[i];return face?{...base,...face,definitionId:base.definitionId,colorIdentity:base.colorIdentity,cardFaces:base.cardFaces,set:base.set,collectorNumber:base.collectorNumber,printing:base.printing,legalities:base.legalities,hydrationStatus:base.hydrationStatus}:base}
 function escRe(s){return String(s||'').replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}
@@ -83,7 +83,7 @@ function triggerMatches(game,row,ability,event){
   if(event.type==='spell-cast'){
     if(!/^(?:When|Whenever).*\bcast\b/i.test(t))return false;const spell=eventSpellDef(game,event),st=spell?.typeLine||'';
     if(/you cast/i.test(t)&&!your)return false;if(/an opponent casts/i.test(t)&&event.controllerId===row.player.playerId)return false;
-    if(/creature spell/i.test(t)&&!typeMatches(st,'Creature'))return false;if(/artifact spell/i.test(t)&&!typeMatches(st,'Artifact'))return false;if(/instant or sorcery spell/i.test(t)&&!/(Instant|Sorcery)/i.test(st))return false;if(/noncreature spell/i.test(t)&&typeMatches(st,'Creature'))return false;
+    if(/creature spell/i.test(t)&&!typeMatches(st,'Creature'))return false;if(/artifact spell/i.test(t)&&!typeMatches(st,'Artifact'))return false;const mv=Number(spell?.manaValue??spell?.cmc??event.manaValue??0);const mvMin=(t.match(/mana value (\d+) or greater/i)||[])[1];const mvMax=(t.match(/mana value (\d+) or less/i)||[])[1];if(mvMin&&mv<Number(mvMin))return false;if(mvMax&&mv>Number(mvMax))return false;if(/instant or sorcery spell/i.test(t)&&!/(Instant|Sorcery)/i.test(st))return false;if(/noncreature spell/i.test(t)&&typeMatches(st,'Creature'))return false;
     return /(?:spell|cast)/i.test(t);
   }
   if(event.type==='attackers-declared'){
@@ -105,13 +105,13 @@ function triggerMatches(game,row,ability,event){
     if(/deals damage to (?:a player|an opponent)/i.test(t)&&self)return row.card.instanceId===event.sourceId;
   }
   if(event.type==='draw'){
-    if(!/^(?:When|Whenever).*\bdraw\b/i.test(t))return false;if(/you draw/i.test(t)&&event.playerId!==row.player.playerId)return false;if(/an opponent draws/i.test(t)&&event.playerId===row.player.playerId)return false;
+    if(!/^(?:When|Whenever).*\bdraw\b/i.test(t))return false;if(/you draw/i.test(t)&&event.playerId!==row.player.playerId)return false;if(/an opponent draws/i.test(t)&&event.playerId===row.player.playerId)return false;if(/except the first one they draw in each of their draw steps/i.test(t)&&event.isFirstNormalDrawStepDraw)return false;
     if(/your second card each turn/i.test(t))return event.playerId===row.player.playerId&&Number(event.drawNumberThisTurn||0)===2;
     if(/your first card each turn/i.test(t))return event.playerId===row.player.playerId&&Number(event.drawNumberThisTurn||0)===1;
     return true;
   }
   if(event.type==='discard'){
-    if(!/^(?:When|Whenever).*\bdiscard/i.test(t))return false;if(/you discard/i.test(t))return event.playerId===row.player.playerId;if(/an opponent discards/i.test(t))return event.playerId!==row.player.playerId;return true;
+    if(!/^(?:When|Whenever).*\bdiscard/i.test(t))return false;const dd=eventSpellDef(game,event),dt=event.typeLine||dd?.typeLine||'';if(/land cards?/i.test(t)&&!typeMatches(dt,'Land'))return false;if(/nonland cards?/i.test(t)&&typeMatches(dt,'Land'))return false;if(/you discard/i.test(t))return event.playerId===row.player.playerId;if(/an opponent discards/i.test(t))return event.playerId!==row.player.playerId;return true;
   }
   if(event.type==='life-gained'){
     if(!/^(?:When|Whenever).*(?:gain|gains) life/i.test(t))return false;if(/you gain/i.test(t))return event.playerId===row.player.playerId;if(/an opponent gains/i.test(t))return event.playerId!==row.player.playerId;return true;
@@ -120,13 +120,19 @@ function triggerMatches(game,row,ability,event){
     if(!/^(?:When|Whenever).*(?:lose|loses) life/i.test(t))return false;if(/you lose/i.test(t))return event.playerId===row.player.playerId;if(/an opponent loses/i.test(t))return event.playerId!==row.player.playerId;return true;
   }
   if(event.type==='counter-added'){
-    if(!/^(?:When|Whenever).*counter/i.test(t))return false;if(self)return row.card.instanceId===event.targetId;if(/creature you control/i.test(t)){const hit=(game.players||[]).flatMap(p=>p.deck?.battlefield||[]).find(c=>c.instanceId===event.targetId);return hit?.controllerId===row.player.playerId}return false;
+    if(!/^(?:When|Whenever).*counter/i.test(t))return false;const ord={first:1,second:2,third:3,fourth:4,fifth:5,sixth:6,seventh:7,eighth:8,ninth:9,tenth:10};const om=t.match(/(?:the|a) (first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth) [^.,]*counter/i);if(om&&Number(event.newValue||0)!==ord[om[1].toLowerCase()])return false;if(self)return row.card.instanceId===event.targetId;if(/creature you control/i.test(t)){const hit=(game.players||[]).flatMap(p=>p.deck?.battlefield||[]).find(c=>c.instanceId===event.targetId);return hit?.controllerId===row.player.playerId}return false;
+  }
+  if(event.type==='sacrificed'){
+    if(!/^(?:When|Whenever).*sacrific/i.test(t))return false;if(/you sacrifice/i.test(t)&&event.controllerId!==row.player.playerId)return false;if(/an opponent sacrifices/i.test(t)&&event.controllerId===row.player.playerId)return false;if(/token/i.test(t)&&!event.token)return false;return true;
   }
   if(event.type==='token-created'){
     if(!/^(?:When|Whenever).*(?:create|creates).*token/i.test(t))return false;if(/you create/i.test(t))return event.controllerId===row.player.playerId;return true;
   }
   if(event.type==='tapped'){
-    if(!/^(?:When|Whenever).*(?:becomes tapped|is tapped)/i.test(t))return false;if(self)return row.card.instanceId===event.sourceId;if(/permanent you control/i.test(t))return event.controllerId===row.player.playerId;return false;
+    if(!/^(?:When|Whenever).*(?:becomes tapped|is tapped)/i.test(t))return false;if(/first time/i.test(t)&&Number(event.tapNumberThisTurn||0)!==1)return false;if(self)return row.card.instanceId===event.sourceId;if(/creature you control/i.test(t))return event.controllerId===row.player.playerId&&typeMatches(event.typeLine||eventSpellDef(game,event)?.typeLine||'','Creature');if(/permanent you control/i.test(t))return event.controllerId===row.player.playerId;return false;
+  }
+  if(event.type==='precombat-main-start'){
+    if(/^At the beginning of your precombat main phase/i.test(t))return event.playerId===row.player.playerId;if(/^At the beginning of each player'?s precombat main phase/i.test(t))return true;
   }
   if(event.type==='upkeep'){
     if(/^At the beginning of your upkeep/i.test(t))return event.playerId===row.player.playerId;if(/^At the beginning of each player'?s upkeep/i.test(t))return true;if(/^At the beginning of (?:an|each) opponent'?s upkeep/i.test(t))return event.playerId!==row.player.playerId;

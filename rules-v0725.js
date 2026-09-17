@@ -329,6 +329,7 @@ export function parseActivatedAbilities(definition){
       discards:/Discard\b/i.test(cost),
       discardCount:/Discard\s+(?:a|one)\s+card/i.test(cost)?1:0,
       lifeCost:Number((cost.match(/Pay\s+(\d+)\s+life/i)||[])[1]||0),
+      energyCost:(cost.match(/\{E\}/gi)||[]).length,
       loyaltyDelta,
       hasX:/\{X\}|\bX\b/.test(cost)||/\bX\b/.test(effect),
       needsTarget:/\btarget\b/i.test(effect),
@@ -371,7 +372,7 @@ export function validateActivatedAbilityFull({game,player,instance,definition,ab
   const cost=String(ability?.cost||'');
   const manaCost=(cost.match(/(?:\{(?:\d+|[WUBRGC])\})+/g)||[]).join('');
   if(manaCost&&player){const payment=planMana(playerManaAvailability(player,game),manaCost,0);if(!payment.ok)reasons.push(payment.reason)}
-  if(ability?.lifeCost&&player&&Number(player.life||0)<Number(ability.lifeCost))reasons.push('Not enough life to pay this activation cost.');
+  if(ability?.lifeCost&&player&&Number(player.life||0)<Number(ability.lifeCost))reasons.push('Not enough life to pay this activation cost.');if(ability?.energyCost&&player&&Number(player.counters?.energy||0)<Number(ability.energyCost))reasons.push('Not enough Energy to pay this activation cost.');
   if(Number(ability?.loyaltyDelta)<0&&Number(instance?.counters?.loyalty||0)<Math.abs(Number(ability.loyaltyDelta)))reasons.push('Not enough loyalty to pay this activation cost.');
   if(ability?.discards&&player&&(player.deck?.hand?.length||0)<Math.max(1,ability.discardCount||1))reasons.push('Not enough cards in hand to pay this activation cost.');
   if(ability?.sacrificeRequirement&&player&&!ability?.sacrificesSelf){

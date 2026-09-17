@@ -54,6 +54,7 @@ export function createGameState(overrides = {}) {
     stack: [],
     pendingTriggers: [],
     rulesEngineBlocked: null,
+    smartPhaseSkipPreference: null,
     ...overrides
   };
 }

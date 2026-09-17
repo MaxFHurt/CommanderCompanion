@@ -74,7 +74,7 @@ function smartAttackerAssignment({power,blockers,game,source,sourceDef,trample})
   return {blockers:out,target:0};
 }
 function emit(onEvent,e){try{onEvent?.(e)}catch(err){console.error('Combat event bridge failed',err)}}
-function combatDamageAfterPrevention(game,targetId,amount){let left=Math.max(0,Number(amount||0));for(const shield of game.damagePrevention||[]){if(left<=0)break;if(shield.targetId!==targetId||Number(shield.amount||0)<=0)continue;const used=Math.min(left,Number(shield.amount||0));shield.amount-=used;left-=used}game.damagePrevention=(game.damagePrevention||[]).filter(s=>Number(s.amount||0)>0);return left}
+function combatDamageAfterPrevention(game,targetId,amount){let left=Math.max(0,Number(amount||0));const owner=game.players.find(p=>(p.deck?.battlefield||[]).some(c=>c.instanceId===targetId));const card=owner?.deck?.battlefield?.find(c=>c.instanceId===targetId);if(left>0&&Number(card?.counters?.shield||0)>0){card.counters.shield=Math.max(0,Number(card.counters.shield)-1);return 0}for(const shield of game.damagePrevention||[]){if(left<=0)break;if(shield.targetId!==targetId||Number(shield.amount||0)<=0)continue;const used=Math.min(left,Number(shield.amount||0));shield.amount-=used;left-=used}game.damagePrevention=(game.damagePrevention||[]).filter(s=>Number(s.amount||0)>0);return left}
 function applyQueue(game,queue,events,onEvent){
   for(const hit of queue){const {sourcePlayer,source,sourceDef}=hit;const targetId=hit.kind==='player'?hit.targetPlayer.playerId:hit.target.instanceId;const original=Number(hit.amount||0),amount=combatDamageAfterPrevention(game,targetId,original),prevented=original-amount;if(hit.kind==='player'){
     const target=hit.targetPlayer;

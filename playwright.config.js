@@ -2,6 +2,10 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
   testDir: './tests',
+  projects: [
+    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'webkit', use: { browserName: 'webkit' } },
+  ],
   timeout: 30_000,
   expect: { timeout: 7_500 },
   fullyParallel: false,
@@ -20,7 +24,7 @@ module.exports = defineConfig({
     isMobile: true,
     hasTouch: true,
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'on',
     trace: 'retain-on-failure',
   },
   webServer: {
