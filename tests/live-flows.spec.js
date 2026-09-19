@@ -324,7 +324,8 @@ test.describe('Commander Companion live game flows', () => {
       '1 Malakir Rebirth',
       '1 Sol Ring',
       '1 Command Tower',
-      '94 Island'
+      '1 Cavern of Souls',
+      '93 Island'
     ].join('\n');
     const passiveQaDeck = [
       '1 Kenrith, the Returned King',
@@ -416,6 +417,8 @@ test.describe('Commander Companion live game flows', () => {
     expect(locateTrackedCard(pending, brainId)?.zone).toBe('stack');
     expect(pending.log.some(e => e.type === 'cast-spell' && String(e.text || '').includes('Brainstorm'))).toBe(true);
     expect(pending.log.some(e => e.type === 'resolve-stack' && String(e.text || '').includes('Brainstorm'))).toBe(false);
+    expect(pending.priorityState?.active || false).toBe(false);
+    expect(pending.log.some(e => /Response window skipped — no opponent has a relevant activated response or castable instant\/flash card/i.test(String(e.text || '')))).toBe(true);
     await expect(page.locator('.inline-game-log:visible')).toContainText('RESOLUTION REQUIRED');
 
     // Back is navigation only: it must never silently accept/resolve the pending Oracle result.
@@ -453,5 +456,119 @@ test.describe('Commander Companion live game flows', () => {
     expect(locateTrackedCard(recovered, brainId)?.zone).toBe('hand');
     expect(locateTrackedCard(recovered, island.instanceId)?.card?.tapped).toBe(false);
     expect(recovered.log.some(e => e.type === 'stack-recovery' && /No stack object was resolved/i.test(String(e.text || '')))).toBe(true);
+
+    async function endCurrentTurn(expectedNextName) {
+      await page.locator('[data-action="end-turn"]:visible').first().click();
+      await expect(page.locator('#modalTitle')).toContainText('END TURN?');
+      await page.locator('#modalActions').getByRole('button', { name: 'END TURN', exact: true }).click();
+      await disableSmartSkipsIfPrompted(page);
+      await expect(page.locator('.player-name:visible')).toContainText(expectedNextName);
+    }
+
+    async function reachDraw() {
+      for (let i = 0; i < 4; i++) {
+        if (/DRAW/i.test((await phase.textContent()) || '')) break;
+        await page.locator('[data-action="next-phase"]:visible').first().click();
+        await disableSmartSkipsIfPrompted(page);
+      }
+      await expect(phase).toContainText(/DRAW/i);
+    }
+
+    async function trackedDrawByName(name) {
+      const before = await savedGame(page);
+      const actor = before.players.find(p => p.displayName === 'QA Aaron');
+      const def = Object.values(before.cardDefinitions || {}).find(d => d.name === name || d.combinedName?.includes(name));
+      expect(def, `${name} definition should be hydrated`).toBeTruthy();
+      const card = [...(actor.deck.hand || []), ...(actor.deck.remainingLibrary || [])].find(c => c.definitionId === def.definitionId);
+      expect(card, `${name} should still be tracked in hand/library`).toBeTruthy();
+      const inHand = (actor.deck.hand || []).some(c => c.instanceId === card.instanceId);
+
+      await page.locator('[data-action="draw"]:visible').first().click();
+      await expect(page.locator('#modalTitle')).toContainText('DRAW CARD');
+      if (inHand) {
+        await page.locator('#modalActions').getByRole('button', { name: 'RANDOM DRAW', exact: true }).click();
+        await expect(page.locator('#modalTitle')).toContainText('RANDOM VIRTUAL DRAW');
+        await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM RANDOM DRAW', exact: true }).click();
+      } else {
+        await page.locator('#drawSearch').fill(name);
+        const result = page.locator(`[data-draw-id="${card.instanceId}"]`);
+        await expect(result).toBeVisible({ timeout: 30_000 });
+        await result.click();
+        await expect(page.locator('#modalTitle')).toContainText('CONFIRM DRAW');
+        await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DRAW / ADD TO HAND', exact: true }).click();
+      }
+      await expect(phase).toContainText(/MAIN 1/i);
+      await expect(page.locator(`[data-hand-card="${card.instanceId}"]:visible`)).toHaveCount(1);
+      return card;
+    }
+
+    async function playAnotherIsland() {
+      const state = await savedGame(page);
+      const actor = state.players.find(p => p.displayName === 'QA Aaron');
+      const islandDefNow = Object.values(state.cardDefinitions || {}).find(d => d.name === 'Island' && /Basic/i.test(String(d.typeLine || '')));
+      const nextIsland = (actor.deck.hand || []).find(c => c.definitionId === islandDefNow?.definitionId);
+      expect(nextIsland, 'QA Aaron should have an Island available for the land-per-turn check').toBeTruthy();
+      await page.locator(`[data-hand-card="${nextIsland.instanceId}"]:visible`).click();
+      await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+      await expect(page.locator('#modal')).not.toBeVisible();
+      return nextIsland;
+    }
+
+    // Turn 2: Reanimate must fail closed while no creature card exists in any graveyard.
+    await endCurrentTurn('QA Lex');
+    await endCurrentTurn('QA Aaron');
+    await reachDraw();
+    const reanimate = await trackedDrawByName('Reanimate');
+    await page.locator(`[data-hand-card="${reanimate.instanceId}"]:visible`).click();
+    await expect(page.locator('#modalContent')).toContainText('NOT CURRENTLY PLAYABLE');
+    await expect(page.locator('#modalContent')).toContainText(/No creature card is available in a graveyard to target/i);
+    await expect(page.locator('#modalActions').getByRole('button', { name: 'CAST SORCERY', exact: true })).toHaveCount(0);
+    await page.locator('#modalClose').click();
+    await playAnotherIsland();
+
+    // Turn 3: after using the land play, Malakir Rebirth's Malakir Mire face must remain disabled.
+    await endCurrentTurn('QA Lex');
+    await endCurrentTurn('QA Aaron');
+    await reachDraw();
+    const malakir = await trackedDrawByName('Malakir Rebirth');
+    await playAnotherIsland();
+    await page.locator(`[data-hand-card="${malakir.instanceId}"]:visible`).click();
+    const mireFace = page.locator('[data-mdfc-face]').filter({ hasText: 'Malakir Mire' });
+    await expect(mireFace).toHaveCount(1);
+    await expect(mireFace).toBeDisabled();
+    await expect(mireFace).toContainText(/Normal land play for this turn has already been used/i);
+    await page.locator('#modalClose').click();
+
+    // Turn 4: Back from an As-Enters choice must not play the land or accept the highlighted choice.
+    await endCurrentTurn('QA Lex');
+    await endCurrentTurn('QA Aaron');
+    await reachDraw();
+    const cavern = await trackedDrawByName('Cavern of Souls');
+    const beforeCavern = await savedGame(page);
+    const cavernOwnerBefore = beforeCavern.players.find(p => p.displayName === 'QA Aaron');
+    expect(Number(cavernOwnerBefore.counters?.landsPlayedThisTurn || 0)).toBe(0);
+
+    await page.locator(`[data-hand-card="${cavern.instanceId}"]:visible`).click();
+    await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText(/Cavern of Souls — AS IT ENTERS/i);
+    await page.locator('#asEntersCreatureTypeSearch').fill('Human');
+    await page.locator('#modalClose').click();
+    await expect(page.locator('#modal')).not.toBeVisible();
+
+    const afterEtbBack = await savedGame(page);
+    expect(locateTrackedCard(afterEtbBack, cavern.instanceId)?.zone).toBe('hand');
+    const cavernOwnerAfterBack = afterEtbBack.players.find(p => p.displayName === 'QA Aaron');
+    expect(Number(cavernOwnerAfterBack.counters?.landsPlayedThisTurn || 0)).toBe(0);
+
+    await page.locator(`[data-hand-card="${cavern.instanceId}"]:visible`).click();
+    await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+    await page.locator('#asEntersCreatureTypeSearch').fill('Human');
+    await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+
+    const afterCavernCommit = await savedGame(page);
+    expect(locateTrackedCard(afterCavernCommit, cavern.instanceId)?.zone).toBe('battlefield');
+    expect(locateTrackedCard(afterCavernCommit, cavern.instanceId)?.card?.chosenCreatureType).toBe('Human');
+    const cavernOwnerCommitted = afterCavernCommit.players.find(p => p.displayName === 'QA Aaron');
+    expect(Number(cavernOwnerCommitted.counters?.landsPlayedThisTurn || 0)).toBe(1);
   });
 });
