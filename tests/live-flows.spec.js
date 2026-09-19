@@ -325,6 +325,87 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.afterRejected.undoDepth).toBe(0);
   });
 
+  test('tap-cost abilities cannot double-activate and Undo restores source availability exactly', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-bs-tap-cost-regression');
+      const emptyMana = () => ({ W:0,U:0,B:0,R:0,G:0,C:0 });
+      const source={
+        instanceId:'tap-source',definitionId:'tap-source-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',
+        tapped:false,counters:{},manaCapacityRegistered:true,manaCapacityOptions:['C'],manaCapacityColor:'C',manaCapacityAmount:1
+      };
+      const deck={remainingLibrary:[],hand:[],battlefield:[source],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]};
+      const player={
+        playerId:'p1',displayName:'Tap Tester',life:40,poison:0,eliminated:false,statuses:[],counters:{landsPlayedThisTurn:0},
+        commanderDamage:{},commanders:[],mana:{total:{...emptyMana(),C:1},available:{...emptyMana(),C:1},floating:emptyMana()},deck
+      };
+      const game={
+        players:[player],activePlayerId:'p1',turnNumber:2,roundNumber:1,phase:'precombat-main',status:'active',
+        winner:null,log:[],stack:[],undoHistory:[],pendingTriggers:[],
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{'tap-source-def':{definitionId:'tap-source-def',name:'Tap Engine',typeLine:'Artifact',oracleText:'{T}: Draw a card.'}}
+      };
+      const engine=createTransactionEngine(game);
+      const current=()=>game.players.find(p=>p.playerId==='p1');
+      const currentSource=()=>current()?.deck?.battlefield?.find(c=>c.instanceId==='tap-source');
+
+      engine.commit({
+        type:'activate-ability-stack',playerId:'p1',instanceId:'tap-source',requiresTap:true,
+        effects:[],effectBindings:{sourceId:'tap-source'},label:'Tap Tester activates Tap Engine.'
+      });
+      const afterFirst={
+        tapped:!!currentSource()?.tapped,
+        availableC:Number(current()?.mana?.available?.C||0),
+        stackLength:Number(game.stack?.length||0),
+        undoDepth:Number(game.undoHistory?.length||0)
+      };
+
+      let secondError='';
+      try{
+        engine.commit({
+          type:'activate-ability-stack',playerId:'p1',instanceId:'tap-source',requiresTap:true,
+          effects:[],effectBindings:{sourceId:'tap-source'},label:'Illegal second activation.'
+        });
+      }catch(error){secondError=String(error?.message||error||'')}
+      const afterRejected={
+        secondError,
+        tapped:!!currentSource()?.tapped,
+        availableC:Number(current()?.mana?.available?.C||0),
+        stackLength:Number(game.stack?.length||0),
+        undoDepth:Number(game.undoHistory?.length||0)
+      };
+
+      const didUndo=engine.undo();
+      const afterUndo={
+        didUndo,
+        tapped:!!currentSource()?.tapped,
+        availableC:Number(current()?.mana?.available?.C||0),
+        stackLength:Number(game.stack?.length||0),
+        undoDepth:Number(game.undoHistory?.length||0)
+      };
+      return{afterFirst,afterRejected,afterUndo};
+    });
+
+    expect(result.afterFirst.tapped).toBe(true);
+    expect(result.afterFirst.availableC).toBe(0);
+    expect(result.afterFirst.stackLength).toBe(1);
+    expect(result.afterFirst.undoDepth).toBe(1);
+
+    expect(result.afterRejected.secondError).toMatch(/already tapped/i);
+    expect(result.afterRejected.tapped).toBe(true);
+    expect(result.afterRejected.availableC).toBe(0);
+    expect(result.afterRejected.stackLength).toBe(1);
+    expect(result.afterRejected.undoDepth).toBe(1);
+
+    expect(result.afterUndo.didUndo).toBe(true);
+    expect(result.afterUndo.tapped).toBe(false);
+    expect(result.afterUndo.availableC).toBe(1);
+    expect(result.afterUndo.stackLength).toBe(0);
+    expect(result.afterUndo.undoDepth).toBe(0);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
