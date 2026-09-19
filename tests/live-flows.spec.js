@@ -912,6 +912,120 @@ test.describe('Commander Companion live game flows', () => {
     expect(new Set(result.deathtouchTrample.diesEvents)).toEqual(new Set(['dt-trample','big-blocker']));
   });
 
+  test('simultaneous triggers, last-known events, entry replacements, and Undo stay exact', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-bx-trigger-replacement');
+      const { asEntersChoiceSpec, entersWithCountersSpec } = await import('./ability-support.js?v=080-bx-trigger-replacement');
+      const emptyMana=()=>({W:0,U:0,B:0,R:0,G:0,C:0});
+
+      const source={instanceId:'src',definitionId:'src-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const fodder={instanceId:'fodder',definitionId:'fodder-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:true,counters:{'+1/+1':2}};
+      const sacWatch={instanceId:'sac-watch',definitionId:'sac-watch-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const dieWatch={instanceId:'die-watch',definitionId:'die-watch-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const oppWatch={instanceId:'opp-watch',definitionId:'opp-watch-def',ownerId:'p2',controllerId:'p2',zone:'battlefield',tapped:false,counters:{}};
+
+      const p1={
+        playerId:'p1',displayName:'Active',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
+        mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},
+        deck:{remainingLibrary:[],hand:[],battlefield:[source,fodder,sacWatch,dieWatch],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+      };
+      const p2={
+        playerId:'p2',displayName:'Opponent',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
+        mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},
+        deck:{remainingLibrary:[],hand:[],battlefield:[oppWatch],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+      };
+      const game={
+        players:[p1,p2],activePlayerId:'p1',turnNumber:6,roundNumber:3,phase:'precombat-main',status:'active',
+        winner:null,log:[],stack:[],undoHistory:[],pendingTriggers:[],
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{
+          'src-def':{definitionId:'src-def',name:'Sacrifice Engine',typeLine:'Artifact',oracleText:''},
+          'fodder-def':{definitionId:'fodder-def',name:'Tracked Fodder',typeLine:'Creature — Test',oracleText:''},
+          'sac-watch-def':{definitionId:'sac-watch-def',name:'Sacrifice Watcher',typeLine:'Enchantment',oracleText:'Whenever you sacrifice a permanent, draw a card.'},
+          'die-watch-def':{definitionId:'die-watch-def',name:'Death Watcher',typeLine:'Enchantment',oracleText:'Whenever a creature dies, you gain 1 life.'},
+          'opp-watch-def':{definitionId:'opp-watch-def',name:'Opponent Watcher',typeLine:'Enchantment',oracleText:'Whenever an opponent sacrifices a permanent, you gain 1 life.'}
+        }
+      };
+
+      const engine=createTransactionEngine(game);
+      engine.commit({
+        type:'activate-ability-stack',playerId:'p1',instanceId:'src',costMoveIds:['fodder'],
+        effects:[],effectBindings:{sourceId:'src'},label:'Active activates Sacrifice Engine.'
+      });
+
+      const after={
+        fodderZone:p1.deck.graveyard.some(c=>c.instanceId==='fodder')?'graveyard':null,
+        stackLength:game.stack.length,
+        pending:(game.pendingTriggers||[]).map(t=>({
+          controllerId:t.controllerId,
+          sourceId:t.sourceId,
+          sourceName:t.sourceName,
+          eventType:t.event?.type,
+          eventSource:t.event?.sourceId,
+          batch:t.simultaneousBatchId,
+          controllerOrderIndex:t.controllerOrderIndex,
+          stackOrderChosen:t.stackOrderChosen
+        }))
+      };
+
+      const didUndo=engine.undo();
+      const rp1=game.players.find(p=>p.playerId==='p1');
+      const restored=rp1.deck.battlefield.find(c=>c.instanceId==='fodder');
+
+      const cavern={name:'Cavern of Souls',oracleText:'As Cavern of Souls enters, choose a creature type.'};
+      const colorLand={name:'Choice Land',oracleText:'As Choice Land enters the battlefield, choose a color other than green.'};
+      const oppChoice={name:'Nemesis Test',oracleText:'As Nemesis Test enters the battlefield, choose an opponent.'};
+      const counters={name:'Counter Test',oracleText:'Counter Test enters the battlefield with three +1/+1 counters on it.'};
+
+      return{
+        after,
+        undo:{
+          didUndo,
+          pendingTriggers:game.pendingTriggers?.length||0,
+          stackLength:game.stack?.length||0,
+          fodderZone:restored?'battlefield':null,
+          fodderTapped:!!restored?.tapped,
+          fodderCounters:structuredClone(restored?.counters||{}),
+          graveyardLength:rp1.deck.graveyard.length
+        },
+        replacement:{
+          cavern:asEntersChoiceSpec(cavern),
+          color:asEntersChoiceSpec(colorLand),
+          opponent:asEntersChoiceSpec(oppChoice),
+          counters:entersWithCountersSpec(counters)
+        }
+      };
+    });
+
+    expect(result.after.fodderZone).toBe('graveyard');
+    expect(result.after.stackLength).toBe(1);
+    expect(result.after.pending).toHaveLength(3);
+    expect(result.after.pending.map(x=>x.controllerId)).toEqual(['p1','p1','p2']);
+    expect(result.after.pending.filter(x=>x.controllerId==='p1').map(x=>x.controllerOrderIndex)).toEqual([0,1]);
+    expect(new Set(result.after.pending.map(x=>x.batch)).size).toBe(2);
+    expect(result.after.pending.every(x=>x.stackOrderChosen===false)).toBe(true);
+    expect(result.after.pending.some(x=>x.eventType==='sacrificed'&&x.eventSource==='fodder')).toBe(true);
+    expect(result.after.pending.some(x=>x.eventType==='dies'&&x.eventSource==='fodder')).toBe(true);
+
+    expect(result.undo.didUndo).toBe(true);
+    expect(result.undo.pendingTriggers).toBe(0);
+    expect(result.undo.stackLength).toBe(0);
+    expect(result.undo.fodderZone).toBe('battlefield');
+    expect(result.undo.fodderTapped).toBe(true);
+    expect(result.undo.fodderCounters['+1/+1']).toBe(2);
+    expect(result.undo.graveyardLength).toBe(0);
+
+    expect(result.replacement.cavern?.kind).toBe('creature-type');
+    expect(result.replacement.color?.kind).toBe('color');
+    expect(result.replacement.color?.exclude).toEqual(['G']);
+    expect(result.replacement.opponent?.kind).toBe('opponent');
+    expect(result.replacement.counters?.counter).toBe('+1/+1');
+    expect(result.replacement.counters?.amount).toBe(3);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
