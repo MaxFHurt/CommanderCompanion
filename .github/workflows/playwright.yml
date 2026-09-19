@@ -1,8 +1,8 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BX Trigger Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ bx-trigger-replacement-prep ]
   workflow_dispatch:
 
 jobs:
