@@ -2379,3 +2379,190 @@ body{min-height:100%;}
   .tracker-player-grid{gap:8px!important}.tracker-player-card{padding:9px!important}
   .tracker-mini-card{height:44px}.tracker-mana img{width:28px!important;height:28px!important}
 }
+
+
+/* ============================================================
+   V0.8 CD FIXED DEVICE MASTERS — LANDING + TABLE TRACKER
+   No component-level fluid scaling. Each device class owns fixed geometry.
+   ============================================================ */
+body.cc-device-iphone,
+body.cc-device-ipad,
+body.cc-device-other-phone{
+  overflow:hidden!important;
+}
+body.cc-device-iphone #landing.landing-rebuild-079,
+body.cc-device-ipad #landing.landing-rebuild-079,
+body.cc-device-other-phone #landing.landing-rebuild-079{
+  width:100vw!important;height:100dvh!important;min-height:100dvh!important;overflow:hidden!important;
+}
+body.cc-device-iphone .landing079-shell,
+body.cc-device-ipad .landing079-shell,
+body.cc-device-other-phone .landing079-shell{
+  width:100%!important;height:100%!important;min-height:0!important;max-width:none!important;margin:0!important;
+  display:grid!important;align-items:center!important;justify-items:stretch!important;
+  background:
+    radial-gradient(circle at 22% 48%,rgba(132,52,201,.19),transparent 31%),
+    url('ui-forged-bg.svg') center/cover no-repeat,
+    linear-gradient(100deg,#0d0713,#050309 63%,#020103)!important;
+}
+body.cc-device-iphone .landing079-brand,
+body.cc-device-ipad .landing079-brand,
+body.cc-device-other-phone .landing079-brand{
+  grid-column:1!important;grid-row:1!important;width:100%!important;max-width:none!important;margin:0!important;align-self:center!important;
+}
+body.cc-device-iphone .landing079-logo,
+body.cc-device-ipad .landing079-logo,
+body.cc-device-other-phone .landing079-logo{
+  width:100%!important;height:auto!important;object-fit:contain!important;
+}
+body.cc-device-iphone .landing079-copy,
+body.cc-device-ipad .landing079-copy,
+body.cc-device-other-phone .landing079-copy{
+  grid-column:1!important;grid-row:2!important;width:100%!important;margin:0!important;
+}
+body.cc-device-iphone .landing079-primary-actions,
+body.cc-device-ipad .landing079-primary-actions,
+body.cc-device-other-phone .landing079-primary-actions{
+  grid-column:2!important;grid-row:1/3!important;width:100%!important;max-width:none!important;
+  align-self:center!important;
+}
+body.cc-device-iphone .landing079-feature-actions,
+body.cc-device-ipad .landing079-feature-actions,
+body.cc-device-other-phone .landing079-feature-actions{
+  grid-column:3!important;grid-row:1/3!important;width:100%!important;align-self:center!important;
+  display:grid!important;grid-template-columns:1fr!important;
+}
+body.cc-device-iphone .landing079-footer,
+body.cc-device-ipad .landing079-footer,
+body.cc-device-other-phone .landing079-footer{
+  left:auto!important;width:auto!important;text-align:right!important;
+}
+
+/* iPhone landing master */
+body.cc-device-iphone .landing079-shell{
+  grid-template-columns:330px 286px 224px!important;grid-template-rows:1fr 38px!important;
+  gap:18px!important;padding:12px 18px 10px!important;
+}
+body.cc-device-iphone .landing079-logo{max-height:245px!important}
+body.cc-device-iphone .landing079-copy p{font-size:9px!important;letter-spacing:.14em!important}
+body.cc-device-iphone .landing079-primary-actions{gap:14px!important}
+body.cc-device-iphone .landing079-start,
+body.cc-device-iphone .landing079-continue{min-height:76px!important;height:76px!important;padding:8px 16px!important}
+body.cc-device-iphone .landing079-feature-actions{gap:10px!important}
+body.cc-device-iphone .landing079-feature-actions button{height:52px!important;min-height:52px!important}
+body.cc-device-iphone .landing079-footer{right:18px!important;bottom:8px!important;font-size:8px!important}
+
+/* iPad landing master */
+body.cc-device-ipad .landing079-shell{
+  grid-template-columns:460px 390px 300px!important;grid-template-rows:1fr 52px!important;
+  gap:28px!important;padding:24px 34px 18px!important;
+}
+body.cc-device-ipad .landing079-logo{max-height:360px!important}
+body.cc-device-ipad .landing079-copy p{font-size:12px!important;letter-spacing:.16em!important}
+body.cc-device-ipad .landing079-primary-actions{gap:18px!important}
+body.cc-device-ipad .landing079-start,
+body.cc-device-ipad .landing079-continue{min-height:104px!important;height:104px!important;padding:12px 20px!important}
+body.cc-device-ipad .landing079-feature-actions{gap:14px!important}
+body.cc-device-ipad .landing079-feature-actions button{height:72px!important;min-height:72px!important}
+body.cc-device-ipad .landing079-footer{right:30px!important;bottom:14px!important;font-size:10px!important}
+
+/* Other-phone landing master */
+body.cc-device-other-phone .landing079-shell{
+  grid-template-columns:310px 268px 210px!important;grid-template-rows:1fr 36px!important;
+  gap:16px!important;padding:10px 16px 9px!important;
+}
+body.cc-device-other-phone .landing079-logo{max-height:228px!important}
+body.cc-device-other-phone .landing079-copy p{font-size:8px!important;letter-spacing:.13em!important}
+body.cc-device-other-phone .landing079-primary-actions{gap:12px!important}
+body.cc-device-other-phone .landing079-start,
+body.cc-device-other-phone .landing079-continue{min-height:70px!important;height:70px!important;padding:7px 14px!important}
+body.cc-device-other-phone .landing079-feature-actions{gap:9px!important}
+body.cc-device-other-phone .landing079-feature-actions button{height:48px!important;min-height:48px!important}
+body.cc-device-other-phone .landing079-footer{right:16px!important;bottom:7px!important;font-size:7px!important}
+
+/* TABLE TRACKER fixed masters */
+body.cc-device-iphone .tracker-shell,
+body.cc-device-ipad .tracker-shell,
+body.cc-device-other-phone .tracker-shell{
+  width:100%!important;height:100%!important;min-height:0!important;display:grid!important;
+  grid-template-rows:var(--tt-top) minmax(0,1fr)!important;gap:var(--tt-gap)!important;
+  padding:var(--tt-pad-y) var(--tt-pad-x)!important;box-sizing:border-box!important;
+}
+body.cc-device-iphone .tracker-split,
+body.cc-device-ipad .tracker-split,
+body.cc-device-other-phone .tracker-split{
+  display:grid!important;grid-template-columns:minmax(0,1fr) var(--tt-right)!important;gap:var(--tt-gap)!important;min-height:0!important;
+}
+body.cc-device-iphone .tracker-player-grid,
+body.cc-device-ipad .tracker-player-grid,
+body.cc-device-other-phone .tracker-player-grid{
+  gap:var(--tt-gap)!important;min-height:0!important;
+}
+body.cc-device-iphone .tracker-player-card,
+body.cc-device-ipad .tracker-player-card,
+body.cc-device-other-phone .tracker-player-card{
+  padding:var(--tt-card-pad)!important;border-radius:8px!important;min-height:0!important;overflow:hidden!important;
+}
+body.cc-device-iphone .tracker-game-log,
+body.cc-device-ipad .tracker-game-log,
+body.cc-device-other-phone .tracker-game-log{
+  min-height:0!important;height:auto!important;padding:var(--tt-log-pad)!important;overflow:hidden!important;
+}
+
+/* iPhone Table Tracker */
+body.cc-device-iphone{
+  --tt-top:48px;--tt-right:250px;--tt-gap:5px;--tt-pad-x:8px;--tt-pad-y:5px;--tt-card-pad:5px;--tt-log-pad:5px;
+}
+body.cc-device-iphone .tracker-head{height:48px!important;padding:3px 7px!important;grid-template-columns:1fr 280px 1fr!important}
+body.cc-device-iphone .tracker-head button{height:31px!important;padding:0 9px!important;font-size:9px!important}
+body.cc-device-iphone .tracker-brand img{max-height:31px!important}
+body.cc-device-iphone .tracker-brand span{font-size:7px!important}
+body.cc-device-iphone .tracker-name{font-size:13px!important}
+body.cc-device-iphone .tracker-primary-row{margin:3px 0!important;gap:3px!important}
+body.cc-device-iphone .tracker-stepper{grid-template-columns:20px minmax(20px,1fr) 20px!important}
+body.cc-device-iphone .tracker-stepper button{width:20px!important;height:20px!important}
+body.cc-device-iphone .tracker-mana img{width:21px!important;height:21px!important}
+body.cc-device-iphone .tracker-mini-card{height:28px!important}
+body.cc-device-iphone .tracker-log-event{font-size:8px!important;padding:3px 2px!important}
+
+/* iPad Table Tracker */
+body.cc-device-ipad{
+  --tt-top:68px;--tt-right:350px;--tt-gap:8px;--tt-pad-x:12px;--tt-pad-y:9px;--tt-card-pad:9px;--tt-log-pad:8px;
+}
+body.cc-device-ipad .tracker-head{height:68px!important;padding:5px 10px!important;grid-template-columns:1fr 390px 1fr!important}
+body.cc-device-ipad .tracker-head button{height:42px!important;padding:0 14px!important;font-size:12px!important}
+body.cc-device-ipad .tracker-brand img{max-height:45px!important}
+body.cc-device-ipad .tracker-brand span{font-size:9px!important}
+body.cc-device-ipad .tracker-name{font-size:18px!important}
+body.cc-device-ipad .tracker-primary-row{margin:5px 0!important;gap:5px!important}
+body.cc-device-ipad .tracker-stepper{grid-template-columns:26px minmax(28px,1fr) 26px!important}
+body.cc-device-ipad .tracker-stepper button{width:26px!important;height:26px!important}
+body.cc-device-ipad .tracker-mana img{width:28px!important;height:28px!important}
+body.cc-device-ipad .tracker-mini-card{height:44px!important}
+body.cc-device-ipad .tracker-log-event{font-size:10px!important;padding:5px 3px!important}
+
+/* Other-phone Table Tracker */
+body.cc-device-other-phone{
+  --tt-top:46px;--tt-right:238px;--tt-gap:4px;--tt-pad-x:7px;--tt-pad-y:5px;--tt-card-pad:4px;--tt-log-pad:4px;
+}
+body.cc-device-other-phone .tracker-head{height:46px!important;padding:3px 6px!important;grid-template-columns:1fr 260px 1fr!important}
+body.cc-device-other-phone .tracker-head button{height:29px!important;padding:0 8px!important;font-size:8px!important}
+body.cc-device-other-phone .tracker-brand img{max-height:29px!important}
+body.cc-device-other-phone .tracker-brand span{font-size:7px!important}
+body.cc-device-other-phone .tracker-name{font-size:12px!important}
+body.cc-device-other-phone .tracker-stepper{grid-template-columns:19px minmax(20px,1fr) 19px!important}
+body.cc-device-other-phone .tracker-stepper button{width:19px!important;height:19px!important}
+body.cc-device-other-phone .tracker-mana img{width:20px!important;height:20px!important}
+body.cc-device-other-phone .tracker-mini-card{height:26px!important}
+
+/* Do not let the earlier viewport media rules alter fixed masters. */
+@media (orientation:landscape) and (max-height:500px){
+  body.cc-device-iphone .tracker-shell,
+  body.cc-device-other-phone .tracker-shell{grid-template-rows:var(--tt-top) minmax(0,1fr)!important;padding:var(--tt-pad-y) var(--tt-pad-x)!important}
+  body.cc-device-iphone .tracker-split,
+  body.cc-device-other-phone .tracker-split{grid-template-columns:minmax(0,1fr) var(--tt-right)!important}
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:600px){
+  body.cc-device-ipad .tracker-shell{grid-template-rows:var(--tt-top) minmax(0,1fr)!important;padding:var(--tt-pad-y) var(--tt-pad-x)!important}
+  body.cc-device-ipad .tracker-split{grid-template-columns:minmax(0,1fr) var(--tt-right)!important}
+}
