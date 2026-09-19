@@ -577,6 +577,18 @@ function compileThenClause(clause,opts){
 export function compileEffectText(text,{sourceName='Effect',allowGuidedFallback=false}={}){
   const raw=cleanOracle(text);const clauses=splitSentences(raw);const parts=[];
   for(const clause of clauses){
+    // Batch 4: a mandatory instruction followed by “If you do” is a dependent
+    // resolution chain. The first instruction either completes or throws, so
+    // reaching the dependent clause proves its condition. Optional/unsupported
+    // predecessors remain Guided instead of being guessed.
+    const dependent=clause.match(/^If you do,?\s*(.+)$/i);
+    if(dependent){
+      const previous=parts[parts.length-1];
+      const previousIsSafe=!!previous&&previous.unsupported.length===0&&previous.effects.length>0&&!previous.effects.some(e=>e.optional);
+      if(!previousIsSafe){parts.push({effects:[],requirements:[],unsupported:[clause]});continue}
+      parts.push(compileSingleClause(dependent[1],{sourceName}));
+      continue;
+    }
     if(/\bthen\b/i.test(clause)){const t=compileThenClause(clause,{sourceName});if(t){parts.push(t);continue}}
     parts.push(compileSingleClause(clause,{sourceName}));
   }
