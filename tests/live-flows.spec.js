@@ -214,6 +214,117 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.restored.graveyardLength).toBe(0);
   });
 
+  test('life-payment activation costs emit life loss, roll back on failure, and Undo exactly', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-bq-life-cost-regression');
+      const emptyMana = () => ({ W:0,U:0,B:0,R:0,G:0,C:0 });
+      const source = {
+        instanceId:'life-source', definitionId:'life-source-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:false, counters:{}
+      };
+      const watcher = {
+        instanceId:'life-watch', definitionId:'life-watch-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:false, counters:{}
+      };
+      const deck = {
+        remainingLibrary:[], hand:[], battlefield:[source,watcher],
+        graveyard:[], exile:[], tokens:[], attachments:[], commandZone:[]
+      };
+      const player = {
+        playerId:'p1', displayName:'Life Tester', life:40, poison:0, eliminated:false,
+        statuses:[], counters:{landsPlayedThisTurn:0}, commanderDamage:{}, commanders:[],
+        mana:{ total:emptyMana(), available:emptyMana(), floating:emptyMana() },
+        deck
+      };
+      const game = {
+        players:[player], activePlayerId:'p1', turnNumber:4, roundNumber:2, phase:'precombat-main',
+        status:'active', winner:null, log:[], stack:[], undoHistory:[], pendingTriggers:[],
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{
+          'life-source-def':{definitionId:'life-source-def',name:'Life Engine',typeLine:'Artifact',oracleText:''},
+          'life-watch-def':{definitionId:'life-watch-def',name:'Life Listener',typeLine:'Enchantment',oracleText:'Whenever you lose life, you gain 1 life.'}
+        }
+      };
+
+      const engine=createTransactionEngine(game);
+      engine.commit({
+        type:'activate-ability-stack',
+        playerId:'p1',
+        instanceId:'life-source',
+        requiresTap:true,
+        lifeCost:3,
+        effects:[],
+        effectBindings:{sourceId:'life-source'},
+        label:'Life Tester activates Life Engine.'
+      });
+
+      const currentPlayer=()=>game.players.find(p=>p.playerId==='p1');
+      const currentSource=()=>currentPlayer()?.deck?.battlefield?.find(c=>c.instanceId==='life-source');
+      const afterCost={
+        life:Number(currentPlayer()?.life||0),
+        sourceTapped:!!currentSource()?.tapped,
+        stackLength:Number(game.stack?.length||0),
+        lifeLostTriggers:(game.pendingTriggers||[]).filter(t=>t?.event?.type==='life-lost'&&t?.event?.playerId==='p1').length
+      };
+
+      const didUndo=engine.undo();
+      const afterUndo={
+        didUndo,
+        life:Number(currentPlayer()?.life||0),
+        sourceTapped:!!currentSource()?.tapped,
+        stackLength:Number(game.stack?.length||0),
+        pendingTriggers:Number(game.pendingTriggers?.length||0)
+      };
+
+      let insufficientError='';
+      try{
+        engine.commit({
+          type:'activate-ability-stack',
+          playerId:'p1',
+          instanceId:'life-source',
+          requiresTap:true,
+          lifeCost:41,
+          effects:[],
+          effectBindings:{sourceId:'life-source'},
+          label:'Impossible life payment.'
+        });
+      }catch(error){
+        insufficientError=String(error?.message||error||'');
+      }
+      const afterRejected={
+        life:Number(currentPlayer()?.life||0),
+        sourceTapped:!!currentSource()?.tapped,
+        stackLength:Number(game.stack?.length||0),
+        pendingTriggers:Number(game.pendingTriggers?.length||0),
+        undoDepth:Number(game.undoHistory?.length||0),
+        insufficientError
+      };
+
+      return {afterCost,afterUndo,afterRejected};
+    });
+
+    expect(result.afterCost.life).toBe(37);
+    expect(result.afterCost.sourceTapped).toBe(true);
+    expect(result.afterCost.stackLength).toBe(1);
+    expect(result.afterCost.lifeLostTriggers).toBe(1);
+
+    expect(result.afterUndo.didUndo).toBe(true);
+    expect(result.afterUndo.life).toBe(40);
+    expect(result.afterUndo.sourceTapped).toBe(false);
+    expect(result.afterUndo.stackLength).toBe(0);
+    expect(result.afterUndo.pendingTriggers).toBe(0);
+
+    expect(result.afterRejected.insufficientError).toMatch(/Not enough life/i);
+    expect(result.afterRejected.life).toBe(40);
+    expect(result.afterRejected.sourceTapped).toBe(false);
+    expect(result.afterRejected.stackLength).toBe(0);
+    expect(result.afterRejected.pendingTriggers).toBe(0);
+    expect(result.afterRejected.undoDepth).toBe(0);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
