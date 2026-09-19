@@ -22,6 +22,24 @@ async function disableSmartSkipsIfPrompted(page) {
   return true;
 }
 
+async function savedGame(page) {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem('commander-companion-v0.7');
+    return raw ? JSON.parse(raw).game : null;
+  });
+}
+
+function locateTrackedCard(game, instanceId) {
+  if (!game) return null;
+  for (const player of game.players || []) {
+    for (const zone of ['hand','battlefield','graveyard','exile','tokens','attachments','commandZone','remainingLibrary']) {
+      const card = (player.deck?.[zone] || []).find(c => c.instanceId === instanceId);
+      if (card) return { playerId: player.playerId, playerName: player.displayName, zone, card };
+    }
+  }
+  return null;
+}
+
 test.describe('Commander Companion live game flows', () => {
   test('4-player Table Tracker starts and preserves direct state edits', async ({ page }) => {
     liveOnly();
@@ -145,9 +163,18 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(8);
 
     // Confirming the cleanup discard must move exactly one card and pass the turn.
+    const discardedId = await page.locator('[data-discard-review]').first().getAttribute('data-discard-review');
+    expect(discardedId).toBeTruthy();
     await page.locator('[data-discard-review]').first().click();
     await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DISCARD', exact: true }).click();
     await disableSmartSkipsIfPrompted(page);
+
+    const afterDiscard = await savedGame(page);
+    const locatedAfterDiscard = locateTrackedCard(afterDiscard, discardedId);
+    expect(locatedAfterDiscard, 'confirmed discard must preserve the exact card instance').toBeTruthy();
+    expect(locatedAfterDiscard.playerName).toBe('Aaron');
+    expect(locatedAfterDiscard.zone).toBe('graveyard');
+
     await expect(page.locator('.player-name:visible')).toContainText('Lex');
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
 
@@ -158,12 +185,21 @@ test.describe('Commander Companion live game flows', () => {
     await disableSmartSkipsIfPrompted(page);
     await expect(page.locator('.player-name:visible')).toContainText('Aaron');
 
+    const afterRoundTrip = await savedGame(page);
+    const locatedAfterRoundTrip = locateTrackedCard(afterRoundTrip, discardedId);
+    expect(locatedAfterRoundTrip, 'discarded card must survive subsequent turn changes').toBeTruthy();
+    expect(locatedAfterRoundTrip.playerName).toBe('Aaron');
+    expect(locatedAfterRoundTrip.zone).toBe('graveyard');
+
     // The discarded card is in Aaron's graveyard and a graveyard card must never expose Tap controls.
     await page.locator('[data-zone-open="graveyard"]:visible').click();
     await expect(page.locator('#modalTitle')).toContainText('GRAVEYARD');
     const graveCards = page.locator('#modalBody .mini-card[data-instance]');
+    await expect(graveCards).toHaveCount(afterRoundTrip.players.find(p => p.displayName === 'Aaron').deck.graveyard.length);
     expect(await graveCards.count()).toBeGreaterThanOrEqual(1);
-    await graveCards.first().click();
+    const discardedInModal = page.locator(`#modalBody .mini-card[data-instance="${discardedId}"]`);
+    await expect(discardedInModal).toHaveCount(1);
+    await discardedInModal.click();
     const graveActions = (await page.locator('#modalActions button').allTextContents()).map(x => x.trim());
     expect(graveActions.some(x => /TAP/i.test(x))).toBe(false);
     await page.locator('#modalActions').getByRole('button', { name: 'CLOSE', exact: true }).click();
