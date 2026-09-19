@@ -125,10 +125,14 @@ test.describe('Commander Companion live game flows', () => {
     await page.locator('#startSetupBtn').click();
     await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 180_000 });
     await expect(page.locator('[data-opening-card]')).toHaveCount(7);
+    const openingAaron = await page.locator('[data-opening-card]').evaluateAll(nodes => nodes.map(n => n.getAttribute('data-opening-card')));
 
     await page.getByRole('button', { name: 'CONFIRM & NEXT' }).click();
     await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 30_000 });
     await expect(page.locator('[data-opening-card]')).toHaveCount(7);
+    const openingLex = await page.locator('[data-opening-card]').evaluateAll(nodes => nodes.map(n => n.getAttribute('data-opening-card')));
+    expect(new Set([...openingAaron, ...openingLex]).size).toBe(14);
+    expect(openingLex).not.toEqual(openingAaron);
 
     await page.locator('#modalActions button[data-action-label="START GAME"]').click();
     await expect(page.locator('#gameScreen')).toBeVisible({ timeout: 30_000 });
@@ -136,6 +140,17 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('.visual-hand-zone')).toBeVisible();
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
     await expect(page.locator('[data-action="next-phase"]:visible').first()).toBeVisible();
+
+    const isolatedSetup = await savedGame(page);
+    const setupAaron = isolatedSetup.players.find(p => p.displayName === 'Aaron');
+    const setupLex = isolatedSetup.players.find(p => p.displayName === 'Lex');
+    expect(setupAaron?.deck?.sourceName || '').toMatch(/Turtle Power/i);
+    expect(setupLex?.deck?.sourceName || '').toMatch(/Wakanda Forever/i);
+    expect(setupLex?.deck?.sourceName || '').not.toMatch(/^Setup Deck$/i);
+    expect(setupAaron?.deck?.manifestFingerprint).toBeTruthy();
+    expect(setupLex?.deck?.manifestFingerprint).toBeTruthy();
+    expect(setupAaron.deck.manifestFingerprint).not.toBe(setupLex.deck.manifestFingerprint);
+    expect(new Set([...(setupAaron.deck.hand || []).map(x => x.instanceId), ...(setupLex.deck.hand || []).map(x => x.instanceId)]).size).toBe(14);
 
     // Make phase progression deterministic for this live integrity pass.
     await disableSmartSkipsIfPrompted(page);
@@ -311,6 +326,10 @@ test.describe('Commander Companion live game flows', () => {
       '1 Command Tower',
       '94 Island'
     ].join('\n');
+    const passiveQaDeck = [
+      '1 Kenrith, the Returned King',
+      '99 Island'
+    ].join('\n');
 
     await openMode(page, 'fully-tracked');
     await page.locator('#modeProceed').click();
@@ -319,10 +338,10 @@ test.describe('Commander Companion live game flows', () => {
     const panels = page.locator('[data-player-setup]');
     await expect(panels).toHaveCount(2);
 
-    async function configureQaPlayer(index, name) {
+    async function configureQaPlayer(index, name, deckText) {
       const panel = panels.nth(index);
       await panel.locator('.setup-name').fill(name);
-      await panel.locator('.setup-deck').fill(qaDeck);
+      await panel.locator('.setup-deck').fill(deckText);
       await panel.locator('.setup-pick-cmd1').click();
       await expect(page.locator('#commanderSearchInput')).toBeVisible({ timeout: 120_000 });
       await page.locator('#commanderSearchInput').fill('Kenrith, the Returned King');
@@ -332,8 +351,8 @@ test.describe('Commander Companion live game flows', () => {
       await expect(panel.locator('.setup-cmd1')).toHaveValue('Kenrith, the Returned King');
     }
 
-    await configureQaPlayer(0, 'QA Aaron');
-    await configureQaPlayer(1, 'QA Lex');
+    await configureQaPlayer(0, 'QA Aaron', qaDeck);
+    await configureQaPlayer(1, 'QA Lex', passiveQaDeck);
 
     await page.locator('#startSetupBtn').click();
     await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 180_000 });
