@@ -325,7 +325,8 @@ test.describe('Commander Companion live game flows', () => {
       '1 Sol Ring',
       '1 Command Tower',
       '1 Cavern of Souls',
-      '93 Island'
+      '1 Simian Spirit Guide',
+      '92 Island'
     ].join('\n');
     const passiveQaDeck = [
       '1 Kenrith, the Returned King',
@@ -570,5 +571,31 @@ test.describe('Commander Companion live game flows', () => {
     expect(locateTrackedCard(afterCavernCommit, cavern.instanceId)?.card?.chosenCreatureType).toBe('Human');
     const cavernOwnerCommitted = afterCavernCommit.players.find(p => p.displayName === 'QA Aaron');
     expect(Number(cavernOwnerCommitted.counters?.landsPlayedThisTurn || 0)).toBe(1);
+
+
+    // Turn 5: hand-zone mana abilities must move the exact tracked card to exile,
+    // add mana immediately, and never create a stack object.
+    await endCurrentTurn('QA Lex');
+    await endCurrentTurn('QA Aaron');
+    await reachDraw();
+    const simian = await trackedDrawByName('Simian Spirit Guide');
+
+    const beforeSimian = await savedGame(page);
+    const simianOwnerBefore = beforeSimian.players.find(p => p.displayName === 'QA Aaron');
+    const redBefore = Number(simianOwnerBefore?.mana?.available?.R || 0);
+    const stackBefore = Number(beforeSimian.stack?.length || 0);
+
+    await page.locator(`[data-hand-card="${simian.instanceId}"]:visible`).click();
+    const simianAction = page.locator('#modalActions').getByRole('button', { name: 'EXILE FROM HAND — ADD {R}', exact: true });
+    await expect(simianAction).toBeVisible();
+    await simianAction.click();
+    await expect(page.locator('#modal')).not.toBeVisible();
+
+    const afterSimian = await savedGame(page);
+    const simianOwnerAfter = afterSimian.players.find(p => p.displayName === 'QA Aaron');
+    expect(locateTrackedCard(afterSimian, simian.instanceId)?.zone).toBe('exile');
+    expect(Number(simianOwnerAfter?.mana?.available?.R || 0)).toBe(redBefore + 1);
+    expect(Number(afterSimian.stack?.length || 0)).toBe(stackBefore);
+    expect(afterSimian.log.some(e => /exiles Simian Spirit Guide from hand to add R/i.test(String(e.text || '')))).toBe(true);
   });
 });
