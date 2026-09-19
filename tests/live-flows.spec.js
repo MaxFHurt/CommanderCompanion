@@ -94,6 +94,123 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('[data-action="end-turn"]')).toBeVisible();
   });
 
+  test('activation sacrifice costs fire sacrifice triggers and Undo restores exact pre-action state', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-bp-sacrifice-regression');
+      const emptyMana = () => ({ W:0,U:0,B:0,R:0,G:0,C:0 });
+      const source = {
+        instanceId:'source', definitionId:'source-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:false, counters:{}, manaCapacityRegistered:true, manaCapacityOptions:['C'], manaCapacityColor:'C', manaCapacityAmount:1
+      };
+      const fodder = {
+        instanceId:'fodder', definitionId:'fodder-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:true, counters:{'+1/+1':2}
+      };
+      const sacrificeWatcher = {
+        instanceId:'sac-watch', definitionId:'sac-watch-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:false, counters:{}
+      };
+      const discardWatcher = {
+        instanceId:'discard-watch', definitionId:'discard-watch-def', ownerId:'p1', controllerId:'p1', zone:'battlefield',
+        tapped:false, counters:{}
+      };
+      const deck = {
+        remainingLibrary:[], hand:[], battlefield:[source,fodder,sacrificeWatcher,discardWatcher],
+        graveyard:[], exile:[], tokens:[], attachments:[], commandZone:[]
+      };
+      const player = {
+        playerId:'p1', displayName:'Recovery Tester', life:40, poison:0, eliminated:false,
+        statuses:[], counters:{landsPlayedThisTurn:0}, commanderDamage:{}, commanders:[],
+        mana:{ total:{...emptyMana(),C:1}, available:{...emptyMana(),C:1}, floating:emptyMana() },
+        deck
+      };
+      const game = {
+        players:[player], activePlayerId:'p1', turnNumber:3, roundNumber:1, phase:'precombat-main',
+        status:'active', winner:null, log:[], stack:[], undoHistory:[], pendingTriggers:[],
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{
+          'source-def':{definitionId:'source-def',name:'Recovery Engine',typeLine:'Artifact',oracleText:''},
+          'fodder-def':{definitionId:'fodder-def',name:'Cost Creature',typeLine:'Creature — Test',oracleText:''},
+          'sac-watch-def':{definitionId:'sac-watch-def',name:'Sacrifice Listener',typeLine:'Enchantment',oracleText:'Whenever you sacrifice a permanent, you gain 1 life.'},
+          'discard-watch-def':{definitionId:'discard-watch-def',name:'Discard Listener',typeLine:'Enchantment',oracleText:'Whenever you discard a card, you lose 1 life.'}
+        }
+      };
+
+      const engine = createTransactionEngine(game);
+      engine.commit({
+        type:'activate-ability-stack',
+        playerId:'p1',
+        instanceId:'source',
+        requiresTap:true,
+        costMoveIds:['fodder'],
+        payment:null,
+        effects:[],
+        effectBindings:{sourceId:'source'},
+        label:'Recovery Tester activates Recovery Engine.'
+      });
+
+      const findZone = id => {
+        for (const [zone,cards] of Object.entries({
+          hand:player.deck.hand,battlefield:player.deck.battlefield,graveyard:player.deck.graveyard,
+          exile:player.deck.exile,tokens:player.deck.tokens,attachments:player.deck.attachments,
+          commandZone:player.deck.commandZone,remainingLibrary:player.deck.remainingLibrary
+        })) {
+          const card=(cards||[]).find(c=>c.instanceId===id);
+          if(card)return {zone,card};
+        }
+        return null;
+      };
+
+      const afterCost = {
+        stackLength:game.stack.length,
+        sourceTapped:!!findZone('source')?.card?.tapped,
+        availableC:Number(player.mana.available.C||0),
+        fodderZone:findZone('fodder')?.zone||null,
+        fodderTapped:!!findZone('fodder')?.card?.tapped,
+        sacrificeTriggerCount:(game.pendingTriggers||[]).filter(t=>t?.event?.type==='sacrificed'&&t?.event?.sourceId==='fodder').length,
+        discardTriggerCount:(game.pendingTriggers||[]).filter(t=>t?.event?.type==='discard'&&t?.event?.sourceId==='fodder').length
+      };
+
+      const didUndo=engine.undo();
+      const restoredFodder=findZone('fodder');
+      return {
+        afterCost,
+        restored:{
+          didUndo,
+          stackLength:game.stack.length,
+          pendingTriggers:(game.pendingTriggers||[]).length,
+          sourceTapped:!!findZone('source')?.card?.tapped,
+          availableC:Number(player.mana.available.C||0),
+          fodderZone:restoredFodder?.zone||null,
+          fodderTapped:!!restoredFodder?.card?.tapped,
+          fodderCounters:structuredClone(restoredFodder?.card?.counters||{}),
+          graveyardLength:player.deck.graveyard.length
+        }
+      };
+    });
+
+    expect(result.afterCost.stackLength).toBe(1);
+    expect(result.afterCost.sourceTapped).toBe(true);
+    expect(result.afterCost.availableC).toBe(0);
+    expect(result.afterCost.fodderZone).toBe('graveyard');
+    expect(result.afterCost.fodderTapped).toBe(false);
+    expect(result.afterCost.sacrificeTriggerCount).toBe(1);
+    expect(result.afterCost.discardTriggerCount).toBe(0);
+
+    expect(result.restored.didUndo).toBe(true);
+    expect(result.restored.stackLength).toBe(0);
+    expect(result.restored.pendingTriggers).toBe(0);
+    expect(result.restored.sourceTapped).toBe(false);
+    expect(result.restored.availableC).toBe(1);
+    expect(result.restored.fodderZone).toBe('battlefield');
+    expect(result.restored.fodderTapped).toBe(true);
+    expect(result.restored.fodderCounters['+1/+1']).toBe(2);
+    expect(result.restored.graveyardLength).toBe(0);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
