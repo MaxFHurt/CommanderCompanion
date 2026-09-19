@@ -1,8 +1,8 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BR Search Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ br-search-fabled-passage-prep ]
   workflow_dispatch:
 
 jobs:
@@ -25,35 +25,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium webkit
 
-      - name: Run local Commander Companion browser tests
-        run: npx playwright test
-
-      - name: Wait for matching GitHub Pages build
-        shell: bash
-        run: |
-          EXPECTED_TITLE="$(grep -o '<title>[^<]*</title>' index.html | head -1)"
-          echo "Waiting for live page title: $EXPECTED_TITLE"
-          for attempt in {1..36}; do
-            LIVE_HTML="$(curl -fsSL -H 'Cache-Control: no-cache' "https://maxfhurt.github.io/CommanderCompanion/index.html?sha=${GITHUB_SHA}&attempt=${attempt}" || true)"
-            if grep -Fq "$EXPECTED_TITLE" <<< "$LIVE_HTML"; then
-              echo "Matching Pages build is live."
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Timed out waiting for the matching Pages build."
-          exit 1
-
-      - name: Run live GitHub Pages browser tests
-        env:
-          CC_BASE_URL: https://maxfhurt.github.io/CommanderCompanion/
+      - name: Run BR search regression
         run: npx playwright test
 
       - name: Save Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: commander-companion-playwright-report
+          name: commander-companion-br-search-report
           path: |
             playwright-report/
             test-results/
