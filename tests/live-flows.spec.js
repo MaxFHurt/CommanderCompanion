@@ -90,8 +90,11 @@ test.describe('Commander Companion live game flows', () => {
 
     await expect(page.locator('#gameScreen')).toBeVisible();
     await expect(page.locator('#gameContent')).not.toBeEmpty();
+    await expect(page.locator('.landscape-game-master')).toBeVisible();
+    await expect(page.locator('.landscape-game-topbar')).toBeVisible();
     await expect(page.locator('[data-action="next-phase"]')).toBeVisible();
-    await expect(page.locator('[data-action="end-turn"]')).toBeVisible();
+    await expect(page.locator('.landscape-right-rail')).toBeVisible();
+    await expect(page.locator('.landscape-hand-zone')).toBeVisible();
   });
 
   test('activation sacrifice costs fire sacrifice triggers and Undo restores exact pre-action state', async ({ page }) => {
