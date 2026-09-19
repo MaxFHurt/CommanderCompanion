@@ -19,7 +19,7 @@ import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
 import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ba';
 import { asEntersChoiceSpec, entersWithCountersSpec, activatedAbilitySupport, spellSupport, analyzeDefinitionSupport, auditDefinitions } from './ability-support.js?v=080-bt';
-import { queueTriggers, resolveTrigger } from './trigger-engine.js?v=080-ba';
+import { queueTriggers, resolveTrigger, availableModalTriggerModes, recordModalTriggerModeChoice } from './trigger-engine.js?v=080-bu';
 import { parseManaBoxFileContents } from './deck-import.js?v=080-b4-ac';
 import { saveProfileBackupFile, restoreProfileBackupFile } from './profile-backup.js?v=080-b4-ac';
 import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
@@ -100,11 +100,10 @@ function queueChosenTriggerMode(trigger,p,d,mode,done){
 }
 function chooseTriggeredMode(trigger,p,d,done){
   const hit=locateCardInGame(game,trigger.sourceId),source=hit?.card;
-  const ledger=source?(source.triggerModeChoices=source.triggerModeChoices||{}):{};const key=`${trigger.abilityId||'trigger'}:${game.turnNumber}`;const used=new Set(ledger[key]||[]);
-  const modes=(trigger.modal?.modes||[]).map((text,index)=>({text,index})).filter(x=>!trigger.modal?.uniquePerTurn||!used.has(x.index));
+  const state=availableModalTriggerModes(source,trigger,game.turnNumber),modes=state.modes;
   if(!modes.length){game.log.unshift({text:`${trigger.sourceName} triggers, but every available mode has already been chosen this turn.`,turn:game.turnNumber});return processPendingTriggers(done)}
   openModal(`TRIGGER — ${trigger.sourceName}`,`<p>${esc(trigger.abilityText)}</p><p><b>Choose one${trigger.modal?.uniquePerTurn?' that has not been chosen this turn':''}.</b></p><div class="ability-choice-list">${modes.map(x=>`<button class="ability-choice available" data-trigger-mode="${x.index}"><strong>${esc(x.text)}</strong></button>`).join('')}</div>`,[]);
-  $$('[data-trigger-mode]').forEach(b=>b.onclick=()=>{const index=Number(b.dataset.triggerMode),mode=trigger.modal.modes[index];if(source&&trigger.modal?.uniquePerTurn){ledger[key]=[...used,index];source.triggerModeChoices=ledger}closeModal();save();queueChosenTriggerMode(trigger,p,d,mode,done)});
+  $('[data-trigger-mode]').forEach(b=>b.onclick=()=>{const index=Number(b.dataset.triggerMode),mode=trigger.modal.modes[index];try{if(source)recordModalTriggerModeChoice(source,trigger,game.turnNumber,index)}catch(e){return toast(e?.message||'That trigger mode is no longer available.',true)}closeModal();save();queueChosenTriggerMode(trigger,p,d,mode,done)});
 }
 function simultaneousTriggerOrderGroup(){
   const pending=game?.pendingTriggers||[],first=pending[0];
