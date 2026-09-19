@@ -2,13 +2,26 @@
 
 Last updated: 2026-09-19
 
-## ACTIVE
+## PAUSED — WAITING FOR BATCH 4 OWNER
 
-**Build-progress owner:** Current Commander Companion Batch 3 continuation chat — the conversation where Aaron established the single-active-build-chat rule on 2026-09-19.
+There is currently **no active build-progress owner**.
 
-**Roadmap batch:** 3 of 12 — Card Interaction Engine
+Batch 3 is complete. The project is intentionally paused at the Batch 4 boundary so a clean new chat can take ownership.
 
-**Rule:** This is the only chat permitted to advance actual build progress until Aaron explicitly transfers or releases this lock.
+**Next roadmap batch:** 4 of 12 — Effects + Triggers  
+**Safe starting build:** V0.8 BZ  
+**Safe checkpoint commit:** `65e7b83b22684f4a1bf9faf9a4e42fbead4f00d6`
+
+## Rule
+
+Only one ChatGPT conversation may advance actual Commander Companion build progress at a time.
+
+Before a new chat performs any build-advancing write, it must:
+1. read this file
+2. read `COMMANDER-COMPANION-CURRENT-STATE.md`
+3. read `START-BATCH-4-HERE.md`
+4. update this file to name itself as the active Batch 4 build-progress owner
+5. only then begin implementation
 
 Build-advancing work includes:
 - gameplay implementation changes
@@ -18,18 +31,30 @@ Build-advancing work includes:
 - regression/test changes whose purpose is to advance the active checkpoint
 - merges/promotions to `main`
 
-Other chats may:
-- inspect and analyze
+While no owner is active, chats may:
+- inspect/analyze source
 - research
-- draft proposed fixes without implementation
-- add batch notes or future-work notes
-- add Guided Resolution backlog entries
+- draft proposed fixes
+- add batch notes
+- add future-work notes
+- add Guided Resolution backlog information
 - prepare non-advancing documentation
 
-Before any build-advancing write, read this file and `COMMANDER-COMPANION-CURRENT-STATE.md`.
+They must not advance the build.
+
+## Claim procedure
+
+The new Batch 4 chat should replace this PAUSED section with:
+
+- **Status:** ACTIVE
+- **Build-progress owner:** the current Batch 4 conversation
+- **Roadmap batch:** 4 of 12 — Effects + Triggers
+- **Starting checkpoint:** V0.8 BZ / current `main`
+
+Aaron's explicit request to begin Batch 4 in that new chat authorizes the new chat to claim this currently unowned lock.
 
 ## Transfer procedure
 
-Ownership changes only after Aaron explicitly says to transfer, hand off, or release build ownership. Update this file first, then allow the new owner chat to advance the build.
+Once claimed, ownership changes only after Aaron explicitly says to transfer, hand off, release, or otherwise move build ownership.
 
 If ownership is uncertain, **do not advance the build**.
