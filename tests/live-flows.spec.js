@@ -810,6 +810,108 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.afterSecond.bCardZone).toBe('commandZone');
   });
 
+  test('combat keywords preserve double strike, lifelink, infect, deathtouch, trample, and state-based deaths', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { resolveCombat } = await import('./combat-engine.js?v=080-bw-combat-regression');
+
+      const makePlayer=(id,name)=>({
+        playerId:id,displayName:name,life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
+        deck:{remainingLibrary:[],hand:[],battlefield:[],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+      });
+      const makeCard=(id,defId,owner)=>({instanceId:id,definitionId:defId,ownerId:owner,controllerId:owner,zone:'battlefield',tapped:false,counters:{},damageMarked:0});
+
+      const runUnblocked=(def,card,{startingLife=40}={})=>{
+        const p1=makePlayer('p1','Attacker'),p2=makePlayer('p2','Defender');p1.life=startingLife;
+        const inst=makeCard('attacker',def.definitionId,'p1');p1.deck.battlefield=[inst];
+        const game={
+          players:[p1,p2],activePlayerId:'p1',phase:'combat',status:'active',turnNumber:1,roundNumber:1,
+          rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+          cardDefinitions:{[def.definitionId]:def},
+          combatState:{attackers:[{playerId:'p1',defenderId:'p2',instanceId:'attacker',blocked:false}],blocks:{p2:{assignments:[]}},damage:[],waitingFor:null,resolved:false}
+        };
+        const events=[];
+        const out=resolveCombat(game,{attackerPlayerId:'p1',onEvent:e=>events.push(e)});
+        return{p1,p2,out,events};
+      };
+
+      const dbl=runUnblocked({
+        definitionId:'double-life',
+        name:'Double Lifelinker',
+        typeLine:'Creature — Test',
+        oracleText:'Double strike\nLifelink',
+        power:'3',toughness:'3'
+      });
+
+      const infect=runUnblocked({
+        definitionId:'infect',
+        name:'Infect Test',
+        typeLine:'Creature — Test',
+        oracleText:'Infect',
+        power:'3',toughness:'3'
+      });
+
+      const p1=makePlayer('a','Trample Attacker'),p2=makePlayer('b','Large Blocker');
+      const attacker=makeCard('dt-trample','dt-trample-def','a');
+      const blocker=makeCard('big-blocker','big-blocker-def','b');
+      p1.deck.battlefield=[attacker];p2.deck.battlefield=[blocker];
+      const game={
+        players:[p1,p2],activePlayerId:'a',phase:'combat',status:'active',turnNumber:2,roundNumber:1,
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{
+          'dt-trample-def':{definitionId:'dt-trample-def',name:'Venomous Tramper',typeLine:'Creature — Test',oracleText:'Deathtouch\nTrample',power:'5',toughness:'5'},
+          'big-blocker-def':{definitionId:'big-blocker-def',name:'Huge Blocker',typeLine:'Creature — Test',oracleText:'',power:'10',toughness:'10'}
+        },
+        combatState:{
+          attackers:[{playerId:'a',defenderId:'b',instanceId:'dt-trample',blocked:true}],
+          blocks:{b:{assignments:[{attackerId:'dt-trample',blockerId:'big-blocker'}]}},
+          damage:[],waitingFor:null,resolved:false
+        }
+      };
+      const dtEvents=[];
+      const dt=resolveCombat(game,{attackerPlayerId:'a',onEvent:e=>dtEvents.push(e)});
+
+      return{
+        doubleLife:{
+          attackerLife:dbl.p1.life,
+          defenderLife:dbl.p2.life,
+          phase:dbl.out ? 'end-combat' : null,
+          lifeGainEvents:dbl.events.filter(e=>e?.type==='life-gained').map(e=>e.amount)
+        },
+        infect:{
+          defenderLife:infect.p2.life,
+          defenderPoison:infect.p2.poison,
+          eliminated:infect.p2.eliminated
+        },
+        deathtouchTrample:{
+          defenderLife:p2.life,
+          attackerZone:p1.deck.graveyard.some(c=>c.instanceId==='dt-trample')?'graveyard':p1.deck.battlefield.some(c=>c.instanceId==='dt-trample')?'battlefield':null,
+          blockerZone:p2.deck.graveyard.some(c=>c.instanceId==='big-blocker')?'graveyard':p2.deck.battlefield.some(c=>c.instanceId==='big-blocker')?'battlefield':null,
+          attackerGraveyardCount:p1.deck.graveyard.length,
+          blockerGraveyardCount:p2.deck.graveyard.length,
+          diesEvents:dtEvents.filter(e=>e?.type==='dies').map(e=>e.sourceId)
+        }
+      };
+    });
+
+    expect(result.doubleLife.defenderLife).toBe(34);
+    expect(result.doubleLife.attackerLife).toBe(46);
+    expect(result.doubleLife.lifeGainEvents).toEqual([3,3]);
+
+    expect(result.infect.defenderLife).toBe(40);
+    expect(result.infect.defenderPoison).toBe(3);
+    expect(result.infect.eliminated).toBe(false);
+
+    expect(result.deathtouchTrample.defenderLife).toBe(36);
+    expect(result.deathtouchTrample.attackerZone).toBe('graveyard');
+    expect(result.deathtouchTrample.blockerZone).toBe('graveyard');
+    expect(result.deathtouchTrample.attackerGraveyardCount).toBe(1);
+    expect(result.deathtouchTrample.blockerGraveyardCount).toBe(1);
+    expect(new Set(result.deathtouchTrample.diesEvents)).toEqual(new Set(['dt-trample','big-blocker']));
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
