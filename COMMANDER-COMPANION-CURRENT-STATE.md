@@ -10,7 +10,7 @@ Do not advance to Batch 4 until Batch 3 is fully closed and a detailed batch han
 
 ## Current promoted checkpoint
 
-**V0.8 BT**
+**V0.8 BU**
 
 BT includes the recovered BN stack work plus later Batch 3 safety checkpoints.
 
@@ -42,19 +42,18 @@ BT includes the recovered BN stack work plus later Batch 3 safety checkpoints.
 
 ## Current active checkpoint
 
-**BU — Lita-style unique modal trigger selection**
+**BU — Lita-style unique modal trigger selection — VERIFIED**
 
-Work already staged:
+Verified in Chromium + WebKit:
 - centralized per-source/per-turn modal-trigger choice ledger in trigger engine
 - UI uses trigger-engine ledger
-- regression written for:
-  - three unique choices per turn
-  - duplicate same-turn choice rejection
-  - exhaustion after all modes selected
-  - reset next turn
-  - independent tracking per card instance
+- three unique choices per turn
+- duplicate same-turn choice rejection
+- exhaustion after all modes selected
+- reset next turn
+- independent tracking per card instance
 
-Next action: run BU Chromium/WebKit regression, fix failures if any, then promote only after green.
+**Current active checkpoint: BV — paired commander legality + independent commander tax + Undo.**
 
 ## Batch 3 remaining closure work
 
