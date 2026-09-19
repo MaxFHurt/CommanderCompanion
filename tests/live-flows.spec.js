@@ -12,6 +12,16 @@ async function openMode(page, mode) {
   await expect(page.locator('#modeSetupDialog')).toBeVisible();
 }
 
+async function disableSmartSkipsIfPrompted(page) {
+  const modal = page.locator('#modal:visible');
+  if (!(await modal.count())) return false;
+  const title = (await page.locator('#modalTitle').textContent()) || '';
+  if (!/AUTOMATIC PHASE SKIPPING/i.test(title)) return false;
+  await page.locator('#modalActions').getByRole('button', { name: /DON.T SKIP PHASES/i }).click();
+  await expect(page.locator('#modal')).not.toBeVisible();
+  return true;
+}
+
 test.describe('Commander Companion live game flows', () => {
   test('4-player Table Tracker starts and preserves direct state edits', async ({ page }) => {
     liveOnly();
@@ -105,18 +115,14 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('[data-action="next-phase"]:visible').first()).toBeVisible();
 
     // Make phase progression deterministic for this live integrity pass.
-    if (await page.locator('#modal:visible').count()) {
-      const title = await page.locator('#modalTitle').textContent();
-      if (/AUTOMATIC PHASE SKIPPING/i.test(title || '')) {
-        await page.locator('#modalActions').getByRole('button', { name: /DON.T SKIP PHASES/i }).click();
-      }
-    }
+    await disableSmartSkipsIfPrompted(page);
 
     // Reach Draw, perform a tracked random draw, and verify the live hand becomes eight.
     const phase = page.locator('.battle-phase-indicator:visible b');
     for (let i = 0; i < 4; i++) {
       if (/DRAW/i.test((await phase.textContent()) || '')) break;
       await page.locator('[data-action="next-phase"]:visible').first().click();
+      await disableSmartSkipsIfPrompted(page);
     }
     await expect(phase).toContainText(/DRAW/i);
     await page.locator('[data-action="draw"]:visible').first().click();
@@ -124,6 +130,7 @@ test.describe('Commander Companion live game flows', () => {
     await page.locator('#modalActions').getByRole('button', { name: 'RANDOM DRAW', exact: true }).click();
     await expect(page.locator('#modalTitle')).toContainText('RANDOM VIRTUAL DRAW');
     await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM RANDOM DRAW', exact: true }).click();
+    await disableSmartSkipsIfPrompted(page);
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(8);
 
     // End Turn with eight cards must enter cleanup. Reviewing/canceling a discard must not mutate hand state.
@@ -140,6 +147,7 @@ test.describe('Commander Companion live game flows', () => {
     // Confirming the cleanup discard must move exactly one card and pass the turn.
     await page.locator('[data-discard-review]').first().click();
     await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DISCARD', exact: true }).click();
+    await disableSmartSkipsIfPrompted(page);
     await expect(page.locator('.player-name:visible')).toContainText('Lex');
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
 
@@ -147,6 +155,7 @@ test.describe('Commander Companion live game flows', () => {
     await page.locator('[data-action="end-turn"]:visible').first().click();
     await expect(page.locator('#modalTitle')).toContainText('END TURN?');
     await page.locator('#modalActions').getByRole('button', { name: 'END TURN', exact: true }).click();
+    await disableSmartSkipsIfPrompted(page);
     await expect(page.locator('.player-name:visible')).toContainText('Aaron');
 
     // The discarded card is in Aaron's graveyard and a graveyard card must never expose Tap controls.
