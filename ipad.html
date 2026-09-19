@@ -7,12 +7,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 BZ</title>
+  <title>Commander Companion V0.8 CC</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
   <link rel="stylesheet" href="styles-v0739.css?v=080-bn">
-  <link rel="stylesheet" href="ipad-layout.css?v=0738">
-</head>
+  </head>
 <body>
   <div id="toast" class="toast" hidden></div>
   <div id="bootError" class="boot-error" hidden><strong>COMMANDER COMPANION COULD NOT START</strong><p id="bootErrorText"></p><button onclick="location.reload()">RETRY</button></div>
@@ -49,7 +48,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 BZ</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 CC</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -186,7 +185,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-bz');
+        await import('./app.js?v=080-cc');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
