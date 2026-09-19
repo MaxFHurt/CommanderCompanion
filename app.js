@@ -1044,23 +1044,26 @@ async function openPhysicalDraw(p){const pool=await pickerPool({mode:game.mode,s
 function advancePhase(p){
   if(pendingGuidedStackObject())return focusPendingResolution('Resolve the pending stack object before advancing the phase.');
   if((game.stack?.length||0)>0||game.priorityState?.active)return focusPendingResolution('The stack must be resolved before advancing the phase.');
-  // Reconcile phase gates before evaluating locks. This prevents a completed combat
-  // gate from surviving after the game has already moved into a later phase.
   configurePhaseGates(game,game.phase);
   if(game.phase==='cleanup'&&game.phaseGates?.discard?.required&&!game.phaseGates.discard.satisfied){
     openCleanupDiscard(p,()=>endTurn(p));
     return;
   }
+  // Batch 6 repair: entering Combat never launches Declare Attackers automatically.
+  // The contextual jewel owns that action. NEXT PHASE during an unresolved combat stop
+  // is an explicit request to skip attacking and therefore requires confirmation.
   if(isCombatPhase(game.phase)&&game.phaseGates?.combat?.required&&!game.phaseGates.combat.satisfied){
-    openAttack(p);
-    return;
+    return openModal('SKIP ATTACK?',`<p><b>${esc(p.displayName)}</b> has not declared any attackers.</p><p>Continuing will end combat with zero attackers and move directly to Main 2.</p>`,[
+      {label:'CANCEL',semantic:'cancel',onClick:closeModal},
+      {label:'END PHASE WITH NO ATTACKERS',className:'primary',onClick:()=>finishNoAttackCombat(p,`${p.displayName} skips attacking and ends combat with zero attackers.`)}
+    ]);
   }
-  if(phaseLocked(game)){toast(game.phase==='untap'?'Untap your cards before continuing.':game.phase==='draw'?'Confirm the draw before continuing.':isCombatPhase(game.phase)?'Confirm attackers before continuing.':'A required confirmation is still pending.',true);return}
-  let n=nextPhase(game);if(n==='cleanup'||n==='untap')return endTurn(p);
-  if(['begin-combat','declare-attackers'].includes(n)){openAttack(p);return}
-  commitAction({type:'phase',playerId:p.playerId,phase:n,label:`Phase advances to ${phaseLabel(n)}.`});render();
+  if(phaseLocked(game)){toast(game.phase==='untap'?'Untap your cards before continuing.':game.phase==='draw'?'Confirm the draw before continuing.':'A required confirmation is still pending.',true);return}
+  const n=nextPhase(game);
+  if(n==='cleanup'||n==='untap')return endTurn(p);
+  commitAction({type:'phase',playerId:p.playerId,phase:n,label:`Phase advances to ${phaseLabel(n)}.`});
+  render();
   if(runSmartPhaseSkips())return;
-  if(n==='combat')return openAttack(p);
   if(game.pendingTriggers?.length)processPendingTriggers(()=>beginPriority(`${phaseLabel(n)} triggered abilities are on the stack.`,'phase-triggers',()=>render(),game.activePlayerId));
 }
 function openUntap(p){
