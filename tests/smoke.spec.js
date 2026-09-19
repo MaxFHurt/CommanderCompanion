@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Commander Companion basic browser checks', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/index.html', { waitUntil: 'domcontentloaded' });
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
   });
 
   test('landing page loads and primary controls are present', async ({ page }) => {
