@@ -4,100 +4,121 @@ Last updated: 2026-09-19
 
 ## Build-progress ownership
 
-**ACTIVE BUILD-PROGRESS LOCK:** This Commander Companion Batch 3 continuation chat is the sole chat allowed to advance implementation/build progress.
+**BUILD PROGRESS IS PAUSED AT THE BATCH 4 BOUNDARY.**
 
-See `BUILD-PROGRESS-LOCK.md` and `LOCKED-DEVELOPMENT-WORKFLOW.md`.
+There is currently **no active build-progress owner**.
 
-Other chats may add notes/research/backlog documentation, but may not push gameplay/UI implementation, advance build letters, alter active checkpoint tests for promotion, or promote branches until Aaron explicitly transfers the lock.
+The next development chat must:
+1. read `BUILD-PROGRESS-LOCK.md`
+2. read `START-BATCH-4-HERE.md`
+3. explicitly claim the build-progress lock in the repository before making build-advancing changes
+
+Until that happens, no chat may advance gameplay/UI implementation, build letters, checkpoint tests, or promotions.
 
 ## Roadmap position
 
-**CURRENT ROADMAP BATCH: 3 of 12 — Card Interaction Engine**
+**BATCH 3 OF 12 — CARD INTERACTION ENGINE: COMPLETE**
 
-Do not advance to Batch 4 until Batch 3 is fully closed and a detailed batch handoff has been presented to Aaron.
+**NEXT ROADMAP BATCH: 4 OF 12 — EFFECTS + TRIGGERS**
 
-## Current promoted checkpoint
+Batch 4 has **not started**.
 
-**V0.8 BW**
+## Current safe checkpoint
 
-BT includes the recovered BN stack work plus later Batch 3 safety checkpoints.
+**V0.8 BZ**
 
-## Batch 3 completed / verified checkpoints
+- checkpoint commit: `65e7b83b22684f4a1bf9faf9a4e42fbead4f00d6`
+- final Browser Test run: `35446925832` — completed / success
+- final Pages deployment run: `35446925122` — completed / success
+- phone and iPad both identify as V0.8 BZ and use the BZ app cache key
+- current `main` contains all Batch 3 promoted work and post-Batch-3 documentation
 
-- BN stack recovery
-  - Guided stack pause survives Back / Close.
-  - Game History exposes live stack entries.
-  - Clear Stack is explicit recovery and rewinds instead of resolving.
-  - Canceling Clear Stack commits nothing.
-  - Exact spell/card and paid mana state restore on recovery.
-  - Priority clears after recovery.
+Use current `main`. Do not restart from older prep branches.
+
+## Batch 3 completion
+
+Full details: `BATCH-3-COMPLETION-REPORT.md`
+
+Batch 3 verified:
+- stack preservation / Clear Stack recovery
+- exact zone/mana/tap/sacrifice Undo
 - deck/opening-hand identity isolation
-- cleanup discard confirmation and exact tracked-card zone movement
-- graveyard cards do not expose Tap
-- battlefield +1/+1 counter badge remains visible
-- flexible mana display/counting regression coverage
-- Reanimate legality fails closed without a valid creature graveyard target
-- MDFC land face respects land-per-turn
-- As-Enters Back / Close is non-committing
-- Simian Spirit Guide: exact hand card -> exile, add {R}, no stack
-- BP sacrifice-cost correctness and exact Undo
-- BQ life-payment correctness, life-loss trigger emission, impossible-payment rollback, exact Undo
-- BR Fabled Passage / search contract and four-land conditional untap
-- BS tap-cost legality, no double activation, exact rollback/Undo
-- BT modal/alternate-cost safety
-  - supported modal spells remain automatable
-  - unautomated alternate-cost keywords are explicitly routed to Guided Resolution rather than partially/silently resolved
+- cleanup discard confirmation
+- graveyard cards cannot tap
+- battlefield counter visibility
+- flexible-mana counting/display safety
+- Reanimate legality
+- MDFC land-per-turn legality
+- As-Enters Back / Close noncommit
+- Simian Spirit Guide hand-zone mana ability
+- sacrifice-cost event correctness
+- life-payment correctness and rollback
+- Fabled Passage/search/tutor exact tracked movement
+- tap-cost legality
+- modal spell automation and safe alternate-cost Guided fallback
+- Lita unique modal-trigger ledger
+- paired commander legality and independent commander tax
+- combat keyword/state-based-action safety
+- simultaneous triggers / last-known event safety
+- enters-with-counters numeric parser fix
+- multi-object stack / priority / LIFO / response Undo
+- Turtle Power vs Wakanda Forever live Guided setup/gameplay regression
+- Guided stack pause survives Back and remains visible in Game History
 
-## Current active checkpoint
+## Guided Resolution backlog
 
-**BU — Lita-style unique modal trigger selection — VERIFIED**
+`GUIDED-RESOLUTION-CARD-LIST.md` is authoritative.
 
-Verified in Chromium + WebKit:
-- centralized per-source/per-turn modal-trigger choice ledger in trigger engine
-- UI uses trigger-engine ledger
-- three unique choices per turn
-- duplicate same-turn choice rejection
-- exhaustion after all modes selected
-- reset next turn
-- independent tracking per card instance
+Batch 3 ten-precon audit:
+- 10 real Commander precons
+- **398 named Guided Resolution candidates**
+- cards remain OPEN for later automation unless separately verified/fixed
+- these are not Batch 3 failures when the card safely enters Guided Resolution and game state remains recoverable
 
-**BW — combat keyword + state-based-action interaction safety — VERIFIED**
+Safe Guided fallback is an accepted product behavior.
 
-Verified in local Chromium/WebKit and live GitHub Pages:
-- double strike damage happens in both combat-damage steps
-- lifelink gains life from each damage event
-- infect converts player damage to poison
-- deathtouch + trample assigns lethal correctly
-- state-based creature deaths move exact tracked cards and emit dies events
+## Approved future feature — teach Commander Companion a resolution
 
-**Current active checkpoint: BX — trigger/replacement-flow stress and simultaneous-trigger safety.**
+See `FUTURE-WORK.md`.
 
-## Batch 3 remaining closure work
+Future behavior:
+- from Guided Resolution, an authorized user may teach **Commander Companion itself** how to resolve a specific card
+- the resolution recipe is saved and automatically reused in later games when compatible
+- creating/editing/replacing/deleting taught recipes is PIN-protected
+- normal use of a saved recipe does not require the PIN
+- teaching is not a player tutorial/coaching feature
+- taught resolutions must still obey legality/state checks and safe Back/Cancel/Undo rules
 
-The remaining Card Interaction Engine work includes:
-- trigger/replacement-flow regression completion
-- commander / partner / dual-commander interaction safety
-- combat keyword / state-based-action interaction safety needed by card engine
-- deeper multi-object stack / response scenarios
-- unsupported/static/alternate-cost card auditing and Guided Resolution backlog population
-- representative complex-deck/precon stress testing required for Batch 3 closure
+This feature is approved future work and is not part of the completed Batch 3 build.
 
+## UI approval gate
 
-## Approved future feature — Guided Resolution teaching
+The current UI is working and approved as the baseline.
 
-A future build will allow an authorized user to **teach Commander Companion a card's resolution** from Guided Resolution, save that resolution recipe, and automatically reuse it for that card in later games.
+Any UI-affecting change must:
+- be isolated to the requested scope
+- preserve unrelated layout/style/function
+- be tested before presentation
+- be explicitly reviewed and approved by Aaron before advancing that UI checkpoint
 
-- Teaching means teaching the **app**, not the player.
-- Creating/editing/replacing/deleting a taught resolution is PIN-protected.
-- Normal reuse of an already-saved taught resolution does not require the PIN.
-- This is not part of Batch 3 and must not be implemented until its future UI/function batch is reached.
-- See `FUTURE-WORK.md` for the locked product intent and safety rules.
+Do not batch cosmetic changes into engine work.
 
-## Mandatory batch boundary
+## Single-chat development rule
 
-When Batch 3 is complete:
-1. STOP.
-2. Present Aaron a detailed Batch 3 completion report.
-3. Write the same report into repository source documentation.
-4. Review remaining Guided Resolution card backlog.
-5. Do not begin Batch 4 until this handoff has been delivered.
+Only one chat may advance actual build progress at a time.
+
+Other chats may:
+- research
+- inspect
+- analyze
+- add notes
+- add future-work entries
+- add Guided Resolution backlog information
+
+They may not implement/promote actual build changes while another chat owns the lock.
+
+## Clean next-chat entry point
+
+Open `START-BATCH-4-HERE.md`.
+
+That file contains the exact Batch 4 startup procedure, source-of-truth files, safe commit, lock-claim rule, and next-batch boundary.
