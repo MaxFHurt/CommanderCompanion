@@ -35,11 +35,14 @@ function dockIcon(kind){const paths={
   profile:'<circle cx="24" cy="18" r="7"/><path d="M11 39c2-9 8-12 13-12s11 3 13 12z"/>',
   home:'<path d="M9 23L24 10l15 13"/><path d="M14 21v18h20V21"/><path d="M21 39V28h6v11"/>'
 };return `<svg class="dock-glyph dock-glyph-${kind}" viewBox="0 0 48 48" aria-hidden="true"><defs><linearGradient id="dockMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".46" stop-color="#b8a5ca"/><stop offset=".7" stop-color="#7d36b9"/><stop offset="1" stop-color="#efe7f7"/></linearGradient></defs><g fill="none" stroke="url(#dockMetal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${paths[kind]||''}</g></svg>`}
-function smartAction(game,p){
+export function smartAction(game,p){
   // Smart Action is intentionally limited to real contextual actions. It must never advance or end a phase.
   if(game.phase==='draw'&&!p.confirmations?.draw)return {action:'draw',label:'DRAW',available:true,cue:'smart'};
   if(['combat','begin-combat','declare-attackers'].includes(game.phase)){
-    const canAttack=(p.deck?.battlefield||[]).some(c=>{const d=defOf(game,c);return validateAttack({game,attackerId:p.playerId,defenderId:'other',instance:c,definition:d}).legal});
+    // Batch 6: attack legality must be checked against actual live defenders. The old
+    // placeholder defender id ("other") made the contextual jewel incorrectly go idle.
+    const defenders=(game.players||[]).filter(x=>x.playerId!==p.playerId&&!x.eliminated);
+    const canAttack=(p.deck?.battlefield||[]).some(c=>{const d=defOf(game,c);return defenders.some(defender=>validateAttack({game:{...game,phase:'declare-attackers'},attackerId:p.playerId,defenderId:defender.playerId,instance:c,definition:d}).legal)});
     if(canAttack)return {action:'attack',label:'ATTACK',available:true,cue:'smart'};
   }
   if(game.phase==='untap'&&(p.deck?.battlefield||[]).some(c=>c.tapped)&&!p.confirmations?.untap)return {action:'untap',label:'UNTAP',available:true,cue:'smart'};
@@ -89,7 +92,8 @@ function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true
   const groups=new Map();for(const c of basic){const d=defOf(game,c),k=d?.name||'Basic Land';if(!groups.has(k))groups.set(k,{d,count:0,cards:[]});const g=groups.get(k);g.count++;g.cards.push(c)}
   const basicHtml=[...groups.values()].map(({d,count,cards})=>{const representative=cards.find(c=>!c.tapped)||cards[0];return `<button class="battle-card basic-land-stack${representative?.tapped?' tapped':''}" data-instance="${esc(representative?.instanceId||'')}" title="${esc(d?.name)}" aria-disabled="${controls?'false':'true'}"><img src="${esc(imageOf(d))}" alt="${esc(d?.name)}"><span class="multiple-badge">×${count}</span><span class="card-label">${esc(d?.name)}</span></button>`}).join('');
   const battlefieldCardHtml=manaNormal.map(renderPermanent).join('')+basicHtml+restNormal.map(renderPermanent).join('');
-  const attackers=p.deck.battlefield.filter(c=>{const d=defOf(game,c);return validateAttack({game,attackerId:p.playerId,defenderId:'other',instance:c,definition:d}).legal});
+  const liveDefenders=(game.players||[]).filter(x=>x.playerId!==p.playerId&&!x.eliminated);
+  const attackers=p.deck.battlefield.filter(c=>{const d=defOf(game,c);return liveDefenders.some(defender=>validateAttack({game:{...game,phase:'declare-attackers'},attackerId:p.playerId,defenderId:defender.playerId,instance:c,definition:d}).legal)});
   const canAttack=['combat','begin-combat','declare-attackers'].includes(game.phase)&&attackers.length>0;
   const definitions=new Map(Object.entries(game.cardDefinitions||{}));
   const abilityCards=normal.filter(c=>{const d=defOf(game,c);return availableActivatedAbilities({game,instance:c,definition:d}).some(x=>x.legal&&validateActivatedAbilityFull({game,player:p,instance:c,definition:d,ability:x.ability,definitions}).legal)});
