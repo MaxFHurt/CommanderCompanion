@@ -82,6 +82,17 @@ The remaining Card Interaction Engine work includes:
 - unsupported/static/alternate-cost card auditing and Guided Resolution backlog population
 - representative complex-deck/precon stress testing required for Batch 3 closure
 
+
+## Approved future feature — Guided Resolution teaching
+
+A future build will allow an authorized user to **teach Commander Companion a card's resolution** from Guided Resolution, save that resolution recipe, and automatically reuse it for that card in later games.
+
+- Teaching means teaching the **app**, not the player.
+- Creating/editing/replacing/deleting a taught resolution is PIN-protected.
+- Normal reuse of an already-saved taught resolution does not require the PIN.
+- This is not part of Batch 3 and must not be implemented until its future UI/function batch is reached.
+- See `FUTURE-WORK.md` for the locked product intent and safety rules.
+
 ## Mandatory batch boundary
 
 When Batch 3 is complete:
