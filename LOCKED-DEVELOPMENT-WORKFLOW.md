@@ -82,3 +82,22 @@ For each mechanic:
 6. do not carry a failed implementation forward
 
 GitHub remains the source of truth for code and recorded project state.
+
+
+## 7. Single active build-progress chat
+
+Only one ChatGPT conversation may advance actual Commander Companion build progress at a time.
+
+The active build-progress chat is identified in `BUILD-PROGRESS-LOCK.md`.
+
+While that lock is active:
+- Only the named owner chat may push gameplay code, UI code, build-version changes, test changes that are intended to advance the active checkpoint, or promote a checkpoint to `main`.
+- Other chats may research, inspect code, analyze failures, draft proposed fixes, add batch notes, add future-work notes, add Guided Resolution backlog entries, or prepare non-advancing documentation.
+- Other chats must not create a competing build checkpoint, change the active build letter, promote a branch, or modify gameplay/UI implementation.
+- Before any build-advancing write, the chat must read `BUILD-PROGRESS-LOCK.md` and `COMMANDER-COMPANION-CURRENT-STATE.md`.
+- If another chat sees an active owner, it must stop before implementation and record its findings as notes only.
+- Ownership transfers only when Aaron explicitly says to transfer, hand off, or release the build-progress lock.
+- A transfer must update `BUILD-PROGRESS-LOCK.md` before the new owner performs build-advancing work.
+- If ownership is ambiguous, do not advance the build.
+
+This rule exists specifically to prevent concurrent chats from diverging, overwriting newer work, or independently advancing build letters.
