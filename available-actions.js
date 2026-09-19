@@ -6,6 +6,13 @@ const mainPhase=p=>['precombat-main','postcombat-main'].includes(p);
 const attackPhase=p=>['begin-combat','combat','declare-attackers'].includes(p);
 
 const responseEligibleDefinition=d=>/\bInstant\b/i.test(d?.typeLine||'')||/\bFlash\b/i.test(d?.oracleText||'');
+function priorityAbilityRelevant(game,ability){
+  const effect=String(ability?.effect||'').toLowerCase(),top=(game?.stack||[]).at(-1)||null;
+  if(!top)return false;
+  if(top.kind==='spell')return /counter target spell|copy target spell|change (?:the )?target|target spell/.test(effect);
+  if(top.kind==='ability'||top.kind==='trigger')return /counter target (?:activated|triggered) ability|copy target (?:activated|triggered) ability|target (?:activated|triggered) ability/.test(effect);
+  return false;
+}
 function priorityActions(game,player){
   const ps=game?.priorityState;if(!ps?.active||ps.holderId!==player?.playerId)return [];
   const defs=defsMap(game),out=[],gravePermission=(player.temporaryPermissions||[]).some(x=>x?.kind==='cast-from-zone'&&x?.zone==='graveyard');
@@ -17,9 +24,9 @@ function priorityActions(game,player){
   for(const c of player.deck?.battlefield||[]){
     const d=defOf(game,c);if(!d)continue;
     for(const row of availableActivatedAbilities({game,instance:c,definition:d})||[]){
-      if(!row?.legal||row.ability?.manaAbility)continue;
+      if(!row?.legal||row.ability?.manaAbility||!priorityAbilityRelevant(game,row.ability))continue;
       const full=validateActivatedAbilityFull({game,player,instance:c,definition:d,ability:row.ability,definitions:defs});
-      if(full?.legal)out.push(action('response-ability',`Activate ${d.name} in response`,{card:d.name,instanceId:c.instanceId,abilityId:row.ability?.id,reason:'This non-mana activated ability is legal while you hold priority.'}));
+      if(full?.legal)out.push(action('response-ability',`Activate ${d.name} in response`,{card:d.name,instanceId:c.instanceId,abilityId:row.ability?.id,reason:'This activated ability can interact with the current stack object.'}));
     }
   }
   out.push(action('pass-priority','Pass priority',{reason:out.length?'You may decline to respond.':'No legal response is available; passing priority is the legal progression.'}));
