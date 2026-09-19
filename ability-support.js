@@ -32,6 +32,12 @@ export function activatedAbilitySupport(definition,ability){
 }
 export function spellSupport(definition){
   const type=String(definition?.typeLine||'');if(!/Instant|Sorcery/i.test(type))return{supported:true,kind:'permanent',compiled:null,reasons:[]};const text=oracle(definition).trim();if(!text)return{supported:true,kind:'spell',compiled:{supported:true,effects:[],requirements:[],unsupported:[]},reasons:[]};
+  // BT safety gate: alternative-cost / alternate-zone keyword mechanics are not yet fully
+  // automated. Detect them before generic compilation so Commander Companion never
+  // silently treats a partial parse as a complete rules implementation. These spells
+  // remain castable through the Guided Oracle resolver without risking a stuck stack.
+  const alternate=text.match(/(?:^|\n)\s*(Overload|Cycling|Kicker|Multikicker|Buyback|Flashback|Escape|Foretell|Dash|Evoke|Spectacle|Blitz|Cleave|Mutate)\b[^\n]*/im);
+  if(alternate)return{supported:false,kind:'alternate-cost',compiled:null,reasons:[`${alternate[1]} is not fully automated; use Guided Oracle resolution.`],guidedFallback:true};
   const modal=modalSpellSpec(definition);if(modal){const bad=modal.compiledModes.filter(x=>!x.supported);return bad.length?{supported:false,kind:'modal',compiled:null,modal,reasons:[`One or more modes need guided resolution: ${bad.flatMap(x=>x.unsupported).join(' | ')}`],guidedFallback:true}:{supported:true,kind:'modal',compiled:null,modal,reasons:[]}}
   if(/search your library/i.test(text))return{supported:true,kind:'search-spell',compiled:null,reasons:[]};
   const compiled=compileEffectText(text,{sourceName:definition?.name||'Spell'});return compiled.supported?{supported:true,kind:'effect',compiled,reasons:[]}:{supported:false,kind:'effect',compiled,reasons:[`Effect resolver needs guided resolution for: ${(compiled.unsupported||[]).join(' | ')||text}`],guidedFallback:true};
