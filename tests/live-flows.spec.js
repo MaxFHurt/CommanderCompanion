@@ -152,11 +152,14 @@ test.describe('Commander Companion live game flows', () => {
         label:'Recovery Tester activates Recovery Engine.'
       });
 
+      const currentPlayer = () => game.players.find(p => p.playerId === 'p1');
       const findZone = id => {
+        const currentDeck=currentPlayer()?.deck;
+        if(!currentDeck)return null;
         for (const [zone,cards] of Object.entries({
-          hand:player.deck.hand,battlefield:player.deck.battlefield,graveyard:player.deck.graveyard,
-          exile:player.deck.exile,tokens:player.deck.tokens,attachments:player.deck.attachments,
-          commandZone:player.deck.commandZone,remainingLibrary:player.deck.remainingLibrary
+          hand:currentDeck.hand,battlefield:currentDeck.battlefield,graveyard:currentDeck.graveyard,
+          exile:currentDeck.exile,tokens:currentDeck.tokens,attachments:currentDeck.attachments,
+          commandZone:currentDeck.commandZone,remainingLibrary:currentDeck.remainingLibrary
         })) {
           const card=(cards||[]).find(c=>c.instanceId===id);
           if(card)return {zone,card};
@@ -167,7 +170,7 @@ test.describe('Commander Companion live game flows', () => {
       const afterCost = {
         stackLength:game.stack.length,
         sourceTapped:!!findZone('source')?.card?.tapped,
-        availableC:Number(player.mana.available.C||0),
+        availableC:Number(currentPlayer()?.mana?.available?.C||0),
         fodderZone:findZone('fodder')?.zone||null,
         fodderTapped:!!findZone('fodder')?.card?.tapped,
         sacrificeTriggerCount:(game.pendingTriggers||[]).filter(t=>t?.event?.type==='sacrificed'&&t?.event?.sourceId==='fodder').length,
@@ -187,7 +190,7 @@ test.describe('Commander Companion live game flows', () => {
           fodderZone:restoredFodder?.zone||null,
           fodderTapped:!!restoredFodder?.card?.tapped,
           fodderCounters:structuredClone(restoredFodder?.card?.counters||{}),
-          graveyardLength:player.deck.graveyard.length
+          graveyardLength:currentPlayer()?.deck?.graveyard?.length||0
         }
       };
     });
