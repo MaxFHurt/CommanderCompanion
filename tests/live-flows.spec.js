@@ -601,6 +601,90 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.cyclingGuidedAvailable).toBe(true);
   });
 
+  test('Lita-style modal triggers track unique choices per source and reset each turn', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const {
+        parseTriggeredAbilities,
+        queueTriggers,
+        availableModalTriggerModes,
+        recordModalTriggerModeChoice
+      } = await import('./trigger-engine.js?v=080-bu-lita-regression');
+
+      const litaDef={
+        definitionId:'lita-def',
+        name:'Lita, Little Orphan Amphibian',
+        typeLine:'Legendary Creature — Mutant Ninja Turtle',
+        oracleText:"Alliance — Whenever another creature you control enters, choose one that hasn't been chosen this turn.\n• Put a +1/+1 counter on Lita.\n• Create a Food token.\n• Scry 1."
+      };
+      const entrantDef={definitionId:'entrant-def',name:'Test Creature',typeLine:'Creature — Human',oracleText:''};
+      const lita={instanceId:'lita-1',definitionId:'lita-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const entrant={instanceId:'entrant',definitionId:'entrant-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const player={
+        playerId:'p1',displayName:'Lita Tester',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanders:[],
+        deck:{remainingLibrary:[],hand:[],battlefield:[lita,entrant],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+      };
+      const game={
+        players:[player],activePlayerId:'p1',turnNumber:7,phase:'precombat-main',pendingTriggers:[],log:[],
+        cardDefinitions:{'lita-def':litaDef,'entrant-def':entrantDef}
+      };
+
+      const parsed=parseTriggeredAbilities(litaDef);
+      const queued=queueTriggers(game,{
+        type:'enters-battlefield',
+        sourceId:'entrant',
+        definitionId:'entrant-def',
+        controllerId:'p1',
+        ownerId:'p1',
+        typeLine:'Creature — Human'
+      });
+      const trigger=queued[0];
+
+      const initial=availableModalTriggerModes(lita,trigger,7);
+      recordModalTriggerModeChoice(lita,trigger,7,0);
+      const afterOne=availableModalTriggerModes(lita,trigger,7);
+      let repeatError='';
+      try{recordModalTriggerModeChoice(lita,trigger,7,0)}catch(e){repeatError=String(e?.message||e||'')}
+      recordModalTriggerModeChoice(lita,trigger,7,1);
+      recordModalTriggerModeChoice(lita,trigger,7,2);
+      const exhausted=availableModalTriggerModes(lita,trigger,7);
+      const nextTurn=availableModalTriggerModes(lita,trigger,8);
+
+      const secondLita={instanceId:'lita-2',definitionId:'lita-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const independent=availableModalTriggerModes(secondLita,trigger,7);
+
+      return{
+        parsedCount:parsed.length,
+        parsedModes:parsed[0]?.modes?.length||0,
+        parsedUnique:!!parsed[0]?.uniquePerTurn,
+        queuedCount:queued.length,
+        queuedSource:trigger?.sourceId||null,
+        queuedUnique:!!trigger?.modal?.uniquePerTurn,
+        initialIndexes:initial.modes.map(x=>x.index),
+        afterOneIndexes:afterOne.modes.map(x=>x.index),
+        repeatError,
+        exhaustedCount:exhausted.modes.length,
+        nextTurnIndexes:nextTurn.modes.map(x=>x.index),
+        independentIndexes:independent.modes.map(x=>x.index)
+      };
+    });
+
+    expect(result.parsedCount).toBe(1);
+    expect(result.parsedModes).toBe(3);
+    expect(result.parsedUnique).toBe(true);
+    expect(result.queuedCount).toBe(1);
+    expect(result.queuedSource).toBe('lita-1');
+    expect(result.queuedUnique).toBe(true);
+    expect(result.initialIndexes).toEqual([0,1,2]);
+    expect(result.afterOneIndexes).toEqual([1,2]);
+    expect(result.repeatError).toMatch(/already been chosen this turn/i);
+    expect(result.exhaustedCount).toBe(0);
+    expect(result.nextTurnIndexes).toEqual([0,1,2]);
+    expect(result.independentIndexes).toEqual([0,1,2]);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
