@@ -954,9 +954,9 @@ test.describe('Commander Companion live game flows', () => {
       const afterA={stack:game.stack.map(x=>x.card?.instanceId),aZone:zoneOf('spell-a')};
 
       beginPriorityWindow(game,{reason:'Respond to First Instant',stage:'stack-response',startingPlayerId:'p1'});
-      const holder0=priorityHolder(game);
+      const holder0=priorityHolder(game)?.playerId||null;
       const passA=passPriority(game,'p1');
-      const holder1=priorityHolder(game);
+      const holder1=priorityHolder(game)?.playerId||null;
 
       let wrongPlayerError='';
       try{recordPriorityResponse(game,{playerId:'p1',label:'Illegal response attempt'})}
@@ -968,13 +968,13 @@ test.describe('Commander Companion live game flows', () => {
         stack:game.stack.map(x=>x.card?.instanceId),
         aZone:zoneOf('spell-a'),
         bZone:zoneOf('spell-b'),
-        holder:priorityHolder(game),
+        holder:priorityHolder(game)?.playerId||null,
         passCount:game.priorityState?.passCount||0,
         responses:(game.priorityState?.responses||[]).map(x=>x.playerId)
       };
 
       const passB=passPriority(game,'p2');
-      const holder2=priorityHolder(game);
+      const holder2=priorityHolder(game)?.playerId||null;
       const passA2=passPriority(game,'p1');
       const closed={
         active:!!game.priorityState?.active,
