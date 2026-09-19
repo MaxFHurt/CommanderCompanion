@@ -1,6 +1,6 @@
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
-import { createTransactionEngine } from './transactions.js?v=080-bn';
+import { createTransactionEngine } from './transactions.js?v=080-bp';
 import { saveToStorage, loadFromStorage, hasValidSave, saveDurable, loadDurable, loadBestAvailableSave, hasDurableSave } from './persistence.js?v=080-ba';
 import { hydrateDeckList, resolveNamedCard, resolvePrinting, searchCards } from './card-api.js?v=080-ba';
 import { validatePlay, validateCommanderConfiguration, validateDeckColorIdentity, validateAttack, validateBlock, planMana, manaPaymentOptions, parseManaCost, isCommanderEligible, isSecondaryCommanderEligible, allowsSecondaryCommander, canShareCommandZone, validateCommanderDeck, isBasicLand, basicLandManaColor, activatedAbilityLines as ruleActivatedAbilityLines, parseActivatedAbilities, availableActivatedAbilities, validateActivatedAbility, validateActivatedAbilityFull, DEFAULT_COMMANDER_RULES, normalizeRulesConfig, tapManaAbilities, manaOptionsFromAbility, isManaAbilityLine, canActivateTapAbility, entersBattlefieldTapped, blockerCapacity, attackerMinimumBlockers, validateForcedBlockAssignments, validateBlockAssignments, validateRequiredAttackers, playerManaAvailability, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-bn';
@@ -488,6 +488,38 @@ function openModal(title,html,actions=[],trayHtml=''){
   document.body.classList.add('cc-modal-open');modal.showModal();requestAnimationFrame(()=>{content.scrollTop=0})
 }
 function closeModal(){clearPriorityResponseTimer();if(scannerStream)stopScanner();const m=$('#modal');try{document.activeElement?.blur?.()}catch{} if(m.open)m.close();document.body.classList.remove('cc-modal-open');m.classList.remove('game-history-modal');const y=Number(m.dataset.returnScroll||0);requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'auto'}))}
+function clearStackRecoveryNow(){
+  if(!(game?.stack?.length))return toast('The stack is already empty.');
+  const snapshot=structuredClone(game),startingCount=game.stack.length;
+  let rewound=0,safety=0;
+  try{
+    while(game.stack?.length){
+      if(safety++>=64)throw new Error('Recovery stopped before the stack could be cleared safely.');
+      if(!engine?.undo?.())throw new Error('No safe Undo snapshot is available for the remaining stack object.');
+      rewound++;
+    }
+    stackAutomationEpoch++;
+    resolvingPriority=false;
+    priorityContinuation=null;
+    clearTimeout(render._stackDrainTimer);
+    clearPriorityResponseTimer();
+    clearPriority(game);
+    game.log.unshift({id:`stack-recovery:${Date.now()}`,type:'stack-recovery',text:`Clear Stack recovery rewound ${rewound} pending action${rewound===1?'':'s'} and restored their pre-stack state. No stack object was resolved.`,turn:game.turnNumber,phase:game.phase,at:new Date().toISOString()});
+    closeModal();save();render();toast(`Stack cleared safely — ${startingCount} pending object${startingCount===1?'':'s'} rewound.`);
+  }catch(error){
+    game=structuredClone(snapshot);
+    engine=createAutosavingEngine(game);
+    closeModal();save();render();toast(error?.message||'Clear Stack recovery could not complete safely.',true);
+  }
+}
+function confirmClearStackRecovery(){
+  const count=Number(game?.stack?.length||0);
+  if(!count)return toast('The stack is already empty.');
+  openModal('CLEAR STACK — RECOVERY',`<p><b>Emergency recovery only.</b></p><p>This rewinds the pending stack actions back through their exact Undo snapshots until the stack is empty. It does <b>not</b> resolve the spells or abilities.</p><p class="muted">Cards, paid mana/life, tapped sources, sacrificed costs, and other tracked state are restored to their pre-stack state. Pending objects: ${count}.</p>`,[
+    {label:'CANCEL',onClick:openGameHistory},
+    {label:'CLEAR STACK',className:'danger',semantic:'delete',onClick:clearStackRecoveryNow}
+  ]);
+}
 function openGameHistory(){
   const rows=(game?.log||[]).map((e,index)=>({e,index})).sort((a,b)=>Number(b.e?.turn||0)-Number(a.e?.turn||0)||a.index-b.index);
   const history=rows.length?`<div class="game-history-list">${rows.map(({e})=>{const turn=Math.max(1,Number(e?.turn||1));const player=e?.playerName||e?.player||e?.displayName||'';const phase=e?.phase||'';const meta=[`TURN ${turn}`,player,phase].filter(Boolean).map(esc).join(' • ');return `<article class="game-history-entry"><small>${meta}</small><p>${esc(e?.text||'Game update')}</p></article>`}).join('')}</div>`:'<div class="game-history-empty">No recorded game actions yet.</div>';
@@ -498,6 +530,7 @@ function openGameHistory(){
     if(hasPriority)actions.push({label:'RETURN TO RESPONSE',className:'primary',onClick:()=>{closeModal();openPriorityPrompt()}});
     else if(guidedPending)actions.push({label:'RESOLVE NOW',className:'primary',onClick:()=>{closeModal();resolvingPriority=false;resolveAfterAllPass()}});
     else actions.push({label:'RESUME STACK',className:'primary',onClick:()=>{closeModal();const top=(game.stack||[]).at(-1),responder=top?firstLegalOpponentResponder(top.controllerId):null;if(responder)beginPriority('Resume stack resolution.','stack-recovery',null,responder.playerId);else resolveAfterAllPass()}});
+    if(!network?.client)actions.push({label:'CLEAR STACK',className:'danger',semantic:'delete',onClick:confirmClearStackRecovery});
   }
   actions.push({label:'UNDO LAST STEP',onClick:()=>confirmUndoLastStep()});
   openModal('GAME HISTORY',`${live}${history}`,actions);
