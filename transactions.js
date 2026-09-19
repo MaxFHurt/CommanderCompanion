@@ -1,4 +1,4 @@
-import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-az';
+import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules-v0725.js?v=080-bn';
 import { sync } from './deck.js?v=0722';
 import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js?v=080-az';
 import { effectivePower, effectiveToughness } from './combat-engine.js?v=0727';
@@ -46,7 +46,7 @@ function emit(game,event){
   return queueTriggers(game,event)
 }
 function payMana(game,player,payment){
-  if(!payment)return;const assignments=Array.isArray(payment.__sourceAssignments)?payment.__sourceAssignments:[];
+  if(!payment)return;const lifePayment=Math.max(0,Number(payment.__lifePayment||0));if(lifePayment&&Number(player.life||0)<lifePayment)throw new Error('Not enough life to pay this Phyrexian mana cost');const assignments=Array.isArray(payment.__sourceAssignments)?payment.__sourceAssignments:[];
   for(const [color,raw] of Object.entries(payment)){
     if(color.startsWith('__'))continue;const amount=Math.max(0,Number(raw||0));if(!amount)continue;
     const sources=(player.deck?.battlefield||[]).filter(c=>{const opts=Array.isArray(c.manaCapacityOptions)&&c.manaCapacityOptions.length?c.manaCapacityOptions:(c.manaCapacityColor?[c.manaCapacityColor]:[]);return !c.tapped&&manaSourceUsable(game,c)&&c.manaCapacityRegistered&&opts.length===1&&opts[0]===color}).sort((a,b)=>Number(b.manaCapacityAmount||1)-Number(a.manaCapacityAmount||1));
@@ -56,6 +56,7 @@ function payMana(game,player,payment){
     player.mana.available[color]=Math.max(0,available-amount);
   }
   for(const a of assignments){if(a.zoneManaAbility||a.zone==='hand'){const hit=locate(player.deck,a.instanceId);if(!hit||hit.z!=='hand')throw new Error('Chosen hand mana source is no longer available');const [card]=hit.a.splice(hit.i,1);card.zone='exile';card.tapped=false;player.deck.exile.push(card);continue}const card=(player.deck?.battlefield||[]).find(c=>c.instanceId===a.instanceId);if(card&&!card.tapped)card.tapped=true;}
+  if(lifePayment){player.life=Math.max(0,Number(player.life||0)-lifePayment);emit(game,{type:'life-lost',playerId:player.playerId,amount:lifePayment,controllerId:player.playerId,phyrexianPayment:true});}
 }
 function addMana(player,color,amount=1){const n=Number(amount||0);player.mana.available[color]=Number(player.mana.available[color]||0)+n;player.mana.floating=player.mana.floating||{W:0,U:0,B:0,R:0,G:0,C:0};player.mana.floating[color]=Number(player.mana.floating[color]||0)+n}
 function setTappedWithCapacity(game,player,card,nextTapped){const next=!!nextTapped,prev=!!card.tapped;if(prev===next){card.tapped=next;return}const opts=Array.isArray(card.manaCapacityOptions)?card.manaCapacityOptions:(card.manaCapacityColor?[card.manaCapacityColor]:[]);if(opts.length===1&&manaSourceUsable(game,card)){const mc=opts[0],amount=Math.max(1,Number(card.manaCapacityAmount||1)),delta=(next?-1:1)*amount;player.mana.available[mc]=Math.max(0,Number(player.mana.available[mc]||0)+delta)}card.tapped=next}
@@ -81,9 +82,10 @@ function applyTrackedEffects(game,player,effects=[],bindings={}){
 function putSpellOnStack(game,player,action,deck){
   const allowed=Array.isArray(action.fromZones)&&action.fromZones.length?action.fromZones:['hand','commandZone'];const {card,from}=removeFromZone(deck,action.instanceId,allowed);payMana(game,player,action.payment);if(Number.isInteger(action.activeFaceIndex))card.activeFaceIndex=action.activeFaceIndex;card.zone='stack';
   game.stack=game.stack||[];
+  const spellDef=defFor(game,card),defaultTo=/Instant|Sorcery/i.test(spellDef?.typeLine||'')?'graveyard':'battlefield';
   const stackObject={
     id:action.stackId||`stack:${Date.now()}:${Math.random()}`,kind:'spell',controllerId:player.playerId,ownerId:card.ownerId,card,sourceDefinitionId:card.definitionId,
-    fromZone:from,to:action.to||'battlefield',effects:structuredClone(action.effects||[]),effectBindings:structuredClone(action.effectBindings||{}),searchResult:structuredClone(action.searchResult||null),
+    fromZone:from,to:action.to||defaultTo,effects:structuredClone(action.effects||[]),effectBindings:structuredClone(action.effectBindings||{}),searchResult:structuredClone(action.searchResult||null),
     asEntersChoices:structuredClone(action.asEntersChoices||null),manaCapacityColor:action.manaCapacityColor||null,label:action.label||`Cast ${defFor(game,card)?.name||'spell'}`,
     commanderId:action.commanderId||null,guidedResolution:structuredClone(action.guidedResolution||null),createdAt:new Date().toISOString()
   };
@@ -158,7 +160,8 @@ function resetManaAtBoundary(game){for(const p of game.players||[])rebuildAvaila
 export function createTransactionEngine(game){
   function commit(action){
     const player=game.players.find(p=>p.playerId===action.playerId);if(!player)throw new Error('Unknown player');
-    const before=structuredClone({...game,undoHistory:[],pendingTransaction:null});const deck=player.deck;
+    const rollback=structuredClone(game);const before=structuredClone({...game,undoHistory:[],pendingTransaction:null});const deck=player.deck;
+    try{
     if(action.type==='cast-spell')putSpellOnStack(game,player,action,deck);
     else if(action.type==='activate-ability-stack')putAbilityOnStack(game,player,action,deck);
     else if(action.type==='activate-zone-mana-ability'){const hit=locate(deck,action.instanceId);if(!hit||hit.z!==(action.fromZone||'hand'))throw new Error('Ability source is not in the required zone');const [card]=hit.a.splice(hit.i,1);card.zone=action.toZone||'exile';card.tapped=false;deck[zoneKey(card.zone)].push(card);addMana(player,action.manaColor,Math.max(1,Number(action.manaAmount||1)));}
@@ -210,8 +213,9 @@ export function createTransactionEngine(game){
     else if(action.type==='mana-available')player.mana.available[action.color]=Math.max(0,Number(player.mana.available[action.color]||0)+action.delta);
     else if(action.type==='commander-tax-adjust'){const cmd=player.commanders.find(c=>c.id===action.commanderId);if(!cmd)throw new Error('Commander not found');cmd.commanderTax=Math.max(0,Number(cmd.commanderTax||0)+Number(action.delta||0));}
     else if(action.type==='cast-commander'){
-      // Legacy immediate path. New UI may use cast-spell with commanderId.
-      const cmd=player.commanders.find(c=>c.id===action.commanderId);if(!cmd)throw new Error('Commander not found');if(cmd.zone!=='command')throw new Error('Commander is not in the command zone');payMana(game,player,action.payment);cmd.castCount++;cmd.commanderTax=game.rulesConfig?.commanderTax===false?0:Math.max(0,cmd.castCount*2);cmd.zone='battlefield';cmd.commandZone=false;const cmdInst=deck.commandZone.find(x=>x.definitionId===cmd.cardId)||deck.commandZone[0];const hit=cmdInst?locate(deck,cmdInst.instanceId):null;if(hit){const [card]=hit.a.splice(hit.i,1);card.zone='battlefield';card.controllerId=player.playerId;card.enteredTurn=game.turnNumber;card.controlSinceTurn=game.turnNumber;deck.battlefield.push(card);emit(game,{type:'spell-cast',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,fromZone:'command'});emit(game,{type:'enters-battlefield',sourceId:card.instanceId,definitionId:card.definitionId,controllerId:player.playerId,ownerId:card.ownerId,typeLine:defFor(game,card)?.typeLine||''})}
+      const cmd=player.commanders.find(c=>c.id===action.commanderId);if(!cmd)throw new Error('Commander not found');if(cmd.zone!=='command')throw new Error('Commander is not in the command zone');const cmdInst=deck.commandZone.find(x=>x.definitionId===cmd.cardId);if(!cmdInst)throw new Error('Commander card instance is unavailable');
+      putSpellOnStack(game,player,{...action,type:'cast-spell',instanceId:cmdInst.instanceId,fromZones:['commandZone'],to:'battlefield',commanderId:cmd.id},deck);
+      cmd.castCount=Number(cmd.castCount||0)+1;cmd.commanderTax=game.rulesConfig?.commanderTax===false?0:Math.max(0,cmd.castCount*2);cmd.zone='stack';cmd.commandZone=false;
     }
     else if(action.type==='commander-to-command'){const cmd=player.commanders.find(c=>c.id===action.commanderId);if(!cmd)throw new Error('Commander not found');const hit=locate(deck,action.instanceId);if(hit){const [card]=hit.a.splice(hit.i,1);card.zone='command';card.controllerId=player.playerId;deck.commandZone.push(card)}cmd.zone='command';cmd.commandZone=true}
     else if(action.type==='phase'){
@@ -245,6 +249,7 @@ export function createTransactionEngine(game){
     const internalStackStep = action.__internalStackStep===true || action.type==='resolve-stack' || action.type==='put-trigger-stack';
     if(!internalStackStep)game.undoHistory.push({action:structuredClone(action),before});
     if(game.status!=='complete'&&!game.winner)game.status='active';return game;
+    }catch(error){restore(game,rollback);throw error}
   }
   function preview(action){game.pendingTransaction={action:structuredClone(action),createdAt:new Date().toISOString()};return structuredClone(game.pendingTransaction)}
   function cancel(){game.pendingTransaction=null}
