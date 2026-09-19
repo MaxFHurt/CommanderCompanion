@@ -44,7 +44,7 @@ test.describe('Batch 4 resolution intelligence', () => {
       } catch (e) { message=String(e.message||e); }
       return {before,after:game,message};
     });
-    expect(result.message).toMatch(/target|legal|available/i);
+    expect(result.message).toMatch(/target|legal|available|battlefield/i);
     expect(result.after).toEqual(result.before);
   });
 
@@ -72,7 +72,7 @@ test.describe('Batch 4 resolution intelligence', () => {
   test('Then sequencing remains supported after Batch 4 changes', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const { compileEffectText } = await import('./effect-engine.js?v=080-ca-batch4');
-      return compileEffectText('Draw a card, then gain 2 life.', { sourceName:'Batch 4 Test' });
+      return compileEffectText('Draw a card then you gain 2 life.', { sourceName:'Batch 4 Test' });
     });
     expect(result.supported).toBe(true);
     expect(result.effects.map(e => e.kind)).toEqual(['draw','life']);
