@@ -34,6 +34,23 @@ export function parseTriggeredAbilities(definition){
   if(current)out.push(current);
   return out.map((line,index)=>{const comma=line.indexOf(',');const trigger=comma>=0?line.slice(0,comma).trim():line;const rawEffect=comma>=0?line.slice(comma+1).trim():'';const oncePerTurn=/this ability triggers only once each turn/i.test(rawEffect);const effect=rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig,'').trim();const modes=[...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x=>x[1].trim());const uniquePerTurn=/choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect);return{id:`trigger-${index}`,text:line,trigger,effect,modes,uniquePerTurn,oncePerTurn}});
 }
+export function availableModalTriggerModes(card,trigger,turnNumber){
+  const ledger=card?.triggerModeChoices||{};
+  const key=`${trigger?.abilityId||'trigger'}:${Number(turnNumber||0)}`;
+  const used=new Set(Array.isArray(ledger[key])?ledger[key]:[]);
+  const modes=(trigger?.modal?.modes||[]).map((text,index)=>({text,index})).filter(row=>!trigger?.modal?.uniquePerTurn||!used.has(row.index));
+  return{key,used:[...used],modes};
+}
+export function recordModalTriggerModeChoice(card,trigger,turnNumber,index){
+  if(!card||!trigger?.modal?.uniquePerTurn)return false;
+  const count=Number(trigger.modal.modes?.length||0),choice=Number(index);
+  if(!Number.isInteger(choice)||choice<0||choice>=count)throw new Error('Invalid triggered-mode choice.');
+  const ledger=card.triggerModeChoices=card.triggerModeChoices||{};
+  const key=`${trigger.abilityId||'trigger'}:${Number(turnNumber||0)}`;
+  const used=new Set(Array.isArray(ledger[key])?ledger[key]:[]);
+  if(used.has(choice))throw new Error('That triggered mode has already been chosen this turn.');
+  used.add(choice);ledger[key]=[...used];return true;
+}
 function refersToSelf(trigger,definition){
   const name=String(definition?.name||'').split(' // ')[0];return /\bthis (?:creature|permanent|artifact|enchantment|land|planeswalker|card)\b/i.test(trigger)||(name&&new RegExp(`\\b${escRe(name)}\\b`,'i').test(trigger));
 }
