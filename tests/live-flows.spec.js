@@ -4,8 +4,10 @@ const liveOnly = () => test.skip(!process.env.CC_BASE_URL, 'Live GitHub Pages fl
 
 async function openMode(page, mode) {
   await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
   await expect(page.locator('#startGameBtn')).toBeVisible();
   await page.locator('#startGameBtn').click();
+  await expect(page.locator('#gameModeDialog')).toBeVisible();
   await page.locator(`[data-game-mode="${mode}"]`).click();
   await expect(page.locator('#modeSetupDialog')).toBeVisible();
 }
@@ -95,7 +97,7 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 30_000 });
     await expect(page.locator('[data-opening-card]')).toHaveCount(7);
 
-    await page.getByRole('button', { name: 'START GAME' }).click();
+    await page.locator('#modalActions button[data-action-label="START GAME"]').click();
     await expect(page.locator('#gameScreen')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('#gameContent')).not.toBeEmpty();
     await expect(page.locator('.visual-hand-zone')).toBeVisible();
