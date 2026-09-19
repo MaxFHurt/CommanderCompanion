@@ -2,13 +2,13 @@
 
 Last updated: 2026-09-19
 
-## ACTIVE OWNER — BATCH 4 CHAT
+## ACTIVE OWNER — BATCH 5
 
 - **Status:** ACTIVE
 - **Build-progress owner:** Batch 4 conversation
-- **Completed roadmap batch:** 4 of 12 — Effects + Triggers
+- **Active roadmap batch:** 5 of 12 — Complete Combat
 - **Current safe checkpoint:** V0.8 CA
-- **Next roadmap position:** Batch 5 of 12
+- **Starting checkpoint:** V0.8 CA
 
 Aaron designated this conversation as the sole writer. That ownership remains active across the next batch until he explicitly transfers or releases it.
 
