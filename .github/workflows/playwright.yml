@@ -1,14 +1,14 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BN Recovery Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ bn-recovery ]
   workflow_dispatch:
 
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -22,17 +22,19 @@ jobs:
       - name: Install test dependencies
         run: npm install
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Run Commander Companion browser tests
+      - name: Run full BN recovery browser tests locally
+        env:
+          CC_RUN_FULL_LOCAL: 1
         run: npx playwright test
 
       - name: Save Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: commander-companion-playwright-report
+          name: commander-companion-bn-recovery-report
           path: |
             playwright-report/
             test-results/
