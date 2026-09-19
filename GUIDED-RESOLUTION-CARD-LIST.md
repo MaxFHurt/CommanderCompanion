@@ -4,6 +4,24 @@ Last updated: 2026-09-19
 
 This file tracks every real card observed to require Guided Resolution. A card stays listed until the relevant behavior is automated and verified, or an explicit decision permanently keeps that mechanic guided.
 
+
+## Product decision — Guided fallback is acceptable for Batch 3
+
+The named OPEN cards in this file are **not Batch 3 blockers** when all of the following are true:
+- the card fails safely into Guided Resolution instead of partially/silently resolving
+- Guided Resolution remains recoverable and does not trap the stack or corrupt tracked state
+- Back / Close / Cancel do not commit the unresolved action
+- Clear Stack / Undo can recover exact tracked state where applicable
+- the card remains listed here for later automation work
+
+A future approved feature will allow an authorized user to **teach Commander Companion itself** how to resolve a card from Guided Resolution and save that resolution recipe for future automatic reuse.
+
+- Teaching the app is PIN-protected.
+- Creating, editing, replacing, or deleting a taught recipe requires the PIN.
+- Normal reuse of a previously saved taught recipe does not require the PIN.
+- This is not a player tutorial or coaching feature.
+- See `FUTURE-WORK.md`.
+
 ## OPEN
 
 ### Brainstorm
