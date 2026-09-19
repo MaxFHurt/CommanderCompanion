@@ -8,7 +8,7 @@ on:
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
@@ -22,10 +22,31 @@ jobs:
       - name: Install test dependencies
         run: npm install
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
-      - name: Run Commander Companion browser tests
+      - name: Run local Commander Companion browser tests
+        run: npx playwright test
+
+      - name: Wait for matching GitHub Pages build
+        shell: bash
+        run: |
+          EXPECTED_TITLE="$(grep -o '<title>[^<]*</title>' index.html | head -1)"
+          echo "Waiting for live page title: $EXPECTED_TITLE"
+          for attempt in {1..36}; do
+            LIVE_HTML="$(curl -fsSL -H 'Cache-Control: no-cache' "https://maxfhurt.github.io/CommanderCompanion/index.html?sha=${GITHUB_SHA}&attempt=${attempt}" || true)"
+            if grep -Fq "$EXPECTED_TITLE" <<< "$LIVE_HTML"; then
+              echo "Matching Pages build is live."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Timed out waiting for the matching Pages build."
+          exit 1
+
+      - name: Run live GitHub Pages browser tests
+        env:
+          CC_BASE_URL: https://maxfhurt.github.io/CommanderCompanion/
         run: npx playwright test
 
       - name: Save Playwright report
