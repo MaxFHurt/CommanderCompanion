@@ -12,7 +12,8 @@
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
   <link rel="stylesheet" href="styles-v0739.css?v=080-bn">
 </head>
-<body>
+<body class="cc-device-other-phone">
+  <script>(function(){var ua=navigator.userAgent||'';var iphone=/iPhone|iPod/i.test(ua);document.body.classList.toggle('cc-device-iphone',iphone);document.body.classList.toggle('cc-device-other-phone',!iphone);})();</script>
   <div id="toast" class="toast" hidden></div>
   <div id="bootError" class="boot-error" hidden><strong>COMMANDER COMPANION COULD NOT START</strong><p id="bootErrorText"></p><button onclick="location.reload()">RETRY</button></div>
 
