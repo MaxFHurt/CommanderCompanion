@@ -1,8 +1,8 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BY Stack Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ by-multistack-priority-prep ]
   workflow_dispatch:
 
 jobs:
