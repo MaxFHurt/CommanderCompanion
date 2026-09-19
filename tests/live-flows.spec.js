@@ -186,7 +186,7 @@ test.describe('Commander Companion live game flows', () => {
           stackLength:game.stack.length,
           pendingTriggers:(game.pendingTriggers||[]).length,
           sourceTapped:!!findZone('source')?.card?.tapped,
-          availableC:Number(player.mana.available.C||0),
+          availableC:Number(currentPlayer()?.mana?.available?.C||0),
           fodderZone:restoredFodder?.zone||null,
           fodderTapped:!!restoredFodder?.card?.tapped,
           fodderCounters:structuredClone(restoredFodder?.card?.counters||{}),
