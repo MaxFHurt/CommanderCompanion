@@ -2,6 +2,14 @@
 
 Last updated: 2026-09-19
 
+## Build-progress ownership
+
+**ACTIVE BUILD-PROGRESS LOCK:** This Commander Companion Batch 3 continuation chat is the sole chat allowed to advance implementation/build progress.
+
+See `BUILD-PROGRESS-LOCK.md` and `LOCKED-DEVELOPMENT-WORKFLOW.md`.
+
+Other chats may add notes/research/backlog documentation, but may not push gameplay/UI implementation, advance build letters, alter active checkpoint tests for promotion, or promote branches until Aaron explicitly transfers the lock.
+
 ## Roadmap position
 
 **CURRENT ROADMAP BATCH: 3 of 12 — Card Interaction Engine**
