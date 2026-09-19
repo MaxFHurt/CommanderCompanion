@@ -412,15 +412,27 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('.game-history-live-stack')).toBeVisible();
     await expect(page.locator('.stack-summary')).toContainText('Brainstorm');
     await expect(page.locator('#modalActions').getByRole('button', { name: 'RESOLVE NOW', exact: true })).toBeVisible();
+    await expect(page.locator('#modalActions').getByRole('button', { name: 'CLEAR STACK', exact: true })).toBeVisible();
 
-    // Recovery through Undo must return the exact spell and paid Island to their pre-cast state.
-    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
-    await expect(page.locator('#modalTitle')).toContainText('CONFIRM UNDO');
-    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
+    // Clear Stack is a recovery rewind. Cancel must not commit anything.
+    await page.locator('#modalActions').getByRole('button', { name: 'CLEAR STACK', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText('CLEAR STACK — RECOVERY');
+    await page.locator('#modalActions').getByRole('button', { name: 'CANCEL', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toHaveText('GAME HISTORY');
+    const afterClearCancel = await savedGame(page);
+    expect(afterClearCancel.stack?.length).toBe(1);
+    expect(locateTrackedCard(afterClearCancel, brainId)?.zone).toBe('stack');
+
+    // Confirming recovery must return the exact spell and paid Island to their pre-cast state.
+    await page.locator('#modalActions').getByRole('button', { name: 'CLEAR STACK', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText('CLEAR STACK — RECOVERY');
+    await page.locator('#modalActions').getByRole('button', { name: 'CLEAR STACK', exact: true }).click();
 
     const recovered = await savedGame(page);
     expect(recovered.stack?.length || 0).toBe(0);
+    expect(recovered.priorityState?.active || false).toBe(false);
     expect(locateTrackedCard(recovered, brainId)?.zone).toBe('hand');
     expect(locateTrackedCard(recovered, island.instanceId)?.card?.tapped).toBe(false);
+    expect(recovered.log.some(e => e.type === 'stack-recovery' && /No stack object was resolved/i.test(String(e.text || '')))).toBe(true);
   });
 });
