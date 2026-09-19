@@ -912,6 +912,153 @@ test.describe('Commander Companion live game flows', () => {
     expect(new Set(result.deathtouchTrample.diesEvents)).toEqual(new Set(['dt-trample','big-blocker']));
   });
 
+  test('Batch 3 final precon stress audit hydrates ten decks and reports named Guided-resolution candidates', async ({ page }) => {
+    test.setTimeout(900_000);
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { listPrecons, loadPrecon } = await import('./precons.js?v=080-bz-audit');
+      const { hydrateDeckList } = await import('./card-api.js?v=080-bz-audit');
+      const { analyzeDefinitionSupport } = await import('./ability-support.js?v=080-bz-audit');
+      const { normalizeDeck, drawOpeningHand } = await import('./deck.js?v=080-bz-audit');
+      const { initializeGame } = await import('./state.js?v=080-bz-audit');
+
+      const catalog=await listPrecons();
+      if(catalog.length<10)throw new Error('Commander precon catalog returned fewer than ten decks.');
+
+      const selected=[];
+      const add=row=>{if(row&&!selected.some(x=>x.fileName===row.fileName))selected.push(row)};
+      add(catalog.find(x=>/Turtle Power/i.test(x.name)));
+      add(catalog.find(x=>/Wakanda Forever/i.test(x.name)));
+      const slots=8;
+      for(let i=0;i<slots*2 && selected.length<10;i++){
+        const idx=Math.floor((i/(Math.max(1,slots*2-1)))*(catalog.length-1));
+        add(catalog[idx]);
+      }
+      for(const row of catalog){if(selected.length>=10)break;add(row)}
+      selected.splice(10);
+
+      const reports=[];
+      const guidedMap=new Map();
+
+      for(let i=0;i<selected.length;i++){
+        const row=selected[i];
+        const precon=await loadPrecon(row.fileName);
+        const hydrated=await hydrateDeckList(precon.deckList);
+        const defs=hydrated.definitions||[];
+        const byName=new Map(defs.map(d=>[String(d.name||'').toLowerCase(),d]));
+        const commanderDefs=(precon.commanders||[]).map(name=>byName.get(String(name).toLowerCase())).filter(Boolean);
+        if(!commanderDefs.length)throw new Error(`No hydrated commander found for ${precon.name}`);
+
+        const ownerId=`audit-p${i+1}`;
+        const deck=normalizeDeck({
+          ownerId,
+          sourceType:'precon',
+          sourceId:row.fileName,
+          sourceName:precon.name,
+          manifest:hydrated.manifest,
+          commanderDefinitionIds:commanderDefs.map(d=>d.definitionId)
+        });
+        drawOpeningHand(deck,7);
+
+        const zones=[deck.remainingLibrary,deck.hand,deck.battlefield,deck.graveyard,deck.exile,deck.tokens,deck.attachments,deck.commandZone];
+        const ids=zones.flat().map(x=>x.instanceId);
+        const exactTrackedCount=ids.length;
+        const uniqueTrackedCount=new Set(ids).size;
+
+        for(const def of defs){
+          const audit=analyzeDefinitionSupport(def);
+          const reasons=[];
+          if(audit.spell && audit.spell.supported===false)reasons.push(...(audit.spell.reasons||['Spell requires Guided Resolution']));
+          for(const a of audit.activated||[])if(a.supported===false)reasons.push(...(a.reasons||[`Activated ability: ${a.ability?.text||''}`]));
+          for(const t of audit.triggers||[])if(t.supported===false)reasons.push(`Trigger: ${t.text||''} :: ${(t.unsupported||[]).join(' | ')}`);
+          if(reasons.length){
+            const key=def.name||def.definitionId;
+            const existing=guidedMap.get(key)||{name:def.name||key,decks:new Set(),reasons:new Set()};
+            existing.decks.add(precon.name);
+            reasons.forEach(reason=>existing.reasons.add(String(reason)));
+            guidedMap.set(key,existing);
+          }
+        }
+
+        reports.push({
+          name:precon.name,
+          fileName:row.fileName,
+          total:hydrated.total,
+          unresolved:[...(hydrated.unresolved||[])],
+          commanderNames:commanderDefs.map(d=>d.name),
+          commandZone:deck.commandZone.length,
+          hand:deck.hand.length,
+          library:deck.remainingLibrary.length,
+          exactTrackedCount,
+          uniqueTrackedCount,
+          manifestFingerprint:deck.manifestFingerprint||null,
+          deck,
+          commanderDefs
+        });
+      }
+
+      const four=reports.slice(0,4);
+      const game=initializeGame({
+        mode:'fully-tracked',
+        deviceMode:'single-device',
+        players:four.map((r,i)=>({
+          playerId:`stress-p${i+1}`,
+          displayName:`Stress ${i+1}`,
+          life:40,
+          deck:r.deck,
+          commanders:r.commanderDefs.map((d,j)=>({
+            id:`stress-p${i+1}:commander:${j+1}`,
+            cardId:d.definitionId,
+            name:d.name,
+            zone:'command',
+            commandZone:true,
+            castCount:0,
+            commanderTax:0
+          }))
+        }))
+      });
+
+      const guided=[...guidedMap.values()]
+        .map(x=>({name:x.name,decks:[...x.decks].sort(),reasons:[...x.reasons].sort()}))
+        .sort((a,b)=>a.name.localeCompare(b.name));
+
+      return{
+        catalogCount:catalog.length,
+        selectedNames:selected.map(x=>x.name),
+        decks:reports.map(({deck,commanderDefs,...rest})=>rest),
+        fourPlayer:{
+          count:game.players.length,
+          activePlayerId:game.activePlayerId,
+          handCounts:game.players.map(p=>p.deck.hand.length),
+          commandCounts:game.players.map(p=>p.deck.commandZone.length),
+          trackedFingerprints:game.players.map(p=>p.deck.manifestFingerprint||null)
+        },
+        guided
+      };
+    });
+
+    console.log('BATCH3_GUIDED_AUDIT_JSON='+JSON.stringify(result.guided));
+
+    expect(result.selectedNames).toHaveLength(10);
+    expect(result.selectedNames.some(x=>/Turtle Power/i.test(x))).toBe(true);
+    expect(result.selectedNames.some(x=>/Wakanda Forever/i.test(x))).toBe(true);
+    for(const deck of result.decks){
+      expect(deck.total, `${deck.name} must hydrate as a full Commander deck`).toBe(100);
+      expect(deck.unresolved, `${deck.name} must have no unresolved card names`).toEqual([]);
+      expect(deck.commanderNames.length, `${deck.name} needs at least one commander`).toBeGreaterThanOrEqual(1);
+      expect(deck.commandZone).toBe(deck.commanderNames.length);
+      expect(deck.hand).toBe(7);
+      expect(deck.exactTrackedCount).toBe(100);
+      expect(deck.uniqueTrackedCount).toBe(100);
+    }
+    expect(result.fourPlayer.count).toBe(4);
+    expect(result.fourPlayer.handCounts).toEqual([7,7,7,7]);
+    expect(result.fourPlayer.commandCounts.every(x=>x>=1)).toBe(true);
+    expect(new Set(result.fourPlayer.trackedFingerprints.filter(Boolean)).size).toBe(result.fourPlayer.trackedFingerprints.filter(Boolean).length);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
