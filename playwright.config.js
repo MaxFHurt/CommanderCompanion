@@ -1,5 +1,7 @@
 const { defineConfig } = require('@playwright/test');
 
+const liveBaseURL = process.env.CC_BASE_URL || null;
+
 module.exports = defineConfig({
   testDir: './tests',
   projects: [
@@ -17,7 +19,7 @@ module.exports = defineConfig({
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
   ],
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: liveBaseURL || 'http://127.0.0.1:4173',
     browserName: 'chromium',
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 3,
@@ -27,7 +29,7 @@ module.exports = defineConfig({
     video: 'on',
     trace: 'retain-on-failure',
   },
-  webServer: {
+  webServer: liveBaseURL ? undefined : {
     command: 'python3 -m http.server 4173 --bind 127.0.0.1',
     url: 'http://127.0.0.1:4173/index.html',
     reuseExistingServer: !process.env.CI,
