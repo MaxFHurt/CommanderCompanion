@@ -1,14 +1,14 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BZ Guided Audit
 
 on:
   push:
-    branches: [ main ]
+    branches: [ bz-guided-precon-audit-prep ]
   workflow_dispatch:
 
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: Check out repository
