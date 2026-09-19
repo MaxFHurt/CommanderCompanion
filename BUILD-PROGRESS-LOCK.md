@@ -6,9 +6,9 @@ Last updated: 2026-09-19
 
 - **Status:** ACTIVE
 - **Build-progress owner:** this development conversation
-- **Completed roadmap batch:** 5 of 12 — Complete Combat
+- **Active roadmap batch:** 6 of 12 — Turn Flow + Priority + Available Actions
 - **Current safe checkpoint:** V0.8 CB
-- **Next roadmap position:** Batch 6 of 12 — Turn Flow + Priority + Available Actions
+- **Starting checkpoint:** V0.8 CB
 
 Aaron designated this conversation as the sole writer. Ownership remains active until he explicitly transfers or releases it.
 
