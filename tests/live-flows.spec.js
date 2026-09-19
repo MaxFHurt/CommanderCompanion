@@ -601,6 +601,131 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.cyclingGuidedAvailable).toBe(true);
   });
 
+  test('paired commanders stay legal and track commander tax independently with exact Undo', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { validateCommanderConfiguration } = await import('./rules-v0725.js?v=080-bv-commander-regression');
+      const { createTransactionEngine } = await import('./transactions.js?v=080-bv-commander-regression');
+      const emptyMana=()=>({W:0,U:0,B:0,R:0,G:0,C:0});
+
+      const aDef={definitionId:'cmd-a-def',name:'Partner A',typeLine:'Legendary Creature — Human Wizard',oracleText:'Partner',manaCost:'{1}{U}',colorIdentity:['U']};
+      const bDef={definitionId:'cmd-b-def',name:'Partner B',typeLine:'Legendary Creature — Elf Druid',oracleText:'Partner',manaCost:'{1}{G}',colorIdentity:['G']};
+      const badDef={definitionId:'bad-def',name:'Solo Legend',typeLine:'Legendary Creature — Human',oracleText:'',manaCost:'{2}{W}',colorIdentity:['W']};
+
+      const legalPair=validateCommanderConfiguration([aDef,bDef]);
+      const illegalPair=validateCommanderConfiguration([aDef,badDef]);
+
+      const aInst={instanceId:'cmd-a-inst',definitionId:'cmd-a-def',ownerId:'p1',controllerId:'p1',zone:'command',tapped:false,counters:{}};
+      const bInst={instanceId:'cmd-b-inst',definitionId:'cmd-b-def',ownerId:'p1',controllerId:'p1',zone:'command',tapped:false,counters:{}};
+      const player={
+        playerId:'p1',displayName:'Commander Tester',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},
+        commanders:[
+          {id:'cmd-a',cardId:'cmd-a-def',zone:'command',commandZone:true,castCount:0,commanderTax:0},
+          {id:'cmd-b',cardId:'cmd-b-def',zone:'command',commandZone:true,castCount:0,commanderTax:0}
+        ],
+        mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},
+        deck:{remainingLibrary:[],hand:[],battlefield:[],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[aInst,bInst]}
+      };
+      const game={
+        players:[player],activePlayerId:'p1',turnNumber:1,roundNumber:1,phase:'precombat-main',status:'active',
+        winner:null,log:[],stack:[],undoHistory:[],pendingTriggers:[],rulesConfig:{commanderTax:true},
+        cardDefinitions:{'cmd-a-def':aDef,'cmd-b-def':bDef,'bad-def':badDef}
+      };
+      const engine=createTransactionEngine(game);
+      const current=()=>game.players.find(p=>p.playerId==='p1');
+      const commander=id=>current()?.commanders?.find(c=>c.id===id);
+      const zoneOf=instanceId=>{
+        const d=current()?.deck||{};
+        for(const zone of ['commandZone','battlefield','graveyard','exile','hand','remainingLibrary']){
+          if((d[zone]||[]).some(c=>c.instanceId===instanceId))return zone;
+        }
+        if((game.stack||[]).some(x=>x?.card?.instanceId===instanceId))return 'stack';
+        return null;
+      };
+
+      engine.commit({type:'cast-commander',playerId:'p1',commanderId:'cmd-a',payment:null,label:'Cast Partner A'});
+      const afterFirst={
+        aCastCount:Number(commander('cmd-a')?.castCount||0),
+        aTax:Number(commander('cmd-a')?.commanderTax||0),
+        aZone:commander('cmd-a')?.zone||null,
+        aCardZone:zoneOf('cmd-a-inst'),
+        bCastCount:Number(commander('cmd-b')?.castCount||0),
+        bTax:Number(commander('cmd-b')?.commanderTax||0),
+        bZone:commander('cmd-b')?.zone||null,
+        bCardZone:zoneOf('cmd-b-inst'),
+        stackLength:Number(game.stack?.length||0)
+      };
+
+      const didUndo=engine.undo();
+      const afterUndo={
+        didUndo,
+        aCastCount:Number(commander('cmd-a')?.castCount||0),
+        aTax:Number(commander('cmd-a')?.commanderTax||0),
+        aZone:commander('cmd-a')?.zone||null,
+        aCardZone:zoneOf('cmd-a-inst'),
+        bCastCount:Number(commander('cmd-b')?.castCount||0),
+        bTax:Number(commander('cmd-b')?.commanderTax||0),
+        bZone:commander('cmd-b')?.zone||null,
+        bCardZone:zoneOf('cmd-b-inst'),
+        stackLength:Number(game.stack?.length||0)
+      };
+
+      engine.commit({type:'cast-commander',playerId:'p1',commanderId:'cmd-a',payment:null,label:'Cast Partner A'});
+      engine.commit({type:'resolve-stack',playerId:'p1',label:'Resolve Partner A',__internalStackStep:true});
+      engine.commit({type:'commander-to-command',playerId:'p1',commanderId:'cmd-a',instanceId:'cmd-a-inst',label:'Return Partner A to command zone'});
+      engine.commit({type:'cast-commander',playerId:'p1',commanderId:'cmd-a',payment:null,label:'Cast Partner A again'});
+      const afterSecond={
+        aCastCount:Number(commander('cmd-a')?.castCount||0),
+        aTax:Number(commander('cmd-a')?.commanderTax||0),
+        aCardZone:zoneOf('cmd-a-inst'),
+        bCastCount:Number(commander('cmd-b')?.castCount||0),
+        bTax:Number(commander('cmd-b')?.commanderTax||0),
+        bCardZone:zoneOf('cmd-b-inst')
+      };
+
+      return{
+        legalPair:!!legalPair.legal,
+        illegalPair:!!illegalPair.legal,
+        illegalReasons:illegalPair.reasons||[],
+        afterFirst,afterUndo,afterSecond
+      };
+    });
+
+    expect(result.legalPair).toBe(true);
+    expect(result.illegalPair).toBe(false);
+    expect(result.illegalReasons.join(' ')).toMatch(/do not form a legal shared commander configuration/i);
+
+    expect(result.afterFirst.aCastCount).toBe(1);
+    expect(result.afterFirst.aTax).toBe(2);
+    expect(result.afterFirst.aZone).toBe('stack');
+    expect(result.afterFirst.aCardZone).toBe('stack');
+    expect(result.afterFirst.bCastCount).toBe(0);
+    expect(result.afterFirst.bTax).toBe(0);
+    expect(result.afterFirst.bZone).toBe('command');
+    expect(result.afterFirst.bCardZone).toBe('commandZone');
+    expect(result.afterFirst.stackLength).toBe(1);
+
+    expect(result.afterUndo.didUndo).toBe(true);
+    expect(result.afterUndo.aCastCount).toBe(0);
+    expect(result.afterUndo.aTax).toBe(0);
+    expect(result.afterUndo.aZone).toBe('command');
+    expect(result.afterUndo.aCardZone).toBe('commandZone');
+    expect(result.afterUndo.bCastCount).toBe(0);
+    expect(result.afterUndo.bTax).toBe(0);
+    expect(result.afterUndo.bZone).toBe('command');
+    expect(result.afterUndo.bCardZone).toBe('commandZone');
+    expect(result.afterUndo.stackLength).toBe(0);
+
+    expect(result.afterSecond.aCastCount).toBe(2);
+    expect(result.afterSecond.aTax).toBe(4);
+    expect(result.afterSecond.aCardZone).toBe('stack');
+    expect(result.afterSecond.bCastCount).toBe(0);
+    expect(result.afterSecond.bTax).toBe(0);
+    expect(result.afterSecond.bCardZone).toBe('commandZone');
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
