@@ -10,10 +10,11 @@
   <title>Commander Companion V0.8 CC</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-bn">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-cd">
 </head>
-<body class="cc-device-other-phone">
+<body class="cc-device-other-phone cc-ui-v2">
   <script>(function(){var ua=navigator.userAgent||'';var iphone=/iPhone|iPod/i.test(ua);document.body.classList.toggle('cc-device-iphone',iphone);document.body.classList.toggle('cc-device-other-phone',!iphone);})();</script>
+  <div id="landscapeOnlyGate" class="cc-landscape-only-gate" aria-live="polite"><img src="cc-logo-mark.png" alt=""><strong>ROTATE TO LANDSCAPE</strong><span>Commander Companion is landscape-only.</span></div>
   <div id="toast" class="toast" hidden></div>
   <div id="bootError" class="boot-error" hidden><strong>COMMANDER COMPANION COULD NOT START</strong><p id="bootErrorText"></p><button onclick="location.reload()">RETRY</button></div>
 
@@ -56,7 +57,8 @@
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-bn">
+    <link rel="stylesheet" href="game-threefix.css?v=080-cd">
+    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cd">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -183,7 +185,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-cc');
+        await import('./app.js?v=080-cd');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
