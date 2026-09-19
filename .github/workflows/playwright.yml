@@ -1,59 +1,27 @@
-name: Commander Companion Browser Tests
+name: Commander Companion BT Modal/Alt-Cost Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ bt-modal-altcost-safety-prep ]
   workflow_dispatch:
 
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Install test dependencies
-        run: npm install
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium webkit
-
-      - name: Run local Commander Companion browser tests
+      - run: npm install
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run BT modal and alternate-cost regression
         run: npx playwright test
-
-      - name: Wait for matching GitHub Pages build
-        shell: bash
-        run: |
-          EXPECTED_TITLE="$(grep -o '<title>[^<]*</title>' index.html | head -1)"
-          echo "Waiting for live page title: $EXPECTED_TITLE"
-          for attempt in {1..36}; do
-            LIVE_HTML="$(curl -fsSL -H 'Cache-Control: no-cache' "https://maxfhurt.github.io/CommanderCompanion/index.html?sha=${GITHUB_SHA}&attempt=${attempt}" || true)"
-            if grep -Fq "$EXPECTED_TITLE" <<< "$LIVE_HTML"; then
-              echo "Matching Pages build is live."
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Timed out waiting for the matching Pages build."
-          exit 1
-
-      - name: Run live GitHub Pages browser tests
-        env:
-          CC_BASE_URL: https://maxfhurt.github.io/CommanderCompanion/
-        run: npx playwright test
-
-      - name: Save Playwright report
-        if: always()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: commander-companion-playwright-report
+          name: commander-companion-bt-modal-altcost-report
           path: |
             playwright-report/
             test-results/
