@@ -4,7 +4,7 @@ Last updated: 2026-09-19
 
 ## Guided Resolution — Teach the App a Card Resolution
 
-**Status:** APPROVED FUTURE FEATURE — do not implement during Batch 3 stabilization.
+**Status:** APPROVED FUTURE FEATURE — not yet scheduled for implementation.
 
 This feature teaches **Commander Companion itself**, not the player.
 
@@ -43,4 +43,4 @@ This is **not** a player tutorial, coaching system, or instructional overlay. Th
 
 ### UI / security gate
 
-This feature is UI-affecting and therefore remains subject to the locked UI approval rule. The PIN setup/entry UI and the teaching interface must be shown to Aaron for explicit approval before the implementation is allowed to advance.
+This feature is UI-affecting and therefore remains subject to the locked UI approval rule. Batch 3 is complete; do not infer that this feature automatically belongs to Batch 4 unless Aaron explicitly places it there. The PIN setup/entry UI and the teaching interface must be shown to Aaron for explicit approval before the implementation is allowed to advance.
