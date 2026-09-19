@@ -37,6 +37,11 @@ function locateTrackedCard(game, instanceId) {
       if (card) return { playerId: player.playerId, playerName: player.displayName, zone, card };
     }
   }
+  const stackObject = (game.stack || []).find(x => x?.card?.instanceId === instanceId);
+  if (stackObject) {
+    const player = (game.players || []).find(p => p.playerId === stackObject.controllerId);
+    return { playerId: player?.playerId || null, playerName: player?.displayName || null, zone: 'stack', card: stackObject.card, stackObject };
+  }
   return null;
 }
 
@@ -291,5 +296,131 @@ test.describe('Commander Companion live game flows', () => {
     await expect(flexBattlefield.locator('.card-counter-badge')).toContainText('+1/+1 ×1');
     const counterState = await savedGame(page);
     expect(locateTrackedCard(counterState, flexId)?.card?.counters?.['+1/+1']).toBe(1);
+  });
+
+  test('Guided stack pause survives Back and is visible in Game History', async ({ page }) => {
+    liveOnly();
+    test.setTimeout(240_000);
+
+    const qaDeck = [
+      '1 Kenrith, the Returned King',
+      '1 Brainstorm',
+      '1 Reanimate',
+      '1 Malakir Rebirth',
+      '1 Sol Ring',
+      '1 Command Tower',
+      '94 Island'
+    ].join('\n');
+
+    await openMode(page, 'fully-tracked');
+    await page.locator('#modeProceed').click();
+    await expect(page.locator('#setupDialog')).toBeVisible();
+
+    const panels = page.locator('[data-player-setup]');
+    await expect(panels).toHaveCount(2);
+
+    async function configureQaPlayer(index, name) {
+      const panel = panels.nth(index);
+      await panel.locator('.setup-name').fill(name);
+      await panel.locator('.setup-deck').fill(qaDeck);
+      await panel.locator('.setup-pick-cmd1').click();
+      await expect(page.locator('#commanderSearchInput')).toBeVisible({ timeout: 120_000 });
+      await page.locator('#commanderSearchInput').fill('Kenrith, the Returned King');
+      const result = page.locator('[data-command-result]').filter({ hasText: 'Kenrith, the Returned King' }).first();
+      await expect(result).toBeVisible({ timeout: 60_000 });
+      await result.click();
+      await expect(panel.locator('.setup-cmd1')).toHaveValue('Kenrith, the Returned King');
+    }
+
+    await configureQaPlayer(0, 'QA Aaron');
+    await configureQaPlayer(1, 'QA Lex');
+
+    await page.locator('#startSetupBtn').click();
+    await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 180_000 });
+    await page.getByRole('button', { name: 'CONFIRM & NEXT' }).click();
+    await expect(page.locator('#modalTitle')).toContainText('OPENING HAND', { timeout: 30_000 });
+    await page.locator('#modalActions button[data-action-label="START GAME"]').click();
+    await expect(page.locator('#gameScreen')).toBeVisible({ timeout: 30_000 });
+    await disableSmartSkipsIfPrompted(page);
+
+    const phase = page.locator('.battle-phase-indicator:visible b');
+    for (let i = 0; i < 4; i++) {
+      if (/DRAW/i.test((await phase.textContent()) || '')) break;
+      await page.locator('[data-action="next-phase"]:visible').first().click();
+      await disableSmartSkipsIfPrompted(page);
+    }
+    await expect(phase).toContainText(/DRAW/i);
+
+    const beforeDraw = await savedGame(page);
+    const qaAaron = beforeDraw.players.find(p => p.displayName === 'QA Aaron');
+    const brainDef = Object.values(beforeDraw.cardDefinitions || {}).find(d => d.name === 'Brainstorm');
+    expect(brainDef).toBeTruthy();
+    const brainCard = [...(qaAaron.deck.hand || []), ...(qaAaron.deck.remainingLibrary || [])].find(c => c.definitionId === brainDef.definitionId);
+    expect(brainCard).toBeTruthy();
+    const brainId = brainCard.instanceId;
+    const brainInHand = (qaAaron.deck.hand || []).some(c => c.instanceId === brainId);
+
+    await page.locator('[data-action="draw"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('DRAW CARD');
+    if (brainInHand) {
+      await page.locator('#modalActions').getByRole('button', { name: 'RANDOM DRAW', exact: true }).click();
+      await expect(page.locator('#modalTitle')).toContainText('RANDOM VIRTUAL DRAW');
+      await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM RANDOM DRAW', exact: true }).click();
+    } else {
+      await page.locator('#drawSearch').fill('Brainstorm');
+      const brainResult = page.locator(`[data-draw-id="${brainId}"]`);
+      await expect(brainResult).toBeVisible({ timeout: 30_000 });
+      await brainResult.click();
+      await expect(page.locator('#modalTitle')).toContainText('CONFIRM DRAW');
+      await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DRAW / ADD TO HAND', exact: true }).click();
+    }
+    await expect(phase).toContainText(/MAIN 1/i);
+
+    const mainState = await savedGame(page);
+    const mainAaron = mainState.players.find(p => p.displayName === 'QA Aaron');
+    const islandDef = Object.values(mainState.cardDefinitions || {}).find(d => d.name === 'Island' && /Basic/i.test(String(d.typeLine || '')));
+    expect(islandDef).toBeTruthy();
+    const island = (mainAaron.deck.hand || []).find(c => c.definitionId === islandDef.definitionId);
+    expect(island).toBeTruthy();
+
+    await page.locator(`[data-hand-card="${island.instanceId}"]:visible`).click();
+    await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+    await expect(page.locator('#modal')).not.toBeVisible();
+
+    await page.locator(`[data-hand-card="${brainId}"]:visible`).click();
+    await expect(page.locator('#modalActions').getByRole('button', { name: 'CAST INSTANT', exact: true })).toBeVisible();
+    await page.locator('#modalActions').getByRole('button', { name: 'CAST INSTANT', exact: true }).click();
+
+    await expect(page.locator('#modalTitle')).toContainText('ORACLE RESOLUTION REQUIRED', { timeout: 30_000 });
+    const pending = await savedGame(page);
+    expect(pending.stack?.length).toBe(1);
+    expect(locateTrackedCard(pending, brainId)?.zone).toBe('stack');
+    expect(pending.log.some(e => e.type === 'cast-spell' && String(e.text || '').includes('Brainstorm'))).toBe(true);
+    expect(pending.log.some(e => e.type === 'resolve-stack' && String(e.text || '').includes('Brainstorm'))).toBe(false);
+    await expect(page.locator('.inline-game-log:visible')).toContainText('RESOLUTION REQUIRED');
+
+    // Back is navigation only: it must never silently accept/resolve the pending Oracle result.
+    await page.locator('#modalClose').click();
+    await expect(page.locator('#modal')).not.toBeVisible();
+    const afterBack = await savedGame(page);
+    expect(afterBack.stack?.length).toBe(1);
+    expect(locateTrackedCard(afterBack, brainId)?.zone).toBe('stack');
+    expect(afterBack.log.some(e => e.type === 'resolve-stack' && String(e.text || '').includes('Brainstorm'))).toBe(false);
+
+    await page.locator('.inline-game-log:visible').click();
+    await expect(page.locator('#modalTitle')).toHaveText('GAME HISTORY');
+    await expect(page.locator('.game-history-live-stack')).toBeVisible();
+    await expect(page.locator('.stack-summary')).toContainText('Brainstorm');
+    await expect(page.locator('#modalActions').getByRole('button', { name: 'RESOLVE NOW', exact: true })).toBeVisible();
+
+    // Recovery through Undo must return the exact spell and paid Island to their pre-cast state.
+    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText('CONFIRM UNDO');
+    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
+
+    const recovered = await savedGame(page);
+    expect(recovered.stack?.length || 0).toBe(0);
+    expect(locateTrackedCard(recovered, brainId)?.zone).toBe('hand');
+    expect(locateTrackedCard(recovered, island.instanceId)?.card?.tapped).toBe(false);
   });
 });
