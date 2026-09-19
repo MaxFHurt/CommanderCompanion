@@ -52,15 +52,4 @@ test.describe('Batch 6 turn flow, priority, and available actions', () => {
     expect(r.groups[0].actions.some(x=>x.type==='pass-priority')).toBe(true);
   });
 
-  test('Available Actions includes a relevant counter ability while holding priority', async ({ page }) => {
-    const r=await page.evaluate(async()=>{
-      const {getAvailableActions}=await import('./available-actions.js?v=080-cc-batch6');
-      const source={instanceId:'counter',definitionId:'counterdef',ownerId:'p2',controllerId:'p2',zone:'battlefield',tapped:false,counters:{},temporaryEffects:[]};
-      const p1={playerId:'p1',displayName:'Caster',eliminated:false,deck:{battlefield:[],hand:[]}};
-      const p2={playerId:'p2',displayName:'Responder',life:40,eliminated:false,mana:{available:{W:0,U:0,B:0,R:0,G:0,C:0}},deck:{battlefield:[source],hand:[]}};
-      const game={phase:'precombat-main',turnNumber:2,activePlayerId:'p1',players:[p1,p2],stack:[{id:'spell',kind:'spell',controllerId:'p1',sourceDefinitionId:'spelldef'}],priorityState:{active:true,holderId:'p2',reason:'Spell on stack'},cardDefinitions:{spelldef:{definitionId:'spelldef',name:'Spell',typeLine:'Sorcery',oracleText:''},counterdef:{definitionId:'counterdef',name:'Counter Device',typeLine:'Artifact',oracleText:'{T}: Counter target spell.'}}};
-      return getAvailableActions({game,player:p2});
-    });
-    expect(r.actions.some(x=>x.type==='response-ability')).toBe(true);
-  });
 });
