@@ -67,17 +67,17 @@ function handHtml(game,p,privateVisible=true,controls=true,actionPlayer=p){
   if(p.deck.sourceType==='network-public')privateVisible=false;
   const cards=showHand&&privateVisible?p.deck.hand:[];
   const cardHtml=privateVisible?cards.map(c=>{const d=defOf(game,c),v=controls?playable(game,p,c):{legal:true};return `<button class="hand-card${v.legal?'':' unplayable'}${controls?'':' inspection-only'}" data-hand-card="${esc(c.instanceId)}" data-hand-player="${esc(p.playerId)}">${d?`<img src="${esc(imageOf(d))}" alt="${esc(d.name)}">`:`<span class="fallback">UNRESOLVED</span>`}${v.legal?'':'<i class="reason-dot"></i>'}</button>`}).join(''):'<span class="muted">Private hand</span>';
-  const smart=smartAction(game,actionPlayer||p);
-  const stackPending=!!(game.stack||[]).length;
-  const nextCue=!stackPending&&smart.cue==='next-phase'?' smart-cue-next':'';
-  const endCue=!stackPending&&smart.cue==='end-turn'?' smart-cue-end':'';
+  const smart=smartAction(game,actionPlayer||p),stackPending=!!(game.stack||[]).length;
   const smartButton=smart.available
-    ?`<button class="hub-mark smart-action-button smart-action-live" data-action="${smart.action}" aria-label="Smart action: ${smart.label}"><span>${smart.label}</span></button>`
-    :`<button class="hub-mark smart-action-button smart-action-idle" type="button" aria-label="No smart action available" aria-disabled="true" disabled><span></span></button>`;
-  const drawOverlay='',handLabel=game.deviceMode==='single-device'?`${String(p.displayName||'PLAYER').toUpperCase()} HAND`:'YOUR HAND';
-  return `<section class="visual-hand-zone">${drawOverlay}<h3>${esc(handLabel)} (${showHand&&privateVisible?cards.length:'—'})</h3><div class="hand-strip hand-strip-framed">${showHand?cardHtml:'<span class="muted">Hand tracking is off</span>'}</div></section><div class="visual-bottom-controls"><div class="hub-phase-controls"><button class="${nextCue.trim()}" data-action="next-phase" aria-label="Next Phase"><span>NEXT PHASE</span></button><button class="${endCue.trim()}" data-action="end-turn" aria-label="End Turn"><span>END TURN</span></button></div><nav class="hand-hub-icons" aria-label="Game tools"><button data-hub="home" aria-label="Home">${dockIcon('home')}<span>HOME</span></button><button data-hub="card-id" aria-label="Card ID">${dockIcon('card-id')}<span>CARD ID</span></button><button data-hub="chat" aria-label="Game Chat">${dockIcon('chat')}<span>GAME CHAT</span></button>${smartButton}<button data-hub="rescue" aria-label="Player Rescue">${dockIcon('rescue')}<span>PLAYER RESCUE</span></button><button data-hub="settings" aria-label="Settings">${dockIcon('settings')}<span>SETTINGS</span></button><button data-hub="profile" aria-label="Profile">${dockIcon('profile')}<span>PROFILE</span></button></nav></div>`
+    ?`<button class="landscape-jewel smart-action-live ${smart.action==='attack'?'attack-jewel':''}" data-action="${smart.action}" aria-label="${esc(smart.label)}"><span>${esc(smart.label)}</span></button>`
+    :`<button class="landscape-jewel smart-action-idle" type="button" aria-label="No contextual action" aria-disabled="true" disabled><span></span></button>`;
+  const ending=['end-step','cleanup'].includes(game.phase);
+  const phaseAction=ending
+    ?`<button class="landscape-phase-action end-turn-action" data-action="end-turn"><span>END TURN</span></button>`
+    :`<button class="landscape-phase-action" data-action="next-phase"><span>NEXT PHASE</span></button>`;
+  const handLabel=game.deviceMode==='single-device'?`${String(p.displayName||'PLAYER').toUpperCase()} HAND`:'YOUR HAND';
+  return `<section class="visual-hand-zone landscape-hand-zone"><h3>${esc(handLabel)} (${showHand&&privateVisible?cards.length:'—'})</h3><div class="hand-strip hand-strip-framed">${showHand?cardHtml:'<span class="muted">Hand tracking is off</span>'}</div></section><div class="visual-bottom-controls landscape-action-rail"><div class="landscape-turn-readout"><small>TURN ${Math.max(1,Number(game.turnNumber||1))} • ${esc(phaseLabel(game.phase))}</small><strong>${esc(actionPlayer?.displayName||p.displayName||'Player')}'s Turn</strong></div>${smartButton}${phaseAction}<button class="landscape-undo" data-log-undo="1" aria-label="Undo last game step">↶ <span>UNDO</span></button></div>`;
 }
-
 function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true}={}){
   if(!modePolicy(game.mode).battlefield)return'';
   const drawAvailable=game.phase==='draw'&&!p.confirmations?.draw;
@@ -111,25 +111,41 @@ function battlefieldHtml(game,p,{controls=true,privateHand=true,includeDock=true
 }
 
 function renderInlineGameLog(game){
-  const current=Math.max(1,Number(game.turnNumber||1)),previous=Math.max(1,current-1),displayRound=Math.max(1,Number(game.roundNumber||1));
+  const current=Math.max(1,Number(game.turnNumber||1)),previous=Math.max(1,current-1);
   const events=(game.log||[]).filter(e=>{const t=Number(e?.turn||current);return t===current||t===previous}).slice(0,80);
   const rows=[];
-  const currentEvents=events.filter(e=>Number(e?.turn||current)===current);
-  if(currentEvents.length) rows.push(...currentEvents.map(e=>`<div class="inline-log-event"><span>${esc(e?.text||'Game update')}</span></div>`));
-  else rows.push(`<div class="inline-log-empty">No recorded events this turn.</div>`);
-  if(previous!==current){
-    rows.push(`<div class="inline-log-turn last-turn-only"><b>PREVIOUS TURN</b></div>`);
-    const previousEvents=events.filter(e=>Number(e?.turn||current)===previous);
-    if(previousEvents.length) rows.push(...previousEvents.map(e=>`<div class="inline-log-event"><span>${esc(e?.text||'Game update')}</span></div>`));
-    else rows.push(`<div class="inline-log-empty">No recorded events on the previous turn.</div>`);
-  }
+  for(const e of events)rows.push(`<div class="inline-log-event"><span>${esc(e?.text||'Game update')}</span></div>`);
+  if(!rows.length)rows.push('<div class="inline-log-empty">No recorded events yet.</div>');
   const top=(game.stack||[]).at(-1)||null,pending=!!top,pendingGuided=!!top?.guidedResolution;
   if(pending)rows.unshift(`<div class="inline-resolution-required"><b>${pendingGuided?'RESOLUTION REQUIRED':'STACK PENDING'}</b></div>`);
-  return `<section class="inline-game-log${pending?' resolution-required':''}" aria-label="${pending?'Unresolved stack object. Tap to open Game Log.':'Current and previous turn game log'}"><div class="inline-log-label" aria-hidden="true"><b>GAME</b><b>LOG</b></div><div class="inline-game-log-scroll">${rows.join('')}</div><button class="inline-log-undo" data-log-undo="1" aria-label="Undo last game step" title="Undo last game step">↶</button><div class="inline-log-turn-count" aria-label="Turn ${displayRound}"><b>TURN</b><strong>${displayRound}</strong></div></section>`;
+  return `<section class="inline-game-log${pending?' resolution-required':''}" aria-label="Game Log"><div class="landscape-log-head"><b>GAME LOG</b><span>STACK ${(game.stack||[]).length}</span></div><div class="inline-game-log-scroll">${rows.join('')}</div></section>`;
 }
 
-export function renderActivePlayer(game,p,{controls=true,privateHand=true,inspected=false,includeDock=true}={}){const tracking=game.mode!=='freeplay'||p.settings?.handTracking!==false;const playerSlot=Math.max(1,(game.players||[]).findIndex(x=>x.playerId===p.playerId)+1);const handCount=p.deck.sourceType==='network-public'?(p.publicCounts?.hand||0):(p.deck?.hand?.length||0),libCount=p.deck.sourceType==='network-public'?(p.publicCounts?.library||0):(p.deck?.remainingLibrary?.length||0);return `<section class="player-card active player-slot-${playerSlot}${inspected?' inspected-opponent':''} new-visual-master" data-player="${esc(p.playerId)}"><div class="player-hero"><div class="commanders" style="--commander-count:${Math.max(1,p.commanders.length)}">${p.commanders.map(c=>commanderHtml(game,c,controls,p.playerId)).join('')}</div><div class="player-info"><header class="player-head"><h2 class="player-name">${esc(p.displayName)}</h2>${statusIndicator(p)}<div class="player-stats-line"><span class="stat life-stat"><i class="icon">♥</i><strong class="${p.lifeFeedback?.until>Date.now()?`life-feedback-${p.lifeFeedback.direction}`:''}" data-life-player="${esc(p.playerId)}">${p.life}</strong><small>LIFE</small></span>${tracking?`<span class="stat"><i class="icon">▤</i><strong>${handCount}</strong><small>HAND</small></span><span class="stat"><i class="icon">▱</i><strong>${libCount}</strong><small>LIBRARY</small></span>`:''}</div></header>${modePolicy(game.mode).battlefield?manaBox(game,'AVAILABLE MANA',p,'available',controls):''}</div></div>${battlefieldHtml(game,p,{controls,privateHand,includeDock})}</section>`}
-function renderSinglePlayerWindow(game,viewed,controlPlayer,privateHand){const canControl=viewed.playerId===controlPlayer.playerId,single=game.deviceMode==='single-device',handPlayer=single?viewed:controlPlayer,handPrivate=single?true:privateHand,handControls=handPlayer.playerId===controlPlayer.playerId;return renderInlineGameLog(game)+`<div class="player-window">${renderActivePlayer(game,viewed,{controls:canControl,privateHand:single?privateHand:(canControl&&privateHand),inspected:!canControl,includeDock:false})}</div>`+handHtml(game,handPlayer,handPrivate,handControls,controlPlayer)}
+function renderLandscapeTopbar(){
+  return `<header class="landscape-game-topbar"><nav class="landscape-top-left"><button data-hub="home">HOME</button><button data-hub="card-id">CARD ID</button><button data-hub="chat">GAME CHAT</button></nav><img src="horizon-full-logo.png" alt="Commander Companion" class="landscape-game-logo"><nav class="landscape-top-right"><button data-hub="rescue">HELP</button><button data-hub="settings">SETTINGS</button><button data-hub="profile">PROFILE</button></nav></header>`;
+}
+function renderOpponentRail(game,controlPlayer){
+  const opponents=(game.players||[]).filter(p=>p.playerId!==controlPlayer.playerId&&!p.eliminated);
+  const rows=opponents.map(p=>{
+    const cmd=p.commanders?.[0],name=cmd?game.cardDefinitions?.[cmd.cardId]?.name:'';
+    return `<button class="landscape-opponent-row" data-opponent="${esc(p.playerId)}"><span class="opponent-status-dot ${p.statuses?.length?'affected':''}"></span><span class="opponent-copy"><b>${esc(p.displayName)}</b><small>${esc(name||'Commander')}</small></span><strong>${Number(p.life||0)}</strong><small>LIFE</small><span class="opponent-mini">☠ ${Number(p.poison||0)} • TAX ${Number(cmd?.commanderTax||0)}</span></button>`;
+  }).join('');
+  return `<aside class="landscape-right-rail"><section class="landscape-opponents"><header><b>OPPONENTS</b><span>${opponents.length}</span></header><div class="landscape-opponent-list">${rows||'<p class="muted">No active opponents.</p>'}</div></section>${renderInlineGameLog(game)}</aside>`;
+}
+export function renderActivePlayer(game,p,{controls=true,privateHand=true,inspected=false,includeDock=true}={}){
+  const tracking=game.mode!=='freeplay'||p.settings?.handTracking!==false;
+  const playerSlot=Math.max(1,(game.players||[]).findIndex(x=>x.playerId===p.playerId)+1);
+  const handCount=p.deck.sourceType==='network-public'?(p.publicCounts?.hand||0):(p.deck?.hand?.length||0),libCount=p.deck.sourceType==='network-public'?(p.publicCounts?.library||0):(p.deck?.remainingLibrary?.length||0);
+  const commander=p.commanders?.[0],commanderDef=commander&&game.cardDefinitions?.[commander.cardId];
+  const art=esc(imageOf(commanderDef));
+  const zoneButton=(zone,label,count)=>`<button class="landscape-zone-btn zone-${zone}" ${controls?`data-zone-open="${zone}"`:`data-public-zone="${zone}" data-public-player="${esc(p.playerId)}"`}><span>${label}</span><b>${Number(count||0)}</b></button>`;
+  const customCounterTotal=Object.values(p.counters||{}).reduce((n,v)=>n+Math.max(0,Number(v||0)),0);
+  return `<section class="player-card active player-slot-${playerSlot}${inspected?' inspected-opponent':''} new-visual-master landscape-player-master" data-player="${esc(p.playerId)}" style="--player-art:url('${art}')"><div class="player-hero"><div class="commanders" style="--commander-count:${Math.max(1,p.commanders.length)}">${p.commanders.map(c=>commanderHtml(game,c,controls,p.playerId)).join('')}</div><div class="player-info"><header class="player-head"><h2 class="player-name">${esc(p.displayName)}</h2>${statusIndicator(p)}<div class="player-stats-line"><span class="stat life-stat"><i class="icon">♥</i><strong class="${p.lifeFeedback?.until>Date.now()?`life-feedback-${p.lifeFeedback.direction}`:''}" data-life-player="${esc(p.playerId)}">${p.life}</strong><small>LIFE</small></span>${tracking?`<span class="stat"><i class="icon">▤</i><strong>${handCount}</strong><small>HAND</small></span><span class="stat"><i class="icon">▱</i><strong>${libCount}</strong><small>LIBRARY</small></span>`:''}<span class="stat"><i class="icon">☠</i><strong>${Number(p.poison||0)}</strong><small>POISON</small></span></div></header>${modePolicy(game.mode).battlefield?manaBox(game,'AVAILABLE MANA',p,'available',controls):''}<div class="landscape-player-meta"><span>COUNTERS <b>${customCounterTotal}</b></span><span>COMMANDER TAX <b>${Number(commander?.commanderTax||0)}</b></span></div><div class="landscape-zone-grid">${zoneButton('graveyard','GRAVEYARD',p.deck.graveyard.length)}${zoneButton('exile','EXILE',p.deck.exile.length)}${zoneButton('tokens','TOKENS',p.deck.tokens.length)}${zoneButton('attachments','ATTACHMENTS',p.deck.attachments.length)}</div></div></div>${battlefieldHtml(game,p,{controls,privateHand,includeDock})}</section>`;
+}
+function renderSinglePlayerWindow(game,viewed,controlPlayer,privateHand){
+  const canControl=viewed.playerId===controlPlayer.playerId,single=game.deviceMode==='single-device',handPlayer=single?viewed:controlPlayer,handPrivate=single?true:privateHand,handControls=handPlayer.playerId===controlPlayer.playerId;
+  return `<div class="landscape-game-master">${renderLandscapeTopbar()}<div class="landscape-game-body"><div class="player-window">${renderActivePlayer(game,viewed,{controls:canControl,privateHand:single?privateHand:(canControl&&privateHand),inspected:!canControl,includeDock:false})}</div>${renderOpponentRail(game,controlPlayer)}</div>${handHtml(game,handPlayer,handPrivate,handControls,controlPlayer)}</div>`;
+}
 export function renderGame(game,viewPlayerId=null){const control=game.players.find(x=>x.playerId===game.activePlayerId)||game.players[0];const viewed=game.players.find(x=>x.playerId===viewPlayerId)||control;return renderSinglePlayerWindow(game,viewed,control,true)}
 export function renderPlayerClient(game,playerId,viewPlayerId=null){const control=game.players.find(x=>x.playerId===playerId)||game.players[0];const viewed=game.players.find(x=>x.playerId===viewPlayerId)||control;return renderSinglePlayerWindow(game,viewed,control,true)}
 
