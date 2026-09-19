@@ -3741,3 +3741,261 @@ dialog .modal-back-row [data-navigation="back"] img{display:block!important;widt
   #gameScreen .battle-card{flex-basis:clamp(76px,7vw,102px)!important;width:clamp(76px,7vw,102px)!important}
   .landscape-opponent-row{min-height:48px}
 }
+
+
+/* ============================================================
+   V0.8 CD FIXED DEVICE MASTERS — DO NOT FLUID-SCALE COMPONENTS
+   Three geometry masters only: iPhone, iPad, Other Phone.
+   The center battlefield may absorb leftover width. The right rail may
+   change only its internal Opponents/Game Log split as player count changes.
+   ============================================================ */
+#gameScreen .landscape-game-master{
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  display:grid!important;grid-template-rows:var(--cc-fixed-top) minmax(0,1fr)!important;
+  gap:var(--cc-fixed-gap)!important;padding:var(--cc-fixed-pad-y) var(--cc-fixed-pad-x)!important;box-sizing:border-box!important;
+}
+#gameScreen .landscape-game-body{
+  min-height:0!important;display:grid!important;
+  grid-template-columns:minmax(0,1fr) var(--cc-fixed-right)!important;
+  gap:var(--cc-fixed-gap)!important;overflow:hidden!important;
+}
+#gameScreen .player-window{min-width:0!important;min-height:0!important;height:100%!important}
+#gameScreen .landscape-player-master{
+  height:100%!important;min-height:0!important;display:grid!important;
+  grid-template-columns:var(--cc-fixed-left) minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+}
+#gameScreen .landscape-player-master .player-hero{
+  width:var(--cc-fixed-left)!important;height:100%!important;min-height:0!important;
+  grid-column:1!important;grid-row:1!important;
+}
+#gameScreen .landscape-player-master .battle-panel{
+  grid-column:2!important;grid-row:1!important;height:100%!important;min-height:0!important;
+  display:grid!important;
+  grid-template-rows:var(--cc-fixed-battle-head) minmax(0,1fr) var(--cc-fixed-hand) var(--cc-fixed-action)!important;
+  gap:var(--cc-fixed-inner-gap)!important;padding:var(--cc-fixed-panel-pad)!important;
+  overflow:hidden!important;
+}
+#gameScreen .landscape-player-master .battlefield-wrap{grid-row:2!important;min-height:0!important;overflow:hidden!important}
+#gameScreen .landscape-player-master .landscape-hand-zone{
+  grid-row:3!important;position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  margin:0!important;box-sizing:border-box!important;overflow:hidden!important;z-index:2!important;
+}
+#gameScreen .landscape-player-master .landscape-action-rail{
+  grid-row:4!important;position:relative!important;inset:auto!important;transform:none!important;
+  width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  margin:0!important;box-sizing:border-box!important;z-index:3!important;
+  display:grid!important;grid-template-columns:minmax(0,1.45fr) var(--cc-fixed-jewel) minmax(0,1fr)!important;
+  gap:var(--cc-fixed-inner-gap)!important;
+}
+#gameScreen .landscape-player-master .landscape-action-rail .landscape-undo{display:none!important}
+#gameScreen .landscape-right-rail{
+  height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;
+  gap:var(--cc-fixed-inner-gap)!important;overflow:hidden!important;
+}
+#gameScreen .landscape-right-rail .landscape-opponents{
+  flex:0 0 auto!important;min-height:0!important;max-height:48%!important;overflow:hidden!important;
+}
+#gameScreen .landscape-opponent-list{max-height:100%!important;overflow-y:auto!important}
+#gameScreen .landscape-right-rail .inline-game-log{
+  position:relative!important;inset:auto!important;top:auto!important;left:auto!important;right:auto!important;bottom:auto!important;
+  z-index:1!important;flex:1 1 auto!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:var(--cc-fixed-log-pad)!important;box-sizing:border-box!important;
+}
+#gameScreen .landscape-right-undo{
+  flex:0 0 var(--cc-fixed-undo)!important;height:var(--cc-fixed-undo)!important;min-height:var(--cc-fixed-undo)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;
+  border:1px solid #80509b!important;border-radius:8px!important;
+  background:linear-gradient(180deg,#21132a,#09060d)!important;color:#fff!important;
+  font:900 var(--cc-fixed-undo-font)/1 var(--head)!important;box-shadow:inset 0 0 0 1px #c587e52a!important;
+}
+#gameScreen .landscape-right-undo span{font-size:.7em!important;letter-spacing:.06em!important}
+#gameScreen .inline-log-label,#gameScreen .inline-log-turn-count,#gameScreen .inline-log-undo{display:none!important}
+#gameScreen .landscape-right-rail .inline-game-log-scroll{
+  display:block!important;height:auto!important;min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;
+  align-items:initial!important;justify-content:initial!important;text-align:left!important;
+}
+#gameScreen .landscape-right-rail .inline-game-log-scroll>*{width:100%!important;text-align:left!important}
+
+/* Reset every legacy floating-hand/control rule. In the fixed masters the hand
+   and action rail are ordinary grid rows inside the center battlefield column. */
+#gameScreen .visual-hand-zone,
+#gameScreen .visual-hand-zone.floating-live-hand,
+#gameScreen>.floating-live-hand,
+#gameScreen .visual-bottom-controls,
+#gameScreen .visual-bottom-controls.floating-live-controls,
+#gameScreen>.floating-live-controls{
+  position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  transform:none!important;max-width:none!important;max-height:none!important;
+}
+#gameScreen .landscape-hand-zone .hand-strip{
+  width:100%!important;height:calc(100% - var(--cc-fixed-hand-label))!important;
+  display:flex!important;align-items:flex-end!important;justify-content:flex-start!important;
+  gap:var(--cc-fixed-card-gap)!important;padding:0!important;margin:0!important;overflow-x:auto!important;overflow-y:hidden!important;
+}
+#gameScreen .landscape-hand-zone h3{
+  display:block!important;height:var(--cc-fixed-hand-label)!important;line-height:var(--cc-fixed-hand-label)!important;
+  margin:0!important;padding:0 2px!important;text-align:left!important;
+}
+#gameScreen .landscape-hand-zone .hand-card{
+  flex:0 0 var(--cc-fixed-hand-card-w)!important;width:var(--cc-fixed-hand-card-w)!important;
+  height:var(--cc-fixed-hand-card-h)!important;max-height:var(--cc-fixed-hand-card-h)!important;
+  aspect-ratio:63/88!important;position:relative!important;transform:none!important;
+}
+#gameScreen .landscape-hand-zone .hand-card:focus,#gameScreen .landscape-hand-zone .hand-card:active{
+  transform:translateY(-2px)!important;
+}
+#gameScreen .landscape-jewel{width:var(--cc-fixed-jewel)!important;min-width:var(--cc-fixed-jewel)!important;height:100%!important}
+#gameScreen .landscape-phase-action{height:100%!important;min-height:0!important}
+#gameScreen .landscape-turn-readout{padding:0 var(--cc-fixed-turn-pad)!important}
+#gameScreen .battlefield{
+  height:100%!important;min-height:0!important;padding:var(--cc-fixed-board-pad)!important;
+  gap:var(--cc-fixed-card-gap)!important;align-content:flex-start!important;
+}
+#gameScreen .battle-card{
+  flex:0 0 var(--cc-fixed-battle-card-w)!important;width:var(--cc-fixed-battle-card-w)!important;
+  aspect-ratio:63/88!important;height:auto!important;max-height:none!important;
+}
+#gameScreen .player-stats-line{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#gameScreen .player-stats-line .stat{min-height:0!important}
+#gameScreen .landscape-zone-grid{grid-template-columns:1fr 1fr!important}
+#gameScreen .game-brand-strip{display:none!important}
+
+/* iPHONE MASTER — one geometry, no per-model proportional restyling. */
+body.cc-device-iphone{
+  --cc-fixed-top:52px;
+  --cc-fixed-left:248px;
+  --cc-fixed-right:252px;
+  --cc-fixed-hand:92px;
+  --cc-fixed-action:54px;
+  --cc-fixed-jewel:88px;
+  --cc-fixed-undo:46px;
+  --cc-fixed-battle-head:30px;
+  --cc-fixed-gap:5px;
+  --cc-fixed-inner-gap:4px;
+  --cc-fixed-pad-x:8px;
+  --cc-fixed-pad-y:5px;
+  --cc-fixed-panel-pad:5px;
+  --cc-fixed-log-pad:5px;
+  --cc-fixed-board-pad:4px;
+  --cc-fixed-card-gap:4px;
+  --cc-fixed-hand-label:14px;
+  --cc-fixed-hand-card-w:50px;
+  --cc-fixed-hand-card-h:70px;
+  --cc-fixed-battle-card-w:55px;
+  --cc-fixed-turn-pad:7px;
+  --cc-fixed-undo-font:15px;
+}
+body.cc-device-iphone #gameScreen .landscape-game-topbar{height:52px!important;padding:4px 7px!important}
+body.cc-device-iphone #gameScreen .landscape-game-topbar button{height:34px!important;padding:0 8px!important;font-size:9px!important}
+body.cc-device-iphone #gameScreen .landscape-game-logo{max-height:42px!important}
+body.cc-device-iphone #gameScreen .player-hero{padding:5px!important;grid-template-columns:44% 56%!important;gap:5px!important}
+body.cc-device-iphone #gameScreen .player-name{font-size:16px!important}
+body.cc-device-iphone #gameScreen .player-stats-line .stat strong{font-size:17px!important}
+body.cc-device-iphone #gameScreen .player-stats-line .stat small{font-size:7px!important}
+body.cc-device-iphone #gameScreen .mana-pip img{width:24px!important;height:24px!important}
+body.cc-device-iphone #gameScreen .mana-pip b{font-size:11px!important}
+body.cc-device-iphone #gameScreen .landscape-zone-btn{min-height:27px!important;font-size:7px!important}
+body.cc-device-iphone #gameScreen .landscape-opponent-row{min-height:32px!important;padding:3px 5px!important}
+body.cc-device-iphone #gameScreen .landscape-opponent-row>strong{font-size:16px!important}
+body.cc-device-iphone #gameScreen .landscape-hand-zone{padding:3px 5px 4px!important}
+body.cc-device-iphone #gameScreen .landscape-action-rail{padding:3px 5px!important}
+body.cc-device-iphone #gameScreen .landscape-turn-readout small{font-size:8px!important}
+body.cc-device-iphone #gameScreen .landscape-turn-readout strong{font-size:13px!important}
+body.cc-device-iphone #gameScreen .landscape-jewel span{font-size:11px!important}
+body.cc-device-iphone #gameScreen .landscape-phase-action{font-size:10px!important}
+
+/* iPAD MASTER — its own fixed geometry, not an enlarged iPhone master. */
+body.cc-device-ipad{
+  --cc-fixed-top:72px;
+  --cc-fixed-left:360px;
+  --cc-fixed-right:348px;
+  --cc-fixed-hand:148px;
+  --cc-fixed-action:72px;
+  --cc-fixed-jewel:118px;
+  --cc-fixed-undo:58px;
+  --cc-fixed-battle-head:38px;
+  --cc-fixed-gap:8px;
+  --cc-fixed-inner-gap:6px;
+  --cc-fixed-pad-x:12px;
+  --cc-fixed-pad-y:9px;
+  --cc-fixed-panel-pad:8px;
+  --cc-fixed-log-pad:7px;
+  --cc-fixed-board-pad:7px;
+  --cc-fixed-card-gap:7px;
+  --cc-fixed-hand-label:18px;
+  --cc-fixed-hand-card-w:78px;
+  --cc-fixed-hand-card-h:109px;
+  --cc-fixed-battle-card-w:88px;
+  --cc-fixed-turn-pad:10px;
+  --cc-fixed-undo-font:19px;
+}
+body.cc-device-ipad #gameScreen .landscape-game-topbar{height:72px!important;padding:6px 11px!important}
+body.cc-device-ipad #gameScreen .landscape-game-topbar button{height:43px!important;padding:0 13px!important;font-size:12px!important}
+body.cc-device-ipad #gameScreen .landscape-game-logo{max-height:58px!important}
+body.cc-device-ipad #gameScreen .player-hero{padding:9px!important;grid-template-columns:45% 55%!important;gap:8px!important}
+body.cc-device-ipad #gameScreen .player-name{font-size:23px!important}
+body.cc-device-ipad #gameScreen .player-stats-line .stat strong{font-size:24px!important}
+body.cc-device-ipad #gameScreen .player-stats-line .stat small{font-size:9px!important}
+body.cc-device-ipad #gameScreen .mana-pip img{width:34px!important;height:34px!important}
+body.cc-device-ipad #gameScreen .mana-pip b{font-size:15px!important}
+body.cc-device-ipad #gameScreen .landscape-zone-btn{min-height:37px!important;font-size:9px!important}
+body.cc-device-ipad #gameScreen .landscape-opponent-row{min-height:46px!important;padding:5px 7px!important}
+body.cc-device-ipad #gameScreen .landscape-opponent-row>strong{font-size:21px!important}
+body.cc-device-ipad #gameScreen .landscape-hand-zone{padding:5px 8px 6px!important}
+body.cc-device-ipad #gameScreen .landscape-action-rail{padding:5px 8px!important}
+body.cc-device-ipad #gameScreen .landscape-turn-readout small{font-size:10px!important}
+body.cc-device-ipad #gameScreen .landscape-turn-readout strong{font-size:17px!important}
+body.cc-device-ipad #gameScreen .landscape-jewel span{font-size:13px!important}
+body.cc-device-ipad #gameScreen .landscape-phase-action{font-size:13px!important}
+
+/* OTHER PHONE MASTER — independent fixed phone geometry. */
+body.cc-device-other-phone{
+  --cc-fixed-top:50px;
+  --cc-fixed-left:236px;
+  --cc-fixed-right:238px;
+  --cc-fixed-hand:88px;
+  --cc-fixed-action:52px;
+  --cc-fixed-jewel:84px;
+  --cc-fixed-undo:44px;
+  --cc-fixed-battle-head:29px;
+  --cc-fixed-gap:5px;
+  --cc-fixed-inner-gap:4px;
+  --cc-fixed-pad-x:7px;
+  --cc-fixed-pad-y:5px;
+  --cc-fixed-panel-pad:5px;
+  --cc-fixed-log-pad:5px;
+  --cc-fixed-board-pad:4px;
+  --cc-fixed-card-gap:4px;
+  --cc-fixed-hand-label:14px;
+  --cc-fixed-hand-card-w:48px;
+  --cc-fixed-hand-card-h:67px;
+  --cc-fixed-battle-card-w:52px;
+  --cc-fixed-turn-pad:7px;
+  --cc-fixed-undo-font:14px;
+}
+body.cc-device-other-phone #gameScreen .landscape-game-topbar{height:50px!important;padding:3px 6px!important}
+body.cc-device-other-phone #gameScreen .landscape-game-topbar button{height:32px!important;padding:0 7px!important;font-size:8px!important}
+body.cc-device-other-phone #gameScreen .landscape-game-logo{max-height:40px!important}
+body.cc-device-other-phone #gameScreen .player-hero{padding:5px!important;grid-template-columns:44% 56%!important;gap:4px!important}
+body.cc-device-other-phone #gameScreen .player-name{font-size:15px!important}
+body.cc-device-other-phone #gameScreen .player-stats-line .stat strong{font-size:16px!important}
+body.cc-device-other-phone #gameScreen .player-stats-line .stat small{font-size:7px!important}
+body.cc-device-other-phone #gameScreen .mana-pip img{width:23px!important;height:23px!important}
+body.cc-device-other-phone #gameScreen .mana-pip b{font-size:10px!important}
+body.cc-device-other-phone #gameScreen .landscape-zone-btn{min-height:26px!important;font-size:7px!important}
+body.cc-device-other-phone #gameScreen .landscape-opponent-row{min-height:30px!important;padding:3px 5px!important}
+
+/* The fixed landscape masters own the layout at all widths. Disable the previous
+   orientation/viewport scaling branches so they cannot change proportions. */
+@media (orientation:landscape) and (max-height:500px){
+  body.cc-device-iphone .landscape-game-master,
+  body.cc-device-other-phone .landscape-game-master{grid-template-rows:var(--cc-fixed-top) minmax(0,1fr)!important}
+  body.cc-device-iphone .landscape-game-body,
+  body.cc-device-other-phone .landscape-game-body{grid-template-columns:minmax(0,1fr) var(--cc-fixed-right)!important}
+}
+@media (orientation:landscape) and (min-width:1000px) and (min-height:600px){
+  body.cc-device-ipad .landscape-game-master{grid-template-rows:var(--cc-fixed-top) minmax(0,1fr)!important;padding:var(--cc-fixed-pad-y) var(--cc-fixed-pad-x)!important}
+  body.cc-device-ipad .landscape-game-body{grid-template-columns:minmax(0,1fr) var(--cc-fixed-right)!important}
+}
