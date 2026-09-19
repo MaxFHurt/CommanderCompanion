@@ -2,30 +2,29 @@
 
 Last updated: 2026-09-19
 
-## ACTIVE — BATCH 4
+## ACTIVE OWNER — BATCH 4 CHAT
 
 - **Status:** ACTIVE
 - **Build-progress owner:** Batch 4 conversation
-- **Roadmap batch:** 4 of 12 — Effects + Triggers
-- **Starting checkpoint:** V0.8 BZ / current `main`
+- **Completed roadmap batch:** 4 of 12 — Effects + Triggers
+- **Current safe checkpoint:** V0.8 CA
+- **Next roadmap position:** Batch 5 of 12
 
-Aaron explicitly authorized this Batch 4 conversation to be the sole writer and to complete Batch 4.
+Aaron designated this conversation as the sole writer. That ownership remains active across the next batch until he explicitly transfers or releases it.
 
 ## Rule
 
-Only this Batch 4 conversation may advance actual Commander Companion build progress until Aaron explicitly transfers or releases ownership.
+Other Commander Companion chats are read-only for:
+- gameplay/UI source
+- checkpoint tests
+- build/version changes
+- authoritative project-state files
+- GitHub writes/pushes
 
-Other chats are read-only for gameplay/UI source, checkpoint tests, build letters, authoritative project-state files, and GitHub writes/pushes.
+## Safe checkpoints
 
-## Batch 4 safety
-
-- Preserve V0.8 BZ as the rollback checkpoint.
-- Do not redo Batch 3.
-- Do not mix the 398-card Guided Resolution backlog into this batch.
-- Do not make unrelated UI changes.
-- Unsupported complex behavior must fail safely into Guided Resolution.
-- Back / Close / Cancel never commits gameplay state.
-- Failed resolution must not leave partial state.
+- Batch 3: V0.8 BZ — `65e7b83b22684f4a1bf9faf9a4e42fbead4f00d6`
+- Batch 4: V0.8 CA — validated checkpoint `c1e70a040275f085d9a9a8127bba29ce99fbe9a2`
 
 ## Transfer procedure
 
