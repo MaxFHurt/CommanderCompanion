@@ -194,10 +194,10 @@ test.describe('Commander Companion live game flows', () => {
     // The discarded card is in Aaron's graveyard and a graveyard card must never expose Tap controls.
     await page.locator('[data-zone-open="graveyard"]:visible').click();
     await expect(page.locator('#modalTitle')).toContainText('GRAVEYARD');
-    const graveCards = page.locator('#modalBody .mini-card[data-instance]');
+    const graveCards = page.locator('#modalContent .mini-card[data-instance]');
     await expect(graveCards).toHaveCount(afterRoundTrip.players.find(p => p.displayName === 'Aaron').deck.graveyard.length);
     expect(await graveCards.count()).toBeGreaterThanOrEqual(1);
-    const discardedInModal = page.locator(`#modalBody .mini-card[data-instance="${discardedId}"]`);
+    const discardedInModal = page.locator(`#modalContent .mini-card[data-instance="${discardedId}"]`);
     await expect(discardedInModal).toHaveCount(1);
     await discardedInModal.click();
     const graveActions = (await page.locator('#modalActions button').allTextContents()).map(x => x.trim());
