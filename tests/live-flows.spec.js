@@ -533,6 +533,74 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.afterUndo.undoDepth).toBe(0);
   });
 
+  test('modal spells automate supported modes while alternate-cost keywords fail safely to Guided', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { modalSpellSpec, spellSupport, analyzeDefinitionSupport } = await import('./ability-support.js?v=080-bt-modal-altcost-regression');
+
+      const modalDef = {
+        definitionId:'modal-def',
+        name:'Modal Safety Test',
+        typeLine:'Sorcery',
+        oracleText:'Choose two —\n• Draw one card.\n• You gain 3 life.\n• Create a Treasure token.'
+      };
+      const overloadDef = {
+        definitionId:'overload-def',
+        name:'Overload Safety Test',
+        typeLine:'Sorcery',
+        oracleText:'Destroy target artifact.\nOverload {4}{R}'
+      };
+      const cyclingDef = {
+        definitionId:'dismantling-wave-test',
+        name:'Dismantling Wave',
+        typeLine:'Sorcery',
+        oracleText:'For each opponent, destroy up to one target artifact or enchantment that player controls.\nCycling {6}{W}{W}\nWhen you cycle this card, destroy all artifacts and enchantments.'
+      };
+
+      const modal = modalSpellSpec(modalDef);
+      const modalSupport = spellSupport(modalDef);
+      const overloadSupport = spellSupport(overloadDef);
+      const cyclingSupport = spellSupport(cyclingDef);
+      const cyclingAudit = analyzeDefinitionSupport(cyclingDef);
+
+      return {
+        modalCount:modal?.count||0,
+        modalModes:modal?.modes?.length||0,
+        modalSupported:!!modalSupport?.supported,
+        modalKind:modalSupport?.kind||null,
+        overloadSupported:!!overloadSupport?.supported,
+        overloadKind:overloadSupport?.kind||null,
+        overloadGuided:!!overloadSupport?.guidedFallback,
+        overloadReason:(overloadSupport?.reasons||[]).join(' '),
+        cyclingSupported:!!cyclingSupport?.supported,
+        cyclingKind:cyclingSupport?.kind||null,
+        cyclingGuided:!!cyclingSupport?.guidedFallback,
+        cyclingReason:(cyclingSupport?.reasons||[]).join(' '),
+        cyclingFullyAutomated:!!cyclingAudit?.fullyAutomated,
+        cyclingGuidedAvailable:!!cyclingAudit?.guidedFallbackAvailable
+      };
+    });
+
+    expect(result.modalCount).toBe(2);
+    expect(result.modalModes).toBe(3);
+    expect(result.modalSupported).toBe(true);
+    expect(result.modalKind).toBe('modal');
+
+    expect(result.overloadSupported).toBe(false);
+    expect(result.overloadKind).toBe('alternate-cost');
+    expect(result.overloadGuided).toBe(true);
+    expect(result.overloadReason).toMatch(/Overload.*Guided/i);
+
+    expect(result.cyclingSupported).toBe(false);
+    expect(result.cyclingKind).toBe('alternate-cost');
+    expect(result.cyclingGuided).toBe(true);
+    expect(result.cyclingReason).toMatch(/Cycling.*Guided/i);
+    expect(result.cyclingFullyAutomated).toBe(false);
+    expect(result.cyclingGuidedAvailable).toBe(true);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
