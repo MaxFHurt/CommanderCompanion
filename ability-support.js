@@ -16,7 +16,7 @@ export function asEntersChoiceSpec(definition){
   return null;
 }
 export function entersWithCountersSpec(definition){
-  const text=oracle(definition);const m=text.match(/enters(?: the battlefield)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([A-Za-z+\-/ ]+) counters? on it/i);if(!m)return null;const words={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};return{counter:m[2].trim(),amount:/^\d+$/.test(m[1])?Number(m[1]):(words[m[1].toLowerCase()]??m[1].toUpperCase())};
+  const text=oracle(definition);const m=text.match(/enters(?: the battlefield)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([A-Za-z0-9+\-/ ]+) counters? on it/i);if(!m)return null;const words={a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10};return{counter:m[2].trim(),amount:/^\d+$/.test(m[1])?Number(m[1]):(words[m[1].toLowerCase()]??m[1].toUpperCase())};
 }
 export function modalSpellSpec(definition){
   const text=oracle(definition).trim();const m=text.match(/^Choose\s+(one|two|three|four|five|\d+)\s*[—-]\s*([\s\S]+)$/i);if(!m)return null;const words={one:1,two:2,three:3,four:4,five:5};const count=Number(m[1])||words[m[1].toLowerCase()]||1;const modes=[...text.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x=>x[1].trim());if(!modes.length){const tail=m[2].split(/\s*[;•]\s*/).map(x=>x.trim()).filter(Boolean);modes.push(...tail)}return{count,modes,compiledModes:modes.map(mode=>compileEffectText(mode,{sourceName:definition?.name||'Modal spell'}))};
