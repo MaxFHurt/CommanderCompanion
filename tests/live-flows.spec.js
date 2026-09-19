@@ -1034,6 +1034,147 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.replacement.counters?.amount).toBe(3);
   });
 
+  test('multi-object stack uses priority correctly, resolves LIFO, and Undo restores response spell exactly', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-by-multistack');
+      const { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority } = await import('./priority-engine.js?v=080-by-multistack');
+      const emptyMana=()=>({W:0,U:0,B:0,R:0,G:0,C:0});
+
+      const a={instanceId:'spell-a',definitionId:'a-def',ownerId:'p1',controllerId:'p1',zone:'hand',tapped:false,counters:{}};
+      const b={instanceId:'spell-b',definitionId:'b-def',ownerId:'p2',controllerId:'p2',zone:'hand',tapped:false,counters:{}};
+
+      const player=(id,name,hand)=>({
+        playerId:id,displayName:name,life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
+        mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},
+        deck:{remainingLibrary:[],hand,battlefield:[],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+      });
+      const p1=player('p1','Active',[a]),p2=player('p2','Responder',[b]);
+      const game={
+        players:[p1,p2],activePlayerId:'p1',turnNumber:8,roundNumber:4,phase:'precombat-main',status:'active',
+        winner:null,log:[],stack:[],undoHistory:[],pendingTriggers:[],
+        rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+        cardDefinitions:{
+          'a-def':{definitionId:'a-def',name:'First Instant',typeLine:'Instant',oracleText:''},
+          'b-def':{definitionId:'b-def',name:'Response Instant',typeLine:'Instant',oracleText:''}
+        }
+      };
+      const engine=createTransactionEngine(game);
+      const zoneOf=id=>{
+        for(const p of game.players){
+          for(const z of ['hand','battlefield','graveyard','exile','commandZone','remainingLibrary']){
+            if((p.deck?.[z]||[]).some(c=>c.instanceId===id))return z;
+          }
+        }
+        if((game.stack||[]).some(x=>x?.card?.instanceId===id))return 'stack';
+        return null;
+      };
+
+      engine.commit({type:'cast-spell',playerId:'p1',instanceId:'spell-a',fromZones:['hand'],to:'graveyard',payment:null,label:'Active casts First Instant.'});
+      const afterA={stack:game.stack.map(x=>x.card?.instanceId),aZone:zoneOf('spell-a')};
+
+      beginPriorityWindow(game,{reason:'Respond to First Instant',stage:'stack-response',startingPlayerId:'p1'});
+      const holder0=priorityHolder(game)?.playerId||null;
+      const passA=passPriority(game,'p1');
+      const holder1=priorityHolder(game)?.playerId||null;
+
+      let wrongPlayerError='';
+      try{recordPriorityResponse(game,{playerId:'p1',label:'Illegal response attempt'})}
+      catch(e){wrongPlayerError=String(e?.message||e||'')}
+
+      recordPriorityResponse(game,{playerId:'p2',label:'Cast Response Instant'});
+      engine.commit({type:'cast-spell',playerId:'p2',instanceId:'spell-b',fromZones:['hand'],to:'graveyard',payment:null,label:'Responder casts Response Instant.'});
+      const afterB={
+        stack:game.stack.map(x=>x.card?.instanceId),
+        aZone:zoneOf('spell-a'),
+        bZone:zoneOf('spell-b'),
+        holder:priorityHolder(game)?.playerId||null,
+        passCount:game.priorityState?.passCount||0,
+        responses:(game.priorityState?.responses||[]).map(x=>x.playerId)
+      };
+
+      const passB=passPriority(game,'p2');
+      const holder2=priorityHolder(game)?.playerId||null;
+      const passA2=passPriority(game,'p1');
+      const closed={
+        active:!!game.priorityState?.active,
+        passCount:game.priorityState?.passCount||0,
+        holder:game.priorityState?.holderId||null,
+        complete:!!passA2.complete
+      };
+
+      engine.commit({type:'resolve-stack',playerId:'p2',label:'Resolve response',__internalStackStep:true});
+      const afterResolveTop={
+        stack:game.stack.map(x=>x.card?.instanceId),
+        aZone:zoneOf('spell-a'),
+        bZone:zoneOf('spell-b')
+      };
+      engine.commit({type:'resolve-stack',playerId:'p1',label:'Resolve original',__internalStackStep:true});
+      const afterResolveAll={
+        stack:game.stack.map(x=>x.card?.instanceId),
+        aZone:zoneOf('spell-a'),
+        bZone:zoneOf('spell-b')
+      };
+
+      const didUndo=engine.undo();
+      const afterUndo={
+        didUndo,
+        stack:game.stack.map(x=>x.card?.instanceId),
+        aZone:zoneOf('spell-a'),
+        bZone:zoneOf('spell-b'),
+        priorityActive:!!game.priorityState?.active,
+        priorityHolder:game.priorityState?.holderId||null,
+        responses:(game.priorityState?.responses||[]).map(x=>x.playerId),
+        undoDepth:game.undoHistory?.length||0
+      };
+
+      return{
+        afterA,holder0,passAComplete:!!passA.complete,holder1,wrongPlayerError,
+        afterB,passBComplete:!!passB.complete,holder2,closed,
+        afterResolveTop,afterResolveAll,afterUndo
+      };
+    });
+
+    expect(result.afterA.stack).toEqual(['spell-a']);
+    expect(result.afterA.aZone).toBe('stack');
+    expect(result.holder0).toBe('p1');
+    expect(result.passAComplete).toBe(false);
+    expect(result.holder1).toBe('p2');
+    expect(result.wrongPlayerError).toMatch(/player with priority/i);
+
+    expect(result.afterB.stack).toEqual(['spell-a','spell-b']);
+    expect(result.afterB.aZone).toBe('stack');
+    expect(result.afterB.bZone).toBe('stack');
+    expect(result.afterB.holder).toBe('p2');
+    expect(result.afterB.passCount).toBe(0);
+    expect(result.afterB.responses).toEqual(['p2']);
+
+    expect(result.passBComplete).toBe(false);
+    expect(result.holder2).toBe('p1');
+    expect(result.closed.complete).toBe(true);
+    expect(result.closed.active).toBe(false);
+    expect(result.closed.holder).toBe(null);
+
+    expect(result.afterResolveTop.stack).toEqual(['spell-a']);
+    expect(result.afterResolveTop.aZone).toBe('stack');
+    expect(result.afterResolveTop.bZone).toBe('graveyard');
+
+    expect(result.afterResolveAll.stack).toEqual([]);
+    expect(result.afterResolveAll.aZone).toBe('graveyard');
+    expect(result.afterResolveAll.bZone).toBe('graveyard');
+
+    expect(result.afterUndo.didUndo).toBe(true);
+    expect(result.afterUndo.stack).toEqual(['spell-a']);
+    expect(result.afterUndo.aZone).toBe('stack');
+    expect(result.afterUndo.bZone).toBe('hand');
+    expect(result.afterUndo.priorityActive).toBe(true);
+    expect(result.afterUndo.priorityHolder).toBe('p2');
+    expect(result.afterUndo.responses).toEqual(['p2']);
+    expect(result.afterUndo.undoDepth).toBe(1);
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
