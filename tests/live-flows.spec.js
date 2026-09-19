@@ -212,5 +212,58 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('#modalTitle')).toContainText('CONFIRM UNDO');
     await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
     await expect.poll(async () => ((await phase.textContent()) || '').trim()).toBe(phaseBefore);
+
+    // Target the historical "available mana shows 0 while the source is usable" regression
+    // with a known flexible source from the real Turtle Power deck.
+    for (let i = 0; i < 4; i++) {
+      if (/DRAW/i.test((await phase.textContent()) || '')) break;
+      await page.locator('[data-action="next-phase"]:visible').first().click();
+      await disableSmartSkipsIfPrompted(page);
+    }
+    await expect(phase).toContainText(/DRAW/i);
+    await page.locator('[data-action="draw"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('DRAW CARD', { timeout: 60_000 });
+    await page.locator('#drawSearch').fill('Command Tower');
+    const towerResult = page.locator('[data-draw-id]').filter({ hasText: 'Command Tower' }).first();
+    await expect(towerResult).toBeVisible({ timeout: 30_000 });
+    const towerId = await towerResult.getAttribute('data-draw-id');
+    expect(towerId).toBeTruthy();
+    await towerResult.click();
+    await expect(page.locator('#modalTitle')).toContainText('CONFIRM DRAW');
+    await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DRAW / ADD TO HAND', exact: true }).click();
+    await expect(phase).toContainText(/MAIN 1/i);
+
+    let manaState = await savedGame(page);
+    let towerLocation = locateTrackedCard(manaState, towerId);
+    expect(towerLocation?.playerName).toBe('Aaron');
+    expect(towerLocation?.zone).toBe('hand');
+
+    await page.locator(`[data-hand-card="${towerId}"]:visible`).click();
+    await expect(page.locator('#modalTitle')).toContainText('Command Tower');
+    await page.locator('#modalActions').getByRole('button', { name: 'PLAY LAND', exact: true }).click();
+    await expect(page.locator('#modal')).not.toBeVisible();
+
+    manaState = await savedGame(page);
+    towerLocation = locateTrackedCard(manaState, towerId);
+    expect(towerLocation?.zone).toBe('battlefield');
+    expect(towerLocation?.card?.manaCapacityRegistered).toBe(true);
+    expect((towerLocation?.card?.manaCapacityOptions || []).length).toBeGreaterThan(1);
+
+    const flexibleMana = page.locator('.mana-box-button.available-only:visible .mana-flex').first();
+    await expect(flexibleMana).toBeVisible();
+    await expect(flexibleMana.locator('b')).toHaveText('1');
+
+    // Battlefield card counters must be visible directly on the card, not only inside the counter menu.
+    await page.locator(`.battlefield [data-instance="${towerId}"]`).click();
+    await page.locator('#modalActions').getByRole('button', { name: 'COUNTERS', exact: true }).click();
+    const plusOne = page.locator('#modalContent [data-cc="+1/+1"][data-d="1"]');
+    await expect(plusOne).toBeVisible();
+    await plusOne.click();
+    await page.locator('#modalActions').getByRole('button', { name: 'DONE', exact: true }).click();
+
+    const towerBattlefield = page.locator(`.battlefield [data-instance="${towerId}"]`);
+    await expect(towerBattlefield.locator('.card-counter-badge')).toContainText('+1/+1 ×1');
+    const counterState = await savedGame(page);
+    expect(locateTrackedCard(counterState, towerId)?.card?.counters?.['+1/+1']).toBe(1);
   });
 });
