@@ -102,6 +102,70 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('#gameContent')).not.toBeEmpty();
     await expect(page.locator('.visual-hand-zone')).toBeVisible();
     await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
-    await expect(page.locator('[data-action="next-phase"]')).toBeVisible();
+    await expect(page.locator('[data-action="next-phase"]:visible').first()).toBeVisible();
+
+    // Make phase progression deterministic for this live integrity pass.
+    if (await page.locator('#modal:visible').count()) {
+      const title = await page.locator('#modalTitle').textContent();
+      if (/AUTOMATIC PHASE SKIPPING/i.test(title || '')) {
+        await page.locator('#modalActions').getByRole('button', { name: /DON.T SKIP PHASES/i }).click();
+      }
+    }
+
+    // Reach Draw, perform a tracked random draw, and verify the live hand becomes eight.
+    const phase = page.locator('.battle-phase-indicator:visible b');
+    for (let i = 0; i < 4; i++) {
+      if (/DRAW/i.test((await phase.textContent()) || '')) break;
+      await page.locator('[data-action="next-phase"]:visible').first().click();
+    }
+    await expect(phase).toContainText(/DRAW/i);
+    await page.locator('[data-action="draw"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('DRAW CARD', { timeout: 60_000 });
+    await page.locator('#modalActions').getByRole('button', { name: 'RANDOM DRAW', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText('RANDOM VIRTUAL DRAW');
+    await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM RANDOM DRAW', exact: true }).click();
+    await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(8);
+
+    // End Turn with eight cards must enter cleanup. Reviewing/canceling a discard must not mutate hand state.
+    await page.locator('[data-action="end-turn"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('CLEANUP — DISCARD');
+    await expect(page.locator('[data-discard-review]')).toHaveCount(8);
+    await page.locator('[data-discard-review]').first().click();
+    await expect(page.locator('#modalTitle')).toContainText(/DISCARD —/i);
+    await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(8);
+    await page.locator('#modalActions').getByRole('button', { name: 'CANCEL', exact: true }).click();
+    await expect(page.locator('#modalTitle')).toContainText('CLEANUP — DISCARD');
+    await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(8);
+
+    // Confirming the cleanup discard must move exactly one card and pass the turn.
+    await page.locator('[data-discard-review]').first().click();
+    await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DISCARD', exact: true }).click();
+    await expect(page.locator('.player-name:visible')).toContainText('Lex');
+    await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
+
+    // Pass Lex's turn so Aaron owns the active controls again.
+    await page.locator('[data-action="end-turn"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('END TURN?');
+    await page.locator('#modalActions').getByRole('button', { name: 'END TURN', exact: true }).click();
+    await expect(page.locator('.player-name:visible')).toContainText('Aaron');
+
+    // The discarded card is in Aaron's graveyard and a graveyard card must never expose Tap controls.
+    await page.locator('[data-zone-open="graveyard"]:visible').click();
+    await expect(page.locator('#modalTitle')).toContainText('GRAVEYARD');
+    const graveCards = page.locator('#modalBody .mini-card[data-instance]');
+    expect(await graveCards.count()).toBeGreaterThanOrEqual(1);
+    await graveCards.first().click();
+    const graveActions = (await page.locator('#modalActions button').allTextContents()).map(x => x.trim());
+    expect(graveActions.some(x => /TAP/i.test(x))).toBe(false);
+    await page.locator('#modalActions').getByRole('button', { name: 'CLOSE', exact: true }).click();
+
+    // Undo must restore the immediately preceding phase transition.
+    const phaseBefore = ((await phase.textContent()) || '').trim();
+    await page.locator('[data-action="next-phase"]:visible').first().click();
+    await expect.poll(async () => ((await phase.textContent()) || '').trim()).not.toBe(phaseBefore);
+    await page.locator('[data-log-undo]:visible').click();
+    await expect(page.locator('#modalTitle')).toContainText('CONFIRM UNDO');
+    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
+    await expect.poll(async () => ((await phase.textContent()) || '').trim()).toBe(phaseBefore);
   });
 });
