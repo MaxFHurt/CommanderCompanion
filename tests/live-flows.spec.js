@@ -924,13 +924,14 @@ test.describe('Commander Companion live game flows', () => {
       const source={instanceId:'src',definitionId:'src-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
       const fodder={instanceId:'fodder',definitionId:'fodder-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:true,counters:{'+1/+1':2}};
       const sacWatch={instanceId:'sac-watch',definitionId:'sac-watch-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
+      const sacWatch2={instanceId:'sac-watch-2',definitionId:'sac-watch-2-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
       const dieWatch={instanceId:'die-watch',definitionId:'die-watch-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}};
       const oppWatch={instanceId:'opp-watch',definitionId:'opp-watch-def',ownerId:'p2',controllerId:'p2',zone:'battlefield',tapped:false,counters:{}};
 
       const p1={
         playerId:'p1',displayName:'Active',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
         mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},
-        deck:{remainingLibrary:[],hand:[],battlefield:[source,fodder,sacWatch,dieWatch],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
+        deck:{remainingLibrary:[],hand:[],battlefield:[source,fodder,sacWatch,sacWatch2,dieWatch],graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]}
       };
       const p2={
         playerId:'p2',displayName:'Opponent',life:40,poison:0,eliminated:false,statuses:[],counters:{},commanderDamage:{},commanders:[],
@@ -945,6 +946,7 @@ test.describe('Commander Companion live game flows', () => {
           'src-def':{definitionId:'src-def',name:'Sacrifice Engine',typeLine:'Artifact',oracleText:''},
           'fodder-def':{definitionId:'fodder-def',name:'Tracked Fodder',typeLine:'Creature — Test',oracleText:''},
           'sac-watch-def':{definitionId:'sac-watch-def',name:'Sacrifice Watcher',typeLine:'Enchantment',oracleText:'Whenever you sacrifice a permanent, draw a card.'},
+          'sac-watch-2-def':{definitionId:'sac-watch-2-def',name:'Second Sacrifice Watcher',typeLine:'Enchantment',oracleText:'Whenever you sacrifice a permanent, you gain 1 life.'},
           'die-watch-def':{definitionId:'die-watch-def',name:'Death Watcher',typeLine:'Enchantment',oracleText:'Whenever a creature dies, you gain 1 life.'},
           'opp-watch-def':{definitionId:'opp-watch-def',name:'Opponent Watcher',typeLine:'Enchantment',oracleText:'Whenever an opponent sacrifices a permanent, you gain 1 life.'}
         }
@@ -1002,10 +1004,16 @@ test.describe('Commander Companion live game flows', () => {
 
     expect(result.after.fodderZone).toBe('graveyard');
     expect(result.after.stackLength).toBe(1);
-    expect(result.after.pending).toHaveLength(3);
-    expect(result.after.pending.map(x=>x.controllerId)).toEqual(['p1','p1','p2']);
-    expect(result.after.pending.filter(x=>x.controllerId==='p1').map(x=>x.controllerOrderIndex)).toEqual([0,1]);
-    expect(new Set(result.after.pending.map(x=>x.batch)).size).toBe(2);
+    expect(result.after.pending).toHaveLength(4);
+    expect(result.after.pending.map(x=>x.controllerId)).toEqual(['p1','p1','p2','p1']);
+    const batches=[...new Set(result.after.pending.map(x=>x.batch))];
+    expect(batches).toHaveLength(2);
+    const sacrificeBatch=result.after.pending.filter(x=>x.batch===batches[0]);
+    const diesBatch=result.after.pending.filter(x=>x.batch===batches[1]);
+    expect(sacrificeBatch.map(x=>x.controllerId)).toEqual(['p1','p1','p2']);
+    expect(sacrificeBatch.filter(x=>x.controllerId==='p1').map(x=>x.controllerOrderIndex)).toEqual([0,1]);
+    expect(diesBatch.map(x=>x.controllerId)).toEqual(['p1']);
+    expect(diesBatch[0].controllerOrderIndex).toBe(0);
     expect(result.after.pending.every(x=>x.stackOrderChosen===false)).toBe(true);
     expect(result.after.pending.some(x=>x.eventType==='sacrificed'&&x.eventSource==='fodder')).toBe(true);
     expect(result.after.pending.some(x=>x.eventType==='dies'&&x.eventSource==='fodder')).toBe(true);
