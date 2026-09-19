@@ -101,7 +101,7 @@ test.describe('Commander Companion live game flows', () => {
     await expect(page.locator('#gameScreen')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('#gameContent')).not.toBeEmpty();
     await expect(page.locator('.visual-hand-zone')).toBeVisible();
-    await expect(page.locator('.hand-card')).toHaveCount(7);
+    await expect(page.locator('.visual-hand-zone:visible .hand-card')).toHaveCount(7);
     await expect(page.locator('[data-action="next-phase"]')).toBeVisible();
   });
 });
