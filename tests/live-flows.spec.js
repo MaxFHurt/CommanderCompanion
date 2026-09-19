@@ -325,6 +325,133 @@ test.describe('Commander Companion live game flows', () => {
     expect(result.afterRejected.undoDepth).toBe(0);
   });
 
+  test('Fabled Passage-style search keeps conditional untap and Undo exact across stack resolution', async ({ page }) => {
+    await page.goto('index.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ccAppReady === true, null, { timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      const { createTransactionEngine } = await import('./transactions.js?v=080-br-fabled-passage-regression');
+      const emptyMana = () => ({ W:0,U:0,B:0,R:0,G:0,C:0 });
+
+      const runScenario = otherLandCount => {
+        const passage={
+          instanceId:'passage',definitionId:'passage-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}
+        };
+        const fetched={
+          instanceId:'fetched',definitionId:'plains-def',ownerId:'p1',controllerId:'p1',zone:'library',tapped:false,counters:{}
+        };
+        const lands=Array.from({length:otherLandCount},(_,i)=>({
+          instanceId:`land-${i}`,definitionId:'plains-def',ownerId:'p1',controllerId:'p1',zone:'battlefield',tapped:false,counters:{}
+        }));
+        const deck={
+          remainingLibrary:[fetched],hand:[],battlefield:[passage,...lands],
+          graveyard:[],exile:[],tokens:[],attachments:[],commandZone:[]
+        };
+        const player={
+          playerId:'p1',displayName:'Search Tester',life:40,poison:0,eliminated:false,
+          statuses:[],counters:{landsPlayedThisTurn:0},commanderDamage:{},commanders:[],
+          mana:{total:emptyMana(),available:emptyMana(),floating:emptyMana()},deck
+        };
+        const game={
+          players:[player],activePlayerId:'p1',turnNumber:5,roundNumber:3,phase:'precombat-main',
+          status:'active',winner:null,log:[],stack:[],undoHistory:[],pendingTriggers:[],
+          rulesConfig:{commanderDamage:true,poisonLoss:true,poisonThreshold:10,commanderDamageThreshold:21},
+          cardDefinitions:{
+            'passage-def':{definitionId:'passage-def',name:'Fabled Passage',typeLine:'Land',oracleText:'{T}, Sacrifice Fabled Passage: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.'},
+            'plains-def':{definitionId:'plains-def',name:'Plains',typeLine:'Basic Land — Plains',oracleText:'{T}: Add {W}.'}
+          }
+        };
+        const engine=createTransactionEngine(game);
+        engine.commit({
+          type:'activate-ability-stack',
+          playerId:'p1',
+          instanceId:'passage',
+          requiresTap:true,
+          sacrificeSelf:true,
+          effects:[],
+          effectBindings:{sourceId:'passage'},
+          searchResult:{
+            instanceId:'fetched',
+            to:'battlefield',
+            entersTapped:true,
+            shuffle:true,
+            untapIfLandsAtLeast:4
+          },
+          label:'Search Tester activates Fabled Passage.'
+        });
+
+        const locate=id=>{
+          for(const p of game.players||[]){
+            for(const [zone,cards] of Object.entries({
+              hand:p.deck?.hand,battlefield:p.deck?.battlefield,graveyard:p.deck?.graveyard,
+              exile:p.deck?.exile,commandZone:p.deck?.commandZone,remainingLibrary:p.deck?.remainingLibrary
+            })){
+              const card=(cards||[]).find(c=>c.instanceId===id);
+              if(card)return{zone,card};
+            }
+          }
+          const stack=(game.stack||[]).find(x=>x?.sourceId===id||x?.card?.instanceId===id);
+          return stack?{zone:'stack',card:stack.card||null}:null;
+        };
+
+        const afterActivation={
+          passageZone:locate('passage')?.zone||null,
+          fetchedZone:locate('fetched')?.zone||null,
+          stackLength:Number(game.stack?.length||0)
+        };
+
+        engine.commit({type:'resolve-stack',playerId:'p1',label:'Resolve Fabled Passage',__internalStackStep:true});
+
+        const afterResolve={
+          passageZone:locate('passage')?.zone||null,
+          fetchedZone:locate('fetched')?.zone||null,
+          fetchedTapped:!!locate('fetched')?.card?.tapped,
+          battlefieldLandCount:(game.players[0].deck.battlefield||[]).filter(c=>/Land/i.test(game.cardDefinitions[c.definitionId]?.typeLine||'')).length,
+          stackLength:Number(game.stack?.length||0)
+        };
+
+        const didUndo=engine.undo();
+        const afterUndo={
+          didUndo,
+          passageZone:locate('passage')?.zone||null,
+          passageTapped:!!locate('passage')?.card?.tapped,
+          fetchedZone:locate('fetched')?.zone||null,
+          fetchedTapped:!!locate('fetched')?.card?.tapped,
+          graveyardLength:Number(game.players[0].deck.graveyard?.length||0),
+          stackLength:Number(game.stack?.length||0)
+        };
+
+        return{afterActivation,afterResolve,afterUndo};
+      };
+
+      return{
+        fourLands:runScenario(3),
+        threeLands:runScenario(2)
+      };
+    });
+
+    expect(result.fourLands.afterActivation.passageZone).toBe('graveyard');
+    expect(result.fourLands.afterActivation.fetchedZone).toBe('remainingLibrary');
+    expect(result.fourLands.afterActivation.stackLength).toBe(1);
+    expect(result.fourLands.afterResolve.fetchedZone).toBe('battlefield');
+    expect(result.fourLands.afterResolve.battlefieldLandCount).toBe(4);
+    expect(result.fourLands.afterResolve.fetchedTapped).toBe(false);
+    expect(result.fourLands.afterResolve.stackLength).toBe(0);
+
+    expect(result.threeLands.afterResolve.battlefieldLandCount).toBe(3);
+    expect(result.threeLands.afterResolve.fetchedTapped).toBe(true);
+
+    for(const scenario of [result.fourLands,result.threeLands]){
+      expect(scenario.afterUndo.didUndo).toBe(true);
+      expect(scenario.afterUndo.passageZone).toBe('battlefield');
+      expect(scenario.afterUndo.passageTapped).toBe(false);
+      expect(scenario.afterUndo.fetchedZone).toBe('remainingLibrary');
+      expect(scenario.afterUndo.fetchedTapped).toBe(false);
+      expect(scenario.afterUndo.graveyardLength).toBe(0);
+      expect(scenario.afterUndo.stackLength).toBe(0);
+    }
+  });
+
   test('Fully Guided loads Turtle Power vs Wakanda Forever and reaches live gameplay', async ({ page }) => {
     liveOnly();
     test.setTimeout(240_000);
