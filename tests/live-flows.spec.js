@@ -265,5 +265,87 @@ test.describe('Commander Companion live game flows', () => {
     await expect(towerBattlefield.locator('.card-counter-badge')).toContainText('+1/+1 ×1');
     const counterState = await savedGame(page);
     expect(locateTrackedCard(counterState, towerId)?.card?.counters?.['+1/+1']).toBe(1);
+
+    // Advance one full table round and cast a real affordable permanent using Command Tower.
+    await page.locator('[data-action="end-turn"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('END TURN?');
+    await page.locator('#modalActions').getByRole('button', { name: 'END TURN', exact: true }).click();
+    await disableSmartSkipsIfPrompted(page);
+    await expect(page.locator('.player-name:visible')).toContainText('Lex');
+
+    await page.locator('[data-action="end-turn"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('END TURN?');
+    await page.locator('#modalActions').getByRole('button', { name: 'END TURN', exact: true }).click();
+    await disableSmartSkipsIfPrompted(page);
+    await expect(page.locator('.player-name:visible')).toContainText('Aaron');
+
+    for (let i = 0; i < 4; i++) {
+      if (/DRAW/i.test((await phase.textContent()) || '')) break;
+      await page.locator('[data-action="next-phase"]:visible').first().click();
+      await disableSmartSkipsIfPrompted(page);
+    }
+    await expect(phase).toContainText(/DRAW/i);
+
+    const beforeStackDraw = await savedGame(page);
+    const aaronBeforeStackDraw = beforeStackDraw.players.find(p => p.displayName === 'Aaron');
+    const defs = beforeStackDraw.cardDefinitions || {};
+    const permanentCandidate = [...(aaronBeforeStackDraw.deck.hand || []), ...(aaronBeforeStackDraw.deck.remainingLibrary || [])]
+      .map(card => ({ card, def: defs[card.definitionId] }))
+      .filter(x => x.def && !/Land|Instant|Sorcery/i.test(String(x.def.typeLine || '')) && Number(x.def.manaValue ?? x.def.cmc ?? 99) <= 1 && !Array.isArray(x.def.cardFaces))
+      .sort((a,b) => (a.def.name === 'Sol Ring' ? -1 : 0) - (b.def.name === 'Sol Ring' ? -1 : 0))[0];
+    expect(permanentCandidate, 'Turtle Power should contain an affordable permanent for the live stack test').toBeTruthy();
+
+    const castId = permanentCandidate.card.instanceId;
+    const castName = permanentCandidate.def.name;
+    const castWasInHand = (aaronBeforeStackDraw.deck.hand || []).some(c => c.instanceId === castId);
+
+    await page.locator('[data-action="draw"]:visible').first().click();
+    await expect(page.locator('#modalTitle')).toContainText('DRAW CARD', { timeout: 60_000 });
+    if (castWasInHand) {
+      await page.locator('#modalActions').getByRole('button', { name: 'RANDOM DRAW', exact: true }).click();
+      await expect(page.locator('#modalTitle')).toContainText('RANDOM VIRTUAL DRAW');
+      await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM RANDOM DRAW', exact: true }).click();
+    } else {
+      await page.locator('#drawSearch').fill(castName);
+      const result = page.locator(`[data-draw-id="${castId}"]`);
+      await expect(result).toBeVisible({ timeout: 30_000 });
+      await result.click();
+      await expect(page.locator('#modalTitle')).toContainText('CONFIRM DRAW');
+      await page.locator('#modalActions').getByRole('button', { name: 'CONFIRM DRAW / ADD TO HAND', exact: true }).click();
+    }
+    await disableSmartSkipsIfPrompted(page);
+    await expect(phase).toContainText(/MAIN 1/i);
+    await expect(page.locator(`[data-hand-card="${castId}"]:visible`)).toHaveCount(1);
+
+    const preCast = await savedGame(page);
+    const towerPreCast = locateTrackedCard(preCast, towerId);
+    expect(towerPreCast?.zone).toBe('battlefield');
+    expect(towerPreCast?.card?.tapped).toBe(false);
+
+    await page.locator(`[data-hand-card="${castId}"]:visible`).click();
+    const castButton = page.locator('#modalActions button').filter({ hasText: /^CAST / }).last();
+    await expect(castButton).toBeVisible();
+    await castButton.click();
+
+    await expect.poll(async () => {
+      const g = await savedGame(page);
+      return { stack: g?.stack?.length || 0, zone: locateTrackedCard(g, castId)?.zone || null };
+    }, { timeout: 30_000 }).toEqual({ stack: 0, zone: 'battlefield' });
+
+    const afterCast = await savedGame(page);
+    expect(afterCast.priorityState?.active || false).toBe(false);
+    expect(locateTrackedCard(afterCast, towerId)?.card?.tapped).toBe(true);
+    expect(afterCast.log.some(e => e.type === 'cast-spell' && String(e.text || '').includes(castName))).toBe(true);
+    expect(afterCast.log.some(e => e.type === 'resolve-stack' && String(e.text || '').includes(castName))).toBe(true);
+    await expect(page.locator('.inline-game-log:visible')).toContainText(castName);
+
+    // Undo the root cast: the exact spell must return to hand and the paid mana source must untap.
+    await page.locator('[data-log-undo]:visible').click();
+    await expect(page.locator('#modalTitle')).toContainText('CONFIRM UNDO');
+    await page.locator('#modalActions').getByRole('button', { name: 'UNDO LAST STEP', exact: true }).click();
+    const afterCastUndo = await savedGame(page);
+    expect(locateTrackedCard(afterCastUndo, castId)?.zone).toBe('hand');
+    expect(locateTrackedCard(afterCastUndo, towerId)?.card?.tapped).toBe(false);
+    expect(afterCastUndo.stack?.length || 0).toBe(0);
   });
 });
