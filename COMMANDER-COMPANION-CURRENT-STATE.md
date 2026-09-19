@@ -18,7 +18,7 @@ Do not advance to Batch 4 until Batch 3 is fully closed and a detailed batch han
 
 ## Current promoted checkpoint
 
-**V0.8 BV**
+**V0.8 BW**
 
 BT includes the recovered BN stack work plus later Batch 3 safety checkpoints.
 
@@ -61,7 +61,16 @@ Verified in Chromium + WebKit:
 - reset next turn
 - independent tracking per card instance
 
-**Current active checkpoint: BW — combat keyword + state-based-action interaction safety.**
+**BW — combat keyword + state-based-action interaction safety — VERIFIED**
+
+Verified in local Chromium/WebKit and live GitHub Pages:
+- double strike damage happens in both combat-damage steps
+- lifelink gains life from each damage event
+- infect converts player damage to poison
+- deathtouch + trample assigns lethal correctly
+- state-based creature deaths move exact tracked cards and emit dies events
+
+**Current active checkpoint: BX — trigger/replacement-flow stress and simultaneous-trigger safety.**
 
 ## Batch 3 remaining closure work
 
