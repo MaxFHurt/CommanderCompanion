@@ -3564,3 +3564,265 @@ dialog.game-mode-dialog{
     grid-template-columns:320px minmax(0,1fr)!important;
   }
 }
+
+
+/* V0.8 CR LANDING MASTER + READABILITY PASS */
+/* Landing is not responsive internally. It is composed once at the 1536x709
+   logical master, then the unified stage scaler shrinks/enlarges it as one piece. */
+#landing.landing-rebuild-079{
+  position:absolute!important;
+  inset:0!important;
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  overflow:hidden!important;
+  background:#020103!important;
+}
+#landing .landing079-shell{
+  position:relative!important;
+  inset:auto!important;
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  margin:0!important;
+  padding:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+  isolation:isolate!important;
+  background:
+    radial-gradient(circle at 28% 40%,rgba(111,34,174,.20),transparent 33%),
+    radial-gradient(circle at 74% 56%,rgba(92,23,150,.11),transparent 35%),
+    linear-gradient(180deg,#08040d 0%,#030105 100%)!important;
+}
+#landing .landing079-shell::before{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:-2!important;
+  opacity:.58!important;
+  background:url('ui-forged-bg.svg') center/cover no-repeat!important;
+  pointer-events:none!important;
+}
+#landing .landing079-shell::after{
+  content:""!important;
+  position:absolute!important;
+  inset:10px!important;
+  z-index:20!important;
+  pointer-events:none!important;
+  border:0!important;
+  clip-path:none!important;
+  background:url('ui-panel-frame.svg') center/100% 100% no-repeat!important;
+  opacity:.98!important;
+  box-shadow:none!important;
+}
+
+/* Left brand block */
+#landing .landing079-brand{
+  position:absolute!important;
+  left:70px!important;
+  top:68px!important;
+  width:475px!important;
+  height:305px!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+}
+#landing .landing079-logo{
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  object-fit:contain!important;
+  filter:drop-shadow(0 12px 26px rgba(89,24,149,.42))!important;
+}
+#landing .landing079-copy{
+  position:absolute!important;
+  left:76px!important;
+  top:392px!important;
+  width:470px!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:center!important;
+}
+#landing .landing079-copy p{
+  margin:0!important;
+  color:#eee6f3!important;
+  font-size:20px!important;
+  line-height:1.28!important;
+  letter-spacing:.12em!important;
+  font-weight:800!important;
+  text-shadow:0 2px 5px #000!important;
+}
+
+/* Center primary actions — use the room. */
+#landing .landing079-primary-actions{
+  position:absolute!important;
+  left:565px!important;
+  top:174px!important;
+  width:520px!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:22px!important;
+}
+#landing #startGameBtn,
+#landing #continueBtn{
+  position:relative!important;
+  width:520px!important;
+  height:157px!important;
+  min-width:520px!important;
+  min-height:157px!important;
+  max-width:520px!important;
+  max-height:157px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+#landing #startGameBtn::before,
+#landing #startGameBtn::after,
+#landing #continueBtn::before,
+#landing #continueBtn::after{
+  display:none!important;
+  content:none!important;
+}
+#landing #startGameBtn .landing-static-label,
+#landing #continueBtn .landing-static-label{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  filter:drop-shadow(0 7px 12px rgba(0,0,0,.62))!important;
+}
+
+/* Right feature stack */
+#landing .landing079-feature-actions{
+  position:absolute!important;
+  left:1120px!important;
+  top:96px!important;
+  width:348px!important;
+  height:auto!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:14px!important;
+}
+#landing #profileLandingBtn,
+#landing #deckBuilderVisibleBtn,
+#landing #settingsLandingBtnBottom,
+#landing #helpLandingBtn{
+  position:relative!important;
+  width:348px!important;
+  height:105px!important;
+  min-width:348px!important;
+  min-height:105px!important;
+  max-width:348px!important;
+  max-height:105px!important;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+#landing .landing079-feature-actions button::before,
+#landing .landing079-feature-actions button::after{
+  display:none!important;
+  content:none!important;
+}
+#landing .landing079-feature-actions .landing-static-label{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+  filter:drop-shadow(0 6px 11px rgba(0,0,0,.60))!important;
+}
+#landing .landing079-footer{
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  bottom:24px!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:center!important;
+  color:#b8a9c2!important;
+  font-size:16px!important;
+  line-height:1!important;
+  letter-spacing:.18em!important;
+  text-shadow:0 2px 4px #000!important;
+}
+
+/* Scaled iPhone/iPad landscape still needs readable logical typography. */
+dialog.cc-modal{
+  font-size:18px!important;
+}
+.cc-modal .modal-shell>header h2{
+  font-size:28px!important;
+  line-height:1!important;
+}
+.cc-modal .modal-content{
+  font-size:18px!important;
+  line-height:1.32!important;
+}
+.cc-modal .modal-content h3{
+  font-size:22px!important;
+}
+.cc-modal .modal-content h4{
+  font-size:19px!important;
+}
+.cc-modal .modal-content p,
+.cc-modal .modal-content li,
+.cc-modal .modal-content label,
+.cc-modal .modal-content small{
+  font-size:16px!important;
+  line-height:1.3!important;
+}
+.cc-modal input,
+.cc-modal select,
+.cc-modal textarea{
+  font-size:17px!important;
+  line-height:1.2!important;
+}
+.cc-modal button{
+  font-size:17px!important;
+}
+.dialog-back{
+  font-size:16px!important;
+}
+.game-mode-dialog .mode-choice-menu button b{
+  font-size:27px!important;
+}
+.game-mode-dialog .mode-choice-menu button span{
+  font-size:16px!important;
+  line-height:1.28!important;
+}
+
+/* No orientation branch may move landing elements. */
+@media (orientation:portrait),(orientation:landscape){
+  #landing.landing-rebuild-079,
+  #landing .landing079-shell{
+    width:1536px!important;
+    height:709px!important;
+    min-width:1536px!important;
+    min-height:709px!important;
+    max-width:1536px!important;
+    max-height:709px!important;
+  }
+}
