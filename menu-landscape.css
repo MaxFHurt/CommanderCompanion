@@ -1078,3 +1078,54 @@ html body #modal:has([data-opening-card]) .modal-actions button{
   font-size:clamp(20px,2vw,30px)!important;
   white-space:nowrap!important;
 }
+
+
+/* V0.8 DO — app-wide fixed footer geometry.
+   Footer/action rows inherit the immutable 1536x709 menu canvas and never use
+   viewport-relative sizing, so rotation cannot enlarge or reflow them. */
+html body dialog.cc-modal .modal-actions{
+  box-sizing:border-box!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:78px!important;
+  min-height:78px!important;
+  max-height:78px!important;
+  padding:8px 36px!important;
+  margin:0!important;
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:14px!important;
+  overflow:hidden!important;
+}
+html body dialog.cc-modal .modal-actions>button{
+  flex:1 1 0!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:520px!important;
+  height:60px!important;
+  min-height:60px!important;
+  max-height:60px!important;
+  margin:0!important;
+  white-space:nowrap!important;
+}
+/* Opening hand keeps its three equal actions but uses the same fixed footer. */
+html body #modal:has([data-opening-card]) .modal-shell{
+  grid-template-rows:auto minmax(0,1fr) 78px!important;
+}
+html body #modal:has([data-opening-card]) .modal-actions{
+  height:78px!important;
+  min-height:78px!important;
+  max-height:78px!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+html body #modal:has([data-opening-card]) .modal-actions>button{
+  width:100%!important;
+  max-width:none!important;
+  height:60px!important;
+  min-height:60px!important;
+  max-height:60px!important;
+}
