@@ -4068,3 +4068,144 @@ dialog.cc-modal{
     gap:22px!important;
   }
 }
+
+
+/* V0.8 CT LANDSCAPE MENU SPACE + READABILITY */
+@media (orientation:landscape){
+  dialog.cc-modal,
+  dialog.cc-modal[open]{
+    position:fixed!important;
+    inset:auto!important;
+    left:var(--cc-stage-center-x)!important;
+    top:var(--cc-stage-center-y)!important;
+    width:1420px!important;
+    min-width:1420px!important;
+    max-width:1420px!important;
+    height:640px!important;
+    min-height:640px!important;
+    max-height:640px!important;
+    margin:-320px 0 0 -710px!important;
+    padding:0!important;
+    overflow:hidden!important;
+    transform:scale(var(--cc-stage-scale))!important;
+    transform-origin:center center!important;
+  }
+  dialog.game-mode-dialog,
+  dialog.game-mode-dialog[open]{
+    width:1420px!important;
+    min-width:1420px!important;
+    max-width:1420px!important;
+    height:620px!important;
+    min-height:620px!important;
+    max-height:620px!important;
+    margin:-310px 0 0 -710px!important;
+  }
+  .cc-modal .modal-shell,
+  .game-mode-dialog .game-mode-shell{
+    grid-template-rows:58px 42px minmax(0,1fr) auto!important;
+  }
+  .game-mode-dialog .game-mode-shell{
+    grid-template-rows:58px 42px minmax(0,1fr)!important;
+  }
+  .cc-modal .modal-shell>header{
+    height:58px!important;
+    min-height:58px!important;
+  }
+  .modal-back-row{
+    height:42px!important;
+    min-height:42px!important;
+  }
+  .dialog-back{
+    min-width:110px!important;
+    height:34px!important;
+    min-height:34px!important;
+    font-size:18px!important;
+  }
+  .cc-modal .modal-shell>header h2{
+    font-size:32px!important;
+    letter-spacing:.06em!important;
+  }
+  .cc-modal .modal-content{
+    padding:18px 22px!important;
+    font-size:21px!important;
+    line-height:1.34!important;
+  }
+  .cc-modal .modal-content h3{font-size:27px!important;}
+  .cc-modal .modal-content h4{font-size:23px!important;}
+  .cc-modal .modal-content p,
+  .cc-modal .modal-content li,
+  .cc-modal .modal-content label{font-size:20px!important;line-height:1.34!important;}
+  .cc-modal .modal-content small{font-size:17px!important;line-height:1.28!important;}
+  .cc-modal input,
+  .cc-modal select,
+  .cc-modal textarea{
+    min-height:42px!important;
+    font-size:20px!important;
+  }
+  .cc-modal button{
+    font-size:19px!important;
+  }
+  .cc-modal .modal-actions{
+    min-height:58px!important;
+    max-height:66px!important;
+    padding:8px 16px!important;
+    gap:12px!important;
+  }
+  .cc-modal .modal-actions button{
+    min-width:132px!important;
+    height:42px!important;
+    min-height:42px!important;
+  }
+
+  .game-mode-dialog .game-mode-content{
+    padding:18px 20px 22px!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:20px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button{
+    padding:24px 28px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button b{
+    font-size:34px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button span{
+    margin-top:16px!important;
+    font-size:20px!important;
+    line-height:1.32!important;
+  }
+
+  .setup-line,
+  .player-setup .commander-line{
+    gap:16px!important;
+  }
+  .player-setup{
+    font-size:20px!important;
+  }
+  .player-setup h3{
+    font-size:27px!important;
+  }
+  .player-setup label{
+    font-size:20px!important;
+  }
+  .deck-editor-grid{
+    grid-template-columns:310px minmax(0,1fr)!important;
+    gap:20px!important;
+  }
+  .card-detail{
+    grid-template-columns:380px minmax(0,1fr)!important;
+    gap:22px!important;
+  }
+}
+
+/* Portrait does not render the app or any dialogs. */
+@media (orientation:portrait){
+  dialog.cc-modal,
+  dialog.cc-modal[open]{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    transform:none!important;
+  }
+}
