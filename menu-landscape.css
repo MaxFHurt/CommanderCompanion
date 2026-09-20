@@ -853,3 +853,73 @@
     }
   }
 }
+
+
+/* V0.8 DJ — app-wide rotation-stable menu geometry + setup polish. */
+@supports (height:100svh){
+  html,body{min-height:100svh!important;}
+  dialog.cc-modal{
+    width:100vw!important;
+    height:100svh!important;
+    max-width:100vw!important;
+    max-height:100svh!important;
+  }
+  dialog.cc-modal>.modal-shell,
+  dialog.cc-modal .modal-shell{
+    width:100%!important;
+    height:100%!important;
+    max-width:none!important;
+    max-height:none!important;
+    min-height:0!important;
+  }
+  dialog.cc-modal .modal-content{min-height:0!important;}
+}
+
+/* Full Play Setup: one-line header and compact chrome. */
+html body #modeSetupDialog .modal-shell>header{
+  min-height:58px!important;
+  height:58px!important;
+  padding:6px 180px!important;
+}
+html body #modeSetupDialog #modeSetupTitle{
+  white-space:nowrap!important;
+  font-size:clamp(18px,2.25vw,32px)!important;
+  line-height:1!important;
+  overflow:visible!important;
+}
+html body #modeSetupDialog .modal-back-row{
+  height:52px!important;
+  min-height:52px!important;
+}
+html body #modeSetupDialog .modal-actions{
+  min-height:58px!important;
+  height:58px!important;
+  padding:5px 18px!important;
+  align-items:center!important;
+}
+html body #modeSetupDialog .modal-actions button{
+  height:46px!important;
+  min-height:46px!important;
+  max-height:46px!important;
+}
+
+/* Rule Modifications: permanent visible purple scroll track/thumb. */
+html body #modeSetupDialog .setup-stage:last-child{
+  overflow-y:scroll!important;
+  scrollbar-gutter:stable!important;
+  scrollbar-width:auto!important;
+  scrollbar-color:#a75cff #24122f!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar{
+  width:12px!important;
+  display:block!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar-track{
+  background:#24122f!important;
+  border-left:1px solid #6d3c86!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar-thumb{
+  background:#a75cff!important;
+  border:2px solid #24122f!important;
+  border-radius:8px!important;
+}
