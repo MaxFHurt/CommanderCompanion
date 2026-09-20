@@ -2566,3 +2566,187 @@ body.cc-device-other-phone .tracker-mini-card{height:26px!important}
   body.cc-device-ipad .tracker-shell{grid-template-rows:var(--tt-top) minmax(0,1fr)!important;padding:var(--tt-pad-y) var(--tt-pad-x)!important}
   body.cc-device-ipad .tracker-split{grid-template-columns:minmax(0,1fr) var(--tt-right)!important}
 }
+
+/* ===== V0.8 CJ LANDSCAPE-ONLY LANDING FIT ===== */
+/* Landing is a single landscape composition. No added app header.
+   Portrait is blocked by the rotate gate; landscape always fits the visible Safari viewport. */
+
+html,body{
+  max-width:100%!important;
+  overflow-x:hidden!important;
+}
+
+@media (orientation:portrait){
+  #landscapeOnlyGate.cc-landscape-only-gate{
+    position:fixed!important;
+    inset:0!important;
+    z-index:2147483647!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:12px!important;
+    padding:24px!important;
+    background:#050208!important;
+  }
+  #landing,#gameScreen,#tabletopScreen,.cc-modal{visibility:hidden!important;}
+}
+
+@media (orientation:landscape){
+  #landscapeOnlyGate.cc-landscape-only-gate{display:none!important;}
+  #landing.landing-rebuild-079{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-width:100vw!important;
+    max-height:100dvh!important;
+    overflow:hidden!important;
+    padding:0!important;
+    margin:0!important;
+  }
+  #landing .landing079-shell{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-width:none!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:
+      max(8px,env(safe-area-inset-top))
+      max(14px,env(safe-area-inset-right))
+      max(8px,env(safe-area-inset-bottom))
+      max(14px,env(safe-area-inset-left))!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    display:grid!important;
+    grid-template-columns:minmax(0,36fr) minmax(0,35fr) minmax(0,25fr)!important;
+    grid-template-rows:minmax(0,1fr) auto!important;
+    column-gap:2%!important;
+    row-gap:0!important;
+    align-items:center!important;
+    justify-items:stretch!important;
+    background:
+      radial-gradient(circle at 22% 48%,rgba(132,52,201,.19),transparent 31%),
+      url('ui-forged-bg.svg') center/cover no-repeat,
+      linear-gradient(100deg,#0d0713,#050309 63%,#020103)!important;
+  }
+
+  #landing .landing079-brand{
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+    align-self:center!important;
+  }
+  #landing .landing079-logo{
+    display:block!important;
+    width:100%!important;
+    height:auto!important;
+    max-width:100%!important;
+    max-height:min(58dvh,100%)!important;
+    object-fit:contain!important;
+    margin:0 auto!important;
+  }
+  #landing .landing079-copy{
+    grid-column:1!important;
+    grid-row:2!important;
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    text-align:center!important;
+  }
+  #landing .landing079-copy p{
+    margin:0!important;
+    font-size:clamp(7px,.9vw,12px)!important;
+    line-height:1.2!important;
+    letter-spacing:.11em!important;
+    white-space:normal!important;
+  }
+
+  #landing .landing079-primary-actions{
+    grid-column:2!important;
+    grid-row:1/3!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:clamp(6px,1.5dvh,14px)!important;
+  }
+  #landing #startGameBtn{width:100%!important;}
+  #landing #continueBtn{width:94%!important;}
+  #landing #startGameBtn,
+  #landing #continueBtn{
+    height:auto!important;
+    min-height:0!important;
+    max-height:24dvh!important;
+    aspect-ratio:auto!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+
+  #landing .landing079-feature-actions{
+    grid-column:3!important;
+    grid-row:1/3!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    align-items:center!important;
+    gap:clamp(4px,1.1dvh,10px)!important;
+  }
+  #landing #profileLandingBtn,
+  #landing #deckBuilderVisibleBtn,
+  #landing #settingsLandingBtnBottom,
+  #landing #helpLandingBtn{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:17dvh!important;
+    padding:0!important;
+    margin:0!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    overflow:hidden!important;
+  }
+
+  #landing .landing-static-label{
+    display:block!important;
+    width:100%!important;
+    height:auto!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    object-fit:contain!important;
+  }
+
+  #landing .landing079-footer{
+    position:absolute!important;
+    right:max(14px,env(safe-area-inset-right))!important;
+    bottom:max(5px,env(safe-area-inset-bottom))!important;
+    left:auto!important;
+    width:auto!important;
+    max-width:28%!important;
+    font-size:clamp(6px,.65vw,9px)!important;
+    text-align:right!important;
+    white-space:nowrap!important;
+  }
+}
