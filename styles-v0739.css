@@ -4588,3 +4588,215 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
   min-height:160px!important;
   max-height:160px!important;
 }
+
+
+/* V0.8 CY GAME MODE LANDSCAPE MASTER */
+/* Screen 2 — Choose Game Mode.
+   Use the full horizontal canvas; do not stretch a horizontal button frame
+   vertically into a card. */
+@media (orientation:landscape){
+  dialog.game-mode-dialog,
+  dialog.game-mode-dialog[open]{
+    width:1460px!important;
+    min-width:1460px!important;
+    max-width:1460px!important;
+    height:640px!important;
+    min-height:640px!important;
+    max-height:640px!important;
+    margin:-320px 0 0 -730px!important;
+    overflow:hidden!important;
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+
+  .game-mode-dialog .game-mode-shell{
+    position:relative!important;
+    width:100%!important;
+    height:100%!important;
+    display:grid!important;
+    grid-template-rows:72px 48px minmax(0,1fr)!important;
+    overflow:hidden!important;
+    border:0!important;
+    border-radius:0!important;
+    background:
+      radial-gradient(circle at 50% 8%,rgba(135,48,206,.22),transparent 30%),
+      linear-gradient(180deg,#100718,#050208 58%,#020103 100%)!important;
+    box-shadow:
+      inset 0 0 70px rgba(112,36,172,.16),
+      0 18px 58px rgba(0,0,0,.78)!important;
+  }
+  .game-mode-dialog .game-mode-shell::before{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:0!important;
+    pointer-events:none!important;
+    background:url('ui-forged-bg.svg') center/cover no-repeat!important;
+    opacity:.72!important;
+  }
+  .game-mode-dialog .game-mode-shell::after{
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:20!important;
+    pointer-events:none!important;
+    border:30px solid transparent!important;
+    border-image-source:url('ref-frame-landing.png')!important;
+    border-image-slice:42 35 42 35!important;
+    border-image-width:30px!important;
+    border-image-repeat:stretch!important;
+  }
+
+  .game-mode-dialog .modal-shell>header{
+    position:relative!important;
+    z-index:2!important;
+    height:72px!important;
+    min-height:72px!important;
+    padding:0 70px!important;
+    display:grid!important;
+    place-items:center!important;
+    border:0!important;
+    border-bottom:1px solid rgba(169,91,208,.55)!important;
+    background:linear-gradient(180deg,rgba(27,12,38,.92),rgba(8,4,12,.80))!important;
+  }
+  .game-mode-dialog .modal-shell>header h2{
+    margin:0!important;
+    color:#fff!important;
+    font-size:38px!important;
+    line-height:1!important;
+    letter-spacing:.09em!important;
+    text-shadow:0 2px 4px #000,0 0 14px rgba(179,86,232,.62)!important;
+  }
+
+  .game-mode-dialog .modal-back-row{
+    position:relative!important;
+    z-index:2!important;
+    height:48px!important;
+    min-height:48px!important;
+    padding:5px 46px!important;
+    display:flex!important;
+    justify-content:flex-start!important;
+    align-items:center!important;
+    border:0!important;
+    border-bottom:1px solid rgba(112,62,135,.42)!important;
+    background:rgba(4,2,7,.84)!important;
+  }
+  .game-mode-dialog .dialog-back{
+    width:150px!important;
+    min-width:150px!important;
+    height:38px!important;
+    min-height:38px!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    background:url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  }
+  .game-mode-dialog .dialog-back img{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:contain!important;
+  }
+
+  .game-mode-dialog .game-mode-content{
+    position:relative!important;
+    z-index:2!important;
+    min-height:0!important;
+    height:100%!important;
+    padding:20px 36px 34px!important;
+    overflow:hidden!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    width:100%!important;
+    height:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:1fr!important;
+    gap:24px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu button{
+    position:relative!important;
+    min-width:0!important;
+    min-height:0!important;
+    width:100%!important;
+    height:100%!important;
+    margin:0!important;
+    padding:24px 24px 20px!important;
+    display:grid!important;
+    grid-template-rows:150px minmax(0,1fr) 48px!important;
+    align-items:stretch!important;
+    overflow:hidden!important;
+    border:18px solid transparent!important;
+    border-image-source:url('ref-frame-landing.png')!important;
+    border-image-slice:42 35 42 35!important;
+    border-image-width:18px!important;
+    border-image-repeat:stretch!important;
+    border-radius:0!important;
+    background:
+      radial-gradient(circle at 50% 20%,rgba(110,39,166,.18),transparent 42%),
+      linear-gradient(180deg,rgba(17,8,24,.96),rgba(4,2,7,.99))!important;
+    box-shadow:
+      inset 0 0 28px rgba(119,46,177,.16),
+      0 8px 20px rgba(0,0,0,.5)!important;
+    color:#fff!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu button b{
+    width:100%!important;
+    height:100%!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:12px 18px!important;
+    background:url('ref-button-large.png') center/100% 100% no-repeat!important;
+    color:#fff!important;
+    font-size:34px!important;
+    line-height:1!important;
+    letter-spacing:.035em!important;
+    text-align:center!important;
+    text-shadow:0 2px 3px #000,0 0 10px rgba(190,92,238,.72)!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu button span{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:26px 18px 12px!important;
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:center!important;
+    color:#eee5f2!important;
+    font-size:21px!important;
+    line-height:1.35!important;
+    font-weight:750!important;
+    text-align:center!important;
+    text-shadow:0 1px 3px #000!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu button::after{
+    content:"SELECT MODE"!important;
+    width:190px!important;
+    height:42px!important;
+    align-self:end!important;
+    justify-self:center!important;
+    display:grid!important;
+    place-items:center!important;
+    background:url('ref-button-small.png') center/100% 100% no-repeat!important;
+    color:#f3eaff!important;
+    font:900 16px/1 var(--head)!important;
+    letter-spacing:.10em!important;
+    text-shadow:0 1px 3px #000,0 0 8px #9f43cf!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu button:hover,
+  .game-mode-dialog .mode-choice-menu button:focus-visible{
+    filter:brightness(1.12)!important;
+    box-shadow:
+      inset 0 0 34px rgba(139,57,204,.24),
+      0 0 18px rgba(142,62,205,.42)!important;
+    outline:none!important;
+  }
+}
