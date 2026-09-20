@@ -74,6 +74,10 @@ test.describe.serial('Commander Companion master-match acceptance flow',()=>{
     const errors=await ready(page);
     await expect(page).toHaveTitle(/V0\.8 CW/);
     await assertContained(page,'.landing079-shell','landing master canvas');
+    const landingRoot=await page.locator('#landing').evaluate(el=>({h:el.offsetHeight,w:el.offsetWidth,r:el.getBoundingClientRect().toJSON()}));
+    expect(landingRoot.h,'landing root logical height').toBe(709);
+    expect(landingRoot.w,'landing root logical width').toBe(1536);
+    expect(landingRoot.r.height,'landing must fill visible landscape height').toBeGreaterThan(420);
     await assertVisibleButtonsContained(page,'#landing');
 
     // The landing screen must own the full logical stage. This catches the old
