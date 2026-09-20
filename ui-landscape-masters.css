@@ -1746,3 +1746,31 @@ body.cc-device-ipad #tabletopScreen .tracker-shell{
     aspect-ratio:auto!important;
   }
 }
+
+
+/* V0.8 DA GRAPHICAL MASTER COMPLETION — TOP CHROME SINGLE-SCALE LOCK
+   The outer 1536x709 stage owns device scaling. Legacy per-device topbar
+   heights were leaving half of the reserved master header row empty. */
+@media (orientation:landscape){
+  body.cc-device-iphone #gameScreen .landscape-game-topbar,
+  body.cc-device-ipad #gameScreen .landscape-game-topbar,
+  body.cc-device-other-phone #gameScreen .landscape-game-topbar{
+    height:100%!important;
+    min-height:0!important;
+    padding:7px 18px!important;
+  }
+  body.cc-device-iphone #gameScreen .landscape-game-topbar button,
+  body.cc-device-ipad #gameScreen .landscape-game-topbar button,
+  body.cc-device-other-phone #gameScreen .landscape-game-topbar button{
+    height:68px!important;
+    min-height:68px!important;
+    padding:5px 5px 4px!important;
+    font-size:13px!important;
+  }
+  body.cc-device-iphone #gameScreen .landscape-game-topbar .dock-glyph,
+  body.cc-device-ipad #gameScreen .landscape-game-topbar .dock-glyph,
+  body.cc-device-other-phone #gameScreen .landscape-game-topbar .dock-glyph{
+    width:31px!important;
+    height:31px!important;
+  }
+}
