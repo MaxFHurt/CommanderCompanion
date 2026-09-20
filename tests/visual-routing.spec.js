@@ -16,7 +16,18 @@ async function startMode(page,mode,players='2'){
   await page.locator('#modeProceed').click();
 }
 async function closeModal(page){if(await page.locator('#modal').isVisible()){await page.locator('#modalClose').click();await expect(page.locator('#modal')).not.toBeVisible()}}
-async function expectModal(page,title){await expect(page.locator('#modal')).toBeVisible();await expect(page.locator('#modalTitle')).toContainText(title)}
+async function expectModal(page,title){
+  const modal=page.locator('#modal');
+  await expect(modal).toBeVisible();
+  await expect(page.locator('#modalTitle')).toContainText(title);
+  const b=await modal.boundingBox(),vp=page.viewportSize();
+  expect(b).toBeTruthy();
+  expect(b.width).toBeGreaterThan(b.height);
+  expect(b.width).toBeLessThanOrEqual(vp.width+1);
+  expect(b.height).toBeLessThanOrEqual(vp.height+1);
+  expect(b.left).toBeGreaterThanOrEqual(-1);
+  expect(b.top).toBeGreaterThanOrEqual(-1);
+}
 const visibleHub=(page,hub,scope='')=>page.locator((scope?scope+' ':'')+'[data-hub="'+hub+'"]:visible').first();
 
 test.describe('V0.8 CQ visual and routing tap-through',()=>{
