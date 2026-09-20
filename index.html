@@ -57,8 +57,8 @@
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-ci">
-    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-ci">
+    <link rel="stylesheet" href="game-threefix.css?v=080-ck">
+    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-ck">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -185,7 +185,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-ci');
+        await import('./app.js?v=080-ck');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
