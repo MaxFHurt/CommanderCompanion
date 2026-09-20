@@ -3912,3 +3912,159 @@ dialog.cc-modal{
     pointer-events:none!important;
   }
 }
+
+
+/* V0.8 CS LANDSCAPE MENU SCALE + READABILITY */
+/* Landscape menus should use the available stage instead of floating as small
+   desktop dialogs. At the 1536x709 logical master they nearly fill the screen,
+   then inherit the same outer stage scale as gameplay. */
+@media (orientation:landscape){
+  dialog.cc-modal,
+  dialog.cc-modal[open]{
+    position:fixed!important;
+    inset:auto!important;
+    left:var(--cc-stage-center-x)!important;
+    top:var(--cc-stage-center-y)!important;
+    width:1440px!important;
+    min-width:1440px!important;
+    max-width:1440px!important;
+    height:650px!important;
+    min-height:650px!important;
+    max-height:650px!important;
+    margin:-325px 0 0 -720px!important;
+    transform:scale(var(--cc-stage-scale))!important;
+    transform-origin:center center!important;
+    overflow:hidden!important;
+  }
+  dialog.game-mode-dialog{
+    width:1440px!important;
+    min-width:1440px!important;
+    max-width:1440px!important;
+    height:620px!important;
+    min-height:620px!important;
+    max-height:620px!important;
+    margin:-310px 0 0 -720px!important;
+  }
+
+  .cc-modal .modal-shell{
+    grid-template-rows:64px 46px minmax(0,1fr) 64px!important;
+  }
+  .game-mode-dialog .game-mode-shell{
+    grid-template-rows:64px 46px minmax(0,1fr)!important;
+  }
+  .cc-modal .modal-shell>header{
+    height:64px!important;
+    min-height:64px!important;
+    padding:0 24px!important;
+  }
+  .cc-modal .modal-shell>header h2{
+    font-size:34px!important;
+    letter-spacing:.045em!important;
+  }
+  .modal-back-row{
+    height:46px!important;
+    min-height:46px!important;
+    padding:4px 16px!important;
+  }
+  .dialog-back{
+    min-width:126px!important;
+    height:36px!important;
+    min-height:36px!important;
+    padding:5px 18px!important;
+    font-size:20px!important;
+  }
+
+  .cc-modal .modal-content{
+    padding:18px 22px!important;
+    font-size:23px!important;
+    line-height:1.35!important;
+  }
+  .cc-modal .modal-content h3{
+    font-size:29px!important;
+    margin:.35em 0!important;
+  }
+  .cc-modal .modal-content h4{
+    font-size:25px!important;
+    margin:.35em 0!important;
+  }
+  .cc-modal .modal-content p,
+  .cc-modal .modal-content li,
+  .cc-modal .modal-content label{
+    font-size:21px!important;
+    line-height:1.34!important;
+  }
+  .cc-modal .modal-content small,
+  .cc-modal .muted{
+    font-size:18px!important;
+    line-height:1.3!important;
+  }
+  .cc-modal input,
+  .cc-modal select,
+  .cc-modal textarea{
+    min-height:44px!important;
+    font-size:21px!important;
+    line-height:1.2!important;
+    padding:8px 11px!important;
+  }
+  .cc-modal textarea{
+    min-height:120px!important;
+  }
+  .cc-modal button{
+    font-size:21px!important;
+  }
+  .cc-modal .modal-actions{
+    min-height:64px!important;
+    max-height:64px!important;
+    height:64px!important;
+    padding:8px 16px!important;
+    gap:12px!important;
+  }
+  .cc-modal .modal-actions button{
+    min-width:150px!important;
+    height:46px!important;
+    min-height:46px!important;
+    padding:7px 16px!important;
+    font-size:20px!important;
+  }
+
+  .game-mode-dialog .game-mode-content{
+    padding:20px!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    height:100%!important;
+    gap:18px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button{
+    padding:22px 24px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button b{
+    font-size:34px!important;
+  }
+  .game-mode-dialog .mode-choice-menu button span{
+    max-width:94%!important;
+    margin-top:14px!important;
+    font-size:21px!important;
+    line-height:1.34!important;
+  }
+
+  .setup-line,
+  .player-setup .commander-line{
+    gap:16px!important;
+  }
+  .landing-command-grid,
+  .counter-grid{
+    gap:12px!important;
+  }
+  .landing-command-grid button{
+    min-height:66px!important;
+    font-size:21px!important;
+  }
+  .deck-editor-grid{
+    grid-template-columns:320px minmax(0,1fr)!important;
+    gap:20px!important;
+  }
+  .card-detail{
+    grid-template-columns:390px minmax(0,1fr)!important;
+    gap:22px!important;
+  }
+}
