@@ -4545,3 +4545,46 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     pointer-events:none!important;
   }
 }
+
+
+/* V0.8 CX LANDING CONTINUE-STATE LOCK */
+/* Continue Game exists only when a compatible save exists. */
+#landing #continueBtn:disabled{
+  display:none!important;
+}
+
+/* No saved game: one large primary action, centered in the right-side field. */
+#landing .landing079-primary-actions:has(#continueBtn:disabled){
+  left:625px!important;
+  top:190px!important;
+  width:760px!important;
+  gap:0!important;
+}
+#landing .landing079-primary-actions:has(#continueBtn:disabled) #startGameBtn{
+  width:760px!important;
+  min-width:760px!important;
+  max-width:760px!important;
+  height:205px!important;
+  min-height:205px!important;
+  max-height:205px!important;
+}
+
+/* Saved game: two readable primary actions stacked with clear breathing room.
+   They stay entirely above the four-button utility rail. */
+#landing .landing079-primary-actions:not(:has(#continueBtn:disabled)){
+  left:625px!important;
+  top:104px!important;
+  width:760px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:18px!important;
+}
+#landing .landing079-primary-actions:not(:has(#continueBtn:disabled)) #startGameBtn,
+#landing .landing079-primary-actions:not(:has(#continueBtn:disabled)) #continueBtn{
+  width:760px!important;
+  min-width:760px!important;
+  max-width:760px!important;
+  height:160px!important;
+  min-height:160px!important;
+  max-height:160px!important;
+}
