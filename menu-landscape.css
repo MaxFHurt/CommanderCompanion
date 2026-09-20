@@ -829,3 +829,27 @@
     line-height:1.22!important;
   }
 }
+
+
+/* V0.8 DI — iOS rotation stability.
+   Landscape menus use the stable small viewport height so Safari chrome/dynamic
+   viewport changes cannot resize the composition after portrait -> landscape. */
+@supports (height: 100svh){
+  @media (orientation:landscape){
+    html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog){
+      height:100svh!important;
+      max-height:100svh!important;
+    }
+    html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell,
+    html body #gameModeDialog .game-mode-shell,
+    html body #modeSetupDialog .modal-shell{
+      height:100svh!important;
+      max-height:100svh!important;
+      min-height:0!important;
+    }
+    html body #gameModeDialog .game-mode-content,
+    html body #modeSetupDialog .modal-content{
+      min-height:0!important;
+    }
+  }
+}
