@@ -1,6 +1,6 @@
 # Commander Companion — Visual Rebuild Notes
 
-Current visual rebuild line: **V0.8 CW**
+Current visual rebuild line: **V0.8 CX**
 
 This file is the running screen-by-screen visual QA record. The approved visual masters supplied by the user are the authority. Historical 0.8.4.4-era styling is not a visual source for this rebuild.
 
@@ -73,3 +73,10 @@ At 932×430:
 - rendered landing rectangle fills the full visible ~430px height after scaling
 - lower controls are no longer clipped
 - no black half-screen remains
+
+
+## CX landing state cleanup
+- Disabled Continue Game is now hidden entirely, matching the requirement that Continue appears only for an actual saved game.
+- With a save present, Start/Continue use a compact two-action stack that stays above the bottom utility rail.
+- Landing utility rail remains Profile / Deck Builder / Settings / Help.
+- Heavy metal outer border from the earlier landing visual is retained with the newer wide composition.
