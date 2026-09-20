@@ -1589,3 +1589,40 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
     max-height:56px!important;
   }
 }
+
+
+/* V0.8 EB — definitive rotation geometry.
+   Menus retain one 1536x709 composition and use the SAME min(width,height)
+   visualViewport scale as the stable app stage. This prevents Safari's short
+   post-rotation viewport from leaving a width-scaled, vertically oversized UI. */
+@media (orientation:landscape){
+  html body dialog.cc-modal,
+  html body dialog.cc-modal[open]{
+    box-sizing:border-box!important;
+    position:fixed!important;
+    left:var(--cc-stage-center-x,50vw)!important;
+    top:var(--cc-stage-center-y,50vh)!important;
+    right:auto!important;
+    bottom:auto!important;
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+    margin:0!important;
+    transform:translate(-50%,-50%) scale(var(--cc-stage-scale,1))!important;
+    transform-origin:center center!important;
+    overflow:hidden!important;
+  }
+  html body dialog.cc-modal>.modal-shell,
+  html body dialog.cc-modal .modal-shell{
+    box-sizing:border-box!important;
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+  }
+}
