@@ -4209,3 +4209,81 @@ dialog.cc-modal{
     transform:none!important;
   }
 }
+
+
+/* V0.8 CU LANDING MASTER VISIBILITY FIX */
+/* The approved landing master is the visual authority. Do not place an opaque
+   generic panel over the actual logo/button artwork. */
+#landing .landing079-shell{
+  background:
+    radial-gradient(circle at 25% 34%,rgba(133,48,220,.32),transparent 31%),
+    radial-gradient(circle at 64% 42%,rgba(100,31,176,.20),transparent 34%),
+    radial-gradient(circle at 90% 60%,rgba(78,22,137,.16),transparent 26%),
+    linear-gradient(180deg,#110719 0%,#07030c 52%,#020103 100%)!important;
+  box-shadow:
+    inset 0 0 90px rgba(117,39,184,.16),
+    inset 0 0 0 2px rgba(202,177,222,.14)!important;
+}
+#landing .landing079-shell::after{
+  display:none!important;
+  content:none!important;
+  background:none!important;
+  opacity:0!important;
+}
+#landing .landing079-shell::before{
+  display:block!important;
+  z-index:0!important;
+  opacity:.78!important;
+  filter:brightness(1.34) saturate(1.18) contrast(1.04)!important;
+}
+#landing .landing079-brand,
+#landing .landing079-copy,
+#landing .landing079-primary-actions,
+#landing .landing079-feature-actions,
+#landing .landing079-footer{
+  z-index:3!important;
+}
+#landing .landing079-logo{
+  opacity:1!important;
+  filter:
+    brightness(1.13)
+    contrast(1.08)
+    saturate(1.12)
+    drop-shadow(0 0 18px rgba(149,64,220,.42))
+    drop-shadow(0 12px 26px rgba(0,0,0,.62))!important;
+}
+#landing .landing-static-label{
+  opacity:1!important;
+  filter:
+    brightness(1.24)
+    contrast(1.08)
+    saturate(1.13)
+    drop-shadow(0 7px 14px rgba(0,0,0,.62))!important;
+}
+#landing .landing079-copy p{
+  color:#f4ecf8!important;
+  font-size:22px!important;
+  font-weight:800!important;
+  text-shadow:0 2px 5px #000,0 0 12px rgba(149,64,220,.22)!important;
+}
+#landing .landing079-footer{
+  color:#d1c2db!important;
+  font-size:17px!important;
+}
+#landing #startGameBtn,
+#landing #continueBtn,
+#landing #profileLandingBtn,
+#landing #deckBuilderVisibleBtn,
+#landing #settingsLandingBtnBottom,
+#landing #helpLandingBtn{
+  opacity:1!important;
+  filter:none!important;
+}
+#landing button:disabled{
+  opacity:.42!important;
+}
+
+/* Never let older frame overlays reappear in either supported landscape target. */
+@media (orientation:landscape){
+  #landing .landing079-shell::after{display:none!important;}
+}
