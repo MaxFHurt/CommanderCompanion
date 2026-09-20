@@ -1195,3 +1195,34 @@ dialog.cc-modal .modal-shell{
   min-height:709px!important;
   max-height:709px!important;
 }
+
+
+/* V0.8 DR — isolate modal rotation scaling from the landing stage.
+   Landing keeps its proven visualViewport scaler. Menus use a frozen landscape
+   scale captured by CSS from the layout width, so footer/menu proportions do
+   not inherit Safari's transient visualViewport height changes. */
+@media (orientation:landscape){
+  dialog.cc-modal,
+  dialog.cc-modal[open]{
+    --cc-modal-scale:calc(100vw / 1536);
+    left:50vw!important;
+    top:50vh!important;
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+    transform:translate(-50%,-50%) scale(var(--cc-modal-scale))!important;
+    transform-origin:center center!important;
+  }
+  dialog.cc-modal>.modal-shell,
+  dialog.cc-modal .modal-shell{
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+  }
+}
