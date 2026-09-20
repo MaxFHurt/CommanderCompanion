@@ -3072,3 +3072,121 @@ html,body{
 @media (orientation:portrait){
   dialog.cc-modal[open]{visibility:hidden!important;pointer-events:none!important;}
 }
+
+/* V0.8 CO ALWAYS-LANDSCAPE CANVAS — no warning, no rotation */
+/* The UI itself never changes orientation. The browser/device may rotate, but
+   Commander Companion always renders the same landscape composition. */
+#landscapeOnlyGate.cc-landscape-only-gate{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+
+html,body{
+  transform:none!important;
+  transform-origin:initial!important;
+}
+
+/* Never hide app surfaces based on physical device orientation. */
+#landing,
+#gameScreen,
+#tabletopScreen,
+.cc-modal,
+#toast,
+#bootError{
+  visibility:visible;
+}
+
+/* All primary pages remain 1536:709 landscape canvases and are merely contained
+   inside whatever viewport Safari provides. */
+#landing.landing-rebuild-079,
+#gameScreen,
+#tabletopScreen{
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+
+#landing .landing079-shell,
+#gameScreen .landscape-game-master,
+#tabletopScreen .tracker-shell{
+  width:min(100vw,calc(100dvh * 2.1664316))!important;
+  height:auto!important;
+  max-height:100dvh!important;
+  aspect-ratio:1536/709!important;
+  margin:auto!important;
+}
+
+/* Dialogs are landscape canvases too, even when the physical device is portrait. */
+dialog.cc-modal{
+  width:min(94vw,1120px)!important;
+  height:min(88dvh,680px,calc(94vw / 1.62))!important;
+  max-width:none!important;
+  max-height:none!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:auto!important;
+  overflow:hidden!important;
+}
+.cc-modal .modal-shell,
+.game-mode-dialog .game-mode-shell{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:48px 34px minmax(0,1fr) auto!important;
+  overflow:hidden!important;
+}
+.game-mode-dialog .game-mode-shell{
+  grid-template-rows:48px 34px minmax(0,1fr)!important;
+}
+.game-mode-dialog .mode-choice-menu{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:1fr!important;
+}
+.deck-editor-grid{
+  grid-template-columns:minmax(180px,24%) minmax(0,1fr)!important;
+}
+.card-detail{
+  grid-template-columns:minmax(170px,32%) minmax(0,1fr)!important;
+}
+
+/* Portrait is not a separate supported layout. It receives exactly the same
+   landscape composition, scaled to fit width; no message and no transform. */
+@media (orientation:portrait){
+  #landscapeOnlyGate.cc-landscape-only-gate{display:none!important;}
+
+  #landing .landing079-shell,
+  #gameScreen .landscape-game-master,
+  #tabletopScreen .tracker-shell{
+    width:100vw!important;
+    height:auto!important;
+    max-height:none!important;
+    aspect-ratio:1536/709!important;
+  }
+
+  dialog.cc-modal{
+    width:94vw!important;
+    height:min(58vw,88dvh)!important;
+  }
+
+  .cc-modal .modal-shell,
+  .game-mode-dialog .game-mode-shell{
+    grid-template-rows:42px 30px minmax(0,1fr) auto!important;
+  }
+  .game-mode-dialog .game-mode-shell{
+    grid-template-rows:42px 30px minmax(0,1fr)!important;
+  }
+
+  .setup-line,
+  .player-setup .commander-line,
+  .counter-grid,
+  .landing-command-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .deck-editor-grid{
+    grid-template-columns:minmax(150px,24%) minmax(0,1fr)!important;
+  }
+
+  .game-mode-dialog .mode-choice-menu{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
