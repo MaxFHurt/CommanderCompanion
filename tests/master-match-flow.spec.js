@@ -72,13 +72,15 @@ test.describe.serial('Commander Companion master-match acceptance flow',()=>{
   test('landing + all top-level landing menus fit and route',async({page})=>{
     await page.setViewportSize({width:932,height:430});
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CW/);
+    await expect(page).toHaveTitle(/V0\.8 CX/);
     await assertContained(page,'.landing079-shell','landing master canvas');
     const landingRoot=await page.locator('#landing').evaluate(el=>({h:el.offsetHeight,w:el.offsetWidth,r:el.getBoundingClientRect().toJSON()}));
     expect(landingRoot.h,'landing root logical height').toBe(709);
     expect(landingRoot.w,'landing root logical width').toBe(1536);
     expect(landingRoot.r.height,'landing must fill visible landscape height').toBeGreaterThan(420);
     await assertVisibleButtonsContained(page,'#landing');
+    const continueBtn=page.locator('#continueBtn');
+    if(await continueBtn.isDisabled()) await expect(continueBtn,'disabled Continue Game is not rendered').not.toBeVisible();
 
     // The landing screen must own the full logical stage. This catches the old
     // high-specificity 100dvh override that clipped the shell at ~430 logical px.
