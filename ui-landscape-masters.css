@@ -1,9 +1,148 @@
-/* Commander Companion V0.8 CF
-   Final graphical master loader.
-   Layout geometry remains owned by styles-v0739.css and game-threefix.css. */
+/* Commander Companion V0.8 CG — final visual master wiring.
+   Broken late-CE embedded data URLs are intentionally retired. */
 
-@import url('./cc-master-guided-data.css?v=080-cf');
-@import url('./cc-t-row-3.css?v=080-cf');
+#gameScreen,#tabletopScreen{background:#020103!important}
+#gameScreen .landscape-game-master{
+  isolation:isolate!important;
+  background:#020103!important;
+  border:1px solid #512666!important;
+  box-shadow:inset 0 0 0 2px #110718,0 0 16px #6b2d8b66!important;
+}
+#gameScreen .landscape-game-topbar{
+  border:0!important;border-radius:0!important;
+  background:#050207 url('game-top-frame-v07940.jpg') center/100% 100% no-repeat!important;
+  box-shadow:none!important;
+}
+#gameScreen .custom-header-brand .landscape-game-logo{opacity:0!important}
+#gameScreen .landscape-game-topbar button{
+  border-color:#744a8e!important;
+  background:linear-gradient(180deg,rgba(34,15,44,.90),rgba(7,4,10,.94))!important;
+  box-shadow:inset 0 0 0 1px #e2c6f41f,0 0 8px #6f239b44!important;
+}
+#gameScreen .landscape-player-master{
+  border:2px solid #7c3fa0!important;
+  box-shadow:inset 0 0 0 2px #120719,0 0 12px #8738b366!important;
+}
+#gameScreen .battle-panel{
+  background:
+    linear-gradient(180deg,rgba(5,2,8,.18),rgba(3,1,5,.28)),
+    url('game-battlefield-window-v07916.jpg') center/cover no-repeat!important;
+}
+#gameScreen .battlefield-wrap,
+#gameScreen .custom-permanent-row,
+#gameScreen .custom-land-row,
+#gameScreen .battlefield{background:transparent!important}
+#gameScreen .custom-land-row{
+  border-top:1px solid #8e56a677!important;
+  background:linear-gradient(180deg,rgba(4,2,6,.10),rgba(4,2,6,.42))!important;
+}
+#gameScreen .custom-land-row>header{
+  color:#fff!important;text-shadow:0 0 7px #b963e9!important;
+}
+#gameScreen .landscape-hand-zone,
+#gameScreen .landscape-action-rail,
+#gameScreen .landscape-opponents,
+#gameScreen .landscape-right-rail .inline-game-log,
+#gameScreen .landscape-right-undo{
+  border-color:#80509b!important;
+  box-shadow:inset 0 0 0 1px #d5a8ef2a,0 0 10px #6d2f9038!important;
+}
+#gameScreen .landscape-jewel{
+  box-shadow:inset 0 0 0 4px #5c2972,0 0 18px #bd5bf0cc!important;
+}
 
-#gameScreen .landscape-game-master{isolation:isolate;}
-#tabletopScreen .tracker-shell{isolation:isolate;}
+/* Same Guided / Freeplay composition on iPad, scaled to fit the viewport. */
+body.cc-device-ipad #gameScreen{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+body.cc-device-ipad #gameScreen .landscape-game-master{
+  width:min(100vw,calc(100dvh * 2.16643))!important;
+  height:min(100dvh,calc(100vw / 2.16643))!important;
+  aspect-ratio:1536/709!important;
+  margin:auto!important;
+}
+
+/* Table Tracker final master structure */
+#tabletopScreen:has(.tracker-shell){padding:0!important;overflow:hidden!important;background:#020103!important}
+.tracker-shell{
+  width:100vw!important;height:100dvh!important;box-sizing:border-box!important;
+  display:grid!important;grid-template-rows:clamp(58px,9dvh,78px) minmax(0,1fr) clamp(48px,8dvh,66px)!important;
+  gap:5px!important;padding:5px 7px!important;
+  background:radial-gradient(circle at 50% 0,#241032 0,#08040d 34%,#020103 78%)!important;
+  border:2px solid #6f368f!important;box-shadow:inset 0 0 0 2px #16091e!important;
+}
+.tracker-head{
+  min-height:0!important;height:auto!important;display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(250px,35vw,520px) minmax(0,1fr)!important;
+  gap:6px!important;align-items:center!important;padding:3px 7px!important;
+  border:1px solid #744795!important;border-radius:7px!important;
+  background:#060309 url('game-top-frame-v07940.jpg') center/100% 100% no-repeat!important;
+}
+.tracker-head nav{display:flex!important;align-items:center!important;gap:4px!important}
+.tracker-nav-right{justify-content:flex-end!important}
+.tracker-nav-button{
+  min-width:0!important;height:34px!important;padding:0 8px!important;
+  border:1px solid #6f4388!important;border-radius:5px!important;
+  background:linear-gradient(180deg,rgba(30,13,39,.92),rgba(7,4,10,.94))!important;
+  color:#fff!important;font:900 clamp(7px,.8vw,10px)/1 var(--head)!important;
+}
+.tracker-current{box-shadow:inset 0 0 0 1px #dca7ff55,0 0 8px #9b47c888!important}
+.tracker-brand{display:grid!important;place-items:center!important;gap:0!important;min-width:0!important}
+.tracker-brand img{max-width:100%!important;max-height:42px!important;object-fit:contain!important}
+.tracker-brand span{font:900 clamp(8px,1vw,12px)/1 var(--head)!important;color:#fff!important;letter-spacing:.11em!important}
+.tracker-brand small{font:700 clamp(5px,.55vw,7px)/1.1 var(--body)!important;color:#d8c6df!important}
+.tracker-split{
+  min-height:0!important;display:grid!important;grid-template-columns:minmax(0,1fr) clamp(235px,20vw,330px)!important;
+  gap:5px!important;padding:0!important;
+}
+.tracker-player-grid{
+  min-height:0!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-rows:repeat(2,minmax(0,1fr))!important;gap:5px!important;
+}
+.tracker-player-card{
+  min-height:0!important;overflow:hidden!important;padding:6px!important;border-width:2px!important;border-style:solid!important;border-radius:8px!important;
+  background:linear-gradient(160deg,rgba(12,7,18,.94),rgba(3,2,6,.98))!important;
+  box-shadow:inset 0 0 0 1px #d5c0df22,0 0 10px #0008!important;
+}
+.tracker-player-card.player-slot-1{border-color:#268cff!important;background:linear-gradient(155deg,rgba(4,37,76,.88),rgba(3,9,22,.96))!important;box-shadow:inset 0 0 0 1px #4db0ff55,0 0 12px #137cff88!important}
+.tracker-player-card.player-slot-2{border-color:#e53a43!important;background:linear-gradient(155deg,rgba(83,9,15,.88),rgba(22,3,6,.96))!important;box-shadow:inset 0 0 0 1px #ff646955,0 0 12px #e5263588!important}
+.tracker-player-card.player-slot-3{border-color:#29cb65!important;background:linear-gradient(155deg,rgba(5,72,36,.88),rgba(2,19,9,.96))!important;box-shadow:inset 0 0 0 1px #56ef8a55,0 0 12px #20bd5988!important}
+.tracker-player-card.player-slot-4{border-color:#8e52e8!important;background:linear-gradient(155deg,rgba(55,19,85,.88),rgba(13,5,22,.96))!important;box-shadow:inset 0 0 0 1px #bd83ff55,0 0 12px #853bd788!important}
+.tracker-player-head{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(125px,.75fr)!important;gap:5px!important}
+.tracker-name,.tracker-status,.tracker-stat,.tracker-extra-counter,.tracker-mana{
+  background:rgba(3,2,6,.54)!important;border-color:#ffffff22!important;
+}
+.tracker-mana-row{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:3px!important}
+.tracker-side-rail{min-height:0!important;display:grid!important;grid-template-rows:44px minmax(0,1fr)!important;gap:5px!important}
+.tracker-judge{
+  border:1px solid #9f67bc!important;border-radius:7px!important;
+  background:linear-gradient(180deg,#2a1536,#0a0610)!important;color:#fff!important;
+  font:900 clamp(9px,1vw,13px)/1 var(--head)!important;box-shadow:inset 0 0 0 1px #dcaaff2c,0 0 9px #71369555!important;
+}
+.tracker-game-log{
+  min-height:0!important;height:auto!important;display:grid!important;grid-template-rows:auto minmax(0,1fr) 40px!important;
+  padding:5px!important;border:1px solid #8650a1!important;border-radius:8px!important;
+  background:linear-gradient(180deg,#120819,#040207)!important;
+}
+.tracker-log-scroll{min-height:0!important;overflow-y:auto!important}
+.tracker-clear-log{
+  border:1px solid #80509b!important;border-radius:6px!important;background:linear-gradient(180deg,#21122a,#09050d)!important;color:#fff!important;
+  font:900 9px/1 var(--head)!important;
+}
+.tracker-bottom-bar{
+  min-height:0!important;display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:16px!important;align-items:stretch!important;
+  padding:3px 5px!important;border:1px solid #70418b!important;border-radius:7px!important;background:linear-gradient(180deg,#160a1d,#050308)!important;
+}
+.tracker-bottom-left,.tracker-bottom-right{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+.tracker-bottom-bar button{
+  min-width:0!important;border:1px solid #765091!important;border-radius:5px!important;background:linear-gradient(180deg,#25142f,#09060d)!important;
+  color:#fff!important;font:900 clamp(7px,.8vw,10px)/1 var(--head)!important;
+}
+@media (max-height:500px){
+  .tracker-shell{grid-template-rows:52px minmax(0,1fr) 48px!important;padding:4px 6px!important}
+  .tracker-brand img{max-height:30px!important}.tracker-brand small{display:none!important}
+  .tracker-nav-button{height:30px!important;padding:0 6px!important}
+  .tracker-split{grid-template-columns:minmax(0,1fr) 245px!important}
+  .tracker-player-card{padding:4px!important}
+  .tracker-side-rail{grid-template-rows:38px minmax(0,1fr)!important}
+}

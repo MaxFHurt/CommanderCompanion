@@ -187,7 +187,33 @@ export function renderTabletop(game){
     </section>`;
   }).join('');
   const logs=(game.log||[]).slice(0,80).map(e=>`<div class="tracker-log-event"><b>T${Number(e.turn||game.turnNumber||1)}</b><span>${esc(e.text||'Game update')}</span></div>`).join('')||'<p class="muted">No game events yet. Player edits will appear here.</p>';
-  return `<div class="tracker-shell tracker-count-${game.players.length}"><header class="tracker-head"><nav><button id="trackerHome">HOME</button></nav><div class="tracker-brand"><img src="horizon-full-logo.png" alt="Commander Companion"><span>TABLE TRACKER</span></div><nav><button id="trackerSave">SAVE</button></nav></header><div class="tracker-split"><div class="tracker-player-grid">${cards}</div><aside class="tracker-game-log"><div class="tracker-log-head"><b>GAME LOG</b><span>${(game.log||[]).length} EVENTS</span></div><div class="tracker-log-scroll">${logs}</div></aside></div></div>`
+  return `<div class="tracker-shell tracker-count-${game.players.length}">
+    <header class="tracker-head">
+      <nav class="tracker-nav-left">
+        <button id="trackerHome" class="tracker-nav-button">HOME</button>
+        <button class="tracker-nav-button tracker-current" type="button" aria-current="page">TABLE TRACKER</button>
+        <button class="tracker-nav-button" data-hub="card-id">CARD ID</button>
+        <button class="tracker-nav-button" data-hub="chat">GAME CHAT</button>
+      </nav>
+      <div class="tracker-brand"><img src="horizon-full-logo.png" alt="Commander Companion"><span>TABLE TRACKER</span><small>Physical table is authoritative • Adjust values directly</small></div>
+      <nav class="tracker-nav-right">
+        <button class="tracker-nav-button" data-hub="rescue">HELP</button>
+        <button class="tracker-nav-button" data-hub="settings">SETTINGS</button>
+        <button class="tracker-nav-button" data-hub="profile">PROFILE</button>
+      </nav>
+    </header>
+    <div class="tracker-split">
+      <div class="tracker-player-grid">${cards}</div>
+      <aside class="tracker-side-rail">
+        <button id="trackerJudge" class="tracker-judge">⚖ <span>ASK THE JUDGE</span></button>
+        <section class="tracker-game-log"><div class="tracker-log-head"><b>GAME LOG</b><span>${(game.log||[]).length} EVENTS</span></div><div class="tracker-log-scroll">${logs}</div><button id="trackerClearLog" class="tracker-clear-log">⌫ <span>CLEAR LOG</span></button></section>
+      </aside>
+    </div>
+    <footer class="tracker-bottom-bar">
+      <div class="tracker-bottom-left"><button id="trackerEditPlayers">EDIT PLAYERS</button><button id="trackerEditDecks">EDIT DECKS</button><button id="trackerGameStats">GAME STATS</button><button id="trackerResetGame">RESET GAME</button></div>
+      <div class="tracker-bottom-right"><button id="trackerCounters">COUNTERS</button><button id="trackerLife">LIFE</button><button id="trackerStatus">STATUS</button><button id="trackerMana">MANA</button></div>
+    </footer>
+  </div>`
 }
 
 export function renderCardDetail(game,instance){const d=defOf(game,instance);if(!d)return`<p class="bad">Card data is unresolved.</p>`;return `<div class="card-detail"><img src="${esc(imageOf(d))}" alt="${esc(d.name)}"><div><h2>${esc(d.name)}</h2><p><b>${esc(d.typeLine)}</b></p><p class="oracle">${esc(d.oracleText)}</p><p class="muted">${esc(d.set?.toUpperCase()||'')} ${esc(d.collectorNumber||'')}</p></div></div>`}
