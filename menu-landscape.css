@@ -809,3 +809,23 @@
     overflow:hidden!important;
   }
 }
+
+
+/* V0.8 DF2 — Game Mode: whole framed card is the choice; no redundant SELECT control. */
+@media (orientation:landscape){
+  html body #gameModeDialog .mode-choice-menu>button{
+    grid-template-rows:68px minmax(0,1fr)!important;
+    padding-bottom:18px!important;
+  }
+  html body #gameModeDialog .mode-choice-menu>button::after{
+    content:none!important;
+    display:none!important;
+  }
+  html body #gameModeDialog .mode-choice-menu>button>span{
+    grid-row:2!important;
+    width:88%!important;
+    max-width:88%!important;
+    font-size:clamp(12px,1.05vw,16px)!important;
+    line-height:1.22!important;
+  }
+}
