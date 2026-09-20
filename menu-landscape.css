@@ -1281,3 +1281,55 @@ html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions>butt
   min-height:56px!important;
   max-height:56px!important;
 }
+
+
+/* V0.8 DT — Opening Hand cards only: rescale, no redesign.
+   Remove button chrome and maximize seven authentic-proportion cards inside frame. */
+html body #modal[open]:has([data-opening-card]) .hand-strip{
+  height:calc(100% - 42px)!important;
+  min-height:0!important;
+  padding:0 8px 6px!important;
+  gap:10px!important;
+  display:grid!important;
+  grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  align-items:stretch!important;
+  justify-items:center!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card{
+  box-sizing:border-box!important;
+  align-self:stretch!important;
+  justify-self:stretch!important;
+  width:100%!important;
+  max-width:100%!important;
+  height:100%!important;
+  max-height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  aspect-ratio:auto!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  outline:0!important;
+  border-radius:0!important;
+  background:none!important;
+  box-shadow:none!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card::before,
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card::after{
+  content:none!important;
+  display:none!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  object-position:center top!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
