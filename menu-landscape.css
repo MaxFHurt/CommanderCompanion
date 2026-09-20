@@ -1626,3 +1626,94 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
     max-height:709px!important;
   }
 }
+
+
+/* V0.8 EC — Full Play Setup structural correction.
+   The screenshot showed the two setup panels being vertically clipped because
+   this dialog inherited conflicting historical grid/header/footer rules.
+   Define this screen explicitly: header, content, footer; no overlapping rows. */
+@media (orientation:landscape){
+  html body #modeSetupDialog>.modal-shell{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:76px minmax(0,1fr) 78px!important;
+    padding:0!important;
+    gap:0!important;
+  }
+  html body #modeSetupDialog>.modal-shell>header{
+    grid-area:1 / 1!important;
+    position:relative!important;
+    width:100%!important;
+    height:76px!important;
+    min-height:76px!important;
+    max-height:76px!important;
+    padding:8px 260px!important;
+    overflow:hidden!important;
+  }
+  html body #modeSetupDialog>.modal-shell>.modal-back-row{
+    grid-area:1 / 1!important;
+    position:relative!important;
+    width:100%!important;
+    height:76px!important;
+    min-height:76px!important;
+    padding:0 28px!important;
+    z-index:4!important;
+    pointer-events:none!important;
+  }
+  html body #modeSetupDialog>.modal-shell>.modal-back-row #modeSetupBack{
+    pointer-events:auto!important;
+  }
+  html body #modeSetupDialog #modeSetupContent{
+    grid-area:2 / 1!important;
+    position:relative!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    padding:14px 28px!important;
+    display:grid!important;
+    grid-template-columns:minmax(300px,38%) minmax(0,1fr)!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    gap:22px!important;
+    align-items:stretch!important;
+    overflow:hidden!important;
+  }
+  html body #modeSetupDialog #modeSetupContent>.setup-stage{
+    box-sizing:border-box!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:16px!important;
+    overflow-y:auto!important;
+  }
+  html body #modeSetupDialog #modeSetupContent>.setup-stage:last-child{
+    display:flex!important;
+    flex-direction:column!important;
+    gap:8px!important;
+    align-content:initial!important;
+  }
+  html body #modeSetupDialog #modeSetupContent>.setup-stage:last-child>:is(h3,p,label){
+    width:100%!important;
+    min-height:auto!important;
+    flex:0 0 auto!important;
+  }
+  html body #modeSetupDialog #modeSetupContent>.setup-stage:last-child>:is(h3,p){
+    grid-column:auto!important;
+  }
+  html body #modeSetupDialog #modeSetupActions{
+    grid-area:3 / 1!important;
+    position:relative!important;
+    box-sizing:border-box!important;
+    width:100%!important;
+    height:78px!important;
+    min-height:78px!important;
+    max-height:78px!important;
+    margin:0!important;
+    padding:8px 13%!important;
+    display:flex!important;
+    flex-flow:row nowrap!important;
+    gap:22px!important;
+    overflow:hidden!important;
+  }
+}
