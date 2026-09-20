@@ -3190,3 +3190,154 @@ dialog.cc-modal{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
   }
 }
+
+/* V0.8 CP FIXED LOGICAL LANDSCAPE VIEWPORT */
+/* One immutable app composition: 1536 x 709. Device orientation is ignored by
+   layout. Safari scales the fixed logical viewport; no page rotates or reflows. */
+:root{
+  --cc-stage-w:1536px;
+  --cc-stage-h:709px;
+}
+html{
+  width:100%!important;
+  min-width:0!important;
+  min-height:100%!important;
+  overflow:hidden!important;
+  background:#000!important;
+}
+body{
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  min-height:100dvh!important;
+  margin:0 auto!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+  background:#000!important;
+  transform:none!important;
+}
+#landscapeOnlyGate.cc-landscape-only-gate{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+#landing.landing-rebuild-079,
+#gameScreen,
+#tabletopScreen{
+  position:relative!important;
+  inset:auto!important;
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  height:var(--cc-stage-h)!important;
+  min-height:var(--cc-stage-h)!important;
+  max-height:var(--cc-stage-h)!important;
+  margin:0!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+#landing .landing079-shell,
+#gameScreen .landscape-game-master,
+#tabletopScreen .tracker-shell{
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  height:var(--cc-stage-h)!important;
+  min-height:var(--cc-stage-h)!important;
+  max-height:var(--cc-stage-h)!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+}
+#gameScreen #gameContent,
+#tabletopScreen #tabletopNow{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+}
+dialog.cc-modal{
+  width:1120px!important;
+  min-width:1120px!important;
+  max-width:1120px!important;
+  height:620px!important;
+  min-height:620px!important;
+  max-height:620px!important;
+  margin:auto!important;
+  transform:none!important;
+}
+.game-mode-dialog{
+  width:1120px!important;
+  height:560px!important;
+  min-height:560px!important;
+  max-height:560px!important;
+}
+.cc-modal .modal-shell,
+.game-mode-dialog .game-mode-shell{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:none!important;
+}
+.game-mode-dialog .mode-choice-menu{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:1fr!important;
+}
+.setup-line,
+.player-setup .commander-line,
+.counter-grid,
+.landing-command-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.deck-editor-grid{
+  grid-template-columns:250px minmax(0,1fr)!important;
+}
+.card-detail{
+  grid-template-columns:320px minmax(0,1fr)!important;
+}
+
+/* Neutralize every orientation-specific override. */
+@media (orientation:portrait),(orientation:landscape){
+  html,body{
+    transform:none!important;
+    width:var(--cc-stage-w)!important;
+    min-width:var(--cc-stage-w)!important;
+    max-width:var(--cc-stage-w)!important;
+  }
+  #landing.landing-rebuild-079,
+  #gameScreen,
+  #tabletopScreen,
+  #landing .landing079-shell,
+  #gameScreen .landscape-game-master,
+  #tabletopScreen .tracker-shell{
+    width:var(--cc-stage-w)!important;
+    min-width:var(--cc-stage-w)!important;
+    max-width:var(--cc-stage-w)!important;
+    height:var(--cc-stage-h)!important;
+    min-height:var(--cc-stage-h)!important;
+    max-height:var(--cc-stage-h)!important;
+    aspect-ratio:auto!important;
+  }
+  dialog.cc-modal{
+    width:1120px!important;
+    min-width:1120px!important;
+    max-width:1120px!important;
+    height:620px!important;
+    min-height:620px!important;
+    max-height:620px!important;
+  }
+  .game-mode-dialog{
+    height:560px!important;
+    min-height:560px!important;
+    max-height:560px!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .deck-editor-grid{
+    grid-template-columns:250px minmax(0,1fr)!important;
+  }
+  .card-detail{
+    grid-template-columns:320px minmax(0,1fr)!important;
+  }
+}
