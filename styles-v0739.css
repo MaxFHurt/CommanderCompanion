@@ -4400,3 +4400,74 @@ dialog.cc-modal{
     saturate(1.15)
     drop-shadow(0 6px 12px rgba(0,0,0,.62))!important;
 }
+
+
+/* V0.8 CW LANDING OVERLAY + DEVICE OVERRIDE KILL */
+/* Screen 1 hard lock.
+   The old generic landing-screen fixed overlay and the old device-specific
+   100dvh landing rule were the cause of the black lower-half regression.
+   Landing owns the same full 1536x709 logical stage as every other app screen. */
+#landing.landing-screen::after{
+  display:none!important;
+  content:none!important;
+  background:none!important;
+  background-image:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  filter:none!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+
+/* These selectors intentionally match/exceed the specificity of the obsolete
+   V0.8 CD device-master rules earlier in this stylesheet. */
+body.cc-device-iphone #landing.landing-rebuild-079,
+body.cc-device-ipad #landing.landing-rebuild-079,
+body.cc-device-other-phone #landing.landing-rebuild-079{
+  position:absolute!important;
+  inset:0!important;
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  background:#020103!important;
+  transform:none!important;
+}
+
+/* The landing shell fills that logical stage and supplies the decorative
+   chassis itself; no full-screen fallback art sits above live controls. */
+body.cc-device-iphone #landing .landing079-shell,
+body.cc-device-ipad #landing .landing079-shell,
+body.cc-device-other-phone #landing .landing079-shell{
+  position:absolute!important;
+  inset:0!important;
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+
+/* Keep the approved landing artwork and controls above the decorative shell. */
+#landing .landing079-brand,
+#landing .landing079-copy,
+#landing .landing079-primary-actions,
+#landing .landing079-feature-actions,
+#landing .landing079-footer{
+  position:absolute!important;
+  z-index:5!important;
+}
+
+/* Portrait remains intentionally unsupported. */
+@media (orientation:portrait){
+  #landing.landing-screen::after{display:none!important;}
+}
