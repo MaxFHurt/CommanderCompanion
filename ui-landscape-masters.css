@@ -1,0 +1,9 @@
+/* Commander Companion V0.8 CF
+   Final graphical master loader.
+   Layout geometry remains owned by styles-v0739.css and game-threefix.css. */
+
+@import url('./cc-master-guided-data.css?v=080-cf');
+@import url('./cc-t-row-3.css?v=080-cf');
+
+#gameScreen .landscape-game-master{isolation:isolate;}
+#tabletopScreen .tracker-shell{isolation:isolate;}
