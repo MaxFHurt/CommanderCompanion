@@ -1004,3 +1004,35 @@ html body #modeSetupDialog .setup-stage:last-child::after{
   box-shadow:0 0 8px rgba(167,92,255,.8)!important;
   pointer-events:none!important;
 }
+
+
+/* V0.8 DM — scale-only correction: keep the native skinny scroll indicator;
+   remove the extra drawn rail/thumb and fit the existing setup header. */
+html body #modeSetupDialog .setup-stage:last-child{
+  padding-right:12px!important;
+  background-image:none!important;
+  scrollbar-gutter:auto!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::after{
+  content:none!important;
+  display:none!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar{
+  width:6px!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar-track{
+  background:rgba(83,42,103,.45)!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar-thumb{
+  background:#b66cff!important;
+  border:0!important;
+  border-radius:6px!important;
+}
+html body #modeSetupDialog #modeSetupTitle{
+  white-space:nowrap!important;
+  font-size:clamp(24px,2.35vw,34px)!important;
+  line-height:1!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+}
