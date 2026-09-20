@@ -30,7 +30,7 @@ async function expectModal(page,title){
 }
 const visibleHub=(page,hub,scope='')=>page.locator((scope?scope+' ':'')+'[data-hub="'+hub+'"]:visible').first();
 
-test.describe('V0.8 CY visual and routing tap-through',()=>{
+test.describe('V0.8 DA visual and routing tap-through',()=>{
   test('portrait is unsupported and shows only the landscape gate',async({page})=>{
     await page.setViewportSize({width:390,height:844});
     const errors=await ready(page);
@@ -54,7 +54,7 @@ test.describe('V0.8 CY visual and routing tap-through',()=>{
 
   test('landing buttons route correctly',async({page})=>{
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CY/);
+    await expect(page).toHaveTitle(/V0\.8 DA/);
     await page.locator('#profileLandingBtn').click();await expectModal(page,'MY ACCOUNT');{const b=await page.locator('#modal').boundingBox();expect(b.width).toBeGreaterThan(b.height)}await closeModal(page);
     await page.locator('#deckBuilderVisibleBtn').click();await expect(page.locator('#deckDialog')).toBeVisible();{const b=await page.locator('#deckDialog').boundingBox();expect(b.width).toBeGreaterThan(b.height)}await page.locator('#deckDialogBack').click();
     await page.locator('#settingsLandingBtnBottom').click();await expectModal(page,'SETTINGS');await closeModal(page);
