@@ -1396,3 +1396,41 @@ html body #deckDialog .modal-actions>button{
     max-height:709px!important;
   }
 }
+
+
+/* V0.8 DW — Opening Hand cards: correct replaced-element sizing.
+   The hand-card button may fill its grid cell, but the image itself keeps 5:7
+   proportions and is maximized by the available row width/height. */
+html body #modal[open]:has([data-opening-card]) .hand-strip{
+  grid-template-columns:repeat(7,minmax(0,1fr))!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  gap:10px!important;
+  align-items:stretch!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  padding:0!important;
+  border:0!important;
+  background:none!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
+  display:block!important;
+  width:auto!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:5/7!important;
+  object-fit:contain!important;
+  object-position:center top!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+}
