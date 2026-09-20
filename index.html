@@ -7,14 +7,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 CJ</title>
+  <title>Commander Companion V0.8 CL</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-cj">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-cl">
 </head>
 <body class="cc-device-other-phone cc-ui-v2">
   <script>(function(){var ua=navigator.userAgent||'';var iphone=/iPhone|iPod/i.test(ua);document.body.classList.toggle('cc-device-iphone',iphone);document.body.classList.toggle('cc-device-other-phone',!iphone);})();</script>
-  <div id="landscapeOnlyGate" class="cc-landscape-only-gate" aria-live="polite"><img src="cc-logo-mark.png" alt=""><strong>ROTATE TO LANDSCAPE</strong><span>Commander Companion is landscape-only.</span></div>
+  <div id="landscapeOnlyGate" class="cc-landscape-only-gate" aria-live="polite"><img src="cc-logo-mark.png" alt=""><strong>Welcome to Commander Companion, please rotate your device to landscape orientation to continue.</strong></div>
   <div id="toast" class="toast" hidden></div>
   <div id="bootError" class="boot-error" hidden><strong>COMMANDER COMPANION COULD NOT START</strong><p id="bootErrorText"></p><button onclick="location.reload()">RETRY</button></div>
 
@@ -50,15 +50,15 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 CJ</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 CL</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-ck">
-    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-ck">
+    <link rel="stylesheet" href="game-threefix.css?v=080-cl">
+    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cl">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -185,7 +185,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-ck');
+        await import('./app.js?v=080-cl');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
