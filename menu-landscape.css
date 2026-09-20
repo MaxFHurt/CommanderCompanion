@@ -1226,3 +1226,58 @@ dialog.cc-modal .modal-shell{
     max-height:709px!important;
   }
 }
+
+
+/* V0.8 DS — Opening Hand proportional scaling.
+   Seven authentic 5:7 cards fit fully inside the hand boundary; footer is shorter. */
+html body #modal[open]:has([data-opening-card]) .modal-shell{
+  grid-template-rows:auto minmax(0,1fr) 70px!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-panel{
+  box-sizing:border-box!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:12px 20px 16px!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip{
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:calc(100% - 42px)!important;
+  min-height:0!important;
+  padding:4px 8px!important;
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card{
+  flex:0 1 calc((100% - 72px)/7)!important;
+  width:calc((100% - 72px)/7)!important;
+  max-width:calc((100% - 72px)/7)!important;
+  height:auto!important;
+  max-height:100%!important;
+  aspect-ratio:5/7!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+}
+html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions{
+  height:70px!important;
+  min-height:70px!important;
+  max-height:70px!important;
+  padding:6px 44px!important;
+}
+html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions>button{
+  height:56px!important;
+  min-height:56px!important;
+  max-height:56px!important;
+}
