@@ -1541,3 +1541,51 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
     align-self:stretch!important;
   }
 }
+
+
+/* V0.8 EA — rotation/footer correction.
+   Landscape modal geometry follows the proven visualViewport stage variables.
+   This removes the oversized width-only rotation state while retaining one footer. */
+@media (orientation:landscape){
+  html body dialog.cc-modal,
+  html body dialog.cc-modal[open]{
+    box-sizing:border-box!important;
+    left:var(--cc-stage-center-x,50vw)!important;
+    top:var(--cc-stage-center-y,50vh)!important;
+    width:calc(var(--cc-visible-w,100vw) - 16px)!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:calc(var(--cc-visible-h,100vh) - 16px)!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    transform:translate(-50%,-50%)!important;
+    transform-origin:center center!important;
+  }
+  html body dialog.cc-modal>.modal-shell,
+  html body dialog.cc-modal .modal-shell{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+  /* Restore the normal action-footer sizing; DZ's Opening Hand footer override
+     was compensating for the wrong rotation state rather than fixing it. */
+  html body #modal[open]:has([data-opening-card]) .modal-shell{
+    grid-template-rows:auto minmax(0,1fr) 70px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .modal-actions{
+    height:70px!important;
+    min-height:70px!important;
+    max-height:70px!important;
+    padding:6px 44px!important;
+    gap:14px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .modal-actions>button{
+    height:56px!important;
+    min-height:56px!important;
+    max-height:56px!important;
+  }
+}
