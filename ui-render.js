@@ -16,7 +16,7 @@ function flexibleManaMarkup(options=[],count=1){
 }
 function manaBox(game,title,p,pool,interactive=true){
   const availability=playerManaAvailability(p,game),available=p.mana?.available||{},total=p.mana?.total||{};
-  const fixed=MANA.filter(([k])=>Number(available[k]||0)>0);
+  const fixed=MANA;
   const groups=new Map();for(const src of availability.__flex||[]){const opts=(src.options||[]).filter(k=>MANA.some(([mk])=>mk===k));if(opts.length){const key=opts.join('/');groups.set(key,(groups.get(key)||0)+1)}}
   const flex=[...groups.entries()].map(([key,count])=>flexibleManaMarkup(key.split('/'),count)).join('');
   const items=fixed.map(([k,n])=>{const a=Math.max(0,Number(available[k]||0)),t=Math.max(0,Number(total[k]||0)),state=a>t?'mana-over':a<t?'mana-under':'mana-even';return `<span class="mana-pip ${state}"><img src="mana-${n}.png" alt="${k}"><b>${a}</b></span>`}).join('')+flex;
@@ -167,52 +167,43 @@ export function renderTabletop(game){
   const quickCounterNames=['Energy','Experience','Rad'];
   const counterStepper=(p,key,label=key)=>{const step=key==='Commander Tax'?2:1;return `<div class="tracker-extra-counter" data-tt-counter-wrap="${esc(key)}"><small>${esc((key==='Commander Tax'?'CMD TAX':label).toUpperCase())}</small><div class="tracker-stepper"><button data-tt-inline-counter="${esc(key)}" data-player="${esc(p.playerId)}" data-delta="-${step}" aria-label="Decrease ${esc(label)}">−</button><strong data-tt-counter-value="${esc(key)}">${Number(p.counters?.[key]||0)}</strong><button data-tt-inline-counter="${esc(key)}" data-player="${esc(p.playerId)}" data-delta="${step}" aria-label="Increase ${esc(label)}">+</button></div></div>`};
   const cards=game.players.map((p,idx)=>{
-    const statusRows=(p.statuses||[]).filter(Boolean),statusText=statusRows.length?esc(statusRows.join(' • ')):'CLEAR';
+    const statusRows=(p.statuses||[]).filter(Boolean),statusText=statusRows.length?esc(statusRows.join(' • ')):'None';
     const customCounters=Object.keys(p.counters||{}).filter(k=>k!=='+1/+1'&&!quickCounterNames.includes(k)&&k!=='Commander Tax');
     const extraCounters=[...(p.commanders?.length?[]:['Commander Tax']),...quickCounterNames,...customCounters];
+    const commander=p.commanders?.[0],commanderDef=commander&&game.cardDefinitions?.[commander.cardId],avatar=imageOf(commanderDef);
     return `<section class="tracker-player-card tracker-normal-player-card player-slot-${idx+1}" data-tt-player="${esc(p.playerId)}">
-      <header class="tracker-player-head">
-        <button class="tracker-name" data-tt-name="${esc(p.playerId)}" title="Tap to edit player name">${esc(p.displayName||'Player')}</button>
-        <button class="tracker-status${statusRows.length?' is-affected':' is-clear'}" data-tt-status="${esc(p.playerId)}" title="Tap to edit player status"><span class="tracker-status-light" aria-hidden="true"></span><span><small>STATUS</small><strong>${statusText}</strong></span></button>
-      </header>
-      <div class="tracker-primary-row">
-        <div class="tracker-stat tracker-life"><small>LIFE</small><div class="tracker-stepper"><button data-tt-inline-stat="life" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease life">−</button><strong data-tt-stat-value="life">${Number(p.life||0)}</strong><button data-tt-inline-stat="life" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase life">+</button></div></div>
-        <div class="tracker-stat"><small>POISON</small><div class="tracker-stepper"><button data-tt-inline-stat="poison" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease poison">−</button><strong data-tt-stat-value="poison">${Number(p.poison||0)}</strong><button data-tt-inline-stat="poison" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase poison">+</button></div></div>
-        <div class="tracker-stat"><small>+1/+1</small><div class="tracker-stepper"><button data-tt-inline-stat="+1/+1" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease +1/+1 counter stack">−</button><strong data-tt-stat-value="+1/+1">${Number(p.counters?.['+1/+1']||0)}</strong><button data-tt-inline-stat="+1/+1" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase +1/+1 counter stack">+</button></div></div>
+      <div class="tracker-avatar"><img src="${esc(avatar)}" alt="${esc(commanderDef?.name||p.displayName||'Player')}"></div>
+      <div class="tracker-card-content">
+        <header class="tracker-player-head">
+          <button class="tracker-name" data-tt-name="${esc(p.playerId)}" title="Tap to edit player name">${esc(p.displayName||'Player')}</button>
+          <button class="tracker-status${statusRows.length?' is-affected':' is-clear'}" data-tt-status="${esc(p.playerId)}" title="Tap to edit player status"><span class="tracker-status-light" aria-hidden="true"></span><span><small>STATUS</small><strong>${statusText}</strong></span></button>
+        </header>
+        <div class="tracker-primary-row">
+          <div class="tracker-stat tracker-life"><small>LIFE</small><div class="tracker-stepper"><button data-tt-inline-stat="life" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease life">−</button><strong data-tt-stat-value="life">${Number(p.life||0)}</strong><button data-tt-inline-stat="life" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase life">+</button></div></div>
+          <div class="tracker-counter-summary"><small>COUNTERS</small><div class="tracker-summary-list"><span>☠ ${Number(p.poison||0)}</span><span>+1/+1 ${Number(p.counters?.['+1/+1']||0)}</span></div></div>
+        </div>
+        <div class="tracker-inline-hidden" aria-hidden="true">
+          <button data-tt-inline-stat="poison" data-player="${esc(p.playerId)}" data-delta="-1">−</button><strong data-tt-stat-value="poison">${Number(p.poison||0)}</strong><button data-tt-inline-stat="poison" data-player="${esc(p.playerId)}" data-delta="1">+</button>
+          <button data-tt-inline-stat="+1/+1" data-player="${esc(p.playerId)}" data-delta="-1">−</button><strong data-tt-stat-value="+1/+1">${Number(p.counters?.['+1/+1']||0)}</strong><button data-tt-inline-stat="+1/+1" data-player="${esc(p.playerId)}" data-delta="1">+</button>
+        </div>
+        <div class="tracker-extra-counters">${extraCounters.slice(0,2).map(k=>counterStepper(p,k,k)).join('')}<button class="tracker-add-counter" data-tt-add-counter="${esc(p.playerId)}">+ COUNTER</button></div>
+        <div class="tracker-mana-title">MANA (AVAILABLE)</div>
+        <div class="tracker-mana-row">${mana.map(([c,img,label])=>`<div class="tracker-mana" title="${label} mana"><img src="${img}" alt="${label}"><button data-tt-inline-mana="${c}" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease ${label} mana">−</button><strong data-tt-mana-value="${c}">${Number(p.mana?.available?.[c]||0)}</strong><button data-tt-inline-mana="${c}" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase ${label} mana">+</button><button class="tracker-mana-detail" data-tt-mana="${c}" data-player="${esc(p.playerId)}" aria-label="Edit ${label} mana details">⋯</button></div>`).join('')}</div>
+        <div class="tracker-battlefield-mini"><small>TRACKED CARDS (${(p.deck?.battlefield||[]).length})</small><div class="tracker-mini-cards">${(p.deck?.battlefield||[]).slice(0,3).map(c=>{const d=defOf(game,c),count=Object.values(c.counters||{}).reduce((n,v)=>n+Math.max(0,Number(v||0)),0);return `<span class="tracker-mini-card"><img src="${esc(imageOf(d))}" alt="${esc(d?.name||'Tracked card')}">${count?`<b>${count}</b>`:''}</span>`}).join('')||'<span class="tracker-no-cards">No tracked cards</span>'}<button class="tracker-card-add" data-tt-add-counter="${esc(p.playerId)}" aria-label="Add tracked counter">+</button></div></div>
+        ${p.commanders?.length?`<div class="tracker-commanders">${p.commanders.map(c=>`<div class="tracker-commander-row"><span>${esc(game.cardDefinitions?.[c.cardId]?.name||'COMMANDER')}</span><small>TAX</small><div class="tracker-stepper"><button data-tt-inline-tax="${esc(c.id)}" data-player="${esc(p.playerId)}" data-delta="-2">−</button><strong data-tt-tax-value="${esc(c.id)}">${Number(c.commanderTax||0)}</strong><button data-tt-inline-tax="${esc(c.id)}" data-player="${esc(p.playerId)}" data-delta="2">+</button></div></div>`).join('')}</div>`:''}
       </div>
-      <div class="tracker-extra-counters">${extraCounters.map(k=>counterStepper(p,k,k)).join('')}<button class="tracker-add-counter" data-tt-add-counter="${esc(p.playerId)}">+ COUNTER</button></div>
-      <div class="tracker-mana-row">${mana.map(([c,img,label])=>`<div class="tracker-mana" title="${label} mana"><img src="${img}" alt="${label}"><button data-tt-inline-mana="${c}" data-player="${esc(p.playerId)}" data-delta="-1" aria-label="Decrease ${label} mana">−</button><strong data-tt-mana-value="${c}">${Number(p.mana?.available?.[c]||0)}</strong><button data-tt-inline-mana="${c}" data-player="${esc(p.playerId)}" data-delta="1" aria-label="Increase ${label} mana">+</button><button class="tracker-mana-detail" data-tt-mana="${c}" data-player="${esc(p.playerId)}" aria-label="Edit ${label} mana details">⋯</button></div>`).join('')}</div>
-      <div class="tracker-battlefield-mini"><small>TRACKED CARDS</small><div class="tracker-mini-cards">${(p.deck?.battlefield||[]).filter(c=>Object.values(c.counters||{}).some(v=>Number(v)>0)).slice(0,4).map(c=>{const d=defOf(game,c),count=Object.values(c.counters||{}).reduce((n,v)=>n+Math.max(0,Number(v||0)),0);return `<span class="tracker-mini-card"><img src="${esc(imageOf(d))}" alt="${esc(d?.name||'Tracked card')}"><b>${count}</b></span>`}).join('')||'<span class="tracker-no-cards">No card counters tracked</span>'}</div></div>
-      ${p.commanders?.length?`<div class="tracker-commanders">${p.commanders.map(c=>`<div class="tracker-commander-row"><span>${esc(game.cardDefinitions?.[c.cardId]?.name||'COMMANDER')}</span><small>COMMANDER TAX</small><div class="tracker-stepper"><button data-tt-inline-tax="${esc(c.id)}" data-player="${esc(p.playerId)}" data-delta="-2" aria-label="Decrease commander tax">−</button><strong data-tt-tax-value="${esc(c.id)}">${Number(c.commanderTax||0)}</strong><button data-tt-inline-tax="${esc(c.id)}" data-player="${esc(p.playerId)}" data-delta="2" aria-label="Increase commander tax">+</button></div></div>`).join('')}</div>`:''}
     </section>`;
   }).join('');
-  const logs=(game.log||[]).slice(0,80).map(e=>`<div class="tracker-log-event"><b>T${Number(e.turn||game.turnNumber||1)}</b><span>${esc(e.text||'Game update')}</span></div>`).join('')||'<p class="muted">No game events yet. Player edits will appear here.</p>';
+  const logs=(game.log||[]).slice(0,80).map((e,i)=>`<div class="tracker-log-event tracker-log-color-${i%6}"><b>${esc(e.at?new Date(e.at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):`T${Number(e.turn||game.turnNumber||1)}`)}</b><span>${esc(e.text||'Game update')}</span></div>`).join('')||'<p class="muted">No game events yet. Player edits will appear here.</p>';
+  const hub=(kind,label)=>`<button class="tracker-hub-button" data-hub="${kind}">${dockIcon(kind)}<span>${label}</span></button>`;
   return `<div class="tracker-shell tracker-count-${game.players.length}">
     <header class="tracker-head">
-      <nav class="tracker-nav-left">
-        <button id="trackerHome" class="tracker-nav-button">HOME</button>
-        <button class="tracker-nav-button tracker-current" type="button" aria-current="page">TABLE TRACKER</button>
-        <button class="tracker-nav-button" data-hub="card-id">CARD ID</button>
-        <button class="tracker-nav-button" data-hub="chat">GAME CHAT</button>
-      </nav>
+      <nav class="tracker-head-left"><button id="trackerHome" class="tracker-hub-button">${dockIcon('home')}<span>HOME</span></button><button class="tracker-hub-button tracker-current" type="button"><span>TABLE TRACKER</span></button>${hub('card-id','CARD ID')}${hub('chat','GAME CHAT')}</nav>
       <div class="tracker-brand"><img src="horizon-full-logo.png" alt="Commander Companion"><span>TABLE TRACKER</span><small>Physical table is authoritative • Adjust values directly</small></div>
-      <nav class="tracker-nav-right">
-        <button class="tracker-nav-button" data-hub="rescue">HELP</button>
-        <button class="tracker-nav-button" data-hub="settings">SETTINGS</button>
-        <button class="tracker-nav-button" data-hub="profile">PROFILE</button>
-      </nav>
+      <nav class="tracker-head-right">${hub('rescue','HELP')}${hub('settings','SETTINGS')}${hub('profile','PROFILE')}</nav>
     </header>
-    <div class="tracker-split">
-      <div class="tracker-player-grid">${cards}</div>
-      <aside class="tracker-side-rail">
-        <button id="trackerJudge" class="tracker-judge">⚖ <span>ASK THE JUDGE</span></button>
-        <section class="tracker-game-log"><div class="tracker-log-head"><b>GAME LOG</b><span>${(game.log||[]).length} EVENTS</span></div><div class="tracker-log-scroll">${logs}</div><button id="trackerClearLog" class="tracker-clear-log">⌫ <span>CLEAR LOG</span></button></section>
-      </aside>
-    </div>
-    <footer class="tracker-bottom-bar">
-      <div class="tracker-bottom-left"><button id="trackerEditPlayers">EDIT PLAYERS</button><button id="trackerEditDecks">EDIT DECKS</button><button id="trackerGameStats">GAME STATS</button><button id="trackerResetGame">RESET GAME</button></div>
-      <div class="tracker-bottom-right"><button id="trackerCounters">COUNTERS</button><button id="trackerLife">LIFE</button><button id="trackerStatus">STATUS</button><button id="trackerMana">MANA</button></div>
-    </footer>
+    <div class="tracker-main"><div class="tracker-player-grid">${cards}</div><aside class="tracker-side-rail"><button id="trackerJudge" class="tracker-judge">⚖ <span>ASK THE JUDGE</span></button><section class="tracker-game-log"><div class="tracker-log-head"><b>GAME LOG</b><span>${(game.log||[]).length} EVENTS</span></div><div class="tracker-log-scroll">${logs}</div><button id="trackerClearLog" class="tracker-clear-log">♲ <span>CLEAR LOG</span></button></section></aside></div>
+    <footer class="tracker-bottom-bar"><button id="trackerEditPlayers">⚙ <span>EDIT PLAYERS</span></button><button id="trackerEditDecks">▣ <span>EDIT DECKS</span></button><button id="trackerGameStats">▥ <span>GAME STATS</span></button><button id="trackerResetGame">♜ <span>RESET GAME</span></button><i></i><button id="trackerCounters">◉ <span>COUNTERS</span></button><button id="trackerLife">♥ <span>LIFE</span></button><button id="trackerStatus">☀ <span>STATUS</span></button><button id="trackerMana">◆ <span>MANA</span></button></footer>
   </div>`
 }
 
