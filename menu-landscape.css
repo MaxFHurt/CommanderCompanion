@@ -1,0 +1,230 @@
+.menu-rule-short {display:none;}
+/* V0.8 DD — landscape menus. Gameplay boards and portrait styling are untouched. */
+.menu-info-section { display:contents; }
+@media (orientation:landscape) {
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) {
+    --menu-text:clamp(16px,1.5vw,22px);
+    --menu-heading:clamp(20px,2.3vw,32px);
+    --menu-gap:clamp(8px,1vw,16px);
+    --menu-header:64px;
+    --menu-footer:62px;
+    position:fixed!important;
+    inset:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))!important;
+    width:auto!important;min-width:0!important;max-width:none!important;
+    height:auto!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0!important;transform:none!important;
+    overflow:hidden!important;border:0!important;
+    color:#fff!important;background:#09050e!important;
+    box-shadow:inset 0 0 0 2px #776183,0 0 24px #000!important;
+    font-size:var(--menu-text)!important;
+  }
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell {
+    position:relative!important;display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:var(--menu-header) minmax(0,1fr) auto!important;
+    width:100%!important;min-width:0!important;max-width:none!important;
+    height:100%!important;min-height:0!important;max-height:none!important;
+    padding:6px!important;margin:0!important;gap:0!important;
+    overflow:hidden!important;transform:none!important;
+    border:0!important;border-radius:0!important;
+    background:radial-gradient(ellipse at top,#261232,#08050d 70%)!important;
+  }
+  html body dialog.cc-modal>.modal-shell::after {
+    border-width:8px!important;border-image-width:8px!important;
+  }
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell>header {
+    grid-area:1 / 1!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    position:relative!important;inset:auto!important;width:100%!important;
+    height:var(--menu-header)!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0 180px!important;overflow:visible!important;
+    background:linear-gradient(#291637,#0d0713)!important;border:0!important;border-bottom:1px solid #77518b!important;
+  }
+  html body dialog.cc-modal>.modal-shell>header h2 {
+    position:static!important;inset:auto!important;margin:0!important;padding:0!important;
+    width:100%!important;font-size:var(--menu-heading)!important;line-height:1.1!important;
+    text-align:center!important;white-space:normal!important;overflow:visible!important;letter-spacing:.04em!important;
+  }
+  html body #deckDialog>.modal-shell>header h2::after { display:none!important; }
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell>.modal-back-row {
+    grid-area:1 / 1!important;position:relative!important;inset:auto!important;
+    height:var(--menu-header)!important;min-height:0!important;
+    padding:0 14px!important;margin:0!important;border:0!important;background:none!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;
+    z-index:4!important;pointer-events:none!important;
+  }
+  html body dialog.cc-modal .modal-back-row button.dialog-back:is(#modalClose,#gameModeClose,#modeSetupBack,#setupDialogBack,#deckDialogBack,#networkDialogBack) {
+    position:static!important;inset:auto!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    width:150px!important;min-width:150px!important;max-width:150px!important;
+    height:48px!important;min-height:48px!important;max-height:48px!important;
+    margin:0!important;padding:0!important;background:none!important;border:0!important;box-shadow:none!important;
+    transform:none!important;pointer-events:auto!important;overflow:visible!important;
+  }
+  html body dialog.cc-modal .modal-back-row button.dialog-back:is(#modalClose,#gameModeClose,#modeSetupBack,#setupDialogBack,#deckDialogBack,#networkDialogBack)>img {
+    width:150px!important;min-width:0!important;max-width:150px!important;
+    height:48px!important;min-height:0!important;max-height:48px!important;object-fit:contain!important;
+    margin:0!important;padding:0!important;
+  }
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-content {
+    grid-area:2 / 1!important;position:relative!important;inset:auto!important;
+    min-width:0!important;max-width:none!important;width:100%!important;
+    min-height:0!important;max-height:none!important;height:100%!important;
+    padding:var(--menu-gap) 14px!important;overflow:auto!important;
+    font-size:var(--menu-text)!important;line-height:1.3!important;
+    scrollbar-color:#88619c #0b0610;
+  }
+  html body dialog.cc-modal .modal-content :is(p,li,label,small,.muted) {font-size:inherit!important;line-height:1.3!important;}
+  html body dialog.cc-modal .modal-content p {margin:0 0 10px!important;}
+  html body dialog.cc-modal .modal-content :is(h3,h4) {font-size:1.08em!important;line-height:1.15!important;margin:0 0 8px!important;color:#fff!important;}
+  html body dialog.cc-modal .modal-content label:not(.check) {display:flex!important;flex-direction:column!important;gap:5px!important;min-width:0!important;margin:0!important;}
+  html body dialog.cc-modal .modal-content .check {display:flex!important;align-items:center!important;gap:8px!important;min-width:0!important;margin:0!important;padding:6px!important;}
+  html body dialog.cc-modal .modal-content :is(input:not([type=checkbox]):not([type=radio]),select,textarea) {
+    width:100%!important;min-width:0!important;max-width:100%!important;
+    min-height:42px!important;padding:7px 10px!important;margin:0!important;font-size:inherit!important;
+    color:#fff!important;background:#0b0710!important;border:1px solid #796087!important;border-radius:6px!important;
+  }
+  html body dialog.cc-modal .modal-content :is(input[type=checkbox],input[type=radio]) {width:23px!important;height:23px!important;min-width:23px!important;flex:0 0 23px!important;accent-color:#ab69d3;}
+  html body dialog.cc-modal .modal-content textarea {min-height:76px!important;height:100px;resize:vertical;}
+  html body dialog.cc-modal .modal-content button:not(.hand-card):not(.mini-card) {
+    min-height:44px!important;max-width:100%!important;min-width:0!important;
+    font-size:inherit!important;line-height:1.2!important;padding:10px 14px!important;
+    white-space:normal!important;letter-spacing:.025em!important;
+  }
+  html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-actions {
+    grid-area:3 / 1!important;position:relative!important;inset:auto!important;
+    display:flex!important;justify-content:center!important;align-items:center!important;flex-wrap:wrap!important;
+    width:100%!important;height:auto!important;min-height:var(--menu-footer)!important;max-height:none!important;
+    gap:8px!important;margin:0!important;padding:6px 14px!important;
+    border:0!important;border-top:1px solid #6e477f!important;background:#100919!important;
+  }
+  html body dialog.cc-modal .modal-actions[hidden],html body dialog.cc-modal [hidden] {display:none!important;}
+  html body dialog.cc-modal .modal-actions:empty {display:none!important;}
+  html body dialog.cc-modal .modal-actions button,
+  html body #modal #modalActions button {
+    position:relative!important;inset:auto!important;flex:0 1 220px!important;
+    width:auto!important;min-width:110px!important;max-width:280px!important;
+    min-height:46px!important;height:auto!important;max-height:none!important;
+    margin:0!important;padding:10px 18px!important;aspect-ratio:auto!important;
+    font:900 var(--menu-text)/1.15 var(--head)!important;text-align:center!important;
+    letter-spacing:.035em!important;color:#fff!important;text-shadow:0 2px 2px #000!important;
+    background:#21132e url('ui-button-frame.svg') center/100% 100% no-repeat!important;
+    border:1px solid #967aaa!important;box-shadow:inset 0 0 14px #0008!important;clip-path:none!important;
+  }
+  html body dialog.cc-modal .modal-actions button.primary,
+  html body #modal #modalActions button:is(.primary,[data-menu-semantic=confirm],[data-menu-semantic=save]) {background-color:#174c35!important;border-color:#72cb96!important;}
+  html body dialog.cc-modal .modal-actions button.danger,
+  html body #modal #modalActions button:is(.danger,[data-menu-semantic=cancel],[data-menu-semantic=delete]) {background-color:#63232e!important;border-color:#d48693!important;}
+  html body dialog.cc-modal .modal-actions button::before,html body dialog.cc-modal .modal-actions button::after {display:none!important;}
+  html body dialog.cc-modal .modal-actions button:disabled {opacity:.45!important;}
+  html body dialog.cc-modal .modal-content :is(.counter-grid,.ability-choice-list,.compact-choice-grid,.tracker-counter-preset-grid,.tracker-status-list,.board-menu,.account-menu-grid,.stats-summary-grid) {
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:var(--menu-gap)!important;width:100%!important;margin:0 0 12px!important;
+  }
+  html body dialog.cc-modal .modal-content :is(.counter-grid,.ability-choice-list)>button {width:100%!important;margin:0!important;}
+  html body dialog.cc-modal .modal-content :is(.setup-line,.setup-tools,.card-search-row,.commander-line) {
+    display:flex!important;flex-wrap:wrap!important;align-items:end!important;gap:8px!important;margin:0 0 8px!important;min-width:0!important;
+  }
+  html body dialog.cc-modal .modal-content :is(.setup-line,.setup-tools,.card-search-row,.commander-line)>* {flex:1 1 130px;min-width:0!important;}
+  html body dialog.cc-modal .modal-content .rules-grid {
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;
+  }
+  html body dialog.cc-modal .rules-grid>label {background:#170e21!important;border:1px solid #4f365e!important;border-radius:6px!important;padding:8px!important;}
+  html body dialog.cc-modal .house-tag {font-size:10px!important;display:inline!important;}
+  /* Device choices alongside a four-column rule sheet. */
+  html body #modeSetupDialog #modeSetupContent {display:grid!important;grid-template-columns:minmax(160px,22%) minmax(0,1fr)!important;gap:14px!important;align-items:start!important;}
+  html body #modeSetupDialog .setup-stage {margin:0!important;padding:10px!important;min-width:0!important;}
+  html body #modeSetupDialog .setup-stage:last-child {display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;}
+  html body #modeSetupDialog .setup-stage:last-child>:is(h3,p) {grid-column:1/-1!important;margin:0!important;}
+  html body #modeSetupDialog .setup-stage:last-child>label {border:1px solid #4f365e!important;border-radius:6px!important;padding:7px!important;align-self:stretch!important;}
+  html body #modeSetupDialog .tracker-name-setup {display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important;}
+  html body #modeSetupDialog .tracker-name-setup>h3 {grid-column:1/-1!important;}
+  /* Keep every form field visible; large collections have their own scroll area. */
+  html body #modal #modalContent.menu-form-grid {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;align-content:start!important;}
+  html body #modal #modalContent.menu-form-grid> :not(label) {grid-column:1/-1!important;}
+  html body #modal #modalContent.menu-info-grid {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;align-content:start!important;}
+  html body dialog.cc-modal .menu-info-section {display:block!important;min-width:0!important;padding:12px!important;border:1px solid #543660!important;background:#130b1c!important;border-radius:8px!important;}
+  html body #modal #modalContent.menu-info-grid>.profile-editor-preview {grid-column:1/3!important;}
+  html body dialog.cc-modal .profile-editor-preview {padding:8px!important;margin:0!important;min-height:0!important;}
+  html body dialog.cc-modal .profile-emblem {width:54px!important;height:54px!important;min-width:54px!important;font-size:24px!important;}
+  html body dialog.cc-modal .rescue-center {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important;align-items:start!important;}
+  html body dialog.cc-modal .rescue-center>section {min-width:0!important;padding:12px!important;margin:0!important;border:1px solid #543660!important;background:#130b1c!important;}
+  html body #modal #modalContent.menu-option-grid {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-content:start!important;}
+  html body #modal #modalContent.menu-option-grid> :not(button) {grid-column:1/-1!important;}
+  html body dialog.cc-modal .card-search-results {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;max-height:45dvh!important;overflow:auto!important;}
+  html body dialog.cc-modal .search-result {display:flex!important;gap:10px!important;align-items:center!important;width:100%!important;min-width:0!important;}
+  html body dialog.cc-modal .search-result img {width:38px!important;height:53px!important;object-fit:contain!important;flex:0 0 38px!important;}
+  html body dialog.cc-modal .search-result span {min-width:0!important;}
+  html body dialog.cc-modal .search-result small {display:block!important;}
+  html body dialog.cc-modal .card-detail {display:grid!important;grid-template-columns:minmax(100px,23%) minmax(0,1fr)!important;gap:16px!important;}
+  html body dialog.cc-modal .card-detail>img {max-height:42dvh!important;max-width:100%!important;object-fit:contain!important;}
+  html body dialog.cc-modal .card-detail .oracle {font-size:inherit!important;}
+  html body #modal #modalContent:has(>#cardSearchResults) {display:grid!important;grid-template-columns:1fr 1.3fr!important;grid-template-rows:auto auto minmax(0,1fr)!important;gap:8px!important;}
+  html body #modal #modalContent:has(>#cardSearchResults)>p {grid-column:1/-1!important;}
+  html body #modal #cardSearchResults {grid-column:1/-1!important;max-height:none!important;min-height:0!important;align-content:start!important;}
+  /* Deck editor: tools, identity/search, and deck text/analysis share the width. */
+  html body #deckDialog .deck-editor-grid {display:grid!important;grid-template-columns:minmax(150px,22%) minmax(0,1fr)!important;gap:16px!important;height:100%!important;min-height:0!important;}
+  html body #deckDialog .deck-editor-grid>aside {display:flex!important;flex-direction:column!important;gap:8px!important;overflow:auto!important;min-height:0!important;}
+  html body #deckDialog .deck-editor-grid>aside>button {flex:0 0 auto!important;width:100%!important;margin:0!important;}
+  html body #deckDialog #savedDeckList {min-height:0!important;overflow:auto!important;}
+  html body #deckDialog .deck-editor-grid>section {display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;align-content:start!important;min-width:0!important;min-height:0!important;overflow:auto!important;}
+  html body #deckDialog .deck-editor-grid>section>label:has(#deckListInput) {grid-column:2!important;grid-row:2/5!important;}
+  html body #deckDialog #deckListInput {height:100%!important;min-height:100px!important;resize:none!important;}
+  html body #deckDialog #deckCardResults {grid-column:1!important;grid-template-columns:1fr!important;max-height:25dvh!important;}
+  html body #deckDialog #deckAnalytics {grid-column:1/-1!important;max-height:20dvh!important;overflow:auto!important;}
+  html body #deckDialog #deckEditorStatus {grid-column:1/-1!important;}
+  /* Repeated player setup uses columns; text areas scroll, not the navigation. */
+  html body #setupDialog #playerSetupPanels {display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;}
+  html body #setupDialog .player-setup {display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;min-width:0!important;margin:0!important;padding:10px!important;}
+  html body #setupDialog .player-setup>h3 {grid-column:1/-1!important;}
+  html body #setupDialog .player-setup .commander-line {grid-column:2!important;grid-row:2/4!important;}
+  html body #setupDialog .player-setup>label:has(textarea) {grid-column:1/-1!important;}
+  html body #setupDialog .setup-deck {height:76px!important;min-height:76px!important;}
+  html body #networkDialog #networkContent:has(#netName) {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;align-content:start!important;}
+  html body #networkDialog #networkContent:has(#netName)> :is(p,h3,#networkStatus,#seatList) {grid-column:1/-1!important;}
+  html body dialog.cc-modal .network-code {font-size:28px!important;padding:10px!important;margin:0!important;}
+  html body dialog.cc-modal .tracker-mana-editor {display:grid!important;grid-template-columns:1fr 1fr!important;gap:16px!important;}
+  html body dialog.cc-modal .tracker-edit-value {display:flex!important;align-items:center!important;justify-content:center!important;gap:16px!important;}
+  html body dialog.cc-modal .tracker-edit-value strong {font-size:42px!important;}
+  html body dialog.cc-modal .chat-messages {height:calc(100dvh - 210px)!important;min-height:90px!important;}
+  html body dialog.cc-modal .hand-strip {display:flex!important;gap:8px!important;overflow-x:auto!important;}
+  html body dialog.cc-modal .hand-strip .hand-card {flex:1 0 75px!important;max-width:150px!important;height:auto!important;aspect-ratio:5/7!important;}
+  html body #modal #modalActions.with-calculator {display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;}
+  html body #modal #modalActions .modal-tray-buttons {display:flex!important;gap:8px!important;justify-content:center!important;flex-wrap:wrap!important;}
+  html body #modal #modalActions .modal-mana-tray {min-width:0!important;max-height:130px!important;overflow:auto!important;}
+  /* Three unchanged mode choices within the available content area. */
+  html body #gameModeDialog .mode-choice-menu {height:100%!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:16px!important;}
+  html body #gameModeDialog .mode-choice-menu>button {display:flex!important;flex-direction:column!important;justify-content:space-between!important;align-items:center!important;height:100%!important;min-height:0!important;padding:22px 18px!important;}
+  html body #gameModeDialog .mode-choice-menu>button>b {width:100%!important;min-height:64px!important;height:auto!important;display:grid!important;place-items:center!important;padding:12px!important;font-size:clamp(20px,2.5vw,38px)!important;}
+  html body #gameModeDialog .mode-choice-menu>button>span {font-size:clamp(16px,1.8vw,26px)!important;line-height:1.3!important;margin:12px 0!important;}
+  html body #gameModeDialog .mode-choice-menu>button::after {position:static!important;inset:auto!important;transform:none!important;width:85%!important;height:48px!important;min-height:48px!important;display:grid!important;place-items:center!important;font-size:clamp(16px,1.8vw,23px)!important;}
+  @media (max-height:500px) {
+    html body dialog.cc-modal:is(#modal,#gameModeDialog,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) {--menu-header:50px;--menu-footer:50px;--menu-gap:7px;--menu-text:16px;--menu-heading:22px;}
+    html body dialog.cc-modal .modal-content {padding:7px 10px!important;}
+    html body dialog.cc-modal .modal-content :is(p,h3,h4) {margin-bottom:5px!important;}
+    html body dialog.cc-modal .modal-content button:not(.hand-card):not(.mini-card) {padding:7px 10px!important;}
+    html body dialog.cc-modal .modal-actions {padding:3px 10px!important;}
+    html body dialog.cc-modal .modal-actions button,html body #modal #modalActions button {min-height:42px!important;padding:8px 14px!important;}
+    html body #gameModeDialog .mode-choice-menu>button {padding:10px!important;border-width:10px!important;}
+    html body #gameModeDialog .mode-choice-menu>button>b {min-height:48px!important;padding:8px!important;}
+    html body #gameModeDialog .mode-choice-menu>button>span {margin:6px 0!important;}
+    html body #gameModeDialog .mode-choice-menu>button::after {height:42px!important;min-height:42px!important;}
+    html body #modeSetupDialog .setup-stage {padding:6px!important;}
+    html body #modeSetupDialog .setup-stage:last-child {gap:5px!important;}
+    html body #modeSetupDialog .setup-stage:last-child>label {padding:4px!important;font-size:15px!important;}
+    html body dialog.cc-modal .rules-grid {gap:5px!important;}
+    html body dialog.cc-modal .rules-grid>label {padding:5px!important;}
+    html body #modal #modalContent.menu-form-grid {gap:8px!important;}
+    html body dialog.cc-modal .rescue-center,html body #modal #modalContent.menu-info-grid {gap:8px!important;}
+    html body dialog.cc-modal .menu-info-section,html body dialog.cc-modal .rescue-center>section {padding:8px!important;}
+  }
+}
+@media (orientation:landscape) and (max-height:500px) {
+  html body #modeSetupDialog .setup-stage:last-child>label {font-size:16px!important;}
+  html body #modeSetupDialog .setup-stage:last-child>p {font-size:14px!important;}
+  html body #modeSetupDialog .setup-stage:last-child .house-tag {display:none!important;}
+  html body #modeSetupDialog .setup-stage:first-child>h3 {font-size:16px!important;}
+  html body #modeSetupDialog .mode-lock {margin:0 0 4px!important;font-size:14px!important;}
+  html body #modeSetupDialog .tracker-name-setup label {flex-direction:row!important;align-items:center!important;gap:4px!important;font-size:14px!important;}
+  html body #modeSetupDialog .tracker-name-setup input {padding:5px!important;min-height:36px!important;}
+}
+
+@media (orientation:landscape) { html body dialog.cc-modal .menu-rule-full {display:none!important;} html body dialog.cc-modal .menu-rule-short {display:inline!important;} }
