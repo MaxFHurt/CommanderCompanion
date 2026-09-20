@@ -14,7 +14,7 @@ import { createHostNetwork, joinHostNetwork, roomCode } from './network.js?v=072
 import { networkStateStamp, validateRemoteStamp } from './network-state-guard.js?v=07971';
 import { approvalResult, publicBroadcastState } from './multiplayer.js?v=0722';
 import { trackedDeckSource, definitionPoolSource, globalCardSource, pickerPool } from './picker.js?v=0722';
-import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-cg';
+import { renderGame, renderPlayerClient, renderHostDashboard, renderTabletop, renderCardDetail, zoneModal, defOf, imageOf, playable, esc } from './ui-render.js?v=080-ch';
 import { resolveCombat, cardHasKeyword } from './combat-engine.js?v=0727';
 import { beginPriorityWindow, priorityHolder, recordPriorityResponse, passPriority, clearPriority } from './priority-engine.js?v=07967';
 import { compileEffectText, applyEffects, locateCardInGame } from './effect-engine.js?v=080-ba';
@@ -1381,8 +1381,34 @@ function trackerAddCounter(p){
   ]);
   $$('[data-tt-counter-preset]').forEach(b=>b.onclick=()=>{const name=b.dataset.ttCounterPreset;p.counters=p.counters||{};if(!(name in p.counters))p.counters[name]=0;save();closeModal();openTabletop()})
 }
+function trackerChoosePlayer(title,onChoose){
+  openModal(title,`<div class="ability-choice-list">${(game.players||[]).map(p=>`<button class="ability-choice available" data-tt-player-choice="${esc(p.playerId)}"><strong>${esc(p.displayName)}</strong></button>`).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);
+  $$('[data-tt-player-choice]').forEach(b=>b.onclick=()=>{const p=trackerPlayer(b.dataset.ttPlayerChoice);if(p)onChoose(p)});
+}
+function trackerChooseMana(p){
+  const rows=[['W','WHITE'],['U','BLUE'],['B','BLACK'],['R','RED'],['G','GREEN'],['C','COLORLESS']];
+  openModal(`${p.displayName} — MANA`,`<div class="ability-choice-list">${rows.map(([c,n])=>`<button class="ability-choice available" data-tt-mana-choice="${c}"><strong>${n}</strong></button>`).join('')}</div>`,[{label:'CANCEL',onClick:closeModal}]);
+  $$('[data-tt-mana-choice]').forEach(b=>b.onclick=()=>trackerEditMana(p,b.dataset.ttManaChoice));
+}
+function trackerResetGame(){
+  openModal('RESET TABLE TRACKER','<p>Reset life, poison, statuses, counters, mana, and the change log for this table?</p><p class="muted">Player names and configured commanders remain.</p>',[
+    {label:'CANCEL',onClick:closeModal},
+    {label:'RESET GAME',className:'danger',onClick:()=>{const start=Number(game.rulesConfig?.startingLife||40);for(const p of game.players||[]){p.life=start;p.poison=0;p.statuses=[];p.counters={};p.mana=p.mana||{};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0};p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0};for(const c of p.commanders||[])c.commanderTax=0}game.log=[];save();closeModal();openTabletop();toast('Table Tracker reset')}}
+  ]);
+}
 function bindTableTracker(){
-  $('#trackerSave')?.addEventListener('click',()=>{save();toast('Table Tracker saved locally.')});$('#trackerHome')?.addEventListener('click',showLanding);
+  $('#trackerHome')?.addEventListener('click',showLanding);
+  $$('#tabletopScreen [data-hub]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openHubAction(b.dataset.hub)}));
+  $('#trackerJudge')?.addEventListener('click',openHelp);
+  $('#trackerClearLog')?.addEventListener('click',()=>openModal('CLEAR GAME LOG','<p>Clear the Table Tracker change log?</p>',[{label:'CANCEL',onClick:closeModal},{label:'CLEAR LOG',className:'danger',onClick:()=>{game.log=[];save();closeModal();trackerRefreshLog();toast('Game Log cleared')}}]));
+  $('#trackerEditPlayers')?.addEventListener('click',()=>trackerChoosePlayer('EDIT PLAYERS',trackerEditName));
+  $('#trackerEditDecks')?.addEventListener('click',()=>openDeckEditor());
+  $('#trackerGameStats')?.addEventListener('click',openStats);
+  $('#trackerResetGame')?.addEventListener('click',trackerResetGame);
+  $('#trackerCounters')?.addEventListener('click',()=>trackerChoosePlayer('COUNTERS',trackerAddCounter));
+  $('#trackerLife')?.addEventListener('click',()=>trackerChoosePlayer('LIFE',p=>trackerEditStat(p,'life')));
+  $('#trackerStatus')?.addEventListener('click',()=>trackerChoosePlayer('STATUS',trackerEditStatus));
+  $('#trackerMana')?.addEventListener('click',()=>trackerChoosePlayer('MANA',trackerChooseMana));
   $$('[data-tt-name]').forEach(b=>b.onclick=()=>{const p=trackerPlayer(b.dataset.ttName);if(p)trackerEditName(p)});
   $$('[data-tt-status]').forEach(b=>b.onclick=()=>{const p=trackerPlayer(b.dataset.ttStatus);if(p)trackerEditStatus(p)});
   $$('[data-tt-add-counter]').forEach(b=>b.onclick=()=>{const p=trackerPlayer(b.dataset.ttAddCounter);if(p)trackerAddCounter(p)});

@@ -19,7 +19,7 @@ async function closeModal(page){if(await page.locator('#modal').isVisible()){awa
 async function expectModal(page,title){await expect(page.locator('#modal')).toBeVisible();await expect(page.locator('#modalTitle')).toContainText(title)}
 const visibleHub=(page,hub,scope='')=>page.locator((scope?scope+' ':'')+'[data-hub="'+hub+'"]:visible').first();
 
-test.describe('V0.8 CG visual and routing tap-through',()=>{
+test.describe('V0.8 CH visual and routing tap-through',()=>{
   test('landing buttons route correctly',async({page})=>{
     const errors=await ready(page);
     await expect(page).toHaveTitle(/V0\.8 CG/);
@@ -41,9 +41,12 @@ test.describe('V0.8 CG visual and routing tap-through',()=>{
     }
     for(const zone of ['graveyard','exile','tokens','attachments']){await page.locator('[data-zone-open="'+zone+'"]:visible').first().click();await expect(page.locator('#modal')).toBeVisible();await closeModal(page)}
     await page.locator('[data-action="next-phase"]:visible').click();await expect(page.locator('#gameScreen')).toBeVisible();
+    if(await page.locator('#modal').isVisible() && /AUTOMATIC PHASE SKIPPING/i.test((await page.locator('#modalTitle').textContent())||'')){
+      await page.locator('#modalActions').getByRole('button',{name:/DON.T SKIP PHASES/i}).click();await expect(page.locator('#modal')).not.toBeVisible();
+    }
     await page.locator('[data-log-undo="1"]:visible').click();await expect(page.locator('#modal')).toBeVisible();await closeModal(page);
     await visibleHub(page,'home','.landscape-game-topbar').click();await expectModal(page,'RETURN HOME');await closeModal(page);
-    await page.screenshot({path:'test-results/cg-freeplay-iphone.png',fullPage:true});
+    await page.screenshot({path:'test-results/ch-freeplay-iphone.png',fullPage:true});
     expect(errors).toEqual([]);
   });
 
@@ -63,7 +66,7 @@ test.describe('V0.8 CG visual and routing tap-through',()=>{
       await page.locator(id).click();await expectModal(page,title);await closeModal(page);
     }
     await page.locator('#trackerEditDecks').click();await expect(page.locator('#deckDialog')).toBeVisible();await page.locator('#deckDialogBack').click();
-    await page.screenshot({path:'test-results/cg-table-tracker.png',fullPage:true});
+    await page.screenshot({path:'test-results/ch-table-tracker.png',fullPage:true});
     await page.locator('#trackerHome').click();await expect(page.locator('#landing')).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -75,7 +78,7 @@ test.describe('V0.8 CG visual and routing tap-through',()=>{
     expect(r.master.w).toBeLessThanOrEqual(1366);expect(r.master.h).toBeLessThanOrEqual(1024);
     expect(r.left.r).toBeLessThanOrEqual(r.battle.l+1);expect(r.battle.r).toBeLessThanOrEqual(r.right.l+1);
     expect(r.hand.l).toBeGreaterThanOrEqual(r.battle.l-1);expect(r.hand.r).toBeLessThanOrEqual(r.battle.r+1);
-    await page.screenshot({path:'test-results/cg-freeplay-ipad.png',fullPage:true});
+    await page.screenshot({path:'test-results/ch-freeplay-ipad.png',fullPage:true});
     expect(errors).toEqual([]);
   });
 });
