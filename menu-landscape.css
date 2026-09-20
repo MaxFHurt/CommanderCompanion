@@ -1036,3 +1036,45 @@ html body #modeSetupDialog #modeSetupTitle{
   overflow:hidden!important;
   text-overflow:clip!important;
 }
+
+
+/* V0.8 DN — Opening Hand: scale the existing action buttons horizontally so
+   all three share one row and return vertical space to the seven-card hand. */
+html body #modal:has([data-opening-card]) .modal-shell{
+  grid-template-rows:auto minmax(0,1fr) 92px!important;
+}
+html body #modal:has([data-opening-card]) .modal-content{
+  padding-bottom:8px!important;
+  overflow:hidden!important;
+}
+html body #modal:has([data-opening-card]) .hand-panel{
+  height:100%!important;
+  margin:0!important;
+}
+html body #modal:has([data-opening-card]) .hand-strip{
+  width:100%!important;
+  max-width:100%!important;
+  justify-content:space-between!important;
+  overflow-x:hidden!important;
+}
+html body #modal:has([data-opening-card]) .modal-actions{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:14px!important;
+  height:92px!important;
+  min-height:92px!important;
+  padding:8px 54px!important;
+  align-items:center!important;
+  overflow:hidden!important;
+}
+html body #modal:has([data-opening-card]) .modal-actions button{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:72px!important;
+  min-height:72px!important;
+  max-height:72px!important;
+  margin:0!important;
+  font-size:clamp(20px,2vw,30px)!important;
+  white-space:nowrap!important;
+}
