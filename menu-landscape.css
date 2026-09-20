@@ -923,3 +923,84 @@ html body #modeSetupDialog .setup-stage:last-child::-webkit-scrollbar-thumb{
   border:2px solid #24122f!important;
   border-radius:8px!important;
 }
+
+
+/* V0.8 DL — immutable landscape menu canvas + always-visible Rules scroll rail.
+   All menus use the same 1536x709 logical coordinate system and scale from
+   viewport width only. Rotation therefore returns to identical proportions. */
+:root{--cc-menu-scale:calc(100vw / 1536);}
+dialog.cc-modal,
+dialog.cc-modal[open]{
+  position:fixed!important;
+  left:50%!important;
+  top:50%!important;
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  margin:0!important;
+  transform:translate(-50%,-50%) scale(var(--cc-menu-scale))!important;
+  transform-origin:center center!important;
+  overflow:hidden!important;
+}
+dialog.cc-modal>.modal-shell,
+dialog.cc-modal .modal-shell{
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+}
+
+/* Full Play setup stays one-line inside the fixed canvas. */
+html body #modeSetupDialog .modal-shell>header{
+  height:76px!important;
+  min-height:76px!important;
+  padding:8px 260px!important;
+}
+html body #modeSetupDialog #modeSetupTitle{
+  white-space:nowrap!important;
+  font-size:34px!important;
+  line-height:1!important;
+}
+html body #modeSetupDialog .modal-actions{
+  height:78px!important;
+  min-height:78px!important;
+  padding:8px 36px!important;
+}
+html body #modeSetupDialog .modal-actions button{
+  height:60px!important;
+  min-height:60px!important;
+  max-height:60px!important;
+}
+
+/* iOS hides native scrollbars; this rail is part of the UI and therefore
+   remains visible even when the native overlay scrollbar fades out. */
+html body #modeSetupDialog .setup-stage:last-child{
+  position:relative!important;
+  overflow-y:scroll!important;
+  scrollbar-gutter:stable!important;
+  padding-right:28px!important;
+  background-image:linear-gradient(180deg,#a75cff,#7131a0)!important;
+  background-size:10px calc(100% - 20px)!important;
+  background-position:calc(100% - 7px) 10px!important;
+  background-repeat:no-repeat!important;
+}
+html body #modeSetupDialog .setup-stage:last-child::after{
+  content:""!important;
+  position:sticky!important;
+  display:block!important;
+  float:right!important;
+  right:-21px!important;
+  bottom:8px!important;
+  width:10px!important;
+  height:44px!important;
+  margin-top:-52px!important;
+  border-radius:7px!important;
+  background:#d3a1ff!important;
+  box-shadow:0 0 8px rgba(167,92,255,.8)!important;
+  pointer-events:none!important;
+}
