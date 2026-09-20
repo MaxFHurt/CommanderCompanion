@@ -1,6 +1,6 @@
 # Commander Companion — Visual Rebuild Notes
 
-Current visual rebuild line: **V0.8 CV**
+Current visual rebuild line: **V0.8 CW**
 
 This file is the running screen-by-screen visual QA record. The approved visual masters supplied by the user are the authority. Historical 0.8.4.4-era styling is not a visual source for this rebuild.
 
@@ -51,3 +51,25 @@ Do not move on to the next screen until the live CV landing capture is checked a
 
 ## Next screen after Landing locks
 **Choose Game Mode** — rebuild as a deliberate three-column landscape menu with large readable text and approved graphical frames.
+
+
+## CW landing correction
+
+### Confirmed root cause
+The black lower half was **not** a portrait warning overlay image. A legacy high-specificity device rule was forcing the landing root to `100dvh` before the outer 1536×709 stage scale. The child shell remained full-size, but its parent clipped at roughly 60% height on an iPhone-landscape viewport.
+
+### CW correction
+- Override all iPhone/iPad/other-phone landing-root device rules at equal/higher specificity.
+- Landing root is now locked to 1536×709 before the single outer stage scale.
+- Portrait still hides the app and shows only the rotate message.
+- Keep the newer/wider landing composition.
+- Restore the heavier metallic outer-border treatment from the earlier visual reference.
+- Landing utility controls remain **Profile / Deck Builder / Settings / Help** only. No Home, Game Chat, or Card ID on the Home screen.
+
+### Local verification
+At 932×430:
+- `#landing.offsetWidth = 1536`
+- `#landing.offsetHeight = 709`
+- rendered landing rectangle fills the full visible ~430px height after scaling
+- lower controls are no longer clipped
+- no black half-screen remains
