@@ -654,3 +654,1021 @@
 
 /* The full references remain in the project as visual authorities only; no static screenshot
    is painted over gameplay. Everything visible above remains live and interactive. */
+
+/* V0.8 CM MASTER GEOMETRY REBUILD */
+
+/* =========================================================
+   GUIDED / FREEPLAY — match approved 1536×709 master geometry.
+   ========================================================= */
+#gameScreen #gameContent{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+}
+#gameScreen .landscape-game-master{
+  width:min(100%,calc(100dvh * 2.1664316))!important;
+  height:auto!important;
+  max-height:100dvh!important;
+  aspect-ratio:1536/709!important;
+  grid-template-rows:14.7% 85.3%!important;
+  background:#010102!important;
+}
+#gameScreen .landscape-game-topbar{
+  grid-template-columns:24.1% 47.8% 28.1%!important;
+  padding:0 1.15%!important;
+  background:#020103 url('game-top-frame-v07940.jpg') center/100% 100% no-repeat!important;
+}
+#gameScreen .custom-header-brand{visibility:hidden!important;}
+#gameScreen .landscape-game-topbar::after{
+  right:1.25%!important;
+  width:9.3%!important;
+  top:50%!important;
+  font-size:clamp(7px,.92vw,14px)!important;
+}
+#gameScreen .landscape-game-topbar nav{
+  height:72%!important;
+  gap:.45vw!important;
+}
+#gameScreen .landscape-top-left{padding-left:.55%!important;}
+#gameScreen .landscape-top-right{
+  padding-right:10.15%!important;
+  justify-content:flex-end!important;
+}
+#gameScreen .landscape-top-left .custom-hub-button{
+  flex:0 0 30.5%!important;
+  width:auto!important;
+  height:100%!important;
+}
+#gameScreen .landscape-top-right .custom-hub-button{
+  flex:0 0 29.2%!important;
+  width:auto!important;
+  height:100%!important;
+}
+#gameScreen .landscape-game-topbar button{
+  min-width:0!important;
+  max-width:none!important;
+  padding:3px 4px!important;
+  background:
+    linear-gradient(180deg,rgba(10,4,15,.18),rgba(2,1,4,.44)),
+    url('ref-button-small.png') center/100% 100% no-repeat!important;
+  font-size:clamp(7px,.82vw,12px)!important;
+}
+#gameScreen .landscape-game-topbar .dock-glyph{
+  width:clamp(18px,2.05vw,31px)!important;
+  height:clamp(18px,2.05vw,31px)!important;
+}
+
+#gameScreen .landscape-game-body{
+  grid-template-columns:75.2% 24.8%!important;
+  gap:.42%!important;
+  padding:0 .48% .75%!important;
+}
+#gameScreen .player-window>.landscape-player-master{
+  grid-template-columns:29.4% 70.6%!important;
+  gap:.72%!important;
+  height:100%!important;
+}
+#gameScreen .player-hero{
+  position:relative!important;
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  background:
+    linear-gradient(180deg,rgba(7,3,11,.94),rgba(3,1,6,.98)),
+    url('ui-forged-bg.svg') center/cover no-repeat!important;
+  box-shadow:
+    inset 0 0 0 1px #a67cba,
+    inset 0 0 0 4px #110817,
+    inset 0 0 22px rgba(128,45,184,.28),
+    0 0 10px rgba(123,44,177,.48)!important;
+}
+#gameScreen .player-hero::before{
+  display:block!important;
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:20!important;
+  pointer-events:none!important;
+  background:url('ui-panel-frame.svg') center/100% 100% no-repeat!important;
+  opacity:1!important;
+}
+#gameScreen .player-hero>*{z-index:2!important;}
+#gameScreen .commanders{
+  position:absolute!important;
+  left:4.2%!important;
+  top:7.3%!important;
+  width:61.4%!important;
+  height:43.1%!important;
+  padding:0!important;
+  display:flex!important;
+  align-items:stretch!important;
+  justify-content:center!important;
+  overflow:visible!important;
+}
+#gameScreen .commander-card{
+  width:auto!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  aspect-ratio:63/88!important;
+  border:1px solid #c6a9d5!important;
+  border-radius:3px!important;
+  background:#050207!important;
+  box-shadow:0 0 0 2px #2a1135,0 0 10px #8f42bd88!important;
+}
+#gameScreen .commander-card img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+}
+#gameScreen .player-info{
+  position:static!important;
+  display:block!important;
+  width:auto!important;
+  height:auto!important;
+  padding:0!important;
+  overflow:visible!important;
+}
+#gameScreen .player-head{
+  position:absolute!important;
+  right:2.6%!important;
+  top:1.7%!important;
+  width:31.8%!important;
+  height:49.2%!important;
+  display:block!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:visible!important;
+}
+#gameScreen .player-name{
+  height:11%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0 25% 3px 0!important;
+  display:flex!important;
+  align-items:center!important;
+  border-bottom:1px solid #76528a!important;
+  font-size:clamp(11px,1.6vw,24px)!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+}
+#gameScreen .status-indicator{
+  position:absolute!important;
+  top:9%!important;
+  right:8%!important;
+  width:clamp(22px,2.45vw,36px)!important;
+  height:clamp(22px,2.45vw,36px)!important;
+  z-index:5!important;
+}
+#gameScreen .player-stats-line{
+  position:absolute!important;
+  left:0!important;
+  right:0!important;
+  top:22%!important;
+  bottom:0!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:repeat(3,1fr)!important;
+  gap:0!important;
+  margin:0!important;
+}
+#gameScreen .player-stats-line .stat{
+  min-height:0!important;
+  height:auto!important;
+  display:grid!important;
+  grid-template-columns:24% 76%!important;
+  grid-template-rows:1fr auto!important;
+  align-items:center!important;
+  padding:1px 0!important;
+  border:0!important;
+  border-bottom:1px solid #50345c!important;
+  background:transparent!important;
+}
+#gameScreen .player-stats-line .stat:last-child{display:none!important;}
+#gameScreen .player-stats-line .stat .icon{
+  grid-row:1/3!important;
+  font-size:clamp(10px,1.3vw,19px)!important;
+}
+#gameScreen .player-stats-line .stat strong{
+  font-size:clamp(14px,1.8vw,27px)!important;
+  line-height:.95!important;
+}
+#gameScreen .player-stats-line .stat small{
+  grid-column:2!important;
+  text-align:left!important;
+  font-size:clamp(5px,.61vw,9px)!important;
+  line-height:1!important;
+}
+#gameScreen .mana-box{
+  position:absolute!important;
+  left:2.5%!important;
+  right:2.5%!important;
+  top:52.0%!important;
+  width:auto!important;
+  height:16.3%!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:2.3% 4.2% 1.2%!important;
+  display:grid!important;
+  grid-template-rows:27% 73%!important;
+  border:0!important;
+  border-top:1px solid #755388!important;
+  border-bottom:1px solid #755388!important;
+  border-radius:0!important;
+  background:linear-gradient(180deg,rgba(10,4,14,.76),rgba(2,1,4,.88))!important;
+  overflow:hidden!important;
+}
+#gameScreen .mana-box h3{
+  margin:0!important;
+  align-self:start!important;
+  font-size:clamp(7px,.83vw,12px)!important;
+}
+#gameScreen .mana-row{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:repeat(6,1fr)!important;
+  gap:1%!important;
+  align-items:center!important;
+}
+#gameScreen .mana-pip img{
+  width:clamp(16px,1.85vw,28px)!important;
+  height:clamp(16px,1.85vw,28px)!important;
+}
+#gameScreen .mana-pip b{font-size:clamp(7px,.78vw,12px)!important;}
+#gameScreen .landscape-zone-grid{
+  position:absolute!important;
+  left:2.4%!important;
+  right:2.4%!important;
+  bottom:1.55%!important;
+  width:auto!important;
+  height:28.6%!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  grid-template-rows:1fr 1fr!important;
+  gap:3.5% 2.5%!important;
+  margin:0!important;
+  padding:0!important;
+  z-index:4!important;
+}
+#gameScreen .landscape-zone-btn{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  border:0!important;
+  background-size:100% 100%!important;
+  background-position:center!important;
+  box-shadow:none!important;
+}
+#gameScreen .landscape-zone-btn span{display:none!important;}
+#gameScreen .landscape-zone-btn b{
+  position:absolute!important;
+  right:11%!important;
+  bottom:13%!important;
+  color:#fff!important;
+  font-size:clamp(7px,.85vw,13px)!important;
+  text-shadow:0 1px 3px #000!important;
+}
+
+/* Center play surface */
+#gameScreen .battle-panel{
+  height:100%!important;
+  grid-template-rows:7.1% 56.2% 21.5% 15.2%!important;
+  border:0!important;
+  background:
+    linear-gradient(180deg,rgba(6,2,10,.12),rgba(5,1,8,.20)),
+    url('game-battlefield-window-v07916.jpg') center top/100% 63.3% no-repeat!important;
+  box-shadow:
+    inset 0 0 0 1px #8c5da1,
+    inset 0 0 0 4px #110817,
+    0 0 8px rgba(132,49,191,.34)!important;
+}
+#gameScreen .battle-panel::before{
+  opacity:.92!important;
+}
+#gameScreen .battle-head{
+  padding:0 2.2%!important;
+  min-height:0!important;
+  background:linear-gradient(90deg,rgba(2,1,4,.92),rgba(9,3,14,.62),rgba(2,1,4,.88))!important;
+}
+#gameScreen .battle-head h3{
+  font-size:clamp(9px,1.15vw,17px)!important;
+}
+#gameScreen .battle-player-nav,
+#gameScreen .battle-phase-indicator{display:none!important;}
+#gameScreen .battlefield-wrap{
+  height:100%!important;
+  grid-template-rows:57.5% 42.5%!important;
+  background:transparent!important;
+}
+#gameScreen .custom-permanent-row,
+#gameScreen .custom-land-row{
+  height:100%!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  background:transparent!important;
+}
+#gameScreen .custom-land-row{
+  grid-template-rows:19% 81%!important;
+  border-top:1px solid #7d4f92!important;
+}
+#gameScreen .custom-land-row>header{
+  min-height:0!important;
+  height:100%!important;
+  padding:0 2.2%!important;
+  display:flex!important;
+  align-items:center!important;
+  background:rgba(2,1,4,.72)!important;
+  font-size:clamp(9px,1.08vw,16px)!important;
+}
+#gameScreen .battlefield{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:1.4% 2.1%!important;
+  gap:1.15%!important;
+  flex-wrap:nowrap!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  align-items:flex-start!important;
+}
+#gameScreen .battle-card,
+#gameScreen .battle-card-stack{
+  height:95%!important;
+  width:auto!important;
+  max-width:none!important;
+  aspect-ratio:63/88!important;
+  flex:0 0 auto!important;
+}
+#gameScreen .battle-card img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:contain!important;
+}
+#gameScreen .custom-land-row .battlefield{
+  padding-top:1.2%!important;
+  padding-bottom:.8%!important;
+}
+#gameScreen .custom-land-row .battle-card,
+#gameScreen .custom-land-row .battle-card-stack{height:94%!important;}
+
+/* Hand is a shallow card rail, not a second large panel. */
+#gameScreen .landscape-hand-zone{
+  height:100%!important;
+  min-height:0!important;
+  padding:1.1% 2.0% .8%!important;
+  display:grid!important;
+  grid-template-rows:18% 82%!important;
+  border:0!important;
+  border-top:1px solid #845499!important;
+  background:
+    linear-gradient(180deg,rgba(13,5,18,.91),rgba(3,1,6,.97)),
+    url('ui-forged-bg.svg') center/cover no-repeat!important;
+}
+#gameScreen .landscape-hand-zone h3{
+  height:100%!important;
+  margin:0!important;
+  display:flex!important;
+  align-items:center!important;
+  font-size:clamp(8px,1.05vw,15px)!important;
+}
+#gameScreen .landscape-hand-zone .hand-strip{
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  gap:1.0%!important;
+  align-items:flex-start!important;
+  overflow-x:auto!important;
+}
+#gameScreen .landscape-hand-zone .hand-card{
+  height:100%!important;
+  width:auto!important;
+  aspect-ratio:63/88!important;
+  flex:0 0 auto!important;
+  border:1px solid #7f638c!important;
+  box-shadow:0 0 4px #000!important;
+}
+
+/* Bottom action band follows the master: phase plaque / large jewel / next phase. */
+#gameScreen .landscape-action-rail{
+  height:100%!important;
+  padding:0 1.5%!important;
+  grid-template-columns:39.2% 21.6% 39.2%!important;
+  align-items:stretch!important;
+  overflow:visible!important;
+  border:0!important;
+  border-top:1px solid #86519d!important;
+  background:
+    linear-gradient(180deg,rgba(14,5,20,.88),rgba(3,1,5,.98)),
+    url('game-bottom-chassis.jpg') center/100% 100% no-repeat!important;
+}
+#gameScreen .landscape-turn-readout{
+  margin:0 8% 0 0!important;
+  padding:0 3%!important;
+  justify-content:center!important;
+  background:linear-gradient(180deg,rgba(14,5,20,.28),rgba(2,1,4,.45)),url('ref-row-frame.png') center/100% 92% no-repeat!important;
+}
+#gameScreen .landscape-turn-readout small{
+  font-size:clamp(8px,1.04vw,15px)!important;
+}
+#gameScreen .landscape-turn-readout strong{
+  font-size:clamp(7px,.92vw,13px)!important;
+}
+#gameScreen .landscape-jewel{
+  width:118%!important;
+  height:138%!important;
+  justify-self:center!important;
+  align-self:center!important;
+  transform:translateY(-14%)!important;
+  overflow:visible!important;
+}
+#gameScreen .landscape-jewel span{
+  font-size:clamp(10px,1.25vw,18px)!important;
+}
+#gameScreen .landscape-phase-action{
+  height:88%!important;
+  align-self:center!important;
+  margin:0 0 0 7%!important;
+  background:transparent url('game-next-phase.png') center/100% 100% no-repeat!important;
+  font-size:0!important;
+}
+#gameScreen .landscape-phase-action.end-turn-action{
+  background-image:url('game-end-turn.png')!important;
+}
+
+/* Right rail */
+#gameScreen .landscape-right-rail{
+  grid-template-rows:39.3% 45.9% 14.8%!important;
+  gap:.8%!important;
+}
+#gameScreen .landscape-opponents,
+#gameScreen .inline-game-log{
+  padding:2.3% 3.2%!important;
+}
+#gameScreen .landscape-opponents>header,
+#gameScreen .landscape-log-head{
+  height:14.5%!important;
+  min-height:0!important;
+  padding:0 2%!important;
+  display:flex!important;
+  align-items:center!important;
+}
+#gameScreen .landscape-opponent-list{
+  height:85.5%!important;
+  min-height:0!important;
+  padding:1.8% 0 0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+}
+#gameScreen .landscape-opponent-row{
+  width:100%!important;
+  min-height:0!important;
+  flex:1 1 0!important;
+  display:grid!important;
+  grid-template-columns:6% minmax(0,1fr) 16%!important;
+  grid-template-rows:52% 48%!important;
+  padding:1.2% 2%!important;
+  border:0!important;
+  border-bottom:1px solid #54335f!important;
+  border-radius:0!important;
+  background:transparent!important;
+  overflow:hidden!important;
+}
+#gameScreen .opponent-copy{min-width:0!important;align-self:center!important;}
+#gameScreen .opponent-copy b{
+  font-size:clamp(7px,.85vw,13px)!important;
+  line-height:1!important;
+}
+#gameScreen .opponent-copy small{
+  font-size:clamp(5px,.60vw,9px)!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#gameScreen .landscape-opponent-row>strong{
+  font-size:clamp(14px,1.7vw,25px)!important;
+  align-self:center!important;
+  justify-self:end!important;
+}
+#gameScreen .landscape-opponent-row>small{display:none!important;}
+#gameScreen .opponent-mana-row{
+  grid-column:2/4!important;
+  display:grid!important;
+  grid-template-columns:repeat(6,1fr)!important;
+  gap:1%!important;
+  align-items:center!important;
+}
+#gameScreen .opponent-mana{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:2px!important;
+}
+#gameScreen .opponent-mana img{
+  width:clamp(10px,1.2vw,18px)!important;
+  height:clamp(10px,1.2vw,18px)!important;
+}
+#gameScreen .opponent-mana b{font-size:clamp(5px,.58vw,9px)!important;}
+#gameScreen .opponent-mini{display:none!important;}
+#gameScreen .inline-game-log-scroll{
+  height:85.5%!important;
+  min-height:0!important;
+  padding:1.5% 2%!important;
+  overflow:auto!important;
+}
+#gameScreen .inline-log-event{
+  min-height:0!important;
+  padding:.8% 0!important;
+  font-size:clamp(6px,.72vw,11px)!important;
+  line-height:1.12!important;
+}
+#gameScreen .landscape-right-undo{
+  border:0!important;
+  background:transparent url('game-log-undo-v07942.png') center/100% 100% no-repeat!important;
+  box-shadow:none!important;
+  font-size:0!important;
+}
+#gameScreen .landscape-right-undo span{
+  display:block!important;
+  font-size:clamp(8px,.88vw,13px)!important;
+}
+
+/* =========================================================
+   TABLE TRACKER — approved 2×2 master.
+   ========================================================= */
+#tabletopScreen{
+  width:100%!important;
+  height:100dvh!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+  overflow:hidden!important;
+  background:#010102!important;
+}
+#tabletopScreen .tracker-shell{
+  position:relative!important;
+  width:min(100%,calc(100dvh * 2.1664316))!important;
+  height:auto!important;
+  max-height:100dvh!important;
+  aspect-ratio:1536/709!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:17.4% 73.8% 8.8%!important;
+  gap:0!important;
+  overflow:hidden!important;
+  background:#020103!important;
+  border:0!important;
+  box-shadow:0 0 24px #000!important;
+}
+#tabletopScreen .tracker-head{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:29.0% 42.6% 28.4%!important;
+  align-items:center!important;
+  padding:0 1.0%!important;
+  border:0!important;
+  background:#020103 url('game-top-frame-v07940.jpg') center/100% 100% no-repeat!important;
+  overflow:visible!important;
+}
+#tabletopScreen .tracker-brand{
+  position:relative!important;
+  height:100%!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  padding-bottom:4.8%!important;
+  pointer-events:none!important;
+}
+#tabletopScreen .tracker-brand img{display:none!important;}
+#tabletopScreen .tracker-brand span{
+  display:block!important;
+  font:900 clamp(8px,.94vw,14px)/1 var(--head)!important;
+  letter-spacing:.12em!important;
+  color:#fff!important;
+  text-shadow:0 0 6px #8a31c1!important;
+}
+#tabletopScreen .tracker-brand small{
+  display:block!important;
+  margin-top:.8%!important;
+  font-size:clamp(5px,.55vw,8px)!important;
+  line-height:1!important;
+  color:#e7dceb!important;
+}
+#tabletopScreen .tracker-head-left,
+#tabletopScreen .tracker-head-right{
+  height:70%!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:.45vw!important;
+  min-width:0!important;
+}
+#tabletopScreen .tracker-head-left{justify-content:flex-start!important;padding-left:.4%!important;}
+#tabletopScreen .tracker-head-right{justify-content:flex-end!important;padding-right:33%!important;}
+#tabletopScreen .tracker-hub-button{
+  height:100%!important;
+  min-width:0!important;
+  width:auto!important;
+  flex:1 1 0!important;
+  padding:3px 3px!important;
+  border:0!important;
+  background:
+    linear-gradient(180deg,rgba(10,4,15,.18),rgba(2,1,4,.44)),
+    url('ref-button-small.png') center/100% 100% no-repeat!important;
+  font-size:clamp(6px,.72vw,11px)!important;
+}
+#tabletopScreen .tracker-head-right .tracker-hub-button{
+  flex:0 0 28.5%!important;
+}
+#tabletopScreen .tracker-current::before{
+  content:"▣"!important;
+  display:block!important;
+  font-size:clamp(16px,1.85vw,28px)!important;
+  line-height:1!important;
+  color:#d1b1e9!important;
+  text-shadow:0 0 8px #8d35c7!important;
+}
+#tabletopScreen .tracker-head::after{
+  content:"Play Smarter.\A Enjoy Longer."!important;
+  white-space:pre!important;
+  position:absolute!important;
+  right:1.6%!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:9.2%!important;
+  text-align:center!important;
+  color:#ead8f5!important;
+  font:italic 900 clamp(7px,.9vw,13px)/1.1 Georgia,serif!important;
+  text-shadow:0 0 8px #8e35c5!important;
+  pointer-events:none!important;
+}
+
+#tabletopScreen .tracker-main{
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:79.6% 20.4%!important;
+  gap:.65%!important;
+  padding:0 .65% .6%!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-player-grid{
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  grid-template-rows:1fr 1fr!important;
+  gap:1.2% .9%!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-player-card{
+  position:relative!important;
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  padding:0!important;
+  border-radius:0!important;
+  border:1px solid var(--slot,#7d46a0)!important;
+  background:
+    linear-gradient(90deg,var(--slot-fade,rgba(35,15,49,.78)),rgba(4,2,7,.86)),
+    url('ui-forged-bg.svg') center/cover no-repeat!important;
+  box-shadow:
+    inset 0 0 0 2px #09050d,
+    inset 0 0 0 4px color-mix(in srgb,var(--slot,#7d46a0) 48%,transparent),
+    0 0 9px color-mix(in srgb,var(--slot,#7d46a0) 68%,transparent)!important;
+}
+#tabletopScreen .player-slot-1{--slot:#16a8ff;--slot-fade:rgba(4,43,75,.78);}
+#tabletopScreen .player-slot-2{--slot:#ff3939;--slot-fade:rgba(79,6,8,.78);}
+#tabletopScreen .player-slot-3{--slot:#19d35a;--slot-fade:rgba(3,66,27,.78);}
+#tabletopScreen .player-slot-4{--slot:#a93cff;--slot-fade:rgba(48,9,73,.78);}
+#tabletopScreen .tracker-player-card::after{
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:20!important;
+  pointer-events:none!important;
+  background:url('ui-panel-frame.svg') center/100% 100% no-repeat!important;
+  opacity:.75!important;
+}
+#tabletopScreen .tracker-avatar{
+  position:absolute!important;
+  left:1.7%!important;
+  top:4%!important;
+  width:12.4%!important;
+  height:45%!important;
+  z-index:2!important;
+  overflow:hidden!important;
+  border:1px solid #b7a0c5!important;
+  background:#050308!important;
+}
+#tabletopScreen .tracker-avatar img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+#tabletopScreen .tracker-card-content{
+  position:absolute!important;
+  inset:0!important;
+  z-index:3!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-player-head{
+  position:absolute!important;
+  left:15.2%!important;
+  right:2.5%!important;
+  top:3.4%!important;
+  height:20.2%!important;
+  display:grid!important;
+  grid-template-columns:45% 55%!important;
+  gap:1.4%!important;
+}
+#tabletopScreen .tracker-name,
+#tabletopScreen .tracker-status{
+  height:100%!important;
+  min-height:0!important;
+  padding:0 4%!important;
+  border:1px solid color-mix(in srgb,var(--slot,#7d46a0) 55%,#6f5c78)!important;
+  border-radius:5px!important;
+  background:rgba(6,3,9,.56)!important;
+  color:#fff!important;
+}
+#tabletopScreen .tracker-name{
+  text-align:left!important;
+  font:900 clamp(9px,1.18vw,18px)/1 var(--head)!important;
+}
+#tabletopScreen .tracker-status{
+  display:grid!important;
+  grid-template-columns:18% 82%!important;
+  align-items:center!important;
+  text-align:left!important;
+}
+#tabletopScreen .tracker-status-light{
+  width:clamp(16px,2vw,30px)!important;
+  height:clamp(16px,2vw,30px)!important;
+}
+#tabletopScreen .tracker-status small{
+  font-size:clamp(5px,.54vw,8px)!important;
+}
+#tabletopScreen .tracker-status strong{
+  font-size:clamp(7px,.77vw,12px)!important;
+}
+#tabletopScreen .tracker-primary-row{
+  position:absolute!important;
+  left:15.2%!important;
+  top:25.5%!important;
+  width:31.5%!important;
+  height:26.5%!important;
+  display:block!important;
+}
+#tabletopScreen .tracker-life{
+  width:100%!important;
+  height:100%!important;
+  display:grid!important;
+  grid-template-rows:22% 78%!important;
+  align-items:center!important;
+}
+#tabletopScreen .tracker-life>small{
+  font-size:clamp(5px,.56vw,8px)!important;
+  text-align:center!important;
+}
+#tabletopScreen .tracker-life .tracker-stepper{
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:25% 50% 25%!important;
+  align-items:center!important;
+}
+#tabletopScreen .tracker-stepper button{
+  width:100%!important;
+  height:78%!important;
+  min-height:0!important;
+  border:1px solid #7e5b92!important;
+  border-radius:4px!important;
+  background:linear-gradient(180deg,#1a0c25,#07040a)!important;
+  color:#fff!important;
+  font-size:clamp(10px,1.15vw,18px)!important;
+}
+#tabletopScreen .tracker-life .tracker-stepper strong{
+  text-align:center!important;
+  font:900 clamp(14px,2vw,30px)/1 var(--head)!important;
+}
+#tabletopScreen .tracker-counter-summary{display:none!important;}
+#tabletopScreen .tracker-extra-counters{
+  position:absolute!important;
+  left:50%!important;
+  right:2.5%!important;
+  top:25.5%!important;
+  height:31%!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr 1fr 1fr!important;
+  gap:2%!important;
+}
+#tabletopScreen .tracker-extra-counter{
+  min-height:0!important;
+  display:grid!important;
+  grid-template-columns:50% 50%!important;
+  align-items:center!important;
+  padding:0 2%!important;
+  border-bottom:1px solid #664876!important;
+}
+#tabletopScreen .tracker-extra-counter small{
+  font-size:clamp(6px,.66vw,10px)!important;
+}
+#tabletopScreen .tracker-extra-counter .tracker-stepper{
+  height:100%!important;
+  display:grid!important;
+  grid-template-columns:28% 44% 28%!important;
+  align-items:center!important;
+}
+#tabletopScreen .tracker-extra-counter .tracker-stepper button{
+  height:76%!important;
+  font-size:clamp(8px,.9vw,13px)!important;
+}
+#tabletopScreen .tracker-extra-counter .tracker-stepper strong{
+  text-align:center!important;
+  font-size:clamp(7px,.74vw,11px)!important;
+}
+#tabletopScreen .tracker-add-counter{
+  width:44%!important;
+  height:80%!important;
+  justify-self:end!important;
+  align-self:center!important;
+  border:1px solid #76538a!important;
+  background:linear-gradient(180deg,#281037,#09050d)!important;
+  color:#fff!important;
+  font:900 clamp(6px,.64vw,10px)/1 var(--head)!important;
+}
+#tabletopScreen .tracker-mana-title{
+  position:absolute!important;
+  left:2.5%!important;
+  top:56.6%!important;
+  font:900 clamp(6px,.66vw,10px)/1 var(--head)!important;
+}
+#tabletopScreen .tracker-mana-row{
+  position:absolute!important;
+  left:2.5%!important;
+  right:2.5%!important;
+  top:61%!important;
+  height:13.3%!important;
+  display:grid!important;
+  grid-template-columns:repeat(6,1fr)!important;
+  gap:.5%!important;
+}
+#tabletopScreen .tracker-mana{
+  position:relative!important;
+  display:grid!important;
+  grid-template-rows:62% 38%!important;
+  place-items:center!important;
+}
+#tabletopScreen .tracker-mana img{
+  width:clamp(17px,1.85vw,28px)!important;
+  height:clamp(17px,1.85vw,28px)!important;
+  grid-row:1!important;
+}
+#tabletopScreen .tracker-mana strong{
+  grid-row:2!important;
+  font-size:clamp(6px,.72vw,11px)!important;
+}
+#tabletopScreen .tracker-mana>button{display:none!important;}
+#tabletopScreen .tracker-battlefield-mini{
+  position:absolute!important;
+  left:2.5%!important;
+  right:2.5%!important;
+  bottom:2.7%!important;
+  height:21.2%!important;
+}
+#tabletopScreen .tracker-battlefield-mini>small{
+  display:block!important;
+  height:18%!important;
+  font-size:clamp(5px,.58vw,9px)!important;
+}
+#tabletopScreen .tracker-mini-cards{
+  height:82%!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,1fr)!important;
+  gap:1.5%!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-mini-card,
+#tabletopScreen .tracker-card-add{
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  overflow:hidden!important;
+  border:1px solid #7d6789!important;
+  background:rgba(5,3,8,.72)!important;
+}
+#tabletopScreen .tracker-mini-card img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+  object-position:top!important;
+}
+#tabletopScreen .tracker-card-add{
+  display:grid!important;
+  place-items:center!important;
+  color:#d56cff!important;
+  font-size:clamp(14px,2vw,30px)!important;
+}
+#tabletopScreen .tracker-commanders{display:none!important;}
+
+#tabletopScreen .tracker-side-rail{
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:11.5% 88.5%!important;
+  gap:1.2%!important;
+}
+#tabletopScreen .tracker-judge{
+  height:100%!important;
+  min-height:0!important;
+  border:0!important;
+  background:linear-gradient(180deg,rgba(20,8,28,.32),rgba(4,2,7,.62)),url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  color:#fff!important;
+  font:900 clamp(7px,.9vw,13px)/1 var(--head)!important;
+}
+#tabletopScreen .tracker-game-log{
+  height:100%!important;
+  min-height:0!important;
+  display:grid!important;
+  grid-template-rows:10% 79% 11%!important;
+  padding:3% 4%!important;
+  border:1px solid #81519a!important;
+  background:linear-gradient(180deg,rgba(9,4,13,.96),rgba(2,1,4,.99))!important;
+  box-shadow:inset 0 0 0 3px #0b0610,0 0 8px #8146a155!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-log-head{
+  min-height:0!important;
+  height:100%!important;
+  padding:0 2%!important;
+  display:flex!important;
+  align-items:center!important;
+}
+#tabletopScreen .tracker-log-scroll{
+  min-height:0!important;
+  height:100%!important;
+  overflow:auto!important;
+}
+#tabletopScreen .tracker-log-event{
+  padding:1.2% 0 1.2% 5%!important;
+  font-size:clamp(5px,.61vw,9px)!important;
+  line-height:1.12!important;
+}
+#tabletopScreen .tracker-clear-log{
+  height:100%!important;
+  min-height:0!important;
+  border:0!important;
+  background:transparent url('game-log-undo-v07942.png') center/100% 100% no-repeat!important;
+  font-size:0!important;
+}
+#tabletopScreen .tracker-clear-log span{
+  font-size:clamp(7px,.78vw,12px)!important;
+}
+#tabletopScreen .tracker-bottom-bar{
+  height:100%!important;
+  min-height:0!important;
+  padding:.6% .8% 1.0%!important;
+  display:grid!important;
+  grid-template-columns:1.15fr 1.08fr 1.08fr 1.08fr .16fr .84fr .70fr .76fr .70fr!important;
+  gap:.45%!important;
+  background:linear-gradient(180deg,#100617,#030105)!important;
+}
+#tabletopScreen .tracker-bottom-bar button{
+  min-height:0!important;
+  height:100%!important;
+  padding:0 3%!important;
+  border:0!important;
+  background:linear-gradient(180deg,rgba(23,8,31,.65),rgba(4,2,7,.9)),url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  font-size:clamp(5px,.61vw,9px)!important;
+  overflow:hidden!important;
+}
+
+/* iPad: same exact composition, proportionally contained. */
+body.cc-device-ipad #gameScreen .landscape-game-master,
+body.cc-device-ipad #tabletopScreen .tracker-shell{
+  width:min(100%,calc(100dvh * 2.1664316))!important;
+  height:auto!important;
+  max-height:100dvh!important;
+  aspect-ratio:1536/709!important;
+}
