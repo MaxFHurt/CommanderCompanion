@@ -83,8 +83,8 @@
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-cq">
-    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cq">
+    <link rel="stylesheet" href="game-threefix.css?v=080-ct">
+    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-ct">
     <header class="game-brand-strip" aria-label="Game status bar">
       <div class="game-turn-badge" aria-live="polite">
         <span class="game-turn-copy"><b id="gameTurnNumber">Player</b><small id="gameTurnPlayer"></small></span>
@@ -214,7 +214,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-cq');
+        await import('./app.js?v=080-ct');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
