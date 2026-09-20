@@ -72,7 +72,7 @@ test.describe.serial('Commander Companion master-match acceptance flow',()=>{
   test('landing + all top-level landing menus fit and route',async({page})=>{
     await page.setViewportSize({width:932,height:430});
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CU/);
+    await expect(page).toHaveTitle(/V0\.8 CV/);
     await assertContained(page,'.landing079-shell','landing master canvas');
     await assertVisibleButtonsContained(page,'#landing');
     await shot(page,'01-landing');
