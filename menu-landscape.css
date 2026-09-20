@@ -1717,3 +1717,42 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
     overflow:hidden!important;
   }
 }
+
+
+/* V0.8 ED — remove Safari dialog rotation transform entirely.
+   Dialogs are top-layer elements: size them directly to the visual viewport.
+   No logical-canvas transform means there is no stale pre-rotation transform,
+   transform-origin, or width/height scaling state for Safari to retain. */
+@media (orientation:landscape){
+  html body dialog.cc-modal,
+  html body dialog.cc-modal[open]{
+    box-sizing:border-box!important;
+    position:fixed!important;
+    inset:8px!important;
+    left:8px!important;
+    top:8px!important;
+    right:8px!important;
+    bottom:8px!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    transform:none!important;
+    transform-origin:initial!important;
+    overflow:hidden!important;
+  }
+  html body dialog.cc-modal>.modal-shell,
+  html body dialog.cc-modal .modal-shell{
+    box-sizing:border-box!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+    transform:none!important;
+  }
+}
