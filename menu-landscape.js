@@ -46,3 +46,22 @@ export function labelRuleOptions(root) {
     label.append(full,compact);
   });
 }
+
+export function preparePlayerSetup(root) {
+  root.previousElementSibling?.matches('.menu-player-tabs') && root.previousElementSibling.remove();
+  const panels=[...root.querySelectorAll('[data-player-setup]')];
+  const nav=document.createElement('div');nav.className='menu-player-tabs';nav.setAttribute('role','tablist');nav.setAttribute('aria-label','Player setup');
+  const select=index=>{
+    panels.forEach((panel,i)=>panel.classList.toggle('menu-player-active',i===index));
+    [...nav.children].forEach((button,i)=>{button.setAttribute('aria-selected',String(i===index));button.tabIndex=i===index?0:-1;});
+  };
+  panels.forEach((panel,i)=>{
+    panel.id=`menu-player-panel-${i}`;
+    const button=document.createElement('button');button.type='button';button.textContent=`PLAYER ${i+1}`;
+    button.setAttribute('role','tab');button.setAttribute('aria-controls',panel.id);
+    button.onclick=()=>select(i);
+    button.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?panels.length-1:(i+(e.key==='ArrowRight'?1:-1)+panels.length)%panels.length;select(next);nav.children[next].focus();};
+    nav.appendChild(button);
+  });
+  root.before(nav);select(0);
+}
