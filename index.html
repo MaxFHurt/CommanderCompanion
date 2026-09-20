@@ -7,24 +7,25 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 DP</title>
+  <title>Commander Companion V0.8 DQ</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-dp">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-dq">
   <script>
     (function(){
       function applyCCStageScale(){
-        var vv=window.visualViewport;
-        var w=vv?vv.width:window.innerWidth;
-        var h=vv?vv.height:window.innerHeight;
-        var left=vv?vv.offsetLeft:0;
-        var top=vv?vv.offsetTop:0;
-        var scale=Math.min(w/1536,h/709);
+        /* One scaling authority. In landscape, scale only from layout viewport
+           width. Safari's visualViewport height/chrome changes during rotation
+           must never change the 1536x709 app scale. */
+        var landscape=window.innerWidth>window.innerHeight;
+        var w=window.innerWidth;
+        var h=window.innerHeight;
+        var scale=landscape?(w/1536):Math.min(w/1536,h/709);
         if(!Number.isFinite(scale)||scale<=0)scale=1;
         var root=document.documentElement;
         root.style.setProperty('--cc-stage-scale',String(scale));
-        root.style.setProperty('--cc-stage-center-x',(left+w/2)+'px');
-        root.style.setProperty('--cc-stage-center-y',(top+h/2)+'px');
+        root.style.setProperty('--cc-stage-center-x',(w/2)+'px');
+        root.style.setProperty('--cc-stage-center-y',(h/2)+'px');
         root.style.setProperty('--cc-visible-w',w+'px');
         root.style.setProperty('--cc-visible-h',h+'px');
       }
@@ -77,7 +78,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 DP</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 DQ</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -86,7 +87,7 @@
   <main id="gameScreen" class="screen game-screen" hidden>
     <link rel="stylesheet" href="game-threefix.css?v=080-cz">
     <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cz">
-    <link rel="stylesheet" href="menu-landscape.css?v=080-dp">
+    <link rel="stylesheet" href="menu-landscape.css?v=080-dq">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -213,7 +214,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-dp');
+        await import('./app.js?v=080-dq');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
