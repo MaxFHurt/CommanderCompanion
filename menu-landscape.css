@@ -1368,3 +1368,31 @@ html body #deckDialog .modal-actions>button{
   padding:0 12px!important;
   white-space:nowrap!important;
 }
+
+
+/* V0.8 DV — rotation root fix for menu system.
+   Open menus use a single frozen landscape scale instead of vw/vh/dvh/svh. */
+@media (orientation:landscape){
+  html body dialog.cc-modal,
+  html body dialog.cc-modal[open]{
+    left:var(--cc-modal-center-x,50vw)!important;
+    top:var(--cc-modal-center-y,50vh)!important;
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+    margin:0!important;
+    transform:translate(-50%,-50%) scale(var(--cc-modal-scale,1))!important;
+    transform-origin:center center!important;
+  }
+  html body dialog.cc-modal .modal-shell{
+    width:1536px!important;
+    min-width:1536px!important;
+    max-width:1536px!important;
+    height:709px!important;
+    min-height:709px!important;
+    max-height:709px!important;
+  }
+}
