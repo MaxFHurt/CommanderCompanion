@@ -1434,3 +1434,44 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
   outline:0!important;
   box-shadow:none!important;
 }
+
+
+/* V0.8 DY — landscape menus use the full usable viewport.
+   Layout-only: preserve existing artwork/components while removing the old
+   fixed 1536x709 scaled canvas that left large unused screen margins. */
+@media (orientation:landscape){
+  html body dialog.cc-modal,
+  html body dialog.cc-modal[open]{
+    box-sizing:border-box!important;
+    left:8px!important;
+    top:8px!important;
+    right:auto!important;
+    bottom:auto!important;
+    width:calc(100vw - 16px)!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:calc(100vh - 16px)!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    transform:none!important;
+  }
+  html body dialog.cc-modal>.modal-shell,
+  html body dialog.cc-modal .modal-shell{
+    box-sizing:border-box!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    height:100%!important;
+    min-height:0!important;
+    max-height:none!important;
+  }
+  html body #gameModeDialog .modal-content,
+  html body #modeSetupDialog .modal-content,
+  html body #setupDialog .modal-content,
+  html body #deckDialog .modal-content,
+  html body #networkDialog .modal-content,
+  html body #modal .modal-content{
+    min-height:0!important;
+  }
+}
