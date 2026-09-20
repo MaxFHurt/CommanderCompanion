@@ -19,7 +19,7 @@ async function closeModal(page){if(await page.locator('#modal').isVisible()){awa
 async function expectModal(page,title){await expect(page.locator('#modal')).toBeVisible();await expect(page.locator('#modalTitle')).toContainText(title)}
 const visibleHub=(page,hub,scope='')=>page.locator((scope?scope+' ':'')+'[data-hub="'+hub+'"]:visible').first();
 
-test.describe('V0.8 CM visual and routing tap-through',()=>{
+test.describe('V0.8 CN visual and routing tap-through',()=>{
   test('portrait shows explicit landscape instruction and landing fits master canvas in landscape',async({page})=>{
     await page.setViewportSize({width:390,height:844});const errors=await ready(page);
     await expect(page.locator('#landscapeOnlyGate')).toBeVisible();
@@ -29,18 +29,18 @@ test.describe('V0.8 CM visual and routing tap-through',()=>{
     await expect(page.locator('#landing')).toBeVisible();
     const box=await page.locator('.landing079-shell').boundingBox();
     expect(box.width).toBeLessThanOrEqual(1536);expect(box.height).toBeLessThanOrEqual(709);
-    await page.screenshot({path:'test-results/cm-landing-master.png',fullPage:false});
+    await page.screenshot({path:'test-results/cn-landing-master.png',fullPage:false});
     expect(errors).toEqual([]);
   });
 
   test('landing buttons route correctly',async({page})=>{
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CM/);
-    await page.locator('#profileLandingBtn').click();await expectModal(page,'MY ACCOUNT');await closeModal(page);
-    await page.locator('#deckBuilderVisibleBtn').click();await expect(page.locator('#deckDialog')).toBeVisible();await page.locator('#deckDialogBack').click();
+    await expect(page).toHaveTitle(/V0\.8 CN/);
+    await page.locator('#profileLandingBtn').click();await expectModal(page,'MY ACCOUNT');{const b=await page.locator('#modal').boundingBox();expect(b.width).toBeGreaterThan(b.height)}await closeModal(page);
+    await page.locator('#deckBuilderVisibleBtn').click();await expect(page.locator('#deckDialog')).toBeVisible();{const b=await page.locator('#deckDialog').boundingBox();expect(b.width).toBeGreaterThan(b.height)}await page.locator('#deckDialogBack').click();
     await page.locator('#settingsLandingBtnBottom').click();await expectModal(page,'SETTINGS');await closeModal(page);
     await page.locator('#helpLandingBtn').click();await expect(page.locator('#modal')).toBeVisible();await closeModal(page);
-    await page.locator('#startGameBtn').click();await expect(page.locator('#gameModeDialog')).toBeVisible();await page.locator('#gameModeClose').click();
+    await page.locator('#startGameBtn').click();await expect(page.locator('#gameModeDialog')).toBeVisible();{const b=await page.locator('#gameModeDialog').boundingBox();expect(b.width).toBeGreaterThan(b.height);const buttons=await page.locator('#gameModeDialog [data-game-mode]').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect()));expect(buttons.length).toBe(3);expect(buttons[1].left).toBeGreaterThan(buttons[0].left);expect(buttons[2].left).toBeGreaterThan(buttons[1].left)}await page.locator('#gameModeClose').click();
     expect(errors).toEqual([]);
   });
 
@@ -59,7 +59,7 @@ test.describe('V0.8 CM visual and routing tap-through',()=>{
     }
     await page.locator('[data-log-undo="1"]:visible').click();await expect(page.locator('#modal')).toBeVisible();await closeModal(page);
     await visibleHub(page,'home','.landscape-game-topbar').click();await expectModal(page,'RETURN HOME');await closeModal(page);
-    await page.screenshot({path:'test-results/cm-freeplay-iphone.png',fullPage:true});
+    await page.screenshot({path:'test-results/cn-freeplay-iphone.png',fullPage:true});
     expect(errors).toEqual([]);
   });
 
@@ -79,7 +79,7 @@ test.describe('V0.8 CM visual and routing tap-through',()=>{
       await page.locator(id).click();await expectModal(page,title);await closeModal(page);
     }
     await page.locator('#trackerEditDecks').click();await expect(page.locator('#deckDialog')).toBeVisible();await page.locator('#deckDialogBack').click();
-    await page.screenshot({path:'test-results/cm-table-tracker.png',fullPage:true});
+    await page.screenshot({path:'test-results/cn-table-tracker.png',fullPage:true});
     await page.locator('#trackerHome').click();await expect(page.locator('#landing')).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -91,7 +91,7 @@ test.describe('V0.8 CM visual and routing tap-through',()=>{
     expect(r.master.w).toBeLessThanOrEqual(1366);expect(r.master.h).toBeLessThanOrEqual(1024);
     expect(r.left.r).toBeLessThanOrEqual(r.battle.l+1);expect(r.battle.r).toBeLessThanOrEqual(r.right.l+1);
     expect(r.hand.l).toBeGreaterThanOrEqual(r.battle.l-1);expect(r.hand.r).toBeLessThanOrEqual(r.battle.r+1);
-    await page.screenshot({path:'test-results/cm-freeplay-ipad.png',fullPage:true});
+    await page.screenshot({path:'test-results/cn-freeplay-ipad.png',fullPage:true});
     expect(errors).toEqual([]);
   });
 });
