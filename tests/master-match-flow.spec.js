@@ -72,9 +72,30 @@ test.describe.serial('Commander Companion master-match acceptance flow',()=>{
   test('landing + all top-level landing menus fit and route',async({page})=>{
     await page.setViewportSize({width:932,height:430});
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CV/);
+    await expect(page).toHaveTitle(/V0\.8 CW/);
     await assertContained(page,'.landing079-shell','landing master canvas');
     await assertVisibleButtonsContained(page,'#landing');
+
+    // The landing screen must own the full logical stage. This catches the old
+    // high-specificity 100dvh override that clipped the shell at ~430 logical px.
+    const landingGeometry=await page.locator('#landing').evaluate(el=>({
+      w:el.offsetWidth,h:el.offsetHeight,minH:getComputedStyle(el).minHeight,
+      afterDisplay:getComputedStyle(el,'::after').display,
+      afterContent:getComputedStyle(el,'::after').content
+    }));
+    expect(landingGeometry.w).toBe(1536);
+    expect(landingGeometry.h).toBe(709);
+    expect(landingGeometry.afterDisplay).toBe('none');
+
+    // Every visible landing button must be the top hit target at its center.
+    // A decorative/fallback overlay must never sit above live controls again.
+    const landingHitTargets=await page.locator('#landing button:visible').evaluateAll(buttons=>buttons.map(button=>{
+      const r=button.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+      const hit=document.elementFromPoint(x,y);
+      return {id:button.id,hit:hit?.id||'',ok:!!hit&&(hit===button||button.contains(hit))};
+    }));
+    expect(landingHitTargets.filter(x=>!x.ok)).toEqual([]);
+    console.log('landing is the full logical stage and no legacy overlay covers controls');
     await shot(page,'01-landing');
 
     // Profile / My Account
