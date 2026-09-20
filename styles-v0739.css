@@ -4471,3 +4471,77 @@ body.cc-device-other-phone #landing .landing079-shell{
 @media (orientation:portrait){
   #landing.landing-screen::after{display:none!important;}
 }
+
+
+/* V0.8 CW LANDING CLIP FIX + METAL BORDER LOCK */
+/* Root cause of the black lower half:
+   legacy device selectors were forcing #landing to 100dvh before the outer
+   1536x709 stage scale. Override them at equal/higher specificity. */
+body.cc-device-iphone #landing.landing-rebuild-079,
+body.cc-device-ipad #landing.landing-rebuild-079,
+body.cc-device-other-phone #landing.landing-rebuild-079{
+  position:absolute!important;
+  inset:0!important;
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+
+/* Keep the approved second-layout composition, but restore the more substantial
+   metal treatment from the earlier landing reference. */
+#landing .landing079-shell{
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  overflow:hidden!important;
+}
+#landing .landing079-shell::after{
+  display:block!important;
+  content:""!important;
+  position:absolute!important;
+  inset:0!important;
+  z-index:4!important;
+  pointer-events:none!important;
+  background:none!important;
+  border:32px solid transparent!important;
+  border-image-source:url('ref-frame-landing.png')!important;
+  border-image-slice:42 35 42 35!important;
+  border-image-width:32px!important;
+  border-image-repeat:stretch!important;
+  box-shadow:
+    inset 0 0 18px rgba(180,96,235,.14),
+    0 0 16px rgba(96,31,150,.18)!important;
+  opacity:1!important;
+}
+
+/* Landing navigation remains intentionally minimal:
+   Profile / Deck Builder / Settings / Help only. */
+#landing .landing079-feature-actions{
+  z-index:5!important;
+}
+#landing .landing079-brand,
+#landing .landing079-copy,
+#landing .landing079-primary-actions,
+#landing .landing079-footer{
+  z-index:5!important;
+}
+
+/* Portrait is unsupported and never renders the landing canvas. */
+@media (orientation:portrait){
+  body.cc-device-iphone #landing.landing-rebuild-079,
+  body.cc-device-ipad #landing.landing-rebuild-079,
+  body.cc-device-other-phone #landing.landing-rebuild-079{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+}
