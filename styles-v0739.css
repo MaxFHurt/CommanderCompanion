@@ -4800,3 +4800,52 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     outline:none!important;
   }
 }
+
+
+/* V0.8 CZ LANDING FULLSCREEN OVERLAY REMOVAL */
+/* Root cause of the black lower half:
+   an old .landing-screen::after rule painted ref-frame-landing.png across the
+   entire viewport. In landscape the live landing must never have a full-screen
+   image overlay above it. */
+@media (orientation:landscape){
+  #landing.landing-screen::after,
+  #landing.landing-rebuild-079::after,
+  .landing-screen::after{
+    display:none!important;
+    content:none!important;
+    background:none!important;
+    background-image:none!important;
+    border:0!important;
+    box-shadow:none!important;
+    opacity:0!important;
+    filter:none!important;
+    pointer-events:none!important;
+  }
+
+  /* The shell supplies the visual chassis. Its own ::after is border-only. */
+  #landing .landing079-shell::after{
+    display:block!important;
+    content:""!important;
+    position:absolute!important;
+    inset:0!important;
+    z-index:4!important;
+    pointer-events:none!important;
+    background:none!important;
+    background-image:none!important;
+    border:30px solid transparent!important;
+    border-image-source:url('ref-frame-landing.png')!important;
+    border-image-slice:42 35 42 35!important;
+    border-image-width:30px!important;
+    border-image-repeat:stretch!important;
+    opacity:1!important;
+    filter:none!important;
+  }
+
+  #landing .landing079-brand,
+  #landing .landing079-copy,
+  #landing .landing079-primary-actions,
+  #landing .landing079-feature-actions,
+  #landing .landing079-footer{
+    z-index:6!important;
+  }
+}
