@@ -5017,3 +5017,163 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     letter-spacing:.085em!important;
   }
 }
+
+
+/* V0.8 DB — GAME MODE CHOOSER, APPROVED FULL-SCREEN MENU PATTERN
+   One screen only. Three options fill the landscape canvas with large type
+   and large touch targets. Back lives in the header; no wasted navigation row. */
+@media (orientation:landscape){
+  dialog.game-mode-dialog,
+  dialog.game-mode-dialog[open]{
+    width:1500px!important;
+    min-width:1500px!important;
+    max-width:1500px!important;
+    height:675px!important;
+    min-height:675px!important;
+    max-height:675px!important;
+    margin:-337.5px 0 0 -750px!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+  .game-mode-dialog .game-mode-shell{
+    width:100%!important;
+    height:100%!important;
+    display:grid!important;
+    grid-template-rows:88px minmax(0,1fr)!important;
+    background:
+      radial-gradient(circle at 50% -4%,rgba(145,54,211,.28),transparent 36%),
+      linear-gradient(180deg,#12091a 0%,#06030a 54%,#020103 100%)!important;
+  }
+  .game-mode-dialog .game-mode-header{
+    position:relative!important;
+    z-index:3!important;
+    height:88px!important;
+    min-height:88px!important;
+    display:grid!important;
+    grid-template-columns:230px 1fr 230px!important;
+    align-items:center!important;
+    gap:18px!important;
+    padding:10px 42px!important;
+    border:0!important;
+    border-bottom:2px solid rgba(167,85,213,.55)!important;
+    background:linear-gradient(180deg,rgba(31,13,43,.96),rgba(7,3,11,.9))!important;
+  }
+  .game-mode-dialog .game-mode-header h2{
+    margin:0!important;
+    font-size:46px!important;
+    line-height:1!important;
+    letter-spacing:.07em!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+  }
+  .game-mode-dialog .game-mode-header-spacer{width:230px!important;height:1px!important;}
+  .game-mode-dialog .game-mode-back{
+    position:relative!important;
+    width:220px!important;
+    min-width:220px!important;
+    height:58px!important;
+    min-height:58px!important;
+    margin:0!important;
+    padding:0!important;
+    justify-self:start!important;
+    background:transparent!important;
+    border:0!important;
+  }
+  .game-mode-dialog .game-mode-back img{
+    display:block!important;
+    width:100%!important;
+    height:100%!important;
+    object-fit:contain!important;
+  }
+  .game-mode-dialog .game-mode-content{
+    position:relative!important;
+    z-index:2!important;
+    min-height:0!important;
+    height:100%!important;
+    padding:26px 34px 34px!important;
+    overflow:hidden!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    width:100%!important;
+    height:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    gap:28px!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  .game-mode-dialog .mode-choice-menu button{
+    position:relative!important;
+    width:100%!important;
+    height:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:24px 24px 26px!important;
+    display:grid!important;
+    grid-template-rows:112px minmax(0,1fr) 66px!important;
+    gap:18px!important;
+    align-items:stretch!important;
+    border:22px solid transparent!important;
+    border-image-source:url('ref-frame-landing.png')!important;
+    border-image-slice:42 35 42 35!important;
+    border-image-width:22px!important;
+    border-image-repeat:stretch!important;
+    border-radius:0!important;
+    background:
+      radial-gradient(circle at 50% 18%,rgba(129,48,190,.24),transparent 38%),
+      linear-gradient(180deg,rgba(20,9,29,.98),rgba(4,2,7,.99))!important;
+    box-shadow:inset 0 0 38px rgba(134,51,197,.18),0 12px 28px rgba(0,0,0,.62)!important;
+    color:#fff!important;
+    text-align:center!important;
+    overflow:hidden!important;
+  }
+  .game-mode-dialog .mode-choice-menu button b{
+    width:100%!important;
+    height:112px!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:14px 20px!important;
+    margin:0!important;
+    background:url('ref-button-large.png') center/100% 100% no-repeat!important;
+    color:#fff!important;
+    font-size:42px!important;
+    line-height:1.02!important;
+    letter-spacing:.035em!important;
+    text-align:center!important;
+    text-shadow:0 2px 3px #000,0 0 11px rgba(190,92,238,.72)!important;
+  }
+  .game-mode-dialog .mode-choice-menu button span{
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:10px 22px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    color:#f0e9f3!important;
+    font-size:28px!important;
+    line-height:1.3!important;
+    font-weight:750!important;
+    text-align:center!important;
+    text-shadow:0 1px 3px #000!important;
+  }
+  .game-mode-dialog .mode-choice-menu button::after{
+    content:"SELECT MODE"!important;
+    width:82%!important;
+    max-width:330px!important;
+    min-width:250px!important;
+    height:66px!important;
+    display:grid!important;
+    place-items:center!important;
+    align-self:end!important;
+    justify-self:center!important;
+    background:url('ref-button-large.png') center/100% 100% no-repeat!important;
+    color:#fff!important;
+    font:900 24px/1 var(--head)!important;
+    letter-spacing:.08em!important;
+    text-shadow:0 1px 3px #000,0 0 8px #9f43cf!important;
+  }
+}
