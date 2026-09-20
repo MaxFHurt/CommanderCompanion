@@ -1,4 +1,4 @@
-import { prepareMenuLayout, labelRuleOptions, preparePlayerSetup } from './menu-landscape.js?v=080-dd';
+import { prepareMenuLayout, labelRuleOptions, preparePlayerSetup } from './menu-landscape.js?v=080-dd-2';
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';
 import { createTransactionEngine } from './transactions.js?v=080-bp';

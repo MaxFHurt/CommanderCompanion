@@ -273,3 +273,13 @@
   html body #modal #modalActions button[data-menu-semantic]::before,
   html body #modal #modalActions button[data-menu-semantic]::after {content:none!important;display:none!important;}
 }
+@media (orientation:landscape) {
+  html body #modal #modalContent [hidden],
+  html body #modeSetupDialog #modeSetupContent [hidden],
+  html body #networkDialog #networkContent [hidden],
+  html body #deckDialog #deckCommander2Wrap[hidden],
+  html body #deckDialog #manaBoxFileInput[hidden],
+  html body #setupDialog #virtualHandWrap[hidden],
+  html body #setupDialog #guidanceSettingWrap[hidden],
+  html body #setupDialog .modal-content .player-setup .setup-secondary-wrap[hidden] {display:none!important;}
+}
