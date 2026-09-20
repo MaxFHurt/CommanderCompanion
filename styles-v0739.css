@@ -2752,7 +2752,11 @@ html,body{
 }
 
 
-/* V0.8 CJ LANDSCAPE-LOCKED LANDING CANVAS */
+/* V0.8 CK LANDSCAPE CANVAS — no rotate-message gate
+   The app is always presented as a landscape canvas. In portrait, the entire UI is
+   rotated into the physical viewport instead of hiding behind a rotate prompt. */
+#landscapeOnlyGate.cc-landscape-only-gate{display:none!important;}
+
 #landing.landing-rebuild-079{
   position:fixed!important;
   inset:0!important;
@@ -2871,26 +2875,45 @@ html,body{
   font-size:clamp(6px,.9dvh,10px)!important;
 }
 
-/* Do not add a gameplay/table header to the landing canvas. */
+/* Never graft the gameplay/table chrome onto the landing page. */
 #landing .game-brand-strip,
 #landing .landscape-game-topbar,
 #landing .tracker-head{display:none!important;}
 
+/* Portrait fallback: use the physical portrait viewport as a rotated landscape stage.
+   Pointer/touch coordinates transform with the element, so controls remain tappable. */
 @media (orientation:portrait){
-  #landing.landing-rebuild-079{display:none!important;}
-  #landscapeOnlyGate.cc-landscape-only-gate{
-    display:flex!important;
+  html,body{
+    width:100vw!important;
+    height:100dvh!important;
+    min-height:0!important;
+    overflow:hidden!important;
+    overscroll-behavior:none!important;
+  }
+  body{
     position:fixed!important;
-    inset:0!important;
-    z-index:100000!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    gap:10px!important;
-    padding:24px!important;
-    background:#020103!important;
+    left:0!important;
+    top:0!important;
+    width:100dvh!important;
+    height:100vw!important;
+    min-width:100dvh!important;
+    min-height:100vw!important;
+    transform:rotate(90deg) translateY(-100%)!important;
+    transform-origin:top left!important;
+  }
+  #landing.landing-rebuild-079,
+  #gameScreen,
+  #tabletopScreen{
+    width:100dvh!important;
+    height:100vw!important;
+    min-height:0!important;
+  }
+  #landing .landing079-shell{
+    width:min(
+      calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
+      calc((100vw - env(safe-area-inset-left) - env(safe-area-inset-right)) * 2.16643)
+    )!important;
+    max-height:calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right))!important;
   }
 }
-@media (orientation:landscape){
-  #landscapeOnlyGate.cc-landscape-only-gate{display:none!important;}
-}
+
