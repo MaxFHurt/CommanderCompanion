@@ -1167,3 +1167,31 @@ html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions>butt
   padding:0 12px!important;
   white-space:nowrap!important;
 }
+
+
+/* V0.8 DQ — single scaling authority.
+   Modal canvases consume --cc-stage-scale from index.html. Do not independently
+   recalculate scale from vw/vh/svh/dvh. */
+:root{--cc-menu-scale:var(--cc-stage-scale);}
+dialog.cc-modal,
+dialog.cc-modal[open]{
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+  left:var(--cc-stage-center-x)!important;
+  top:var(--cc-stage-center-y)!important;
+  transform:translate(-50%,-50%) scale(var(--cc-stage-scale))!important;
+  transform-origin:center center!important;
+}
+dialog.cc-modal>.modal-shell,
+dialog.cc-modal .modal-shell{
+  width:1536px!important;
+  min-width:1536px!important;
+  max-width:1536px!important;
+  height:709px!important;
+  min-height:709px!important;
+  max-height:709px!important;
+}
