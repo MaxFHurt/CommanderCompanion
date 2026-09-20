@@ -3341,3 +3341,226 @@ dialog.cc-modal{
     grid-template-columns:320px minmax(0,1fr)!important;
   }
 }
+
+/* V0.8 CQ UNIFIED SCALED LANDSCAPE STAGE */
+/* A single 1536×709 logical stage is scaled as a whole to the currently visible
+   Safari viewport. Orientation never changes layout. */
+:root{
+  --cc-stage-w:1536px;
+  --cc-stage-h:709px;
+  --cc-stage-scale:1;
+  --cc-stage-center-x:50vw;
+  --cc-stage-center-y:50dvh;
+}
+html{
+  width:100vw!important;
+  height:100dvh!important;
+  min-width:0!important;
+  min-height:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+  background:#000!important;
+}
+body{
+  position:fixed!important;
+  left:var(--cc-stage-center-x)!important;
+  top:var(--cc-stage-center-y)!important;
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  height:var(--cc-stage-h)!important;
+  min-height:var(--cc-stage-h)!important;
+  max-height:var(--cc-stage-h)!important;
+  margin:-354.5px 0 0 -768px!important;
+  padding:0!important;
+  display:block!important;
+  overflow:hidden!important;
+  background:#000!important;
+  transform:scale(var(--cc-stage-scale))!important;
+  transform-origin:center center!important;
+}
+
+/* Orientation is ignored completely. There is no alternate portrait UI. */
+#landscapeOnlyGate.cc-landscape-only-gate{
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+#landing,
+#gameScreen,
+#tabletopScreen,
+#toast,
+#bootError{
+  visibility:visible!important;
+}
+#landing.landing-rebuild-079,
+#gameScreen,
+#tabletopScreen{
+  position:absolute!important;
+  inset:0!important;
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  height:var(--cc-stage-h)!important;
+  min-height:var(--cc-stage-h)!important;
+  max-height:var(--cc-stage-h)!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+  transform:none!important;
+}
+#landing .landing079-shell,
+#gameScreen .landscape-game-master,
+#tabletopScreen .tracker-shell{
+  width:var(--cc-stage-w)!important;
+  min-width:var(--cc-stage-w)!important;
+  max-width:var(--cc-stage-w)!important;
+  height:var(--cc-stage-h)!important;
+  min-height:var(--cc-stage-h)!important;
+  max-height:var(--cc-stage-h)!important;
+  margin:0!important;
+  aspect-ratio:auto!important;
+  transform:none!important;
+}
+
+/* Top-layer dialogs do not inherit the stage transform, so they receive the same
+   scale explicitly. Their internal layout remains landscape and scrolls normally. */
+dialog.cc-modal{
+  position:fixed!important;
+  inset:auto!important;
+  left:var(--cc-stage-center-x)!important;
+  top:var(--cc-stage-center-y)!important;
+  width:1120px!important;
+  min-width:1120px!important;
+  max-width:1120px!important;
+  height:620px!important;
+  min-height:620px!important;
+  max-height:620px!important;
+  margin:-310px 0 0 -560px!important;
+  padding:0!important;
+  overflow:hidden!important;
+  transform:scale(var(--cc-stage-scale))!important;
+  transform-origin:center center!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+dialog.cc-modal[open]{
+  display:block!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+dialog.game-mode-dialog{
+  height:560px!important;
+  min-height:560px!important;
+  max-height:560px!important;
+  margin-top:-280px!important;
+}
+.cc-modal .modal-shell,
+.game-mode-dialog .game-mode-shell{
+  width:100%!important;
+  height:100%!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+.cc-modal .modal-content{
+  min-height:0!important;
+  height:100%!important;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  overscroll-behavior:contain!important;
+  touch-action:pan-y!important;
+}
+.cc-modal .modal-actions{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.game-mode-dialog .mode-choice-menu{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-template-rows:1fr!important;
+}
+.setup-line,
+.player-setup .commander-line,
+.counter-grid,
+.landing-command-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.deck-editor-grid{
+  grid-template-columns:250px minmax(0,1fr)!important;
+}
+.card-detail{
+  grid-template-columns:320px minmax(0,1fr)!important;
+}
+
+/* Explicitly neutralize every older orientation branch. */
+@media (orientation:portrait),(orientation:landscape){
+  html{
+    width:100vw!important;
+    height:100dvh!important;
+  }
+  body{
+    position:fixed!important;
+    left:var(--cc-stage-center-x)!important;
+    top:var(--cc-stage-center-y)!important;
+    width:var(--cc-stage-w)!important;
+    min-width:var(--cc-stage-w)!important;
+    max-width:var(--cc-stage-w)!important;
+    height:var(--cc-stage-h)!important;
+    min-height:var(--cc-stage-h)!important;
+    max-height:var(--cc-stage-h)!important;
+    margin:-354.5px 0 0 -768px!important;
+    transform:scale(var(--cc-stage-scale))!important;
+    transform-origin:center center!important;
+  }
+  #landing,
+  #gameScreen,
+  #tabletopScreen{
+    visibility:visible!important;
+    pointer-events:auto!important;
+  }
+  #landing.landing-rebuild-079,
+  #gameScreen,
+  #tabletopScreen,
+  #landing .landing079-shell,
+  #gameScreen .landscape-game-master,
+  #tabletopScreen .tracker-shell{
+    width:var(--cc-stage-w)!important;
+    min-width:var(--cc-stage-w)!important;
+    max-width:var(--cc-stage-w)!important;
+    height:var(--cc-stage-h)!important;
+    min-height:var(--cc-stage-h)!important;
+    max-height:var(--cc-stage-h)!important;
+    aspect-ratio:auto!important;
+    transform:none!important;
+  }
+  dialog.cc-modal,
+  dialog.cc-modal[open]{
+    visibility:visible!important;
+    pointer-events:auto!important;
+    width:1120px!important;
+    min-width:1120px!important;
+    max-width:1120px!important;
+    height:620px!important;
+    min-height:620px!important;
+    max-height:620px!important;
+    margin:-310px 0 0 -560px!important;
+    transform:scale(var(--cc-stage-scale))!important;
+    transform-origin:center center!important;
+  }
+  dialog.game-mode-dialog{
+    height:560px!important;
+    min-height:560px!important;
+    max-height:560px!important;
+    margin-top:-280px!important;
+  }
+  .game-mode-dialog .mode-choice-menu{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+  .deck-editor-grid{
+    grid-template-columns:250px minmax(0,1fr)!important;
+  }
+  .card-detail{
+    grid-template-columns:320px minmax(0,1fr)!important;
+  }
+}
