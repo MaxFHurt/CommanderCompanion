@@ -1475,3 +1475,69 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
     min-height:0!important;
   }
 }
+
+
+/* V0.8 DZ — Opening Hand uses its available space.
+   Keep the header, shrink only this footer, and maximize seven proportional cards. */
+@media (orientation:landscape){
+  html body #modal[open]:has([data-opening-card]) .modal-shell{
+    grid-template-rows:auto minmax(0,1fr) 58px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .modal-actions{
+    height:58px!important;
+    min-height:58px!important;
+    max-height:58px!important;
+    padding:4px 72px!important;
+    gap:24px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .modal-actions>button{
+    height:48px!important;
+    min-height:48px!important;
+    max-height:48px!important;
+    padding:0 14px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .hand-panel{
+    height:100%!important;
+    min-height:0!important;
+    padding:8px 18px 10px!important;
+    display:grid!important;
+    grid-template-rows:auto minmax(0,1fr)!important;
+    overflow:hidden!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .hand-panel>h3{
+    margin:0 0 4px!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .hand-strip{
+    box-sizing:border-box!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    padding:0 8px 4px!important;
+    display:grid!important;
+    grid-template-columns:repeat(7,minmax(0,1fr))!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    gap:8px!important;
+    align-items:stretch!important;
+    justify-items:center!important;
+    overflow:hidden!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card{
+    width:100%!important;
+    height:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    display:flex!important;
+    align-items:stretch!important;
+    justify-content:center!important;
+    overflow:visible!important;
+  }
+  html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
+    width:auto!important;
+    height:auto!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    aspect-ratio:5/7!important;
+    object-fit:contain!important;
+    align-self:stretch!important;
+  }
+}
