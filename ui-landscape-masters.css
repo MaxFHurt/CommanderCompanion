@@ -1672,3 +1672,77 @@ body.cc-device-ipad #tabletopScreen .tracker-shell{
   max-height:100dvh!important;
   aspect-ratio:1536/709!important;
 }
+
+
+/* V0.8 CT SINGLE-SCALE MASTER CANVAS */
+/* The outer app stage owns all device fitting. Guided/Freeplay and Table Tracker
+   must stay at their full logical master size inside it — never scale twice. */
+#gameScreen #gameContent{
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  display:block!important;
+  place-items:initial!important;
+  overflow:hidden!important;
+}
+#gameScreen .landscape-game-master{
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+  transform:none!important;
+}
+#tabletopScreen,
+#tabletopScreen #tabletopNow{
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  overflow:hidden!important;
+}
+#tabletopScreen .tracker-shell{
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+  transform:none!important;
+}
+body.cc-device-ipad #gameScreen .landscape-game-master,
+body.cc-device-ipad #tabletopScreen .tracker-shell{
+  width:1536px!important;
+  height:709px!important;
+  min-width:1536px!important;
+  min-height:709px!important;
+  max-width:1536px!important;
+  max-height:709px!important;
+  aspect-ratio:auto!important;
+  margin:0!important;
+}
+@media (orientation:portrait),(orientation:landscape){
+  #gameScreen #gameContent,
+  #gameScreen .landscape-game-master,
+  #tabletopScreen,
+  #tabletopScreen #tabletopNow,
+  #tabletopScreen .tracker-shell{
+    width:1536px!important;
+    height:709px!important;
+    min-width:1536px!important;
+    min-height:709px!important;
+    max-width:1536px!important;
+    max-height:709px!important;
+    aspect-ratio:auto!important;
+  }
+}
