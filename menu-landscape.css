@@ -697,3 +697,49 @@
     text-align:center!important;
   }
 }
+
+
+/* V0.8 DE6 — Game Mode fit: reserve SELECT control and distribute copy cleanly. */
+@media (orientation:landscape){
+  html body #gameModeDialog .mode-choice-menu>button{
+    display:grid!important;
+    grid-template-rows:64px minmax(0,1fr) 34px!important;
+    align-items:center!important;
+    justify-items:center!important;
+    padding:14px 20px 12px!important;
+    overflow:hidden!important;
+  }
+  html body #gameModeDialog .mode-choice-menu>button>b{
+    grid-row:1!important;
+    width:100%!important;
+    min-height:64px!important;
+    height:64px!important;
+    margin:0!important;
+    padding:7px 18px!important;
+    font-size:clamp(18px,1.7vw,26px)!important;
+    line-height:1.02!important;
+  }
+  html body #gameModeDialog .mode-choice-menu>button>span{
+    grid-row:2!important;
+    align-self:center!important;
+    width:92%!important;
+    max-width:92%!important;
+    margin:0!important;
+    padding:8px 6px!important;
+    font-size:clamp(12px,1vw,15px)!important;
+    line-height:1.24!important;
+    font-weight:700!important;
+  }
+  html body #gameModeDialog .mode-choice-menu>button::after{
+    grid-row:3!important;
+    position:static!important;
+    width:72%!important;
+    max-width:210px!important;
+    height:34px!important;
+    min-height:34px!important;
+    margin:0!important;
+    transform:none!important;
+    font-size:clamp(12px,1vw,15px)!important;
+    line-height:1!important;
+  }
+}
