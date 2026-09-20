@@ -1333,3 +1333,38 @@ html body #modal[open]:has([data-opening-card]) .hand-strip .hand-card img{
   outline:0!important;
   box-shadow:none!important;
 }
+
+
+/* V0.8 DU — Deck Editor: same consolidated footer treatment as Opening Hand.
+   Existing artwork only; three actions scaled into one horizontal row. */
+html body #deckDialog .modal-shell{
+  grid-template-rows:auto minmax(0,1fr) 70px!important;
+}
+html body #deckDialog .modal-actions{
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:70px!important;
+  min-height:70px!important;
+  max-height:70px!important;
+  padding:6px 44px!important;
+  margin:0!important;
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:16px!important;
+  align-items:center!important;
+  overflow:hidden!important;
+}
+html body #deckDialog .modal-actions>button{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:56px!important;
+  min-height:56px!important;
+  max-height:56px!important;
+  margin:0!important;
+  padding:0 12px!important;
+  white-space:nowrap!important;
+}
