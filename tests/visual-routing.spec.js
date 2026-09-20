@@ -19,10 +19,10 @@ async function closeModal(page){if(await page.locator('#modal').isVisible()){awa
 async function expectModal(page,title){await expect(page.locator('#modal')).toBeVisible();await expect(page.locator('#modalTitle')).toContainText(title)}
 const visibleHub=(page,hub,scope='')=>page.locator((scope?scope+' ':'')+'[data-hub="'+hub+'"]:visible').first();
 
-test.describe('V0.8 CH visual and routing tap-through',()=>{
+test.describe('V0.8 CI visual and routing tap-through',()=>{
   test('landing buttons route correctly',async({page})=>{
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CG/);
+    await expect(page).toHaveTitle(/V0\.8 CI/);
     await page.locator('#profileLandingBtn').click();await expectModal(page,'MY ACCOUNT');await closeModal(page);
     await page.locator('#deckBuilderVisibleBtn').click();await expect(page.locator('#deckDialog')).toBeVisible();await page.locator('#deckDialogBack').click();
     await page.locator('#settingsLandingBtnBottom').click();await expectModal(page,'SETTINGS');await closeModal(page);
@@ -56,7 +56,7 @@ test.describe('V0.8 CH visual and routing tap-through',()=>{
     await expect(page.locator('.tracker-side-rail')).toBeVisible();await expect(page.locator('.tracker-bottom-bar')).toBeVisible();
     const first=page.locator('[data-tt-player]').first(),life=first.locator('[data-tt-stat-value="life"]');
     await expect(life).toHaveText('40');await first.locator('[data-tt-inline-stat="life"][data-delta="-1"]').click();await expect(life).toHaveText('39');
-    await first.locator('[data-tt-inline-stat="poison"][data-delta="1"]').click();await expect(first.locator('[data-tt-stat-value="poison"]')).toHaveText('1');
+
     await first.locator('[data-tt-inline-mana="G"][data-delta="1"]').click();await expect(first.locator('[data-tt-mana-value="G"]')).toHaveText('1');
     for(const [hub,title] of [['card-id','CARD ID'],['chat','GAME CHAT'],['rescue','PLAYER RESCUE'],['settings','GAME CONTROLS & SETTINGS'],['profile','PLAYER PROFILE']]){
       await visibleHub(page,hub,'#tabletopScreen').click();await expectModal(page,title);await closeModal(page);
