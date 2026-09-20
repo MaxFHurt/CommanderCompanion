@@ -1,6 +1,6 @@
 # Commander Companion — Visual Rebuild Notes
 
-Current visual rebuild line: **V0.8 CX**
+Current visual rebuild line: **V0.8 CY**
 
 This file is the running screen-by-screen visual QA record. The approved visual masters supplied by the user are the authority. Historical 0.8.4.4-era styling is not a visual source for this rebuild.
 
@@ -80,3 +80,21 @@ At 932×430:
 - With a save present, Start/Continue use a compact two-action stack that stays above the bottom utility rail.
 - Landing utility rail remains Profile / Deck Builder / Settings / Help.
 - Heavy metal outer border from the earlier landing visual is retained with the newer wide composition.
+
+
+## Screen 2 — Choose Game Mode (CY)
+
+### Defects observed
+- Existing horizontal button artwork was stretched vertically into oversized card frames.
+- Too much dead vertical space.
+- Back control was visually undersized.
+- Mode descriptions were smaller than the landscape space allowed.
+
+### CY changes
+- Rebuilt as three true landscape cards across the full-width modal.
+- Restored heavier metal edging around the modal and each card.
+- Horizontal title plates use the correct button art without vertical stretching.
+- Increased title and description sizes.
+- Added a clear SELECT MODE footer on each card.
+- Enlarged and left-aligned Back control.
+- Preserved all existing mode routing.
