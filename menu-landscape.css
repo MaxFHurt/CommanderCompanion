@@ -1129,3 +1129,41 @@ html body #modal:has([data-opening-card]) .modal-actions>button{
   min-height:60px!important;
   max-height:60px!important;
 }
+
+
+/* V0.8 DP — Opening Hand footer: force one horizontal row.
+   Earlier generic menu/button artwork rules were still winning after rotation. */
+html body #modal[open]:has([data-opening-card]) .modal-shell{
+  grid-template-rows:auto minmax(0,1fr) 82px!important;
+}
+html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions{
+  position:relative!important;
+  width:100%!important;
+  height:82px!important;
+  min-height:82px!important;
+  max-height:82px!important;
+  padding:7px 44px!important;
+  margin:0!important;
+  display:flex!important;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:16px!important;
+  overflow:hidden!important;
+}
+html body #modal[open]:has([data-opening-card]) #modalActions.modal-actions>button{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  flex:1 1 0!important;
+  width:0!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:68px!important;
+  min-height:68px!important;
+  max-height:68px!important;
+  margin:0!important;
+  padding:0 12px!important;
+  white-space:nowrap!important;
+}
