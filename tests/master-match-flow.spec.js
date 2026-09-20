@@ -72,7 +72,7 @@ test.describe.serial('Commander Companion master-match acceptance flow',()=>{
   test('landing + all top-level landing menus fit and route',async({page})=>{
     await page.setViewportSize({width:932,height:430});
     const errors=await ready(page);
-    await expect(page).toHaveTitle(/V0\.8 CY/);
+    await expect(page).toHaveTitle(/Commander Companion V0\.8 [A-Z]{2}/);
     await assertContained(page,'.landing079-shell','landing master canvas');
     const landingRoot=await page.locator('#landing').evaluate(el=>({h:el.offsetHeight,w:el.offsetWidth,r:el.getBoundingClientRect().toJSON()}));
     expect(landingRoot.h,'landing root logical height').toBe(709);
