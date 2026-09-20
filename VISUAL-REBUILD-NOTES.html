@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Visual Rebuild Notes | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Visual Rebuild Notes" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/VISUAL-REBUILD-NOTES.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/VISUAL-REBUILD-NOTES.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Visual Rebuild Notes" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Visual Rebuild Notes","url":"https://maxfhurt.github.io/CommanderCompanion/VISUAL-REBUILD-NOTES.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--visual-rebuild-notes">Commander Companion — Visual Rebuild Notes</h1>
+
+<p>Current visual rebuild line: <strong>V0.8 CY</strong></p>
+
+<p>This file is the running screen-by-screen visual QA record. The approved visual masters supplied by the user are the authority. Historical 0.8.4.4-era styling is not a visual source for this rebuild.</p>
+
+<h2 id="screen-1--landing">Screen 1 — Landing</h2>
+
+<h3 id="target">Target</h3>
+<ul>
+  <li>Landscape-only app experience.</li>
+  <li>Portrait does not render the app; it shows only: “Please rotate your device to landscape orientation to continue”.</li>
+  <li>Use the approved Commander Companion purple/chrome master language.</li>
+  <li>Use horizontal space intentionally.</li>
+  <li>Keep text readable at iPhone landscape size.</li>
+  <li>Preserve current landing button routing.</li>
+</ul>
+
+<h3 id="defects-observed-before-cv">Defects observed before CV</h3>
+<ul>
+  <li>Opaque fallback panel covered/obscured the real landing artwork.</li>
+  <li>Landing was too dark.</li>
+  <li>Generic responsive rules redistributed the layout and broke proportions.</li>
+  <li>Too much unused horizontal space.</li>
+  <li>Utility buttons were stacked vertically and visually undersized.</li>
+  <li>Outer chassis lacked the polished purple/metal edge treatment from the approved visual language.</li>
+</ul>
+
+<h3 id="cv-changes">CV changes</h3>
+<ul>
+  <li>Locked landing to one 1536×709 logical canvas.</li>
+  <li>Kept one outer device-scale pass only.</li>
+  <li>Enlarged the Commander Companion brand block.</li>
+  <li>Enlarged the primary Start/Continue action artwork.</li>
+  <li>Moved Profile / Deck Builder / Settings / Help into one full-width horizontal utility row.</li>
+  <li>Added approved forged side rails and brighter purple edge lighting.</li>
+  <li>Raised artwork brightness/contrast while preserving black/purple theme.</li>
+  <li>Enlarged landing copy/footer text.</li>
+  <li>Continue Game remains conditional.</li>
+  <li>Portrait remains unsupported.</li>
+</ul>
+
+<h3 id="local-visual-check">Local visual check</h3>
+<ul>
+  <li>Rendered at a 932×430 iPhone-landscape-equivalent viewport.</li>
+  <li>Landing filled the visible stage without inner double-scaling.</li>
+  <li>Main controls remained within viewport bounds.</li>
+  <li>Text/artwork was materially more readable than CU.</li>
+</ul>
+
+<h3 id="still-to-verify-on-live-pages">Still to verify on live Pages</h3>
+<ul>
+  <li>Exact live Safari placement after cache/deployment.</li>
+  <li>Landing button tap routing after CV.</li>
+  <li>Continue Game conditional state.</li>
+  <li>iPad proportional scaling.</li>
+</ul>
+
+<h3 id="lock-rule">Lock rule</h3>
+<p>Do not move on to the next screen until the live CV landing capture is checked against the approved landing visual target and any remaining landing defects are corrected.</p>
+
+<h2 id="next-screen-after-landing-locks">Next screen after Landing locks</h2>
+<p><strong>Choose Game Mode</strong> — rebuild as a deliberate three-column landscape menu with large readable text and approved graphical frames.</p>
+
+<h2 id="cw-landing-correction">CW landing correction</h2>
+
+<h3 id="confirmed-root-cause">Confirmed root cause</h3>
+<p>The black lower half was <strong>not</strong> a portrait warning overlay image. A legacy high-specificity device rule was forcing the landing root to <code class="language-plaintext highlighter-rouge">100dvh</code> before the outer 1536×709 stage scale. The child shell remained full-size, but its parent clipped at roughly 60% height on an iPhone-landscape viewport.</p>
+
+<h3 id="cw-correction">CW correction</h3>
+<ul>
+  <li>Override all iPhone/iPad/other-phone landing-root device rules at equal/higher specificity.</li>
+  <li>Landing root is now locked to 1536×709 before the single outer stage scale.</li>
+  <li>Portrait still hides the app and shows only the rotate message.</li>
+  <li>Keep the newer/wider landing composition.</li>
+  <li>Restore the heavier metallic outer-border treatment from the earlier visual reference.</li>
+  <li>Landing utility controls remain <strong>Profile / Deck Builder / Settings / Help</strong> only. No Home, Game Chat, or Card ID on the Home screen.</li>
+</ul>
+
+<h3 id="local-verification">Local verification</h3>
+<p>At 932×430:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">#landing.offsetWidth = 1536</code></li>
+  <li><code class="language-plaintext highlighter-rouge">#landing.offsetHeight = 709</code></li>
+  <li>rendered landing rectangle fills the full visible ~430px height after scaling</li>
+  <li>lower controls are no longer clipped</li>
+  <li>no black half-screen remains</li>
+</ul>
+
+<h2 id="cx-landing-state-cleanup">CX landing state cleanup</h2>
+<ul>
+  <li>Disabled Continue Game is now hidden entirely, matching the requirement that Continue appears only for an actual saved game.</li>
+  <li>With a save present, Start/Continue use a compact two-action stack that stays above the bottom utility rail.</li>
+  <li>Landing utility rail remains Profile / Deck Builder / Settings / Help.</li>
+  <li>Heavy metal outer border from the earlier landing visual is retained with the newer wide composition.</li>
+</ul>
+
+<h2 id="screen-2--choose-game-mode-cy">Screen 2 — Choose Game Mode (CY)</h2>
+
+<h3 id="defects-observed">Defects observed</h3>
+<ul>
+  <li>Existing horizontal button artwork was stretched vertically into oversized card frames.</li>
+  <li>Too much dead vertical space.</li>
+  <li>Back control was visually undersized.</li>
+  <li>Mode descriptions were smaller than the landscape space allowed.</li>
+</ul>
+
+<h3 id="cy-changes">CY changes</h3>
+<ul>
+  <li>Rebuilt as three true landscape cards across the full-width modal.</li>
+  <li>Restored heavier metal edging around the modal and each card.</li>
+  <li>Horizontal title plates use the correct button art without vertical stretching.</li>
+  <li>Increased title and description sizes.</li>
+  <li>Added a clear SELECT MODE footer on each card.</li>
+  <li>Enlarged and left-aligned Back control.</li>
+  <li>Preserved all existing mode routing.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

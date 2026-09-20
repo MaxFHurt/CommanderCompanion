@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Batch 5 Completion Report | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Batch 5 Completion Report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-COMPLETION-REPORT.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-COMPLETION-REPORT.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Batch 5 Completion Report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Batch 5 Completion Report","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-5-COMPLETION-REPORT.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--batch-5-completion-report">Commander Companion — Batch 5 Completion Report</h1>
+
+<p>Last updated: 2026-09-19</p>
+
+<h2 id="completion-status">Completion status</h2>
+
+<p><strong>BATCH 5 OF 12 — COMPLETE COMBAT: COMPLETE</strong></p>
+
+<p><strong>Safe build:</strong> V0.8 CB<br />
+<strong>Safe checkpoint commit:</strong> <code class="language-plaintext highlighter-rouge">ab97217182a6063a587a5733cac6b3ac5b081947</code><br />
+<strong>Browser Test run:</strong> <code class="language-plaintext highlighter-rouge">35452650267</code> — completed / success<br />
+<strong>Pages deployment run:</strong> <code class="language-plaintext highlighter-rouge">35452649930</code> — completed / success</p>
+
+<h2 id="scope">Scope</h2>
+
+<p>Batch 5 treated the existing CA combat engine as the baseline. Working combat was not rebuilt. The batch audited the existing implementation and added dedicated regression coverage for the consolidated Complete Combat scope.</p>
+
+<p>Verified:</p>
+<ul>
+  <li>attacker legality, summoning sickness, and haste</li>
+  <li>tapped-blocker legality</li>
+  <li>flying / reach</li>
+  <li>menace minimum blockers</li>
+  <li>first strike timing</li>
+  <li>double strike timing</li>
+  <li>trample assignment</li>
+  <li>deathtouch + trample lethal assignment</li>
+  <li>lifelink from creature and player combat damage</li>
+  <li>simultaneous combat damage/state-based deaths</li>
+  <li>multiplayer attacks against different defenders</li>
+  <li>combat-damage event emission used by trigger handling</li>
+  <li>existing vigilance, blocker assignment, combat handoff, priority hooks, and state-based action paths remained covered by the full regression suite</li>
+</ul>
+
+<h2 id="implementation-result">Implementation result</h2>
+
+<p>The audit found the current CA combat engine already contained the required core mechanics. No broad combat rewrite was justified. The Batch 5 change is therefore a hardened dedicated combat regression suite rather than unnecessary replacement of working engine code.</p>
+
+<p>Added:</p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">tests/batch5-combat.spec.js</code></li>
+</ul>
+
+<h2 id="validation">Validation</h2>
+
+<p>The dedicated combat suite and the complete existing suite passed locally and against the matching live GitHub Pages build in Chromium and WebKit.</p>
+
+<p>An intermediate pre-version promotion run also passed:</p>
+<ul>
+  <li>Browser tests <code class="language-plaintext highlighter-rouge">35452167895</code></li>
+  <li>Pages <code class="language-plaintext highlighter-rouge">35452167631</code></li>
+</ul>
+
+<p>Final V0.8 CB promotion passed:</p>
+<ul>
+  <li>Browser tests <code class="language-plaintext highlighter-rouge">35452650267</code></li>
+  <li>Pages <code class="language-plaintext highlighter-rouge">35452649930</code></li>
+</ul>
+
+<h2 id="batch-boundary">Batch boundary</h2>
+
+<p><strong>Batch 5 is complete.</strong></p>
+
+<p>Next: <strong>Batch 6 of 12 — Turn Flow + Priority + Available Actions</strong>.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

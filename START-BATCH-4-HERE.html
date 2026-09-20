@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — START BATCH 4 HERE | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — START BATCH 4 HERE" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/START-BATCH-4-HERE.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/START-BATCH-4-HERE.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — START BATCH 4 HERE" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — START BATCH 4 HERE","url":"https://maxfhurt.github.io/CommanderCompanion/START-BATCH-4-HERE.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--start-batch-4-here">Commander Companion — START BATCH 4 HERE</h1>
+
+<p>Last updated: 2026-09-19</p>
+
+<h2 id="purpose">Purpose</h2>
+
+<p>This is the clean handoff point for a new Commander Companion development chat.</p>
+
+<p><strong>Do not reconstruct project state from chat memory. Read the repository files listed below first.</strong></p>
+
+<h2 id="safe-starting-point">Safe starting point</h2>
+
+<p><strong>Roadmap:</strong> 12-batch plan<br />
+<strong>Completed:</strong> Batches 1, 2, and 3<br />
+<strong>Next:</strong> Batch 4 of 12 — Effects + Triggers<br />
+<strong>Safe build:</strong> V0.8 BZ<br />
+<strong>Safe checkpoint commit:</strong> <code class="language-plaintext highlighter-rouge">65e7b83b22684f4a1bf9faf9a4e42fbead4f00d6</code><br />
+<strong>Final Batch 3 Browser Test run:</strong> <code class="language-plaintext highlighter-rouge">35446925832</code> — success<br />
+<strong>Final Batch 3 Pages deployment:</strong> <code class="language-plaintext highlighter-rouge">35446925122</code> — success</p>
+
+<p>Do not start from old BN/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY prep branches. Use current <code class="language-plaintext highlighter-rouge">main</code>.</p>
+
+<h2 id="read-these-files-before-any-implementation">Read these files before any implementation</h2>
+
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">COMMANDER-COMPANION-CURRENT-STATE.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">BATCH-3-COMPLETION-REPORT.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">LOCKED-DEVELOPMENT-WORKFLOW.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">GUIDED-RESOLUTION-CARD-LIST.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">FUTURE-WORK.md</code></li>
+  <li><code class="language-plaintext highlighter-rouge">BUILD-HISTORY.md</code></li>
+</ol>
+
+<h2 id="first-action-in-the-new-chat">First action in the new chat</h2>
+
+<p>Before changing gameplay code, UI code, tests used to advance a checkpoint, or a build letter:</p>
+
+<ol>
+  <li>Confirm current <code class="language-plaintext highlighter-rouge">main</code> still descends from / contains V0.8 BZ.</li>
+  <li>Read <code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code>.</li>
+  <li>Claim the lock for the new Batch 4 chat by updating <code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code>.</li>
+  <li>Update <code class="language-plaintext highlighter-rouge">COMMANDER-COMPANION-CURRENT-STATE.md</code> from “Batch 3 complete / Batch 4 next” to “Batch 4 active” only when actual Batch 4 work begins.</li>
+  <li>Create the first Batch 4 checkpoint from current <code class="language-plaintext highlighter-rouge">main</code>; do not reuse an older prep branch.</li>
+</ol>
+
+<h2 id="batch-4-scope">Batch 4 scope</h2>
+
+<p><strong>Batch 4 — Effects + Triggers</strong></p>
+
+<p>Batch 4 should expand native effect/trigger automation from the safe Batch 3 engine foundation.</p>
+
+<p>Before implementation, write the Batch 4 mechanic checklist into Current State / active notes so progress can be tracked without inventing new roadmap batches.</p>
+
+<p>The 398-card Guided Resolution audit is a source of concrete effect/trigger patterns to automate, but the entire backlog is not required to be cleared in one pass unless Aaron explicitly changes scope.</p>
+
+<h2 id="guided-resolution-rule">Guided Resolution rule</h2>
+
+<p>Unsupported card behavior may remain in Guided Resolution when:</p>
+<ul>
+  <li>fallback is explicit and recoverable</li>
+  <li>game state is not silently committed</li>
+  <li>stack/Undo recovery stays exact</li>
+  <li>the named card remains in <code class="language-plaintext highlighter-rouge">GUIDED-RESOLUTION-CARD-LIST.md</code></li>
+</ul>
+
+<p>Future approved feature:</p>
+<ul>
+  <li>authorized user teaches <strong>the app</strong> a card resolution</li>
+  <li>saved recipe is reused automatically later</li>
+  <li>teaching/editing/deleting recipes is PIN-protected</li>
+  <li>normal use of saved recipes does not require the PIN</li>
+  <li>this is not a player tutorial</li>
+</ul>
+
+<h2 id="ui-rule">UI rule</h2>
+
+<p>Do not casually alter the working UI.</p>
+
+<p>When Batch 4 work touches UI:</p>
+<ul>
+  <li>isolate the change</li>
+  <li>preserve the current approved layout/theme</li>
+  <li>test it</li>
+  <li>present it to Aaron</li>
+  <li>Aaron must explicitly approve the implemented UI change before that UI checkpoint advances</li>
+</ul>
+
+<h2 id="batch-handoff-rule">Batch handoff rule</h2>
+
+<p>Only one chat may advance actual build progress at a time.</p>
+
+<p>At the end of Batch 4:</p>
+<ul>
+  <li>stop</li>
+  <li>write a detailed Batch 4 completion report into the repo</li>
+  <li>give Aaron the same detailed handoff</li>
+  <li>do not begin Batch 5 until that handoff is complete</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

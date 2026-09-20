@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.7.9.31 — Handoff / Save Point | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.7.9.31 — Handoff / Save Point" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.31-HANDOFF.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.31-HANDOFF.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.7.9.31 — Handoff / Save Point" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.7.9.31 — Handoff / Save Point","url":"https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.31-HANDOFF.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v07931--handoff--save-point">Commander Companion V0.7.9.31 — Handoff / Save Point</h1>
+
+<h2 id="authoritative-build">Authoritative build</h2>
+<p>V0.7.9.31 is the current continuation build, based directly on V0.7.9.30.</p>
+
+<h2 id="scope-of-this-hotfix">Scope of this hotfix</h2>
+<p>The screenshot showed the game in Cleanup with a tracked hand of 8 and the toast “A required confirmation is still pending.” The game log also contained a completed no-attack combat acknowledgement, which initially made the stale combat gate suspicious.</p>
+
+<p>The actual failure had two related paths:</p>
+<ol>
+  <li><code class="language-plaintext highlighter-rouge">phaseGates</code> could remain stale if combat code changed <code class="language-plaintext highlighter-rouge">game.phase</code> directly rather than through the normal phase transaction.</li>
+  <li>Cleanup correctly required a discard when hand size was over seven, but <code class="language-plaintext highlighter-rouge">advancePhase()</code> checked the lock before opening the cleanup discard UI. That created an unactionable soft lock, especially outside Fully Tracked mode.</li>
+</ol>
+
+<h2 id="fixes">Fixes</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">phaseLocked()</code> now rebuilds the gates for the current phase before deciding whether the game is locked. Old combat gates therefore cannot linger into later phases.</li>
+  <li><code class="language-plaintext highlighter-rouge">advancePhase()</code> reconciles gates first and routes an unsatisfied Cleanup discard gate to <code class="language-plaintext highlighter-rouge">openCleanupDiscard()</code> instead of the generic warning.</li>
+  <li>After cleanup discard finishes, phase progression continues into the normal End Turn confirmation flow.</li>
+  <li><code class="language-plaintext highlighter-rouge">endTurn()</code> now enforces the tracked hand-size cleanup requirement in Cleanup regardless of whether the overall mode is Fully Tracked.</li>
+</ul>
+
+<h2 id="preserve-from-v07930">Preserve from V0.7.9.30</h2>
+<p>Do not alter unrelated visual or interaction code. In particular preserve:</p>
+<ul>
+  <li>Graveyard / Exile / Tokens / Attachments card zones.</li>
+  <li>Empty battlefield placeholder rectangles removed.</li>
+  <li>Continuous battlefield playmat treatment and enlarged battlefield cards.</li>
+  <li>No floating DRAW label/button.</li>
+  <li>Player-specific full-card palette treatment.</li>
+  <li>Heart/life icon red for all players; life number color-coded by player palette.</li>
+  <li>Card ID search input hotfix.</li>
+  <li>Basic lands enter untapped unless a real rule/card effect says otherwise.</li>
+  <li>Battlefield cards are tappable for card details.</li>
+  <li>Game Log Undo behavior and protected bottom actions.</li>
+  <li>Home confirmation behavior.</li>
+  <li>Conditional Secondary Commander setup behavior.</li>
+</ul>
+
+<h2 id="packaging-rule">Packaging rule</h2>
+<p>Future builds must use upload folders of at most 99 files named <code class="language-plaintext highlighter-rouge">Uploaded 1st</code>, <code class="language-plaintext highlighter-rouge">Uploaded 2nd</code>, etc.</p>
+
+<h2 id="verification-performed-for-v07931">Verification performed for V0.7.9.31</h2>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">node --check app.js</code> passed.</li>
+  <li><code class="language-plaintext highlighter-rouge">node --check phase.js</code> passed.</li>
+  <li>Static source verification confirms Cleanup discard routing occurs before generic phase-lock toast.</li>
+  <li>Static source verification confirms current-phase gate reconciliation.</li>
+  <li>ZIP integrity verified after packaging.</li>
+</ul>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

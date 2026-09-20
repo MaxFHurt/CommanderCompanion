@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 — Batch 3 / Build AB | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 — Batch 3 / Build AB" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-3-DECK-IMPORT-AB.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-3-DECK-IMPORT-AB.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 — Batch 3 / Build AB" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 — Batch 3 / Build AB","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-3-DECK-IMPORT-AB.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08--batch-3--build-ab">Commander Companion V0.8 — Batch 3 / Build AB</h1>
+
+<p>Checkpoint target: <code class="language-plaintext highlighter-rouge">B3-DECK-IMPORT</code></p>
+
+<h2 id="scope">Scope</h2>
+<p>This batch is limited to Deck Import / Deck Persistence / Commander Setup. No gameplay engine, combat, mana, priority, active-game persistence, Freeplay, Table Tracker, service-worker, startup, or cache architecture was changed.</p>
+
+<h2 id="changes">Changes</h2>
+<ul>
+  <li>Hardened ManaBox TXT parsing:
+    <ul>
+      <li>flexible Commander/Deck/Mainboard headings including count annotations</li>
+      <li><code class="language-plaintext highlighter-rouge">1 Card</code>, <code class="language-plaintext highlighter-rouge">1x Card</code>, and <code class="language-plaintext highlighter-rouge">1 x Card</code> quantity forms</li>
+      <li>strips common set/collector-number/finish suffixes without changing card names</li>
+      <li>ignores Sideboard/Maybeboard/Considering/Tokens-style sections</li>
+      <li>aggregates duplicate card rows while preserving exact quantities</li>
+    </ul>
+  </li>
+  <li>Hardened ManaBox CSV parsing:
+    <ul>
+      <li>handles quoted fields</li>
+      <li>supports common Name/Quantity/Board/Section/Category/Zone headers</li>
+      <li>preserves Commander/Command Zone designation and optional commander flags</li>
+      <li>ignores non-deck side/maybe/token rows</li>
+    </ul>
+  </li>
+  <li>Parser now reports exact imported card total, unique row count, commander count, and format.</li>
+  <li>Import status shows exact card count and detected commander designation.</li>
+  <li>Imported-deck metadata is retained when the deck is saved/reloaded/copied and linked into the profile deck record.</li>
+  <li>Saved deck records now retain a stable <code class="language-plaintext highlighter-rouge">createdAt</code> while updating <code class="language-plaintext highlighter-rouge">updatedAt</code> on saves.</li>
+  <li>Existing New Game behavior remains in place: saved decks are selectable and loading one fills its saved Commander 1 / Commander 2 and deck list. The profile favorite deck still auto-selects for Player 1 and triggers the same saved-deck load path.</li>
+  <li>Landing build annotation advanced from <code class="language-plaintext highlighter-rouge">V0.8 AA</code> to <code class="language-plaintext highlighter-rouge">V0.8 AB</code> on iPhone and iPad pages.</li>
+  <li>App/module cache-bust identifiers advanced to <code class="language-plaintext highlighter-rouge">080-b3-ab</code> for changed modules only.</li>
+</ul>
+
+<h2 id="verification-performed">Verification performed</h2>
+<ul>
+  <li>All JavaScript files: <code class="language-plaintext highlighter-rouge">node --check</code> PASS.</li>
+  <li>CSS brace validation PASS.</li>
+  <li>ManaBox parser fixture: single commander, 100 cards PASS.</li>
+  <li>ManaBox parser fixture: dual commanders, 100 cards PASS.</li>
+  <li>ManaBox parser fixture: set/collector/finish suffixes PASS.</li>
+  <li>ManaBox parser fixture: CSV commander designations PASS.</li>
+  <li>Duplicate-row aggregation preserves exact total PASS.</li>
+  <li>Sideboard/Maybeboard/Token exclusions PASS.</li>
+  <li>Landing version marker <code class="language-plaintext highlighter-rouge">V0.8 AB</code> confirmed in both <code class="language-plaintext highlighter-rouge">index.html</code> and <code class="language-plaintext highlighter-rouge">ipad.html</code>.</li>
+</ul>
+
+<h2 id="real-device-acceptance-tests">Real-device acceptance tests</h2>
+<p>Before locking Batch 3, verify on GitHub Pages/iPhone:</p>
+<ol>
+  <li>Import a normal single-commander ManaBox deck; confirm the imported total is 100 and Commander 1 is populated.</li>
+  <li>Import a valid two-commander deck; confirm both commander fields populate and the second commander remains available when the pair is legal.</li>
+  <li>Save the imported deck, reload the page, reopen My Decks, and confirm name, commanders, and deck list remain intact.</li>
+  <li>Start New Game and select the saved deck; confirm deck list and commander field(s) populate together.</li>
+  <li>Mark a saved deck as Favorite in Profile, reopen New Game, and confirm Player 1 receives that deck and its saved commander automatically.</li>
+  <li>Re-test the Batch 2 bottom dock controls after entering a game.</li>
+</ol>
+
+<p>Do not proceed to Batch 4 until the above passes on-device.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

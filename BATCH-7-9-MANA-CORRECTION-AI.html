@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 AI — Mana / Ability UX correction | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 AI — Mana / Ability UX correction" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AI.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AI.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 AI — Mana / Ability UX correction" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 AI — Mana / Ability UX correction","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AI.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08-ai--mana--ability-ux-correction">Commander Companion V0.8 AI — Mana / Ability UX correction</h1>
+
+<h2 id="action-labels">Action labels</h2>
+<ul>
+  <li>Green commit buttons now show their actual action text instead of hiding it behind the fixed <code class="language-plaintext highlighter-rouge">CONFIRM</code> artwork.</li>
+  <li>Red cancel/rejection buttons also keep their live label visible.</li>
+  <li>Generic <code class="language-plaintext highlighter-rouge">CONFIRM</code> labels were removed from the as-enters play flow; the commit action now says <code class="language-plaintext highlighter-rouge">PLAY LAND</code> or <code class="language-plaintext highlighter-rouge">CAST CARD</code> as appropriate.</li>
+  <li>Verification-specific labels such as <code class="language-plaintext highlighter-rouge">CONFIRM DRAW</code>, <code class="language-plaintext highlighter-rouge">CONFIRM HAND</code>, and <code class="language-plaintext highlighter-rouge">CONFIRM CARD</code> remain explicit.</li>
+</ul>
+
+<h2 id="activated-ability-ui">Activated-ability UI</h2>
+<ul>
+  <li>Activated-ability cards now use a compact shared layout instead of the previous wide fragmented placeholder.</li>
+  <li>Costs are displayed as clear chips such as <code class="language-plaintext highlighter-rouge">TAP</code>, <code class="language-plaintext highlighter-rouge">-1 LIFE</code>, <code class="language-plaintext highlighter-rouge">SACRIFICE THIS CARD</code>, mana symbols, discard costs, and loyalty costs.</li>
+  <li>Displayed effect text is shortened for the player-facing action screen; automatic trailing shuffle wording is omitted from the compact instruction while engine behavior remains unchanged.</li>
+  <li>Selecting an ability opens one compact review screen with red <code class="language-plaintext highlighter-rouge">CANCEL</code> and green <code class="language-plaintext highlighter-rouge">USE ABILITY</code> actions.</li>
+  <li>Mana abilities with multiple choices collect the choice on that same review screen before committing. Example: Sulfur Falls presents <code class="language-plaintext highlighter-rouge">ADD BLUE</code> / <code class="language-plaintext highlighter-rouge">ADD RED</code>; <code class="language-plaintext highlighter-rouge">USE ABILITY</code> executes the selected choice without a second mana-color page.</li>
+  <li>Search abilities such as Polluted Delta show the cost/effect first; <code class="language-plaintext highlighter-rouge">USE ABILITY</code> then proceeds to the required tracked-library selection.</li>
+</ul>
+
+<h2 id="flexible-mana-visibility">Flexible-mana visibility</h2>
+<ul>
+  <li>Untapped flexible sources are advertised in the main mana box before activation with a split-color icon and a count of actual available sources.</li>
+  <li>The display no longer hides a flexible option merely because one of its colors is absent from the commander-identity display set.</li>
+  <li>Availability can derive flexible <code class="language-plaintext highlighter-rouge">{T}: Add ... or ...</code> options directly from tracked Oracle data, so older/restored battlefield instances that lack prior registration metadata still advertise their options.</li>
+  <li>A U/R source remains one source: it can satisfy U or R, but cannot satisfy both U and R simultaneously.</li>
+</ul>
+
+<h2 id="regression-checks">Regression checks</h2>
+<ul>
+  <li>34 JavaScript files passed <code class="language-plaintext highlighter-rouge">node --check</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">game-threefix.css</code> brace count: 787 opening / 787 closing.</li>
+  <li>Flexible-source test: unregistered Sulfur Falls produces one U/R flexible source; <code class="language-plaintext highlighter-rouge">{U}</code> succeeds, <code class="language-plaintext highlighter-rouge">{R}</code> succeeds, <code class="language-plaintext highlighter-rouge">{U}{R}</code> fails with only that one source.</li>
+  <li>Render test confirms the main mana row includes <code class="language-plaintext highlighter-rouge">U/R flexible mana source, 1 available</code> before the source is tapped.</li>
+  <li>Upload folder counts remain below GitHub mobile limit: <code class="language-plaintext highlighter-rouge">Uploaded 1st</code> = 99 files; <code class="language-plaintext highlighter-rouge">Uploaded 2nd</code> = 50 files.</li>
+</ul>
+
+<h2 id="scope-preserved">Scope preserved</h2>
+<p>No Virtual Deck/draw architecture redesign, Freeplay redesign, combat work, card-detail redesign, startup/service-worker changes, or landing-page layout changes were included.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

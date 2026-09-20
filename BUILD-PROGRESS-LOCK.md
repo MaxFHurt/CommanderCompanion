@@ -25,3 +25,9 @@ Other Commander Companion chats are read-only for gameplay/UI source, checkpoint
 ## Transfer procedure
 
 Ownership changes only after Aaron explicitly says to transfer, hand off, release, or otherwise move build ownership.
+
+## 2026-09-20 — Work Mode handoff
+
+Aaron transferred ownership to this Work Mode conversation for the V0.8 DC full-payload deployment. Scope: correct the landing footer to DC, preserve the supplied Game Mode Back fix, deploy all 229 build files plus the handoff, verify repository and live Pages, then stop. Historical safe checkpoints above remain unchanged.
+
+Aaron additionally requested correction of the Game Mode top-bar spacing during deployment. The scoped CSS aligns Back and the title in one 120px header row while preserving the mode panel area.

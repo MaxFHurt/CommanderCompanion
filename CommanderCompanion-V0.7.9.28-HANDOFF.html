@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.7.9.28 — CURRENT HANDOFF / SAVE POINT | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.7.9.28 — CURRENT HANDOFF / SAVE POINT" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.28-HANDOFF.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.28-HANDOFF.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.7.9.28 — CURRENT HANDOFF / SAVE POINT" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.7.9.28 — CURRENT HANDOFF / SAVE POINT","url":"https://maxfhurt.github.io/CommanderCompanion/CommanderCompanion-V0.7.9.28-HANDOFF.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v07928--current-handoff--save-point">Commander Companion V0.7.9.28 — CURRENT HANDOFF / SAVE POINT</h1>
+
+<h2 id="authority">Authority</h2>
+<p>This file describes the current Commander Companion build state at V0.7.9.28. Continue from this build; do not rebuild from an older V0.6/V0.7 branch and do not redesign unrelated approved areas.</p>
+
+<h2 id="non-negotiable-development-rule">Non-negotiable development rule</h2>
+<p>Change only what the user explicitly requests. No adjacent cleanup, opportunistic refactors, redesigns, spacing changes, or component substitutions. Preserve all locked/working code outside the requested scope.</p>
+
+<h2 id="current-sourcebuild">Current source/build</h2>
+<ul>
+  <li>Source directory used to package this handoff: <code class="language-plaintext highlighter-rouge">cc079_game_screen_v07928</code></li>
+  <li>Version shown on landing: V0.7.9.28</li>
+  <li>iPhone is the primary target; iPad remains supported.</li>
+  <li>GitHub upload packages must be split into <code class="language-plaintext highlighter-rouge">Uploaded 1st</code>, <code class="language-plaintext highlighter-rouge">Uploaded 2nd</code>, etc., with no more than 99 files in any upload folder.</li>
+</ul>
+
+<h2 id="locked-landing-page">Locked landing page</h2>
+<p>Preserve the approved Commander Companion Horizon landing page exactly. The only standing exceptions are the already-approved centering correction, bottom-line trim, and updating the visible version number.</p>
+
+<h2 id="visualgame-screen-state">Visual/game-screen state</h2>
+<ul>
+  <li>Purple metallic / silver-chrome / black industrial Commander Companion theme.</li>
+  <li>One full player board visible at a time; arrows switch the viewed player.</li>
+  <li>Entire player-card surface uses that player’s palette for stronger player distinction while preserving identical geometry.</li>
+  <li>Commander tax remains centered on the commander display.</li>
+  <li>Mana icons have counts below them; available-state coloring and nonnegative clamping remain in place.</li>
+  <li>Selected-card mana calculator is stripped down to required/available values only; available is green when sufficient and red when insufficient.</li>
+  <li>Hand is a live floating tray; current hand/hub geometry from the approved near-final pass is preserved.</li>
+  <li>Smart Action uses the center jewel and a slower pulse. Smart Action never advances/ends a phase.</li>
+  <li>Draw smart action appears as a dedicated action over the hand when Draw is the contextual smart action.</li>
+  <li>Bottom hub includes Card ID, Chat, Home, Smart jewel, Help, Settings, and Profile. Home requires confirmation before returning to landing.</li>
+  <li>Game Log is tappable for full history and contains an Undo control that rewinds the last engine/game step. Full-history action buttons must remain visible above the safe area.</li>
+</ul>
+
+<h2 id="battlefield-correction-in-v07928">Battlefield correction in V0.7.9.28</h2>
+<p>The outlined empty card-slot placeholders on the battlefield are intentionally removed. They have no gameplay function and must not return.</p>
+<ul>
+  <li>Do NOT remove Graveyard, Exile, Tokens, or Attachments.</li>
+  <li>Do NOT remove actual battlefield cards or token stacks.</li>
+  <li>Battlefield is now a continuous atmospheric playmat surface rather than fake card slots.</li>
+  <li>Played battlefield cards use the same target dimensions as cards in the player’s hand.</li>
+  <li>Cards should occupy the open playmat naturally rather than appearing to snap into unused outlined slots.</li>
+</ul>
+
+<h2 id="game-setup">Game setup</h2>
+<p>Secondary Commander is hidden by default and is only exposed when the selected primary commander supports Partner or an equivalent legal paired-command-zone mechanic. Preferred/saved deck behavior and commander prefill must remain intact.</p>
+
+<h2 id="rulesfunction-notes">Rules/function notes</h2>
+<ul>
+  <li>Normal lands should enter untapped unless the card’s rules/effect or an explicit choice says they enter tapped. The current land path sets basic lands untapped and uses oracle/rules parsing for nonbasics; this area should be function-tested carefully during the upcoming extensive play test.</li>
+  <li>Mana cannot go negative.</li>
+  <li>Existing legality, draw/discard confirmation, combat, stack/log, undo, profile/deck persistence, and <code class="language-plaintext highlighter-rouge">.ccsave</code> backup/restore systems remain part of the build and should not be removed.</li>
+</ul>
+
+<h2 id="current-qa-status">Current QA status</h2>
+<p>For this package, JavaScript syntax checks passed for <code class="language-plaintext highlighter-rouge">app.js</code>, <code class="language-plaintext highlighter-rouge">ui-render.js</code>, and <code class="language-plaintext highlighter-rouge">transactions.js</code>; required Home/Card ID/Game Log Undo hooks and the V0.7.9.28 battlefield override were checked in source. This does not replace live iPhone gameplay testing.</p>
+
+<h2 id="next-phase">Next phase</h2>
+<p>The user is approaching a visual-master lock. Continue with targeted fixes only, then perform extensive function play testing. Do not call the visual master locked until the user explicitly confirms it.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

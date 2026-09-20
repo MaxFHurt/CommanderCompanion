@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — V0.8.0 Batch 2 Update Report | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — V0.8.0 Batch 2 Update Report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-2-UPDATE-REPORT.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-2-UPDATE-REPORT.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — V0.8.0 Batch 2 Update Report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — V0.8.0 Batch 2 Update Report","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-2-UPDATE-REPORT.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--v080-batch-2-update-report">Commander Companion — V0.8.0 Batch 2 Update Report</h1>
+
+<p>Checkpoint: <code class="language-plaintext highlighter-rouge">V0.8.0-B2-MENU-DOCK</code>
+Baseline: verified working <code class="language-plaintext highlighter-rouge">V0.8.0-B1-CORE-STABLE</code>
+Scope: Batch 2 only — Menu System / Button Binding</p>
+
+<h2 id="implemented">Implemented</h2>
+
+<ol>
+  <li><strong>Contextual Back moved to the existing top Back control</strong>
+    <ul>
+      <li>Generic action menus already had a permanent top Back row.</li>
+      <li>When a menu action list contains <code class="language-plaintext highlighter-rouge">BACK</code>, that action is now assigned to the top Back control instead of creating a second footer Back button.</li>
+      <li>Menus without a special contextual Back action keep the normal top Back behavior, which closes the modal.</li>
+      <li>This removes duplicate Back controls without changing menu destinations.</li>
+    </ul>
+  </li>
+  <li><strong>Footer action ordering standardized</strong>
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">CANCEL</code> is normalized to the left side of the footer.</li>
+      <li>The current/final action is marked as the right-side action.</li>
+      <li>Other custom actions remain between those anchors in their original relative order.</li>
+      <li>Button labels and callbacks are not rewritten.</li>
+    </ul>
+  </li>
+  <li><strong>Approved action PNGs applied to known actions</strong>
+    <ul>
+      <li>Back → <code class="language-plaintext highlighter-rouge">ui-back.png</code></li>
+      <li>Cancel → <code class="language-plaintext highlighter-rouge">ui-cancel.png</code> (approved red Cancel)</li>
+      <li>Confirm → <code class="language-plaintext highlighter-rouge">ui-confirm.png</code></li>
+      <li>Save → <code class="language-plaintext highlighter-rouge">ui-save.png</code></li>
+      <li>Delete → <code class="language-plaintext highlighter-rouge">ui-delete.png</code></li>
+      <li>Undo → <code class="language-plaintext highlighter-rouge">ui-undo.png</code></li>
+      <li>Home → <code class="language-plaintext highlighter-rouge">ui-home.png</code></li>
+      <li>Profile → <code class="language-plaintext highlighter-rouge">ui-profile.png</code></li>
+      <li>Settings → <code class="language-plaintext highlighter-rouge">ui-settings.png</code></li>
+      <li>Game Log → <code class="language-plaintext highlighter-rouge">ui-game-log.png</code></li>
+      <li>Help → <code class="language-plaintext highlighter-rouge">ui-help.png</code></li>
+      <li>Custom actions use <code class="language-plaintext highlighter-rouge">ref-button-blank.png</code> so the exact live action text remains visible.</li>
+    </ul>
+  </li>
+  <li><strong>Bottom dock binding hardened against rerenders</strong>
+    <ul>
+      <li>Removed per-render <code class="language-plaintext highlighter-rouge">.onclick</code> assignment for <code class="language-plaintext highlighter-rouge">[data-hub]</code> controls.</li>
+      <li>Added one persistent delegated click listener on <code class="language-plaintext highlighter-rouge">#gameScreen</code>.</li>
+      <li>The listener resolves whichever current <code class="language-plaintext highlighter-rouge">[data-hub]</code> button exists after a render.</li>
+      <li>Covered dock destinations:
+        <ul>
+          <li>Home</li>
+          <li>Card ID</li>
+          <li>Game Chat</li>
+          <li>Player Rescue</li>
+          <li>Settings</li>
+          <li>Profile</li>
+        </ul>
+      </li>
+      <li>Existing destination functions are unchanged.</li>
+    </ul>
+  </li>
+  <li><strong>Deployment cache-bust references only</strong>
+    <ul>
+      <li><code class="language-plaintext highlighter-rouge">index.html</code> and <code class="language-plaintext highlighter-rouge">ipad.html</code> now request the Batch 2 <code class="language-plaintext highlighter-rouge">app.js</code> and <code class="language-plaintext highlighter-rouge">game-threefix.css</code> revisions.</li>
+      <li>No startup, service-worker, cache lifecycle, or resume logic was changed.</li>
+    </ul>
+  </li>
+</ol>
+
+<h2 id="files-changed-from-batch-1">Files changed from Batch 1</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 1st/app.js</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 1st/game-threefix.css</code></li>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 1st/index.html</code> — query/version reference only</li>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 1st/ipad.html</code> — query/version reference only</li>
+</ul>
+
+<p>No rules-engine, combat, mana, persistence, deck, trigger, priority, network, phase, or state-engine source file was changed.</p>
+
+<h2 id="automated-validation">Automated validation</h2>
+
+<ul>
+  <li>All 34 JavaScript files pass <code class="language-plaintext highlighter-rouge">node --check</code>.</li>
+  <li>All 4 CSS files have balanced braces.</li>
+  <li>Batch 2 source assertions pass:
+    <ul>
+      <li>persistent dock delegation exists;</li>
+      <li>old per-render dock <code class="language-plaintext highlighter-rouge">.onclick</code> binding is removed;</li>
+      <li>contextual Back is consumed by the top Back control;</li>
+      <li>contextual Back is not duplicated in the footer;</li>
+      <li>Cancel is ordered first;</li>
+      <li>current/final action receives the right-side role;</li>
+      <li>neutral custom button asset is present;</li>
+      <li>approved Back/Cancel/Confirm assets are present.</li>
+    </ul>
+  </li>
+  <li>All referenced Batch 2 PNG assets exist in the merged repository root.</li>
+  <li>Compared against B1, only the four source/deployment files listed above changed before this report was added.</li>
+</ul>
+
+<h2 id="github-upload-split">GitHub upload split</h2>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 1st</code>: 99 files</li>
+  <li><code class="language-plaintext highlighter-rouge">Uploaded 2nd</code>: 73 files including this report</li>
+</ul>
+
+<p>Upload the <strong>contents</strong> of both folders into the same repository root. Do not create <code class="language-plaintext highlighter-rouge">Uploaded 1st</code> or <code class="language-plaintext highlighter-rouge">Uploaded 2nd</code> directories in the repository.</p>
+
+<h2 id="required-manual-regression-test-before-batch-3">Required manual regression test before Batch 3</h2>
+
+<ol>
+  <li>Launch the same working 2-player Guided game path used to approve Batch 1.</li>
+  <li>Open several nested action menus and confirm only one Back control is visible and it is at the top.</li>
+  <li>Confirm Cancel appears on the lower-left when present.</li>
+  <li>Confirm the final/current action appears on the lower-right.</li>
+  <li>Confirm custom action labels remain readable and unchanged.</li>
+  <li>Exercise all six bottom dock destinations, then trigger game rerenders (phase progression, opening/closing a card or zone, player inspection where applicable) and exercise all six again.</li>
+  <li>Confirm Home still asks for confirmation and returns to landing correctly.</li>
+  <li>Confirm the landing page and main game geometry are otherwise unchanged from the approved B1 checkpoint.</li>
+  <li>Confirm Continue Game still works.</li>
+</ol>
+
+<p>Do not begin Batch 3 unless this checkpoint passes.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

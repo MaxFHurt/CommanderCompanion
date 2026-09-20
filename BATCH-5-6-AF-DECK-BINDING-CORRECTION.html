@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 AF — Deck Binding / Opening Hand Correction | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 AF — Deck Binding / Opening Hand Correction" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-AF-DECK-BINDING-CORRECTION.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-AF-DECK-BINDING-CORRECTION.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 AF — Deck Binding / Opening Hand Correction" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 AF — Deck Binding / Opening Hand Correction","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-AF-DECK-BINDING-CORRECTION.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08-af--deck-binding--opening-hand-correction">Commander Companion V0.8 AF — Deck Binding / Opening Hand Correction</h1>
+
+<p>This is a corrective build inside the still-open consolidated Persistence + Game Log batch. It does not advance to the next subsystem batch.</p>
+
+<h2 id="problem">Problem</h2>
+<p>During one game, Player 1 using the custom Deadpool deck and Player 2 using Avengers Assemble displayed the same opening hand despite different selected decks.</p>
+
+<h2 id="changes">Changes</h2>
+<ul>
+  <li>A selected saved deck is now authoritative during setup. Hydration uses the saved deck record directly instead of trusting a possibly stale textarea copy.</li>
+  <li>Editing a deck-list textarea after selecting a saved deck explicitly clears that saved-deck binding, preventing the UI from showing one saved deck while hydrating different/custom text.</li>
+  <li>Saved commander names are rebound from the selected saved deck during hydration.</li>
+  <li>Every hydrated player deck now carries a canonical manifest fingerprint and saved-deck identity.</li>
+  <li>Before game start, every card instance across library/hand/public zones is checked for the correct player owner and membership in that player’s own manifest.</li>
+  <li>If different saved deck IDs unexpectedly hydrate to identical manifests, a diagnostic warning is emitted rather than silently hiding the condition.</li>
+</ul>
+
+<h2 id="scope-intentionally-unchanged">Scope intentionally unchanged</h2>
+<ul>
+  <li>Shuffle algorithm</li>
+  <li>Mulligan rule behavior from AE</li>
+  <li>Combat, mana, priority, triggers/effects</li>
+  <li>Startup/cache/Safari lifecycle</li>
+  <li>Freeplay/Table Tracker reworks</li>
+</ul>
+
+<p>Landing annotation: V0.8 AF.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

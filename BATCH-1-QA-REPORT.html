@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — V0.8.0-B1-CORE-STABLE | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — V0.8.0-B1-CORE-STABLE" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-1-QA-REPORT.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-1-QA-REPORT.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — V0.8.0-B1-CORE-STABLE" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — V0.8.0-B1-CORE-STABLE","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-1-QA-REPORT.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--v080-b1-core-stable">Commander Companion — V0.8.0-B1-CORE-STABLE</h1>
+
+<h2 id="scope">Scope</h2>
+<p>Batch 1 only: Core QA / No-New-Feature Stabilization.</p>
+
+<p>No gameplay, combat, mana, persistence architecture, menu, Freeplay, Table Tracker, service-worker, cache, startup, or visual behavior was intentionally changed.</p>
+
+<h2 id="result">Result</h2>
+<p>No reproducible core defect requiring an application-code change was found in the supplied V0.8.0 baseline during this Batch 1 pass. The application source files are therefore preserved byte-for-byte from the supplied baseline. This checkpoint adds this QA report only.</p>
+
+<h2 id="automatedstatic-checks-completed">Automated/static checks completed</h2>
+<ul>
+  <li>PASS: all 34 JavaScript files parse with Node <code class="language-plaintext highlighter-rouge">--check</code>.</li>
+  <li>PASS: CSS brace balance for <code class="language-plaintext highlighter-rouge">styles.css</code>.</li>
+  <li>PASS: CSS brace balance for <code class="language-plaintext highlighter-rouge">styles-v0739.css</code>.</li>
+  <li>PASS: CSS brace balance for <code class="language-plaintext highlighter-rouge">game-threefix.css</code>.</li>
+  <li>PASS: CSS brace balance for <code class="language-plaintext highlighter-rouge">ipad-layout.css</code>.</li>
+  <li>PASS: <code class="language-plaintext highlighter-rouge">index.html</code> local stylesheet/image references resolve in the merged flat-root layout.</li>
+  <li>PASS: <code class="language-plaintext highlighter-rouge">ipad.html</code> local stylesheet/image references resolve in the merged flat-root layout.</li>
+  <li>PASS: 2, 3, 4, 5, and 6-player <code class="language-plaintext highlighter-rouge">initializeGame()</code> creation.</li>
+  <li>PASS: 1-player and 7-player initialization rejected by the existing 2–6-player guard.</li>
+  <li>PASS: basic <code class="language-plaintext highlighter-rouge">saveToStorage()</code> -&gt; <code class="language-plaintext highlighter-rouge">loadFromStorage()</code> round trip using a storage mock.</li>
+  <li>PASS: <code class="language-plaintext highlighter-rouge">hasValidSave()</code> recognizes the generated save.</li>
+  <li>PASS: original upload split remains &lt;=99 files per upload folder after this report is added: 99 / 72.</li>
+</ul>
+
+<h2 id="preserved-intentionally">Preserved intentionally</h2>
+<ul>
+  <li>Landing page visual source/assets unchanged.</li>
+  <li>Game-screen visual source/assets unchanged.</li>
+  <li>Existing startup/service-worker/cache behavior unchanged.</li>
+  <li>Existing combat code unchanged.</li>
+  <li>Existing mana code unchanged.</li>
+  <li>Existing persistence architecture unchanged.</li>
+  <li>Existing menus and dock unchanged.</li>
+  <li>Existing Freeplay/Table Tracker behavior unchanged.</li>
+</ul>
+
+<h2 id="important-baseline-observation">Important baseline observation</h2>
+<p><code class="language-plaintext highlighter-rouge">sw.js</code> in the supplied V0.8.0 build is a zero-byte file, while <code class="language-plaintext highlighter-rouge">index.html</code> / <code class="language-plaintext highlighter-rouge">ipad.html</code> contain startup code that unregisters old service workers and deletes Commander Companion caches. Batch 1 explicitly prohibits startup/cache/service-worker changes, so this was documented but not changed. Startup/Safari/cache work remains reserved for Batch 29.</p>
+
+<h2 id="manualdevice-gate-still-required">Manual/device gate still required</h2>
+<p>The container environment cannot substitute for real iPhone/iPad Safari validation. Before moving to Batch 2, manually verify on the published checkpoint:</p>
+<ol>
+  <li>Landing page loads and remains visually identical.</li>
+  <li>New Game opens setup.</li>
+  <li>Start 2-player game.</li>
+  <li>Start 6-player game.</li>
+  <li>Play multiple turns/phases without a fatal error.</li>
+  <li>Return Home and verify Continue Game becomes available after an active save exists.</li>
+  <li>Refresh and use Continue Game.</li>
+  <li>Confirm game screen remains visually identical to V0.8.0.</li>
+</ol>
+
+<p>If any of those fail, stop here and treat the failure as Batch 1. Do not start Batch 2 until isolated.</p>
+
+<h2 id="checkpoint">Checkpoint</h2>
+<p><code class="language-plaintext highlighter-rouge">V0.8.0-B1-CORE-STABLE</code></p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

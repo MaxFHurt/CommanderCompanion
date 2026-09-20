@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Batch 3 Completion Report | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Batch 3 Completion Report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-3-COMPLETION-REPORT.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-3-COMPLETION-REPORT.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Batch 3 Completion Report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Batch 3 Completion Report","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-3-COMPLETION-REPORT.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--batch-3-completion-report">Commander Companion — Batch 3 Completion Report</h1>
+
+<p>Last updated: 2026-09-19</p>
+
+<h2 id="completion-status">Completion status</h2>
+
+<p><strong>BATCH 3 OF 12 — CARD INTERACTION ENGINE: COMPLETE</strong></p>
+
+<p><strong>Final safe checkpoint:</strong> V0.8 BZ<br />
+<strong>Final checkpoint commit:</strong> <code class="language-plaintext highlighter-rouge">65e7b83b22684f4a1bf9faf9a4e42fbead4f00d6</code><br />
+<strong>Final Browser Test run:</strong> <code class="language-plaintext highlighter-rouge">35446925832</code> — completed / success<br />
+<strong>Final Pages deployment run:</strong> <code class="language-plaintext highlighter-rouge">35446925122</code> — completed / success</p>
+
+<p>Batch 4 has <strong>not</strong> started.</p>
+
+<h2 id="final-validation">Final validation</h2>
+
+<p>The final V0.8 BZ checkpoint passed:</p>
+<ul>
+  <li>local Chromium browser regression</li>
+  <li>local WebKit browser regression</li>
+  <li>matching GitHub Pages deployment</li>
+  <li>live GitHub Pages browser regression</li>
+  <li>phone and iPad checkpoint identity alignment</li>
+  <li>all promoted Batch 3 deterministic regression tests</li>
+</ul>
+
+<p>The final promoted live-flow suite includes:</p>
+<ol>
+  <li>4-player Table Tracker starts and preserves direct state edits</li>
+  <li>Freeplay launches into the live game chassis</li>
+  <li>sacrifice-cost triggers and exact Undo</li>
+  <li>life-payment costs, life-loss triggers, failure rollback, exact Undo</li>
+  <li>Fabled Passage-style search, conditional untap, exact Undo</li>
+  <li>tap-cost legality, double-activation rejection, exact Undo</li>
+  <li>modal-spell automation and alternate-cost safe Guided fallback</li>
+  <li>Lita-style unique modal trigger tracking per source/per turn</li>
+  <li>paired commanders and independent commander-tax tracking with exact Undo</li>
+  <li>double strike, lifelink, infect, deathtouch, trample, and state-based deaths</li>
+  <li>simultaneous triggers, last-known events, entry replacement parsing, exact Undo</li>
+  <li>multi-object stack, priority, LIFO resolution, response-spell Undo</li>
+  <li>Fully Guided Turtle Power vs Wakanda Forever live setup/gameplay flow</li>
+  <li>Guided stack pause survives Back and remains visible in Game History</li>
+</ol>
+
+<p>The smoke suite also verifies landing/start/setup/mobile-overflow safety.</p>
+
+<h2 id="batch-3-completed-work">Batch 3 completed work</h2>
+
+<h3 id="stack--recovery">Stack / recovery</h3>
+<ul>
+  <li>Preserved pending Guided stack objects through Back / Close.</li>
+  <li>Added visible stack entries in Game History.</li>
+  <li>Added explicit Clear Stack recovery.</li>
+  <li>Clear Stack rewinds pending stack actions instead of falsely resolving them.</li>
+  <li>Canceling Clear Stack commits nothing.</li>
+  <li>Recovery restores spell/card zone, paid mana/source taps, sacrifice state, priority, and tracked state.</li>
+  <li>Clear Stack has deterministic recovery coverage.</li>
+</ul>
+
+<h3 id="carddeck-identity">Card/deck identity</h3>
+<ul>
+  <li>Different decks remain isolated.</li>
+  <li>Opening-hand instances are distinct and tied to the correct tracked deck.</li>
+  <li>Setup deck identity no longer leaks across players.</li>
+</ul>
+
+<h3 id="costs-and-undo">Costs and Undo</h3>
+<ul>
+  <li>Sacrifice activation costs emit <code class="language-plaintext highlighter-rouge">sacrificed</code>, <code class="language-plaintext highlighter-rouge">leaves-battlefield</code>, and <code class="language-plaintext highlighter-rouge">dies</code> correctly rather than a false discard event.</li>
+  <li>Life-payment activation costs emit life-loss events, reject impossible payment, and roll back exactly.</li>
+  <li>Tap costs reject a second activation while the source is already tapped.</li>
+  <li>Undo restores exact pre-action zones, taps, mana, counters, triggers, stack, and relevant state.</li>
+</ul>
+
+<h3 id="search--tutors">Search / tutors</h3>
+<ul>
+  <li>Fabled Passage-style exact tracked-card search is covered.</li>
+  <li>Sacrifice, stack placement, exact library-card movement, conditional four-land untap, shuffle path, and Undo are covered.</li>
+</ul>
+
+<h3 id="modal--alternate-costs">Modal / alternate costs</h3>
+<ul>
+  <li>Supported modal spells remain automatable.</li>
+  <li>Unsupported alternate-cost / alternate-zone keywords are detected before generic parsing.</li>
+  <li>Cycling, Overload, Kicker, Multikicker, Buyback, Flashback, Escape, Foretell, Dash, Evoke, Spectacle, Blitz, Cleave, Mutate and similar unsupported patterns fail safely into Guided Resolution rather than being partially/silently resolved.</li>
+</ul>
+
+<h3 id="trigger--replacement-safety">Trigger / replacement safety</h3>
+<ul>
+  <li>Lita-style “choose one that has not been chosen this turn” behavior is tracked per source and per turn.</li>
+  <li>Duplicate same-turn mode choices are rejected.</li>
+  <li>Mode exhaustion and next-turn reset are covered.</li>
+  <li>Simultaneous triggers preserve event batches and APNAP/controller metadata.</li>
+  <li>Last-known trigger sourcing is covered.</li>
+  <li>Back/Undo restores pending-trigger state exactly.</li>
+  <li>Fixed a real replacement/parser defect: numeric counter names such as <code class="language-plaintext highlighter-rouge">+1/+1</code> were not recognized by the enters-with-counters parser because digits were excluded from the counter-name regex.</li>
+</ul>
+
+<h3 id="commander--partner-safety">Commander / partner safety</h3>
+<ul>
+  <li>Legal paired commanders are accepted.</li>
+  <li>Illegal shared commander configurations are rejected.</li>
+  <li>Commander cast count/tax is independent per commander.</li>
+  <li>Undo restores commander zone, cast count, tax, and stack exactly.</li>
+</ul>
+
+<h3 id="combat-interaction-safety">Combat interaction safety</h3>
+<ul>
+  <li>Double strike performs both damage steps.</li>
+  <li>Lifelink gains life from each damage event.</li>
+  <li>Infect converts player damage to poison.</li>
+  <li>Deathtouch + trample lethal assignment is covered.</li>
+  <li>State-based deaths move the exact tracked cards and emit dies events.</li>
+</ul>
+
+<h3 id="priority--response--multi-object-stack">Priority / response / multi-object stack</h3>
+<ul>
+  <li>Multi-object stack ordering is covered.</li>
+  <li>Wrong-player priority responses are rejected.</li>
+  <li>Responses reset pass state correctly.</li>
+  <li>Full priority pass closes the window.</li>
+  <li>Stack resolution is LIFO.</li>
+  <li>Undo across response-spell resolution restores the exact stack/hand/priority state.</li>
+</ul>
+
+<h2 id="guided-resolution-audit">Guided Resolution audit</h2>
+
+<p>A ten-precon audit was performed against:</p>
+<ul>
+  <li>Turtle Power!</li>
+  <li>Wakanda Forever</li>
+  <li>Avengers Assemble</li>
+  <li>Blood Rites</li>
+  <li>Chaos Incarnate</li>
+  <li>Desert Bloom</li>
+  <li>Miracle Worker</li>
+  <li>Scions &amp; Spellcraft Collector’s Edition (FINAL FANTASY XIV)</li>
+  <li>Sliver Swarm</li>
+  <li>Witherbloom Pestilence</li>
+</ul>
+
+<p>The audit produced <strong>398 named cards</strong> with one or more Oracle/mechanic patterns that are not yet fully automated.</p>
+
+<p>Those cards are recorded in <code class="language-plaintext highlighter-rouge">GUIDED-RESOLUTION-CARD-LIST.md</code> with:</p>
+<ul>
+  <li>card name</li>
+  <li>source deck(s)</li>
+  <li>unsupported pattern / reason</li>
+  <li>classification</li>
+  <li>evidence</li>
+  <li>desired automated behavior</li>
+  <li>OPEN status</li>
+</ul>
+
+<p>Per Aaron’s product decision, these cards are <strong>not Batch 3 blockers</strong> when they fail safely into Guided Resolution and do not corrupt/trap game state.</p>
+
+<p>The dedicated audit also exposed intermittent external MTGJSON/WebKit <code class="language-plaintext highlighter-rouge">Load failed</code> behavior during repeated remote hydration. This is recorded as external audit infrastructure instability, not a tracked-state/card-engine defect. The successful audit output that generated the 398-card inventory remains preserved in the repository backlog.</p>
+
+<h2 id="guided-resolution-product-decision">Guided Resolution product decision</h2>
+
+<p>For unresolved card patterns:</p>
+<ul>
+  <li>safe Guided Resolution fallback is acceptable</li>
+  <li>the card must remain in the backlog</li>
+  <li>Back / Close / Cancel may not silently commit the unresolved result</li>
+  <li>the stack must remain recoverable</li>
+  <li>Clear Stack / Undo must preserve exact tracked state where applicable</li>
+</ul>
+
+<p>A future approved feature will allow an authorized user to <strong>teach Commander Companion itself</strong> the correct resolution for a card from Guided Resolution:</p>
+<ul>
+  <li>teaching the app is PIN-protected</li>
+  <li>creating/editing/replacing/deleting a taught recipe requires the PIN</li>
+  <li>normal reuse of a saved recipe does not require the PIN</li>
+  <li>this is not a player tutorial/coaching feature</li>
+  <li>see <code class="language-plaintext highlighter-rouge">FUTURE-WORK.md</code></li>
+</ul>
+
+<h2 id="bugs-found-during-batch-3">Bugs found during Batch 3</h2>
+
+<p>Real defects found and corrected:</p>
+<ul>
+  <li>sacrifice-cost events incorrectly behaving like discard in some activation paths</li>
+  <li>stale-reference assumptions in early regression tests after state restore</li>
+  <li>unsupported alternate-cost mechanics could otherwise be mistaken for complete generic automation</li>
+  <li>enters-with-counters parser failed numeric counter names such as <code class="language-plaintext highlighter-rouge">+1/+1</code></li>
+  <li>stale iPad build identity/cache key was corrected at BZ closure</li>
+</ul>
+
+<p>Test/harness assumptions corrected without gameplay changes:</p>
+<ul>
+  <li>simultaneous sacrifice and dies events are separate event batches</li>
+  <li><code class="language-plaintext highlighter-rouge">priorityHolder()</code> returns a player object, not a player ID string</li>
+  <li>prep-branch live Pages tests cannot validate unpromoted code on the deployed <code class="language-plaintext highlighter-rouge">main</code> site</li>
+</ul>
+
+<h2 id="known-limitations-carried-forward">Known limitations carried forward</h2>
+
+<ul>
+  <li>398 audited cards remain OPEN for future native automation or the future taught-resolution system.</li>
+  <li>External precon/card hydration depends on remote services and can intermittently fail independently of the game engine.</li>
+  <li>Safe Guided Resolution is an intentional compatibility path until unsupported patterns are automated.</li>
+  <li>Batch 3 did not perform the future PIN-protected teaching-system implementation.</li>
+  <li>Batch 3 did not perform broad UI restyling.</li>
+</ul>
+
+<h2 id="ui-safety">UI safety</h2>
+
+<p>The current UI remains the approved visual/function baseline.</p>
+
+<p>Future UI-affecting work must:</p>
+<ul>
+  <li>preserve the current baseline</li>
+  <li>make only the scoped change</li>
+  <li>be tested before presentation</li>
+  <li>be explicitly reviewed and approved by Aaron before advancing past the UI checkpoint</li>
+  <li>never treat a technically passing visual change as automatically approved</li>
+</ul>
+
+<h2 id="batch-boundary">Batch boundary</h2>
+
+<p><strong>STOP HERE.</strong></p>
+
+<p>Batch 3 is complete.<br />
+Batch 4 — <strong>Effects + Triggers</strong> — is the next roadmap batch and has not started.</p>
+
+<p>A new chat must read <code class="language-plaintext highlighter-rouge">START-BATCH-4-HERE.md</code>, claim the build-progress lock, and begin only from V0.8 BZ / current <code class="language-plaintext highlighter-rouge">main</code>.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

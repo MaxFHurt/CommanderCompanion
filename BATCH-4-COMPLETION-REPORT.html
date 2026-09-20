@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Batch 4 Completion Report | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Batch 4 Completion Report" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-4-COMPLETION-REPORT.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-4-COMPLETION-REPORT.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Batch 4 Completion Report" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Batch 4 Completion Report","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-4-COMPLETION-REPORT.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--batch-4-completion-report">Commander Companion — Batch 4 Completion Report</h1>
+
+<p>Last updated: 2026-09-19</p>
+
+<h2 id="completion-status">Completion status</h2>
+
+<p><strong>BATCH 4 OF 12 — EFFECTS + TRIGGERS / RESOLUTION INTELLIGENCE: COMPLETE</strong></p>
+
+<p><strong>Safe build:</strong> V0.8 CA<br />
+<strong>Validated gameplay/test checkpoint:</strong> <code class="language-plaintext highlighter-rouge">c1e70a040275f085d9a9a8127bba29ce99fbe9a2</code><br />
+<strong>Browser Test run:</strong> <code class="language-plaintext highlighter-rouge">35450809160</code> — completed / success<br />
+<strong>Pages deployment run:</strong> <code class="language-plaintext highlighter-rouge">35450808634</code> — completed / success</p>
+
+<h2 id="what-changed">What changed</h2>
+
+<p>Batch 4 stayed intentionally narrow and did not redo Batch 3.</p>
+
+<ul>
+  <li>Added safe generic compilation for mandatory <strong>“If you do”</strong> dependent resolution chains.</li>
+  <li>A dependent clause is automated only when the immediately preceding instruction compiled cleanly, contains an actual effect, and is not optional.</li>
+  <li>Unsafe/ambiguous dependent clauses remain unsupported and therefore use the existing Guided Resolution fallback instead of being guessed.</li>
+  <li>Preserved the existing atomic effect-package transaction: if a later instruction fails, the complete pre-resolution game state is restored.</li>
+  <li>Preserved follow-on trigger generation from resolved effects through the existing event/trigger bridge.</li>
+  <li>Preserved existing <code class="language-plaintext highlighter-rouge">then</code> sequencing and Batch 3 trigger/stack/Undo behavior.</li>
+  <li>No unrelated UI changes were made.</li>
+</ul>
+
+<h2 id="focused-batch-4-regression-coverage">Focused Batch 4 regression coverage</h2>
+
+<p>Added <code class="language-plaintext highlighter-rouge">tests/batch4-resolution.spec.js</code> covering:</p>
+<ol>
+  <li>mandatory “If you do” compilation and instruction ordering</li>
+  <li>fail-closed behavior when “If you do” has no safe predecessor</li>
+  <li>exact atomic rollback when a later instruction fails</li>
+  <li>sacrifice-generated events queuing matching follow-on triggers</li>
+  <li>existing “then” sequencing after the Batch 4 compiler change</li>
+</ol>
+
+<h2 id="full-validation">Full validation</h2>
+
+<p>The promoted CA checkpoint passed the complete browser suite in both Chromium and WebKit locally and again against the matching live GitHub Pages build.</p>
+
+<p>The final run passed:</p>
+<ul>
+  <li>existing smoke coverage</li>
+  <li>existing Batch 3 promoted regression coverage</li>
+  <li>new Batch 4 focused resolution tests</li>
+  <li>live GitHub Pages regression</li>
+</ul>
+
+<h2 id="safety-result">Safety result</h2>
+
+<p>Batch 4 did not introduce a new partial-resolution path. Unsupported complex text still fails safely rather than silently mutating tracked state.</p>
+
+<p>The 398-card Guided Resolution backlog remains future work and was not mixed into this batch.</p>
+
+<p>The future PIN-protected taught-resolution feature remains deferred.</p>
+
+<h2 id="batch-boundary">Batch boundary</h2>
+
+<p><strong>STOP: Batch 4 is complete.</strong></p>
+
+<p>V0.8 CA is the new safe checkpoint. The next roadmap work is Batch 5; do not reinterpret Batch 4 as a requirement to clear the Guided Resolution backlog.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

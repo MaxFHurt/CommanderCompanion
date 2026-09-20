@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Batch 2.3 Dock Router Fix — AA | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Batch 2.3 Dock Router Fix — AA" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-2.3-DOCK-ROUTER-FIX-AA.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-2.3-DOCK-ROUTER-FIX-AA.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Batch 2.3 Dock Router Fix — AA" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Batch 2.3 Dock Router Fix — AA","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-2.3-DOCK-ROUTER-FIX-AA.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--batch-23-dock-router-fix--aa">Commander Companion — Batch 2.3 Dock Router Fix — AA</h1>
+
+<p>Visible landing build annotation: <code class="language-plaintext highlighter-rouge">V0.8 AA</code></p>
+
+<h2 id="reproduced-defect">Reproduced defect</h2>
+<p>Bottom game-screen controls showed the pressed/touched visual state but no action opened.</p>
+
+<h2 id="root-cause">Root cause</h2>
+<p>The shared dock dispatcher constructed an action map containing <code class="language-plaintext highlighter-rouge">rescue: openRescue</code>, but no <code class="language-plaintext highlighter-rouge">openRescue</code> function exists in the application. Because object-literal values are evaluated before the selected key is invoked, tapping any dock control raised a <code class="language-plaintext highlighter-rouge">ReferenceError</code> while constructing the map. This prevented all six bottom dock actions from dispatching.</p>
+
+<p>The existing Player Rescue implementation is <code class="language-plaintext highlighter-rouge">openHelp()</code>, which opens the <code class="language-plaintext highlighter-rouge">PLAYER RESCUE</code> interface.</p>
+
+<h2 id="correction">Correction</h2>
+<p>Changed only the invalid dispatch target:</p>
+
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">rescue: openRescue</code> -&gt; <code class="language-plaintext highlighter-rouge">rescue: openHelp</code></li>
+</ul>
+
+<p>The existing per-render click binding introduced in B2.2 is retained.</p>
+
+<h2 id="dock-routes-verified-statically">Dock routes verified statically</h2>
+<ul>
+  <li>Home -&gt; Return Home confirmation</li>
+  <li>Card ID -&gt; <code class="language-plaintext highlighter-rouge">openGlobalPicker()</code></li>
+  <li>Game Chat -&gt; <code class="language-plaintext highlighter-rouge">openChat()</code></li>
+  <li>Player Rescue -&gt; <code class="language-plaintext highlighter-rouge">openHelp()</code></li>
+  <li>Settings -&gt; <code class="language-plaintext highlighter-rouge">openSettings()</code></li>
+  <li>Profile -&gt; <code class="language-plaintext highlighter-rouge">openProfile()</code></li>
+</ul>
+
+<h2 id="iteration-identification">Iteration identification</h2>
+<p>The landing footer now displays <code class="language-plaintext highlighter-rouge">V0.8 AA</code>. The annotation uses the existing footer styling; no font-size or layout scaling was added.</p>
+
+<p><code class="language-plaintext highlighter-rouge">index.html</code> and <code class="language-plaintext highlighter-rouge">ipad.html</code> module/style query strings were changed to the AA identifier so browsers request this iteration rather than reusing the prior B2.2 module response.</p>
+
+<h2 id="scope">Scope</h2>
+<p>No combat, mana, persistence, deck/profile behavior, card rules, multiplayer rules, startup/service-worker logic, Freeplay, or Table Tracker behavior was changed.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

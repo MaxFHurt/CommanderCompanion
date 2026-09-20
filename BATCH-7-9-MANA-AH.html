@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 AH — Complete Mana System + shared menu cleanup | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 AH — Complete Mana System + shared menu cleanup" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-AH.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-AH.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 AH — Complete Mana System + shared menu cleanup" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 AH — Complete Mana System + shared menu cleanup","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-AH.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08-ah--complete-mana-system--shared-menu-cleanup">Commander Companion V0.8 AH — Complete Mana System + shared menu cleanup</h1>
+
+<h2 id="mana-engine">Mana engine</h2>
+<ul>
+  <li>Flexible mana sources are represented as one source with multiple legal color options instead of being counted once in every possible color.</li>
+  <li>Flexible sources are committed to exactly one production choice when a payment uses them, then the actual source card is tapped.</li>
+  <li>Fixed colored sources and floating mana remain separate; automatic payment spends existing floating mana before tapping another fixed source.</li>
+  <li>Generic costs spend colorless first, then unused flexible sources, then colored fixed mana.</li>
+  <li>Mana added by abilities/effects is explicitly tracked as floating mana and cleared at phase boundaries.</li>
+  <li>Phase/turn resets rebuild available fixed mana from actual battlefield tap state instead of blindly copying total capacity, preventing double-counting after untap.</li>
+  <li>Mana-producing lands, artifacts, and tap-mana permanents register capacity from safe <code class="language-plaintext highlighter-rouge">{T}: Add ...</code> abilities; multi-output fixed sources such as <code class="language-plaintext highlighter-rouge">{C}{C}</code> keep their full production amount.</li>
+  <li>Mana creatures obey summoning sickness for <code class="language-plaintext highlighter-rouge">{T}</code> mana abilities unless they have haste; they become available on a later turn without inflating mana on entry.</li>
+  <li>Multi-color sources register as flexible sources; commander-color-identity sources are restricted to the active commander identity when that wording is detected.</li>
+  <li>The Available Mana display adds split-color indicators for flexible untapped sources, one count per actual source.</li>
+  <li>Mana-source removal now unregisters capacity correctly whether the source leaves untapped, tapped, or is sacrificed as an activation cost.</li>
+</ul>
+
+<h2 id="shared-menu-cleanup">Shared menu cleanup</h2>
+<ul>
+  <li>All graphical Back controls now render the PNG itself; legacy visible BACK text was removed from static dialog markup.</li>
+  <li>Cancel/Deny/Reject semantics use the red Cancel treatment.</li>
+  <li>Confirm/primary actions, including End Turn, Start Game, Confirm &amp; Next, Apply, Cast, Play and Done, use the green Confirm treatment.</li>
+</ul>
+
+<h2 id="scope-preserved">Scope preserved</h2>
+<p>No Freeplay redesign, Virtual Deck/draw redesign, card-detail redesign, combat changes, startup/service-worker changes, or landing-page layout changes were included.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

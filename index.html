@@ -84,8 +84,8 @@
   </main>
 
   <main id="gameScreen" class="screen game-screen" hidden>
-    <link rel="stylesheet" href="game-threefix.css?v=080-db">
-    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-db">
+    <link rel="stylesheet" href="game-threefix.css?v=080-cz">
+    <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cz">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -112,7 +112,8 @@
 
   <dialog id="gameModeDialog" class="cc-modal game-mode-dialog">
     <div class="modal-shell game-mode-shell">
-      <header class="game-mode-header"><button id="gameModeClose" data-navigation="back" class="dialog-back game-mode-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-bn" alt=""></button><h2>CHOOSE GAME MODE</h2><div class="game-mode-header-spacer" aria-hidden="true"></div></header>
+      <header><h2>CHOOSE GAME MODE</h2></header>
+      <div class="modal-back-row"><button id="gameModeClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-bn" alt=""></button></div>
       <div class="modal-content game-mode-content">
         <div class="mode-choice-menu">
           <button type="button" data-game-mode="fully-tracked"><b>FULLY GUIDED</b><span>Full rules guidance, legality checks, tracked deck and hand.</span></button>
@@ -211,7 +212,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-db');
+        await import('./app.js?v=080-cz');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;

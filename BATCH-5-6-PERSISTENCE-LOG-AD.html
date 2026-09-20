@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 AD — Consolidated Persistence + Game Log | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 AD — Consolidated Persistence + Game Log" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-PERSISTENCE-LOG-AD.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-PERSISTENCE-LOG-AD.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 AD — Consolidated Persistence + Game Log" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 AD — Consolidated Persistence + Game Log","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-5-6-PERSISTENCE-LOG-AD.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08-ad--consolidated-persistence--game-log">Commander Companion V0.8 AD — Consolidated Persistence + Game Log</h1>
+
+<p>This checkpoint consolidates original Batch 5 (Basic Active-Game Persistence) and Batch 6 (Game Log / Player Notifications).</p>
+
+<h2 id="persistence">Persistence</h2>
+<ul>
+  <li>Active game serialization continues to preserve players, life, turn, phase, battlefield, hands, library, graveyard, exile, command zone, mana, counters, statuses, commander state, rules, stack, pending triggers, multiplayer metadata, and game log.</li>
+  <li>Restore normalization now explicitly repairs missing rules, stack, pending triggers, priority, multiplayer, post-game, commander, deck-zone, mana, counter, confirmation, and status containers.</li>
+  <li>Undo snapshots remain intentionally excluded from saved payloads to avoid Safari storage growth.</li>
+  <li>Existing localStorage + IndexedDB newest-valid-save recovery is preserved.</li>
+  <li>Opening-hand randomize/customize/confirm and tracked draw/move actions remain autosaved.</li>
+  <li>Direct token creation, Freeplay battlefield add, GM override, and blocker confirmation now force an explicit save before leaving the action flow.</li>
+  <li>No visibilitychange/pagehide/beforeunload persistence logic was added. Safari lifecycle/startup remains reserved for the final startup batch.</li>
+</ul>
+
+<h2 id="game-log--notifications">Game log / notifications</h2>
+<ul>
+  <li>Player notifications now carry timestamp, phase, affectedPlayerIds, attention metadata, and event kind.</li>
+  <li>Life gain/loss, poison changes, status gain/loss, and publicly meaningful zone movement are compared before/after transactions and logged with the affected player.</li>
+  <li>Battlefield -&gt; graveyard movement is distinguished from other zone movement.</li>
+  <li>Hand/library-only movement stays private in the public log unless a card moves into or out of a public zone.</li>
+  <li>Base transaction log entries now include phase and affected player metadata.</li>
+  <li>Existing combat-specific life/poison/permanent notifications remain intact.</li>
+  <li>Game log remains part of the serialized active game and therefore survives Continue Game.</li>
+</ul>
+
+<h2 id="intentionally-unchanged">Intentionally unchanged</h2>
+<p>Combat rules, mana rules/payment, priority behavior, trigger/effect rules, commander rules, deck/profile persistence architecture, Freeplay rules, Table Tracker architecture, service workers, cache purge logic, and Safari startup/resume behavior.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

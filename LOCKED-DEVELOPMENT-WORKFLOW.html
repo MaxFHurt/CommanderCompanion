@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion — Locked Development Workflow Rules | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion — Locked Development Workflow Rules" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/LOCKED-DEVELOPMENT-WORKFLOW.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/LOCKED-DEVELOPMENT-WORKFLOW.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion — Locked Development Workflow Rules" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion — Locked Development Workflow Rules","url":"https://maxfhurt.github.io/CommanderCompanion/LOCKED-DEVELOPMENT-WORKFLOW.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion--locked-development-workflow-rules">Commander Companion — Locked Development Workflow Rules</h1>
+
+<p>Last updated: 2026-09-19</p>
+
+<p>These rules are authoritative for all future Commander Companion development work.</p>
+
+<h2 id="1-twelve-batch-roadmap-remains-authoritative">1. Twelve-batch roadmap remains authoritative</h2>
+
+<p>Do not replace the 12-batch roadmap with build-letter checkpoints. Build letters such as BN, BP, BQ, BR, BS, BT, BU are checkpoints inside a batch unless explicitly promoted to a new roadmap batch.</p>
+
+<p>Current roadmap:</p>
+<ol>
+  <li>Persistence + Game Log</li>
+  <li>Complete Mana System</li>
+  <li>Card Interaction Engine</li>
+  <li>Effects + Triggers</li>
+  <li>Complete Combat</li>
+  <li>Turn Flow + Priority + Available Actions</li>
+  <li>Commander + Card Regression</li>
+  <li>Multiplayer + End Game</li>
+  <li>Freeplay + Table Tracker</li>
+  <li>Visual Feedback + Final UI Polish</li>
+  <li>iOS Interaction + Safari/Startup</li>
+  <li>Final Full Regression</li>
+</ol>
+
+<h2 id="2-mandatory-stop-between-batches">2. Mandatory stop between batches</h2>
+
+<p>At the end of every roadmap batch:</p>
+<ul>
+  <li>STOP before starting the next batch.</li>
+  <li>Give Aaron a detailed status update.</li>
+  <li>Record the same update in the repository so it can be reviewed later.</li>
+  <li>Include: completed work, tests run, failures found, fixes applied, known limitations, Guided Resolution backlog changes, current safe checkpoint, and exact next-batch scope.</li>
+  <li>Do not begin the next roadmap batch until that handoff has been presented.</li>
+</ul>
+
+<h2 id="3-ui-approval-gate">3. UI approval gate</h2>
+
+<p>The current UI is considered working and visually successful. Cosmetic and functional UI changes must be handled conservatively.</p>
+
+<p>When a UI-update batch or UI-affecting change is reached:</p>
+<ul>
+  <li>Preserve the current approved UI as the comparison baseline.</li>
+  <li>Make only the specifically scoped change.</li>
+  <li>Do not refactor or restyle adjacent UI without explicit approval.</li>
+  <li>Test the implementation before presenting it.</li>
+  <li>Aaron must review and explicitly confirm the implemented UI change before development advances past that UI checkpoint.</li>
+  <li>A technically passing UI change is NOT automatically approved.</li>
+  <li>If Aaron rejects it, restore/revise without carrying the rejected presentation forward.</li>
+  <li>Back / Close / Cancel must remain non-committing unless explicitly designed otherwise.</li>
+</ul>
+
+<h2 id="4-guided-resolution-backlog-is-mandatory">4. Guided Resolution backlog is mandatory</h2>
+
+<p>Any card observed to enter Guided Resolution must be added to <code class="language-plaintext highlighter-rouge">GUIDED-RESOLUTION-CARD-LIST.md</code>.</p>
+
+<p>For each card record:</p>
+<ul>
+  <li>card name</li>
+  <li>mechanic / Oracle pattern causing Guided Resolution</li>
+  <li>whether Guided Resolution is intentional safety fallback or an engine defect</li>
+  <li>reproduction/test evidence</li>
+  <li>desired automated behavior</li>
+  <li>status: OPEN / PARTIAL / FIXED / VERIFIED</li>
+</ul>
+
+<p>Cards must remain on the list until their automated behavior is fixed and verified, or until an explicit product decision permanently keeps that mechanic guided.</p>
+
+<h2 id="5-safety-definition">5. Safety definition</h2>
+
+<p>Do not advance a gameplay checkpoint if it introduces a game-stopping/corrupting defect, including:</p>
+<ul>
+  <li>unresolved stack that traps the game</li>
+  <li>card disappears or enters the wrong zone</li>
+  <li>incorrect committed state after Back/Cancel</li>
+  <li>Undo fails to restore the exact tracked pre-action state</li>
+  <li>illegal payment or action corrupts state</li>
+  <li>priority/turn flow becomes permanently stuck</li>
+</ul>
+
+<p>Card-specific incomplete automation may temporarily use Guided Resolution only when the fallback is explicit, recoverable, and recorded in the Guided Resolution backlog.</p>
+
+<h2 id="6-testing--checkpoint-rule">6. Testing / checkpoint rule</h2>
+
+<p>For each mechanic:</p>
+<ol>
+  <li>implement or isolate the behavior</li>
+  <li>add deterministic regression coverage</li>
+  <li>test Chromium + WebKit where practical</li>
+  <li>live Pages test where the flow depends on deployed/browser behavior</li>
+  <li>preserve the passing checkpoint</li>
+  <li>do not carry a failed implementation forward</li>
+</ol>
+
+<p>GitHub remains the source of truth for code and recorded project state.</p>
+
+<h2 id="7-single-active-build-progress-chat">7. Single active build-progress chat</h2>
+
+<p>Only one ChatGPT conversation may advance actual Commander Companion build progress at a time.</p>
+
+<p>The active build-progress chat is identified in <code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code>.</p>
+
+<p>While that lock is active:</p>
+<ul>
+  <li>Only the named owner chat may push gameplay code, UI code, build-version changes, test changes that are intended to advance the active checkpoint, or promote a checkpoint to <code class="language-plaintext highlighter-rouge">main</code>.</li>
+  <li>Other chats may research, inspect code, analyze failures, draft proposed fixes, add batch notes, add future-work notes, add Guided Resolution backlog entries, or prepare non-advancing documentation.</li>
+  <li>Other chats must not create a competing build checkpoint, change the active build letter, promote a branch, or modify gameplay/UI implementation.</li>
+  <li>Before any build-advancing write, the chat must read <code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code> and <code class="language-plaintext highlighter-rouge">COMMANDER-COMPANION-CURRENT-STATE.md</code>.</li>
+  <li>If another chat sees an active owner, it must stop before implementation and record its findings as notes only.</li>
+  <li>Ownership transfers only when Aaron explicitly says to transfer, hand off, or release the build-progress lock.</li>
+  <li>A transfer must update <code class="language-plaintext highlighter-rouge">BUILD-PROGRESS-LOCK.md</code> before the new owner performs build-advancing work.</li>
+  <li>If ownership is ambiguous, do not advance the build.</li>
+</ul>
+
+<p>This rule exists specifically to prevent concurrent chats from diverging, overwriting newer work, or independently advancing build letters.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

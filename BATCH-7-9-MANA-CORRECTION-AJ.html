@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Commander Companion V0.8 AJ — Mana / UI Correction Pass | CommanderCompanion</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Commander Companion V0.8 AJ — Mana / UI Correction Pass" />
+<meta property="og:locale" content="en_US" />
+<link rel="canonical" href="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AJ.html" />
+<meta property="og:url" content="https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AJ.html" />
+<meta property="og:site_name" content="CommanderCompanion" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Commander Companion V0.8 AJ — Mana / UI Correction Pass" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","headline":"Commander Companion V0.8 AJ — Mana / UI Correction Pass","url":"https://maxfhurt.github.io/CommanderCompanion/BATCH-7-9-MANA-CORRECTION-AJ.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="stylesheet" href="/CommanderCompanion/assets/css/style.css?v=e71e3292227956c48a2020a903fe98539fdf803a">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/CommanderCompanion/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      
+      <h1><a href="https://maxfhurt.github.io/CommanderCompanion/">CommanderCompanion</a></h1>
+      
+
+      <h1 id="commander-companion-v08-aj--mana--ui-correction-pass">Commander Companion V0.8 AJ — Mana / UI Correction Pass</h1>
+
+<p>This corrective build stays inside the Complete Mana System batch.</p>
+
+<h2 id="fixed-in-aj">Fixed in AJ</h2>
+<ul>
+  <li>Removed the duplicate Back-button artwork on static dialogs by making the embedded <code class="language-plaintext highlighter-rouge">ui-back.png</code> the only visible Back graphic.</li>
+  <li>Centered red/green footer action labels horizontally and vertically, including paired and single-action buttons.</li>
+  <li>Available-mana displays now hide zero-value mana types and show only mana/sources that are currently available.</li>
+  <li>Flexible mana appears directly inside Available Mana rather than in a separate FLEX category.</li>
+  <li>Two-color flexible sources use one circular diagonal split badge, matching the approved split-mana visual language.</li>
+  <li>Five-color/any-color sources use one distinct any-color flexible badge rather than pretending to be two colors.</li>
+  <li>Gemstone Caverns now resolves its mana source state conditionally:
+    <ul>
+      <li>no luck counter: <code class="language-plaintext highlighter-rouge">{T}: Add {C}</code> only;</li>
+      <li>luck counter present: <code class="language-plaintext highlighter-rouge">{T}: Add one mana of any color</code> only.</li>
+    </ul>
+  </li>
+  <li>Adding/removing a counter from a battlefield mana source refreshes its registered mana capacity so Gemstone Caverns can switch correctly between colorless and any-color states.</li>
+  <li>Gemstone Caverns now exposes <code class="language-plaintext highlighter-rouge">luck</code> in its card-counter controls for testing/state correction.</li>
+  <li>Mana payment continues to treat one flexible source as one source; one any-color source cannot pay two colored symbols at once.</li>
+</ul>
+
+<h2 id="preserved-from-ai">Preserved from AI</h2>
+<ul>
+  <li>Compact activated-ability cost/effect layout.</li>
+  <li>Choice-before-commit flow for modal mana abilities.</li>
+  <li>Red Cancel / green action buttons.</li>
+  <li>Action-specific commit labels such as PLAY LAND, CAST CARD, USE ABILITY, etc.</li>
+</ul>
+
+<h2 id="not-included">Not included</h2>
+<p>No Virtual Deck, Freeplay, combat, card-detail redesign, Safari/startup/cache, or unrelated subsystem work was added.</p>
+
+
+      
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>
