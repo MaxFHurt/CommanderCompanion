@@ -7,10 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 EG</title>
+  <title>Commander Companion V0.8 EH</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-eg">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-eh">
   <script>
     (function(){
       function applyCCStageScale(){
@@ -19,15 +19,14 @@
         var h=vv?vv.height:window.innerHeight;
         var left=vv?vv.offsetLeft:0;
         var top=vv?vv.offsetTop:0;
-        var scaleX=w/1536;
-        var scaleY=h/709;
-        if(!Number.isFinite(scaleX)||scaleX<=0)scaleX=1;
-        if(!Number.isFinite(scaleY)||scaleY<=0)scaleY=1;
+        var scale=Math.min(w/1536,h/709);
+        if(!Number.isFinite(scale)||scale<=0)scale=1;
+        var renderedW=1536*scale;
+        var renderedH=709*scale;
         var root=document.documentElement;
-        root.style.setProperty('--cc-stage-scale-x',String(scaleX));
-        root.style.setProperty('--cc-stage-scale-y',String(scaleY));
-        root.style.setProperty('--cc-stage-center-x',(left+w/2)+'px');
-        root.style.setProperty('--cc-stage-center-y',(top+h/2)+'px');
+        root.style.setProperty('--cc-stage-scale',String(scale));
+        root.style.setProperty('--cc-stage-left',(left+Math.max(0,(w-renderedW)/2))+'px');
+        root.style.setProperty('--cc-stage-top',(top+Math.max(0,(h-renderedH)/2))+'px');
         root.style.setProperty('--cc-visible-w',w+'px');
         root.style.setProperty('--cc-visible-h',h+'px');
       }
@@ -80,7 +79,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 EG</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 EH</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -216,7 +215,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-eg');
+        await import('./app.js?v=080-eh');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
