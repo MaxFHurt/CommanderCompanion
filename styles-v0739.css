@@ -4931,14 +4931,14 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
   body.cc-device-iphone #landing.landing-rebuild-079,
   body.cc-device-other-phone #landing.landing-rebuild-079{
     position:fixed!important;
-    left:var(--cc-stage-center-x,50vw)!important;
-    top:var(--cc-stage-center-y,50vh)!important;
+    left:var(--cc-stage-left,0px)!important;
+    top:var(--cc-stage-top,0px)!important;
     right:auto!important;bottom:auto!important;
     width:1536px!important;min-width:1536px!important;max-width:1536px!important;
     height:709px!important;min-height:709px!important;max-height:709px!important;
     margin:0!important;padding:0!important;
-    transform:translate(-50%,-50%) scale(var(--cc-stage-scale-x,1),var(--cc-stage-scale-y,1))!important;
-    transform-origin:center center!important;
+    transform:scale(var(--cc-stage-scale,1))!important;
+    transform-origin:top left!important;
     overflow:hidden!important;
   }
   #landing .landing079-shell{
@@ -4947,5 +4947,17 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     width:1536px!important;min-width:1536px!important;max-width:1536px!important;
     height:709px!important;min-height:709px!important;max-height:709px!important;
     margin:0!important;
+  }
+}
+
+
+/* V0.8 EH — landing transform conflict cleanup.
+   One coordinate system only: fixed logical 1536x709 stage, uniformly scaled
+   from top-left and centered by measured visual-viewport offsets. */
+@media (orientation:landscape){
+  html,body{width:100%!important;height:100%!important;overflow:hidden!important;}
+  body.cc-device-iphone #landing.landing-rebuild-079,
+  body.cc-device-other-phone #landing.landing-rebuild-079{
+    inset:auto!important;
   }
 }
