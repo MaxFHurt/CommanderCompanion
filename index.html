@@ -7,10 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 EF</title>
+  <title>Commander Companion V0.8 EG</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-ef">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-eg">
   <script>
     (function(){
       function applyCCStageScale(){
@@ -19,7 +19,7 @@
         var h=vv?vv.height:window.innerHeight;
         var left=vv?vv.offsetLeft:0;
         var top=vv?vv.offsetTop:0;
-        var scale=Math.min(w/1536,h/709);
+        var scale=Math.max(w/1536,h/709);
         if(!Number.isFinite(scale)||scale<=0)scale=1;
         var root=document.documentElement;
         root.style.setProperty('--cc-stage-scale',String(scale));
@@ -213,7 +213,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-ef');
+        await import('./app.js?v=080-eg');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
