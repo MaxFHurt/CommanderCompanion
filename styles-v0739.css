@@ -4937,7 +4937,7 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     width:1536px!important;min-width:1536px!important;max-width:1536px!important;
     height:709px!important;min-height:709px!important;max-height:709px!important;
     margin:0!important;padding:0!important;
-    transform:translate(-50%,-50%) scale(var(--cc-stage-scale,1))!important;
+    transform:translate(-50%,-50%) scale(var(--cc-stage-scale-x,1),var(--cc-stage-scale-y,1))!important;
     transform-origin:center center!important;
     overflow:hidden!important;
   }
