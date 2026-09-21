@@ -4923,3 +4923,29 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     grid-area:2 / 1!important;
   }
 }
+
+
+/* V0.8 EF — landing fills and centers the actual Safari visual viewport.
+   Keep the approved 1536x709 composition; only correct the outer placement. */
+@media (orientation:landscape){
+  body.cc-device-iphone #landing.landing-rebuild-079,
+  body.cc-device-other-phone #landing.landing-rebuild-079{
+    position:fixed!important;
+    left:var(--cc-stage-center-x,50vw)!important;
+    top:var(--cc-stage-center-y,50vh)!important;
+    right:auto!important;bottom:auto!important;
+    width:1536px!important;min-width:1536px!important;max-width:1536px!important;
+    height:709px!important;min-height:709px!important;max-height:709px!important;
+    margin:0!important;padding:0!important;
+    transform:translate(-50%,-50%) scale(var(--cc-stage-scale,1))!important;
+    transform-origin:center center!important;
+    overflow:hidden!important;
+  }
+  #landing .landing079-shell{
+    position:absolute!important;
+    inset:0!important;
+    width:1536px!important;min-width:1536px!important;max-width:1536px!important;
+    height:709px!important;min-height:709px!important;max-height:709px!important;
+    margin:0!important;
+  }
+}
