@@ -4925,10 +4925,8 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
 }
 
 
-/* V0.8 EG — landing viewport rescale only.
-   Preserve the approved 1536x709 composition. Scale to COVER the live Safari
-   visual viewport so the stage reaches every screen edge instead of leaving
-   unused black space on wider landscape displays. */
+/* V0.8 EF — landing fills and centers the actual Safari visual viewport.
+   Keep the approved 1536x709 composition; only correct the outer placement. */
 @media (orientation:landscape){
   body.cc-device-iphone #landing.landing-rebuild-079,
   body.cc-device-other-phone #landing.landing-rebuild-079{
