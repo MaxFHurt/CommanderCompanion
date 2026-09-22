@@ -5221,3 +5221,29 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     line-height:1.22!important;
   }
 }
+
+
+/* V0.8 EQ — Game Mode button-content resize only.
+   Do not alter modal/card geometry. Shrink the existing contents so all three
+   labels/descriptions remain inside their existing button artwork. */
+@media (orientation:landscape){
+  #gameModeDialog .mode-choice-menu button{
+    padding:20px 30px!important;
+  }
+  #gameModeDialog .mode-choice-menu button b{
+    display:block!important;
+    max-width:100%!important;
+    margin:0 auto!important;
+    font-size:clamp(15px,1.45vw,22px)!important;
+    line-height:1.05!important;
+    white-space:nowrap!important;
+  }
+  #gameModeDialog .mode-choice-menu button span{
+    display:block!important;
+    max-width:88%!important;
+    margin:6px auto 0!important;
+    font-size:clamp(10px,.82vw,13px)!important;
+    line-height:1.18!important;
+    overflow-wrap:normal!important;
+  }
+}
