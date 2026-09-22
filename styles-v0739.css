@@ -4996,3 +4996,37 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     overflow:hidden!important;
   }
 }
+
+
+/* V0.8 EM — single authoritative landing cascade.
+   This block intentionally wins over all historical landing/device/orientation
+   rules. The landing itself is the viewport; the approved 1536x709 master shell
+   is scaled exactly once to fill it. */
+@media (orientation:landscape){
+  html,body{
+    width:100vw!important;min-width:0!important;max-width:none!important;
+    height:100dvh!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0!important;overflow:hidden!important;
+    transform:none!important;
+  }
+  body.cc-device-iphone #landing.landing-rebuild-079,
+  body.cc-device-other-phone #landing.landing-rebuild-079{
+    display:block!important;visibility:visible!important;opacity:1!important;
+    position:fixed!important;inset:0!important;
+    left:0!important;top:0!important;right:0!important;bottom:0!important;
+    width:100vw!important;min-width:0!important;max-width:none!important;
+    height:100dvh!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0!important;overflow:hidden!important;
+    transform:none!important;clip-path:none!important;pointer-events:auto!important;
+  }
+  body.cc-device-iphone #landing.landing-rebuild-079>.landing079-shell,
+  body.cc-device-other-phone #landing.landing-rebuild-079>.landing079-shell{
+    display:block!important;visibility:visible!important;opacity:1!important;
+    position:absolute!important;inset:auto!important;left:0!important;top:0!important;
+    width:1536px!important;min-width:1536px!important;max-width:1536px!important;
+    height:709px!important;min-height:709px!important;max-height:709px!important;
+    margin:0!important;padding:0!important;overflow:hidden!important;
+    transform:scale(calc(100vw / 1536px),calc(100dvh / 709px))!important;
+    transform-origin:0 0!important;clip-path:none!important;pointer-events:auto!important;
+  }
+}
