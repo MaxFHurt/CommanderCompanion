@@ -4963,3 +4963,36 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
 }
 
 
+
+
+/* V0.8 EL — authoritative landing fit.
+   Preserve the approved master composition; scale the shell itself to the
+   viewport rather than transforming #landing, which Safari was hiding. */
+@media (orientation:landscape){
+  body.cc-device-iphone #landing.landing-rebuild-079,
+  body.cc-device-other-phone #landing.landing-rebuild-079{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;min-width:100vw!important;max-width:100vw!important;
+    height:100dvh!important;min-height:100dvh!important;max-height:100dvh!important;
+    transform:none!important;
+    overflow:hidden!important;
+    pointer-events:auto!important;
+  }
+  body.cc-device-iphone #landing .landing079-shell,
+  body.cc-device-other-phone #landing .landing079-shell{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:absolute!important;
+    left:0!important;top:0!important;
+    width:1536px!important;min-width:1536px!important;max-width:1536px!important;
+    height:709px!important;min-height:709px!important;max-height:709px!important;
+    transform:scale(calc(100vw / 1536),calc(100dvh / 709))!important;
+    transform-origin:0 0!important;
+    overflow:hidden!important;
+  }
+}
