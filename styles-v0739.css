@@ -5247,3 +5247,28 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     overflow-wrap:normal!important;
   }
 }
+
+
+/* V0.8 ER — shrink only the live contents inside Game Mode cards.
+   Geometry/artwork remain exactly as EQ. */
+@media (orientation:landscape){
+  #gameModeDialog .mode-choice-menu>button>b{
+    font-size:12px!important;
+    line-height:1!important;
+    letter-spacing:.025em!important;
+    white-space:nowrap!important;
+    max-width:72%!important;
+    overflow:visible!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>span{
+    font-size:8px!important;
+    line-height:1.15!important;
+    max-width:68%!important;
+    margin:5px auto 0!important;
+  }
+  #gameModeDialog .mode-choice-menu>button::after{
+    width:118px!important;
+    height:28px!important;
+    font-size:9px!important;
+  }
+}
