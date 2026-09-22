@@ -5272,3 +5272,28 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     font-size:9px!important;
   }
 }
+
+
+/* V0.8 ES — center Game Mode button contents only.
+   Preserve current card frames and Game Mode geometry. */
+@media (orientation:landscape){
+  #gameModeDialog .mode-choice-menu>button{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    text-align:center!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>b,
+  #gameModeDialog .mode-choice-menu>button>span{
+    align-self:center!important;
+    justify-self:center!important;
+    text-align:center!important;
+  }
+  #gameModeDialog .mode-choice-menu>button::after{
+    align-self:center!important;
+    justify-self:center!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+}
