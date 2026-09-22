@@ -5030,3 +5030,90 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     transform-origin:0 0!important;clip-path:none!important;pointer-events:auto!important;
   }
 }
+
+
+/* V0.8 EN — Game Mode scale correction only.
+   Apply the same lesson as the EM landing fix: one final authoritative geometry
+   block. No redesign. Compact header/back row, three mode choices fill the body. */
+@media (orientation:landscape){
+  #gameModeDialog.game-mode-dialog,
+  #gameModeDialog.game-mode-dialog[open]{
+    display:block!important;
+    visibility:visible!important;
+    opacity:1!important;
+    position:fixed!important;
+    inset:0!important;
+    left:0!important;top:0!important;right:0!important;bottom:0!important;
+    width:100vw!important;min-width:0!important;max-width:none!important;
+    height:100dvh!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0!important;
+    transform:none!important;
+    overflow:hidden!important;
+  }
+  #gameModeDialog .game-mode-shell{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;min-width:0!important;max-width:none!important;
+    height:100%!important;min-height:0!important;max-height:none!important;
+    margin:0!important;padding:0!important;
+    display:grid!important;
+    grid-template-rows:72px minmax(0,1fr)!important;
+    overflow:hidden!important;
+  }
+  #gameModeDialog .game-mode-shell>header{
+    grid-area:1 / 1!important;
+    width:100%!important;
+    height:72px!important;min-height:72px!important;max-height:72px!important;
+    margin:0!important;padding:0 280px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    overflow:hidden!important;
+  }
+  #gameModeDialog .game-mode-shell>header h2{
+    margin:0!important;padding:0!important;
+    font-size:clamp(30px,3.2vw,52px)!important;
+    line-height:1!important;
+    white-space:nowrap!important;
+  }
+  #gameModeDialog .modal-back-row{
+    grid-area:1 / 1!important;
+    width:100%!important;
+    height:72px!important;min-height:72px!important;max-height:72px!important;
+    margin:0!important;padding:0 24px!important;
+    display:flex!important;align-items:center!important;justify-content:flex-start!important;
+    background:none!important;border:0!important;
+    pointer-events:none!important;
+  }
+  #gameModeDialog #gameModeClose.dialog-back{
+    pointer-events:auto!important;
+    width:190px!important;min-width:190px!important;max-width:190px!important;
+    height:48px!important;min-height:48px!important;max-height:48px!important;
+    margin:0!important;padding:0!important;
+  }
+  #gameModeDialog #gameModeClose.dialog-back img{
+    width:190px!important;height:48px!important;
+    object-fit:contain!important;
+  }
+  #gameModeDialog .game-mode-content{
+    grid-area:2 / 1!important;
+    width:100%!important;height:100%!important;min-height:0!important;
+    margin:0!important;padding:12px 18px 16px!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+  #gameModeDialog .mode-choice-menu{
+    width:100%!important;height:100%!important;min-height:0!important;
+    margin:0!important;padding:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    grid-template-rows:minmax(0,1fr)!important;
+    gap:16px!important;
+    align-items:stretch!important;
+  }
+  #gameModeDialog .mode-choice-menu>button{
+    width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;max-height:none!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+  }
+}
