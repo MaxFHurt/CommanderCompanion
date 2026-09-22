@@ -7,11 +7,29 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 EJ</title>
+  <title>Commander Companion V0.8 EK</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-ej">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-ek">
 
+  <script>
+    (function(){
+      function fitLanding(){
+        var el=document.getElementById('landing');
+        if(!el||innerWidth<innerHeight)return;
+        var w=document.documentElement.clientWidth||innerWidth;
+        var h=document.documentElement.clientHeight||innerHeight;
+        var sx=w/1536, sy=h/709;
+        el.style.setProperty('left','0px','important');
+        el.style.setProperty('top','0px','important');
+        el.style.setProperty('transform','scale('+sx+','+sy+')','important');
+        el.style.setProperty('transform-origin','0 0','important');
+      }
+      addEventListener('DOMContentLoaded',fitLanding);
+      addEventListener('resize',fitLanding,{passive:true});
+      addEventListener('orientationchange',function(){setTimeout(fitLanding,100)},{passive:true});
+    })();
+  </script>
 </head>
 <body class="cc-device-other-phone cc-ui-v2">
   <script>(function(){var ua=navigator.userAgent||'';var iphone=/iPhone|iPod/i.test(ua);document.body.classList.toggle('cc-device-iphone',iphone);document.body.classList.toggle('cc-device-other-phone',!iphone);})();</script>
@@ -51,7 +69,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 EJ</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 EK</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -187,7 +205,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-ej');
+        await import('./app.js?v=080-ek');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
