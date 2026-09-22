@@ -5297,3 +5297,43 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     margin-right:auto!important;
   }
 }
+
+
+/* V0.8 ET — Game Mode content centering only.
+   Keep all current menu/card geometry. Center each card's title, description,
+   and select control within the existing artwork. */
+@media (orientation:landscape){
+  #gameModeDialog .mode-choice-menu>button{
+    position:relative!important;
+    display:grid!important;
+    grid-template-rows:30% 40% 30%!important;
+    align-items:center!important;
+    justify-items:center!important;
+    text-align:center!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>b{
+    grid-row:1!important;
+    align-self:center!important;
+    justify-self:center!important;
+    width:78%!important;
+    max-width:78%!important;
+    margin:0!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>span{
+    grid-row:2!important;
+    align-self:center!important;
+    justify-self:center!important;
+    width:72%!important;
+    max-width:72%!important;
+    margin:0!important;
+    text-align:center!important;
+  }
+  #gameModeDialog .mode-choice-menu>button::after{
+    grid-row:3!important;
+    align-self:center!important;
+    justify-self:center!important;
+    margin:auto!important;
+  }
+}
