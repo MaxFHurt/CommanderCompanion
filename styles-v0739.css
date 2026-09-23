@@ -5337,3 +5337,89 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     margin:auto!important;
   }
 }
+
+
+/* V0.8 EU — approved Game Mode graphical master.
+   Uses the supplied background and button artwork verbatim; no landing changes. */
+@media (orientation:landscape){
+  #gameModeDialog.game-mode-dialog,
+  #gameModeDialog.game-mode-dialog[open]{
+    width:min(96vw,1536px)!important;
+    max-width:1536px!important;
+    height:min(94dvh,709px)!important;
+    max-height:709px!important;
+    border:0!important;
+    border-radius:32px!important;
+    background:#050208 url("game-mode-background-eu.png?v=080-eu") center/100% 100% no-repeat!important;
+    box-shadow:0 18px 60px #000!important;
+  }
+  #gameModeDialog .game-mode-shell{
+    position:relative!important;
+    display:block!important;
+    width:100%!important;height:100%!important;
+    background:none!important;border:0!important;
+    overflow:hidden!important;
+  }
+  #gameModeDialog .game-mode-shell>header{
+    display:none!important;
+  }
+  #gameModeDialog .modal-back-row{
+    position:absolute!important;
+    z-index:5!important;
+    left:4.7%!important;top:5.1%!important;
+    width:15.5%!important;height:9%!important;
+    min-width:0!important;min-height:0!important;
+    margin:0!important;padding:0!important;
+    display:block!important;
+    pointer-events:none!important;
+  }
+  #gameModeDialog #gameModeClose.dialog-back{
+    pointer-events:auto!important;
+    width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+    margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;
+  }
+  #gameModeDialog #gameModeClose.dialog-back img{
+    display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;
+  }
+  #gameModeDialog .game-mode-content{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;height:100%!important;
+    margin:0!important;padding:0!important;
+    overflow:hidden!important;
+    background:none!important;
+  }
+  #gameModeDialog .mode-choice-menu{
+    position:absolute!important;
+    left:5.0%!important;right:5.0%!important;
+    top:24.0%!important;bottom:7.0%!important;
+    width:auto!important;height:auto!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:2.1%!important;
+    margin:0!important;padding:0!important;
+  }
+  #gameModeDialog .mode-choice-menu>button{
+    display:block!important;
+    position:relative!important;
+    width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;
+    margin:0!important;padding:0!important;
+    border:0!important;outline:0!important;
+    background:none!important;box-shadow:none!important;
+    overflow:visible!important;
+  }
+  #gameModeDialog .mode-choice-menu>button::before,
+  #gameModeDialog .mode-choice-menu>button::after{
+    content:none!important;display:none!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>img{
+    display:block!important;
+    width:100%!important;height:100%!important;
+    object-fit:contain!important;
+    object-position:center!important;
+    margin:0 auto!important;
+    pointer-events:none!important;
+  }
+}
