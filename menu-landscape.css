@@ -192,3 +192,17 @@
     opacity:1!important;filter:none!important;transform:none!important;
   }
 }
+
+
+/* V0.8 EZ — remove legacy Game Mode generated frame/texture layers. */
+@media (orientation:landscape){
+  dialog#gameModeDialog.cc-modal>.game-mode-shell::before,
+  dialog#gameModeDialog.cc-modal>.game-mode-shell::after{
+    content:none!important;
+    display:none!important;
+    background:none!important;
+    border:0!important;
+    border-image:none!important;
+    box-shadow:none!important;
+  }
+}
