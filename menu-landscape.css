@@ -286,3 +286,62 @@
     font-size:clamp(12px,.84vw,14px)!important;
   }
 }
+
+
+/* V0.8 FD — Player Setup fresh UI. Existing form controls and behavior preserved. */
+@media (orientation:landscape){
+  dialog#modeSetupDialog.cc-modal,dialog#modeSetupDialog.cc-modal[open]{
+    inset:0!important;width:100vw!important;height:100dvh!important;margin:0!important;padding:0!important;
+    max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+    background:#050208 url('game-mode-background-ev-final.png?v=080-fd') center/100% 100% no-repeat!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell{
+    position:absolute!important;inset:0!important;display:grid!important;grid-template-rows:14% minmax(0,1fr) 12%!important;
+    width:100%!important;height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell::before,dialog#modeSetupDialog.cc-modal>.modal-shell::after{content:none!important;display:none!important}
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header{
+    grid-area:1/1!important;height:100%!important;padding:0 18%!important;display:flex!important;align-items:center!important;justify-content:center!important;
+    background:transparent!important;border:0!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header h2{
+    margin:0!important;padding:0!important;font:900 clamp(21px,2.5vw,36px)/1 var(--head)!important;letter-spacing:.035em!important;color:#fff!important;text-shadow:0 2px 5px #000!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>.modal-back-row{
+    grid-area:1/1!important;z-index:5!important;position:absolute!important;left:3.5%!important;top:4%!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;background:none!important;border:0!important;
+  }
+  dialog#modeSetupDialog.cc-modal .dialog-back{width:clamp(120px,13vw,195px)!important;height:clamp(40px,6.5dvh,60px)!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important}
+  dialog#modeSetupDialog.cc-modal .dialog-back>img{width:100%!important;height:100%!important;object-fit:contain!important}
+  dialog#modeSetupDialog.cc-modal #modeSetupContent{
+    grid-area:2/1!important;display:grid!important;grid-template-columns:minmax(260px,31%) minmax(0,1fr)!important;
+    gap:clamp(18px,2.2vw,34px)!important;width:100%!important;height:100%!important;margin:0!important;padding:1.2% 5%!important;overflow:hidden!important;background:transparent!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage{
+    box-sizing:border-box!important;width:100%!important;height:100%!important;max-width:none!important;margin:0!important;padding:clamp(12px,1.5vw,22px)!important;
+    overflow:auto!important;border:1px solid rgba(181,112,224,.5)!important;border-radius:14px!important;
+    background:linear-gradient(180deg,rgba(22,10,31,.82),rgba(5,2,9,.76))!important;box-shadow:inset 0 0 22px rgba(128,50,180,.10)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage>h3{
+    margin:0 0 clamp(8px,1.2dvh,14px)!important;font:900 clamp(18px,1.8vw,27px)/1 var(--head)!important;color:#fff!important;text-align:center!important;letter-spacing:.025em!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage>p{font-size:clamp(12px,1.05vw,16px)!important;margin:5px 0 10px!important}
+  dialog#modeSetupDialog.cc-modal .setup-stage>label{
+    box-sizing:border-box!important;width:100%!important;max-width:none!important;margin:clamp(5px,.75dvh,9px) 0!important;padding:clamp(7px,.8vw,11px)!important;
+    font-size:clamp(13px,1.15vw,17px)!important;text-align:left!important;border:1px solid rgba(128,88,151,.45)!important;border-radius:8px!important;background:rgba(10,5,15,.72)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage input:not([type=checkbox]),dialog#modeSetupDialog.cc-modal .setup-stage select{
+    box-sizing:border-box!important;width:100%!important;min-height:clamp(34px,5dvh,44px)!important;margin-top:5px!important;padding:4px 10px!important;font-size:clamp(13px,1.1vw,17px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage .check{display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:9px!important}
+  dialog#modeSetupDialog.cc-modal .setup-stage .check input[type=checkbox]{flex:0 0 auto!important;width:20px!important;height:20px!important;margin:0!important}
+  dialog#modeSetupDialog.cc-modal .mode-lock{box-sizing:border-box!important;width:100%!important;padding:10px!important;margin:0 0 10px!important;text-align:center!important;border:1px solid rgba(169,91,208,.55)!important;border-radius:8px!important;background:rgba(13,6,20,.72)!important}
+  dialog#modeSetupDialog.cc-modal .modal-actions{
+    grid-area:3/1!important;box-sizing:border-box!important;display:grid!important;grid-template-columns:1fr 1fr!important;align-items:center!important;
+    width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:1.1% 15%!important;gap:8%!important;
+    border:0!important;background:linear-gradient(180deg,rgba(6,2,10,.25),rgba(6,2,10,.78))!important;
+  }
+  dialog#modeSetupDialog.cc-modal .modal-actions>button{
+    width:100%!important;height:100%!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0 14px!important;
+    font:900 clamp(15px,1.5vw,22px)/1 var(--head)!important;border-radius:8px!important;
+  }
+}
