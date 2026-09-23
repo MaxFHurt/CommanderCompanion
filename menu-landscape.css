@@ -422,3 +422,24 @@
     font:900 clamp(15px,1.45vw,21px)/1 var(--head)!important;border-radius:8px!important;
   }
 }
+
+
+/* V0.8 FL — Player Setup: remove header and reclaim its space. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal>.modal-shell{
+    grid-template-rows:minmax(0,1fr) 12%!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>header{
+    display:none!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{
+    grid-area:1/1!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+    grid-area:1/1!important;
+    padding-top:clamp(52px,8dvh,72px)!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-actions{
+    grid-area:2/1!important;
+  }
+}
