@@ -142,3 +142,53 @@
     object-fit:contain!important;align-self:stretch!important;border:0!important;box-shadow:none!important;
   }
 }
+
+
+/* V0.8 EY — Game Mode owns its live modal layers. Assets unchanged. */
+@media (orientation:landscape){
+  dialog#gameModeDialog.cc-modal,
+  dialog#gameModeDialog.cc-modal[open]{
+    inset:0!important;width:100vw!important;height:100dvh!important;
+    max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;
+    border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;
+    background:#050208 url('game-mode-background-ev-final.png?v=080-ey') center/100% 100% no-repeat!important;
+  }
+  dialog#gameModeDialog.cc-modal>.game-mode-shell{
+    position:absolute!important;inset:0!important;display:block!important;
+    width:100%!important;height:100%!important;margin:0!important;padding:0!important;
+    border:0!important;border-radius:0!important;box-shadow:none!important;
+    background:transparent!important;
+  }
+  dialog#gameModeDialog.cc-modal>.game-mode-shell>header{display:none!important}
+  dialog#gameModeDialog.cc-modal>.game-mode-shell>.modal-back-row{
+    position:absolute!important;z-index:5!important;left:3.5%!important;top:5.0%!important;
+    width:15.5%!important;height:9.0%!important;margin:0!important;padding:0!important;
+    display:block!important;background:transparent!important;border:0!important;pointer-events:none!important;
+  }
+  dialog#gameModeDialog.cc-modal .dialog-back{
+    pointer-events:auto!important;width:100%!important;height:100%!important;
+    min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;
+    border:0!important;background:transparent!important;box-shadow:none!important;
+  }
+  dialog#gameModeDialog.cc-modal .dialog-back>img{
+    display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;
+  }
+  dialog#gameModeDialog.cc-modal .game-mode-content{
+    position:absolute!important;inset:0!important;display:block!important;
+    width:100%!important;height:100%!important;margin:0!important;padding:0!important;
+    overflow:hidden!important;background:transparent!important;border:0!important;box-shadow:none!important;
+  }
+  dialog#gameModeDialog.cc-modal .mode-choice-menu{
+    position:absolute!important;left:7.0%!important;right:7.0%!important;top:27%!important;bottom:6%!important;
+    display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    width:auto!important;height:auto!important;margin:0!important;padding:0!important;gap:4.5%!important;
+  }
+  dialog#gameModeDialog.cc-modal .mode-choice-menu>button{
+    display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+    margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;
+  }
+  dialog#gameModeDialog.cc-modal .mode-choice-menu>button>img{
+    display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;
+    opacity:1!important;filter:none!important;transform:none!important;
+  }
+}
