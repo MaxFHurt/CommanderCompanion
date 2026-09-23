@@ -7,10 +7,10 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 ET</title>
+  <title>Commander Companion V0.8 EU</title>
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="apple-touch-icon" href="AD681F93-016F-4DB0-90FC-54ED1B35BC57.png?v=080-et-icon2">
-  <link rel="stylesheet" href="styles-v0739.css?v=080-et">
+  <link rel="apple-touch-icon" href="AD681F93-016F-4DB0-90FC-54ED1B35BC57.png?v=080-eu-icon2">
+  <link rel="stylesheet" href="styles-v0739.css?v=080-eu">
 
 
 </head>
@@ -52,7 +52,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 ET</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 EU</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -92,9 +92,9 @@
       <div class="modal-back-row"><button id="gameModeClose" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-bn" alt=""></button></div>
       <div class="modal-content game-mode-content">
         <div class="mode-choice-menu">
-          <button type="button" data-game-mode="fully-tracked"><b>FULLY GUIDED</b><span>Full rules guidance.</span></button>
-          <button type="button" data-game-mode="freeplay"><b>FREEPLAY</b><span>Minimal rules interference.</span></button>
-          <button type="button" data-game-mode="table-tracker"><b>TABLE TRACKER</b><span>Shared-table tracking.</span></button>
+          <button type="button" data-game-mode="fully-tracked" aria-label="Fully Guided"><img src="fully-guided-mode-button-eu.png?v=080-eu" alt="Fully Guided — Rulebook enforced guided games."></button>
+          <button type="button" data-game-mode="freeplay" aria-label="Freeplay"><img src="freeplay-mode-button-eu.png?v=080-eu" alt="Freeplay — Create, Test, and Play."></button>
+          <button type="button" data-game-mode="table-tracker" aria-label="Table Tracker"><img src="table-tracker-mode-button-eu.png?v=080-eu" alt="Table Tracker — Shared table tracking."></button>
         </div>
       </div>
     </div>
@@ -188,7 +188,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-et');
+        await import('./app.js?v=080-eu');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
