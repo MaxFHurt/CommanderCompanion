@@ -206,3 +206,61 @@
     box-shadow:none!important;
   }
 }
+
+
+/* V0.8 FA — scale Game Setup menu to the landscape viewport. Layout only. */
+@media (orientation:landscape){
+  dialog#modeSetupDialog.cc-modal,
+  dialog#modeSetupDialog.cc-modal[open]{
+    inset:0!important;width:100vw!important;height:100dvh!important;
+    max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell{
+    width:100%!important;height:100%!important;
+    grid-template-rows:clamp(72px,13dvh,104px) minmax(0,1fr) clamp(92px,18dvh,138px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header{
+    height:100%!important;padding:0 clamp(190px,17vw,280px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header h2{
+    font-size:clamp(34px,4vw,58px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>.modal-back-row{
+    height:100%!important;padding:0 clamp(24px,3vw,48px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .dialog-back{
+    width:clamp(180px,16vw,250px)!important;height:clamp(58px,9dvh,78px)!important;
+    min-width:0!important;min-height:0!important;
+  }
+  dialog#modeSetupDialog.cc-modal .dialog-back>img{width:100%!important;height:100%!important}
+  dialog#modeSetupDialog.cc-modal #modeSetupContent{
+    grid-template-columns:minmax(360px,42%) minmax(0,1fr)!important;
+    gap:clamp(24px,3vw,48px)!important;
+    padding:clamp(18px,2.5vw,38px) clamp(28px,4vw,64px)!important;
+    overflow:hidden!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage{
+    max-width:none!important;width:100%!important;height:100%!important;
+    margin:0!important;padding:clamp(18px,2.2vw,34px)!important;
+    font-size:clamp(18px,1.7vw,27px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage>h3{
+    font-size:clamp(28px,3vw,44px)!important;margin-bottom:clamp(14px,2dvh,24px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage>label{
+    max-width:none!important;width:100%!important;margin:clamp(10px,1.6dvh,18px) 0!important;
+    font-size:clamp(18px,1.7vw,26px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .setup-stage input,
+  dialog#modeSetupDialog.cc-modal .setup-stage select{
+    min-height:clamp(48px,7dvh,62px)!important;font-size:clamp(18px,1.6vw,25px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .modal-actions{
+    height:100%!important;min-height:0!important;max-height:none!important;
+    gap:clamp(32px,5vw,80px)!important;padding:clamp(12px,2dvh,22px) 10%!important;
+  }
+  dialog#modeSetupDialog.cc-modal .modal-actions>button{
+    max-width:none!important;height:100%!important;min-height:0!important;
+    font-size:clamp(25px,2.8vw,42px)!important;
+  }
+}
