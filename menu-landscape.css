@@ -264,3 +264,25 @@
     font-size:clamp(25px,2.8vw,42px)!important;
   }
 }
+
+
+/* V0.8 FB — Game Setup header/footer reduced 70% from FA. */
+@media (orientation:landscape){
+  dialog#modeSetupDialog.cc-modal>.modal-shell{
+    grid-template-rows:clamp(22px,3.9dvh,31px) minmax(0,1fr) clamp(28px,5.4dvh,41px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header{height:100%!important;padding:0 clamp(57px,5.1vw,84px)!important}
+  dialog#modeSetupDialog.cc-modal>.modal-shell>header h2{font-size:clamp(16px,1.2vw,18px)!important}
+  dialog#modeSetupDialog.cc-modal>.modal-shell>.modal-back-row{height:100%!important;padding:0 clamp(7px,.9vw,14px)!important}
+  dialog#modeSetupDialog.cc-modal .dialog-back{
+    width:clamp(54px,4.8vw,75px)!important;height:clamp(18px,2.7dvh,23px)!important;
+  }
+  dialog#modeSetupDialog.cc-modal .modal-actions{
+    height:100%!important;min-height:0!important;max-height:none!important;
+    gap:clamp(10px,1.5vw,24px)!important;padding:clamp(4px,.6dvh,7px) 10%!important;
+  }
+  dialog#modeSetupDialog.cc-modal .modal-actions>button{
+    height:100%!important;min-height:0!important;padding:0 clamp(5px,.6vw,8px)!important;
+    font-size:clamp(12px,.84vw,14px)!important;
+  }
+}
