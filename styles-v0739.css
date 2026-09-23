@@ -5435,3 +5435,21 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     background:#050208 url("game-mode-background-ev.jpeg?v=080-ev") center/100% 100% no-repeat!important;
   }
 }
+
+
+/* V0.8 EW — final Game Mode assembly. Exact uploaded background + existing foreground assets. */
+@media (orientation:landscape){
+  #gameModeDialog.game-mode-dialog,
+  #gameModeDialog.game-mode-dialog[open]{
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:#050208 url("game-mode-background-ev-final.png?v=080-ew") center/100% 100% no-repeat!important;
+  }
+  #gameModeDialog .game-mode-shell,
+  #gameModeDialog .game-mode-content{
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+}
