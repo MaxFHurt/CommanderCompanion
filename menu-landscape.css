@@ -345,3 +345,80 @@
     font:900 clamp(15px,1.5vw,22px)/1 var(--head)!important;border-radius:8px!important;
   }
 }
+
+
+/* V0.8 FK — Player Setup rebuilt to match approved Game Mode visual system. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
+    inset:0!important;width:100vw!important;height:100dvh!important;margin:0!important;padding:0!important;
+    max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;
+    background:#050208 url('game-mode-background-ev-final.png?v=080-fk') center/100% 100% no-repeat!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell{
+    position:absolute!important;inset:0!important;display:grid!important;grid-template-rows:13% minmax(0,1fr) 12%!important;
+    width:100%!important;height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;
+    background:transparent!important;box-shadow:none!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell::before,dialog#setupDialog.cc-modal>.modal-shell::after{content:none!important;display:none!important}
+  dialog#setupDialog.cc-modal>.modal-shell>header{
+    grid-area:1/1!important;height:100%!important;margin:0!important;padding:0 18%!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;border:0!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>header h2{
+    margin:0!important;padding:0!important;font:900 clamp(21px,2.4vw,35px)/1 var(--head)!important;
+    letter-spacing:.035em!important;color:#fff!important;text-align:center!important;text-shadow:0 2px 5px #000!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{
+    grid-area:1/1!important;z-index:5!important;position:absolute!important;left:3.5%!important;top:4%!important;
+    width:auto!important;height:auto!important;margin:0!important;padding:0!important;background:none!important;border:0!important;
+  }
+  dialog#setupDialog.cc-modal .dialog-back{
+    width:clamp(120px,13vw,195px)!important;height:clamp(40px,6.5dvh,60px)!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;
+  }
+  dialog#setupDialog.cc-modal .dialog-back>img{width:100%!important;height:100%!important;object-fit:contain!important}
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+    grid-area:2/1!important;box-sizing:border-box!important;display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;
+    width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:1% 5%!important;overflow:hidden!important;background:transparent!important;border:0!important;
+  }
+  dialog#setupDialog.cc-modal .setup-line{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:clamp(18px,2vw,32px)!important;
+    width:100%!important;margin:0 0 10px!important;
+  }
+  dialog#setupDialog.cc-modal .setup-line>label,dialog#setupDialog.cc-modal #virtualHandWrap{
+    box-sizing:border-box!important;margin:0!important;padding:8px 12px!important;font-size:clamp(13px,1.15vw,17px)!important;
+    text-align:left!important;border:1px solid rgba(128,88,151,.5)!important;border-radius:8px!important;background:rgba(10,5,15,.78)!important;
+  }
+  dialog#setupDialog.cc-modal .setup-line select{box-sizing:border-box!important;width:100%!important;min-height:34px!important;margin-top:4px!important;font-size:clamp(13px,1.1vw,17px)!important}
+  dialog#setupDialog.cc-modal #playerSetupPanels{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;align-content:start!important;
+    gap:clamp(12px,1.5vw,22px)!important;width:100%!important;height:100%!important;min-height:0!important;overflow:auto!important;padding:0 2px 6px!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup{
+    box-sizing:border-box!important;min-width:0!important;margin:0!important;padding:clamp(10px,1.1vw,16px)!important;
+    border:1px solid rgba(181,112,224,.5)!important;border-radius:12px!important;
+    background:linear-gradient(180deg,rgba(22,10,31,.86),rgba(5,2,9,.80))!important;box-shadow:inset 0 0 20px rgba(128,50,180,.10)!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup>h3{
+    margin:0 0 8px!important;font:900 clamp(17px,1.6vw,24px)/1 var(--head)!important;text-align:center!important;color:#fff!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup label{font-size:clamp(12px,1vw,15px)!important}
+  dialog#setupDialog.cc-modal .player-setup input,dialog#setupDialog.cc-modal .player-setup select{
+    box-sizing:border-box!important;width:100%!important;min-height:32px!important;margin-top:3px!important;padding:3px 8px!important;font-size:clamp(12px,1vw,15px)!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup textarea{
+    box-sizing:border-box!important;width:100%!important;height:clamp(58px,9dvh,88px)!important;min-height:0!important;margin-top:3px!important;padding:6px!important;font-size:clamp(11px,.9vw,14px)!important;resize:none!important;
+  }
+  dialog#setupDialog.cc-modal .commander-line{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+  dialog#setupDialog.cc-modal .setup-tools{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;margin:7px 0!important}
+  dialog#setupDialog.cc-modal .player-setup button{min-height:30px!important;padding:4px 10px!important;font-size:clamp(11px,.9vw,14px)!important}
+  dialog#setupDialog.cc-modal #setupProgress{margin:0!important;min-height:0!important;font-size:12px!important}
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-actions{
+    grid-area:3/1!important;box-sizing:border-box!important;display:grid!important;grid-template-columns:1fr 1fr!important;align-items:center!important;
+    width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:1.1% 15%!important;gap:8%!important;
+    border:0!important;background:linear-gradient(180deg,rgba(6,2,10,.2),rgba(6,2,10,.72))!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-actions>button{
+    width:100%!important;height:100%!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0 14px!important;
+    font:900 clamp(15px,1.45vw,21px)/1 var(--head)!important;border-radius:8px!important;
+  }
+}
