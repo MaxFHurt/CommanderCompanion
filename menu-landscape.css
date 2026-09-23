@@ -443,3 +443,14 @@
     grid-area:2/1!important;
   }
 }
+
+
+/* V0.8 FM — exact approved Player Setup background asset. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
+    background:#050208 url('a_wide_high_resolution_fantasy_sci_fi_ui_banner_b.png?v=080-fm') center/100% 100% no-repeat!important;
+  }
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+    padding-top:clamp(112px,18dvh,155px)!important;
+  }
+}
