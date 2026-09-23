@@ -114,10 +114,7 @@
       <header><h2>NEW GAME SETUP</h2></header>
       <div class="modal-back-row"><button id="setupDialogBack" data-navigation="back" class="dialog-back" type="button" aria-label="Back"><img src="ui-back.png?v=080-bn" alt=""></button></div>
       <div class="modal-content">
-        <div class="setup-line">
-          <label>Players<select id="playerCount"><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></label>
-          <label id="guidanceSettingWrap">Guidance<select id="defaultGuidance"><option value="guided">MAX GUIDANCE</option></select></label>
-        </div>
+        <div id="playerSetupTabs" class="player-setup-tabs" role="tablist" aria-label="Players"></div>
         <label id="virtualHandWrap" class="check" hidden><input id="virtualHand" type="checkbox" checked> Virtual Hand</label>
         <div id="playerSetupPanels"></div>
         <div id="setupProgress" class="progress-text"></div>
