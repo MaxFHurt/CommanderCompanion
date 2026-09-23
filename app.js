@@ -1661,8 +1661,8 @@ $('#gameModeClose')?.addEventListener('click',closeGameModeChooser);
 $('#setupDialogBack')?.addEventListener('click',()=>{if($('#setupDialog')?.open)$('#setupDialog').close();openGameModeChooser()});
 $('#deckDialogBack')?.addEventListener('click',()=>{if($('#deckDialog')?.open)$('#deckDialog').close()});
 $('#networkDialogBack')?.addEventListener('click',()=>{if($('#networkDialog')?.open)$('#networkDialog').close()});
-$('[data-game-mode]').forEach(b=>b.addEventListener('click',()=>{const mode=b.dataset.gameMode;closeGameModeChooser();selectedMode=mode;if(mode==='fully-tracked')openSetup();else openModeSetup(mode)}));
-$('[data-launch-mode]').forEach(b=>b.onclick=()=>{selectedMode=b.dataset.launchMode;if(selectedMode==='fully-tracked')openSetup();else openModeSetup(selectedMode,'rules')});
+$$('[data-game-mode]').forEach(b=>b.addEventListener('click',()=>{const mode=b.dataset.gameMode;closeGameModeChooser();selectedMode=mode;if(mode==='fully-tracked')openSetup();else openModeSetup(mode)}));
+$$('[data-launch-mode]').forEach(b=>b.onclick=()=>{selectedMode=b.dataset.launchMode;if(selectedMode==='fully-tracked')openSetup();else openModeSetup(selectedMode,'rules')});
 async function refreshContinueButton(){const b=$('#continueBtn');if(!b)return;let ok=hasValidSave(localStorage,STORAGE_KEY);if(!ok)ok=await hasDurableSave(STORAGE_KEY);b.disabled=!ok;b.setAttribute('aria-disabled',String(!ok))}
 async function repairLegacyCombatDefinitions(restored){const missing=Object.values(restored?.cardDefinitions||{}).filter(d=>/Creature/i.test(d?.typeLine||'')&&(d.power==null||d.toughness==null));for(const d of missing){try{const fresh=await resolveNamedCard(d.name);restored.cardDefinitions[d.definitionId]={...d,...fresh}}catch{}}return restored}
 async function continueSavedGame(){try{
