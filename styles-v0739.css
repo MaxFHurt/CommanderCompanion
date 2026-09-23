@@ -5423,3 +5423,15 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     pointer-events:none!important;
   }
 }
+
+
+/* V0.8 EV — exact user-supplied Game Mode background; no rendering or visual treatment. */
+@media (orientation:landscape){
+  #gameModeDialog.game-mode-dialog,
+  #gameModeDialog.game-mode-dialog[open]{
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    background:#050208 url("game-mode-background-ev.jpeg?v=080-ev") center/100% 100% no-repeat!important;
+  }
+}
