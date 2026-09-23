@@ -5453,3 +5453,54 @@ body.cc-device-other-phone #landing.landing-rebuild-079{
     box-shadow:none!important;
   }
 }
+
+
+/* V0.8 EX — Game Mode assembly correction only. No asset rendering. */
+@media (orientation:landscape){
+  #gameModeDialog.game-mode-dialog,
+  #gameModeDialog.game-mode-dialog[open]{
+    width:min(100vw,1536px)!important;
+    max-width:1536px!important;
+    height:min(100dvh,709px)!important;
+    max-height:709px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    outline:0!important;
+    box-shadow:none!important;
+    filter:none!important;
+    background:#050208 url("game-mode-background-ev-final.png?v=080-ex") center/100% 100% no-repeat!important;
+  }
+  #gameModeDialog::backdrop{
+    background:#000!important;
+    backdrop-filter:none!important;
+  }
+  #gameModeDialog .game-mode-shell,
+  #gameModeDialog .game-mode-content{
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    filter:none!important;
+    background:transparent!important;
+  }
+  #gameModeDialog .modal-back-row{
+    left:3.0%!important;
+    top:3.2%!important;
+    width:17.5%!important;
+    height:10.5%!important;
+  }
+  #gameModeDialog .mode-choice-menu{
+    left:6.0%!important;
+    right:6.0%!important;
+    top:25.0%!important;
+    bottom:5.0%!important;
+    gap:2.6%!important;
+  }
+  #gameModeDialog .mode-choice-menu>button>img{
+    width:100%!important;
+    height:100%!important;
+    object-fit:contain!important;
+    filter:none!important;
+    opacity:1!important;
+  }
+}
