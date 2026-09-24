@@ -927,3 +927,15 @@
     transform:translateY(-50%)!important;
   }
 }
+
+
+/* V0.8 HC — Player Setup full-height table + true header Back centering. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal #playerSetupPanels{height:calc(100% - 8px)!important;min-height:0!important;margin:0!important;padding:0!important}
+ dialog#setupDialog.cc-modal .player-setup{position:relative!important;display:block!important;height:100%!important;min-height:0!important;padding:0 16px!important;box-sizing:border-box!important}
+ dialog#setupDialog.cc-modal .setup-first-line,dialog#setupDialog.cc-modal .commander-line{position:absolute!important;left:16px!important;right:16px!important;width:auto!important;height:32px!important;margin:0!important}
+ dialog#setupDialog.cc-modal .setup-first-line{top:33.333%!important;transform:translateY(-50%)!important}
+ dialog#setupDialog.cc-modal .commander-line{top:66.667%!important;bottom:auto!important;transform:translateY(-50%)!important}
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{position:fixed!important;left:clamp(18px,2vw,28px)!important;top:clamp(56px,9dvh,78px)!important;width:auto!important;height:auto!important;padding:0!important;display:block!important;transform:translateY(-50%)!important;z-index:20!important;pointer-events:none!important}
+ dialog#setupDialog.cc-modal #setupDialogBack{position:static!important;margin:0!important;transform:none!important;pointer-events:auto!important}
+}
