@@ -588,3 +588,31 @@
    display:none!important;
  }
 }
+
+
+/* V0.8 GF — two-line Player Setup workspace. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup>h3{display:none!important}
+ dialog#setupDialog.cc-modal .player-setup{
+   padding:clamp(10px,1.1vw,16px)!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{
+   display:grid!important;
+   grid-template-columns:minmax(0,1fr) minmax(0,1.15fr) auto!important;
+   align-items:end!important;
+   gap:10px!important;
+   margin:0 0 10px!important;
+ }
+ dialog#setupDialog.cc-modal .commander-line{
+   grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto!important;
+   align-items:end!important;
+ }
+ dialog#setupDialog.cc-modal .setup-secondary-wrap[hidden]{display:none!important}
+ dialog#setupDialog.cc-modal .setup-deck[hidden]{display:none!important}
+ dialog#setupDialog.cc-modal .setup-view-deck,
+ dialog#setupDialog.cc-modal .setup-precon{
+   align-self:end!important;
+   min-height:32px!important;
+   white-space:nowrap!important;
+ }
+}
