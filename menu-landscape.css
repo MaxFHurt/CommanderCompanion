@@ -492,3 +492,26 @@
     background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fx') center/100% 100% no-repeat!important;
   }
 }
+
+
+/* V0.8 FY — compact Player Setup tabs. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup-tabs{
+   gap:4px!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tab{
+   box-sizing:border-box!important;
+   flex:1 1 0!important;
+   min-width:0!important;
+   width:auto!important;
+   min-height:0!important;
+   height:auto!important;
+   padding:4px 5px!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-add{
+   flex:0 0 auto!important;
+   min-width:30px!important;
+   width:30px!important;
+   padding:2px 4px!important;
+ }
+}
