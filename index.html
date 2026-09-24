@@ -180,12 +180,12 @@
           await Promise.all(keys.filter(k=>k.startsWith('commander-companion-')).map(k=>caches.delete(k)));
         }
         const fresh=new URL(location.href);
-        if(hadController&&fresh.searchParams.get('ccFresh')!=='079-threefix'){
-          fresh.searchParams.set('ccFresh','079-threefix');
+        if(hadController&&fresh.searchParams.get('ccFresh')!=='080-hi'){
+          fresh.searchParams.set('ccFresh','080-hi');
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-he');
+        await import('./app.js?v=080-hi');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
