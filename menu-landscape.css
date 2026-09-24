@@ -894,3 +894,36 @@
     pointer-events:auto!important;
   }
 }
+
+
+/* V0.8 HB — Player Setup breathing room correction.
+   HA's grid tracks collapsed the visual gap. Place the two existing rows at
+   one-third and two-thirds of the panel so top/middle/bottom spacing matches. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal .player-setup{
+    position:relative!important;
+    display:block!important;
+    height:100%!important;
+    min-height:0!important;
+    padding:0 16px!important;
+    box-sizing:border-box!important;
+  }
+  dialog#setupDialog.cc-modal .setup-first-line,
+  dialog#setupDialog.cc-modal .commander-line{
+    position:absolute!important;
+    left:16px!important;
+    right:16px!important;
+    width:auto!important;
+    height:32px!important;
+    margin:0!important;
+  }
+  dialog#setupDialog.cc-modal .setup-first-line{
+    top:33.333%!important;
+    transform:translateY(-50%)!important;
+  }
+  dialog#setupDialog.cc-modal .commander-line{
+    top:66.667%!important;
+    bottom:auto!important;
+    transform:translateY(-50%)!important;
+  }
+}
