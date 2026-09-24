@@ -666,7 +666,7 @@ function bindSetupTools(){
   $$('.setup-deck').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
   $$('.setup-cmd1').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
 }
-async function openSetup(){await userDataReady;const dialog=$('#setupDialog');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();$('#setupProgress').textContent='';$('#virtualHand').checked=true;dialog.showModal();closeGameModeChooser()}
+async function openSetup(){await userDataReady;const dialog=$('#setupDialog');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();$('#setupProgress').textContent='';const virtualHand=$('#virtualHand');if(virtualHand)virtualHand.checked=true;dialog.showModal();closeGameModeChooser()}
 
 function manifestFingerprint(manifest=[]){return manifest.map(e=>`${e.definitionId}:${Number(e.quantity??e.qty??1)}`).sort().join('|')}
 function validateHydratedDeckOwnership(player){
