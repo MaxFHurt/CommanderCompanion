@@ -484,3 +484,11 @@
  dialog#setupDialog.cc-modal .player-setup{width:100%!important;max-width:none!important}
  dialog#setupDialog.cc-modal .player-setup[hidden]{display:none!important}
 }
+
+
+/* V0.8 FV — approved Player Setup background. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
+    background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fv') center/100% 100% no-repeat!important;
+  }
+}
