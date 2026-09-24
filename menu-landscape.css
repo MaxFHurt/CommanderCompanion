@@ -773,3 +773,28 @@
  }
  dialog#setupDialog.cc-modal .setup-secondary-wrap[hidden]{display:none!important}
 }
+
+
+/* V0.8 GW — Player Setup workspace height + vertical distribution only.
+   Fill the available content area above the footer and distribute the two
+   existing setup rows through that space. Control sizing/columns are unchanged. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal #playerSetupPanels{
+    height:100%!important;
+    min-height:0!important;
+    padding-bottom:6px!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup{
+    height:100%!important;
+    min-height:0!important;
+    display:grid!important;
+    grid-template-rows:32px 32px!important;
+    align-content:space-evenly!important;
+  }
+  dialog#setupDialog.cc-modal .setup-first-line,
+  dialog#setupDialog.cc-modal .commander-line{
+    margin-top:0!important;
+    margin-bottom:0!important;
+    align-self:center!important;
+  }
+}
