@@ -798,3 +798,34 @@
     align-self:center!important;
   }
 }
+
+
+/* V0.8 GX — Player Setup row separation correction.
+   GW used a two-track grid, which packed both 32px rows together before
+   align-content could distribute them. Use the workspace itself as the
+   vertical layout and pin row 1 high / row 2 low. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal .player-setup{
+    position:relative!important;
+    display:block!important;
+    height:100%!important;
+    min-height:150px!important;
+    padding:10px 16px!important;
+  }
+  dialog#setupDialog.cc-modal .setup-first-line{
+    position:absolute!important;
+    left:16px!important;
+    right:16px!important;
+    top:12%!important;
+    width:auto!important;
+    margin:0!important;
+  }
+  dialog#setupDialog.cc-modal .commander-line{
+    position:absolute!important;
+    left:16px!important;
+    right:16px!important;
+    bottom:12%!important;
+    width:auto!important;
+    margin:0!important;
+  }
+}
