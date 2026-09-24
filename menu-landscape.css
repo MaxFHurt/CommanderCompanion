@@ -1185,3 +1185,17 @@
  dialog#setupDialog.cc-modal .setup-first-line{top:32%!important}
  dialog#setupDialog.cc-modal .commander-line{top:68%!important}
 }
+
+
+/* V0.8 HK — raise Player Setup table and evenly distribute both prompt rows. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+   padding-top:clamp(78px,11.5dvh,92px)!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   height:clamp(270px,49dvh,365px)!important;
+   max-height:365px!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{top:33.333%!important}
+ dialog#setupDialog.cc-modal .commander-line{top:66.667%!important}
+}
