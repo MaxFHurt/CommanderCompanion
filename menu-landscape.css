@@ -709,3 +709,24 @@
    min-width:0!important;
  }
 }
+
+
+/* V0.8 GT — Line 1 only: match the existing Line 2 field height. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .setup-first-line{
+   align-items:end!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-name,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-saved,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-view-deck{
+   box-sizing:border-box!important;
+   width:100%!important;
+   min-width:0!important;
+   height:32px!important;
+   min-height:32px!important;
+   max-height:32px!important;
+   margin:0!important;
+   padding:3px 8px!important;
+   line-height:1!important;
+ }
+}
