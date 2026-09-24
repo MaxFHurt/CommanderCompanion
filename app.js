@@ -624,11 +624,11 @@ let setupPlayerCount=2,activeSetupPlayer=0;
 function renderSetupTabs(){
  const tabs=$('#playerSetupTabs');if(!tabs)return;
  tabs.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>`<button type="button" class="player-setup-tab${i===activeSetupPlayer?' active':''}" data-setup-player-tab="${i}">PLAYER ${i+1}</button>`).join('')+(setupPlayerCount<6?'<button type="button" class="player-setup-tab player-setup-add" id="addSetupPlayer" aria-label="Add player">+</button>':'');
- $('[data-setup-player-tab]').forEach(b=>b.onclick=()=>{activeSetupPlayer=+b.dataset.setupPlayerTab;showActiveSetupPlayer()});
+ $$('[data-setup-player-tab]').forEach(b=>b.onclick=()=>{activeSetupPlayer=+b.dataset.setupPlayerTab;showActiveSetupPlayer()});
  const add=$('#addSetupPlayer');if(add)add.onclick=()=>{if(setupPlayerCount>=6)return;setupPlayerCount++;renderSetupPanels({preserve:true});activeSetupPlayer=setupPlayerCount-1;showActiveSetupPlayer()};
 }
 function showActiveSetupPlayer(){
- $('[data-player-setup]').forEach((panel,i)=>panel.hidden=i!==activeSetupPlayer);
+ $$('[data-player-setup]').forEach((panel,i)=>panel.hidden=i!==activeSetupPlayer);
  renderSetupTabs();
 }
 function renderSetupPanels({preserve=false}={}){
@@ -636,7 +636,7 @@ function renderSetupPanels({preserve=false}={}){
  const oldValues=old.map(p=>({html:p.outerHTML}));
  host.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>oldValues[i]?.html||playerPanel(i)).join('');
  preparePlayerSetup(host);const defaults=accountSetupDefaults();const saved=listDecks();bindSetupTools();
- $('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
+ $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
  showActiveSetupPlayer();
 }
 async function openGlobalCommanderPicker({primary=null,onSelect}){
