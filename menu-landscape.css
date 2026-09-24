@@ -1127,3 +1127,26 @@
  }
  dialog#setupDialog.cc-modal .player-setup[hidden]{display:none!important}
 }
+
+
+/* V0.8 HH — Player Setup Back jewel vertically centered in header band only. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{
+   position:fixed!important;
+   left:clamp(18px,2vw,28px)!important;
+   top:clamp(44px,7.25dvh,62px)!important;
+   width:auto!important;
+   height:auto!important;
+   padding:0!important;
+   display:block!important;
+   transform:translateY(-50%)!important;
+   z-index:20!important;
+   pointer-events:none!important;
+ }
+ dialog#setupDialog.cc-modal #setupDialogBack{
+   position:static!important;
+   margin:0!important;
+   transform:none!important;
+   pointer-events:auto!important;
+ }
+}
