@@ -580,3 +580,11 @@
    height:auto!important;
  }
 }
+
+
+/* V0.8 GD — honor hidden controls in Player Setup. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal #virtualHandWrap[hidden]{
+   display:none!important;
+ }
+}
