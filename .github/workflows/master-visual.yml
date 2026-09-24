@@ -1,8 +1,6 @@
 name: Commander Companion Master Visual QA
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
