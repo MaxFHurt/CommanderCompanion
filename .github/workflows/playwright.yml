@@ -1,14 +1,12 @@
 name: Commander Companion Browser Tests
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   browser-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
