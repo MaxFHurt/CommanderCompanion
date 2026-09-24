@@ -1150,3 +1150,11 @@
    pointer-events:auto!important;
  }
 }
+
+
+/* V0.8 HI — Back jewel centered vertically in the upper header field. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{
+   top:clamp(24px,4dvh,34px)!important;
+ }
+}
