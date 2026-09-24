@@ -1033,3 +1033,62 @@
    padding:3px 8px!important;
  }
 }
+
+
+/* V0.8 HF — restore full viewport and visible Player Setup table workspace. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal,
+ dialog#setupDialog.cc-modal[open]{
+   width:100vw!important;
+   max-width:none!important;
+   height:100dvh!important;
+   max-height:none!important;
+   margin:0!important;
+   padding:0!important;
+ }
+ dialog#setupDialog.cc-modal>.modal-shell{
+   width:100%!important;
+   height:100%!important;
+   min-height:100%!important;
+   grid-template-rows:minmax(0,1fr) 12%!important;
+ }
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+   grid-area:1/1!important;
+   min-height:0!important;
+   padding:clamp(78px,12dvh,105px) clamp(72px,7vw,112px) 8px!important;
+   grid-template-rows:auto minmax(0,1fr) auto!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   display:block!important;
+   width:100%!important;
+   height:100%!important;
+   min-height:160px!important;
+   overflow:visible!important;
+   padding:0!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup{
+   display:block!important;
+   position:relative!important;
+   width:100%!important;
+   height:100%!important;
+   min-height:160px!important;
+   margin:0!important;
+   padding:0 16px!important;
+   border:1px solid rgba(181,112,224,.5)!important;
+   border-radius:12px!important;
+   background:linear-gradient(180deg,rgba(22,10,31,.86),rgba(5,2,9,.80))!important;
+   box-shadow:inset 0 0 20px rgba(128,50,180,.10)!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup[hidden]{display:none!important}
+ dialog#setupDialog.cc-modal .setup-first-line,
+ dialog#setupDialog.cc-modal .commander-line{
+   position:absolute!important;
+   left:16px!important;
+   right:16px!important;
+   width:auto!important;
+   height:32px!important;
+   transform:translateY(-50%)!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{top:33.333%!important}
+ dialog#setupDialog.cc-modal .commander-line{top:66.667%!important}
+}
