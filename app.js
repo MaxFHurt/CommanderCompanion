@@ -1734,3 +1734,22 @@ $('#landingMenuBtn')&&($('#landingMenuBtn').onclick=openLandingCommandMenu);$('#
 $('#settingsLandingBtnBottom')&&($('#settingsLandingBtnBottom').onclick=openSettings);$('#myDecksLandingBtn')&&($('#myDecksLandingBtn').onclick=openDeckEditor);$('#deckBuilderLandingBtn')&&($('#deckBuilderLandingBtn').onclick=openDeckEditor);$('#cardSearchLandingBtn')&&($('#cardSearchLandingBtn').onclick=()=>openGlobalPicker());$('#gameLogsLandingBtn')&&($('#gameLogsLandingBtn').onclick=openPersistentGameLogs);$('#joinGameLandingBtn')&&($('#joinGameLandingBtn').onclick=()=>{const b=document.querySelector('[data-launch-mode=\"fully-tracked\"]');b?.click()});
 
 refreshContinueButton();window.addEventListener('pageshow',e=>{refreshContinueButton();if(e.persisted&&game){try{if(!$('#gameScreen')?.hidden)render();else if(!$('#tabletopScreen')?.hidden)openTabletop()}catch(err){console.warn('Commander Companion pageshow restore skipped:',err)}}});window.addEventListener('pagehide',save);window.addEventListener('beforeunload',save);window.__ccAppReady=true;/* Service-worker registration is intentionally disabled in V0.7.23 while startup reliability is stabilized. The bootstrap removes legacy workers/caches before loading modules. */
+
+
+// V0.8 GZ1 — Player Setup footer runtime normalization.
+// Home-screen installs can retain an older document shell while loading the
+// current module. Normalize the live controls from current JS so stale HTML
+// cannot preserve the obsolete START SETUP footer.
+(function normalizePlayerSetupFooter(){
+  const setup=document.getElementById('setupDialog');
+  const start=document.getElementById('startSetupBtn');
+  const cancel=setup?.querySelector('.modal-actions .dialog-close');
+  if(start){
+    start.textContent='CONTINUE';
+    start.classList.add('cc-themed-confirm');
+  }
+  if(cancel){
+    cancel.textContent='CANCEL';
+    cancel.classList.add('cc-themed-cancel');
+  }
+})();
