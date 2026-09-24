@@ -664,7 +664,7 @@ function bindSetupTools(){
   $$('.setup-deck').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
   $$('.setup-cmd1').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
 }
-async function openSetup(){await userDataReady;const dialog=$('#setupDialog');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();$('#setupProgress').textContent='';$('#virtualHand').checked=true;dialog.showModal();closeGameModeChooser()}
+async function openSetup(){await userDataReady;const dialog=$('#setupDialog');if(!dialog)throw new Error('Player Setup dialog is missing');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();const progress=$('#setupProgress');if(progress)progress.textContent='';const virtualHand=$('#virtualHand');if(virtualHand)virtualHand.checked=true;if(!dialog.open)dialog.showModal();closeGameModeChooser()}
 
 function manifestFingerprint(manifest=[]){return manifest.map(e=>`${e.definitionId}:${Number(e.quantity??e.qty??1)}`).sort().join('|')}
 function validateHydratedDeckOwnership(player){
@@ -1687,7 +1687,7 @@ $('#gameModeClose')?.addEventListener('click',closeGameModeChooser);
 $('#setupDialogBack')?.addEventListener('click',()=>{if($('#setupDialog')?.open)$('#setupDialog').close();openGameModeChooser()});
 $('#deckDialogBack')?.addEventListener('click',()=>{if($('#deckDialog')?.open)$('#deckDialog').close()});
 $('#networkDialogBack')?.addEventListener('click',()=>{if($('#networkDialog')?.open)$('#networkDialog').close()});
-$$('[data-game-mode]').forEach(b=>b.addEventListener('click',()=>{const mode=b.dataset.gameMode;selectedMode=mode;if(mode==='fully-tracked')openSetup();else{closeGameModeChooser();openModeSetup(mode)}}));
+$$('[data-game-mode]').forEach(b=>b.addEventListener('click',async()=>{const mode=b.dataset.gameMode;selectedMode=mode;if(mode==='fully-tracked'){try{await openSetup()}catch(e){console.error('Fully Guided setup failed:',e);toast('Could not open Player Setup: '+(e?.message||e),true)}}else{closeGameModeChooser();openModeSetup(mode)}}));
 $$('[data-launch-mode]').forEach(b=>b.onclick=()=>{selectedMode=b.dataset.launchMode;if(selectedMode==='fully-tracked')openSetup();else openModeSetup(selectedMode,'rules')});
 async function refreshContinueButton(){const b=$('#continueBtn');if(!b)return;let ok=hasValidSave(localStorage,STORAGE_KEY);if(!ok)ok=await hasDurableSave(STORAGE_KEY);b.disabled=!ok;b.setAttribute('aria-disabled',String(!ok))}
 async function repairLegacyCombatDefinitions(restored){const missing=Object.values(restored?.cardDefinitions||{}).filter(d=>/Creature/i.test(d?.typeLine||'')&&(d.power==null||d.toughness==null));for(const d of missing){try{const fresh=await resolveNamedCard(d.name);restored.cardDefinitions[d.definitionId]={...d,...fresh}}catch{}}return restored}
