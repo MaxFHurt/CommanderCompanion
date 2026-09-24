@@ -744,3 +744,32 @@
    align-self:end!important;
  }
 }
+
+
+/* V0.8 GV — line 2 mirrors line 1 control structure. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .commander-line{
+   display:grid!important;
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   gap:10px!important;
+   align-items:stretch!important;
+ }
+ dialog#setupDialog.cc-modal .commander-line>.setup-cmd1,
+ dialog#setupDialog.cc-modal .commander-line>.setup-secondary-wrap,
+ dialog#setupDialog.cc-modal .commander-line>.setup-view-deck{
+   box-sizing:border-box!important;
+   width:100%!important;
+   min-width:0!important;
+   height:32px!important;
+   min-height:32px!important;
+   max-height:32px!important;
+   margin:0!important;
+ }
+ dialog#setupDialog.cc-modal .setup-secondary-wrap{
+   padding:0!important;border:0!important;background:none!important;
+ }
+ dialog#setupDialog.cc-modal .setup-secondary-wrap>.setup-cmd2{
+   box-sizing:border-box!important;width:100%!important;height:32px!important;min-height:32px!important;margin:0!important;padding:3px 8px!important;
+ }
+ dialog#setupDialog.cc-modal .setup-secondary-wrap[hidden]{display:none!important}
+}
