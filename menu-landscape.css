@@ -1158,3 +1158,30 @@
    top:clamp(24px,4dvh,34px)!important;
  }
 }
+
+
+/* V0.8 HJ — tighten Player Setup table and anchor tabs to its top edge. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+   display:grid!important;
+   grid-template-rows:auto minmax(0,1fr) auto!important;
+   align-content:stretch!important;
+   padding-top:clamp(104px,15.5dvh,122px)!important;
+   padding-bottom:8px!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupTabs{
+   position:relative!important;
+   z-index:3!important;
+   margin:0 0 -2px 0!important;
+   align-self:end!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   align-self:start!important;
+   height:clamp(245px,44dvh,330px)!important;
+   min-height:0!important;
+   max-height:330px!important;
+   margin:0!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{top:32%!important}
+ dialog#setupDialog.cc-modal .commander-line{top:68%!important}
+}
