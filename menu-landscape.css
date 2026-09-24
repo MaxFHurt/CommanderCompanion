@@ -678,3 +678,34 @@
    line-height:normal!important;
  }
 }
+
+
+/* V0.8 GS — line 1 uses line 2 vertical scale; line 2 uses line 1 three-column format. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .setup-first-line,
+ dialog#setupDialog.cc-modal .commander-line{
+   display:grid!important;
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   gap:10px!important;
+   align-items:end!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-name,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-saved,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-view-deck{
+   box-sizing:border-box!important;
+   width:100%!important;
+   min-width:0!important;
+   height:32px!important;
+   min-height:32px!important;
+   max-height:32px!important;
+   margin:0!important;
+   padding:3px 8px!important;
+   line-height:normal!important;
+ }
+ dialog#setupDialog.cc-modal .commander-line>label,
+ dialog#setupDialog.cc-modal .commander-line>.setup-precon{
+   box-sizing:border-box!important;
+   width:100%!important;
+   min-width:0!important;
+ }
+}
