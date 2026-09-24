@@ -568,3 +568,15 @@
    padding:0 3px!important;
  }
 }
+
+
+/* V0.8 GB — + tab matches player-tab compact height. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup-add{
+   font-size:clamp(12px,1.05vw,16px)!important;
+   line-height:1!important;
+   padding:0 3px!important;
+   min-height:0!important;
+   height:auto!important;
+ }
+}
