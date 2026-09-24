@@ -829,3 +829,22 @@
     margin:0!important;
   }
 }
+
+
+/* V0.8 GY — Player Setup footer uses standard themed action buttons. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-actions>button{
+   border:0!important;
+   border-radius:0!important;
+   background:#07060b url('ref-button-blank.png') center/100% 100% no-repeat!important;
+   box-shadow:none!important;
+   color:#fff!important;
+   text-shadow:0 2px 3px #000!important;
+ }
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-actions>.cc-themed-cancel{
+   filter:drop-shadow(0 0 5px rgba(184,72,96,.55))!important;
+ }
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-actions>.cc-themed-confirm{
+   filter:drop-shadow(0 0 6px #b05cff88) brightness(1.08)!important;
+ }
+}
