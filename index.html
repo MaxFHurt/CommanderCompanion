@@ -185,7 +185,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-gn');
+        await import('./app.js?v=080-go');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
