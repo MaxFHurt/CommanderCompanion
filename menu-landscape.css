@@ -848,3 +848,49 @@
    filter:drop-shadow(0 0 6px #b05cff88) brightness(1.08)!important;
  }
 }
+
+
+/* V0.8 HA — Player Setup balanced vertical rhythm + header back alignment.
+   Keep the existing two-row controls intact; slightly reduce the GX spread and
+   give equal visual breathing room above, between, and below the rows. */
+@media (orientation:landscape){
+  dialog#setupDialog.cc-modal .player-setup{
+    position:relative!important;
+    display:grid!important;
+    grid-template-rows:32px 32px!important;
+    align-content:space-evenly!important;
+    height:100%!important;
+    min-height:0!important;
+    padding:clamp(12px,2dvh,18px) 16px!important;
+    box-sizing:border-box!important;
+  }
+  dialog#setupDialog.cc-modal .setup-first-line,
+  dialog#setupDialog.cc-modal .commander-line{
+    position:static!important;
+    inset:auto!important;
+    width:100%!important;
+    margin:0!important;
+    align-self:center!important;
+  }
+
+  /* Center the Back jewel vertically in the decorative header band. */
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-back-row{
+    position:absolute!important;
+    top:0!important;
+    left:0!important;
+    width:100%!important;
+    height:clamp(112px,18dvh,155px)!important;
+    display:flex!important;
+    align-items:center!important;
+    padding:0 clamp(18px,2vw,28px)!important;
+    box-sizing:border-box!important;
+    pointer-events:none!important;
+    z-index:8!important;
+  }
+  dialog#setupDialog.cc-modal #setupDialogBack{
+    position:static!important;
+    margin:0!important;
+    transform:none!important;
+    pointer-events:auto!important;
+  }
+}
