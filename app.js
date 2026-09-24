@@ -645,11 +645,12 @@ async function openGlobalCommanderPicker({primary=null,onSelect}){
   $('#freeCommanderGo').onclick=run;$('#freeCommanderSearch').onkeydown=e=>{if(e.key==='Enter')run()};
 }
 function openSetupDeckViewer(panel){
-  const text=panel?.querySelector('.setup-deck')?.value?.trim()||panel?.dataset.selectedDeckText||'';
+  const deckText=panel?.querySelector('.setup-deck')?.value?.trim()||panel?.dataset.selectedDeckText||'';
   const deckName=panel?.dataset.selectedDeckName||panel?.querySelector('.setup-saved')?.selectedOptions?.[0]?.textContent||'Deck';
-  if(!text)return toast('Load or select a deck first.',true);
-  const rows=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  openModal(deckName,\`<div class="setup-deck-view"><div class="setup-deck-view-count">\${rows.length} deck entries</div><div class="setup-deck-view-list">\${rows.map(row=>\`<div>\${esc(row)}</div>\`).join('')}</div></div>\`,[{label:'CLOSE',onClick:closeModal}]);
+  if(!deckText)return toast('Load or select a deck first.',true);
+  const rows=deckText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  const html='<div class="setup-deck-view"><div class="setup-deck-view-count">'+rows.length+' deck entries</div><div class="setup-deck-view-list">'+rows.map(row=>'<div>'+esc(row)+'</div>').join('')+'</div></div>';
+  openModal(deckName,html,[{label:'CLOSE',onClick:closeModal}]);
 }
 function bindSetupTools(){
   $('.setup-view-deck').forEach((b,i)=>b.onclick=()=>openSetupDeckViewer($('[data-player-setup]')[i]));
