@@ -632,11 +632,15 @@ function showActiveSetupPlayer(){
  renderSetupTabs();
 }
 function renderSetupPanels({preserve=false}={}){
- const host=$('#playerSetupPanels'),old=preserve?Array.from(host.querySelectorAll('[data-player-setup]')):[];
+ const host=$('#playerSetupPanels');if(!host)return;
+ const old=preserve?Array.from(host.querySelectorAll('[data-player-setup]')):[];
  const oldValues=old.map(p=>({html:p.outerHTML}));
  host.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>oldValues[i]?.html||playerPanel(i)).join('');
- const defaults=accountSetupDefaults();const saved=listDecks();bindSetupTools();
- $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
+ bindSetupTools();
+ try{
+   const defaults=accountSetupDefaults()||{},saved=listDecks();
+   $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames?.[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
+ }catch(e){console.warn('Player setup defaults unavailable',e)}
  showActiveSetupPlayer();
 }
 async function openGlobalCommanderPicker({primary=null,onSelect}){
@@ -666,7 +670,7 @@ function bindSetupTools(){
   $$('.setup-deck').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
   $$('.setup-cmd1').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
 }
-async function openSetup(){await userDataReady;const dialog=$('#setupDialog');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();$('#setupProgress').textContent='';const virtualHand=$('#virtualHand');if(virtualHand)virtualHand.checked=true;dialog.showModal();closeGameModeChooser()}
+async function openSetup(){try{await userDataReady}catch(e){console.warn('User data unavailable during setup',e)}const dialog=$('#setupDialog');if(!dialog)return;setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();const progress=$('#setupProgress');if(progress)progress.textContent='';const virtualHand=$('#virtualHand');if(virtualHand)virtualHand.checked=true;dialog.showModal();closeGameModeChooser()}
 
 function manifestFingerprint(manifest=[]){return manifest.map(e=>`${e.definitionId}:${Number(e.quantity??e.qty??1)}`).sort().join('|')}
 function validateHydratedDeckOwnership(player){
