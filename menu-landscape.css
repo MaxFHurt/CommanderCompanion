@@ -454,3 +454,33 @@
     padding-top:clamp(112px,18dvh,155px)!important;
   }
 }
+
+
+/* V0.8 FO — Player Setup tabs and single-player workspace. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+   grid-template-rows:auto auto minmax(0,1fr) auto!important;
+   padding-top:clamp(78px,12dvh,105px)!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tabs{
+   display:flex!important;align-items:end!important;gap:5px!important;width:100%!important;margin:0 0 8px!important;padding:0!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tab{
+   min-width:clamp(92px,11vw,150px)!important;min-height:36px!important;padding:7px 14px!important;
+   border:1px solid rgba(181,112,224,.65)!important;border-radius:9px 9px 0 0!important;
+   background:rgba(10,5,15,.82)!important;color:#ddd!important;
+   font:900 clamp(12px,1.05vw,16px)/1 var(--head)!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tab.active{
+   color:#fff!important;background:linear-gradient(180deg,rgba(101,35,145,.92),rgba(25,9,38,.92))!important;
+   box-shadow:0 0 12px rgba(177,75,240,.5)!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-add{
+   min-width:44px!important;width:44px!important;font-size:22px!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   display:block!important;width:100%!important;height:100%!important;overflow:auto!important;padding:0 2px 6px!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup{width:100%!important;max-width:none!important}
+ dialog#setupDialog.cc-modal .player-setup[hidden]{display:none!important}
+}
