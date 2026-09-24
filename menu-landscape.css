@@ -515,3 +515,29 @@
    padding:2px 4px!important;
  }
 }
+
+
+/* V0.8 FZ — six Player Setup tabs fit one row at text-height. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup-tabs{
+   display:grid!important;
+   grid-template-columns:repeat(6,minmax(0,1fr))!important;
+   gap:3px!important;
+   width:100%!important;
+   margin:0 0 6px!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tab,
+ dialog#setupDialog.cc-modal .player-setup-add{
+   box-sizing:border-box!important;
+   width:100%!important;
+   min-width:0!important;
+   min-height:0!important;
+   height:auto!important;
+   margin:0!important;
+   padding:2px 3px!important;
+   line-height:1!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-add{
+   font-size:22px!important;
+ }
+}
