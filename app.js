@@ -596,7 +596,7 @@ $('#modalClose').onclick=closeModal;$$('.dialog-close').forEach(b=>b.onclick=()=
 function playerPanel(i){
   const saved=listDecks(),fullTracked=selectedMode==='fully-tracked',hasDeck=selectedMode!=='table-tracker';
   const commanderHint=fullTracked?'Select from deck':'Commander name';
-  return `<section class="player-setup" data-player-setup="${i}"><div class="setup-first-line"><input class="setup-name" value="" placeholder="Player Name" aria-label="Player Name">${hasDeck?`<select class="setup-saved" aria-label="Load saved deck"><option value="">Load saved deck…</option>${saved.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select><button type="button" class="setup-precon">PRECON</button>`:''}</div><div class="commander-line"><input class="setup-cmd1" placeholder="${fullTracked?'Select Commander':commanderHint}" ${fullTracked?'readonly':''}><div class="setup-secondary-wrap" hidden><input class="setup-cmd2" placeholder="Select Commander 2" ${fullTracked?'readonly':''}>${fullTracked?'<button type="button" class="setup-pick-cmd2" hidden aria-label="Select Commander 2"></button>':selectedMode==='freeplay'?'<button type="button" class="setup-search-cmd2" hidden aria-label="Select Commander 2"></button>':''}</div>${hasDeck?'<button type="button" class="setup-view-deck">VIEW DECK</button>':''}</div>${hasDeck?'<textarea class="setup-deck" hidden aria-hidden="true"></textarea>':''}</section>`
+  return `<section class="player-setup" data-player-setup="${i}"><div class="setup-first-line"><input class="setup-name" value="" placeholder="Player Name" aria-label="Player Name">${hasDeck?`<select class="setup-saved" aria-label="Load saved deck"><option value="">Load saved deck…</option>${saved.map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}</select><button type="button" class="setup-precon">PRECON</button>`:''}</div><div class="commander-line"><label class="setup-commander-primary"><input class="setup-cmd1" placeholder="${fullTracked?'Select Commander':commanderHint}" ${fullTracked?'readonly':''}>${fullTracked?'<button type="button" class="setup-pick-cmd1" aria-label="Select Commander">SELECT COMMANDER</button>':selectedMode==='freeplay'?'<button type="button" class="setup-search-cmd1">SEARCH COMMANDER</button>':''}</label><label class="setup-secondary-wrap" hidden><input class="setup-cmd2" placeholder="Select Commander 2" ${fullTracked?'readonly':''}>${fullTracked?'<button type="button" class="setup-pick-cmd2">SELECT LEGAL PARTNER</button>':selectedMode==='freeplay'?'<button type="button" class="setup-search-cmd2">SEARCH LEGAL PARTNER</button>':''}</label>${hasDeck?'<button type="button" class="setup-view-deck">VIEW DECK</button>':''}</div>${hasDeck?'<textarea class="setup-deck" hidden aria-hidden="true"></textarea>':''}</section>`
 } 
 async function resolveCommanderPool(deckText){
   const text=String(deckText||'').trim();if(!text)throw new Error('Add or load the deck list before choosing a commander.');
@@ -632,15 +632,11 @@ function showActiveSetupPlayer(){
  renderSetupTabs();
 }
 function renderSetupPanels({preserve=false}={}){
- const host=$('#playerSetupPanels');if(!host)return;
- const old=preserve?Array.from(host.querySelectorAll('[data-player-setup]')):[];
+ const host=$('#playerSetupPanels'),old=preserve?Array.from(host.querySelectorAll('[data-player-setup]')):[];
  const oldValues=old.map(p=>({html:p.outerHTML}));
  host.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>oldValues[i]?.html||playerPanel(i)).join('');
- bindSetupTools();
- try{
-   const defaults=accountSetupDefaults()||{},saved=listDecks();
-   $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames?.[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
- }catch(e){console.warn('Player setup defaults unavailable',e)}
+ const defaults=accountSetupDefaults();const saved=listDecks();bindSetupTools();
+ $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
  showActiveSetupPlayer();
 }
 async function openGlobalCommanderPicker({primary=null,onSelect}){
@@ -657,8 +653,6 @@ function openSetupDeckViewer(panel){
   openModal(deckName,html,[{label:'CLOSE',onClick:closeModal}]);
 }
 function bindSetupTools(){
-  $$('.setup-cmd1').forEach((input,i)=>{if(selectedMode==='fully-tracked')input.onclick=()=>{const p=$$('[data-player-setup]')[i];openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,onSelect:d=>{input.value=d.name;p.querySelector('.setup-cmd2').value='';syncSetupSecondary(p)}})}});
-  $$('.setup-cmd2').forEach((input,i)=>{if(selectedMode==='fully-tracked')input.onclick=()=>{const p=$$('[data-player-setup]')[i];p.querySelector('.setup-pick-cmd2')?.click()}});
   $$('.setup-view-deck').forEach((b,i)=>b.onclick=()=>openSetupDeckViewer($$('[data-player-setup]')[i]));
   $$('.setup-saved').forEach((sel,i)=>sel.onchange=async()=>{const d=listDecks().find(x=>x.id===sel.value);const p=$$('[data-player-setup]')[i];if(!p)return;if(!d){p.dataset.selectedDeckId='';p.dataset.selectedDeckName='';p.dataset.selectedDeckText='';p.dataset.selectedDeckSource='';p.dataset.selectedDeckSourceId='';return}p.dataset.selectedDeckId=d.id;p.dataset.selectedDeckName=d.name||'';p.dataset.selectedDeckText=d.deckList||'';p.dataset.selectedDeckSource='saved';p.dataset.selectedDeckSourceId=d.id;p.querySelector('.setup-cmd1').value=d.commander1||'';p.querySelector('.setup-cmd2').value=d.commander2||'';p.querySelector('.setup-deck').value=d.deckList||'';await syncSetupSecondary(p)});
   $$('.setup-deck').forEach((input,i)=>input.addEventListener('input',()=>{const p=$$('[data-player-setup]')[i];if(!p)return;const bound=!!(p.dataset.selectedDeckId||p.dataset.selectedDeckSource);if(!bound)return;const saved=p.dataset.selectedDeckText||'';if(input.value!==saved){p.dataset.selectedDeckId='';p.dataset.selectedDeckName='';p.dataset.selectedDeckText='';p.dataset.selectedDeckSource='';p.dataset.selectedDeckSourceId='';const sel=p.querySelector('.setup-saved');if(sel)sel.value=''}}));
@@ -670,7 +664,7 @@ function bindSetupTools(){
   $$('.setup-deck').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
   $$('.setup-cmd1').forEach((t,i)=>t.onchange=()=>syncSetupSecondary($$('[data-player-setup]')[i]));
 }
-async function openSetup(){try{await userDataReady}catch(e){console.warn('User data unavailable during setup',e)}const dialog=$('#setupDialog');if(!dialog)return;setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();const progress=$('#setupProgress');if(progress)progress.textContent='';const virtualHand=$('#virtualHand');if(virtualHand)virtualHand.checked=true;dialog.showModal();closeGameModeChooser()}
+async function openSetup(){await userDataReady;const dialog=$('#setupDialog');setupPlayerCount=2;activeSetupPlayer=0;renderSetupPanels();$('#setupProgress').textContent='';$('#virtualHand').checked=true;dialog.showModal();closeGameModeChooser()}
 
 function manifestFingerprint(manifest=[]){return manifest.map(e=>`${e.definitionId}:${Number(e.quantity??e.qty??1)}`).sort().join('|')}
 function validateHydratedDeckOwnership(player){
