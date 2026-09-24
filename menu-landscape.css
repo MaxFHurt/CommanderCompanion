@@ -616,3 +616,32 @@
    white-space:nowrap!important;
  }
 }
+
+
+/* V0.8 GP — unified first row and placeholder-only player name. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup{
+   padding-top:6px!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+   align-items:stretch!important;
+   gap:10px!important;
+   margin-top:0!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-name,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-saved,
+ dialog#setupDialog.cc-modal .setup-first-line>.setup-view-deck{
+   box-sizing:border-box!important;
+   width:100%!important;
+   height:clamp(42px,7dvh,58px)!important;
+   min-height:0!important;
+   margin:0!important;
+   padding:4px 12px!important;
+   font-size:clamp(12px,1vw,15px)!important;
+ }
+ dialog#setupDialog.cc-modal .setup-name::placeholder{
+   color:rgba(255,255,255,.42)!important;
+   opacity:1!important;
+ }
+}
