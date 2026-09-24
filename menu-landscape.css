@@ -352,7 +352,7 @@
   dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
     inset:0!important;width:100vw!important;height:100dvh!important;margin:0!important;padding:0!important;
     max-width:none!important;max-height:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;
-    background:#050208 url('game-mode-background-ev-final.png?v=080-fk') center/100% 100% no-repeat!important;
+    background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fx') center/100% 100% no-repeat!important;
   }
   dialog#setupDialog.cc-modal>.modal-shell{
     position:absolute!important;inset:0!important;display:grid!important;grid-template-rows:13% minmax(0,1fr) 12%!important;
@@ -448,7 +448,7 @@
 /* V0.8 FM — exact approved Player Setup background asset. */
 @media (orientation:landscape){
   dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
-    background:#050208 url('a_wide_high_resolution_fantasy_sci_fi_ui_banner_b.png?v=080-fm') center/100% 100% no-repeat!important;
+    background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fx') center/100% 100% no-repeat!important;
   }
   dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
     padding-top:clamp(112px,18dvh,155px)!important;
@@ -489,6 +489,6 @@
 /* V0.8 FV — approved Player Setup background. */
 @media (orientation:landscape){
   dialog#setupDialog.cc-modal,dialog#setupDialog.cc-modal[open]{
-    background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fv') center/100% 100% no-repeat!important;
+    background:#050208 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-fx') center/100% 100% no-repeat!important;
   }
 }
