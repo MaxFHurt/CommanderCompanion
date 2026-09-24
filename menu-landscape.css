@@ -541,3 +541,30 @@
    font-size:22px!important;
  }
 }
+
+
+/* V0.8 GA — compact tabs use only the width needed for six players. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal .player-setup-tabs{
+   display:flex!important;
+   align-items:flex-end!important;
+   gap:3px!important;
+   width:100%!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-tab{
+   flex:0 0 calc((100% - 15px)/6)!important;
+   box-sizing:border-box!important;
+   width:calc((100% - 15px)/6)!important;
+   min-width:0!important;
+   min-height:0!important;
+   height:auto!important;
+   padding:0 3px!important;
+   line-height:1!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup-add{
+   flex:0 0 calc((100% - 15px)/6)!important;
+   width:calc((100% - 15px)/6)!important;
+   min-width:0!important;
+   padding:0 3px!important;
+ }
+}
