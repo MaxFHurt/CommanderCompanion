@@ -636,7 +636,7 @@ function renderSetupPanels({preserve=false}={}){
  const oldValues=old.map(p=>({html:p.outerHTML}));
  host.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>oldValues[i]?.html||playerPanel(i)).join('');
  const defaults=accountSetupDefaults();const saved=listDecks();bindSetupTools();
- $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
+ $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
  showActiveSetupPlayer();
 }
 async function openGlobalCommanderPicker({primary=null,onSelect}){
