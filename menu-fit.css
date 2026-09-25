@@ -146,3 +146,23 @@
 }
 
 @media (orientation:landscape){html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) [hidden]{display:none!important}}
+
+
+/* V0.8 HP — Precon Catalog readability: fewer, larger cards per page. */
+@media (orientation:landscape){
+ html body dialog#modal.cc-modal.cc-menu-fit .modal-content:has(#preconResults) #preconResults.fit-results{
+   grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+ html body dialog#modal.cc-modal.cc-menu-fit .modal-content:has(#preconResults) #preconResults>.search-result{
+   padding:8px 12px!important;
+   align-items:center!important;
+ }
+ html body dialog#modal.cc-modal.cc-menu-fit .modal-content:has(#preconResults) #preconResults>.search-result b{
+   font-size:clamp(16px,1.75vw,20px)!important;
+   line-height:1.2!important;
+ }
+ html body dialog#modal.cc-modal.cc-menu-fit .modal-content:has(#preconResults) #preconResults>.search-result small{
+   font-size:clamp(12px,1.25vw,15px)!important;
+   line-height:1.15!important;
+ }
+}
