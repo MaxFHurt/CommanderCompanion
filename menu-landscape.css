@@ -1199,3 +1199,28 @@
  dialog#setupDialog.cc-modal .setup-first-line{top:33.333%!important}
  dialog#setupDialog.cc-modal .commander-line{top:66.667%!important}
 }
+
+
+/* V0.8 HL — compact Player Setup folder: controls high, rows close, table clears footer. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+   padding-top:clamp(78px,11.5dvh,92px)!important;
+   padding-bottom:clamp(58px,9dvh,72px)!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupTabs{
+   align-self:start!important;
+ }
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   align-self:start!important;
+   height:clamp(150px,26dvh,195px)!important;
+   min-height:0!important;
+   max-height:195px!important;
+   margin:0!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line,
+ dialog#setupDialog.cc-modal .commander-line{
+   transform:none!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{top:clamp(22px,4dvh,30px)!important}
+ dialog#setupDialog.cc-modal .commander-line{top:clamp(62px,10dvh,76px)!important;bottom:auto!important}
+}
