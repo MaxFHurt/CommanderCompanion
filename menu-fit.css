@@ -2,7 +2,7 @@
    One explicit layout layer; text labels never share a pre-labelled bitmap. */
 @media (orientation:landscape) {
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) {
-   --fit-header:44px;--fit-footer:48px;
+   --fit-header:36px;--fit-footer:42px;
    position:fixed!important;inset:max(4px,env(safe-area-inset-top)) max(4px,env(safe-area-inset-right)) max(4px,env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left))!important;
    width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
    margin:0!important;padding:0!important;transform:none!important;overflow:hidden!important;border:1px solid #8b7399!important;border-radius:8px!important;
@@ -24,11 +24,11 @@
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>header h2 small{display:none!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>.modal-back-row{
    position:absolute!important;inset:0 auto auto 8px!important;grid-area:1/1!important;display:flex!important;align-items:center!important;
-   width:92px!important;height:var(--fit-header)!important;margin:0!important;padding:0!important;transform:none!important;z-index:5!important;pointer-events:none!important;background:none!important;
+   width:82px!important;height:var(--fit-header)!important;margin:0!important;padding:0!important;transform:none!important;z-index:5!important;pointer-events:none!important;background:none!important;
  }
- html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back{position:static!important;display:flex!important;align-items:center!important;justify-content:center!important;width:88px!important;height:36px!important;min-width:0!important;min-height:0!important;max-height:36px!important;margin:0!important;padding:0!important;pointer-events:auto!important;line-height:1!important}
+ html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back{position:static!important;display:flex!important;align-items:center!important;justify-content:center!important;width:78px!important;height:30px!important;min-width:0!important;min-height:0!important;max-height:30px!important;margin:0!important;padding:0!important;pointer-events:auto!important;line-height:1!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back img{display:none!important}
- html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .fit-back-label{display:block!important;color:#fff!important;font-size:16px!important;line-height:1!important}
+ html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .fit-back-label{display:block!important;color:#fff!important;font-size:14px!important;line-height:1!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>.modal-content{
    grid-area:2/1!important;display:block!important;box-sizing:border-box!important;position:relative!important;width:100%!important;height:100%!important;
    min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:8px 12px!important;
@@ -52,7 +52,7 @@
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button:disabled{opacity:.45!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button:focus-visible{outline:2px solid #dfb2ff!important;outline-offset:-3px!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button[aria-pressed=true]{background:linear-gradient(#79429a,#331849)!important;border-color:#d59df0!important}
- html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .modal-actions>button{flex:1 1 0!important;position:static!important;display:flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:360px!important;height:38px!important;min-height:38px!important;max-height:38px!important;padding:4px 10px!important;margin:0!important;font-size:clamp(15px,1.7vw,21px)!important}
+ html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .modal-actions>button{flex:1 1 0!important;position:static!important;display:flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:360px!important;height:34px!important;min-height:34px!important;max-height:34px!important;padding:4px 10px!important;margin:0!important;font-size:clamp(15px,1.7vw,21px)!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button.primary,html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button[data-menu-semantic=confirm],html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button[data-menu-semantic=save]{background:linear-gradient(#24523c,#10251a)!important;border-color:#76ac90!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button.danger,html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) button[data-action-role=cancel]{background:linear-gradient(#5e2330,#280d15)!important;border-color:#b37985!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) p{margin:6px 0!important;font-size:inherit!important;line-height:1.3!important}
@@ -138,11 +138,11 @@
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .modal-content:has([data-custom]),html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .modal-content:has([data-mulligan-bottom]){display:grid!important;grid-template-rows:auto auto minmax(0,1fr) 36px!important;gap:6px!important}
 }
 @media (orientation:landscape) and (min-height:600px){
- html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog){--fit-header:56px;--fit-footer:58px}
+ html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog){--fit-header:44px;--fit-footer:48px}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>.modal-content{padding:14px 20px!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .setup-stage>label,html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .rules-grid>label{font-size:18px!important;padding:10px!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .fit-tabs>button{font-size:18px!important;height:44px!important}
- html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back{height:42px!important;max-height:42px!important}
+ html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back{height:34px!important;max-height:34px!important}
 }
 
 @media (orientation:landscape){html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) [hidden]{display:none!important}}
