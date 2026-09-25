@@ -1224,3 +1224,38 @@
  dialog#setupDialog.cc-modal .setup-first-line{top:clamp(22px,4dvh,30px)!important}
  dialog#setupDialog.cc-modal .commander-line{top:clamp(62px,10dvh,76px)!important;bottom:auto!important}
 }
+
+
+/* V0.8 HM — snug two-row Player Setup table; reserve center slot for Commander 2. */
+@media (orientation:landscape){
+ dialog#setupDialog.cc-modal #playerSetupPanels{
+   height:clamp(112px,19dvh,138px)!important;
+   min-height:112px!important;
+   max-height:138px!important;
+ }
+ dialog#setupDialog.cc-modal .player-setup{
+   padding:10px 16px!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line,
+ dialog#setupDialog.cc-modal .commander-line{
+   position:static!important;
+   transform:none!important;
+   width:100%!important;
+   height:32px!important;
+   margin:0!important;
+ }
+ dialog#setupDialog.cc-modal .setup-first-line{
+   margin-bottom:8px!important;
+ }
+ dialog#setupDialog.cc-modal .commander-line{
+   grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ }
+ dialog#setupDialog.cc-modal .setup-commander-primary{grid-column:1!important}
+ dialog#setupDialog.cc-modal .setup-secondary-wrap{grid-column:2!important}
+ dialog#setupDialog.cc-modal .commander-line>.setup-view-deck{grid-column:3!important}
+ dialog#setupDialog.cc-modal .setup-secondary-wrap[hidden]{
+   display:block!important;
+   visibility:hidden!important;
+   pointer-events:none!important;
+ }
+}
