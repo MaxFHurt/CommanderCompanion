@@ -1,4 +1,4 @@
-import './menu-fit.js?v=080-hn';
+import './menu-fit.js?v=080-hq';
 import { prepareMenuLayout, labelRuleOptions, preparePlayerSetup } from './menu-landscape.js?v=080-dd-2';
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from './deck.js?v=0722';
 import { initializeGame } from './state.js?v=0722';

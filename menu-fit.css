@@ -24,7 +24,7 @@
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>header h2 small{display:none!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog)>.modal-shell>.modal-back-row{
    position:absolute!important;inset:0 auto auto 8px!important;grid-area:1/1!important;display:flex!important;align-items:center!important;
-   width:82px!important;height:var(--fit-header)!important;margin:0!important;padding:0!important;transform:none!important;z-index:5!important;pointer-events:none!important;background:none!important;
+   width:82px!important;height:var(--fit-header)!important;margin:0!important;padding:0!important;transform:none!important;z-index:40!important;pointer-events:none!important;background:none!important;
  }
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back{position:static!important;display:flex!important;align-items:center!important;justify-content:center!important;width:78px!important;height:30px!important;min-width:0!important;min-height:0!important;max-height:30px!important;margin:0!important;padding:0!important;pointer-events:auto!important;line-height:1!important}
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .dialog-back img{display:none!important}
@@ -148,7 +148,8 @@
 @media (orientation:landscape){html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog):is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) [hidden]{display:none!important}}
 
 
-/* V0.8 HP — Precon Catalog readability: fewer, larger cards per page. */
+/* V0.8 HP — Precon Catalog readability: fewer, larger cards per page.
+   HQ pagination also uses the rendered column count and suppresses off-page rows. */
 @media (orientation:landscape){
  html body dialog#modal.cc-modal.cc-menu-fit .modal-content:has(#preconResults) #preconResults.fit-results{
    grid-template-columns:repeat(2,minmax(0,1fr))!important;
@@ -165,4 +166,18 @@
    font-size:clamp(12px,1.25vw,15px)!important;
    line-height:1.15!important;
  }
+}
+
+/* HQ: only Back-control stacking changes on otherwise protected dialogs.
+   Existing button nodes and navigation callbacks are preserved. */
+html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,#setupDialog,#gameModeDialog)>.modal-shell>.modal-back-row{
+  z-index:100!important;
+}
+@media (orientation:landscape){
+  html body dialog#deckDialog.cc-menu-fit .fit-pager button{
+    flex:0 0 36px!important;width:36px!important;min-width:36px!important;padding:0!important;font-size:24px!important;white-space:nowrap!important;
+  }
+  html body dialog#deckDialog.cc-menu-fit .fit-pager span{white-space:nowrap!important;font-size:13px!important}
+  html body dialog#deckDialog.cc-menu-fit header h2::after{content:none!important;display:none!important}
+  html body dialog#modal.cc-menu-fit #preconResults#preconResults>.search-result[hidden]{display:none!important}
 }

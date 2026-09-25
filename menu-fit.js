@@ -20,7 +20,7 @@ function pageList(root, columns=3, rowHeight=70) {
   if (!state) {
     const nav=document.createElement('nav');nav.className='fit-pager';nav.setAttribute('aria-label','Result pages');
     const prev=document.createElement('button'),label=document.createElement('span'),next=document.createElement('button');
-    prev.type=next.type='button';prev.textContent='PREVIOUS';next.textContent='NEXT';label.setAttribute('aria-live','polite');nav.append(prev,label,next);root.after(nav);
+    prev.type=next.type='button';prev.textContent='‹';next.textContent='›';prev.setAttribute('aria-label','Previous page');next.setAttribute('aria-label','Next page');label.setAttribute('aria-live','polite');nav.append(prev,label,next);root.after(nav);
     state={page:0,nav,prev,next,label,items:[]};pagers.set(root,state);
     prev.onclick=()=>{state.page--;layout()};next.onclick=()=>{state.page++;layout()};
   }
@@ -29,9 +29,11 @@ function pageList(root, columns=3, rowHeight=70) {
   root.classList.add('fit-results');root.style.setProperty('--fit-columns',columns);
   function layout(){
     if(!root.isConnected)return;
-    const rows=Math.max(1,Math.floor(root.clientHeight/rowHeight));const perPage=columns*rows;
+    const style=getComputedStyle(root),gap=parseFloat(style.rowGap)||0;
+    const actualColumns=style.gridTemplateColumns.split(' ').filter(Boolean).length||columns;
+    const rows=Math.max(1,Math.floor((root.clientHeight+gap)/(rowHeight+gap)));const perPage=actualColumns*rows;
     const pages=Math.max(1,Math.ceil(state.items.length/perPage));state.page=Math.max(0,Math.min(state.page,pages-1));
-    state.items.forEach((el,i)=>{el.hidden=i<state.page*perPage||i>=(state.page+1)*perPage});
+    state.items.forEach((el,i)=>{el.hidden=i<state.page*perPage||i>=(state.page+1)*perPage;if(el.hidden)el.style.setProperty('display','none','important');else el.style.removeProperty('display')});
     state.prev.disabled=state.page===0;state.next.disabled=state.page>=pages-1;
     state.label.textContent=`${state.page+1} / ${pages}`;
   }
@@ -40,6 +42,8 @@ function pageList(root, columns=3, rowHeight=70) {
 function prepareDeck(dialog){
   const section=dialog.querySelector('.deck-editor-grid>section');
   if(!section||tabsMade.has(section))return;
+  const importButton=dialog.querySelector('#importManaBoxBtn');
+  if(importButton){importButton.textContent='IMPORT FILE';importButton.title='Import a ManaBox text or CSV file';}
   const nodes=[...section.children];const details=document.createElement('div'),cards=document.createElement('div'),analysis=document.createElement('div');
   details.className='fit-deck-details';cards.className='fit-deck-cards';analysis.className='fit-deck-analysis';
   nodes.forEach(node=>{if(node.matches('label:has(#deckNameInput),.setup-line'))details.append(node);else if(node.matches('#deckAnalytics,#deckEditorStatus'))analysis.append(node);else cards.append(node)});
@@ -62,6 +66,10 @@ function update(){
       pageList(dialog.querySelector('#deckCardResults'),1,66);
     }
     const content=dialog.querySelector('.modal-content');
+    if(title==='MY ACCOUNT — PROFILE EDITOR'){
+      const note=content.querySelector(':scope>p.muted');
+      if(note)note.textContent='Saved on this device and used for future game setup.';
+    }
     if(title==='PLAYER RESCUE'){
       const root=content.querySelector('.rescue-center');
       if(root)tabs(root,[...root.children].filter(n=>n.tagName==='SECTION'),['ADVISOR','ACTIONS','DIRECTION','LEGEND','RULES','TURN ORDER']);
@@ -75,7 +83,7 @@ function update(){
         first.prepend(...summary);tabs(content,sections,names);
       }
     }
-    if(title==='PRECON CATALOG')pageList(content.querySelector('#preconResults'),3,72);
+    if(title==='PRECON CATALOG')pageList(content.querySelector('#preconResults'),2,88);
     if(title==='CARD ID')pageList(content.querySelector('#cardSearchResults'),3,74);
     if(/ — (CUSTOMIZE HAND|BOTTOM \d+)$/.test(title))pageList(content.querySelector('.card-search-results'),4,85);
   }
