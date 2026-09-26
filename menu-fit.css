@@ -556,3 +556,52 @@ html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content
     padding-right:10px!important;
   }
 }
+
+
+/* V0.8 IQ — expand Player Setup table into unused space without resizing controls */
+@media (orientation:landscape) and (max-height:500px){
+  /* Add 40px of vertical table space upward, preserving the current bottom edge. */
+  #setupDialog #playerSetupTabs{
+    transform:translateY(-59px)!important;
+    margin-bottom:-59px!important;
+  }
+  #setupDialog #playerSetupPanels{
+    transform:translateY(-59px)!important;
+    height:calc(100% + 55px)!important;
+  }
+
+  /* The same 40px vertical expansion is added to EACH horizontal side. */
+  #setupDialog .player-setup-wide{
+    width:calc(100% + 190px)!important;
+    height:154px!important;
+    min-height:154px!important;
+    max-width:none!important;
+    margin-left:-95px!important;
+    margin-right:-95px!important;
+    grid-template-rows:30px 30px 30px!important;
+    row-gap:0!important;
+    align-content:space-evenly!important;
+    padding-top:6px!important;
+    padding-bottom:6px!important;
+  }
+
+  /* Keep every table control at its existing size. */
+  #setupDialog .setup-player-row,
+  #setupDialog .setup-deck-row,
+  #setupDialog .setup-commander-row,
+  #setupDialog .setup-commander-primary,
+  #setupDialog .setup-secondary-slot,
+  #setupDialog .setup-secondary-wrap{
+    height:30px!important;
+  }
+  #setupDialog .setup-player-row input,
+  #setupDialog .setup-deck-row input,
+  #setupDialog .setup-deck-row select,
+  #setupDialog .setup-deck-row button,
+  #setupDialog .setup-commander-row input,
+  #setupDialog .setup-commander-row button{
+    height:30px!important;
+    min-height:30px!important;
+    max-height:30px!important;
+  }
+}
