@@ -380,3 +380,21 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
     padding:2px 12px !important;
   }
 }
+
+
+/* V0.8 IE — Player Setup three-row fitted table */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog.cc-menu-fit .modal-shell{grid-template-rows:34px minmax(0,1fr) 42px!important}
+#setupDialog.cc-menu-fit .modal-content{padding:4px 7vw 5px!important;overflow:hidden!important}
+#setupDialog.cc-menu-fit #playerSetupTabs{margin:0!important;height:28px!important;min-height:28px!important}
+#setupDialog.cc-menu-fit #playerSetupPanels{min-height:0!important;height:calc(100% - 30px)!important;display:flex!important;align-items:center!important}
+#setupDialog.cc-menu-fit .player-setup-wide{width:100%!important;max-width:none!important;margin:0!important;padding:8px 12px!important;display:grid!important;grid-template-rows:38px 38px 38px!important;gap:7px!important;box-sizing:border-box!important}
+#setupDialog.cc-menu-fit .setup-player-row,#setupDialog.cc-menu-fit .setup-deck-row,#setupDialog.cc-menu-fit .setup-commander-row{display:grid!important;gap:10px!important;min-width:0!important;height:38px!important}
+#setupDialog.cc-menu-fit .setup-player-row{grid-template-columns:1fr!important}
+#setupDialog.cc-menu-fit .setup-deck-row,#setupDialog.cc-menu-fit .setup-commander-row{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr) minmax(120px,.72fr)!important}
+#setupDialog.cc-menu-fit .setup-player-row input,#setupDialog.cc-menu-fit .setup-deck-row input,#setupDialog.cc-menu-fit .setup-deck-row select,#setupDialog.cc-menu-fit .setup-deck-row button,#setupDialog.cc-menu-fit .setup-commander-row input,#setupDialog.cc-menu-fit .setup-commander-row button{width:100%!important;height:38px!important;min-height:38px!important;box-sizing:border-box!important;margin:0!important;font-size:14px!important}
+#setupDialog.cc-menu-fit .setup-commander-primary,#setupDialog.cc-menu-fit .setup-secondary-slot,#setupDialog.cc-menu-fit .setup-secondary-wrap{min-width:0!important;height:38px!important}
+#setupDialog.cc-menu-fit .setup-secondary-wrap[hidden]{display:none!important}
+#setupDialog.cc-menu-fit .modal-actions{height:42px!important;min-height:42px!important;padding:4px 12vw!important;gap:6vw!important}
+#setupDialog.cc-menu-fit .modal-actions button{height:32px!important;min-height:32px!important;font-size:14px!important}
+}
