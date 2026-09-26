@@ -605,3 +605,72 @@ html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content
     max-height:30px!important;
   }
 }
+
+
+/* V0.8 IR — resize the actual Player Setup table; preserve its approved top alignment */
+@media (orientation:landscape) and (max-height:500px){
+  /* Restore the table/tabs to the pre-IQ top position. */
+  #setupDialog #playerSetupTabs{
+    transform:translateY(-19px)!important;
+    margin-bottom:-19px!important;
+  }
+  #setupDialog #playerSetupPanels{
+    transform:translateY(-19px)!important;
+  }
+
+  /* The underlying layout reserves 72px per side here. Reducing that by 40px
+     makes the TABLE itself 40px wider on both left and right. */
+  dialog#setupDialog.cc-modal>.modal-shell>.modal-content{
+    padding-left:32px!important;
+    padding-right:32px!important;
+  }
+
+  /* Increase only the actual bordered table, downward from its existing top. */
+  dialog#setupDialog.cc-modal #playerSetupPanels{
+    width:100%!important;
+    height:192px!important;
+    min-height:192px!important;
+    max-height:192px!important;
+    margin-left:0!important;
+    margin-right:0!important;
+    overflow:hidden!important;
+  }
+
+  /* Fill that larger table while keeping every control at 30px tall. */
+  dialog#setupDialog.cc-modal .player-setup-wide{
+    position:absolute!important;
+    inset:0!important;
+    width:100%!important;
+    height:100%!important;
+    min-height:0!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:6px 8px!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-rows:30px 30px 30px!important;
+    row-gap:0!important;
+    align-content:space-evenly!important;
+  }
+
+  dialog#setupDialog.cc-modal .setup-player-row,
+  dialog#setupDialog.cc-modal .setup-deck-row,
+  dialog#setupDialog.cc-modal .setup-commander-row,
+  dialog#setupDialog.cc-modal .setup-commander-primary,
+  dialog#setupDialog.cc-modal .setup-secondary-slot,
+  dialog#setupDialog.cc-modal .setup-secondary-wrap{
+    height:30px!important;
+    min-height:30px!important;
+  }
+
+  dialog#setupDialog.cc-modal .setup-player-row input,
+  dialog#setupDialog.cc-modal .setup-deck-row input,
+  dialog#setupDialog.cc-modal .setup-deck-row select,
+  dialog#setupDialog.cc-modal .setup-deck-row button,
+  dialog#setupDialog.cc-modal .setup-commander-row input,
+  dialog#setupDialog.cc-modal .setup-commander-row button{
+    height:30px!important;
+    min-height:30px!important;
+    max-height:30px!important;
+  }
+}
