@@ -2,6 +2,6 @@
 <style>body{margin:12px;background:#17131d;color:white;font:16px system-ui}nav{display:flex;gap:12px;align-items:center;margin-bottom:12px}button,select{font:inherit;padding:8px;background:#32223e;color:white;border:1px solid #a184b4;border-radius:5px}iframe{display:block;border:1px solid #c49dde;width:852px;height:393px;background:black}p{margin:8px 0;font-size:14px}</style>
 <nav><label>Landscape viewport <select id="size"><option value="852,393">iPhone — 852 × 393</option><option value="844,390">iPhone — 844 × 390</option><option value="667,375">Small iPhone — 667 × 375</option><option value="852,320">iPhone with browser bars — 852 × 320</option><option value="1024,768">iPad — 1024 × 768</option></select></label><button id="reload">Reload app</button></nav>
 <p>This review frame controls viewport dimensions. It does not emulate Safari or its browser chrome. The app below is the real build.</p>
-<iframe id="app" title="Commander Companion landscape review" src="../index.html?menu-review=080-io"></iframe>
+<iframe id="app" title="Commander Companion landscape review" src="../index.html?menu-review=080-ip"></iframe>
 <script>const frame=document.querySelector('iframe');document.querySelector('#size').onchange=e=>{const [w,h]=e.target.value.split(',');frame.style.width=w+'px';frame.style.height=h+'px'};document.querySelector('#reload').onclick=()=>frame.contentWindow.location.reload();</script>
 </html>
