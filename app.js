@@ -592,7 +592,7 @@ function applyGuidedOperation(p,ctx){
   }catch(e){toast(e?.message||'That guided operation could not be applied.',true)}
 }
 document.addEventListener('click',e=>{const b=e.target.closest?.('.guided-up,.guided-down');if(!b)return;const row=b.closest('[data-guided-look]'),box=row?.parentElement;if(!row||!box)return;if(b.classList.contains('guided-up')&&row.previousElementSibling)box.insertBefore(row,row.previousElementSibling);else if(b.classList.contains('guided-down')&&row.nextElementSibling)box.insertBefore(row.nextElementSibling,row);});
-$('#modalClose').onclick=closeModal;$$('.dialog-close').forEach(b=>b.onclick=()=>b.closest('dialog').close());
+$('#modalClose').onclick=closeModal;$('.dialog-close').forEach(b=>b.onclick=()=>{const d=b.closest('dialog');if(!d)return;if(d.id==='modal')return closeModal();try{document.activeElement?.blur?.()}catch{}if(d.open)d.close()});
 
 function playerPanel(i){
   const saved=listDecks(),fullTracked=selectedMode==='fully-tracked',hasDeck=selectedMode!=='table-tracker';
