@@ -446,3 +446,17 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog .setup-player-row input,#setupDialog .setup-deck-row input,#setupDialog .setup-deck-row select,#setupDialog .setup-deck-row button,#setupDialog .setup-commander-row input,#setupDialog .setup-commander-row button{height:52px!important;min-height:52px!important;font-size:15px!important}
 #setupDialog .setup-commander-primary,#setupDialog .setup-secondary-slot,#setupDialog .setup-secondary-wrap{height:52px!important}
 }
+
+/* V0.8 IJ — lower Player Setup slightly and extend table toward footer */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog #playerSetupTabs{transform:translateY(-34px)!important;margin-bottom:-34px!important}
+#setupDialog #playerSetupPanels{transform:translateY(-34px)!important;height:calc(100% + 30px)!important}
+#setupDialog .player-setup-wide{
+  grid-template-rows:58px 58px 58px!important;
+  gap:7px!important;
+  padding:8px 10px!important;
+}
+#setupDialog .setup-player-row,#setupDialog .setup-deck-row,#setupDialog .setup-commander-row{height:58px!important}
+#setupDialog .setup-player-row input,#setupDialog .setup-deck-row input,#setupDialog .setup-deck-row select,#setupDialog .setup-deck-row button,#setupDialog .setup-commander-row input,#setupDialog .setup-commander-row button{height:58px!important;min-height:58px!important}
+#setupDialog .setup-commander-primary,#setupDialog .setup-secondary-slot,#setupDialog .setup-secondary-wrap{height:58px!important}
+}
