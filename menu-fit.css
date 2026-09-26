@@ -513,3 +513,14 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
     height:30px!important;
   }
 }
+
+/* V0.8 IO — Profile fields fill landscape space without clipping the note. */
+@media (orientation:landscape){
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName){grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:44px minmax(50px,1fr) minmax(50px,1fr) 20px!important;grid-auto-rows:initial!important;align-content:stretch!important;gap:6px 12px!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>.profile-editor-preview{height:44px!important;padding:3px 6px!important;box-sizing:border-box!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName) .profile-editor-preview .profile-emblem{width:34px!important;height:34px!important;flex-basis:34px!important;min-width:34px!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label{grid-column:span 2!important;display:flex!important;flex-direction:column!important;min-height:0!important;font-size:14px!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label:has(#accountPlayerNames),html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label:has(#accountFavoriteDeck){grid-column:span 3!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label>input,html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label>select{flex:1 1 0!important;height:0!important;min-height:32px!important;max-height:64px!important;font-size:16px!important}
+html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>p.muted{margin:0!important;font-size:14px!important;line-height:20px!important;white-space:nowrap!important}
+}

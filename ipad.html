@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 HQ</title>
+  <title>Commander Companion V0.8 IO</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="cc-app-icon-192.png">
   <link rel="stylesheet" href="styles-v0739.css?v=080-dd">
@@ -76,7 +76,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 HQ</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 IO</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -86,7 +86,7 @@
     <link rel="stylesheet" href="game-threefix.css?v=080-cz">
     <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cz">
     <link rel="stylesheet" href="menu-landscape.css?v=080-dd-2">
-    <link rel="stylesheet" href="menu-fit.css?v=080-hq">
+    <link rel="stylesheet" href="menu-fit.css?v=080-io">
     <header class="game-brand-strip" aria-label="Game status bar">
       <div class="game-turn-badge" aria-live="polite">
         <span class="game-turn-copy"><b id="gameTurnNumber">Player</b><small id="gameTurnPlayer"></small></span>
@@ -216,7 +216,7 @@
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-hq');
+        await import('./app.js?v=080-io');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
