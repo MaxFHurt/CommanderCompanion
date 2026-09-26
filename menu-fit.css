@@ -415,3 +415,11 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog .modal-actions{height:42px!important;min-height:42px!important;padding:4px 12vw!important;gap:6vw!important}
 #setupDialog .modal-actions button{height:32px!important;min-height:32px!important;font-size:14px!important}
 }
+
+/* V0.8 IG — Player Setup table position/width refinement */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog .modal-content{padding:0 3vw 4px!important}
+#setupDialog #playerSetupTabs{margin-top:0!important}
+#setupDialog #playerSetupPanels{align-items:flex-start!important;height:calc(100% - 28px)!important}
+#setupDialog .player-setup-wide{width:100%!important;max-width:none!important;margin:0!important;padding:6px 8px!important}
+}
