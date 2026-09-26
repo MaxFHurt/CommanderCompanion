@@ -300,3 +300,83 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
  }
  html body dialog.cc-modal.cc-menu-fit:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog) .hand-strip{gap:4px!important}
 }
+
+
+/* V0.8 ID — Full Play Tracking rules: readable iPhone landscape spacing */
+@media (orientation:landscape) and (max-height:500px){
+  #modeSetupDialog.cc-menu-fit .modal-shell{
+    grid-template-rows:32px minmax(0,1fr) 34px !important;
+  }
+  #modeSetupDialog.cc-menu-fit .modal-content{
+    padding:4px 12px 6px !important;
+    overflow:hidden !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage{
+    height:100% !important;
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    grid-template-rows:auto auto repeat(3,minmax(0,1fr)) !important;
+    gap:4px 12px !important;
+    align-items:center !important;
+    align-content:stretch !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage > h3{
+    grid-column:1/-1 !important;
+    margin:0 !important;
+    font-size:20px !important;
+    line-height:1 !important;
+    text-align:center !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage > p.muted{
+    grid-column:1/-1 !important;
+    margin:0 0 2px !important;
+    font-size:14px !important;
+    line-height:1.05 !important;
+    text-align:center !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage > label{
+    min-width:0 !important;
+    min-height:34px !important;
+    margin:0 !important;
+    padding:3px 6px !important;
+    font-size:13px !important;
+    line-height:1.05 !important;
+    display:flex !important;
+    align-items:center !important;
+    gap:5px !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage > label.check{
+    justify-content:flex-start !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage input[type="checkbox"]{
+    width:24px !important;
+    height:24px !important;
+    min-width:24px !important;
+    margin:0 !important;
+  }
+  #modeSetupDialog.cc-menu-fit .setup-stage input[type="number"],
+  #modeSetupDialog.cc-menu-fit .setup-stage select{
+    height:28px !important;
+    min-height:28px !important;
+    font-size:12px !important;
+    margin-left:auto !important;
+    max-width:54% !important;
+  }
+  #modeSetupDialog.cc-menu-fit .house-tag{
+    font-size:9px !important;
+    line-height:1 !important;
+    padding:2px 4px !important;
+  }
+  #modeSetupDialog.cc-menu-fit .modal-actions{
+    min-height:34px !important;
+    height:34px !important;
+    padding:3px 10px !important;
+    gap:10px !important;
+  }
+  #modeSetupDialog.cc-menu-fit .modal-actions button{
+    height:28px !important;
+    min-height:28px !important;
+    font-size:14px !important;
+    padding:2px 12px !important;
+  }
+}
