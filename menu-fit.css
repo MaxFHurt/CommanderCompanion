@@ -472,3 +472,44 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog #playerSetupTabs{transform:translateY(-12px)!important;margin-bottom:-12px!important}
 #setupDialog #playerSetupPanels{transform:translateY(-12px)!important;height:calc(100% + 8px)!important}
 }
+
+/* V0.8 IM — Player Setup: up 7px, +25px per side, half-height rows */
+@media (orientation:landscape) and (max-height:500px){
+  #setupDialog #playerSetupTabs{
+    transform:translateY(-19px)!important;
+    margin-bottom:-19px!important;
+  }
+  #setupDialog #playerSetupPanels{
+    transform:translateY(-19px)!important;
+    height:calc(100% + 15px)!important;
+    width:100%!important;
+  }
+  #setupDialog .player-setup-wide{
+    width:calc(100% + 50px)!important;
+    max-width:none!important;
+    margin-left:-25px!important;
+    margin-right:-25px!important;
+    grid-template-rows:30px 30px 30px!important;
+    gap:6px!important;
+    padding:6px 8px!important;
+  }
+  #setupDialog .setup-player-row,
+  #setupDialog .setup-deck-row,
+  #setupDialog .setup-commander-row{
+    height:30px!important;
+  }
+  #setupDialog .setup-player-row input,
+  #setupDialog .setup-deck-row input,
+  #setupDialog .setup-deck-row select,
+  #setupDialog .setup-deck-row button,
+  #setupDialog .setup-commander-row input,
+  #setupDialog .setup-commander-row button{
+    height:30px!important;
+    min-height:30px!important;
+  }
+  #setupDialog .setup-commander-primary,
+  #setupDialog .setup-secondary-slot,
+  #setupDialog .setup-secondary-wrap{
+    height:30px!important;
+  }
+}
