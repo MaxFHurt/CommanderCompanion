@@ -460,3 +460,9 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog .setup-player-row input,#setupDialog .setup-deck-row input,#setupDialog .setup-deck-row select,#setupDialog .setup-deck-row button,#setupDialog .setup-commander-row input,#setupDialog .setup-commander-row button{height:58px!important;min-height:58px!important}
 #setupDialog .setup-commander-primary,#setupDialog .setup-secondary-slot,#setupDialog .setup-secondary-wrap{height:58px!important}
 }
+
+/* V0.8 IK — nudge Player Setup table down */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog #playerSetupTabs{transform:translateY(-27px)!important;margin-bottom:-27px!important}
+#setupDialog #playerSetupPanels{transform:translateY(-27px)!important;height:calc(100% + 23px)!important}
+}
