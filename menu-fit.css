@@ -674,3 +674,13 @@ html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content
     max-height:30px!important;
   }
 }
+
+
+/* V0.8 IS — keep IR width/top, shorten table so it clears the footer */
+@media (orientation:landscape) and (max-height:500px){
+  dialog#setupDialog.cc-modal #playerSetupPanels{
+    height:176px!important;
+    min-height:176px!important;
+    max-height:176px!important;
+  }
+}
