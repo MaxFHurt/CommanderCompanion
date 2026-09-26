@@ -398,3 +398,20 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog.cc-menu-fit .modal-actions{height:42px!important;min-height:42px!important;padding:4px 12vw!important;gap:6vw!important}
 #setupDialog.cc-menu-fit .modal-actions button{height:32px!important;min-height:32px!important;font-size:14px!important}
 }
+
+/* V0.8 IF — Player Setup direct dialog fit (setupDialog is not cc-menu-fit) */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog .modal-shell{grid-template-rows:34px minmax(0,1fr) 42px!important}
+#setupDialog .modal-content{padding:4px 7vw 5px!important;overflow:hidden!important;min-height:0!important}
+#setupDialog #playerSetupTabs{margin:0!important;height:28px!important;min-height:28px!important}
+#setupDialog #playerSetupPanels{min-height:0!important;height:calc(100% - 30px)!important;display:flex!important;align-items:center!important}
+#setupDialog .player-setup-wide{width:100%!important;max-width:none!important;margin:0!important;padding:8px 12px!important;display:grid!important;grid-template-rows:38px 38px 38px!important;gap:7px!important;box-sizing:border-box!important}
+#setupDialog .setup-player-row,#setupDialog .setup-deck-row,#setupDialog .setup-commander-row{display:grid!important;gap:10px!important;min-width:0!important;height:38px!important}
+#setupDialog .setup-player-row{grid-template-columns:1fr!important}
+#setupDialog .setup-deck-row,#setupDialog .setup-commander-row{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr) minmax(120px,.72fr)!important}
+#setupDialog .setup-player-row input,#setupDialog .setup-deck-row input,#setupDialog .setup-deck-row select,#setupDialog .setup-deck-row button,#setupDialog .setup-commander-row input,#setupDialog .setup-commander-row button{width:100%!important;height:38px!important;min-height:38px!important;box-sizing:border-box!important;margin:0!important;font-size:14px!important}
+#setupDialog .setup-commander-primary,#setupDialog .setup-secondary-slot,#setupDialog .setup-secondary-wrap{min-width:0!important;height:38px!important}
+#setupDialog .setup-secondary-wrap[hidden]{display:none!important}
+#setupDialog .modal-actions{height:42px!important;min-height:42px!important;padding:4px 12vw!important;gap:6vw!important}
+#setupDialog .modal-actions button{height:32px!important;min-height:32px!important;font-size:14px!important}
+}
