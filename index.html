@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Commander Companion">
-  <title>Commander Companion V0.8 HQ</title>
+  <title>Commander Companion V0.8 HR</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="AD681F93-016F-4DB0-90FC-54ED1B35BC57.png?v=080-eu-icon2">
   <link rel="stylesheet" href="styles-v0739.css?v=080-eu">
@@ -52,7 +52,7 @@
         <button id="gameLogsLandingBtn" type="button">GAME LOGS</button>
       </div>
 
-      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 HQ</div>
+      <div class="landing079-footer">COMMANDER COMPANION <span>•</span> V0.8 HR</div>
     </section>
     <section id="versionNotesInline" class="landing-card version-notes" hidden></section>
     <button id="versionNotesBtn" hidden aria-hidden="true"></button>
@@ -61,8 +61,8 @@
   <main id="gameScreen" class="screen game-screen" hidden>
     <link rel="stylesheet" href="game-threefix.css?v=080-cz">
     <link rel="stylesheet" href="ui-landscape-masters.css?v=080-cz">
-    <link rel="stylesheet" href="menu-landscape.css?v=080-hq">
-    <link rel="stylesheet" href="menu-fit.css?v=080-hq">
+    <link rel="stylesheet" href="menu-landscape.css?v=080-hr">
+    <link rel="stylesheet" href="menu-fit.css?v=080-hr">
     <header class="game-brand-strip" aria-label="Commander Companion">
       <img class="game-horizon-logo" src="game-header-wordmark.png?v=07915" alt="Commander Companion">
       <span id="gameTurnNumber" hidden></span><span id="gameTurnPlayer" hidden></span><button id="gameTopMore" hidden type="button" data-hub="settings"></button>
@@ -181,12 +181,12 @@
           await Promise.all(keys.filter(k=>k.startsWith('commander-companion-')).map(k=>caches.delete(k)));
         }
         const fresh=new URL(location.href);
-        if(hadController&&fresh.searchParams.get('ccFresh')!=='080-hq'){
-          fresh.searchParams.set('ccFresh','080-hq');
+        if(hadController&&fresh.searchParams.get('ccFresh')!=='080-hr'){
+          fresh.searchParams.set('ccFresh','080-hr');
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-hq');
+        await import('./app.js?v=080-hr');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
