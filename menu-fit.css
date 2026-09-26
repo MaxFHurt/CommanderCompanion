@@ -524,3 +524,35 @@ html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content
 html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label>input,html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>label>select{flex:1 1 0!important;height:0!important;min-height:32px!important;max-height:64px!important;font-size:16px!important}
 html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content.menu-form-grid:has(#accountDisplayName)>p.muted{margin:0!important;font-size:14px!important;line-height:20px!important;white-space:nowrap!important}
 }
+
+
+/* V0.8 IN — expand Player Setup table horizontally and improve text fit */
+@media (orientation:landscape) and (max-height:500px){
+  #setupDialog .modal-content{
+    padding-left:.5vw!important;
+    padding-right:.5vw!important;
+  }
+  #setupDialog #playerSetupPanels{
+    width:100%!important;
+  }
+  #setupDialog .player-setup-wide{
+    width:calc(100% + 110px)!important;
+    max-width:none!important;
+    margin-left:-55px!important;
+    margin-right:-55px!important;
+  }
+  #setupDialog .setup-deck-row,
+  #setupDialog .setup-commander-row{
+    grid-template-columns:minmax(0,1.8fr) minmax(0,1.25fr) minmax(150px,1.05fr)!important;
+  }
+  #setupDialog .setup-player-row input,
+  #setupDialog .setup-deck-row input,
+  #setupDialog .setup-deck-row select,
+  #setupDialog .setup-deck-row button,
+  #setupDialog .setup-commander-row input,
+  #setupDialog .setup-commander-row button{
+    font-size:13px!important;
+    padding-left:10px!important;
+    padding-right:10px!important;
+  }
+}
