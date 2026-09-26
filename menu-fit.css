@@ -423,3 +423,12 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog #playerSetupPanels{align-items:flex-start!important;height:calc(100% - 28px)!important}
 #setupDialog .player-setup-wide{width:100%!important;max-width:none!important;margin:0!important;padding:6px 8px!important}
 }
+
+/* V0.8 IH — Player Setup use upper space + transparent button footer */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog .modal-content{padding:0 2vw 2px!important}
+#setupDialog #playerSetupTabs{transform:translateY(-46px)!important;margin-bottom:-46px!important}
+#setupDialog #playerSetupPanels{transform:translateY(-46px)!important;height:calc(100% + 18px)!important}
+#setupDialog .player-setup-wide{width:100%!important;padding:6px 8px!important}
+#setupDialog .modal-actions{background:transparent!important;border:0!important;box-shadow:none!important;padding:3px 12vw 4px!important}
+}
