@@ -466,3 +466,9 @@ html body dialog.cc-modal:is(#modal,#deckDialog,#modeSetupDialog,#networkDialog,
 #setupDialog #playerSetupTabs{transform:translateY(-27px)!important;margin-bottom:-27px!important}
 #setupDialog #playerSetupPanels{transform:translateY(-27px)!important;height:calc(100% + 23px)!important}
 }
+
+/* V0.8 IL — move Player Setup table down 15px */
+@media (orientation:landscape) and (max-height:500px){
+#setupDialog #playerSetupTabs{transform:translateY(-12px)!important;margin-bottom:-12px!important}
+#setupDialog #playerSetupPanels{transform:translateY(-12px)!important;height:calc(100% + 8px)!important}
+}
