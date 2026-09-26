@@ -684,3 +684,31 @@ html body dialog#modal.cc-modal.cc-menu-fit:is(#modal):is(#modal) .modal-content
     max-height:176px!important;
   }
 }
+
+
+/* V0.8 IT — slightly shorter Player Setup table + smaller inset tabs */
+@media (orientation:landscape) and (max-height:500px){
+  /* Keep the approved top alignment and width; trim only the bottom edge upward. */
+  dialog#setupDialog.cc-modal #playerSetupPanels{
+    height:160px!important;
+    min-height:160px!important;
+    max-height:160px!important;
+  }
+
+  /* Pull the tabs inside the rounded top corners and make them slightly smaller. */
+  dialog#setupDialog.cc-modal #playerSetupTabs{
+    box-sizing:border-box!important;
+    width:100%!important;
+    padding-left:14px!important;
+    padding-right:14px!important;
+  }
+  dialog#setupDialog.cc-modal .player-setup-tab,
+  dialog#setupDialog.cc-modal .player-setup-add{
+    height:26px!important;
+    min-height:26px!important;
+    max-height:26px!important;
+    padding:0 3px!important;
+    font-size:clamp(11px,.95vw,14px)!important;
+    line-height:1!important;
+  }
+}
