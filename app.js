@@ -646,17 +646,19 @@ function renderSetupPanels({preserve=false}={}){
  showActiveSetupPlayer();
 }
 async function openGlobalCommanderPicker({primary=null,onSelect}){
+  const returnDialog=$('#setupDialog')?.open?$('#setupDialog'):($('#deckDialog')?.open?$('#deckDialog'):($('#networkDialog')?.open?$('#networkDialog'):null));
   openModal(primary?'SEARCH LEGAL PARTNER':'SEARCH COMMANDER',`<p>${primary?'Search results are filtered to commanders that can legally share the command zone with '+esc(primary.name)+'.':'Search results are filtered to cards that can legally be commanders.'}</p><div class="card-search-row"><input id="freeCommanderSearch" placeholder="Type commander name"><button id="freeCommanderGo">SEARCH</button></div><div id="freeCommanderResults" class="card-search-results"></div>`,[{label:'CANCEL',onClick:closeModal}]);
-  const run=async()=>{const q=$('#freeCommanderSearch').value.trim();if(!q)return;$('#freeCommanderResults').innerHTML='<p>Searching…</p>';try{const rows=(await searchCards(q,{allPrintings:false})).filter(d=>(primary?isSecondaryCommanderEligible(d):isCommanderEligible(d))&&(!primary||canShareCommandZone(primary,d)));$('#freeCommanderResults').innerHTML=rows.map((d,i)=>`<button class="search-result" data-free-cmd="${i}"><img src="${imageOf(d)}"><span><b>${esc(d.name)}</b><br><small>${esc(d.typeLine)}</small></span></button>`).join('')||'<p>No legal commander matches.</p>';$$('[data-free-cmd]').forEach((b,i)=>b.onclick=()=>{closeModal();onSelect(rows[i])})}catch(e){$('#freeCommanderResults').innerHTML=`<p class="bad">${esc(e.message)}</p>`}};
+  const run=async()=>{const q=$('#freeCommanderSearch').value.trim();if(!q)return;$('#freeCommanderResults').innerHTML='<p>Searching…</p>';try{const rows=(await searchCards(q,{allPrintings:false})).filter(d=>(primary?isSecondaryCommanderEligible(d):isCommanderEligible(d))&&(!primary||canShareCommandZone(primary,d)));$('#freeCommanderResults').innerHTML=rows.map((d,i)=>`<button class="search-result" data-free-cmd="${i}"><img src="${imageOf(d)}"><span><b>${esc(d.name)}</b><br><small>${esc(d.typeLine)}</small></span></button>`).join('')||'<p>No legal commander matches.</p>';$('[data-free-cmd]').forEach((b,i)=>b.onclick=async()=>{try{await onSelect(rows[i]);closeModal();if(returnDialog&&!returnDialog.open)returnDialog.showModal()}catch(e){console.error('Global commander selection failed:',e);toast(e?.message||'Unable to select that commander.',true)}})}catch(e){$('#freeCommanderResults').innerHTML=`<p class="bad">${esc(e.message)}</p>`}};
   $('#freeCommanderGo').onclick=run;$('#freeCommanderSearch').onkeydown=e=>{if(e.key==='Enter')run()};
 }
 function openSetupDeckViewer(panel){
+  const returnDialog=$('#setupDialog')?.open?$('#setupDialog'):null;
   const deckText=panel?.querySelector('.setup-deck')?.value?.trim()||panel?.dataset.selectedDeckText||'';
   const deckName=panel?.dataset.selectedDeckName||panel?.querySelector('.setup-saved')?.selectedOptions?.[0]?.textContent||'Deck';
   if(!deckText)return toast('Load or select a deck first.',true);
   const rows=deckText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const html='<div class="setup-deck-view"><div class="setup-deck-view-count">'+rows.length+' deck entries</div><div class="setup-deck-view-list">'+rows.map(row=>'<div>'+esc(row)+'</div>').join('')+'</div></div>';
-  openModal(deckName,html,[{label:'CLOSE',onClick:closeModal}]);
+  openModal(deckName,html,[{label:'BACK',semantic:'back',onClick:()=>{closeModal();if(returnDialog&&!returnDialog.open)returnDialog.showModal()}}]);
 }
 function bindSetupTools(){
   $$('.setup-cmd1').forEach((input,i)=>{if(selectedMode==='fully-tracked')input.onclick=()=>{const p=$$('[data-player-setup]')[i];if(!p)return;openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,onSelect:d=>{input.value=d.name;p.querySelector('.setup-cmd2').value='';syncSetupSecondary(p)}})}});
