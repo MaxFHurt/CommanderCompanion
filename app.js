@@ -655,22 +655,200 @@ async function openGlobalCommanderPicker({primary=null,onSelect}){
   const run=async()=>{const q=$('#freeCommanderSearch').value.trim();if(!q)return;$('#freeCommanderResults').innerHTML='<p>Searching…</p>';try{const rows=(await searchCards(q,{allPrintings:false})).filter(d=>(primary?isSecondaryCommanderEligible(d):isCommanderEligible(d))&&(!primary||canShareCommandZone(primary,d)));$('#freeCommanderResults').innerHTML=rows.map((d,i)=>`<button class="search-result" data-free-cmd="${i}"><img src="${imageOf(d)}"><span><b>${esc(d.name)}</b><br><small>${esc(d.typeLine)}</small></span></button>`).join('')||'<p>No legal commander matches.</p>';$$('[data-free-cmd]').forEach((b,i)=>b.onclick=async()=>{try{await onSelect(rows[i]);closeModal();if(returnDialog&&!returnDialog.open)returnDialog.showModal()}catch(e){console.error('Global commander selection failed:',e);toast(e?.message||'Unable to select that commander.',true)}})}catch(e){$('#freeCommanderResults').innerHTML=`<p class="bad">${esc(e.message)}</p>`}};
   $('#freeCommanderGo').onclick=run;$('#freeCommanderSearch').onkeydown=e=>{if(e.key==='Enter')run()};
 }
+function setupDeckRows(deckText){
+  return String(deckText||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(raw=>{
+    const match=raw.match(/^(\d+)\s+(.+)$/);
+    return {raw,quantity:match?Math.max(1,Number(match[1])||1):1,name:match?match[2]:raw};
+  });
+}
+async function setupCommanderDefinitions(names=[]){
+  const defs=[];
+  for(const name of names.filter(Boolean)){
+    try{defs.push(await resolveNamedCard(name))}catch{defs.push(null)}
+  }
+  return defs;
+}
+function setupDeckDetailHtml(deck,commanderDefs=[]){
+  const rows=setupDeckRows(deck.deckList);
+  const total=rows.reduce((sum,row)=>sum+row.quantity,0);
+  const commanderNames=(deck.commanders||[]).filter(Boolean);
+  const commanderCards=commanderNames.length?commanderNames.map((name,i)=>{
+    const def=commanderDefs[i]||null,src=def?imageOf(def):'';
+    return `<article class="setup-deck-commander-card">${src?`<img src="${esc(src)}" alt="${esc(name)}">`:'<div class="setup-deck-commander-fallback">CARD IMAGE UNAVAILABLE</div>'}<strong>${esc(name)}</strong></article>`;
+  }).join(''):'<p class="muted">No commander is listed for this deck.</p>';
+  const meta=[deck.type||'',deck.releaseDate||''].filter(Boolean).map(esc).join(' • ');
+  return `<div class="setup-deck-detail"><section class="setup-deck-detail-commanders"><h3>${commanderNames.length>1?'COMMANDERS':'COMMANDER'}</h3><div class="setup-deck-commander-grid">${commanderCards}</div>${meta?`<p class="setup-deck-meta">${meta}</p>`:''}</section><section class="setup-deck-list-panel"><div class="setup-deck-list-heading"><strong>DECK LIST</strong><span>${total} cards • ${rows.length} entries</span></div><div class="setup-deck-detail-list">${rows.map(row=>`<div class="setup-deck-detail-row"><b>${row.quantity}</b><span>${esc(row.name)}</span></div>`).join('')}</div></section></div>`;
+}
+async function openSetupDeckDetail(deck,{returnDialog=null,onCancel=null,onSelect=null}={}){
+  const leave=()=>{closeModal();if(onCancel){onCancel();return}if(returnDialog&&!returnDialog.open)returnDialog.showModal()};
+  openModal(deck?.name||'DECK','<p>Loading full deck information…</p>',[
+    {label:'BACK',semantic:'back',onClick:leave},
+    {label:'CANCEL',semantic:'cancel',onClick:leave}
+  ]);
+  try{
+    const commanderDefs=await setupCommanderDefinitions(deck?.commanders||[]);
+    const actions=[
+      {label:'BACK',semantic:'back',onClick:leave},
+      {label:'CANCEL',semantic:'cancel',onClick:leave}
+    ];
+    if(onSelect)actions.push({label:'SELECT DECK',semantic:'confirm',className:'primary',onClick:async button=>{
+      button.disabled=true;
+      try{
+        await onSelect(deck);
+        closeModal();
+        if(returnDialog&&!returnDialog.open)returnDialog.showModal();
+      }catch(error){
+        button.disabled=false;
+        console.error('Commander Companion deck selection failed:',error);
+        toast(error?.message||'Unable to select that deck.',true);
+      }
+    }});
+    openModal(deck?.name||'DECK',setupDeckDetailHtml(deck,commanderDefs),actions);
+  }catch(error){
+    console.error('Commander Companion deck detail failed:',error);
+    openModal(deck?.name||'DECK',`<p class="bad">${esc(error?.message||'Unable to load deck details.')}</p>`,[
+      {label:'BACK',semantic:'back',onClick:leave},
+      {label:'CANCEL',semantic:'cancel',onClick:leave}
+    ]);
+  }
+}
+function setupDeckInfoFromPanel(panel){
+  if(!panel)return null;
+  const deckText=panel.querySelector('.setup-deck')?.value?.trim()||panel.dataset.selectedDeckText||'';
+  if(!deckText)return null;
+  const name=panel.dataset.selectedDeckName||panel.querySelector('.setup-deck-name')?.value?.trim()||'Deck';
+  const commanders=[panel.querySelector('.setup-cmd1')?.value?.trim(),panel.querySelector('.setup-cmd2')?.value?.trim()].filter(Boolean);
+  const source=panel.dataset.selectedDeckSource||'';
+  return {
+    name,
+    commanders,
+    deckList:deckText,
+    type:panel.dataset.selectedDeckType||(source==='precon'?'Preconstructed Deck':source==='saved'?'Saved Deck':''),
+    releaseDate:panel.dataset.selectedDeckReleaseDate||''
+  };
+}
 function openSetupDeckViewer(panel){
   const returnDialog=$('#setupDialog')?.open?$('#setupDialog'):null;
-  const deckText=panel?.querySelector('.setup-deck')?.value?.trim()||panel?.dataset.selectedDeckText||'';
-  const deckName=panel?.dataset.selectedDeckName||panel?.querySelector('.setup-saved')?.selectedOptions?.[0]?.textContent||'Deck';
-  if(!deckText)return toast('Load or select a deck first.',true);
-  const rows=deckText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  const html='<div class="setup-deck-view"><div class="setup-deck-view-count">'+rows.length+' deck entries</div><div class="setup-deck-view-list">'+rows.map(row=>'<div>'+esc(row)+'</div>').join('')+'</div></div>';
-  openModal(deckName,html,[{label:'BACK',semantic:'back',onClick:restoreParent}]);
+  const deck=setupDeckInfoFromPanel(panel);
+  if(!deck)return toast('Load or select a deck first.',true);
+  openSetupDeckDetail(deck,{returnDialog});
+}
+async function applyPreconToSetupPanel(panel,pre){
+  if(!panel||!pre)return;
+  panel.dataset.selectedDeckId='';
+  panel.dataset.selectedDeckName=pre.name||'Preconstructed deck';
+  panel.dataset.selectedDeckText=pre.deckList||'';
+  panel.dataset.selectedDeckSource='precon';
+  panel.dataset.selectedDeckSourceId=pre.fileName||pre.name||'precon';
+  panel.dataset.selectedDeckType=pre.type||'Preconstructed Deck';
+  panel.dataset.selectedDeckReleaseDate=pre.releaseDate||'';
+  const saved=panel.querySelector('.setup-saved');if(saved)saved.value='';
+  const deckName=panel.querySelector('.setup-deck-name');if(deckName)deckName.value=pre.name||'Preconstructed deck';
+  panel.querySelector('.setup-cmd1').value=pre.commanders?.[0]||'';
+  panel.querySelector('.setup-cmd2').value=pre.commanders?.[1]||'';
+  panel.querySelector('.setup-deck').value=pre.deckList||'';
+  await syncSetupSecondary(panel);
+}
+function openSetupPreconPicker(panel){
+  const returnDialog=$('#setupDialog')?.open?$('#setupDialog'):null;
+  const cache=new Map();
+  let rows=[];
+  const restoreParent=()=>{closeModal();if(returnDialog&&!returnDialog.open)returnDialog.showModal()};
+  const loadWithMeta=row=>{
+    const key=row.fileName||row.name;
+    if(!cache.has(key)){
+      cache.set(key,loadPrecon(row.fileName).then(pre=>({
+        ...pre,
+        fileName:row.fileName||'',
+        type:pre.type||row.type||'Preconstructed Deck',
+        releaseDate:pre.releaseDate||row.releaseDate||''
+      })).catch(error=>{cache.delete(key);throw error}));
+    }
+    return cache.get(key);
+  };
+  const hydrateCatalogRow=async(button,row)=>{
+    if(!button||!row||button.dataset.hydrated==='1'||button.dataset.loading==='1')return;
+    button.dataset.loading='1';
+    try{
+      const pre=await loadWithMeta(row);
+      const names=(pre.commanders||[]).filter(Boolean);
+      const first=names[0]||'Commander unavailable';
+      let def=null;
+      if(names[0]){try{def=await resolveNamedCard(names[0])}catch{}}
+      const art=button.querySelector('.precon-catalog-art');
+      if(art)art.innerHTML=def?`<img src="${esc(imageOf(def))}" alt="${esc(first)}">`:`<span>${esc(first)}</span>`;
+      const commander=button.querySelector('.precon-catalog-commander');
+      if(commander)commander.textContent=names.length?names.join(' / '):'Commander unavailable';
+      button.dataset.hydrated='1';
+    }catch(error){
+      const commander=button.querySelector('.precon-catalog-commander');
+      if(commander)commander.textContent='Deck details unavailable';
+    }finally{
+      delete button.dataset.loading;
+    }
+  };
+  const openPreview=async(row,button)=>{
+    button.disabled=true;
+    try{
+      const pre=await loadWithMeta(row);
+      await openSetupDeckDetail(pre,{
+        returnDialog,
+        onCancel:showCatalog,
+        onSelect:deck=>applyPreconToSetupPanel(panel,deck)
+      });
+    }catch(error){
+      button.disabled=false;
+      console.error('Commander Companion precon preview failed:',error);
+      toast(error?.message||'Unable to load that preconstructed deck.',true);
+    }
+  };
+  const renderRows=()=>{
+    const filter=$('#preconFilter');
+    const q=String(filter?.value||'').trim().toLowerCase();
+    const show=rows.filter(row=>!q||row.name.toLowerCase().includes(q));
+    const host=$('#preconResults');if(!host)return;
+    host.innerHTML=show.length?show.map((row,i)=>`<button type="button" class="precon-catalog-row" data-precon-index="${i}"><span class="precon-catalog-art"><span>COMMANDER</span></span><span class="precon-catalog-copy"><b>${esc(row.name)}</b><small class="precon-catalog-commander">Loading commander…</small><small>${esc([row.releaseDate,row.type].filter(Boolean).join(' • '))}</small></span></button>`).join(''):'<p class="muted">No preconstructed decks match that search.</p>';
+    const buttons=$$('.precon-catalog-row');
+    buttons.forEach((button,i)=>button.onclick=()=>openPreview(show[i],button));
+    if(renderRows._observer)renderRows._observer.disconnect();
+    if(window.IntersectionObserver){
+      const observer=new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+          if(!entry.isIntersecting)return;
+          const i=Number(entry.target.dataset.preconIndex);
+          observer.unobserve(entry.target);
+          hydrateCatalogRow(entry.target,show[i]);
+        });
+      },{root:$('#modalContent'),rootMargin:'220px 0px'});
+      buttons.forEach(button=>observer.observe(button));
+      renderRows._observer=observer;
+    }else{
+      buttons.slice(0,12).forEach((button,i)=>hydrateCatalogRow(button,show[i]));
+    }
+  };
+  async function showCatalog(){
+    openModal('PRECON CATALOG','<p>Loading official Commander preconstructed decks…</p>',[
+      {label:'BACK',semantic:'back',onClick:restoreParent},
+      {label:'CANCEL',semantic:'cancel',onClick:restoreParent}
+    ]);
+    try{
+      if(!rows.length)rows=await listPrecons();
+      $('#modalContent').innerHTML=`<div class="precon-catalog-toolbar"><input id="preconFilter" placeholder="Search preconstructed decks"><span>${rows.length} decks</span></div><div id="preconResults" class="precon-catalog-list"></div>`;
+      $('#preconFilter').oninput=renderRows;
+      renderRows();
+    }catch(error){
+      $('#modalContent').innerHTML=`<p class="bad">${esc(error?.message||'Unable to load the preconstructed deck catalog.')}</p>`;
+    }
+  }
+  showCatalog();
 }
 function bindSetupTools(){
   $$('.setup-cmd1').forEach((input,i)=>{if(selectedMode==='fully-tracked')input.onclick=()=>{const p=$$('[data-player-setup]')[i];if(!p)return;openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,onSelect:d=>{input.value=d.name;p.querySelector('.setup-cmd2').value='';syncSetupSecondary(p)}})}});
   $$('.setup-cmd2').forEach((input,i)=>{if(selectedMode==='fully-tracked')input.onclick=()=>{const p=$$('[data-player-setup]')[i];if(!p)return;openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,primaryName:p.querySelector('.setup-cmd1').value,secondary:true,onSelect:d=>{input.value=d.name}})}});
   $$('.setup-view-deck').forEach((b,i)=>b.onclick=()=>openSetupDeckViewer($$('[data-player-setup]')[i]));
-  $$('.setup-saved').forEach((sel,i)=>sel.onchange=async()=>{const d=listDecks().find(x=>x.id===sel.value);const p=$$('[data-player-setup]')[i];if(!p)return;if(!d){p.dataset.selectedDeckId='';p.dataset.selectedDeckName='';p.dataset.selectedDeckText='';p.dataset.selectedDeckSource='';p.dataset.selectedDeckSourceId='';return}p.dataset.selectedDeckId=d.id;p.dataset.selectedDeckName=d.name||'';p.dataset.selectedDeckText=d.deckList||'';p.dataset.selectedDeckSource='saved';p.dataset.selectedDeckSourceId=d.id;const deckNameField=p.querySelector('.setup-deck-name');if(deckNameField)deckNameField.value=d.name||'';p.querySelector('.setup-cmd1').value=d.commander1||'';p.querySelector('.setup-cmd2').value=d.commander2||'';p.querySelector('.setup-deck').value=d.deckList||'';await syncSetupSecondary(p)});
+  $('.setup-saved').forEach((sel,i)=>sel.onchange=async()=>{const d=listDecks().find(x=>x.id===sel.value);const p=$('[data-player-setup]')[i];if(!p)return;if(!d){p.dataset.selectedDeckId='';p.dataset.selectedDeckName='';p.dataset.selectedDeckText='';p.dataset.selectedDeckSource='';p.dataset.selectedDeckSourceId='';p.dataset.selectedDeckType='';p.dataset.selectedDeckReleaseDate='';return}p.dataset.selectedDeckId=d.id;p.dataset.selectedDeckName=d.name||'';p.dataset.selectedDeckText=d.deckList||'';p.dataset.selectedDeckSource='saved';p.dataset.selectedDeckSourceId=d.id;p.dataset.selectedDeckType='Saved Deck';p.dataset.selectedDeckReleaseDate='';const deckNameField=p.querySelector('.setup-deck-name');if(deckNameField)deckNameField.value=d.name||'';p.querySelector('.setup-cmd1').value=d.commander1||'';p.querySelector('.setup-cmd2').value=d.commander2||'';p.querySelector('.setup-deck').value=d.deckList||'';await syncSetupSecondary(p)});
   $$('.setup-deck').forEach((input,i)=>input.addEventListener('input',()=>{const p=$$('[data-player-setup]')[i];if(!p)return;const bound=!!(p.dataset.selectedDeckId||p.dataset.selectedDeckSource);if(!bound)return;const saved=p.dataset.selectedDeckText||'';if(input.value!==saved){p.dataset.selectedDeckId='';p.dataset.selectedDeckName='';p.dataset.selectedDeckText='';p.dataset.selectedDeckSource='';p.dataset.selectedDeckSourceId='';const sel=p.querySelector('.setup-saved');if(sel)sel.value=''}}));
-  $$('.setup-precon').forEach((b,i)=>b.onclick=()=>openPreconPicker(async pre=>{const p=$$('[data-player-setup]')[i];if(!p)return;p.dataset.selectedDeckId='';p.dataset.selectedDeckName=pre.name||'Preconstructed deck';p.dataset.selectedDeckText=pre.deckList||'';p.dataset.selectedDeckSource='precon';p.dataset.selectedDeckSourceId=pre.name||'precon';const sel=p.querySelector('.setup-saved');if(sel)sel.value='';p.querySelector('.setup-cmd1').value=pre.commanders[0]||'';p.querySelector('.setup-cmd2').value=pre.commanders[1]||'';p.querySelector('.setup-deck').value=pre.deckList||'';await syncSetupSecondary(p)}));
+  $('.setup-precon').forEach((b,i)=>b.onclick=()=>{const p=$('[data-player-setup]')[i];if(p)openSetupPreconPicker(p)});
   $$('.setup-pick-cmd1').forEach((b,i)=>b.onclick=()=>{const p=$$('[data-player-setup]')[i];openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,onSelect:d=>{p.querySelector('.setup-cmd1').value=d.name;p.querySelector('.setup-cmd2').value='';syncSetupSecondary(p)}})});
   $$('.setup-pick-cmd2').forEach((b,i)=>b.onclick=()=>{const p=$$('[data-player-setup]')[i];openDeckCommanderPicker({deckText:p.querySelector('.setup-deck').value,primaryName:p.querySelector('.setup-cmd1').value,secondary:true,onSelect:d=>{p.querySelector('.setup-cmd2').value=d.name}})});
   $$('.setup-search-cmd1').forEach((b,i)=>b.onclick=()=>{const p=$$('[data-player-setup]')[i];openGlobalCommanderPicker({onSelect:d=>{p.querySelector('.setup-cmd1').value=d.name;p.querySelector('.setup-cmd2').value='';syncSetupSecondary(p)}})});

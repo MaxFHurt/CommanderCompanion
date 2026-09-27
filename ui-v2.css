@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 JD — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 JI — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -624,4 +624,70 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-saved{
   background-repeat:no-repeat,no-repeat!important;
   background-position:calc(100% - 13px) center,center!important;
   background-size:18px 24px,100% 100%!important;
+}
+
+
+/* V0.8 JI — Player Setup Precon catalog + shared deck detail viewer. */
+body.cc-ui-v2 #modal .precon-catalog-toolbar{
+  display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;align-items:center!important;
+  margin:0 0 10px!important;
+}
+body.cc-ui-v2 #modal .precon-catalog-toolbar input{margin:0!important;min-height:38px!important;}
+body.cc-ui-v2 #modal .precon-catalog-toolbar span{white-space:nowrap!important;font-weight:800!important;color:#cdbbd8!important;}
+body.cc-ui-v2 #modal .precon-catalog-list{
+  display:flex!important;flex-direction:column!important;gap:9px!important;width:100%!important;
+}
+body.cc-ui-v2 #modal .precon-catalog-row{
+  width:100%!important;min-height:126px!important;margin:0!important;padding:8px 12px!important;
+  display:grid!important;grid-template-columns:78px minmax(0,1fr)!important;gap:14px!important;align-items:center!important;
+  border:1px solid #674476!important;border-radius:10px!important;
+  background:linear-gradient(180deg,rgba(29,13,37,.96),rgba(7,4,11,.98))!important;
+  color:#fff!important;text-align:left!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)!important;
+}
+body.cc-ui-v2 #modal .precon-catalog-row:active{filter:brightness(1.16)!important;}
+body.cc-ui-v2 #modal .precon-catalog-art{
+  width:72px!important;aspect-ratio:5/7!important;display:grid!important;place-items:center!important;overflow:hidden!important;
+  border:1px solid #8a63a0!important;border-radius:6px!important;background:#08060c!important;color:#9a8fa2!important;
+  font:800 8px/1.2 var(--v2-head)!important;text-align:center!important;
+}
+body.cc-ui-v2 #modal .precon-catalog-art img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;}
+body.cc-ui-v2 #modal .precon-catalog-copy{min-width:0!important;display:flex!important;flex-direction:column!important;gap:5px!important;}
+body.cc-ui-v2 #modal .precon-catalog-copy b{font-size:clamp(13px,1.45vw,20px)!important;line-height:1.15!important;color:#fff!important;}
+body.cc-ui-v2 #modal .precon-catalog-copy small{font-size:clamp(9px,.95vw,13px)!important;line-height:1.25!important;color:#bfb3c7!important;white-space:normal!important;}
+body.cc-ui-v2 #modal .precon-catalog-commander{color:#eadff0!important;font-weight:750!important;}
+
+body.cc-ui-v2 #modal .setup-deck-detail{
+  display:grid!important;grid-template-columns:minmax(180px,28%) minmax(0,1fr)!important;gap:16px!important;
+  width:100%!important;min-height:0!important;align-items:start!important;
+}
+body.cc-ui-v2 #modal .setup-deck-detail-commanders,
+body.cc-ui-v2 #modal .setup-deck-list-panel{
+  min-width:0!important;border:1px solid #5c3b68!important;border-radius:10px!important;
+  background:rgba(8,4,12,.82)!important;padding:10px!important;
+}
+body.cc-ui-v2 #modal .setup-deck-detail h3{margin:0 0 8px!important;text-align:center!important;font-size:clamp(11px,1.2vw,17px)!important;}
+body.cc-ui-v2 #modal .setup-deck-commander-grid{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(90px,1fr))!important;gap:8px!important;}
+body.cc-ui-v2 #modal .setup-deck-commander-card{min-width:0!important;display:flex!important;flex-direction:column!important;gap:6px!important;align-items:center!important;}
+body.cc-ui-v2 #modal .setup-deck-commander-card img{
+  width:min(100%,150px)!important;aspect-ratio:5/7!important;object-fit:cover!important;border-radius:6px!important;border:1px solid #806091!important;
+}
+body.cc-ui-v2 #modal .setup-deck-commander-card strong{font-size:clamp(9px,.95vw,13px)!important;line-height:1.2!important;text-align:center!important;}
+body.cc-ui-v2 #modal .setup-deck-commander-fallback{width:min(100%,150px)!important;aspect-ratio:5/7!important;display:grid!important;place-items:center!important;border:1px solid #5f5265!important;border-radius:6px!important;color:#9e929f!important;font-size:8px!important;text-align:center!important;}
+body.cc-ui-v2 #modal .setup-deck-meta{margin:9px 0 0!important;text-align:center!important;color:#bcaec4!important;font-size:10px!important;}
+body.cc-ui-v2 #modal .setup-deck-list-panel{display:flex!important;flex-direction:column!important;min-height:0!important;}
+body.cc-ui-v2 #modal .setup-deck-list-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;padding:0 2px 8px!important;border-bottom:1px solid #4b3155!important;}
+body.cc-ui-v2 #modal .setup-deck-list-heading span{font-size:10px!important;color:#bcaec4!important;white-space:nowrap!important;}
+body.cc-ui-v2 #modal .setup-deck-detail-list{display:flex!important;flex-direction:column!important;max-height:51dvh!important;overflow:auto!important;padding-top:5px!important;}
+body.cc-ui-v2 #modal .setup-deck-detail-row{display:grid!important;grid-template-columns:34px minmax(0,1fr)!important;gap:8px!important;align-items:center!important;padding:5px 4px!important;border-bottom:1px solid rgba(117,77,132,.24)!important;}
+body.cc-ui-v2 #modal .setup-deck-detail-row b{text-align:center!important;color:#d8b9e5!important;}
+body.cc-ui-v2 #modal .setup-deck-detail-row span{min-width:0!important;overflow-wrap:anywhere!important;}
+@media (orientation:landscape) and (max-height:460px){
+  body.cc-ui-v2 #modal .precon-catalog-row{min-height:104px!important;grid-template-columns:62px minmax(0,1fr)!important;padding:6px 10px!important;}
+  body.cc-ui-v2 #modal .precon-catalog-art{width:58px!important;}
+  body.cc-ui-v2 #modal .setup-deck-detail{grid-template-columns:minmax(150px,25%) minmax(0,1fr)!important;gap:10px!important;}
+  body.cc-ui-v2 #modal .setup-deck-detail-commanders,
+  body.cc-ui-v2 #modal .setup-deck-list-panel{padding:7px!important;}
+  body.cc-ui-v2 #modal .setup-deck-commander-card img,
+  body.cc-ui-v2 #modal .setup-deck-commander-fallback{width:min(100%,108px)!important;}
+  body.cc-ui-v2 #modal .setup-deck-detail-list{max-height:47dvh!important;}
 }
