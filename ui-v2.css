@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 IV — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 IW — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -14,7 +14,6 @@
 }
 html,body{margin:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important;}
 body.cc-ui-v2{background:#000!important;color:var(--v2-text)!important;}
-body.cc-ui-v2 #landscapeOnlyGate{display:none!important;}
 body.cc-ui-v2 button,body.cc-ui-v2 input,body.cc-ui-v2 select,body.cc-ui-v2 textarea{font-family:var(--v2-head)!important;box-sizing:border-box!important;}
 
 /* ---------- Landing: same family as Mode Select, preserving all existing hooks ---------- */
@@ -28,18 +27,23 @@ body.cc-ui-v2 #landing>.landing079-shell{
   position:relative!important;width:min(100vw,216.64dvh)!important;height:min(100dvh,46.16vw)!important;aspect-ratio:1536/709!important;
   margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:0!important;
   background:
-    radial-gradient(circle at 50% 42%,rgba(82,18,128,.38),transparent 42%),
-    linear-gradient(180deg,rgba(10,2,16,.18),rgba(2,0,4,.75)),
-    url('ui-forged-bg.svg') center/cover no-repeat!important;
+    linear-gradient(180deg,rgba(3,0,7,.10),rgba(3,0,7,.18)),
+    url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-iw') center 58%/108% auto no-repeat!important;
   box-shadow:none!important;
 }
+/* Keep the approved Player Setup energy/frame language while masking its page-specific title/chrome. */
 body.cc-ui-v2 #landing>.landing079-shell::before{
-  content:""!important;position:absolute!important;inset:.8%!important;z-index:0!important;pointer-events:none!important;
-  border:2px solid #d8bfdf!important;border-radius:3.6vw!important;
-  box-shadow:inset 0 0 0 2px #7b198d,inset 0 0 18px #8019b8,0 0 12px #651b89!important;
-  background:linear-gradient(90deg,transparent,rgba(184,43,255,.09),transparent)!important;
+  content:""!important;position:absolute!important;left:1.2%!important;right:1.2%!important;top:0!important;height:25%!important;
+  z-index:1!important;pointer-events:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;opacity:1!important;
+  background:
+    linear-gradient(180deg,#07010e 0%,#07010e 58%,rgba(7,1,14,.98) 68%,rgba(8,1,16,.78) 82%,rgba(8,1,16,0) 100%)!important;
 }
-body.cc-ui-v2 #landing>.landing079-shell::after{content:none!important;display:none!important;}
+body.cc-ui-v2 #landing>.landing079-shell::after{
+  content:""!important;position:absolute!important;inset:.7%!important;z-index:1!important;pointer-events:none!important;
+  border:2px solid rgba(235,218,243,.94)!important;border-radius:3.1vw!important;
+  box-shadow:inset 0 0 0 2px rgba(123,25,141,.92),inset 0 0 20px rgba(128,25,184,.68),0 0 14px rgba(101,27,137,.75)!important;
+  background:linear-gradient(90deg,transparent,rgba(184,43,255,.055),transparent)!important;
+}
 body.cc-ui-v2 #landing .landing079-brand,
 body.cc-ui-v2 #landing .landing079-copy,
 body.cc-ui-v2 #landing .landing079-primary-actions,
@@ -56,7 +60,24 @@ body.cc-ui-v2 #landing .landing079-primary-actions button{height:100%!important;
 body.cc-ui-v2 #landing .landing079-primary-actions img,
 body.cc-ui-v2 #landing .landing079-feature-actions img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}
 body.cc-ui-v2 #landing .landing079-primary-actions button:disabled{opacity:.43!important;filter:saturate(.35)!important;}
-body.cc-ui-v2 #landing .landing079-feature-actions{right:3.2%!important;bottom:15.2%!important;width:38%!important;height:8.8%!important;display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:3.6%!important;}
+body.cc-ui-v2 #landing .landing079-feature-actions{
+  left:4.0%!important;right:4.0%!important;top:auto!important;bottom:5.4%!important;
+  width:auto!important;min-width:0!important;max-width:none!important;height:17.2%!important;min-height:0!important;max-height:none!important;
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:1fr!important;gap:1.2%!important;
+}
+body.cc-ui-v2 #landing #profileLandingBtn,
+body.cc-ui-v2 #landing #deckBuilderVisibleBtn,
+body.cc-ui-v2 #landing #settingsLandingBtnBottom,
+body.cc-ui-v2 #landing #helpLandingBtn{
+  position:relative!important;inset:auto!important;width:100%!important;height:100%!important;
+  min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;align-self:stretch!important;justify-self:stretch!important;
+  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;overflow:visible!important;
+}
+body.cc-ui-v2 #landing .landing079-feature-actions .landing-static-label{
+  display:block!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  object-fit:contain!important;filter:drop-shadow(0 7px 12px rgba(0,0,0,.62))!important;
+}
 body.cc-ui-v2 #landing .landing079-footer{left:0!important;right:0!important;bottom:1.4%!important;text-align:center!important;color:#c9bcd0!important;font:800 clamp(6px,.7vw,10px)/1 var(--v2-head)!important;letter-spacing:.16em!important;}
 body.cc-ui-v2 #landing .landing079-footer span{color:#a239d1!important;}
 
@@ -456,4 +477,34 @@ body.cc-ui-v2 #tabletopScreen#tabletopScreen{left:50vw!important;top:50dvh!impor
 @media (min-aspect-ratio:1536/709){
   body.cc-ui-v2 #gameScreen#gameScreen,
   body.cc-ui-v2 #tabletopScreen#tabletopScreen{transform:translate(-50%,-50%) scale(calc(100dvh / 709px))!important;}
+}
+
+
+/* ---------- V0.8 IW portrait safety gate ----------
+   Safari cannot be trusted to hard-lock orientation. The manifest already prefers landscape;
+   this gate is the guaranteed fallback and wins over IU-era "ignore orientation" rules. */
+@media (orientation:portrait){
+  body.cc-ui-v2 #landscapeOnlyGate.cc-landscape-only-gate{
+    display:flex!important;visibility:visible!important;pointer-events:auto!important;
+    position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+    margin:0!important;padding:9vw!important;box-sizing:border-box!important;
+    align-items:center!important;justify-content:center!important;text-align:center!important;overflow:hidden!important;
+    z-index:2147483647!important;color:#fff!important;
+    background:
+      radial-gradient(circle at 50% 50%,rgba(80,10,112,.34),rgba(4,0,8,.96) 58%),
+      #020103!important;
+    border:2px solid rgba(219,185,236,.72)!important;
+    box-shadow:inset 0 0 28px rgba(145,35,201,.36)!important;
+    transform:none!important;
+  }
+  body.cc-ui-v2 #landscapeOnlyGate.cc-landscape-only-gate strong{
+    display:block!important;max-width:560px!important;margin:0!important;color:#fff!important;
+    font:900 clamp(22px,5.8vw,36px)/1.28 var(--v2-head)!important;letter-spacing:.025em!important;
+    text-shadow:0 2px 5px #000,0 0 16px rgba(172,68,230,.62)!important;
+  }
+}
+@media (orientation:landscape){
+  body.cc-ui-v2 #landscapeOnlyGate.cc-landscape-only-gate{
+    display:none!important;visibility:hidden!important;pointer-events:none!important;
+  }
 }
