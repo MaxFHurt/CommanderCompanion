@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 IX — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 IY — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -182,18 +182,27 @@ body.cc-ui-v2 #setupDialog>.modal-shell>header{display:none!important;}
 body.cc-ui-v2 #setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
 body.cc-ui-v2 #setupDialog .modal-content{
   position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
-  padding:0!important;margin:0!important;display:grid!important;grid-template-rows:12% 1fr auto!important;gap:1.8%!important;
+  padding:0!important;margin:0!important;display:grid!important;grid-template-rows:10.5% 1fr auto!important;gap:0!important;
   overflow:hidden!important;background:transparent!important;
 }
 body.cc-ui-v2 #setupDialog #playerSetupTabs{
-  min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:1.2%!important;margin:0!important;padding:0!important;overflow:visible!important;
+  position:relative!important;z-index:4!important;min-height:0!important;height:100%!important;
+  display:flex!important;align-items:flex-end!important;justify-content:center!important;gap:.8%!important;
+  margin:0!important;padding:0 2.2%!important;overflow:visible!important;transform:translateY(1px)!important;
 }
 body.cc-ui-v2 #setupDialog .player-setup-tab{
-  width:auto!important;min-width:9.4%!important;height:88%!important;min-height:0!important;margin:0!important;padding:0 16px!important;border:0!important;border-radius:0!important;
-  background:transparent url('ref-button-small.png') center/100% 100% no-repeat!important;color:#fff!important;font:900 clamp(8px,1.15vw,16px)/1 var(--v2-head)!important;box-shadow:none!important;
+  position:relative!important;width:auto!important;min-width:12.2%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0 14px!important;
+  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:0!important;
+  clip-path:polygon(0 22%,10% 22%,15% 0,85% 0,90% 22%,100% 22%,100% 100%,0 100%)!important;
+  background:linear-gradient(180deg,#281630 0%,#170b1d 54%,#0a050e 100%)!important;
+  color:#fff!important;font:900 clamp(8px,1.08vw,15px)/1 var(--v2-head)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;filter:none!important;
 }
-body.cc-ui-v2 #setupDialog .player-setup-tab.active{filter:brightness(1.32) drop-shadow(0 0 6px #aa42e0)!important;}
-body.cc-ui-v2 #setupDialog .player-setup-add{min-width:5.5%!important;width:5.5%!important;}
+body.cc-ui-v2 #setupDialog .player-setup-tab.active{
+  background:#74298e!important;border-color:#dfb9ee!important;border-bottom-color:#74298e!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 -3px 12px rgba(174,63,229,.42)!important;filter:none!important;
+}
+body.cc-ui-v2 #setupDialog .player-setup-add{min-width:6.2%!important;width:6.2%!important;padding:0!important;}
 body.cc-ui-v2 #setupDialog #playerSetupPanels{min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;}
 body.cc-ui-v2 #setupDialog .player-setup{
   width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:2.0% 1.5%!important;
@@ -350,15 +359,30 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell>header{display:n
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-content{
   position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
-  width:auto!important;height:auto!important;padding:0!important;margin:0!important;display:grid!important;grid-template-rows:12% minmax(0,1fr) auto!important;gap:1.8%!important;overflow:hidden!important;background:transparent!important;
+  width:auto!important;height:auto!important;padding:0!important;margin:0!important;
+  display:grid!important;grid-template-rows:10.5% minmax(0,1fr) auto!important;gap:0!important;
+  overflow:hidden!important;background:transparent!important;
 }
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupTabs{height:auto!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:1.2%!important;margin:0!important;padding:0!important;overflow:visible!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupTabs{
+  position:relative!important;z-index:4!important;height:100%!important;min-height:0!important;
+  display:flex!important;align-items:flex-end!important;justify-content:center!important;gap:.8%!important;
+  margin:0!important;padding:0 2.2%!important;overflow:visible!important;transform:translateY(1px)!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab{
-  position:static!important;width:auto!important;min-width:9.4%!important;max-width:none!important;height:88%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 16px!important;
-  border:0!important;border-radius:0!important;clip-path:none!important;background:transparent url('ref-button-small.png') center/100% 100% no-repeat!important;box-shadow:none!important;color:#fff!important;font:900 clamp(8px,1.15vw,16px)/1 var(--v2-head)!important;
+  position:relative!important;width:auto!important;min-width:12.2%!important;max-width:none!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 14px!important;
+  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:0!important;
+  clip-path:polygon(0 22%,10% 22%,15% 0,85% 0,90% 22%,100% 22%,100% 100%,0 100%)!important;
+  background:linear-gradient(180deg,#281630 0%,#170b1d 54%,#0a050e 100%)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;color:#fff!important;
+  font:900 clamp(8px,1.08vw,15px)/1 var(--v2-head)!important;filter:none!important;
 }
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab.active{filter:brightness(1.32) drop-shadow(0 0 6px #aa42e0)!important;}
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-add{min-width:5.5%!important;width:5.5%!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab.active{
+  background:#74298e!important;border-color:#dfb9ee!important;border-bottom-color:#74298e!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 -3px 12px rgba(174,63,229,.42)!important;filter:none!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-add{
+  min-width:6.2%!important;width:6.2%!important;padding:0!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupPanels{position:static!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup{
   position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:2% 1.5%!important;box-sizing:border-box!important;
