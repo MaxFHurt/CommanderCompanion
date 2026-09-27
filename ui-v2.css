@@ -1,0 +1,459 @@
+/* Commander Companion V0.8 IV — UI V2 authoritative presentation layer.
+   Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
+
+:root{
+  --v2-bg:#06030a;
+  --v2-panel:rgba(13,5,20,.84);
+  --v2-panel-2:rgba(6,2,10,.93);
+  --v2-border:#8e60a5;
+  --v2-border-soft:#51345f;
+  --v2-text:#f7f2fa;
+  --v2-muted:#cabfd0;
+  --v2-glow:rgba(171,54,255,.34);
+  --v2-head:Inter,Arial,sans-serif;
+}
+html,body{margin:0!important;width:100%!important;height:100%!important;background:#000!important;overflow:hidden!important;}
+body.cc-ui-v2{background:#000!important;color:var(--v2-text)!important;}
+body.cc-ui-v2 #landscapeOnlyGate{display:none!important;}
+body.cc-ui-v2 button,body.cc-ui-v2 input,body.cc-ui-v2 select,body.cc-ui-v2 textarea{font-family:var(--v2-head)!important;box-sizing:border-box!important;}
+
+/* ---------- Landing: same family as Mode Select, preserving all existing hooks ---------- */
+body.cc-ui-v2 #landing{
+  position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;
+  padding:0!important;margin:0!important;display:grid!important;place-items:center!important;overflow:hidden!important;
+  background:#000!important;
+}
+body.cc-ui-v2 #landing[hidden]{display:none!important;}
+body.cc-ui-v2 #landing>.landing079-shell{
+  position:relative!important;width:min(100vw,216.64dvh)!important;height:min(100dvh,46.16vw)!important;aspect-ratio:1536/709!important;
+  margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;border-radius:0!important;
+  background:
+    radial-gradient(circle at 50% 42%,rgba(82,18,128,.38),transparent 42%),
+    linear-gradient(180deg,rgba(10,2,16,.18),rgba(2,0,4,.75)),
+    url('ui-forged-bg.svg') center/cover no-repeat!important;
+  box-shadow:none!important;
+}
+body.cc-ui-v2 #landing>.landing079-shell::before{
+  content:""!important;position:absolute!important;inset:.8%!important;z-index:0!important;pointer-events:none!important;
+  border:2px solid #d8bfdf!important;border-radius:3.6vw!important;
+  box-shadow:inset 0 0 0 2px #7b198d,inset 0 0 18px #8019b8,0 0 12px #651b89!important;
+  background:linear-gradient(90deg,transparent,rgba(184,43,255,.09),transparent)!important;
+}
+body.cc-ui-v2 #landing>.landing079-shell::after{content:none!important;display:none!important;}
+body.cc-ui-v2 #landing .landing079-brand,
+body.cc-ui-v2 #landing .landing079-copy,
+body.cc-ui-v2 #landing .landing079-primary-actions,
+body.cc-ui-v2 #landing .landing079-feature-actions,
+body.cc-ui-v2 #landing .landing079-footer{position:absolute!important;z-index:2!important;margin:0!important;}
+body.cc-ui-v2 #landing .landing079-brand{left:4.6%!important;top:15.5%!important;width:33%!important;height:51%!important;display:grid!important;place-items:center!important;}
+body.cc-ui-v2 #landing .landing079-logo{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;filter:drop-shadow(0 0 10px rgba(126,37,180,.48))!important;}
+body.cc-ui-v2 #landing .landing079-copy{left:4.2%!important;bottom:8.9%!important;width:33.8%!important;text-align:center!important;}
+body.cc-ui-v2 #landing .landing079-copy p{margin:0!important;color:#efe8f3!important;font:800 clamp(6px,.72vw,11px)/1.45 var(--v2-head)!important;letter-spacing:.18em!important;}
+body.cc-ui-v2 #landing .landing079-primary-actions{right:4.0%!important;top:13.8%!important;width:58%!important;height:21%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:2.3%!important;align-items:center!important;}
+body.cc-ui-v2 #landing .landing079-primary-actions button,
+body.cc-ui-v2 #landing .landing079-feature-actions button{min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;}
+body.cc-ui-v2 #landing .landing079-primary-actions button{height:100%!important;}
+body.cc-ui-v2 #landing .landing079-primary-actions img,
+body.cc-ui-v2 #landing .landing079-feature-actions img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}
+body.cc-ui-v2 #landing .landing079-primary-actions button:disabled{opacity:.43!important;filter:saturate(.35)!important;}
+body.cc-ui-v2 #landing .landing079-feature-actions{right:3.2%!important;bottom:15.2%!important;width:38%!important;height:8.8%!important;display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:3.6%!important;}
+body.cc-ui-v2 #landing .landing079-footer{left:0!important;right:0!important;bottom:1.4%!important;text-align:center!important;color:#c9bcd0!important;font:800 clamp(6px,.7vw,10px)/1 var(--v2-head)!important;letter-spacing:.16em!important;}
+body.cc-ui-v2 #landing .landing079-footer span{color:#a239d1!important;}
+
+/* ---------- Shared V2 menu/dialog shell (Game Mode excluded) ---------- */
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog),
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)[open]{
+  inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;border:0!important;border-radius:0!important;outline:0!important;
+  background:#000!important;box-shadow:none!important;overflow:hidden!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)::backdrop{background:#000!important;backdrop-filter:none!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)>.modal-shell{
+  position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;display:grid!important;grid-template-rows:9.5% 1fr 11.2%!important;overflow:hidden!important;
+  border:2px solid #c5add0!important;border-radius:1.35vw!important;
+  background:
+    linear-gradient(180deg,rgba(64,14,82,.28) 0 9.5%,rgba(9,3,14,.98) 9.5% 100%),
+    url('ui-forged-bg.svg') center/cover no-repeat!important;
+  box-shadow:inset 0 0 0 2px #34123f,inset 0 0 22px rgba(121,32,166,.22)!important;
+  box-sizing:border-box!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)>.modal-shell>header{
+  grid-row:1!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  min-height:0!important;margin:0!important;padding:0 14%!important;border:0!important;border-bottom:1px solid #79508b!important;
+  background:linear-gradient(180deg,rgba(52,12,68,.62),rgba(24,6,31,.32))!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)>.modal-shell>header h2{
+  margin:0!important;color:#fff!important;font:900 clamp(14px,2.05vw,30px)/1 var(--v2-head)!important;letter-spacing:.045em!important;text-align:center!important;text-shadow:0 0 10px #8e2dc7!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-back-row{
+  position:absolute!important;z-index:40!important;left:1.35%!important;top:1.15%!important;width:10.3%!important;height:7.2%!important;
+  margin:0!important;padding:0!important;background:transparent!important;border:0!important;pointer-events:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .dialog-back{
+  pointer-events:auto!important;display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
+  margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .dialog-back img{display:block!important;width:100%!important;height:100%!important;object-fit:contain!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-content{
+  grid-row:2!important;min-width:0!important;min-height:0!important;margin:0!important;padding:1.5% 2.5%!important;
+  overflow:auto!important;overscroll-behavior:contain!important;background:rgba(5,1,8,.15)!important;border:0!important;color:var(--v2-text)!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-actions{
+  grid-row:3!important;min-height:0!important;margin:0!important;padding:.7% 3%!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:2.1%!important;
+  border:0!important;border-top:1px solid #674276!important;background:linear-gradient(180deg,rgba(19,5,25,.52),rgba(4,1,7,.94))!important;overflow:hidden!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-actions:empty{display:none!important;}
+
+/* Buttons and controls */
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) button:not(.dialog-back):not(.search-result):not(.mini-card):not(.hand-card):not(.card-button),
+body.cc-ui-v2 #landing button{
+  touch-action:manipulation!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-actions>button,
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .counter-grid>button,
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .landing-command-grid>button,
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .board-menu>button,
+body.cc-ui-v2 #deckDialog .deck-editor-grid aside>button,
+body.cc-ui-v2 #setupDialog .setup-precon,
+body.cc-ui-v2 #setupDialog .setup-view-deck,
+body.cc-ui-v2 #modeSetupDialog #modeProceed{
+  min-height:36px!important;padding:7px 14px!important;border:0!important;border-radius:0!important;
+  background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  color:#fff!important;font:900 clamp(10px,1.32vw,18px)/1 var(--v2-head)!important;letter-spacing:.02em!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-actions>button{min-width:16%!important;height:78%!important;min-height:0!important;padding:0 18px!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-actions>button:disabled{opacity:.45!important;filter:saturate(.35)!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) input:not([type=checkbox]):not([type=radio]),
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) select,
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) textarea{
+  min-height:34px!important;padding:7px 10px!important;border:1px solid #74508a!important;border-radius:8px!important;outline:0!important;
+  background:linear-gradient(180deg,rgba(22,9,29,.92),rgba(5,2,8,.96))!important;color:#fff!important;box-shadow:inset 0 0 10px #000!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) textarea{resize:none!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) label{color:#eee5f2!important;font-weight:700!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .muted{color:var(--v2-muted)!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .bad{color:#ffb2b2!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .check{
+  min-height:38px!important;padding:8px 12px!important;display:flex!important;align-items:center!important;gap:10px!important;
+  border:1px solid #472653!important;border-radius:8px!important;background:rgba(12,4,17,.62)!important;
+}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) input[type=checkbox]{width:20px!important;height:20px!important;accent-color:#ae38df!important;flex:0 0 auto!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .house-tag{color:#e0aaff!important;font-size:.72em!important;}
+
+/* Generic content patterns */
+body.cc-ui-v2 #modal .landing-command-grid,
+body.cc-ui-v2 #modal .counter-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px 12px!important;}
+body.cc-ui-v2 #modal .landing-command-grid>button,
+body.cc-ui-v2 #modal .counter-grid>button{width:100%!important;min-height:46px!important;}
+body.cc-ui-v2 #modal .rules-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px 12px!important;}
+body.cc-ui-v2 #modal .rules-grid>label:not(.check){min-height:40px!important;display:grid!important;grid-template-columns:minmax(120px,38%) 1fr!important;align-items:center!important;gap:10px!important;padding:7px 10px!important;border:1px solid #472653!important;border-radius:8px!important;background:rgba(12,4,17,.62)!important;}
+body.cc-ui-v2 #modal .search-result{border:1px solid #604172!important;border-radius:8px!important;background:rgba(16,6,22,.9)!important;color:#fff!important;}
+
+/* ---------- Player Setup: exact approved master background + live controls ---------- */
+body.cc-ui-v2 #setupDialog,
+body.cc-ui-v2 #setupDialog[open]{background:#000 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-iv') center/100% 100% no-repeat!important;}
+body.cc-ui-v2 #setupDialog>.modal-shell{
+  border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important;
+  display:block!important;
+}
+body.cc-ui-v2 #setupDialog>.modal-shell>header{display:none!important;}
+body.cc-ui-v2 #setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
+body.cc-ui-v2 #setupDialog .modal-content{
+  position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
+  padding:0!important;margin:0!important;display:grid!important;grid-template-rows:12% 1fr auto!important;gap:1.8%!important;
+  overflow:hidden!important;background:transparent!important;
+}
+body.cc-ui-v2 #setupDialog #playerSetupTabs{
+  min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:1.2%!important;margin:0!important;padding:0!important;overflow:visible!important;
+}
+body.cc-ui-v2 #setupDialog .player-setup-tab{
+  width:auto!important;min-width:9.4%!important;height:88%!important;min-height:0!important;margin:0!important;padding:0 16px!important;border:0!important;border-radius:0!important;
+  background:transparent url('ref-button-small.png') center/100% 100% no-repeat!important;color:#fff!important;font:900 clamp(8px,1.15vw,16px)/1 var(--v2-head)!important;box-shadow:none!important;
+}
+body.cc-ui-v2 #setupDialog .player-setup-tab.active{filter:brightness(1.32) drop-shadow(0 0 6px #aa42e0)!important;}
+body.cc-ui-v2 #setupDialog .player-setup-add{min-width:5.5%!important;width:5.5%!important;}
+body.cc-ui-v2 #setupDialog #playerSetupPanels{min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;}
+body.cc-ui-v2 #setupDialog .player-setup{
+  width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:2.0% 1.5%!important;
+  display:grid!important;grid-template-rows:30% 32% 32%!important;gap:3%!important;box-sizing:border-box!important;
+  border:1px solid #6d467d!important;border-radius:18px!important;background:rgba(6,2,10,.52)!important;box-shadow:inset 0 0 22px rgba(98,28,133,.14)!important;
+}
+body.cc-ui-v2 #setupDialog .setup-player-row{display:grid!important;grid-template-columns:1fr!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-deck-row{display:grid!important;grid-template-columns:42% 33% 23%!important;gap:1.2%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-commander-row{display:grid!important;grid-template-columns:38% 38% 22%!important;gap:1.2%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-commander-primary,
+body.cc-ui-v2 #setupDialog .setup-secondary-slot,
+body.cc-ui-v2 #setupDialog .setup-secondary-wrap{width:100%!important;height:100%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-secondary-wrap[hidden]{display:none!important;}
+body.cc-ui-v2 #setupDialog input,
+body.cc-ui-v2 #setupDialog select,
+body.cc-ui-v2 #setupDialog .setup-precon,
+body.cc-ui-v2 #setupDialog .setup-view-deck{width:100%!important;height:100%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog input,
+body.cc-ui-v2 #setupDialog select{font-size:clamp(10px,1.18vw,16px)!important;border-radius:8px!important;}
+body.cc-ui-v2 #setupDialog .setup-precon,
+body.cc-ui-v2 #setupDialog .setup-view-deck{font-size:clamp(10px,1.2vw,17px)!important;}
+body.cc-ui-v2 #setupDialog #setupProgress{min-height:0!important;text-align:center!important;margin:0!important;padding:0!important;font-size:clamp(8px,.9vw,12px)!important;}
+body.cc-ui-v2 #setupDialog .modal-actions{
+  position:absolute!important;left:6.2%!important;right:6.2%!important;bottom:1.0%!important;height:9.2%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:2.3%!important;
+  margin:0!important;padding:0!important;border:0!important;background:transparent!important;
+}
+body.cc-ui-v2 #setupDialog .modal-actions>button{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;font-size:clamp(10px,1.2vw,17px)!important;}
+
+/* ---------- Rules / Device Setup ---------- */
+body.cc-ui-v2 #modeSetupDialog .modal-content{padding:1.5% 2.6%!important;}
+body.cc-ui-v2 #modeSetupDialog .setup-stage{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:7px!important;overflow:auto!important;}
+body.cc-ui-v2 #modeSetupDialog .setup-stage h3{margin:0 0 2px!important;text-align:center!important;font-size:clamp(12px,1.4vw,20px)!important;}
+body.cc-ui-v2 #modeSetupDialog .setup-stage>.muted{margin:0 0 3px!important;}
+body.cc-ui-v2 #modeSetupDialog .setup-stage>label:not(.check){min-height:42px!important;display:grid!important;grid-template-columns:minmax(130px,28%) 1fr!important;gap:12px!important;align-items:center!important;padding:6px 10px!important;border:1px solid #472653!important;border-radius:8px!important;background:rgba(12,4,17,.62)!important;}
+body.cc-ui-v2 #modeSetupDialog .mode-lock{display:grid!important;place-items:center!important;min-height:80px!important;border:1px solid #5d356d!important;border-radius:10px!important;background:rgba(14,5,20,.75)!important;font-weight:900!important;letter-spacing:.08em!important;}
+
+/* ---------- Deck Editor ---------- */
+body.cc-ui-v2 #deckDialog .modal-content{padding:1.2% 1.3%!important;overflow:hidden!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid{height:100%!important;min-height:0!important;display:grid!important;grid-template-columns:23.5% 76.5%!important;gap:1.3%!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid aside{min-height:0!important;padding:1.0%!important;display:flex!important;flex-direction:column!important;gap:5px!important;overflow:auto!important;border:1px solid #5b3769!important;border-radius:10px!important;background:rgba(10,3,14,.48)!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid aside>button{width:100%!important;min-height:34px!important;padding:6px 10px!important;font-size:clamp(9px,1.12vw,16px)!important;flex:0 0 auto!important;}
+body.cc-ui-v2 #deckDialog #savedDeckList{display:flex!important;flex-direction:column!important;gap:4px!important;}
+body.cc-ui-v2 #deckDialog #savedDeckList button{min-height:32px!important;width:100%!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font-weight:800!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid>section{min-height:0!important;display:grid!important;grid-template-columns:1fr 1fr!important;grid-template-rows:auto auto 1fr auto!important;gap:8px 12px!important;overflow:hidden!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid>section>label:first-child{grid-column:1!important;grid-row:1!important;}
+body.cc-ui-v2 #deckDialog .deck-editor-grid>section>.setup-line{grid-column:2!important;grid-row:1!important;display:flex!important;gap:8px!important;}
+body.cc-ui-v2 #deckDialog .card-search-row{grid-column:1!important;grid-row:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;}
+body.cc-ui-v2 #deckDialog .card-search-results{grid-column:1!important;grid-row:3!important;min-height:0!important;overflow:auto!important;}
+body.cc-ui-v2 #deckDialog label:has(#deckListInput){grid-column:2!important;grid-row:2 / span 2!important;display:flex!important;flex-direction:column!important;min-height:0!important;}
+body.cc-ui-v2 #deckDialog #deckListInput{flex:1!important;min-height:0!important;}
+body.cc-ui-v2 #deckDialog #deckEditorStatus{grid-column:1!important;grid-row:4!important;}
+body.cc-ui-v2 #deckDialog #deckAnalytics{grid-column:2!important;grid-row:4!important;min-height:0!important;overflow:auto!important;}
+body.cc-ui-v2 #deckDialog .setup-line label{flex:1!important;}
+body.cc-ui-v2 #deckDialog .setup-line button{min-height:32px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font-weight:800!important;}
+
+/* ---------- Network / multiplayer ---------- */
+body.cc-ui-v2 #networkDialog #networkContent{display:flex!important;flex-direction:column!important;gap:8px!important;}
+body.cc-ui-v2 #networkDialog .seat-row{min-height:40px!important;padding:8px 12px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;border:1px solid #4e305b!important;border-radius:8px!important;background:rgba(12,4,17,.64)!important;}
+
+/* ---------- Search/deck/card utility rows ---------- */
+body.cc-ui-v2 .card-search-row{display:flex!important;gap:8px!important;align-items:center!important;}
+body.cc-ui-v2 .card-search-row input{flex:1!important;min-width:0!important;}
+body.cc-ui-v2 .card-search-results{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;}
+body.cc-ui-v2 .card-search-results .search-result{display:grid!important;grid-template-columns:52px 1fr!important;gap:8px!important;align-items:center!important;min-height:66px!important;padding:6px!important;text-align:left!important;}
+body.cc-ui-v2 .card-search-results .search-result img{width:52px!important;height:52px!important;object-fit:cover!important;border-radius:4px!important;}
+
+/* ---------- Guided / Freeplay / Table Tracker V2 ownership ---------- */
+body.cc-ui-v2 #gameScreen,
+body.cc-ui-v2 #tabletopScreen{background:#000!important;overflow:hidden!important;}
+body.cc-ui-v2 #gameScreen .landscape-game-master,
+body.cc-ui-v2 #tabletopScreen .tracker-shell{margin:auto!important;}
+body.cc-ui-v2 #gameScreen .landscape-game-master{box-shadow:0 0 20px rgba(0,0,0,.9)!important;}
+body.cc-ui-v2 #tabletopScreen .tracker-player-card{transition:none!important;}
+body.cc-ui-v2 #tabletopScreen .tracker-player-card[data-tt-player]:first-child{box-shadow:inset 0 0 0 2px #08040c,inset 0 0 0 4px color-mix(in srgb,var(--slot,#7d46a0) 48%,transparent),0 0 12px color-mix(in srgb,var(--slot,#7d46a0) 70%,transparent)!important;}
+body.cc-ui-v2 #exitTabletop{position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;overflow:hidden!important;}
+
+/* ---------- Small iPhone landscape heights ---------- */
+@media (orientation:landscape) and (max-height:460px){
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)>.modal-shell{grid-template-rows:9.2% 1fr 10.8%!important;}
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog)>.modal-shell>header h2{font-size:clamp(13px,2vw,22px)!important;}
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .modal-content{padding:1.0% 1.8%!important;font-size:11px!important;}
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) .check{min-height:32px!important;padding:5px 9px!important;}
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) input:not([type=checkbox]):not([type=radio]),
+  body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) select{min-height:30px!important;padding:5px 8px!important;}
+  body.cc-ui-v2 #setupDialog .modal-content{top:20.5%!important;bottom:12.3%!important;}
+  body.cc-ui-v2 #setupDialog .player-setup{padding:1.4% 1.3%!important;gap:2.2%!important;}
+  body.cc-ui-v2 #modeSetupDialog .setup-stage{gap:5px!important;}
+  body.cc-ui-v2 #deckDialog .deck-editor-grid aside>button{min-height:29px!important;padding:4px 8px!important;}
+}
+
+/* =========================================================
+   V2 legacy-specificity shield
+   The IU base stylesheet contains historical !important rules with fixed 1420×640
+   stage geometry. These selectors intentionally repeat each dialog ID so the V2
+   owner wins without editing engine/base CSS. Game Mode Select is not included.
+   ========================================================= */
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog),
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)[open]{
+  position:fixed!important;inset:0!important;left:0!important;top:0!important;
+  width:100vw!important;min-width:0!important;max-width:none!important;
+  height:100dvh!important;min-height:0!important;max-height:none!important;
+  margin:0!important;padding:0!important;transform:none!important;transform-origin:center!important;
+  border:0!important;border-radius:0!important;outline:0!important;box-shadow:none!important;background:#000!important;overflow:hidden!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell{
+  position:absolute!important;inset:0!important;left:0!important;top:0!important;width:100%!important;min-width:0!important;max-width:none!important;
+  height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;transform:none!important;
+  display:grid!important;grid-template-rows:9.5% minmax(0,1fr) 11.2%!important;
+  overflow:hidden!important;box-sizing:border-box!important;border:2px solid #c5add0!important;border-radius:1.35vw!important;
+  background:linear-gradient(180deg,rgba(64,14,82,.28) 0 9.5%,rgba(9,3,14,.98) 9.5% 100%),url('ui-forged-bg.svg') center/cover no-repeat!important;
+  box-shadow:inset 0 0 0 2px #34123f,inset 0 0 22px rgba(121,32,166,.22)!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell>header{
+  position:relative!important;grid-row:1!important;height:auto!important;min-height:0!important;max-height:none!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;margin:0!important;padding:0 14%!important;
+  border:0!important;border-bottom:1px solid #79508b!important;background:linear-gradient(180deg,rgba(52,12,68,.62),rgba(24,6,31,.32))!important;clip-path:none!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog)>.modal-shell>header h2{
+  margin:0!important;padding:0!important;font:900 clamp(14px,2.05vw,30px)/1 var(--v2-head)!important;letter-spacing:.045em!important;color:#fff!important;text-align:center!important;text-shadow:0 0 10px #8e2dc7!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-back-row{
+  position:absolute!important;z-index:50!important;left:1.35%!important;top:1.15%!important;width:10.3%!important;height:7.2%!important;min-height:0!important;
+  margin:0!important;padding:0!important;border:0!important;background:transparent!important;pointer-events:none!important;transform:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .dialog-back{
+  position:static!important;pointer-events:auto!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;clip-path:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .dialog-back>img{
+  display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;object-fit:contain!important;transform:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-content{
+  position:relative!important;grid-row:2!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+  margin:0!important;padding:1.5% 2.5%!important;overflow:auto!important;transform:none!important;background:rgba(5,1,8,.15)!important;border:0!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-actions{
+  position:relative!important;grid-row:3!important;inset:auto!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;
+  width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:.7% 3%!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:2.1%!important;overflow:hidden!important;transform:none!important;
+  border:0!important;border-top:1px solid #674276!important;background:linear-gradient(180deg,rgba(19,5,25,.52),rgba(4,1,7,.94))!important;clip-path:none!important;box-shadow:none!important;
+}
+body.cc-ui-v2 dialog.cc-modal:is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog):is(#modal,#modeSetupDialog,#setupDialog,#deckDialog,#networkDialog) .modal-actions>button{
+  position:static!important;width:auto!important;min-width:16%!important;max-width:none!important;height:78%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 18px!important;
+  border:0!important;clip-path:none!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;box-shadow:none!important;color:#fff!important;
+  font:900 clamp(10px,1.32vw,18px)/1 var(--v2-head)!important;
+}
+
+/* Player Setup exact shell */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog[open]{background:#000 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-iv') center/100% 100% no-repeat!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell{display:block!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell>header{display:none!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-content{
+  position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
+  width:auto!important;height:auto!important;padding:0!important;margin:0!important;display:grid!important;grid-template-rows:12% minmax(0,1fr) auto!important;gap:1.8%!important;overflow:hidden!important;background:transparent!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupTabs{height:auto!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:1.2%!important;margin:0!important;padding:0!important;overflow:visible!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab{
+  position:static!important;width:auto!important;min-width:9.4%!important;max-width:none!important;height:88%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 16px!important;
+  border:0!important;border-radius:0!important;clip-path:none!important;background:transparent url('ref-button-small.png') center/100% 100% no-repeat!important;box-shadow:none!important;color:#fff!important;font:900 clamp(8px,1.15vw,16px)/1 var(--v2-head)!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab.active{filter:brightness(1.32) drop-shadow(0 0 6px #aa42e0)!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-add{min-width:5.5%!important;width:5.5%!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupPanels{position:static!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup{
+  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:2% 1.5%!important;box-sizing:border-box!important;
+  display:grid!important;grid-template-rows:30% 32% 32%!important;gap:3%!important;transform:none!important;overflow:hidden!important;
+  border:1px solid #6d467d!important;border-radius:18px!important;background:rgba(6,2,10,.52)!important;box-shadow:inset 0 0 22px rgba(98,28,133,.14)!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-player-row{position:static!important;display:grid!important;grid-template-columns:1fr!important;gap:0!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-deck-row{position:static!important;display:grid!important;grid-template-columns:42% 33% 23%!important;gap:1.2%!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-commander-row{position:static!important;display:grid!important;grid-template-columns:38% 38% 22%!important;gap:1.2%!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-commander-primary,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-slot,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap{position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap[hidden]{display:none!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog select,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-precon,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-view-deck{
+  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;transform:none!important;clip-path:none!important;box-sizing:border-box!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog select{padding:7px 10px!important;border:1px solid #74508a!important;border-radius:8px!important;background:linear-gradient(180deg,rgba(22,9,29,.92),rgba(5,2,8,.96))!important;color:#fff!important;font-size:clamp(10px,1.18vw,16px)!important;box-shadow:inset 0 0 10px #000!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-precon,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-view-deck{padding:0 10px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font-size:clamp(10px,1.2vw,17px)!important;font-weight:900!important;box-shadow:none!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #setupProgress{position:static!important;min-height:0!important;margin:0!important;padding:0!important;text-align:center!important;font-size:clamp(8px,.9vw,12px)!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-actions{
+  position:absolute!important;left:6.2%!important;right:6.2%!important;top:auto!important;bottom:1%!important;width:auto!important;height:9.2%!important;min-height:0!important;margin:0!important;padding:0!important;
+  display:grid!important;grid-template-columns:1fr 1fr!important;gap:2.3%!important;border:0!important;background:transparent!important;
+}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-actions>button{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;}
+
+/* Rules/device setup */
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .modal-content{padding:1.5% 2.6%!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage{position:static!important;width:100%!important;height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important;gap:7px!important;overflow:auto!important;margin:0!important;padding:0!important;transform:none!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage h3{margin:0 0 2px!important;text-align:center!important;font-size:clamp(12px,1.4vw,20px)!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage>label.check{position:static!important;min-height:38px!important;height:auto!important;margin:0!important;padding:8px 12px!important;display:flex!important;align-items:center!important;gap:10px!important;transform:none!important;border:1px solid #472653!important;border-radius:8px!important;background:rgba(12,4,17,.62)!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage>label:not(.check){position:static!important;min-height:42px!important;height:auto!important;margin:0!important;padding:6px 10px!important;display:grid!important;grid-template-columns:minmax(130px,28%) 1fr!important;gap:12px!important;align-items:center!important;transform:none!important;border:1px solid #472653!important;border-radius:8px!important;background:rgba(12,4,17,.62)!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog input:not([type=checkbox]),
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog select{position:static!important;width:100%!important;min-height:30px!important;margin:0!important;transform:none!important;}
+
+/* Deck editor V2 geometry */
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .modal-content{padding:1.2% 1.3%!important;overflow:hidden!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid{position:static!important;width:100%!important;height:100%!important;min-height:0!important;display:grid!important;grid-template-columns:23.5% minmax(0,76.5%)!important;gap:1.3%!important;margin:0!important;transform:none!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid aside{position:static!important;min-height:0!important;margin:0!important;padding:1%!important;display:flex!important;flex-direction:column!important;gap:5px!important;overflow:auto!important;transform:none!important;border:1px solid #5b3769!important;border-radius:10px!important;clip-path:none!important;background:rgba(10,3,14,.48)!important;box-shadow:none!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid aside>button,
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #savedDeckList button{position:static!important;width:100%!important;min-height:30px!important;max-height:none!important;margin:0!important;padding:5px 9px!important;transform:none!important;clip-path:none!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;box-shadow:none!important;font-size:clamp(8px,1vw,14px)!important;font-weight:900!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #savedDeckList{position:static!important;display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important;padding:0!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid>section{position:static!important;min-height:0!important;margin:0!important;padding:0!important;display:grid!important;grid-template-columns:1fr 1fr!important;grid-template-rows:auto auto minmax(0,1fr) auto!important;gap:8px 12px!important;overflow:hidden!important;transform:none!important;border:0!important;clip-path:none!important;background:transparent!important;box-shadow:none!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid>section>label:first-child{grid-column:1!important;grid-row:1!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid>section>.setup-line{grid-column:2!important;grid-row:1!important;display:flex!important;gap:8px!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .card-search-row{grid-column:1!important;grid-row:2!important;display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;padding:0!important;border:0!important;background:transparent!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .card-search-results{grid-column:1!important;grid-row:3!important;min-height:0!important;max-height:none!important;overflow:auto!important;margin:0!important;padding:0!important;background:transparent!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog label:has(#deckListInput){grid-column:2!important;grid-row:2 / span 2!important;display:flex!important;flex-direction:column!important;min-height:0!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckListInput{flex:1!important;min-height:0!important;height:auto!important;resize:none!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckEditorStatus{grid-column:1!important;grid-row:4!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckAnalytics{grid-column:2!important;grid-row:4!important;min-height:0!important;max-height:44px!important;overflow:auto!important;margin:0!important;padding:0!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog input,
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog select,
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog textarea{position:static!important;width:100%!important;margin:3px 0 0!important;padding:7px 10px!important;transform:none!important;border:1px solid #74508a!important;border-radius:8px!important;background:linear-gradient(180deg,rgba(22,9,29,.92),rgba(5,2,8,.96))!important;color:#fff!important;box-shadow:inset 0 0 10px #000!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .setup-line button{position:static!important;min-height:28px!important;margin:3px 0 0!important;border:0!important;clip-path:none!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;box-shadow:none!important;font-weight:900!important;}
+
+/* Hidden-state contract: V2 layout rules must never override engine-owned [hidden]. */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog [data-player-setup][hidden],
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap[hidden],
+body.cc-ui-v2 dialog[hidden],
+body.cc-ui-v2 [hidden]{display:none!important;}
+
+/* V2 rules/device screens: own the full usable width and neutralize legacy menu caps. */
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage{
+  max-width:none!important;width:100%!important;box-sizing:border-box!important;text-align:left!important;
+  border:1px solid #5e3a6b!important;border-radius:14px!important;background:rgba(8,2,12,.42)!important;padding:7px 12px!important;
+}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage>label,
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage>label.check{
+  max-width:none!important;width:100%!important;box-sizing:border-box!important;font-size:clamp(10px,1.08vw,14px)!important;line-height:1.15!important;text-align:left!important;
+}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .setup-stage>.muted{
+  margin:0 0 4px!important;font-size:clamp(9px,.98vw,13px)!important;text-align:left!important;
+}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .menu-rule-short{display:none!important;}
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog .menu-rule-full{display:inline!important;}
+
+/* Final V2 control normalization. */
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog #modeHostWrap[hidden],
+body.cc-ui-v2 #modeSetupDialog#modeSetupDialog#modeSetupDialog #modeHostHint[hidden]{display:none!important;}
+body.cc-ui-v2 dialog.cc-modal:not(#gameModeDialog) input[type=checkbox]{
+  position:static!important;inset:auto!important;transform:none!important;margin:0 10px 0 0!important;padding:0!important;
+  width:20px!important;height:20px!important;min-width:20px!important;min-height:20px!important;max-width:20px!important;max-height:20px!important;
+  border:0!important;border-radius:2px!important;box-shadow:none!important;accent-color:#ae38df!important;flex:0 0 20px!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckAnalytics{
+  max-height:40px!important;overflow:auto!important;margin:0!important;padding:4px 7px!important;box-sizing:border-box!important;
+  font-size:clamp(8px,.88vw,11px)!important;line-height:1.15!important;border:1px solid #52335f!important;border-radius:7px!important;background:rgba(11,4,15,.66)!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckEditorStatus{font-size:clamp(8px,.86vw,11px)!important;line-height:1.15!important;overflow:auto!important;}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckAnalytics .muted{font-size:clamp(8px,.88vw,11px)!important;line-height:1.15!important;margin:0!important;}
+
+/* Gameplay/Table Tracker use the approved 1536×709 masters as one logical canvas.
+   Scale the whole screen exactly once to the current landscape viewport. */
+body.cc-ui-v2 #gameScreen#gameScreen,
+body.cc-ui-v2 #tabletopScreen#tabletopScreen{
+  position:fixed!important;inset:auto!important;left:0!important;top:0!important;right:auto!important;bottom:auto!important;
+  width:1536px!important;min-width:1536px!important;max-width:1536px!important;
+  height:709px!important;min-height:709px!important;max-height:709px!important;
+  margin:0!important;padding:0!important;overflow:hidden!important;
+  transform:scale(calc(100vw / 1536px),calc(100dvh / 709px))!important;
+  transform-origin:0 0!important;
+}
+
+/* Preserve master proportions on every landscape ratio (notably iPad). */
+body.cc-ui-v2 #gameScreen#gameScreen,
+body.cc-ui-v2 #tabletopScreen#tabletopScreen{left:50vw!important;top:50dvh!important;transform-origin:center center!important;}
+@media (max-aspect-ratio:1536/709){
+  body.cc-ui-v2 #gameScreen#gameScreen,
+  body.cc-ui-v2 #tabletopScreen#tabletopScreen{transform:translate(-50%,-50%) scale(calc(100vw / 1536px))!important;}
+}
+@media (min-aspect-ratio:1536/709){
+  body.cc-ui-v2 #gameScreen#gameScreen,
+  body.cc-ui-v2 #tabletopScreen#tabletopScreen{transform:translate(-50%,-50%) scale(calc(100dvh / 709px))!important;}
+}
