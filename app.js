@@ -628,7 +628,7 @@ function renderSetupTabs(){
  const tabs=$('#playerSetupTabs');if(!tabs)return;
  const canRemove=setupPlayerCount>2,last=setupPlayerCount-1;
  tabs.innerHTML=Array.from({length:setupPlayerCount},(_,i)=>`<button type="button" class="player-setup-tab${i===activeSetupPlayer?' active':''}${i===last?' player-setup-last':''}${i===last&&canRemove?' has-remove':''}" data-setup-player-tab="${i}">PLAYER ${i+1}</button>`).join('')+(canRemove?`<button type="button" class="player-setup-remove${activeSetupPlayer===last?' active':''}" id="removeSetupPlayer" aria-label="Remove Player ${setupPlayerCount}" title="Remove Player ${setupPlayerCount}">×</button>`:'')+(setupPlayerCount<6?'<button type="button" class="player-setup-tab player-setup-add" id="addSetupPlayer" aria-label="Add player">+</button>':'');
- $('[data-setup-player-tab]').forEach(b=>b.onclick=()=>{activeSetupPlayer=+b.dataset.setupPlayerTab;showActiveSetupPlayer()});
+ document.querySelectorAll('[data-setup-player-tab]').forEach(b=>b.onclick=()=>{activeSetupPlayer=+b.dataset.setupPlayerTab;showActiveSetupPlayer()});
  const remove=$('#removeSetupPlayer');if(remove)remove.onclick=()=>{if(setupPlayerCount<=2)return;setupPlayerCount--;if(activeSetupPlayer>=setupPlayerCount)activeSetupPlayer=setupPlayerCount-1;renderSetupPanels({preserve:true})};
  const add=$('#addSetupPlayer');if(add)add.onclick=()=>{if(setupPlayerCount>=6)return;setupPlayerCount++;renderSetupPanels({preserve:true});activeSetupPlayer=setupPlayerCount-1;showActiveSetupPlayer()};
 }
