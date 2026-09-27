@@ -11,6 +11,7 @@ function groupHeadings(root) {
   }
 }
 export function prepareMenuLayout(title, content) {
+  if(document.body?.classList.contains('cc-ui-v2')) return;
   content.dataset.menuTitle = title;
   content.classList.remove('menu-form-grid', 'menu-info-grid', 'menu-option-grid');
   const labels = [...content.children].filter(el => el.tagName === 'LABEL');
@@ -26,6 +27,7 @@ export function prepareMenuLayout(title, content) {
 }
 
 export function labelRuleOptions(root) {
+  if(document.body?.classList.contains('cc-ui-v2')) return;
   const labels = {
     CommanderDamage:'Commander damage (21)', PoisonLoss:'Poison loss (10)',
     CommanderTax:'Commander tax (+2)', Banned:'Banned list', ColorIdentity:'Color identity',
@@ -48,6 +50,7 @@ export function labelRuleOptions(root) {
 }
 
 export function preparePlayerSetup(root) {
+  if(document.body?.classList.contains('cc-ui-v2')) return;
   root.previousElementSibling?.matches('.menu-player-tabs') && root.previousElementSibling.remove();
   const panels=[...root.querySelectorAll('[data-player-setup]')];
   const nav=document.createElement('div');nav.className='menu-player-tabs';nav.setAttribute('role','tablist');nav.setAttribute('aria-label','Player setup');
