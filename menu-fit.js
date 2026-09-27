@@ -52,6 +52,8 @@ function prepareDeck(dialog){
   document.querySelector('#newDeckBtn').addEventListener('click',()=>select(0));
 }
 function update(){
+  // UI V2 owns presentation. Do not mutate/reparent V2 DOM.
+  if(document.body?.classList.contains('cc-ui-v2')) return;
   observer.disconnect();
   for(const dialog of dialogs){
     const title=dialog.querySelector('header h2')?.textContent.trim()||'';
