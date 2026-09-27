@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 IZ — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 JA — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -179,7 +179,7 @@ body.cc-ui-v2 #setupDialog>.modal-shell{
   display:block!important;
 }
 body.cc-ui-v2 #setupDialog>.modal-shell>header{display:none!important;}
-body.cc-ui-v2 #setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
+body.cc-ui-v2 #setupDialog .modal-back-row{left:3.5%!important;top:5.0%!important;width:15.5%!important;height:9.0%!important;}
 body.cc-ui-v2 #setupDialog .modal-content{
   position:absolute!important;left:2.1%!important;right:2.1%!important;top:21.7%!important;bottom:12.0%!important;
   padding:0!important;margin:0!important;display:grid!important;grid-template-rows:10.5% 1fr auto!important;gap:0!important;
@@ -204,6 +204,21 @@ body.cc-ui-v2 #setupDialog .player-setup-tab.active{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 -3px 12px rgba(174,63,229,.42)!important;filter:none!important;
 }
 body.cc-ui-v2 #setupDialog .player-setup-add{min-width:6.2%!important;width:6.2%!important;padding:0!important;}
+body.cc-ui-v2 #setupDialog .player-setup-last.has-remove{
+  border-radius:11px 0 0 0!important;
+}
+body.cc-ui-v2 #setupDialog .player-setup-remove{
+  position:relative!important;width:4.6%!important;min-width:4.6%!important;height:100%!important;min-height:0!important;
+  margin:0 0 0 -.8%!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;
+  border:1px solid #7d538d!important;border-left:0!important;border-bottom-color:#654270!important;border-radius:0 11px 0 0!important;
+  background:linear-gradient(180deg,#281630 0%,#170b1d 54%,#0a050e 100%)!important;
+  color:#fff!important;font:900 clamp(13px,1.55vw,22px)/1 var(--v2-head)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;filter:none!important;
+}
+body.cc-ui-v2 #setupDialog .player-setup-remove.active{
+  background:#74298e!important;border-color:#dfb9ee!important;border-left:0!important;border-bottom-color:#74298e!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 -3px 12px rgba(174,63,229,.42)!important;
+}
 body.cc-ui-v2 #setupDialog #playerSetupPanels{min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;}
 body.cc-ui-v2 #setupDialog .player-setup{
   width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:1.6% 1.5%!important;
@@ -370,7 +385,7 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog,
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog[open]{background:#000 url('093DFDC4-8872-45BB-AD33-FE90D6ED6D57.png?v=080-iv') center/100% 100% no-repeat!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell{display:block!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell>header{display:none!important;}
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-back-row{left:3.5%!important;top:5.0%!important;width:15.5%!important;height:9.0%!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-content{
   position:absolute!important;left:2.1%!important;right:2.1%!important;top:21.7%!important;bottom:12.0%!important;
   width:auto!important;height:auto!important;padding:0!important;margin:0!important;
