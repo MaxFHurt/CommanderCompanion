@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 JC — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 JD — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -597,4 +597,14 @@ body.cc-ui-v2 #landing#landing .landing079-primary-actions{
    reduced and centered. PRECON and VIEW DECK therefore resolve to identical geometry. */
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input::placeholder{
   text-align:center!important;
+}
+
+
+/* V0.8 JD — Player Setup: remove the legacy decorative break line above the tabs.
+   Geometry is intentionally untouched so the table remains in the same position. */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup::before{
+  content:none!important;
+  display:none!important;
+  background:none!important;
+  filter:none!important;
 }
