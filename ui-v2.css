@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 IY — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 IZ — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -181,7 +181,7 @@ body.cc-ui-v2 #setupDialog>.modal-shell{
 body.cc-ui-v2 #setupDialog>.modal-shell>header{display:none!important;}
 body.cc-ui-v2 #setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
 body.cc-ui-v2 #setupDialog .modal-content{
-  position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
+  position:absolute!important;left:2.1%!important;right:2.1%!important;top:21.7%!important;bottom:12.0%!important;
   padding:0!important;margin:0!important;display:grid!important;grid-template-rows:10.5% 1fr auto!important;gap:0!important;
   overflow:hidden!important;background:transparent!important;
 }
@@ -192,8 +192,9 @@ body.cc-ui-v2 #setupDialog #playerSetupTabs{
 }
 body.cc-ui-v2 #setupDialog .player-setup-tab{
   position:relative!important;width:auto!important;min-width:12.2%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0 14px!important;
-  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:0!important;
-  clip-path:polygon(0 22%,10% 22%,15% 0,85% 0,90% 22%,100% 22%,100% 100%,0 100%)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:11px 11px 0 0!important;
+  clip-path:none!important;
   background:linear-gradient(180deg,#281630 0%,#170b1d 54%,#0a050e 100%)!important;
   color:#fff!important;font:900 clamp(8px,1.08vw,15px)/1 var(--v2-head)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;filter:none!important;
@@ -205,25 +206,38 @@ body.cc-ui-v2 #setupDialog .player-setup-tab.active{
 body.cc-ui-v2 #setupDialog .player-setup-add{min-width:6.2%!important;width:6.2%!important;padding:0!important;}
 body.cc-ui-v2 #setupDialog #playerSetupPanels{min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;}
 body.cc-ui-v2 #setupDialog .player-setup{
-  width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:2.0% 1.5%!important;
-  display:grid!important;grid-template-rows:30% 32% 32%!important;gap:3%!important;box-sizing:border-box!important;
+  width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:1.6% 1.5%!important;
+  display:grid!important;grid-template-rows:25% 28% 28%!important;gap:3%!important;align-content:center!important;box-sizing:border-box!important;
   border:1px solid #6d467d!important;border-radius:18px!important;background:rgba(6,2,10,.52)!important;box-shadow:inset 0 0 22px rgba(98,28,133,.14)!important;
 }
-body.cc-ui-v2 #setupDialog .setup-player-row{display:grid!important;grid-template-columns:1fr!important;min-height:0!important;}
-body.cc-ui-v2 #setupDialog .setup-deck-row{display:grid!important;grid-template-columns:42% 33% 23%!important;gap:1.2%!important;min-height:0!important;}
-body.cc-ui-v2 #setupDialog .setup-commander-row{display:grid!important;grid-template-columns:38% 38% 22%!important;gap:1.2%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-player-row{display:grid!important;grid-template-columns:1fr!important;align-items:center!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-deck-row,
+body.cc-ui-v2 #setupDialog .setup-commander-row{
+  display:grid!important;grid-template-columns:41.5% 33% 23%!important;gap:1.2%!important;align-items:center!important;min-height:0!important;
+}
 body.cc-ui-v2 #setupDialog .setup-commander-primary,
 body.cc-ui-v2 #setupDialog .setup-secondary-slot,
-body.cc-ui-v2 #setupDialog .setup-secondary-wrap{width:100%!important;height:100%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-secondary-wrap{
+  width:100%!important;height:100%!important;min-height:0!important;display:flex!important;align-items:center!important;justify-content:center!important;
+}
 body.cc-ui-v2 #setupDialog .setup-secondary-wrap[hidden]{display:none!important;}
 body.cc-ui-v2 #setupDialog input,
 body.cc-ui-v2 #setupDialog select,
 body.cc-ui-v2 #setupDialog .setup-precon,
-body.cc-ui-v2 #setupDialog .setup-view-deck{width:100%!important;height:100%!important;min-height:0!important;}
+body.cc-ui-v2 #setupDialog .setup-view-deck{
+  width:100%!important;height:82%!important;min-height:0!important;align-self:center!important;justify-self:stretch!important;
+  text-align:center!important;
+}
 body.cc-ui-v2 #setupDialog input,
-body.cc-ui-v2 #setupDialog select{font-size:clamp(10px,1.18vw,16px)!important;border-radius:8px!important;}
+body.cc-ui-v2 #setupDialog select{
+  padding:0 28px!important;font-size:clamp(10px,1.18vw,16px)!important;border-radius:8px!important;
+  text-align:center!important;text-align-last:center!important;
+}
 body.cc-ui-v2 #setupDialog .setup-precon,
-body.cc-ui-v2 #setupDialog .setup-view-deck{font-size:clamp(10px,1.2vw,17px)!important;}
+body.cc-ui-v2 #setupDialog .setup-view-deck{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  padding:0 10px!important;font-size:clamp(10px,1.2vw,17px)!important;text-align:center!important;
+}
 body.cc-ui-v2 #setupDialog #setupProgress{min-height:0!important;text-align:center!important;margin:0!important;padding:0!important;font-size:clamp(8px,.9vw,12px)!important;}
 body.cc-ui-v2 #setupDialog .modal-actions{
   position:absolute!important;left:6.2%!important;right:6.2%!important;bottom:1.0%!important;height:9.2%!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:2.3%!important;
@@ -358,7 +372,7 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell{display:block!im
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog>.modal-shell>header{display:none!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-back-row{left:2.3%!important;top:2.6%!important;width:10.5%!important;height:7.5%!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-content{
-  position:absolute!important;left:2.1%!important;right:2.1%!important;top:20.2%!important;bottom:12.0%!important;
+  position:absolute!important;left:2.1%!important;right:2.1%!important;top:21.7%!important;bottom:12.0%!important;
   width:auto!important;height:auto!important;padding:0!important;margin:0!important;
   display:grid!important;grid-template-rows:10.5% minmax(0,1fr) auto!important;gap:0!important;
   overflow:hidden!important;background:transparent!important;
@@ -370,8 +384,9 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupTabs{
 }
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-tab{
   position:relative!important;width:auto!important;min-width:12.2%!important;max-width:none!important;height:100%!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0 14px!important;
-  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:0!important;
-  clip-path:polygon(0 22%,10% 22%,15% 0,85% 0,90% 22%,100% 22%,100% 100%,0 100%)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;
+  border:1px solid #7d538d!important;border-bottom-color:#654270!important;border-radius:11px 11px 0 0!important;
+  clip-path:none!important;
   background:linear-gradient(180deg,#281630 0%,#170b1d 54%,#0a050e 100%)!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;color:#fff!important;
   font:900 clamp(8px,1.08vw,15px)/1 var(--v2-head)!important;filter:none!important;
@@ -385,27 +400,42 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup-add{
 }
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #playerSetupPanels{position:static!important;width:auto!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;padding:0!important;overflow:hidden!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .player-setup{
-  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:2% 1.5%!important;box-sizing:border-box!important;
-  display:grid!important;grid-template-rows:30% 32% 32%!important;gap:3%!important;transform:none!important;overflow:hidden!important;
+  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;padding:1.6% 1.5%!important;box-sizing:border-box!important;
+  display:grid!important;grid-template-rows:25% 28% 28%!important;gap:3%!important;align-content:center!important;transform:none!important;overflow:hidden!important;
   border:1px solid #6d467d!important;border-radius:18px!important;background:rgba(6,2,10,.52)!important;box-shadow:inset 0 0 22px rgba(98,28,133,.14)!important;
 }
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-player-row{position:static!important;display:grid!important;grid-template-columns:1fr!important;gap:0!important;min-height:0!important;margin:0!important;}
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-deck-row{position:static!important;display:grid!important;grid-template-columns:42% 33% 23%!important;gap:1.2%!important;min-height:0!important;margin:0!important;}
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-commander-row{position:static!important;display:grid!important;grid-template-columns:38% 38% 22%!important;gap:1.2%!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-player-row{position:static!important;display:grid!important;grid-template-columns:1fr!important;align-items:center!important;gap:0!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-deck-row,
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-commander-row{
+  position:static!important;display:grid!important;grid-template-columns:41.5% 33% 23%!important;gap:1.2%!important;align-items:center!important;min-height:0!important;margin:0!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-commander-primary,
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-slot,
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap{position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap{
+  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;margin:0!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-secondary-wrap[hidden]{display:none!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input,
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog select,
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-precon,
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-view-deck{
-  position:static!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;transform:none!important;clip-path:none!important;box-sizing:border-box!important;
+  position:static!important;width:100%!important;height:82%!important;min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;margin:0!important;
+  align-self:center!important;justify-self:stretch!important;transform:none!important;clip-path:none!important;box-sizing:border-box!important;text-align:center!important;
 }
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input,
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog select{padding:7px 10px!important;border:1px solid #74508a!important;border-radius:8px!important;background:linear-gradient(180deg,rgba(22,9,29,.92),rgba(5,2,8,.96))!important;color:#fff!important;font-size:clamp(10px,1.18vw,16px)!important;box-shadow:inset 0 0 10px #000!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog select{
+  padding:0 28px!important;border:1px solid #74508a!important;border-radius:8px!important;
+  background:linear-gradient(180deg,rgba(22,9,29,.92),rgba(5,2,8,.96))!important;color:#fff!important;
+  font-size:clamp(10px,1.18vw,16px)!important;box-shadow:inset 0 0 10px #000!important;
+  text-align:center!important;text-align-last:center!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-precon,
-body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-view-deck{padding:0 10px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font-size:clamp(10px,1.2vw,17px)!important;font-weight:900!important;box-shadow:none!important;}
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-view-deck{
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  padding:0 10px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  color:#fff!important;font-size:clamp(10px,1.2vw,17px)!important;font-weight:900!important;box-shadow:none!important;text-align:center!important;
+}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog #setupProgress{position:static!important;min-height:0!important;margin:0!important;padding:0!important;text-align:center!important;font-size:clamp(8px,.9vw,12px)!important;}
 body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .modal-actions{
   position:absolute!important;left:6.2%!important;right:6.2%!important;top:auto!important;bottom:1%!important;width:auto!important;height:9.2%!important;min-height:0!important;margin:0!important;padding:0!important;
@@ -538,4 +568,12 @@ body.cc-ui-v2 #tabletopScreen#tabletopScreen{left:50vw!important;top:50dvh!impor
    disturbing the verified feature-button row, logo, orientation gate, or routes. */
 body.cc-ui-v2 #landing#landing .landing079-primary-actions{
   transform:translateY(clamp(48px,14dvh,82px))!important;
+}
+
+
+/* V0.8 IZ — Player Setup alignment refinement.
+   All three-column setup rows share the same column tracks; controls are vertically
+   reduced and centered. PRECON and VIEW DECK therefore resolve to identical geometry. */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog input::placeholder{
+  text-align:center!important;
 }
