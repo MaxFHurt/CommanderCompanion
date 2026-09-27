@@ -1,4 +1,4 @@
-/* Commander Companion V0.8 IW — UI V2 authoritative presentation layer.
+/* Commander Companion V0.8 IX — UI V2 authoritative presentation layer.
    Scope: all unlocked UI. #gameModeDialog is explicitly excluded/owned by game-mode-locked.css. */
 
 :root{
@@ -507,4 +507,11 @@ body.cc-ui-v2 #tabletopScreen#tabletopScreen{left:50vw!important;top:50dvh!impor
   body.cc-ui-v2 #landscapeOnlyGate.cc-landscape-only-gate{
     display:none!important;visibility:hidden!important;pointer-events:none!important;
   }
+}
+
+/* ---------- V0.8 IX Landing primary vertical placement ----------
+   User-directed adjustment: move START GAME / CONTINUE GAME lower without
+   disturbing the verified feature-button row, logo, orientation gate, or routes. */
+body.cc-ui-v2 #landing#landing .landing079-primary-actions{
+  transform:translateY(clamp(48px,14dvh,82px))!important;
 }
