@@ -964,3 +964,29 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row{padding:6px 9px!important}
 body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row h3,
 body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row p{margin:1px 0!important}
 body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions{padding:6px 28%!important;gap:12px!important}
+
+
+/* V0.8 JZ — Landing primary action spacing.
+   The prior JV selector referenced #continueGameBtn, but the live landing control is
+   #continueBtn, so the two-button layout never activated. Keep both buttons in the
+   open area above the feature row and distribute their centers evenly vertically. */
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn:not([hidden])){
+  right:16.8%!important;
+  top:7.5%!important;
+  width:35.5%!important;
+  height:66.5%!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr 1fr!important;
+  row-gap:8%!important;
+  align-items:stretch!important;
+  transform:none!important;
+}
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn:not([hidden])) button{
+  width:100%!important;
+  height:100%!important;
+}
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn[hidden]){
+  top:29%!important;
+  transform:none!important;
+}
