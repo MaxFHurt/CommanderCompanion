@@ -735,3 +735,14 @@ body.cc-ui-v2 #modal#modal#modal .modal-back-row{
   width:15.5%!important;
   height:9.0%!important;
 }
+
+
+/* V0.8 JO — Deck detail actions live under the deck list; no footer. */
+body.cc-ui-v2 #modal:has(.setup-deck-detail)>.modal-shell{grid-template-rows:14.2% minmax(0,1fr)!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .modal-actions{display:none!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .modal-content{padding-bottom:1.5%!important;}
+body.cc-ui-v2 #modal .setup-deck-list-panel{height:100%!important;}
+body.cc-ui-v2 #modal .setup-deck-detail-list{flex:1 1 auto!important;max-height:none!important;min-height:0!important;}
+body.cc-ui-v2 #modal .setup-deck-inline-actions{flex:0 0 auto!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:center!important;padding:10px 2px 0!important;margin-top:8px!important;border-top:1px solid #4b3155!important;}
+body.cc-ui-v2 #modal .setup-deck-inline-actions>button{width:100%!important;height:52px!important;min-height:0!important;margin:0!important;padding:0 18px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font:900 clamp(13px,1.55vw,22px)/1 var(--v2-head)!important;letter-spacing:.035em!important;}
+body.cc-ui-v2 #modal .setup-deck-inline-actions>button:disabled{opacity:.45!important;}

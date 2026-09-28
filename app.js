@@ -677,7 +677,7 @@ function setupDeckDetailHtml(deck,commanderDefs=[]){
     return `<article class="setup-deck-commander-card">${src?`<img src="${esc(src)}" alt="${esc(name)}">`:'<div class="setup-deck-commander-fallback">CARD IMAGE UNAVAILABLE</div>'}<strong>${esc(name)}</strong></article>`;
   }).join(''):'<p class="muted">No commander is listed for this deck.</p>';
   const meta=[deck.type||'',deck.releaseDate||''].filter(Boolean).map(esc).join(' • ');
-  return `<div class="setup-deck-detail"><section class="setup-deck-detail-commanders"><h3>${commanderNames.length>1?'COMMANDERS':'COMMANDER'}</h3><div class="setup-deck-commander-grid">${commanderCards}</div>${meta?`<p class="setup-deck-meta">${meta}</p>`:''}</section><section class="setup-deck-list-panel"><div class="setup-deck-list-heading"><strong>DECK LIST</strong><span>${total} cards • ${rows.length} entries</span></div><div class="setup-deck-detail-list">${rows.map(row=>`<div class="setup-deck-detail-row"><b>${row.quantity}</b><span>${esc(row.name)}</span></div>`).join('')}</div></section></div>`;
+  return `<div class="setup-deck-detail"><section class="setup-deck-detail-commanders"><h3>${commanderNames.length>1?'COMMANDERS':'COMMANDER'}</h3><div class="setup-deck-commander-grid">${commanderCards}</div>${meta?`<p class="setup-deck-meta">${meta}</p>`:''}</section><section class="setup-deck-list-panel"><div class="setup-deck-list-heading"><strong>DECK LIST</strong><span>${total} cards • ${rows.length} entries</span></div><div class="setup-deck-detail-list">${rows.map(row=>`<div class="setup-deck-detail-row"><b>${row.quantity}</b><span>${esc(row.name)}</span></div>`).join('')}</div><div class="setup-deck-inline-actions" data-setup-deck-inline-actions></div></section></div>`;
 }
 async function openSetupDeckDetail(deck,{returnDialog=null,onCancel=null,onSelect=null}={}){
   const leave=()=>{closeModal();if(onCancel){onCancel();return}if(returnDialog&&!returnDialog.open)returnDialog.showModal()};
@@ -703,7 +703,23 @@ async function openSetupDeckDetail(deck,{returnDialog=null,onCancel=null,onSelec
         toast(error?.message||'Unable to select that deck.',true);
       }
     }});
-    openModal(deck?.name||'DECK',setupDeckDetailHtml(deck,commanderDefs),actions);
+    openModal(deck?.name||'DECK',setupDeckDetailHtml(deck,commanderDefs),[{label:'BACK',semantic:'back',onClick:leave}]);
+    const inlineActions=document.querySelector('[data-setup-deck-inline-actions]');
+    if(inlineActions){
+      const addInlineAction=(label,semantic,handler)=>{
+        const button=document.createElement('button');
+        button.type='button';button.textContent=label;button.dataset.menuSemantic=semantic;
+        if(semantic==='cancel')button.classList.add('danger');
+        if(semantic==='confirm')button.classList.add('primary');
+        button.onclick=()=>handler(button);inlineActions.appendChild(button);
+      };
+      addInlineAction('CANCEL','cancel',leave);
+      if(onSelect)addInlineAction('SELECT DECK','confirm',async button=>{
+        button.disabled=true;
+        try{await onSelect(deck);closeModal();if(returnDialog&&!returnDialog.open)returnDialog.showModal()}
+        catch(error){button.disabled=false;console.error('Commander Companion deck selection failed:',error);toast(error?.message||'Unable to select that deck.',true)}
+      });
+    }
   }catch(error){
     console.error('Commander Companion deck detail failed:',error);
     openModal(deck?.name||'DECK',`<p class="bad">${esc(error?.message||'Unable to load deck details.')}</p>`,[
