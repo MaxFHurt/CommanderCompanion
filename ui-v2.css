@@ -855,3 +855,16 @@ body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[d
 body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]::after{
   border:0!important;outline:0!important;box-shadow:none!important;
 }
+
+
+/* V0.8 JT — restore the actual Precon Select Deck/Continue button artwork; no extra CSS border. */
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;
+  color:#fff!important;
+}
