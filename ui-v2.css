@@ -704,3 +704,18 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-saved{
   text-align:center!important;
   text-align-last:center!important;
 }
+
+
+/* V0.8 JM — Player Setup saved-deck selector final spacing.
+   The full placeholder gets a dedicated text lane; chevrons sit in a separate
+   fixed-width lane at the far right and can no longer overlap the label. */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-saved{
+  padding-left:8px!important;
+  padding-right:44px!important;
+  background-position:calc(100% - 10px) center,center!important;
+  background-size:13px 18px,100% 100%!important;
+  font-size:clamp(12px,1.45vw,20px)!important;
+  letter-spacing:-.02em!important;
+  text-align:center!important;
+  text-align-last:center!important;
+}
