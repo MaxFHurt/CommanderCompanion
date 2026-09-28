@@ -1877,22 +1877,19 @@ async function openMyAccount(){
   const winRate=p.games?Math.round((p.wins/p.games)*100):0;
   openModal('PLAYER PROFILE',`
     <div class="profile-all-info">
-      <section class="profile-identity">
+      <aside class="profile-left-column">
         <div class="profile-avatar-slot">${avatar}<label class="profile-avatar-upload"><span>UPLOAD AVATAR</span><input id="accountAvatarImage" type="file" accept="image/*"></label></div>
-        <div class="profile-fields">
-          <label>PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label>
-          <label>PROFILE TAGLINE<input id="accountTagline" maxlength="80" value="${esc(a.tagline||'')}" placeholder="A short table motto or note"></label>
-        </div>
-      </section>
-      <section class="profile-summary">
-        <div><b>${p.games||0}</b><span>GAMES</span></div>
-        <div><b>${p.wins||0}</b><span>WINS</span></div>
-        <div><b>${winRate}%</b><span>WIN RATE</span></div>
-        <div><b>${players.length}</b><span>PLAYERS TRACKED</span></div>
-      </section>
-      <section class="profile-history-section"><h3>PLAYER HISTORY</h3><div class="profile-player-list">${players.map(x=>{const wr=x.games?Math.round((x.wins/x.games)*100):0;return `<div class="zone-row"><h3>${esc(x.name)}</h3><p>${x.games||0} games • ${x.wins||0} wins • ${wr}% win rate</p></div>`}).join('')||'<p class="muted">Player history appears after completed games.</p>'}</div></section>
-      <section><h3>MILESTONES</h3>${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||'<p class="muted">Play games to earn milestones.</p>'}</section>
-      <section><h3>AWARDS</h3>${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||'<p class="muted">No awards yet.</p>'}</section>
+        <section class="profile-achievements"><h3>ACHIEVEMENTS</h3><div class="profile-achievement-content">${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||''}${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||''}${(!p.milestones?.length&&!Object.keys(p.awards||{}).length)?'<p class="muted">Play games to earn achievements.</p>':''}</div></section>
+      </aside>
+      <main class="profile-main-column">
+        <label class="profile-name-field">PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label>
+        <section class="profile-summary">
+          <div><b>${p.games||0}</b><span>GAMES</span></div>
+          <div><b>${p.wins||0}</b><span>WINS</span></div>
+          <div><b>${winRate}%</b><span>WIN RATE</span></div>
+        </section>
+        <section class="profile-history-section"><h3>PLAYER HISTORY</h3><div class="profile-player-list">${players.map(x=>{const wr=x.games?Math.round((x.wins/x.games)*100):0;return `<div class="zone-row"><h3>${esc(x.name)}</h3><p>${x.games||0} games • ${x.wins||0} wins • ${wr}% win rate</p></div>`}).join('')||'<p class="muted">Player history appears after completed games.</p>'}</div></section>
+      </main>
     </div>`,[
       {label:'LOAD PROFILE',semantic:'custom',onClick:()=>loadProfileFileFromPicker()},
       {label:'SAVE PROFILE',semantic:'save',onClick:async()=>{try{await persistProfileEditor();const name=await saveProfileBackupFile();toast(`Profile saved: ${name}`)}catch(e){if(e?.name!=='AbortError')toast(e.message||'Profile could not be saved.',true)}}}
@@ -1902,7 +1899,7 @@ async function openMyAccount(){
   const persistProfileEditor=async()=>{
     const displayName=$('#accountDisplayName')?.value.trim()||'';
     if(!displayName)return toast('Enter a player name.',true);
-    await saveAccountProfile({displayName,tagline:$('#accountTagline')?.value||'',avatarImage});
+    await saveAccountProfile({displayName,tagline:'',avatarImage});
     return true;
   };
   fileInput.onchange=()=>{

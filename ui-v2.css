@@ -990,3 +990,65 @@ body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn[hidd
   top:29%!important;
   transform:none!important;
 }
+
+
+/* V0.8 KA — Player Profile final landscape organization. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-all-info{
+  height:100%!important;min-height:0!important;
+  display:grid!important;grid-template-columns:30% minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;gap:18px!important;padding:0!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-left-column{
+  min-height:0!important;display:grid!important;grid-template-rows:auto minmax(0,1fr)!important;gap:10px!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-slot{
+  display:flex!important;flex-direction:column!important;align-items:center!important;gap:0!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-image,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-emblem{
+  width:min(22dvh,150px)!important;height:min(22dvh,150px)!important;margin:0!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload{
+  width:min(22dvh,150px)!important;margin-top:-1px!important;text-align:center!important;cursor:pointer!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{
+  display:block!important;width:100%!important;box-sizing:border-box!important;
+  padding:5px 4px!important;border:1px solid #76508b!important;border-radius:0 0 8px 8px!important;
+  font-size:clamp(8px,.8vw,12px)!important;white-space:nowrap!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload input{
+  position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-achievements{
+  min-height:0!important;overflow:auto!important;border:1px solid #76508b!important;border-radius:12px!important;
+  padding:8px 10px!important;background:#0c0710!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-achievements h3{text-align:center!important;margin:0 0 6px!important;}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-main-column{
+  min-width:0!important;min-height:0!important;display:grid!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;gap:9px!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-field{
+  display:grid!important;grid-template-columns:auto minmax(0,1fr)!important;align-items:center!important;gap:12px!important;
+  font-size:clamp(11px,1.15vw,17px)!important;font-weight:800!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-field input{
+  height:38px!important;min-height:0!important;margin:0!important;padding:0 12px!important;font-size:clamp(12px,1.2vw,18px)!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary{
+  grid-column:auto!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;
+  border:1px solid #76508b!important;border-radius:12px!important;overflow:hidden!important;gap:0!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary>div{
+  border:0!important;border-right:1px solid #76508b!important;border-radius:0!important;padding:5px!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary>div:last-child{border-right:0!important;}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section{
+  grid-column:auto!important;grid-row:auto!important;height:auto!important;min-height:0!important;
+  overflow:hidden!important;border:1px solid #76508b!important;border-radius:12px!important;padding:8px 10px!important;
+  display:flex!important;flex-direction:column!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section h3{margin:0 0 5px!important;}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-player-list{
+  min-height:0!important;overflow:auto!important;display:block!important;
+}
