@@ -691,3 +691,16 @@ body.cc-ui-v2 #modal .setup-deck-detail-row span{min-width:0!important;overflow-
   body.cc-ui-v2 #modal .setup-deck-commander-fallback{width:min(100%,108px)!important;}
   body.cc-ui-v2 #modal .setup-deck-detail-list{max-height:47dvh!important;}
 }
+
+
+/* V0.8 JK — Player Setup saved-deck label readability.
+   Keep the indicator pinned to the far right while reserving only the space it needs. */
+body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-saved{
+  padding-left:12px!important;
+  padding-right:32px!important;
+  background-position:calc(100% - 7px) center,center!important;
+  background-size:15px 20px,100% 100%!important;
+  font-size:clamp(15px,1.8vw,24px)!important;
+  text-align:center!important;
+  text-align-last:center!important;
+}
