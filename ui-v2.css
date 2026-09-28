@@ -756,3 +756,62 @@ body.cc-ui-v2 #landing#landing .landing079-footer{
   letter-spacing:.11em!important;
   text-shadow:0 0 7px rgba(162,57,209,.7)!important;
 }
+
+
+/* V0.8 JQ — fit Precon detail completely in one landscape viewport. */
+body.cc-ui-v2 #modal:has(.setup-deck-detail)>.modal-shell{
+  grid-template-rows:14.2% minmax(0,1fr)!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .modal-content{
+  min-height:0!important;overflow:hidden!important;padding:1.1% 2.4% 1.3%!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .modal-actions{
+  display:none!important;height:0!important;min-height:0!important;padding:0!important;border:0!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail{
+  height:100%!important;min-height:0!important;align-items:stretch!important;
+  grid-template-columns:minmax(145px,27%) minmax(0,1fr)!important;gap:14px!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail-commanders{
+  height:100%!important;min-height:0!important;padding:7px!important;overflow:hidden!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail h3{
+  margin:0 0 5px!important;font-size:clamp(10px,1.05vw,15px)!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-grid{gap:4px!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-card{gap:3px!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-card img,
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-fallback{
+  width:auto!important;height:min(49dvh,100%)!important;max-height:calc(100% - 38px)!important;aspect-ratio:5/7!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-card strong{
+  font-size:clamp(8px,.82vw,12px)!important;line-height:1.05!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-meta{
+  margin:4px 0 0!important;font-size:8px!important;line-height:1.05!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-list-panel{
+  height:100%!important;min-height:0!important;padding:7px!important;overflow:hidden!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-list-heading{padding:0 2px 5px!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail-list{
+  flex:0 1 auto!important;height:calc(100% - 67px)!important;max-height:calc(100% - 67px)!important;min-height:0!important;overflow:auto!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail-row{padding:3px 4px!important;}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions{
+  height:48px!important;min-height:48px!important;padding:5px 2px 0!important;margin-top:4px!important;gap:12px!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button{
+  height:43px!important;font-size:clamp(11px,1.3vw,19px)!important;
+}
+@media (orientation:landscape) and (max-height:460px){
+  body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-card img,
+  body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-commander-fallback{
+    width:auto!important;height:min(45dvh,100%)!important;max-height:calc(100% - 34px)!important;
+  }
+  body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-detail-list{
+    height:calc(100% - 61px)!important;max-height:calc(100% - 61px)!important;
+  }
+  body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions{height:43px!important;min-height:43px!important;}
+  body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button{height:38px!important;}
+}
