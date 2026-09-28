@@ -868,3 +868,22 @@ body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[d
   background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;
   color:#fff!important;
 }
+
+
+/* V0.8 JV — Landing primary actions: when Continue is visible, stack Start/Continue
+   with equal vertical spacing between the top edge and the fixed bottom action row. */
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueGameBtn:not([hidden])){
+  right:16.8%!important;
+  top:7.8%!important;
+  width:35.5%!important;
+  height:48.5%!important;
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  grid-template-rows:1fr 1fr!important;
+  gap:3.2%!important;
+  align-items:stretch!important;
+  transform:none!important;
+}
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueGameBtn:not([hidden])) button{
+  width:100%!important;height:100%!important;
+}
