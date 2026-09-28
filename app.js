@@ -1871,7 +1871,50 @@ async function openPlayerStats(){
     ${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||'<p class="muted">No milestones yet.</p>'}
   `,[{label:'BACK',semantic:'back',onClick:openMyAccount}]);
 }
-async function openMyAccount(){await userDataReady;openModal('MY ACCOUNT',`<p>Use your profile to speed up game setup and manage your Commander collection.</p><div class="counter-grid"><button id="accountProfileEdit">PROFILE EDITOR</button><button id="accountDeckEditor">DECK EDITOR</button><button id="accountPlayerStats">PLAYER STATS</button><button id="accountBackupSave">SAVE PROFILE FILE</button><button id="accountBackupLoad">LOAD PROFILE FILE</button></div><p class="muted">Profile files include your profile, saved decks, player history, milestones, awards, and preferred setup data. Save the file to Files or iCloud Drive to restore after clearing browser data or to move it to another device.</p>`,[{label:'CLOSE',onClick:closeModal}]);$('#accountProfileEdit').onclick=openProfileEditor;$('#accountDeckEditor').onclick=()=>{closeModal();openDeckEditor()};$('#accountPlayerStats').onclick=openPlayerStats;$('#accountBackupSave').onclick=async()=>{try{const name=await saveProfileBackupFile();toast(`Profile backup ready: ${name}`)}catch(e){if(e?.name!=='AbortError')toast(e.message||'Profile backup could not be created.',true)}};$('#accountBackupLoad').onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='.ccsave,application/json';input.onchange=async()=>{try{const file=input.files?.[0];if(!file)return;await restoreProfileBackupFile(file);toast('Profile restored. Reloading…');setTimeout(()=>location.reload(),700)}catch(e){toast(e.message||'Profile backup could not be restored.',true)}};input.click()}}
+async function openMyAccount(){
+  await userDataReady;
+  const p=loadProfile(),a=p.account||{},players=Object.values(p.players||{});
+  const avatar=a.avatarImage
+    ?`<img class="profile-avatar-image" src="${esc(a.avatarImage)}" alt="Player avatar">`
+    :`<div class="profile-emblem">CC</div>`;
+  const winRate=p.games?Math.round((p.wins/p.games)*100):0;
+  openModal('PLAYER PROFILE',`
+    <div class="profile-all-info">
+      <section class="profile-identity">
+        <div class="profile-avatar-slot">${avatar}<label class="profile-avatar-upload"><span>UPLOAD AVATAR</span><input id="accountAvatarImage" type="file" accept="image/*"></label></div>
+        <div class="profile-fields">
+          <label>PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label>
+          <label>PROFILE TAGLINE<input id="accountTagline" maxlength="80" value="${esc(a.tagline||'')}" placeholder="A short table motto or note"></label>
+        </div>
+      </section>
+      <section class="profile-summary">
+        <div><b>${p.games||0}</b><span>GAMES</span></div>
+        <div><b>${p.wins||0}</b><span>WINS</span></div>
+        <div><b>${winRate}%</b><span>WIN RATE</span></div>
+        <div><b>${players.length}</b><span>PLAYERS TRACKED</span></div>
+      </section>
+      <section class="profile-history-section"><h3>PLAYER HISTORY</h3><div class="profile-player-list">${players.map(x=>{const wr=x.games?Math.round((x.wins/x.games)*100):0;return `<div class="zone-row"><h3>${esc(x.name)}</h3><p>${x.games||0} games • ${x.wins||0} wins • ${wr}% win rate</p></div>`}).join('')||'<p class="muted">Player history appears after completed games.</p>'}</div></section>
+      <section><h3>MILESTONES</h3>${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||'<p class="muted">Play games to earn milestones.</p>'}</section>
+      <section><h3>AWARDS</h3>${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||'<p class="muted">No awards yet.</p>'}</section>
+    </div>`,[
+      {label:'LOAD PROFILE',semantic:'custom',onClick:()=>loadProfileFileFromPicker()},
+      {label:'SAVE PROFILE',semantic:'save',onClick:async()=>{try{await persistProfileEditor();const name=await saveProfileBackupFile();toast(`Profile saved: ${name}`)}catch(e){if(e?.name!=='AbortError')toast(e.message||'Profile could not be saved.',true)}}}
+    ]);
+  let avatarImage=a.avatarImage||'';
+  const fileInput=$('#accountAvatarImage');
+  const persistProfileEditor=async()=>{
+    const displayName=$('#accountDisplayName')?.value.trim()||'';
+    if(!displayName)return toast('Enter a player name.',true);
+    await saveAccountProfile({displayName,tagline:$('#accountTagline')?.value||'',avatarImage});
+    return true;
+  };
+  fileInput.onchange=()=>{
+    const file=fileInput.files?.[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=()=>{avatarImage=String(reader.result||'');const slot=$('.profile-avatar-image')||$('.profile-emblem');if(slot){const img=document.createElement('img');img.className='profile-avatar-image';img.alt='Player avatar';img.src=avatarImage;slot.replaceWith(img)}};
+    reader.readAsDataURL(file);
+  };
+}
 async function openProfile(){await userDataReady;const p=loadProfile(),a=p.account||{};const players=Object.values(p.players||{});const decks=Object.values(p.decks||{});openModal('PLAYER PROFILE',`<div class="profile-editor-preview"><div class="profile-emblem">${esc(a.avatarGlyph||'CC')}</div><div><h3>${esc(a.displayName||'COMMANDER COMPANION PROFILE')}</h3><p>${esc(a.tagline||'')} ${a.tagline?'• ':''}Games ${p.games} • Wins ${p.wins}</p></div></div><button id="profileQuickEdit" class="profile-quick-edit">EDIT PROFILE</button><h3>PLAYERS</h3>${players.map(x=>`<div class="zone-row"><h3>${esc(x.name)}</h3><p>${x.games||0} games • ${x.wins||0} wins</p>${Object.values(x.decks||{}).map(d=>`<p><b>${esc(d.name||d.id)}</b>${d.commander1?` — ${esc(d.commander1)}${d.commander2?` + ${esc(d.commander2)}`:''}`:''} • selected ${d.selections||0} • games ${d.games||0}</p>`).join('')||'<p class="muted">No deck history yet.</p>'}</div>`).join('')||'<p class="muted">Player history appears after deck selection or completed games.</p>'}<h3>SAVED / CREATED DECKS</h3>${decks.map(d=>`<p><b>${esc(d.name)}</b>${d.commander1?` — ${esc(d.commander1)}${d.commander2?` + ${esc(d.commander2)}`:''}`:''}</p>`).join('')||'<p class="muted">Deck Editor saves will appear here.</p>'}<h3>MILESTONES</h3>${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||'<p class="muted">Play games to earn milestones.</p>'}<h3>AWARDS</h3>${Object.entries(p.awards||{}).map(([k,v])=>`<p>${esc(k)} × ${v}</p>`).join('')||'<p class="muted">No awards yet.</p>'}`,[]);$('#profileQuickEdit').onclick=openProfileEditor}
 function openLearn(){const returnToCommandCenter=$('#modalTitle')?.textContent==='COMMAND CENTER';openModal('LEARN COMMANDER',`<h3>THE BASICS</h3><p>Commander is normally a multiplayer singleton format with a legendary commander, a 100-card deck, 40 starting life, and commander color identity deckbuilding restrictions.</p><h3>YOUR TURN</h3><p>Untap, upkeep, draw, Main 1, combat, Main 2, and ending. Commander Companion keeps phase progression and required tracked confirmations in one place.</p><h3>COMMANDER TAX</h3><p>Each time a commander is cast again from the command zone, it costs two additional generic mana for each previous command-zone cast.</p><h3>TRACKING</h3><p>Full Play Tracking uses the exact deck and hand. Freeplay keeps rules guidance while allowing flexible global card identification and setup.</p>`,[{label:returnToCommandCenter?'BACK':'CLOSE',semantic:returnToCommandCenter?'back':undefined,onClick:returnToCommandCenter?openLandingCommandMenu:closeModal}])}
 async function startPlaytest(){

@@ -900,3 +900,20 @@ body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueGameBtn:
 .profile-summary>div{text-align:center;border:1px solid #76508b;border-radius:12px;padding:8px;background:#0c0710}
 .profile-summary b{display:block;font-size:1.55em}.profile-summary span{font-size:.72em;letter-spacing:.08em}
 .profile-player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+
+/* V0.8 JX — Profile is one page: player information only, footer owns Load/Save. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .modal-body{overflow:auto!important;padding:12px 20px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-all-info{display:grid!important;grid-template-columns:1.15fr .85fr!important;gap:12px 18px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-identity{grid-column:1/-1!important;display:grid!important;grid-template-columns:180px 1fr!important;gap:22px!important;align-items:center!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-slot{display:grid!important;justify-items:center!important;gap:7px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-image,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-emblem{width:118px!important;height:118px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload{grid-column:auto!important;text-align:center!important;cursor:pointer!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload input{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{display:inline-block!important;padding:7px 14px!important;border:1px solid #76508b!important;border-radius:8px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-fields{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary{grid-column:1/-1!important;grid-template-columns:repeat(4,1fr)!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section{min-width:0!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions>button{width:100%!important;max-width:none!important}
