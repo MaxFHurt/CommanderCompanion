@@ -1052,3 +1052,12 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section h3{margin:0
 body.cc-ui-v2 #modal:has(.profile-all-info) .profile-player-list{
   min-height:0!important;overflow:auto!important;display:block!important;
 }
+
+
+/* V0.8 KB — optional additional-player profile presets. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:10px!important;align-items:end!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-add-player{height:38px!important;min-height:0!important;padding:0 14px!important;font-size:clamp(9px,.9vw,13px)!important;white-space:nowrap!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-field{grid-template-columns:1fr!important;gap:3px!important}
+.additional-player-rows{display:grid;gap:8px}
+.additional-player-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.additional-player-row input,.additional-player-row select{min-width:0}

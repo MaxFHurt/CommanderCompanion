@@ -644,7 +644,8 @@ function renderSetupPanels({preserve=false}={}){
  bindSetupTools();
  try{
    const defaults=accountSetupDefaults()||{},saved=listDecks();
-   $$('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames?.[i]||'';if(name)panel.querySelector('.setup-name').value=name;if(i===0&&defaults.favoriteDeckId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>d.id===defaults.favoriteDeckId)){sel.value=defaults.favoriteDeckId;sel.dispatchEvent(new Event('change'))}}}});
+   const profile=loadProfile(),additionalDecks=profile.account?.additionalPlayerDecks||{};
+   $('[data-player-setup]').forEach((panel,i)=>{if(!oldValues[i]){const name=defaults.playerNames?.[i]||'';if(name)panel.querySelector('.setup-name').value=name;const preferredId=i===0?defaults.favoriteDeckId:(name?additionalDecks[String(name).toLowerCase()]:'');if(preferredId){const sel=panel.querySelector('.setup-saved');if(sel&&saved.some(d=>String(d.id)===String(preferredId))){sel.value=preferredId;sel.dispatchEvent(new Event('change'))}}}});
  }catch(e){console.warn('Player setup defaults unavailable',e)}
  showActiveSetupPlayer();
 }
@@ -1868,6 +1869,21 @@ async function openPlayerStats(){
     ${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||'<p class="muted">No milestones yet.</p>'}
   `,[{label:'BACK',semantic:'back',onClick:openMyAccount}]);
 }
+async function openAdditionalPlayerInfo(){
+  await userDataReady;
+  const p=loadProfile(),rows=Object.values(p.players||{}),decks=listDecks();
+  const body=`<p class="muted">Save names and preferred decks for people you regularly play with. These become Player Setup placeholders; the player can still change them before starting.</p>
+    <div id="additionalPlayerRows" class="additional-player-rows">${Array.from({length:5},(_,i)=>{const row=rows[i]||{},linked=Object.values(row.decks||{}).sort((a,b)=>String(b.lastSelectedAt||b.lastPlayedAt||'').localeCompare(String(a.lastSelectedAt||a.lastPlayedAt||'')))[0]||{};return `<div class="additional-player-row" data-additional-player="${i}"><input class="additional-player-name" maxlength="32" value="${esc(row.name||'')}" placeholder="Additional player ${i+2} name"><select class="additional-player-deck"><option value="">Preferred deck (optional)</option>${decks.map(d=>`<option value="${esc(d.id)}" ${String(linked.id||'')===String(d.id)?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>`}).join('')}</div>`;
+  openModal('ADDITIONAL PLAYER INFO',body,[
+    {label:'CANCEL',onClick:openMyAccount},
+    {label:'SAVE',semantic:'save',onClick:async()=>{
+      const profile=loadProfile(),account=profile.account||{},names=[],prefs={};
+      document.querySelectorAll('[data-additional-player]').forEach(row=>{const name=row.querySelector('.additional-player-name')?.value.trim()||'',deckId=row.querySelector('.additional-player-deck')?.value||'';if(name){names.push(name);if(deckId)prefs[name.toLowerCase()]=deckId}});
+      await saveAccountProfile({...account,preferredPlayerNames:names,additionalPlayerDecks:prefs});
+      toast('Additional player info saved.');openMyAccount();
+    }}
+  ]);
+}
 async function openMyAccount(){
   await userDataReady;
   const p=loadProfile(),a=p.account||{},players=Object.values(p.players||{});
@@ -1882,7 +1898,7 @@ async function openMyAccount(){
         <section class="profile-achievements"><h3>ACHIEVEMENTS</h3><div class="profile-achievement-content">${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||''}${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||''}${(!p.milestones?.length&&!Object.keys(p.awards||{}).length)?'<p class="muted">Play games to earn achievements.</p>':''}</div></section>
       </aside>
       <main class="profile-main-column">
-        <label class="profile-name-field">PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label>
+        <div class="profile-name-row"><label class="profile-name-field">PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">ADD ADDITIONAL PLAYER INFO</button></div>
         <section class="profile-summary">
           <div><b>${p.games||0}</b><span>GAMES</span></div>
           <div><b>${p.wins||0}</b><span>WINS</span></div>
@@ -1902,6 +1918,7 @@ async function openMyAccount(){
     await saveAccountProfile({displayName,tagline:'',avatarImage});
     return true;
   };
+  $('#addAdditionalPlayerInfo').onclick=()=>openAdditionalPlayerInfo();
   fileInput.onchange=()=>{
     const file=fileInput.files?.[0];if(!file)return;
     const reader=new FileReader();
