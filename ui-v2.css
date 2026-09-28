@@ -815,3 +815,12 @@ body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button{
   body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions{height:43px!important;min-height:43px!important;}
   body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button{height:38px!important;}
 }
+
+
+/* V0.8 JR — Precon detail Select Deck: hide button-image border/frame. */
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:none!important;
+}
