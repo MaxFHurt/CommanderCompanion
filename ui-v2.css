@@ -917,3 +917,50 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary{grid-column:1/-1!im
 body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section{min-width:0!important}
 body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px!important}
 body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions>button{width:100%!important;max-width:none!important}
+
+
+/* V0.8 JY — compact Player Profile layout; consolidate panels and eliminate wasted space. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .modal-body{padding:10px 24px!important;overflow:hidden!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-all-info{
+  height:100%!important;display:grid!important;
+  grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr)!important;
+  grid-template-rows:auto auto minmax(0,1fr)!important;
+  gap:10px 14px!important;align-content:stretch!important
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-identity{
+  grid-column:1/-1!important;display:grid!important;
+  grid-template-columns:150px minmax(0,1fr)!important;gap:18px!important;
+  align-items:center!important;padding:4px 10px!important
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-slot{display:grid!important;grid-template-columns:82px 1fr!important;align-items:center!important;gap:10px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-image,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-emblem{width:82px!important;height:82px!important;margin:0!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{font-size:clamp(10px,1vw,15px)!important;padding:8px 10px!important;white-space:nowrap!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-fields{display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:end!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-fields label{font-size:clamp(10px,1vw,15px)!important;display:grid!important;gap:4px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-fields input{height:44px!important;min-height:0!important;font-size:clamp(12px,1.25vw,18px)!important;padding:0 14px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary{
+  grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(4,1fr)!important;
+  gap:0!important;border:1px solid #76508b!important;border-radius:12px!important;overflow:hidden!important
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary>div{
+  border:0!important;border-right:1px solid #76508b!important;border-radius:0!important;
+  padding:5px 8px!important;min-height:58px!important;display:grid!important;place-content:center!important
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary>div:last-child{border-right:0!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary b{font-size:clamp(18px,2vw,30px)!important;line-height:1!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary span{font-size:clamp(8px,.8vw,12px)!important;margin-top:4px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section+section,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section+section+section{
+  border:1px solid #76508b!important;border-radius:12px!important;padding:8px 12px!important;min-width:0!important;overflow:auto!important
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section{grid-column:1!important;grid-row:3!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section+section{grid-column:2!important;grid-row:3!important;height:calc(50% - 5px)!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-history-section+section+section{grid-column:2!important;grid-row:3!important;align-self:end!important;height:calc(50% - 5px)!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) section>h3{font-size:clamp(10px,1vw,15px)!important;margin:0 0 6px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-player-list{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:6px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row{padding:6px 9px!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row h3,
+body.cc-ui-v2 #modal:has(.profile-all-info) .zone-row p{margin:1px 0!important}
+body.cc-ui-v2 #modal:has(.profile-all-info) .modal-actions{padding:6px 28%!important;gap:12px!important}
