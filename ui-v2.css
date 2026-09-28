@@ -1079,3 +1079,46 @@ body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn[hidd
   top:31.5%!important;
   width:35.5%!important;
 }
+
+
+/* V0.8 KD — compact Player Profile identity/stat rows. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-main-column{
+  grid-template-rows:38px 54px minmax(0,1fr)!important;
+  gap:7px!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-row{
+  align-items:stretch!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) input.profile-name-field{
+  display:block!important;
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:38px!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0 12px!important;
+  font-size:clamp(12px,1.2vw,18px)!important;
+  font-weight:600!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary{
+  height:54px!important;
+  min-height:54px!important;
+  align-self:start!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary>div{
+  min-height:0!important;
+  padding:3px 6px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary b{
+  font-size:clamp(16px,1.65vw,24px)!important;
+  line-height:1!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-summary span{
+  font-size:clamp(7px,.68vw,10px)!important;
+  line-height:1!important;
+  margin-top:4px!important;
+}
