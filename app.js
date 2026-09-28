@@ -1921,7 +1921,7 @@ async function openMyAccount(){
   openModal('PLAYER PROFILE',`
     <div class="profile-all-info">
       <aside class="profile-left-column">
-        <div class="profile-avatar-slot">${avatar}<label class="profile-avatar-upload"><span>UPLOAD AVATAR</span><input id="accountAvatarImage" type="file" accept="image/*"></label></div>
+        <div class="profile-avatar-slot">${avatar}<label class="profile-avatar-upload" aria-label="Upload avatar" title="Upload avatar"><span aria-hidden="true">↥</span><input id="accountAvatarImage" type="file" accept="image/*"></label></div>
         <section class="profile-achievements"><h3>ACHIEVEMENTS</h3><div class="profile-achievement-content">${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||''}${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||''}${(!p.milestones?.length&&!Object.keys(p.awards||{}).length)?'<p class="muted">Play games to earn achievements.</p>':''}</div></section>
       </aside>
       <main class="profile-main-column">
