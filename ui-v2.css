@@ -746,3 +746,13 @@ body.cc-ui-v2 #modal .setup-deck-detail-list{flex:1 1 auto!important;max-height:
 body.cc-ui-v2 #modal .setup-deck-inline-actions{flex:0 0 auto!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:14px!important;align-items:center!important;padding:10px 2px 0!important;margin-top:8px!important;border-top:1px solid #4b3155!important;}
 body.cc-ui-v2 #modal .setup-deck-inline-actions>button{width:100%!important;height:52px!important;min-height:0!important;margin:0!important;padding:0 18px!important;border:0!important;background:transparent url('ref-button-blank.png') center/100% 100% no-repeat!important;color:#fff!important;font:900 clamp(13px,1.55vw,22px)/1 var(--v2-head)!important;letter-spacing:.035em!important;}
 body.cc-ui-v2 #modal .setup-deck-inline-actions>button:disabled{opacity:.45!important;}
+
+
+/* V0.8 JP — make landing build/version label readable. */
+body.cc-ui-v2 #landing#landing .landing079-footer{
+  bottom:1.6%!important;
+  font-size:clamp(10px,1.18vw,18px)!important;
+  line-height:1!important;
+  letter-spacing:.11em!important;
+  text-shadow:0 0 7px rgba(162,57,209,.7)!important;
+}
