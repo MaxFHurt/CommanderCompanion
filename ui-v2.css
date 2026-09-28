@@ -824,3 +824,34 @@ body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[d
   box-shadow:none!important;
   background:none!important;
 }
+
+
+/* V0.8 JS — Player Setup saved-deck label + restore Precon Select Deck artwork. */
+body.cc-ui-v2 #playerSetup .setup-saved-wrap{
+  position:relative!important;overflow:hidden!important;
+}
+body.cc-ui-v2 #playerSetup .setup-saved{
+  box-sizing:border-box!important;
+  width:100%!important;
+  padding-left:12px!important;
+  padding-right:58px!important;
+  font-size:clamp(12px,1.45vw,22px)!important;
+  text-align:center!important;
+  text-align-last:center!important;
+}
+body.cc-ui-v2 #playerSetup .setup-saved-wrap::after{
+  right:14px!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]{
+  border:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background-image:var(--cc-menu-button-image)!important;
+  background-repeat:no-repeat!important;
+  background-position:center!important;
+  background-size:100% 100%!important;
+}
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]::before,
+body.cc-ui-v2 #modal:has(.setup-deck-detail) .setup-deck-inline-actions>button[data-menu-semantic="confirm"]::after{
+  border:0!important;outline:0!important;box-shadow:none!important;
+}
