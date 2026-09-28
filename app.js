@@ -1925,7 +1925,7 @@ async function openMyAccount(){
         <section class="profile-achievements"><h3>ACHIEVEMENTS</h3><div class="profile-achievement-content">${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||''}${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||''}${(!p.milestones?.length&&!Object.keys(p.awards||{}).length)?'<p class="muted">Play games to earn achievements.</p>':''}</div></section>
       </aside>
       <main class="profile-main-column">
-        <div class="profile-name-row"><label class="profile-name-field">PLAYER NAME<input id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name"></label><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">ADD ADDITIONAL PLAYER INFO</button></div>
+        <div class="profile-name-row"><input class="profile-name-field" id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name" aria-label="Player name"><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">ADD ADDITIONAL PLAYER INFO</button></div>
         <section class="profile-summary">
           <div><b>${p.games||0}</b><span>GAMES</span></div>
           <div><b>${p.wins||0}</b><span>WINS</span></div>
