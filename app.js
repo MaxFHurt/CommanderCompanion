@@ -928,7 +928,34 @@ function validatePlayerSetupRequiredFields(){
   );
   return false;
 }
-async function startSetup(){if(!validatePlayerSetupRequiredFields())return;const btn=$('#startSetupBtn');btn.disabled=true;try{const panels=$$('[data-player-setup]');const players=[],defs={};for(let i=0;i<panels.length;i++){const r=await hydratePlayerSetup(panels[i],i);players.push(r.player);r.defs.forEach(d=>defs[d.definitionId]=d)}for(const p of players)validateHydratedDeckOwnership(p);for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){const A=players[a],B=players[b];if(A.deck?.savedDeckId&&B.deck?.savedDeckId&&A.deck.savedDeckId!==B.deck.savedDeckId&&A.deck.manifestFingerprint===B.deck.manifestFingerprint)console.warn('Commander Companion: different saved deck IDs resolved to identical manifests.',{playerA:A.displayName,deckA:A.deck.sourceName,playerB:B.displayName,deckB:B.deck.sourceName})}game=initializeGame({players,mode:selectedMode,deviceMode:'single-device'});game.cardDefinitions=defs;game.abilityCoverage=auditDefinitions(defs);game.status='active';game.rulesConfig=normalizeRulesConfig(pendingRules);game.players.forEach(p=>{p.life=Number(game.rulesConfig.startingLife||40);p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0};p.confirmations={draw:false}});engine=createAutosavingEngine(game);await Promise.all(game.players.map(p=>{const cmds=p.commanders.map(c=>game.cardDefinitions?.[c.cardId]?.name||'').filter(Boolean);return recordDeckSelection({playerName:p.displayName,deckId:p.deck?.savedDeckId||p.deck?.sourceId,deckName:p.deck?.sourceName||'Setup deck',commander1:cmds[0]||'',commander2:cmds[1]||'',source:p.deck?.sourceType||'setup'})}));save();$('#setupDialog').close();if(selectedMode==='fully-tracked'||(selectedMode==='freeplay'&&game.players.some(p=>p.settings?.handTracking)))openOpeningHands(0);else{showGame();toast('Game started — autosave active')}}catch(e){console.error('Commander Companion setup error:',e);$('#setupProgress').textContent=friendlySetupError(e);$('#setupProgress').classList.add('bad')}finally{btn.disabled=false}}
+let pendingValidatedSetup=null;
+function setupValidationHtml(players){
+  return `<div class="setup-validation"><p><b>Player setup passed validation.</b> Confirm the players, commanders, and decks below before opening hands.</p><div class="setup-validation-list">${players.map((p,i)=>{const commanders=(p.commanders||[]).map(c=>c.card?.name||'Commander').filter(Boolean).join(' + ')||'No commander';const deckName=p.deck?.selectedDeckName||p.deck?.sourceName||'Setup deck';const cardCount=(p.deck?.fullManifest||[]).reduce((n,e)=>n+Number(e.quantity??e.qty??1),0);return `<section class="setup-validation-player"><strong>✓ ${esc(p.displayName||`Player ${i+1}`)}</strong><span>${esc(commanders)}</span><small>${esc(deckName)} • ${cardCount} cards • VALID</small></section>`}).join('')}</div></div>`;
+}
+async function finalizeValidatedSetup(payload){
+  const {players,defs}=payload;if(!players?.length)throw new Error('Validated player setup is no longer available. Return to Player Setup and validate again.');
+  game=initializeGame({players,mode:selectedMode,deviceMode:'single-device'});game.cardDefinitions=defs;game.abilityCoverage=auditDefinitions(defs);game.status='active';game.rulesConfig=normalizeRulesConfig(pendingRules);game.players.forEach(p=>{p.life=Number(game.rulesConfig.startingLife||40);p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0};p.confirmations={draw:false}});engine=createAutosavingEngine(game);
+  await Promise.all(game.players.map(p=>{const cmds=p.commanders.map(c=>game.cardDefinitions?.[c.cardId]?.name||'').filter(Boolean);return recordDeckSelection({playerName:p.displayName,deckId:p.deck?.savedDeckId||p.deck?.sourceId,deckName:p.deck?.sourceName||'Setup deck',commander1:cmds[0]||'',commander2:cmds[1]||'',source:p.deck?.sourceType||'setup'})}));
+  pendingValidatedSetup=null;save();if($('#setupDialog')?.open)$('#setupDialog').close();closeModal();
+  if(selectedMode==='fully-tracked'||(selectedMode==='freeplay'&&game.players.some(p=>p.settings?.handTracking)))openOpeningHands(0);else{showGame();toast('Game started — autosave active')}
+}
+async function startSetup(){
+  if(!validatePlayerSetupRequiredFields())return;
+  const btn=$('#startSetupBtn');btn.disabled=true;const progress=$('#setupProgress');if(progress){progress.classList.remove('bad');progress.textContent='Validating player setup…'}
+  try{
+    const panels=$('[data-player-setup]'),players=[],defs={};
+    for(let i=0;i<panels.length;i++){const r=await hydratePlayerSetup(panels[i],i);players.push(r.player);r.defs.forEach(d=>defs[d.definitionId]=d)}
+    for(const p of players)validateHydratedDeckOwnership(p);
+    for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){const A=players[a],B=players[b];if(A.deck?.savedDeckId&&B.deck?.savedDeckId&&A.deck.savedDeckId!==B.deck.savedDeckId&&A.deck.manifestFingerprint===B.deck.manifestFingerprint)console.warn('Commander Companion: different saved deck IDs resolved to identical manifests.',{playerA:A.displayName,deckA:A.deck.sourceName,playerB:B.displayName,deckB:B.deck.sourceName})}
+    pendingValidatedSetup={players,defs};
+    if(progress)progress.textContent='Validation passed.';
+    openModal('SETUP VALIDATION',setupValidationHtml(players),[
+      {label:'BACK TO PLAYER SETUP',semantic:'back',onClick:()=>{pendingValidatedSetup=null;closeModal();if(!$('#setupDialog').open)$('#setupDialog').showModal()}},
+      {label:'CONTINUE TO OPENING HAND',className:'primary',onClick:async()=>{try{await finalizeValidatedSetup(pendingValidatedSetup)}catch(e){console.error('Commander Companion setup finalization error:',e);toast(friendlySetupError(e),true)}}}
+    ]);
+  }catch(e){pendingValidatedSetup=null;console.error('Commander Companion setup validation error:',e);if(progress){progress.textContent=friendlySetupError(e);progress.classList.add('bad')}}
+  finally{btn.disabled=false}
+}
 $('#startSetupBtn').onclick=()=>startSetup();
 
 
