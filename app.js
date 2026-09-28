@@ -907,7 +907,7 @@ async function hydratePlayerSetup(panel,i){
   const guidanceLevel=selectedMode==='fully-tracked'?'guided':'standard';const player={playerId,displayName:name,guidanceLevel,settings:{handTracking},deck,commanders,privateHandOwnership:playerId};validateHydratedDeckOwnership(player);return {player,defs:hydrated.definitions};
 }
 function validatePlayerSetupRequiredFields(){
-  const panels=$('[data-player-setup]');
+  const panels=document.querySelectorAll('[data-player-setup]');
   const missing=[];
   panels.forEach((panel,i)=>{
     const label=`Player ${i+1}`;
@@ -943,7 +943,7 @@ async function startSetup(){
   if(!validatePlayerSetupRequiredFields())return;
   const btn=$('#startSetupBtn');btn.disabled=true;const progress=$('#setupProgress');if(progress){progress.classList.remove('bad');progress.textContent='Validating player setup…'}
   try{
-    const panels=$('[data-player-setup]'),players=[],defs={};
+    const panels=document.querySelectorAll('[data-player-setup]'),players=[],defs={};
     for(let i=0;i<panels.length;i++){const r=await hydratePlayerSetup(panels[i],i);players.push(r.player);r.defs.forEach(d=>defs[d.definitionId]=d)}
     for(const p of players)validateHydratedDeckOwnership(p);
     for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){const A=players[a],B=players[b];if(A.deck?.savedDeckId&&B.deck?.savedDeckId&&A.deck.savedDeckId!==B.deck.savedDeckId&&A.deck.manifestFingerprint===B.deck.manifestFingerprint)console.warn('Commander Companion: different saved deck IDs resolved to identical manifests.',{playerA:A.displayName,deckA:A.deck.sourceName,playerB:B.displayName,deckB:B.deck.sourceName})}
