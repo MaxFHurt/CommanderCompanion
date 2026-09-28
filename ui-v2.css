@@ -1061,3 +1061,21 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-name-field{grid-template-co
 .additional-player-rows{display:grid;gap:8px}
 .additional-player-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .additional-player-row input,.additional-player-row select{min-width:0}
+
+
+/* V0.8 KC — Landing primary action balance.
+   Shift the Start/Continue stack right so the open horizontal space between
+   the Commander Companion logo and the right frame is visually balanced.
+   Move Start down while preserving the existing two-button spacing rhythm. */
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn:not([hidden])){
+  right:8.0%!important;
+  top:12.0%!important;
+  width:35.5%!important;
+  height:61.5%!important;
+  row-gap:8%!important;
+}
+body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueBtn[hidden]){
+  right:8.0%!important;
+  top:31.5%!important;
+  width:35.5%!important;
+}
