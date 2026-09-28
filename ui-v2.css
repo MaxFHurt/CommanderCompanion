@@ -719,3 +719,19 @@ body.cc-ui-v2 #setupDialog#setupDialog#setupDialog .setup-saved{
   text-align:center!important;
   text-align-last:center!important;
 }
+
+
+/* V0.8 JN — Precon Catalog header/back sizing aligned to primary menu pages. */
+body.cc-ui-v2 #modal#modal#modal>.modal-shell{
+  grid-template-rows:14.2% minmax(0,1fr) 11.2%!important;
+  background:linear-gradient(180deg,rgba(64,14,82,.28) 0 14.2%,rgba(9,3,14,.98) 14.2% 100%),url('ui-forged-bg.svg') center/cover no-repeat!important;
+}
+body.cc-ui-v2 #modal#modal#modal>.modal-shell>header h2{
+  font-size:clamp(20px,3vw,42px)!important;
+}
+body.cc-ui-v2 #modal#modal#modal .modal-back-row{
+  left:3.5%!important;
+  top:2.5%!important;
+  width:15.5%!important;
+  height:9.0%!important;
+}
