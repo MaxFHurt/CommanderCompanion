@@ -2,7 +2,7 @@ import { durableGet, durableSet } from './userdata-db.js?v=0738';
 const KEY='ccv07-profile',DURABLE_KEY='profile';
 let cache=null;
 function newTokenId(){try{return crypto.randomUUID()}catch{return `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`}}
-function blank(){const now=new Date().toISOString();return {version:6,token:{id:newTokenId(),schema:6,createdAt:now,updatedAt:now},games:0,wins:0,awards:{},milestones:[],players:{},decks:{},history:[],account:{displayName:'',tagline:'',avatarGlyph:'CC',preferredPlayerNames:[],favoriteDeckId:'',createdAt:null,updatedAt:null}}}
+function blank(){const now=new Date().toISOString();return {version:6,token:{id:newTokenId(),schema:6,createdAt:now,updatedAt:now},games:0,wins:0,awards:{},milestones:[],players:{},decks:{},history:[],account:{displayName:'',tagline:'',avatarGlyph:'CC',avatarImage:'',preferredPlayerNames:[],favoriteDeckId:'',createdAt:null,updatedAt:null}}}
 function cleanName(x){return String(x||'Player').trim()||'Player'}
 function playerKey(name){return cleanName(name).toLowerCase()}
 function normalize(raw){
@@ -30,7 +30,7 @@ export function playerProfileToken(storage=globalThis.localStorage){
     deckLibrary:Object.values(p.decks||{}).map(d=>({id:d.id||'',name:d.name||'Untitled Deck',commander1:d.commander1||'',commander2:d.commander2||'',updatedAt:d.updatedAt||d.createdOrSavedAt||null}))
   });
 }
-export async function saveAccountProfile(account={},storage=globalThis.localStorage){const p=loadProfile(storage),now=new Date().toISOString();const names=(account.preferredPlayerNames||[]).map(x=>String(x||'').trim()).filter(Boolean).slice(0,6);p.account={...p.account,...account,displayName:String(account.displayName??p.account.displayName??'').trim(),tagline:String(account.tagline??p.account.tagline??'').trim().slice(0,80),avatarGlyph:String(account.avatarGlyph??p.account.avatarGlyph??'CC').trim().slice(0,3)||'CC',preferredPlayerNames:names,favoriteDeckId:String(account.favoriteDeckId??p.account.favoriteDeckId??''),createdAt:p.account.createdAt||now,updatedAt:now};await persistReliable(p,storage);return p}
+export async function saveAccountProfile(account={},storage=globalThis.localStorage){const p=loadProfile(storage),now=new Date().toISOString();const names=(account.preferredPlayerNames||[]).map(x=>String(x||'').trim()).filter(Boolean).slice(0,6);p.account={...p.account,...account,displayName:String(account.displayName??p.account.displayName??'').trim(),tagline:String(account.tagline??p.account.tagline??'').trim().slice(0,80),avatarGlyph:String(account.avatarGlyph??p.account.avatarGlyph??'CC').trim().slice(0,3)||'CC',avatarImage:String(account.avatarImage??p.account.avatarImage??''),preferredPlayerNames:names,favoriteDeckId:String(account.favoriteDeckId??p.account.favoriteDeckId??''),createdAt:p.account.createdAt||now,updatedAt:now};await persistReliable(p,storage);return p}
 export function accountSetupDefaults(storage=globalThis.localStorage){const p=loadProfile(storage),a=p.account||{};const inferred=Object.values(p.players||{}).sort((x,y)=>String(y.lastPlayedAt||'').localeCompare(String(x.lastPlayedAt||''))).map(x=>x.name).filter(Boolean);const names=[...(a.preferredPlayerNames||[]),a.displayName,...inferred].map(x=>String(x||'').trim()).filter(Boolean);return {displayName:a.displayName||'',tagline:a.tagline||'',avatarGlyph:a.avatarGlyph||'CC',playerNames:[...new Set(names)].slice(0,6),favoriteDeckId:a.favoriteDeckId||''}}
 
 export async function reconcileProfileDeckLibrary(decks=[],storage=globalThis.localStorage){

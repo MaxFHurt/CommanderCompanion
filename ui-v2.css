@@ -887,3 +887,16 @@ body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueGameBtn:
 body.cc-ui-v2 #landing#landing .landing079-primary-actions:has(#continueGameBtn:not([hidden])) button{
   width:100%!important;height:100%!important;
 }
+
+/* V0.8 JX — Player Profile single-page revamp */
+#modal.profile-page .modal-footer{display:flex}
+.profile-all-info{display:grid;gap:12px;padding:4px 8px}
+.profile-identity{display:grid;grid-template-columns:minmax(110px,18%) 1fr;gap:18px;align-items:center}
+.profile-identity>div{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.profile-avatar-image,.profile-emblem{width:112px;height:112px;border-radius:50%;object-fit:cover;border:2px solid #9c63bd;background:#09040d}
+.profile-avatar-upload{grid-column:1/-1}
+.profile-avatar-upload input{display:block;width:100%;margin-top:5px}
+.profile-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.profile-summary>div{text-align:center;border:1px solid #76508b;border-radius:12px;padding:8px;background:#0c0710}
+.profile-summary b{display:block;font-size:1.55em}.profile-summary span{font-size:.72em;letter-spacing:.08em}
+.profile-player-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
