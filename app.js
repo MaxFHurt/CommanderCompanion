@@ -905,7 +905,29 @@ async function hydratePlayerSetup(panel,i){
   const commanders=cmdDefs.map((d,n)=>({id:`${playerId}:commander:${n+1}`,cardId:d.definitionId,card:d}));
   const guidanceLevel=selectedMode==='fully-tracked'?'guided':'standard';const player={playerId,displayName:name,guidanceLevel,settings:{handTracking},deck,commanders,privateHandOwnership:playerId};validateHydratedDeckOwnership(player);return {player,defs:hydrated.definitions};
 }
-async function startSetup(){const btn=$('#startSetupBtn');btn.disabled=true;try{const panels=$$('[data-player-setup]');const players=[],defs={};for(let i=0;i<panels.length;i++){const r=await hydratePlayerSetup(panels[i],i);players.push(r.player);r.defs.forEach(d=>defs[d.definitionId]=d)}for(const p of players)validateHydratedDeckOwnership(p);for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){const A=players[a],B=players[b];if(A.deck?.savedDeckId&&B.deck?.savedDeckId&&A.deck.savedDeckId!==B.deck.savedDeckId&&A.deck.manifestFingerprint===B.deck.manifestFingerprint)console.warn('Commander Companion: different saved deck IDs resolved to identical manifests.',{playerA:A.displayName,deckA:A.deck.sourceName,playerB:B.displayName,deckB:B.deck.sourceName})}game=initializeGame({players,mode:selectedMode,deviceMode:'single-device'});game.cardDefinitions=defs;game.abilityCoverage=auditDefinitions(defs);game.status='active';game.rulesConfig=normalizeRulesConfig(pendingRules);game.players.forEach(p=>{p.life=Number(game.rulesConfig.startingLife||40);p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0};p.confirmations={draw:false}});engine=createAutosavingEngine(game);await Promise.all(game.players.map(p=>{const cmds=p.commanders.map(c=>game.cardDefinitions?.[c.cardId]?.name||'').filter(Boolean);return recordDeckSelection({playerName:p.displayName,deckId:p.deck?.savedDeckId||p.deck?.sourceId,deckName:p.deck?.sourceName||'Setup deck',commander1:cmds[0]||'',commander2:cmds[1]||'',source:p.deck?.sourceType||'setup'})}));save();$('#setupDialog').close();if(selectedMode==='fully-tracked'||(selectedMode==='freeplay'&&game.players.some(p=>p.settings?.handTracking)))openOpeningHands(0);else{showGame();toast('Game started — autosave active')}}catch(e){console.error('Commander Companion setup error:',e);$('#setupProgress').textContent=friendlySetupError(e);$('#setupProgress').classList.add('bad')}finally{btn.disabled=false}}
+function validatePlayerSetupRequiredFields(){
+  const panels=$('[data-player-setup]');
+  const missing=[];
+  panels.forEach((panel,i)=>{
+    const label=`Player ${i+1}`;
+    const name=panel.querySelector('.setup-name')?.value?.trim()||'';
+    const commander=panel.querySelector('.setup-cmd1')?.value?.trim()||'';
+    const deckText=panel.querySelector('.setup-deck')?.value?.trim()||'';
+    const selectedDeckId=panel.dataset.selectedDeckId||'';
+    const preconId=panel.dataset.selectedDeckSourceId||'';
+    const deckName=panel.dataset.selectedDeckName||'';
+    if(!name)missing.push(`${label}: Player Name`);
+    if(!commander)missing.push(`${label}: Commander`);
+    if(!(deckText||selectedDeckId||preconId||deckName))missing.push(`${label}: Deck`);
+  });
+  if(!missing.length)return true;
+  openModal('PLAYER SETUP INCOMPLETE',
+    `<p>You cannot continue until every player has a <b>Player Name</b>, <b>Commander</b>, and <b>Deck</b> selected.</p><p class="muted">${missing.map(x=>esc(x)).join('<br>')}</p>`,
+    [{label:'OK',onClick:closeModal}]
+  );
+  return false;
+}
+async function startSetup(){if(!validatePlayerSetupRequiredFields())return;const btn=$('#startSetupBtn');btn.disabled=true;try{const panels=$$('[data-player-setup]');const players=[],defs={};for(let i=0;i<panels.length;i++){const r=await hydratePlayerSetup(panels[i],i);players.push(r.player);r.defs.forEach(d=>defs[d.definitionId]=d)}for(const p of players)validateHydratedDeckOwnership(p);for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){const A=players[a],B=players[b];if(A.deck?.savedDeckId&&B.deck?.savedDeckId&&A.deck.savedDeckId!==B.deck.savedDeckId&&A.deck.manifestFingerprint===B.deck.manifestFingerprint)console.warn('Commander Companion: different saved deck IDs resolved to identical manifests.',{playerA:A.displayName,deckA:A.deck.sourceName,playerB:B.displayName,deckB:B.deck.sourceName})}game=initializeGame({players,mode:selectedMode,deviceMode:'single-device'});game.cardDefinitions=defs;game.abilityCoverage=auditDefinitions(defs);game.status='active';game.rulesConfig=normalizeRulesConfig(pendingRules);game.players.forEach(p=>{p.life=Number(game.rulesConfig.startingLife||40);p.mana.total={W:0,U:0,B:0,R:0,G:0,C:0};p.mana.available={W:0,U:0,B:0,R:0,G:0,C:0};p.confirmations={draw:false}});engine=createAutosavingEngine(game);await Promise.all(game.players.map(p=>{const cmds=p.commanders.map(c=>game.cardDefinitions?.[c.cardId]?.name||'').filter(Boolean);return recordDeckSelection({playerName:p.displayName,deckId:p.deck?.savedDeckId||p.deck?.sourceId,deckName:p.deck?.sourceName||'Setup deck',commander1:cmds[0]||'',commander2:cmds[1]||'',source:p.deck?.sourceType||'setup'})}));save();$('#setupDialog').close();if(selectedMode==='fully-tracked'||(selectedMode==='freeplay'&&game.players.some(p=>p.settings?.handTracking)))openOpeningHands(0);else{showGame();toast('Game started — autosave active')}}catch(e){console.error('Commander Companion setup error:',e);$('#setupProgress').textContent=friendlySetupError(e);$('#setupProgress').classList.add('bad')}finally{btn.disabled=false}}
 $('#startSetupBtn').onclick=()=>{if(selectedMode==='fully-tracked'){if($('#setupDialog')?.open)$('#setupDialog').close();return openModeSetup('fully-tracked','rules')}return startSetup()};
 
 
