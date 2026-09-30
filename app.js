@@ -1911,6 +1911,12 @@ async function openAdditionalPlayerInfo(){
     }}
   ]);
 }
+async function openProfileAchievements(){
+  await userDataReady;
+  const p=loadProfile();
+  const milestones=p.milestones||[],awards=Object.entries(p.awards||{}).sort((a,b)=>Number(b[1]||0)-Number(a[1]||0));
+  openModal('ACHIEVEMENTS',`<div class="profile-all-achievements">${milestones.length?`<h3>MILESTONES</h3><div class="profile-achievement-full-grid">${milestones.map(x=>`<div class="profile-achievement-card"><strong>${esc(x)}</strong></div>`).join('')}</div>`:''}${awards.length?`<h3>AWARDS</h3><div class="profile-achievement-full-grid">${awards.map(([k,v])=>`<div class="profile-achievement-card"><strong>${esc(k)}</strong><span>× ${Number(v||0)}</span></div>`).join('')}</div>`:''}${!milestones.length&&!awards.length?'<p class="muted">Play games to earn achievements.</p>':''}</div>`,[{label:'BACK',semantic:'back',onClick:openMyAccount}]);
+}
 async function openMyAccount(){
   await userDataReady;
   const p=loadProfile(),a=p.account||{},players=Object.values(p.players||{});
@@ -1918,11 +1924,17 @@ async function openMyAccount(){
     ?`<img class="profile-avatar-image" src="${esc(a.avatarImage)}" alt="Player avatar">`
     :`<div class="profile-emblem">CC</div>`;
   const winRate=p.games?Math.round((p.wins/p.games)*100):0;
+  const achievementRows=[
+    ...(p.milestones||[]).map((label,i)=>({label,count:1,kind:'milestone',rank:1000-i})),
+    ...Object.entries(p.awards||{}).map(([label,count])=>({label,count:Number(count||0),kind:'award',rank:Number(count||0)}))
+  ].sort((x,y)=>y.rank-x.rank||y.count-x.count).slice(0,3);
+  const allTrackedDecks=players.flatMap(player=>Object.values(player.decks||{}).map(deck=>({...deck,playerName:player.name||''})));
+  const mostPlayed=allTrackedDecks.sort((x,y)=>Number(y.games||0)-Number(x.games||0)||Number(y.selections||0)-Number(x.selections||0))[0]||null;
   openModal('PLAYER PROFILE',`
     <div class="profile-all-info">
       <aside class="profile-left-column">
         <div class="profile-avatar-slot">${avatar}<label class="profile-avatar-upload" aria-label="Upload avatar" title="Upload avatar"><span aria-hidden="true">↥</span><input id="accountAvatarImage" type="file" accept="image/*"></label></div>
-        <section class="profile-achievements"><h3>ACHIEVEMENTS</h3><div class="profile-achievement-content">${p.milestones?.map(x=>`<span class="status-pill">${esc(x)}</span>`).join(' ')||''}${Object.entries(p.awards||{}).map(([k,v])=>`<span class="status-pill">${esc(k)} × ${v}</span>`).join(' ')||''}${(!p.milestones?.length&&!Object.keys(p.awards||{}).length)?'<p class="muted">Play games to earn achievements.</p>':''}</div></section>
+        <section class="profile-achievements profile-most-played"><h3>MOST PLAYED DECK</h3><div class="profile-most-played-content">${mostPlayed?`<strong>${esc(mostPlayed.name||mostPlayed.id||'Deck')}</strong>${mostPlayed.commander1?`<span>${esc(mostPlayed.commander1)}${mostPlayed.commander2?` + ${esc(mostPlayed.commander2)}`:''}</span>`:''}<small>${Number(mostPlayed.games||0)} games${Number(mostPlayed.selections||0)?` • selected ${Number(mostPlayed.selections||0)} times`:''}</small>`:'<p class="muted">Play with a deck to establish your most played deck.</p>'}</div></section>
       </aside>
       <main class="profile-main-column">
         <div class="profile-name-row"><input class="profile-name-field" id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name" aria-label="Player name"><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">ADD ADDITIONAL PLAYER INFO</button></div>
@@ -1931,7 +1943,7 @@ async function openMyAccount(){
           <div><b>${p.wins||0}</b><span>WINS</span></div>
           <div><b>${winRate}%</b><span>WIN RATE</span></div>
         </section>
-        <section class="profile-history-section"><h3>PLAYER HISTORY</h3><div class="profile-player-list">${players.map(x=>{const wr=x.games?Math.round((x.wins/x.games)*100):0;return `<div class="zone-row"><h3>${esc(x.name)}</h3><p>${x.games||0} games • ${x.wins||0} wins • ${wr}% win rate</p></div>`}).join('')||'<p class="muted">Player history appears after completed games.</p>'}</div></section>
+        <section class="profile-history-section profile-achievement-showcase" id="profileAchievementShowcase" role="button" tabindex="0" aria-label="View all achievements"><h3>ACHIEVEMENTS</h3><div class="profile-top-achievements">${achievementRows.length?achievementRows.map(x=>`<div class="profile-achievement-card"><strong>${esc(x.label)}</strong>${x.kind==='award'&&x.count>1?`<span>× ${x.count}</span>`:''}</div>`).join(''):'<p class="muted">Play games to earn achievements.</p>'}</div></section>
       </main>
     </div>`,[
       {label:'LOAD PROFILE',semantic:'custom',onClick:()=>loadProfileFileFromPicker()},
@@ -1946,6 +1958,9 @@ async function openMyAccount(){
     return true;
   };
   $('#addAdditionalPlayerInfo').onclick=()=>openAdditionalPlayerInfo();
+  const achievementShowcase=$('#profileAchievementShowcase');
+  const openAllAchievements=()=>openProfileAchievements();
+  if(achievementShowcase){achievementShowcase.onclick=openAllAchievements;achievementShowcase.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openAllAchievements()}}}
   fileInput.onchange=()=>{
     const file=fileInput.files?.[0];if(!file)return;
     const reader=new FileReader();
