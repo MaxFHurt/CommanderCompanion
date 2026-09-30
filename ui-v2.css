@@ -1207,3 +1207,17 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-top-achievements{
 .profile-achievement-card span{font-size:clamp(9px,.85vw,13px)}
 .profile-achievement-full-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .profile-all-achievements>h3{margin:10px 0 6px}
+
+
+/* V0.8 KH — keep empty Achievements message fully visible. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-achievement-showcase .profile-top-achievements > .muted:only-child{
+  grid-column:1 / -1!important;
+  align-self:center!important;
+  justify-self:center!important;
+  margin:0!important;
+  padding:0 14px!important;
+  font-size:clamp(13px,1.25vw,19px)!important;
+  line-height:1.25!important;
+  text-align:center!important;
+  white-space:normal!important;
+}
