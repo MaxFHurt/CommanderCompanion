@@ -1148,3 +1148,30 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{
   line-height:1!important;
   font-weight:800!important;
 }
+
+
+/* V0.8 KF — avatar upload pill overlapping avatar. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload{
+  width:54px!important;
+  height:26px!important;
+  margin-top:-11px!important;
+  position:relative!important;
+  z-index:2!important;
+  display:grid!important;
+  place-items:center!important;
+  border:1px solid #76508b!important;
+  border-radius:999px!important;
+  background:#09040d!important;
+  cursor:pointer!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{
+  display:grid!important;
+  place-items:center!important;
+  width:100%!important;
+  height:100%!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:999px!important;
+  font-size:18px!important;
+  line-height:1!important;
+}
