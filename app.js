@@ -28,11 +28,11 @@ import { buildStrategyAdvice } from './strategy-advisor.js?v=07974';
 import { getAvailableActions } from './available-actions.js?v=07974';
 import { analyzeDeck, deckAnalyticsHtml } from './deck-analytics.js?v=07964';
 
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const $=s=>document.querySelector(s), $=s=>[...document.querySelectorAll(s)];
 const STORAGE_KEY='commander-companion-v0.7';
 let game=null,engine=null,selectedMode='fully-tracked',editingDeckId=null,editingDeckImportMeta=null,network=null,chat=[],lastSaveError=null,statusCycleTimer=null,inspectedPlayerId=null,pendingRules={...DEFAULT_COMMANDER_RULES};const approvalCallbacks=new Map();const hostApprovals=new Map();
 const definitionsMap=()=>new Map(Object.entries(game?.cardDefinitions||{}));
-const userDataReady=(async()=>{const init=await Promise.allSettled([initDeckStore(),initProfileStore()]);try{await reconcileProfileDeckLibrary(listDecks())}catch(e){console.warn('Commander Companion profile/deck reconciliation skipped:',e)}return init})();
+const userDataReady=(async()=>{const init=await Promise.allSettled([initDeckStore(),initProfileStore()]);try{await reconcileProfileDeckLibrary(listDecks())}catch(e){console.warn('Commander Companion profile/deck reconciliation skipped:',e)}try{const defaults=loadProfile()?.account?.tableRuleDefaults;if(defaults)pendingRules=normalizeRulesConfig(defaults)}catch(e){console.warn('Commander Companion table defaults could not be loaded:',e)}return init})();
 
 function toast(msg,bad=false){const t=$('#toast');t.textContent=msg;t.classList.toggle('bad',bad);t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,2600)}
 function friendlySetupError(error){const raw=String(error?.message||error||'').trim();if(/quota|storage|exceeded|full/i.test(raw))return 'Local browser storage is temporarily unavailable. Setup can continue, but this game may not be saved until storage is available.';if(/fetch|network|failed to fetch|collection lookup|card search/i.test(raw))return 'Card lookup is temporarily unavailable. Already-saved local data remains available; retry the lookup when the connection recovers.';return raw||'Setup could not be completed. Check the highlighted setup fields and try again.'}
@@ -1898,16 +1898,32 @@ async function openPlayerStats(){
 }
 async function openAdditionalPlayerInfo(){
   await userDataReady;
-  const p=loadProfile(),rows=Object.values(p.players||{}),decks=listDecks();
-  const body=`<p class="muted">Save names and preferred decks for people you regularly play with. These become Player Setup placeholders; the player can still change them before starting.</p>
-    <div id="additionalPlayerRows" class="additional-player-rows">${Array.from({length:5},(_,i)=>{const row=rows[i]||{},linked=Object.values(row.decks||{}).sort((a,b)=>String(b.lastSelectedAt||b.lastPlayedAt||'').localeCompare(String(a.lastSelectedAt||a.lastPlayedAt||'')))[0]||{};return `<div class="additional-player-row" data-additional-player="${i}"><input class="additional-player-name" maxlength="32" value="${esc(row.name||'')}" placeholder="Additional player ${i+2} name"><select class="additional-player-deck"><option value="">Preferred deck (optional)</option>${decks.map(d=>`<option value="${esc(d.id)}" ${String(linked.id||'')===String(d.id)?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>`}).join('')}</div>`;
-  openModal('ADDITIONAL PLAYER INFO',body,[
-    {label:'CANCEL',onClick:openMyAccount},
-    {label:'SAVE',semantic:'save',onClick:async()=>{
-      const profile=loadProfile(),account=profile.account||{},names=[],prefs={};
-      document.querySelectorAll('[data-additional-player]').forEach(row=>{const name=row.querySelector('.additional-player-name')?.value.trim()||'',deckId=row.querySelector('.additional-player-deck')?.value||'';if(name){names.push(name);if(deckId)prefs[name.toLowerCase()]=deckId}});
-      await saveAccountProfile({...account,preferredPlayerNames:names,additionalPlayerDecks:prefs});
-      toast('Additional player info saved.');openMyAccount();
+  const p=loadProfile(),a=p.account||{},rows=Object.values(p.players||{}),decks=listDecks();
+  const ownerKey=String(a.displayName||'').trim().toLowerCase();
+  const others=rows.filter(x=>String(x.name||'').trim().toLowerCase()!==ownerKey);
+  const savedRules=normalizeRulesConfig(a.tableRuleDefaults||DEFAULT_COMMANDER_RULES);
+  const deckOptions=(selected='')=>`<option value="">Preferred deck (optional)</option>${decks.map(d=>`<option value="${esc(d.id)}" ${String(d.id)===String(selected)?'selected':''}>${esc(d.name)}</option>`).join('')}`;
+  const ownerRow=rows.find(x=>String(x.name||'').trim().toLowerCase()===ownerKey)||{};
+  const ownerDeck=Object.values(ownerRow.decks||{}).sort((x,y)=>Number(y.games||0)-Number(x.games||0)||Number(y.selections||0)-Number(x.selections||0))[0]||{};
+  const body=`<p class="muted">Set your usual table once. These defaults automatically set table rules for each new game, and the Rules page can still be modified for that game.</p>
+    <h3>PLAYERS</h3>
+    <div id="additionalPlayerRows" class="additional-player-rows">
+      <div class="additional-player-row table-default-owner" data-additional-player="0"><input class="additional-player-name" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player 1 name"><select class="additional-player-deck">${deckOptions(ownerDeck.id||a.favoriteDeckId||'')}</select></div>
+      ${Array.from({length:5},(_,i)=>{const row=others[i]||{},linked=Object.values(row.decks||{}).sort((x,y)=>Number(y.games||0)-Number(x.games||0)||Number(y.selections||0)-Number(x.selections||0))[0]||{};return `<div class="additional-player-row" data-additional-player="${i+1}"><input class="additional-player-name" maxlength="32" value="${esc(row.name||'')}" placeholder="Player ${i+2} name"><select class="additional-player-deck">${deckOptions(linked.id||'')}</select></div>`}).join('')}
+    </div>
+    <h3>GAME RULE DEFAULTS</h3>
+    <p class="muted">These automatically set table rules when a new game is created. They do not prevent changes on the Rules page.</p>
+    ${rulesEditorHtml(savedRules)}`;
+  openModal('TABLE DEFAULTS',body,[
+    {label:'BACK',semantic:'back',onClick:openMyAccount},
+    {label:'SAVE DEFAULTS',className:'primary',onClick:async()=>{
+      const entries=$$('[data-additional-player]').map((el,i)=>({name:el.querySelector('.additional-player-name')?.value.trim()||'',deckId:el.querySelector('.additional-player-deck')?.value||'',index:i})).filter(x=>x.name);
+      const displayName=entries[0]?.name||a.displayName||'';
+      const tableRuleDefaults=readRulesEditor();
+      await saveAccountProfile({displayName,avatarImage:a.avatarImage||'',preferredPlayerNames:entries.map(x=>x.name),favoriteDeckId:entries[0]?.deckId||a.favoriteDeckId||'',tableRuleDefaults});
+      for(const entry of entries){if(!entry.deckId)continue;const d=decks.find(x=>String(x.id)===String(entry.deckId));if(d)await recordDeckSelection({playerName:entry.name,deckId:d.id,deckName:d.name,commander1:d.commander1||'',commander2:d.commander2||'',source:'table-default'})}
+      pendingRules=normalizeRulesConfig(tableRuleDefaults);
+      toast('Table defaults saved');openMyAccount();
     }}
   ]);
 }
@@ -1937,7 +1953,7 @@ async function openMyAccount(){
         <section class="profile-achievements profile-most-played"><h3>MOST PLAYED DECK</h3><div class="profile-most-played-content">${mostPlayed?`<strong>${esc(mostPlayed.name||mostPlayed.id||'Deck')}</strong>${mostPlayed.commander1?`<span>${esc(mostPlayed.commander1)}${mostPlayed.commander2?` + ${esc(mostPlayed.commander2)}`:''}</span>`:''}<small>${Number(mostPlayed.games||0)} games${Number(mostPlayed.selections||0)?` • selected ${Number(mostPlayed.selections||0)} times`:''}</small>`:'<p class="muted">Play with a deck to establish your most played deck.</p>'}</div></section>
       </aside>
       <main class="profile-main-column">
-        <div class="profile-name-row"><input class="profile-name-field" id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name" aria-label="Player name"><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">ADD ADDITIONAL PLAYER INFO</button></div>
+        <div class="profile-name-row"><input class="profile-name-field" id="accountDisplayName" maxlength="32" value="${esc(a.displayName||'')}" placeholder="Player name" aria-label="Player name"><button type="button" id="addAdditionalPlayerInfo" class="profile-add-player">TABLE DEFAULTS</button></div>
         <section class="profile-summary">
           <div><b>${p.games||0}</b><span>GAMES</span></div>
           <div><b>${p.wins||0}</b><span>WINS</span></div>
