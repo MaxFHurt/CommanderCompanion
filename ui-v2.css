@@ -1175,3 +1175,35 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-avatar-upload span{
   font-size:18px!important;
   line-height:1!important;
 }
+
+
+/* V0.8 KG — Profile achievement showcase + most played deck. */
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-most-played-content{
+  height:calc(100% - 28px)!important;min-height:0!important;
+  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+  gap:6px!important;text-align:center!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-most-played-content strong{
+  font-size:clamp(15px,1.55vw,24px)!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-most-played-content span,
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-most-played-content small{
+  display:block!important;font-size:clamp(9px,.85vw,13px)!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-achievement-showcase{
+  cursor:pointer!important;
+}
+body.cc-ui-v2 #modal:has(.profile-all-info) .profile-top-achievements{
+  min-height:0!important;flex:1!important;
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:10px!important;align-items:stretch!important;
+}
+.profile-achievement-card{
+  min-width:0;border:1px solid #76508b;border-radius:10px;background:#0c0710;
+  padding:8px 10px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;text-align:center;
+}
+.profile-achievement-card strong{font-size:clamp(10px,1.05vw,16px);line-height:1.15}
+.profile-achievement-card span{font-size:clamp(9px,.85vw,13px)}
+.profile-achievement-full-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.profile-all-achievements>h3{margin:10px 0 6px}
