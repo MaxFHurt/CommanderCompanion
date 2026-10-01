@@ -1243,3 +1243,52 @@ body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel .card-se
 body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckCardSearchBtn{
   min-height:32px!important;padding:4px 16px!important;white-space:nowrap!important;
 }
+
+
+/* V0.8 KJ — maximize Deck List and place analytics message in footer. */
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-editor-grid>section{
+  grid-template-rows:auto minmax(0,1fr) auto!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-list-panel{
+  grid-column:1!important;
+  grid-row:2!important;
+  min-height:0!important;
+  height:100%!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-list-panel>label{
+  height:100%!important;
+  min-height:0!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckListInput{
+  flex:1 1 auto!important;
+  height:100%!important;
+  min-height:0!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel{
+  grid-column:2!important;
+  grid-row:2!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckEditorStatus{
+  grid-column:1 / -1!important;
+  grid-row:3!important;
+  min-height:0!important;
+  margin:0!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .modal-actions #deckAnalytics{
+  position:absolute!important;
+  left:auto!important;
+  right:18px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  width:min(27vw,420px)!important;
+  min-height:0!important;
+  max-height:44px!important;
+  overflow:auto!important;
+  margin:0!important;
+  padding:4px 8px!important;
+  font-size:clamp(9px,.8vw,13px)!important;
+  line-height:1.15!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .modal-actions{
+  position:relative!important;
+}
