@@ -147,7 +147,7 @@
           <section>
             <label>Deck Name<input id="deckNameInput"></label>
             <div class="setup-line"><label>Commander 1<input id="deckCommander1" readonly><button type="button" id="deckPickCommander1">SELECT FROM DECK</button></label><label id="deckCommander2Wrap" hidden>Commander 2<input id="deckCommander2" readonly><button type="button" id="deckPickCommander2">SELECT LEGAL PARTNER</button></label></div>
-            <div class="card-search-row"><input id="deckCardSearch" placeholder="Type a card name to add"><span>Card search</span></div><div id="deckCardResults" class="card-search-results compact-results"></div><label>Deck List<textarea id="deckListInput" rows="20"></textarea></label>
+            <div class="deck-list-panel"><label>Deck List<textarea id="deckListInput" rows="20"></textarea></label></div><div class="deck-card-search-panel"><label>Card Search</label><div class="card-search-row"><input id="deckCardSearch" placeholder="Type a card name to add"><button type="button" id="deckCardSearchBtn">SEARCH</button></div><div id="deckCardResults" class="card-search-results compact-results"><p class="muted">Search for a card to add it to this deck.</p></div></div>
             <div id="deckEditorStatus" class="progress-text"></div><div id="deckAnalytics" class="deck-analytics-wrap"><div class="muted">Validate the deck to calculate curve, land count, card types, and color identity.</div></div>
           </section>
         </div>
