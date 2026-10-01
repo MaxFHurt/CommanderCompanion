@@ -1221,3 +1221,25 @@ body.cc-ui-v2 #modal:has(.profile-all-info) .profile-achievement-showcase .profi
   text-align:center!important;
   white-space:normal!important;
 }
+
+
+/* V0.8 KI — Deck Editor: Deck List left, Card Search right. */
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-list-panel{
+  grid-column:1!important;grid-row:2 / span 2!important;min-height:0!important;display:flex!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-list-panel>label{
+  display:flex!important;flex-direction:column!important;min-height:0!important;width:100%!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel{
+  grid-column:2!important;grid-row:2 / span 2!important;min-height:0!important;
+  display:grid!important;grid-template-rows:auto auto minmax(0,1fr)!important;gap:6px!important;overflow:hidden!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel .card-search-row{
+  grid-column:auto!important;grid-row:auto!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel .card-search-results{
+  grid-column:auto!important;grid-row:auto!important;min-height:0!important;overflow:auto!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckCardSearchBtn{
+  min-height:32px!important;padding:4px 16px!important;white-space:nowrap!important;
+}
