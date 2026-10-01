@@ -1292,3 +1292,34 @@ body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .modal-actions #deckAnalytics{
 body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .modal-actions{
   position:relative!important;
 }
+
+
+/* V0.8 KK — compact Card Search directly below commander selector. */
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel{
+  align-self:start!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr)!important;
+  gap:5px!important;
+  margin-top:0!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog .deck-card-search-panel .card-search-row{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:6px!important;
+  align-items:center!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckCardSearch{
+  height:34px!important;
+  min-height:34px!important;
+  margin:0!important;
+}
+body.cc-ui-v2 #deckDialog#deckDialog#deckDialog #deckCardSearchBtn{
+  width:auto!important;
+  min-width:72px!important;
+  height:32px!important;
+  min-height:32px!important;
+  padding:2px 10px!important;
+  margin:0!important;
+  font-size:clamp(9px,.78vw,12px)!important;
+  line-height:1!important;
+}
