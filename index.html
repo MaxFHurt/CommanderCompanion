@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="game-threefix.css?v=080-iv">
   <link rel="stylesheet" href="ui-landscape-masters.css?v=080-iv">
   <link rel="stylesheet" href="game-mode-locked.css?v=080-iv">
-  <link rel="stylesheet" href="ui-v2.css?v=080-kc">
+  <link rel="stylesheet" href="ui-v2.css?v=080-kk">
 
 </head>
 <body class="cc-device-other-phone cc-ui-v2">
@@ -194,12 +194,12 @@
           await Promise.all(keys.filter(k=>k.startsWith('commander-companion-')).map(k=>caches.delete(k)));
         }
         const fresh=new URL(location.href);
-        if(hadController&&fresh.searchParams.get('ccFresh')!=='080-kc'){
-          fresh.searchParams.set('ccFresh','080-kc');
+        if(hadController&&fresh.searchParams.get('ccFresh')!=='080-kk'){
+          fresh.searchParams.set('ccFresh','080-kk');
           location.replace(fresh.toString());
           return;
         }
-        await import('./app.js?v=080-kc');
+        await import('./app.js?v=080-kk');
         if(!window.__ccAppReady)throw new Error('Application module loaded but initialization did not complete.');
         window.__ccBootComplete=true;
         const b=document.getElementById('bootError');if(b)b.hidden=true;
