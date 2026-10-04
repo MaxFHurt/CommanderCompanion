@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#050407">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Commander Companion">
+  <title>Commander Companion</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+  <div id="app" aria-live="polite"></div>
+  <div id="modalLayer" class="modal-layer" hidden></div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="rotateGate" class="rotate-gate" aria-hidden="true">
+    <img src="assets/img/ui/crest.png" alt="">
+    <strong>Rotate your device to landscape</strong>
+  </div>
+  <div id="bootError" class="boot-error" hidden>
+    <strong>Commander Companion could not start</strong>
+    <p id="bootErrorText"></p>
+    <button type="button" class="btn btn--confirm" onclick="location.reload()">Reload</button>
+  </div>
+  <script>
+    // Show a readable message instead of a blank screen if startup fails.
+    window.__ccReady = false;
+    function ccBootError(error) {
+      if (window.__ccReady) return;
+      var box = document.getElementById('bootError'), text = document.getElementById('bootErrorText');
+      text.textContent = (error && error.message) ? error.message : String(error || 'Unknown error');
+      box.hidden = false;
+    }
+    window.addEventListener('error', function (e) { if (e.error || e.message) ccBootError(e.error || e.message); });
+    window.addEventListener('unhandledrejection', function (e) { ccBootError(e.reason); });
+  </script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
