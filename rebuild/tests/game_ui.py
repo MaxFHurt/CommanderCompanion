@@ -12,6 +12,16 @@ for c in FIX['cards']:
         BY_NAME.setdefault(f['name'].lower(), c)
 
 
+async def jewel_go(page):
+    """Press the jewel; if it lays out options, take the one matching its label."""
+    label = (await page.locator('.jewel span').text_content()).strip()
+    await page.click('.jewel')
+    await page.wait_for_timeout(150)
+    act = {'PASS': 'pass', 'ATTACK': 'attack'}.get(label)
+    if act and await page.locator('.jewel-options').count():
+        await page.click(f'.jewel-options [data-opt-act="{act}"]')
+
+
 async def mock_scryfall(page):
     async def collection(route):
         body = json.loads(route.request.post_data or '{}')
@@ -100,7 +110,7 @@ async def pass_all(page, limit=8):
             return
         jewel = page.locator('.jewel:not([disabled]) span')
         if await jewel.count() and (await jewel.text_content()).strip() == 'PASS':
-            await page.click('.jewel')
+            await jewel_go(page)
         else:
             return
 
@@ -181,7 +191,7 @@ async def flow(browser, device, tag):
     await page.click('[data-act="next-phase"]')
     await page.wait_for_timeout(300)
     check('jewel says ATTACK', (await page.locator('.jewel span').text_content()).strip() == 'ATTACK')
-    await page.click('.jewel')
+    await jewel_go(page)
     await page.wait_for_selector('.combat-list')
     await page.click('[data-all]:has-text("Lex")')
     await page.screenshot(path=f'{OUT}{tag}-attack.png')
@@ -195,7 +205,7 @@ async def flow(browser, device, tag):
         if await page.locator('.block-row').count():
             break
         if (await page.locator('.jewel span').text_content()).strip() == 'PASS':
-            await page.click('.jewel'); await page.wait_for_timeout(300)
+            await jewel_go(page); await page.wait_for_timeout(300)
     await page.wait_for_selector('.block-row')
     await page.screenshot(path=f'{OUT}{tag}-blocks.png')
     await page.click('#blockConfirm')
@@ -203,7 +213,7 @@ async def flow(browser, device, tag):
         await page.wait_for_timeout(250)
         await tap_curtain(page)
         if await page.locator('.jewel:not([disabled])').count() and (await page.locator('.jewel span').text_content()).strip() == 'PASS':
-            await page.click('.jewel')
+            await jewel_go(page)
     life = await page.locator('.opp__life').first.text_content()
     check('Lex took combat damage', int(life) < 46, life)
     await page.screenshot(path=f'{OUT}{tag}-after-combat.png')

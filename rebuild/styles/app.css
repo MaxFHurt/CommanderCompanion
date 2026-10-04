@@ -1297,3 +1297,11 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   .game__next img { height: 3rem; }
   .game__bar { min-height: 4.3rem; }
 }
+
+/* ── 21. Jewel options ───────────────────────────────────────────────────────── */
+.option__best { margin-left: 0.6rem; padding: 0.1rem 0.6rem; border-radius: 1rem; background: var(--gold); color: #1a1004; font: 800 0.85rem/1.5 var(--font-head); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; vertical-align: middle; }
+.jewel-options .option small { display: block; margin-top: 0.25rem; white-space: normal; line-height: 1.35; }
+.jewel > span { font-size: 1.05rem; letter-spacing: 0.08em; }
+.tip span { -webkit-line-clamp: 3; }
+@media (min-width: 1000px) and (min-height: 700px) { .jewel > span { font-size: 1.2rem; } }
+@media not all and (min-width: 1000px) and (min-height: 700px) { .jewel > span { font-size: 0.92rem; } .tip span { -webkit-line-clamp: 2; } }

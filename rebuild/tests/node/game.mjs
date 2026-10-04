@@ -385,8 +385,17 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   t.keepAll();
   t.give(0, 'Plains');
   const c = t.view(0).coach;
-  check('coach suggests the land drop in main phase', c.headline === 'Play a land' && c.jewel?.label === 'LAND', JSON.stringify(c));
+  check('coach suggests the land drop in main phase', c.headline === 'Play a land' && c.jewel?.label === 'PLAY LAND', JSON.stringify(c));
   t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
   check('coach stops suggesting a land after the drop', t.view(0).coach.headline !== 'Play a land', t.view(0).coach.headline);
+}
+{
+  const t = newGame(['white', 'simic']);
+  t.keepAll();
+  t.give(0, 'Plains'); t.give(0, 'Evolving Wilds');
+  const c = t.view(0).coach;
+  check('coach lists every playable land as an option', c.options.filter(o => /^Play /.test(o.label)).length >= 2, JSON.stringify(c.options));
+  check('coach explains its land suggestion', /Suggested|about equal|only land/.test(c.detail) && c.options[0].best && c.options[0].sub.length > 20, c.detail);
+  check('coach options include moving on', c.options.some(o => o.act === 'next-phase') && c.options.some(o => o.act === 'end-turn'));
 }
 done();

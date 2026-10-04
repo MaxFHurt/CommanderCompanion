@@ -290,23 +290,30 @@ export const gameScreen = {
     }
 
     // ── input ──────────────────────────────────────────────────────────────────
-    function doJewel(view) {
-      const j = view.coach?.jewel;
-      if (!j) return;
-      switch (j.act) {
+    function runOption(view, o) {
+      switch (o.act) {
         case 'pass': return send({ type: 'pass' });
         case 'next-phase': return send({ type: 'next-phase' });
         case 'end-turn': return endTurn(view);
         case 'attack': return openAttack(ctx);
-        case 'suggest':
-          ui.highlight = new Set(j.ids || []);
-          render();
-          if ((j.ids || []).length === 1) openCardDetail(ctx, j.ids[0]);
-          else toast('Glowing cards can be played now. Tap one to read it.');
-          return;
-        case 'guided': return openPrompt(view, { manual: true });
+        case 'card': ui.highlight = new Set([o.id]); render(); return openCardDetail(ctx, o.id);
         default: return openPrompt(view, { manual: true });
       }
+    }
+
+    /** The jewel always lays out everything the player can do, with the suggestion first. */
+    function doJewel(view) {
+      const j = view.coach?.jewel;
+      if (!j) return;
+      const opts = view.coach.options || [];
+      if (!opts.length) return runOption(view, { act: j.act });
+      if (opts.length === 1) return runOption(view, opts[0]);
+      if (j.ids) { ui.highlight = new Set(j.ids); render(); }
+      openModal({
+        title: 'What you can do now', size: 'small',
+        body: html`<div class="option-list jewel-options">${opts.map((o, i) => html`<button type="button" class="option ${o.best ? 'is-on' : ''}" data-opt="${i}" data-opt-act="${o.act}"><span><strong>${o.label}${o.best ? html` <em class="option__best">Suggested</em>` : ''}</strong>${o.sub ? html`<small>${o.sub}</small>` : ''}</span></button>`)}</div>`,
+        onMount(el, { close }) { on(el, 'click', '[data-opt]', (event, b) => { close(); runOption(view, opts[Number(b.dataset.opt)]); }); }
+      });
     }
 
     async function endTurn(view) {
