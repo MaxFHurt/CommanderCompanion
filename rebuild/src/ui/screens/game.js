@@ -155,26 +155,26 @@ export const gameScreen = {
               ${lands.length ? lands.map(c => cardHtml(c, view.defs[c.def], { cls: `card--land ${glow(c)}`, zone: 'battlefield' })) : html`<p class="zone__empty">No lands yet.</p>`}
             </div>
           </div>
-          <div class="hand-hub zone--hand">
-            <span class="hand-hub__hot hand-hub__hot--mid" style="left:50.6%" aria-hidden="true"><img src="assets/img/ui/crest.png" alt=""></span>
-            <span class="hand-hub__count" style="left:76.4%"><b>${focus.handCount}</b><small>HAND</small></span>
+          <div class="zone zone--hand">
+            <header class="zone__head"><h3>${judge ? 'Hand' : 'Your Hand'} <small>${focus.handCount}</small></h3></header>
             <div class="zone__cards" data-keep-scroll="hand">
               ${focus.hand ? (focus.hand.length ? focus.hand.map(c => cardHtml(c, view.defs[c.def], { cls: `card--hand ${glow(c)}`, zone: 'hand' })) : html`<p class="zone__empty">Your hand is empty.</p>`)
-                : html`<div class="hand-backs">${Array.from({ length: Math.min(focus.handCount, 12) }, () => cardBackHtml())}<p class="zone__empty">Hands are hidden on the host display.</p></div>`}
+                : html`<div class="hand-backs">${Array.from({ length: Math.min(focus.handCount, 12) }, () => cardBackHtml())}</div>`}
             </div>
-          </div>`}
+          </div>
+          <button type="button" class="tip ${showCoach ? '' : 'is-quiet'}" data-act="coach">
+            <b>${coach.headline || ''}</b>
+            ${settings.guidance === 'coach' || prompt.kind !== 'turn' ? html`<span>${coach.detail || ''}</span>` : ''}
+          </button>`}
           <footer class="game__bar">
             <button type="button" class="phase-box" data-act="phase-info">
               <b>Turn ${view.turn} — ${view.phaseLabel}</b>
               <span class="phase-track">${PHASE_STEPS.map(([k, label]) => html`<i class="${phaseKey(view.phase) === k ? 'is-on' : ''}" title="${label}"></i>`)}</span>
             </button>
-            <div class="coach ${showCoach ? '' : 'is-quiet'}" data-act="coach">
-              <b>${coach.headline || ''}</b>
-              ${settings.guidance === 'coach' || prompt.kind !== 'turn' ? html`<span>${coach.detail || ''}</span>` : ''}
-            </div>
             ${judge ? html`
             <button type="button" class="btn" data-act="tools">Host Tools</button>` : html`
             <button type="button" class="jewel ${jewel ? '' : 'is-idle'}" data-act="jewel" ${jewel ? '' : raw('disabled')}>
+              <i class="jewel__gem"></i>
               <span>${jewel?.label || (prompt.kind === 'waiting' ? 'WAIT' : '•')}</span>
               <small data-timer></small>
             </button>

@@ -58,7 +58,7 @@ async def main():
         await a.wait_for_selector('.zone--hand .card')
         await a.wait_for_function("document.querySelectorAll('.zone--hand .card').length === 8")
         check('Aaron drew for turn (8 cards)', True)
-        check('Lex is waiting', 'Aaron' in await b.locator('.coach').text_content())
+        check('Lex is waiting', 'Aaron' in await b.locator('.tip').text_content())
         check('client has no host tools', await a.locator('[data-act="tools"]').count() == 0)
         # Aaron plays a land if he has one; otherwise just pass the turn.
         land = a.locator('.zone--hand .card.is-playable').first
