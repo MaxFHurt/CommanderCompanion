@@ -204,7 +204,7 @@ export const gameScreen = {
             <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
           </div>
         </aside>
-        ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><span>${coach.headline || ''}</span><em>Tap when ready</em></button>` : ''}
+        ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
       </main>`);
 
       for (const el of root.querySelectorAll('[data-keep-scroll]')) {

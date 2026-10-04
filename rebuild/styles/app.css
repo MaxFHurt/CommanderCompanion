@@ -1495,3 +1495,5 @@ body::before {
 .landing__foot { text-shadow: 0 1px 2px #000; }
 /* backdrop reaches the physical bottom edge, even where the page is reported short */
 body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
+/* The app fills exactly the visible page: never taller, so nothing is pushed under the device's own bars. */
+#app { height: auto; min-height: 0; }
