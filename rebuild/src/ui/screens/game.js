@@ -75,7 +75,8 @@ export const gameScreen = {
       const attached = focus.battlefield.filter(c => c.attachedTo).length;
       const respond = new Set([...(view.actions.respond?.cards || []), ...(view.actions.respond?.abilities || [])]);
       const glow = c => (ui.highlight.has(c.id) ? 'is-suggested' : '') + (respond.has(c.id) ? ' is-playable' : '');
-      const showCoach = settings.guidance !== 'rules' && view.mode !== 'freeplay' || prompt.kind !== 'turn';
+      const advice = view.players.find(p => p.playerId === view.you)?.advice !== false;
+      const showCoach = true;
       const jewel = coach.jewel;
       const chatNew = (view.chat?.length || 0) - ui.chatSeen;
       const endLabel = view.phase === 'postcombat-main';
@@ -164,7 +165,7 @@ export const gameScreen = {
           </div>
           <button type="button" class="tip ${showCoach ? '' : 'is-quiet'}" data-act="coach">
             <b>${coach.headline || ''}</b>
-            ${settings.guidance === 'coach' || prompt.kind !== 'turn' ? html`<span>${coach.detail || ''}</span>` : ''}
+            ${advice ? html`<span>${coach.detail || ''}</span>` : ''}
           </button>`}
           <footer class="game__bar">
             <button type="button" class="phase-box" data-act="phase-info">
@@ -343,7 +344,7 @@ export const gameScreen = {
         case 'counters': return openPlayerInfo(ctx, focusId);
         case 'sort': ui.sort = ui.sort === 'played' ? 'type' : ui.sort === 'type' ? 'power' : 'played'; return render();
         case 'jewel': return doJewel(view);
-        case 'coach': return view.coach?.tip && loadSettings().tips !== false ? toast(`Tip: ${view.coach.tip}`, { ms: 5200 }) : doJewel(view);
+        case 'coach': return view.coach?.tip && view.players.find(p => p.playerId === view.you)?.advice !== false ? toast(`Tip: ${view.coach.tip}`, { ms: 5200 }) : doJewel(view);
         case 'phase-info': return openJudge({ query: view.phaseLabel.toLowerCase().includes('main') ? 'main phase' : view.phaseLabel.toLowerCase() });
         case 'next-phase': return send({ type: 'next-phase' });
         case 'end-turn': return endTurn(view);

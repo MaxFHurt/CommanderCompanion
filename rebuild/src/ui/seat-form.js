@@ -40,6 +40,9 @@ export function seatFormHtml(seat, index) {
           <input class="input" data-field="commander2" maxlength="80" placeholder="Second commander" value="${seat.commander2}" autocomplete="off">
         </label>
       </div>
+      <div class="field">Advice
+        <button type="button" class="option ${seat.advice !== false ? 'is-on' : ''}" data-seat-act="advice"><span><strong>Advice ${seat.advice !== false ? 'on' : 'off'}</strong><small>${seat.advice !== false ? 'The tip bar always suggests a move for this player and explains why.' : 'The tip bar only says what the game is waiting for. No suggestions.'}</small></span><span class="option__end">${seat.advice !== false ? 'On' : 'Off'}</span></button>
+      </div>
       <div class="field">Playmat
         <div class="mat-pick">${availableMats().map(m => html`<button type="button" class="mat-thumb ${seat.matId === m.id ? 'is-on' : ''}" data-seat-act="mat" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}</div>
       </div>
@@ -60,6 +63,7 @@ function applyDeck(seat, { name, list, commander1 = '', commander2 = '', id = ''
 
 /** Handle a [data-seat-act] click. Calls redraw() after the seat changed. */
 export function handleSeatAction(act, el, seat, redraw) {
+  if (act === 'advice') { seat.advice = seat.advice === false; return redraw(); }
   if (act === 'mat') { seat.matId = el.dataset.mat; return redraw(); }
   if (act === 'view') {
     return openModal({ title: seat.deckName || 'Deck', body: html`<pre class="deck-text">${seat.deckList}</pre>` });

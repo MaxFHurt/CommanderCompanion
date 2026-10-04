@@ -101,6 +101,12 @@ export function createController(game, { onChange = () => {} } = {}) {
         tallyVote(actor);
         break;
       }
+      case 'set-advice': {
+        const p = playerById(game, actor.playerId);
+        if (!p) throw new GameError('Only a player can change their advice setting.');
+        p.settings = { ...(p.settings || {}), advice: !!intent.on };
+        break;
+      }
       case 'chat': {
         const text = String(intent.text || '').trim().slice(0, 240);
         if (!text) throw new GameError('Write a message first.');

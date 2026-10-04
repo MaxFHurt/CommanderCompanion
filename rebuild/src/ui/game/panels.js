@@ -207,13 +207,14 @@ const GUIDANCE = [['coach', 'Coach', 'Explains each step and suggests a move'], 
 export function openGameSettings(ctx, leave) {
   const view = ctx.view, s = loadSettings();
   const local = ctx.session.role === 'local';
+  const mine = view.players.find(p => p.playerId === view.you);
   openModal({
     title: 'Game settings',
     body: html`
       <h4 class="section-title">Guidance on this device</h4>
       <div class="grid-3">${GUIDANCE.map(([id, label, text]) => html`<button type="button" class="option ${s.guidance === id ? 'is-on' : ''}" data-guidance="${id}"><span><strong>${label}</strong><small>${text}</small></span></button>`)}</div>
       <div class="option-list">
-        <button type="button" class="option ${s.tips !== false ? 'is-on' : ''}" data-toggle="tips"><span><strong>Learning tips</strong><small>Tap the hint bar for a tip about the current step</small></span><span class="option__end">${s.tips !== false ? 'On' : 'Off'}</span></button>
+        ${mine ? html`<button type="button" class="option ${mine.advice !== false ? 'is-on' : ''}" data-advice="${mine.advice !== false ? '' : '1'}"><span><strong>Advice for ${mine.name}</strong><small>The tip bar always suggests a move and explains why</small></span><span class="option__end">${mine.advice !== false ? 'On' : 'Off'}</span></button>` : ''}
         ${local ? html`<button type="button" class="option ${s.handoff !== false ? 'is-on' : ''}" data-toggle="handoff"><span><strong>Hide hands when passing the device</strong><small>Shows a cover screen before the next player's hand appears</small></span><span class="option__end">${s.handoff !== false ? 'On' : 'Off'}</span></button>` : ''}
       </div>
       <h4 class="section-title">This game</h4>
@@ -227,6 +228,7 @@ export function openGameSettings(ctx, leave) {
     onMount(el, { close }) {
       const again = () => { close(); ctx.refresh(); openGameSettings(ctx, leave); };
       on(el, 'click', '[data-guidance]', (e, b) => { saveSettings({ guidance: b.dataset.guidance }); again(); });
+      on(el, 'click', '[data-advice]', async (e, b) => { await ctx.send({ type: 'set-advice', on: !!b.dataset.advice }); again(); });
       on(el, 'click', '[data-toggle]', (e, b) => { const k = b.dataset.toggle; saveSettings({ [k]: loadSettings()[k] === false }); again(); });
       on(el, 'click', '[data-do]', async (e, b) => {
         const what = b.dataset.do;

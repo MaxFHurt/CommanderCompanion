@@ -5,7 +5,7 @@ import { hydrateDeck } from '../data/card-cache.js';
 import { validateCommanderDeck, isCommanderEligible } from '../engine/rules.js';
 
 export function emptySeat(name = '') {
-  return { name, deckId: '', deckName: '', deckList: '', commander1: '', commander2: '', sourceType: 'custom', matId: 'default' };
+  return { name, deckId: '', deckName: '', deckList: '', commander1: '', commander2: '', sourceType: 'custom', matId: 'default', advice: true };
 }
 
 export function seatProblems(seat, index) {
@@ -41,7 +41,7 @@ export async function prepareSeat(seat, { rules = {}, strict = true, onProgress 
   return {
     ok: !errors.length, errors, warnings,
     seat: {
-      name, deckName: seat.deckName || 'Custom deck', deckId: seat.deckId || null, sourceType: seat.sourceType || 'custom', matId: seat.matId || null,
+      name, deckName: seat.deckName || 'Custom deck', deckId: seat.deckId || null, sourceType: seat.sourceType || 'custom', matId: seat.matId || null, advice: seat.advice !== false,
       manifest: hydrated.manifest, commanderIds: commanders.map(d => d.definitionId), definitions: hydrated.definitions,
       commanderNames: commanders.map(d => d.name), total: hydrated.total
     }

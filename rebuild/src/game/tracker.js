@@ -13,8 +13,14 @@ export const MANA_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Gre
 /** Statuses only one player can hold at a time. */
 const EXCLUSIVE_STATUSES = new Set(['Monarch', 'The Initiative']);
 export const STATUS_PRESETS = ['Monarch', 'The Initiative', "City's Blessing", 'Day', 'Night', 'Ring-bearer', 'Stunned', 'Blessed'];
-export const PLAYER_COUNTER_PRESETS = ['Energy', 'Experience', 'Rad', 'Luck', 'Wish', 'Ticket'];
-export const CARD_COUNTER_PRESETS = ['+1/+1', '-1/-1', 'Charge', 'Loyalty', 'Shield', 'Stun', 'Lore', 'Time'];
+export const PLAYER_COUNTER_PRESETS = ['Energy', 'Experience', 'Rad', 'Ticket', 'Storm count', 'Treasure', 'Food', 'Clue', 'Blood', 'Luck', 'Wish'];
+// Counters that sit on a card, grouped the way the counter dice are sold.
+export const CARD_COUNTER_GROUPS = [
+  ['Power and toughness', ['+1/+1', '-1/-1', '+1/+0', '+0/+1', '+2/+2', '-0/-1']],
+  ['Ability counters', ['Flying', 'First strike', 'Double strike', 'Deathtouch', 'Hexproof', 'Indestructible', 'Lifelink', 'Menace', 'Reach', 'Trample', 'Vigilance', 'Haste']],
+  ['Other card counters', ['Loyalty', 'Charge', 'Shield', 'Stun', 'Lore', 'Time', 'Oil', 'Finality', 'Bounty', 'Quest', 'Level', 'Fade', 'Age', 'Storage', 'Verse', 'Defense', 'Divinity', 'Flood']]
+];
+export const CARD_COUNTER_PRESETS = CARD_COUNTER_GROUPS.flatMap(([, names]) => names);
 
 // Life-gain decks can run very high; this is only a guard against typos.
 const MAX_LIFE = 999999;

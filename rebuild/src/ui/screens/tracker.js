@@ -8,13 +8,14 @@ import { go } from '../../app/router.js';
 import { toast } from '../toast.js';
 import { openModal, confirmDialog } from '../modal.js';
 import { openJudge } from '../judge-modal.js';
+import { openCardId } from '../game/panels.js';
 import { saveRecord, loadRecord } from '../../data/store.js';
 import { playmatById, matStyle } from '../../data/playmats.js';
 import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { searchCards } from '../../data/card-api.js';
 import {
-  TRACKER_SAVE_KEY, MANA_COLORS, MANA_NAMES, STATUS_PRESETS, PLAYER_COUNTER_PRESETS, CARD_COUNTER_PRESETS,
+  TRACKER_SAVE_KEY, MANA_COLORS, MANA_NAMES, STATUS_PRESETS, PLAYER_COUNTER_PRESETS, CARD_COUNTER_PRESETS, CARD_COUNTER_GROUPS,
   trackerApply, trackerPlayer, lossHints, trackerToGameRecord
 } from '../../game/tracker.js';
 
@@ -80,30 +81,43 @@ export const trackerScreen = {
         <main class="tracker">
           <header class="tracker__head">
             <div class="tracker__turn">
+              <button type="button" class="btn-art" data-act="home" aria-label="Home"><img src="assets/img/ui/home.png" alt="Home"></button>
               <button type="button" class="btn btn--small" data-act="next-turn">Next Turn</button>
               <span id="trackerTurn"></span>
             </div>
             <div class="tracker__title">
               <h1 class="chrome-text">Table Tracker</h1>
-              <small>Physical table is authoritative • Adjust common values directly</small>
+              <small>Physical table is authoritative • Adjust values directly</small>
             </div>
             <div class="tracker__head-end">
-              <button type="button" class="btn btn--small" data-act="menu">Menu</button>
               <button type="button" class="btn-art" data-act="undo" aria-label="Undo"><img src="assets/img/ui/undo.png" alt="Undo"></button>
-              <button type="button" class="btn-art" data-act="home" aria-label="Home"><img src="assets/img/ui/home.png" alt="Home"></button>
+              <button type="button" class="btn-art" data-act="menu" aria-label="Settings"><img src="assets/img/ui/settings.png" alt="Settings"></button>
+              <button type="button" class="btn-art" data-act="profile" aria-label="Profile"><img src="assets/img/ui/profile.png" alt="Profile"></button>
             </div>
           </header>
           <div class="tracker__body">
             <section class="tracker__players" id="trackerPlayers"></section>
             <aside class="tlog">
               <div class="tlog__head">
-                <div class="tlog__title"><h2>Change Log</h2><small id="trackerLogCount"></small></div>
+                <div class="tlog__title"><h2>Game Log</h2><small id="trackerLogCount"></small></div>
                 <button type="button" class="judge-btn" data-act="judge"><img src="assets/img/ui/crest.png" alt="">Ask the Judge</button>
+                <button type="button" class="btn btn--small" data-act="card-id">Card ID</button>
               </div>
               <div class="tlog__list scroll-y" id="trackerLog"></div>
               <div class="tlog__foot"><button type="button" class="btn btn--small btn--ghost" data-act="clear-log">Clear Log</button></div>
             </aside>
           </div>
+          <footer class="tracker__foot">
+            <button type="button" class="btn-frame" data-act="tool" data-tool="players">Edit Players</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="decks">Edit Decks</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="stats">Game Stats</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="reset">Reset Game</button>
+            <i class="tracker__foot-sep"></i>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="counters">Counters</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="life">Life</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="status">Status</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="mana">Mana</button>
+          </footer>
         </main>`);
 
       const playersHost = $('#trackerPlayers', root);
@@ -117,17 +131,20 @@ export const trackerScreen = {
               <div class="tp__top">
                 <button type="button" class="tp__avatar" data-act="set-active" aria-label="Make active player"></button>
                 <input class="tp__name" data-act-input="name" maxlength="24" value="${p.name}" aria-label="Player name" autocomplete="off" spellcheck="false">
-                <button type="button" class="tp__statuses" data-act="status" aria-label="Status"></button>
+                <div class="tp__status-box"><span class="tp__label">Status</span><button type="button" class="tp__statuses" data-act="status" aria-label="Status"></button></div>
               </div>
               <div class="tp__mid">
                 <div class="tp__life tp__glass">
+                  <span class="tp__label tp__life-label">Life</span>
                   <button type="button" class="icon-btn" data-act="life" data-delta="-1" aria-label="Lose 1 life">−</button>
                   <button type="button" class="tp__life-value" data-act="life-editor" data-life aria-label="Edit life"></button>
                   <button type="button" class="icon-btn" data-act="life" data-delta="1" aria-label="Gain 1 life">+</button>
                 </div>
                 <div class="tp__counters tp__glass" data-part="counters"></div>
               </div>
+              <span class="tp__label tp__row-label">Mana (Available)</span>
               <div class="tp__mana-row" data-part="mana"></div>
+              <span class="tp__label tp__row-label" data-part="cards-label">Tracked Cards</span>
               <div class="tp__cards" data-part="cards"></div>
             </article>`)}
           <button type="button" class="judge-btn judge-btn--center" data-act="judge"><img src="assets/img/ui/crest.png" alt="">Ask the Judge</button>`);
@@ -149,7 +166,13 @@ export const trackerScreen = {
         card.classList.toggle('is-out', !!p.eliminated);
         card.setAttribute('style', `--player:${p.color};${matStyle(playmatById(p.matId))}`);
 
-        $('.tp__avatar', card).textContent = isActive ? '♛' : (p.name.trim()[0] || '?').toUpperCase();
+        const avatar = $('.tp__avatar', card);
+        const monarch = p.statuses.includes('Monarch');
+        avatar.classList.toggle('has-art', !!p.commander.image);
+        avatar.style.backgroundImage = p.commander.image ? `url('${p.commander.image}')` : '';
+        avatar.title = p.commander.name || '';
+        setHtml(avatar, html`${p.commander.image ? '' : (p.name.trim()[0] || '?').toUpperCase()}${monarch ? html`<i class="tp__crown">♛</i>` : ''}`);
+        loadCommanderArt(p);
         const nameInput = $('.tp__name', card);
         if (document.activeElement !== nameInput) nameInput.value = p.name;
 
@@ -160,7 +183,8 @@ export const trackerScreen = {
           hints.length ? html`<span class="chip chip--bad">${hints[0]}</span>` : ''
         ];
         const hasChips = p.statuses.length || p.poison > 0 || hints.length;
-        setHtml($('.tp__statuses', card), hasChips ? chips : html`<span class="chip chip--none">Status</span>`);
+        setHtml($('.tp__statuses', card), hasChips ? chips : html`<span class="chip chip--none">None</span>`);
+        $('[data-part="cards-label"]', card).textContent = `Tracked Cards (${p.cards.length})`;
 
         // Life: white normally, flashing green on gain and red on loss.
         const lifeEl = $('[data-life]', card);
@@ -213,6 +237,21 @@ export const trackerScreen = {
             </button>`;
           })}
           <button type="button" class="tcard tcard--add" data-act="card-add" aria-label="Track a card">+</button>`);
+      }
+
+      const artTried = new Set();
+      /** Look up art for a named commander once, so the player card shows it. */
+      function loadCommanderArt(p) {
+        const name = p.commander.name;
+        if (!name || p.commander.image || artTried.has(`${p.id}:${name}`)) return;
+        artTried.add(`${p.id}:${name}`);
+        searchCards(name, { allPrintings: false }).then(rows => {
+          const hit = rows.find(d => d.name.toLowerCase() === name.toLowerCase()) || rows[0];
+          const live = trackerPlayer(state, p.id);
+          if (disposed || !hit?.imageUris?.art_crop || !live || live.commander.name !== name) return;
+          live.commander.image = hit.imageUris.art_crop;
+          refreshPlayer(live); save();
+        }).catch(() => {});
       }
 
       function refreshLog() {
@@ -352,7 +391,12 @@ export const trackerScreen = {
               <div class="row">
                 <input class="input" id="customCounter" maxlength="28" placeholder="Custom counter name" autocomplete="off">
                 <button type="button" class="btn btn--small" data-pop="counter-custom">Add</button>
-              </div>`;
+              </div>
+              <h3 class="section-title">Counters that go on a card</h3>
+              <p class="muted">These sit on one specific card. Pick the counter, then choose the card it goes on.</p>
+              ${CARD_COUNTER_GROUPS.map(([group, names]) => html`
+                <span class="tp__label">${group}</span>
+                <div class="grid-3">${names.map(name => html`<button type="button" class="option option--slim" data-pop="counter-card" data-name="${name}"><strong>${name}</strong></button>`)}</div>`)}`;
           },
           handle(target, { el }) {
             const name = target.dataset.name;
@@ -360,6 +404,7 @@ export const trackerScreen = {
               case 'counter': act({ type: 'counter', playerId, name, delta: Number(target.dataset.delta) }); break;
               case 'counter-remove': act({ type: 'counter', playerId, name, remove: true }); break;
               case 'counter-add': act({ type: 'counter', playerId, name, set: 1 }); break;
+              case 'counter-card': pickCardForCounter(playerId, name); break;
               case 'counter-custom': {
                 const value = $('#customCounter', el).value.trim();
                 if (value) act({ type: 'counter', playerId, name: value, set: 1 });
@@ -368,6 +413,73 @@ export const trackerScreen = {
             }
           }
         });
+      }
+
+      /** A card counter must be anchored to a card: choose a tracked card, or track a new one first. */
+      function pickCardForCounter(playerId, name) {
+        const p = trackerPlayer(state, playerId);
+        openModal({
+          title: `${name} counter — which card?`, size: 'small',
+          body: html`
+            ${p.cards.length ? '' : html`<p class="muted">${p.name} has no tracked cards yet. Track the card first, then the counter goes on it.</p>`}
+            <div class="option-list">
+              ${p.cards.map(c => html`<button type="button" class="option" data-anchor="${c.id}"><span><strong>${c.name}</strong><small>${Object.entries(c.counters).map(([k, v]) => `${k} ×${v}`).join(' • ') || 'No counters yet'}</small></span></button>`)}
+              <button type="button" class="option" data-anchor="new"><span><strong>+ Track a new card…</strong><small>Add the card, then put the counter on it</small></span></button>
+            </div>`,
+          actions: [{ label: 'Cancel', kind: 'cancel' }],
+          onMount(el, { close }) {
+            on(el, 'click', '[data-anchor]', (event, b) => {
+              close();
+              if (b.dataset.anchor !== 'new') return void act({ type: 'card-counter', playerId, cardId: b.dataset.anchor, name, delta: 1 });
+              const before = new Set(p.cards.map(c => c.id));
+              openAddCard(playerId, () => {
+                const added = trackerPlayer(state, playerId).cards.find(c => !before.has(c.id));
+                if (added) act({ type: 'card-counter', playerId, cardId: added.id, name, delta: 1 });
+              });
+            });
+          }
+        });
+      }
+
+      function pickPlayer(title, onPick) {
+        openModal({
+          title, size: 'small',
+          body: html`<div class="option-list">${state.players.map(p => html`<button type="button" class="option ${p.id === state.activeId ? 'is-on' : ''}" data-pick="${p.id}"><span><strong>${p.name}</strong><small>${p.id === state.activeId ? 'Active player' : `Life ${p.life}`}</small></span></button>`)}</div>`,
+          actions: [{ label: 'Cancel', kind: 'cancel' }],
+          onMount(el, { close }) { on(el, 'click', '[data-pick]', (event, b) => { close(); onPick(b.dataset.pick); }); }
+        });
+      }
+
+      function openDecks() {
+        openModal({
+          title: 'Edit Decks', size: 'small',
+          body: html`<p class="muted">Name each player's commander. Its art appears on their card.</p>
+            <div class="kv-list">${state.players.map(p => html`<label class="field">${p.name}<input class="input" data-cmd="${p.id}" maxlength="60" placeholder="Commander name" value="${p.commander.name}" autocomplete="off"></label>`)}</div>`,
+          actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'Save', kind: 'confirm', onClick: ({ close, el }) => {
+            for (const input of el.querySelectorAll('[data-cmd]')) {
+              const p = trackerPlayer(state, input.dataset.cmd), name = input.value.trim();
+              if (p && name !== p.commander.name) { act({ type: 'commander', playerId: p.id, name }); trackerPlayer(state, p.id).commander.image = ''; }
+            }
+            close(); refresh();
+          } }]
+        });
+      }
+
+      function openStats() {
+        const dmg = p => Object.entries(p.commanderDamage || {}).filter(([, v]) => v > 0).map(([id, v]) => `${trackerPlayer(state, id)?.name || '?'} ${v}`).join(', ');
+        openModal({
+          title: 'Game Stats',
+          body: html`<p class="modal__message">Turn ${state.turn} • ${state.log.length} logged change${state.log.length === 1 ? '' : 's'}</p>
+            <div class="kv-list">${state.players.map(p => html`<div class="kv"><span><strong>${p.name}</strong>${p.commander.name ? ` — ${p.commander.name}` : ''}${p.eliminated ? ' (out)' : ''}<br>
+              <small class="muted">Poison ${p.poison} • Cmd tax ${p.commander.tax} • Cmd damage taken: ${dmg(p) || 'none'}<br>
+              Counters: ${Object.entries(p.counters).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'} • Tracked cards: ${p.cards.length}${p.statuses.length ? ` • ${p.statuses.join(', ')}` : ''}</small></span><b class="stepper__value">${p.life}</b></div>`)}</div>`,
+          actions: [{ label: 'End game…', kind: 'cancel', onClick: ({ close }) => { close(); openEndGame(); } }, { label: 'Done', kind: 'confirm' }]
+        });
+      }
+
+      async function resetGame() {
+        const ok = await confirmDialog({ title: 'Reset Game', message: 'Start a new game with the same players? Life, counters, mana, tracked cards and the log are cleared.', confirmLabel: 'Reset Game', danger: true });
+        if (ok) act({ type: 'reset' });
       }
 
       function openMana(playerId) {
@@ -397,11 +509,13 @@ export const trackerScreen = {
           render() {
             const card = find();
             if (!card) return html`<p class="muted">This card is no longer tracked.</p>`;
-            const names = [...new Set([...Object.keys(card.counters), ...CARD_COUNTER_PRESETS])];
             return html`
               <div class="kv-list">
-                ${names.map(name => html`<div class="kv"><span>${name}</span>${stepper('card-counter', card.counters[name] || 0, attr('data-name', name))}</div>`)}
+                ${Object.keys(card.counters).length ? Object.keys(card.counters).map(name => html`<div class="kv"><span>${name}</span>${stepper('card-counter', card.counters[name] || 0, attr('data-name', name))}</div>`) : html`<p class="muted">No counters on this card yet.</p>`}
               </div>
+              ${CARD_COUNTER_GROUPS.map(([group, list]) => html`
+                <span class="tp__label">${group}</span>
+                <div class="grid-3">${list.filter(n => !(n in card.counters)).map(name => html`<button type="button" class="option option--slim" data-pop="card-counter" data-delta="1" data-name="${name}"><strong>${name}</strong></button>`)}</div>`)}
               <div class="row">
                 <input class="input" id="customCardCounter" maxlength="28" placeholder="Custom counter name" autocomplete="off">
                 <button type="button" class="btn btn--small" data-pop="card-counter-custom">Add</button>
@@ -422,7 +536,7 @@ export const trackerScreen = {
         });
       }
 
-      function openAddCard(playerId) {
+      function openAddCard(playerId, onAdded) {
         let results = [], status = '', timer = null, token = 0;
         const modal = openModal({
           title: 'Track a Card',
@@ -466,12 +580,12 @@ export const trackerScreen = {
             const addTyped = () => {
               const name = input.value.trim();
               if (!name) return toast('Enter a card name.', { bad: true });
-              if (act({ type: 'card-add', playerId, name })) close();
+              if (act({ type: 'card-add', playerId, name })) { close(); onAdded?.(); }
             };
             on(el, 'click', '[data-add]', (event, target) => {
               if (target.dataset.add === 'typed') return addTyped();
               const d = results[Number(target.dataset.index)];
-              if (d && act({ type: 'card-add', playerId, name: d.name, image: d.imageUris?.art_crop || '' })) close();
+              if (d && act({ type: 'card-add', playerId, name: d.name, image: d.imageUris?.art_crop || '' })) { close(); onAdded?.(); }
             });
             input.focus();
           }
@@ -589,6 +703,18 @@ export const trackerScreen = {
           case 'undo': return void undo();
           case 'judge': return void openJudge();
           case 'menu': return void openMenu();
+          case 'card-id': return void openCardId({});
+          case 'profile': save.flush(); return void go('profile');
+          case 'tool': switch (el.dataset.tool) {
+            case 'players': return void openPlayers();
+            case 'decks': return void openDecks();
+            case 'stats': return void openStats();
+            case 'reset': return void resetGame();
+            case 'counters': return void pickPlayer('Counters — which player?', openCounters);
+            case 'life': return void pickPlayer('Life — which player?', openLifeEditor);
+            case 'status': return void pickPlayer('Status — which player?', openStatus);
+            case 'mana': return void pickPlayer('Mana — which player?', openMana);
+          } return;
           case 'home': save.flush(); return void go('landing');
           case 'clear-log':
             if (await confirmDialog({ title: 'Clear Log', message: 'Clear the change log for this table?', confirmLabel: 'Clear Log', danger: true })) act({ type: 'clear-log' });

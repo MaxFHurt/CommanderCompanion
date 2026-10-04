@@ -29,7 +29,7 @@ export function createGame({ mode = 'fully-tracked', deviceMode = 'single-device
     return {
       playerId, displayName: String(p.name || `Player ${i + 1}`).slice(0, 24), deck,
       commanders: (p.commanderIds || []).map((id, n) => ({ id: `${playerId}:commander:${n + 1}`, cardId: id })),
-      settings: { handTracking: true }, matId: p.matId || null, color: PLAYER_COLORS[i % PLAYER_COLORS.length],
+      settings: { handTracking: true, advice: p.advice !== false }, matId: p.matId || null, color: PLAYER_COLORS[i % PLAYER_COLORS.length],
       ownership: { local: !p.clientId, clientId: p.clientId || null }, profileName: p.profileName || null
     };
   });

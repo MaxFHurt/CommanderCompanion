@@ -4,7 +4,7 @@
 // release is picked up on the next load — no per-file cache tokens to maintain. The cache
 // is only used when the device is offline.
 
-const CACHE = 'commander-companion-v15';
+const CACHE = 'commander-companion-v16';
 
 self.addEventListener('install', () => self.skipWaiting());
 

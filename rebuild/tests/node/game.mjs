@@ -398,4 +398,12 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   check('coach explains its land suggestion', /Suggested|about equal|only land/.test(c.detail) && c.options[0].best && c.options[0].sub.length > 20, c.detail);
   check('coach options include moving on', c.options.some(o => o.act === 'next-phase') && c.options.some(o => o.act === 'end-turn'));
 }
+{
+  const t = newGame(['white', 'simic']);
+  t.keepAll();
+  check('advice is on by default', t.view(0).players[0].advice === true);
+  t.do(0, { type: 'set-advice', on: false });
+  check('a player can switch advice off', t.view(0).players[0].advice === false && t.view(1).players[1].advice === true);
+  check('coach always has advice text, even while waiting', !!t.view(1).coach.detail && !!t.view(0).coach.detail, JSON.stringify(t.view(1).coach));
+}
 done();

@@ -219,5 +219,10 @@ export function coachFor(game, view, me, active) {
       out.headline = prompt.text || 'Waiting';
       out.detail = active && view.you && active.playerId !== view.you ? 'You can still use instants and abilities when you get the chance to respond.' : '';
   }
+  if (!out.detail) {
+    out.detail = prompt.kind === 'vote' ? 'The table decides together. Say yes if the play looks fair to you.'
+      : view.status === 'complete' ? 'Start a new game from the main menu when you are ready.'
+      : 'Nothing for you to do yet. Watch the game log to follow what the other players do, and think about your next turn.';
+  }
   return out;
 }

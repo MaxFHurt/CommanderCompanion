@@ -1305,3 +1305,70 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .tip span { -webkit-line-clamp: 3; }
 @media (min-width: 1000px) and (min-height: 700px) { .jewel > span { font-size: 1.2rem; } }
 @media not all and (min-width: 1000px) and (min-height: 700px) { .jewel > span { font-size: 0.92rem; } .tip span { -webkit-line-clamp: 2; } }
+
+/* ── 22. Table Tracker: labels, commander art, tools bar, card row fit ───────── */
+.tracker { grid-template-rows: auto minmax(0, 1fr) auto; }
+.tracker__head .btn-art { height: 2.6rem; }
+.tracker__head .btn-art img { height: 100%; width: auto; }
+.tracker__turn { gap: 0.5rem; }
+.tracker__foot { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.tracker__foot .btn-frame { flex: 1 1 0; min-width: 0; min-height: 2.5rem; padding: 0 0.3rem; border-width: 0.55rem 0.8rem; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tracker__foot-sep { flex: none; width: 1px; height: 1.8rem; background: rgba(200, 180, 255, 0.5); margin: 0 0.2rem; }
+
+.tp { grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; gap: 0.2rem; }
+.tp__row-label { font-size: 0.72rem; margin-top: 0.1rem; text-shadow: 0 1px 2px #000; }
+.tp__avatar { position: relative; overflow: visible; background-size: cover; background-position: center 20%; }
+.tp__avatar.has-art { border-radius: 0.5rem; background-color: #120b24; border: 1px solid var(--player); }
+.tp.is-active .tp__avatar.has-art { background-color: #120b24; background-size: cover; border-color: var(--gold); }
+.tp__crown { position: absolute; right: -0.5rem; top: -0.6rem; width: 1.5rem; height: 1.5rem; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, var(--gold) 45%, #8a6511); color: #1a1004; font: 800 0.95rem/1 var(--font-ui); font-style: normal; box-shadow: 0 0 0.6rem var(--gold); }
+.tp__status-box { display: flex; align-items: center; gap: 0.4rem; min-width: 0; max-width: 60%; flex: 0 1 auto; }
+.tp__status-box .tp__label { flex: none; font-size: 0.72rem; }
+.tp__status-box .tp__statuses { max-width: none; flex: 1 1 auto; }
+.tp__life { position: relative; }
+.tp__life-label { position: absolute; left: 0; right: 0; top: 0.2rem; text-align: center; font-size: 0.72rem; pointer-events: none; }
+/* Tracked cards: the row is exactly one card tall, and the add cell matches it. */
+.tp__cards { align-items: stretch; height: 2.7rem; flex: none; overflow-y: hidden; }
+.tcard, .tcard--add { height: 100%; }
+
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-art { height: 3.3rem; }
+  .tracker__foot { gap: 0.6rem; }
+  .tracker__foot .btn-frame { min-height: 3.4rem; font-size: 1.1rem; border-width: 0.7rem 1rem; }
+  .tp { gap: 0.4rem; }
+  .tp__row-label, .tp__status-box .tp__label, .tp__life-label { font-size: 0.9rem; }
+  .tp__life-label { top: 0.5rem; }
+  .tp__avatar.has-art { width: 3.6rem; height: 3.6rem; }
+  .tp__cards { height: 5.4rem; }
+}
+@container (max-width: 25rem) { .tp__status-box .tp__label, .tp__row-label { display: none; } }
+.option--slim { min-height: 3.4rem; padding: 0.4rem 0.9rem; }
+.option--slim strong { font-size: 1.15rem; }
+/* tracker fit fixes */
+.tracker__head { grid-template-columns: auto minmax(0, 1fr) auto; }
+.tracker__title { overflow: hidden; }
+.tracker__title h1 { font-size: 1.6rem; overflow: hidden; text-overflow: ellipsis; }
+.tracker__turn span { max-width: 14rem; font-size: 1.05rem; }
+.tracker__foot .btn-frame { letter-spacing: 0.04em; }
+.tp__life-label { left: 0.5rem; right: auto; top: 0.25rem; text-align: left; }
+/* Phone with 3+ players: cards are short, so the small row labels give way to the values. */
+@media not all and (min-width: 1000px) and (min-height: 700px) {
+  .tracker__players:not([data-count="2"]) :is(.tp__row-label, .tp__life-label) { display: none; }
+  .tracker__title small { display: none; }
+}
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__title h1 { font-size: 2rem; }
+  .tracker__turn span { max-width: 20rem; font-size: 1.2rem; }
+  .tracker__foot .btn-frame { font-size: 0.95rem; }
+  .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 4.4rem; }
+  .tracker__players:not([data-count="2"]) .tp__cards { height: 4.2rem; }
+  .tracker__players:not([data-count="2"]) .tp__life { padding-top: 1.3rem; }
+  .tracker__players:not([data-count="2"]) .tcard { width: 6rem; }
+}
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-art { height: 2.9rem; }
+  .tracker__title h1 { font-size: 1.7rem; letter-spacing: 0.1em; }
+  .tracker__title small { display: none; }
+  .tracker__head-end { gap: 0.3rem; }
+}
+.tp { padding-bottom: 0.6rem; }
+@media (min-width: 1000px) and (min-height: 700px) { .tp { padding-bottom: 1.1rem; } }

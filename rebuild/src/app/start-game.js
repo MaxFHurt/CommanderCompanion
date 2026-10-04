@@ -81,7 +81,7 @@ export function buildGame({ mode, deviceMode = 'single-device', rules, firstPlay
   }
   const game = createGame({
     mode, deviceMode, rules, firstPlayer, definitions: defs,
-    players: seats.map(s => ({ name: s.name, manifest: s.manifest, commanderIds: s.commanderIds, deckName: s.deckName, deckId: s.deckId, sourceType: s.sourceType, matId: s.matId, clientId: s.clientId || null }))
+    players: seats.map(s => ({ name: s.name, manifest: s.manifest, commanderIds: s.commanderIds, deckName: s.deckName, deckId: s.deckId, sourceType: s.sourceType, matId: s.matId, advice: s.advice !== false, clientId: s.clientId || null }))
   });
   for (const s of seats) {
     recordDeckSelection({ playerName: s.name, deckId: s.deckId, deckName: s.deckName, commander1: s.commanderNames?.[0] || '', commander2: s.commanderNames?.[1] || '', source: s.sourceType }).catch(() => {});
