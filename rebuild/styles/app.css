@@ -1372,3 +1372,71 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 }
 .tp { padding-bottom: 0.6rem; }
 @media (min-width: 1000px) and (min-height: 700px) { .tp { padding-bottom: 1.1rem; } }
+
+/* ── 23. Table Tracker alignment pass ────────────────────────────────────────── */
+/* Top row: five identical gem pills, title truly centred with the turn under it. */
+.tracker__head { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.6rem; }
+.tracker__turn, .tracker__head-end { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.tracker__head-end { justify-content: flex-end; }
+.tracker__head .btn-pill { flex: 0 1 8.2rem; width: 8.2rem; min-width: 0; justify-content: center; }
+.tracker__head .btn-pill span { overflow: hidden; text-overflow: ellipsis; }
+.tracker__title { display: grid; justify-items: center; gap: 0.1rem; overflow: visible; }
+.tracker__title h1 { font-size: 1.6rem; overflow: visible; }
+.tracker__title small, .tracker__title small#trackerTurn { display: block; font: 700 0.9rem/1 var(--font-head); letter-spacing: 0.12em; text-transform: uppercase; color: #e9e4fb; }
+/* Ask the Judge and Card ID live together at the top of the log, same size. */
+.judge-btn--center { display: none !important; }
+.tracker__players ~ .tlog .tlog__head .judge-btn { display: inline-flex !important; justify-content: center; width: 100%; }
+/* Life box: label on its own line, then − value + centred on one axis. */
+.tp__life { display: grid; grid-template-columns: auto auto auto; grid-template-rows: auto minmax(0, 1fr); justify-content: center; align-items: center; column-gap: 0.5rem; row-gap: 0; }
+.tp__life-label { position: static; grid-column: 1 / -1; text-align: center; padding-top: 0.15rem; }
+.tp__life-value { line-height: 0.9; }
+.tracker__players:not([data-count="2"]) .tp__life { padding-top: 0.2rem; }
+/* Mana row: the pool and + Counter end exactly on the card's inner edges. */
+.tp__mana-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; gap: 0.5rem; }
+.tp__mana-row > :not(.tp__mana) { justify-self: end; align-self: center; }
+.tp__add-counter { margin: 0; max-width: 100%; }
+.tp__counters { align-self: stretch; }
+.tp__top { min-height: 2.6rem; }
+.tracker { padding-bottom: calc(0.7rem + var(--safe-b)); }
+.tracker__foot .btn-frame { min-height: 2.4rem; }
+
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-pill { flex-basis: 9.6rem; width: 9.6rem; }
+  .tracker__title h1 { font-size: 1.9rem; }
+  .tracker__title small, .tracker__title small#trackerTurn { display: block; font-size: 1rem; }
+  .tracker__foot .btn-frame { min-height: 3.2rem; }
+}
+@media not all and (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-pill { flex-basis: 7.4rem; width: 7.4rem; font-size: 0.85rem; }
+  .tracker__title small, .tracker__title small#trackerTurn { display: block; font-size: 0.8rem; }
+  .tracker__players:not([data-count="2"]) .tp__life { grid-template-rows: minmax(0, 1fr); }
+}
+/* pills keep their full label; all five share one width */
+.tracker__head .btn-pill { flex: none; width: 10.6rem; min-width: 0; }
+.tracker__head .btn-pill span { overflow: visible; }
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-pill { width: 11.6rem; font-size: 1rem; }
+  .tracker__players:not([data-count="2"]) .tp__life { padding: 0.25rem 0.6rem 0.35rem; }
+  .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 3.9rem; }
+}
+@media not all and (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-pill { width: 10.2rem; font-size: 0.85rem; }
+  .tracker__head { gap: 0.3rem; }
+  .tracker__turn, .tracker__head-end { gap: 0.3rem; }
+  .tracker__title h1 { font-size: 1.35rem; }
+  .tp__counters { padding: 0.1rem 0.5rem 0.15rem; gap: 0; }
+  .tp__counters-add { width: 1.8rem; height: 1.8rem; }
+  .tp__counters-empty { font-size: 0.9rem; line-height: 1.1; }
+}
+.tracker__head .btn-pill { width: 11.6rem; font-size: 0.8rem; letter-spacing: 0.04em; gap: 0.4rem; padding: 0; }
+.tracker__head .btn-pill svg { width: 1.15rem; height: 1.15rem; }
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__head .btn-pill { width: 13.2rem; font-size: 0.9rem; }
+  .tracker__title h1 { font-size: 1.7rem; letter-spacing: 0.1em; }
+}
+@media not all and (min-width: 1000px) and (min-height: 700px) { .tracker__head .btn-pill { width: 11.4rem; font-size: 0.8rem; } }
+.tracker__head .btn-pill span { font-size: inherit; max-width: none; }
+@media (min-width: 1000px) and (min-height: 700px) { .tracker__head .btn-pill { width: 12.2rem; font-size: 0.82rem; } }
+.tracker__head { grid-template-columns: auto minmax(0, 1fr) auto; }
+.tracker__turn, .tracker__head-end { flex: none; }
+@media (min-width: 1000px) and (min-height: 700px) { .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 3.5rem; } }

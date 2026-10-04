@@ -81,18 +81,17 @@ export const trackerScreen = {
         <main class="tracker">
           <header class="tracker__head">
             <div class="tracker__turn">
-              <button type="button" class="btn-art" data-act="home" aria-label="Home"><img src="assets/img/ui/home.png" alt="Home"></button>
-              <button type="button" class="btn btn--small" data-act="next-turn">Next Turn</button>
-              <span id="trackerTurn"></span>
+              <button type="button" class="btn-pill" data-act="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5V21h-6v-6H9v6H3z" fill="currentColor"/></svg><span>Home</span></button>
+              <button type="button" class="btn-pill" data-act="next-turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9 8-9 8zM16 4h3v16h-3z" fill="currentColor"/></svg><span>Next Turn</span></button>
             </div>
             <div class="tracker__title">
               <h1 class="chrome-text">Table Tracker</h1>
-              <small>Physical table is authoritative • Adjust values directly</small>
+              <small id="trackerTurn"></small>
             </div>
             <div class="tracker__head-end">
-              <button type="button" class="btn-art" data-act="undo" aria-label="Undo"><img src="assets/img/ui/undo.png" alt="Undo"></button>
-              <button type="button" class="btn-art" data-act="menu" aria-label="Settings"><img src="assets/img/ui/settings.png" alt="Settings"></button>
-              <button type="button" class="btn-art" data-act="profile" aria-label="Profile"><img src="assets/img/ui/profile.png" alt="Profile"></button>
+              <button type="button" class="btn-pill" data-act="undo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 3 10l6 5v-3.4h5a4 4 0 0 1 0 8H8v2.8h6a6.8 6.8 0 0 0 0-13.6H9z" fill="currentColor"/></svg><span>Undo</span></button>
+              <button type="button" class="btn-pill" data-act="menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6zm9 5.3v-3l-2.6-.5a7 7 0 0 0-.8-1.9l1.5-2.2-2.1-2.1-2.2 1.5a7 7 0 0 0-1.9-.8L13.500 2h-3l-.5 2.600a7 7 0 0 0-1.900.8L5.900 3.900 3.800 6l1.500 2.200a7 7 0 0 0-.8 1.900L2 10.500v3l2.500.5a7 7 0 0 0 .8 1.900L3.800 18l2.100 2.100 2.200-1.500a7 7 0 0 0 1.900.8l.5 2.600h3l.5-2.600a7 7 0 0 0 1.900-.8l2.200 1.500 2.100-2.100-1.500-2.100a7 7 0 0 0 .8-1.900z" fill="currentColor" fill-rule="evenodd"/></svg><span>Settings</span></button>
+              <button type="button" class="btn-pill" data-act="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.500 21a8.500 8.500 0 0 1 17 0z" fill="currentColor"/></svg><span>Profile</span></button>
             </div>
           </header>
           <div class="tracker__body">
@@ -101,7 +100,7 @@ export const trackerScreen = {
               <div class="tlog__head">
                 <div class="tlog__title"><h2>Game Log</h2><small id="trackerLogCount"></small></div>
                 <button type="button" class="judge-btn" data-act="judge"><img src="assets/img/ui/crest.png" alt="">Ask the Judge</button>
-                <button type="button" class="btn btn--small" data-act="card-id">Card ID</button>
+                <button type="button" class="judge-btn" data-act="card-id">Card ID</button>
               </div>
               <div class="tlog__list scroll-y" id="trackerLog"></div>
               <div class="tlog__foot"><button type="button" class="btn btn--small btn--ghost" data-act="clear-log">Clear Log</button></div>
