@@ -1440,3 +1440,56 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .tracker__head { grid-template-columns: auto minmax(0, 1fr) auto; }
 .tracker__turn, .tracker__head-end { flex: none; }
 @media (min-width: 1000px) and (min-height: 700px) { .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 3.5rem; } }
+
+/* ── 24. Full-height backdrop and drawn landing buttons ──────────────────────── */
+/* One backdrop behind every screen, sized to the whole display so nothing shows beneath it. */
+html { background: #06040b; }
+body { background: transparent; }
+body::before {
+  content: ""; position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; height: 100lvh; z-index: -1; pointer-events: none;
+  background: #06040b url("../assets/img/ui/background.webp") center bottom / cover no-repeat;
+}
+#app { height: 100%; min-height: 100lvh; }
+@supports not (height: 100lvh) { #app { min-height: 0; } }
+.landing, .tracker, .page, .game { background-color: transparent; background-image: none; }
+
+/* Landing buttons: chamfered metal frame drawn in CSS, crisp at any size. */
+.lbtn {
+  --c: 1.5rem;
+  --cut: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c));
+  position: relative; display: block; width: 100%; aspect-ratio: 834 / 232; clip-path: none;
+  filter: drop-shadow(0 0 0.5rem rgba(140, 90, 255, 0.55)) drop-shadow(0 0.3rem 0.4rem rgba(0, 0, 0, 0.8));
+}
+.lbtn::before {   /* outer metal rim */
+  content: ""; position: absolute; inset: 0; clip-path: var(--cut);
+  background: linear-gradient(160deg, #f6f3ff 0%, #8a84a6 12%, #2c2740 28%, #cfc9e6 46%, #4a3f78 62%, #9d8cff 78%, #e9e4fb 100%);
+}
+.lbtn::after {    /* dark channel, then a thin lit inner line */
+  content: ""; position: absolute; inset: 0.3rem; clip-path: var(--cut);
+  background:
+    linear-gradient(#0a0714, #0a0714) content-box,
+    linear-gradient(180deg, #d9d2f3, #6b55c9 50%, #b9a6ff) border-box;
+  border: 0.14rem solid transparent; padding: 0;
+  box-shadow: none;
+  outline: 0.32rem solid #07050e; outline-offset: -0.32rem;
+}
+.lbtn span {
+  position: absolute; inset: 0.95rem; z-index: 1; display: grid; place-items: center; clip-path: var(--cut); --c: 0.9rem;
+  background: radial-gradient(ellipse at 50% 130%, rgba(110, 60, 220, 0.5) 0%, rgba(20, 12, 44, 0.2) 55%, transparent 75%), linear-gradient(180deg, #17112b, #0a0714);
+  font: 800 3.6rem/1 var(--font-head); letter-spacing: 0.05em; text-transform: uppercase; color: #fff; white-space: nowrap;
+  text-shadow: 0 0 0.15rem #b98bff, 0 0 0.9rem rgba(155, 92, 255, 0.9), 0 2px 0 #1a0b3a;
+}
+.lbtn:disabled { opacity: 0.4; filter: grayscale(0.6); }
+.landing__tools .lbtn { --c: 0.9rem; aspect-ratio: 834 / 240; }
+.landing__tools .lbtn::after { inset: 0.22rem; }
+.landing__tools .lbtn span { inset: 0.65rem; --c: 0.55rem; font-size: 1.7rem; }
+@media (min-width: 1000px) and (min-height: 700px) {
+  .lbtn span { font-size: 3.2rem; }
+  .landing__tools .lbtn span { font-size: 1.55rem; }
+}
+.lbtn::after { inset: 0.5rem; outline: 0; border-width: 0.16rem; }
+.lbtn span { inset: 0.66rem; --c: 1.15rem; }
+.landing__tools .lbtn::after { inset: 0.36rem; }
+.landing__tools .lbtn span { inset: 0.5rem; --c: 0.62rem; }
+.landing { padding-bottom: calc(2.2rem + var(--safe-b)); }
+.landing__foot { text-shadow: 0 1px 2px #000; }
