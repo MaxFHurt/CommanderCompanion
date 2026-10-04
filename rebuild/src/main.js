@@ -49,3 +49,14 @@ function registerServiceWorker() {
 }
 
 start();
+
+// Installed on an iPad home screen, the page can be reported shorter than the display. Size the
+// backdrop from the display itself so the art always reaches the bottom edge.
+function sizeBackdrop() {
+  const landscape = window.innerWidth >= window.innerHeight;
+  const full = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+  document.documentElement.style.setProperty('--cc-screen-h', `${Math.max(window.innerHeight, navigator.standalone ? full : 0)}px`);
+}
+sizeBackdrop();
+window.addEventListener('resize', sizeBackdrop);
+window.addEventListener('orientationchange', () => setTimeout(sizeBackdrop, 300));

@@ -1493,3 +1493,5 @@ body::before {
 .landing__tools .lbtn span { inset: 0.5rem; --c: 0.62rem; }
 .landing { padding-bottom: calc(2.2rem + var(--safe-b)); }
 .landing__foot { text-shadow: 0 1px 2px #000; }
+/* backdrop reaches the physical bottom edge, even where the page is reported short */
+body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }

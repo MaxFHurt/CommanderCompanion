@@ -24,14 +24,14 @@ export const landingScreen = {
       <main class="landing">
         <div class="landing__brand"><img src="assets/img/landing/logo.png" alt="Commander Companion — Track, Play, Learn"></div>
         <div class="landing__primary">
-          <button type="button" class="lbtn" data-act="start"><span>Start Game</span></button>
-          <button type="button" class="lbtn" data-act="continue" disabled><span>Continue Game</span></button>
+          <button type="button" data-act="start"><img src="assets/img/landing/start.png" alt="Start Game"></button>
+          <button type="button" data-act="continue" disabled><img src="assets/img/landing/continue.png" alt="Continue Game"></button>
         </div>
         <nav class="landing__tools" aria-label="Tools">
-          <button type="button" class="lbtn" data-act="profile"><span>Profile</span></button>
-          <button type="button" class="lbtn" data-act="decks"><span>Deck Builder</span></button>
-          <button type="button" class="lbtn" data-act="settings"><span>Settings</span></button>
-          <button type="button" class="lbtn" data-act="help"><span>Help</span></button>
+          <button type="button" data-act="profile"><img src="assets/img/landing/profile.png" alt="Profile"></button>
+          <button type="button" data-act="decks"><img src="assets/img/landing/deck-builder.png" alt="Deck Builder"></button>
+          <button type="button" data-act="settings"><img src="assets/img/landing/settings.png" alt="Settings"></button>
+          <button type="button" data-act="help"><img src="assets/img/landing/help.png" alt="Help"></button>
         </nav>
         <div class="landing__foot">Commander Companion • ${VERSION}</div>
       </main>`);
