@@ -5,6 +5,7 @@ import { registerScreen, go } from './app/router.js';
 import { initDeckStore } from './data/deck-store.js';
 import { initProfileStore } from './data/profile.js';
 import { initPlaymats } from './data/playmats.js';
+import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
 import { watchCardImages } from './ui/card-view.js';
 import { landingScreen } from './ui/screens/landing.js';
 import { modeSelectScreen } from './ui/screens/mode-select.js';
@@ -34,11 +35,12 @@ async function start() {
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);
   try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch { /* not supported */ }
-  go('landing');
+  if (shouldResumeAfterUpdate()) go('game', { resume: true }); else go('landing');
   window.__ccReady = true;
   window.__ccVersion = VERSION;
   document.getElementById('bootError').hidden = true;
   registerServiceWorker();
+  startUpdateChecks();
 }
 
 function registerServiceWorker() {
