@@ -1,0 +1,19 @@
+name: Handoff Source Export
+on:
+  push:
+    paths:
+      - '.github/workflows/handoff-source-export.yml'
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build source archive
+        run: |
+          mkdir -p export
+          zip -r export/CommanderCompanion-current-source.zip . -x '.git/*' 'export/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commander-companion-current-source
+          path: export/CommanderCompanion-current-source.zip
+          retention-days: 7
