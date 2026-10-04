@@ -380,4 +380,13 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   check('freeplay player can edit', t.ctl.dispatch({ type: 'edit', edit: { kind: 'token', playerId: t.P(0).playerId, name: 'Soldier', power: 1, toughness: 1, count: 3 } }, t.as(0)).ok && t.P(0).deck.battlefield.filter(c => c.token).length === 3);
   check('freeplay undo by player', t.ctl.dispatch({ type: 'undo' }, t.as(0)).ok && t.P(0).deck.battlefield.filter(c => c.token).length === 0);
 }
+{
+  const t = newGame(['white', 'simic']);
+  t.keepAll();
+  t.give(0, 'Plains');
+  const c = t.view(0).coach;
+  check('coach suggests the land drop in main phase', c.headline === 'Play a land' && c.jewel?.label === 'LAND', JSON.stringify(c));
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  check('coach stops suggesting a land after the drop', t.view(0).coach.headline !== 'Play a land', t.view(0).coach.headline);
+}
 done();

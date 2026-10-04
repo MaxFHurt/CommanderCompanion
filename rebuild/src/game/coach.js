@@ -88,7 +88,7 @@ export function coachFor(game, view, me, active) {
       out.jewel = { label: 'DISCARD', act: 'discard' };
       break;
     case 'turn': {
-      const hand = me?.hand ? view.players.find(p => p.playerId === view.you)?.hand || [] : [];
+      const hand = view.players.find(p => p.playerId === view.you)?.hand || [];
       const land = hand.find(c => c.playable && c.land);
       const spells = hand.filter(c => c.playable && !c.land);
       const commander = view.players.find(p => p.playerId === view.you)?.command.find(c => c.playable);
