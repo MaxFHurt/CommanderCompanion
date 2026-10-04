@@ -1203,3 +1203,97 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   .game__next { height: 3rem; }
   .game__center { gap: 0.28rem; }
 }
+
+/* ── 20. Clean frames, visible playmat, equal card rows, gem-cut jewel ───────── */
+/* Playmat: only a light veil so the art reads clearly behind every cell. */
+.game__mat {
+  background: linear-gradient(rgba(6, 4, 12, calc(var(--mat-dim, 0.35) * 0.25)), rgba(6, 4, 12, calc(var(--mat-dim, 0.35) * 0.55))), var(--mat-image, none) center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+/* Frames: a thin brushed-metal rim drawn in CSS, so it is crisp at every size. */
+.game__left, .zone--battle, .zone--lands, .zone--hand, .zone--table, .opps, .glog, .tip, .game__bar {
+  position: relative; border: 0; border-radius: 0.7rem; background: rgba(6, 4, 12, 0.14);
+  box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, 0.28), 0 0.15rem 0.5rem rgba(0, 0, 0, 0.45);
+}
+.game__left::before, .zone--battle::before, .zone--lands::before, .zone--hand::before, .zone--table::before, .opps::before, .glog::before, .tip::before, .game__bar::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none; z-index: 2;
+  background: linear-gradient(135deg, #f1edff 0%, #8f86b3 14%, #4b3f78 32%, #b9a6ff 50%, #453a6e 68%, #9a90bd 86%, #ece7ff 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.game__left { background: rgba(6, 4, 12, 0.2); }
+.zone--table, .opps, .glog { background: rgba(10, 7, 20, 0.9); }
+.game__bar { background: linear-gradient(180deg, rgba(34, 18, 74, 0.9), rgba(9, 6, 18, 0.94)); }
+.tip { border: 0; background: linear-gradient(180deg, rgba(40, 26, 10, 0.9), rgba(14, 9, 22, 0.92)); }
+.tip::before { background: linear-gradient(135deg, #ffe7a3, #a87a22 30%, #f2c14e 55%, #7c5613 80%, #ffe7a3); }
+.tip.is-quiet::before { display: none; }
+.phase-box { background: none; }
+.zone__head h3, .zone__head small, .link-btn, .rail-name { text-shadow: 0 1px 2px #000, 0 0 0.5rem rgba(0, 0, 0, 0.9); }
+
+/* Battlefield, lands and hand share the height equally and use one card size. */
+.game__center { grid-template-rows: repeat(3, minmax(0, 1fr)) auto auto; }
+.game--judge .game__center { grid-template-rows: minmax(0, 1fr) auto; }
+.zone--battle, .zone--lands, .zone--hand { --card-h: 30rem; min-height: 0; }
+.zone--battle .zone__cards, .zone--lands .zone__cards, .zone--hand .zone__cards { container-type: size; min-height: 0; align-items: center; }
+.zone--battle .card, .zone--lands .card, .zone--hand .card { --h: min(calc(100cqh - 0.5rem), var(--card-h)); }
+
+/* Jewel: an emerald-cut amethyst in a metal bezel. The action sits on the flat table of the stone. */
+.jewel {
+  position: relative; display: block; width: 10.5rem; height: 4.6rem; margin: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  --cut: polygon(1.1rem 0, calc(100% - 1.1rem) 0, 100% 1.1rem, 100% calc(100% - 1.1rem), calc(100% - 1.1rem) 100%, 1.1rem 100%, 0 calc(100% - 1.1rem), 0 1.1rem);
+  filter: drop-shadow(0 0 0.5rem rgba(155, 92, 255, 0.7)) drop-shadow(0 0.2rem 0.3rem rgba(0, 0, 0, 0.8));
+}
+.jewel__gem {
+  position: absolute; inset: 0; padding: 0; border-radius: 0; box-shadow: none; animation: none; clip-path: var(--cut);
+  background: linear-gradient(135deg, #fbfaff, #77738a 22%, #e9e6f4 45%, #4f4c63 70%, #d6d2e6 100%);
+}
+/* crown facets */
+.jewel__gem::before {
+  content: ""; position: absolute; inset: 0.3rem; clip-path: var(--cut);
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0 9%, transparent 9% 46%, rgba(255, 255, 255, 0.18) 46% 52%, transparent 52%),
+    conic-gradient(from -64deg at 50% 50%, #e9d9ff 0 35.5%, #5a21cf 35.5% 50%, #1d0756 50% 85.5%, #8a52ff 85.5% 100%);
+}
+/* table */
+.jewel__gem::after {
+  content: ""; position: absolute; inset: 0.95rem 1.15rem;
+  clip-path: polygon(0.6rem 0, calc(100% - 0.6rem) 0, 100% 0.6rem, 100% calc(100% - 0.6rem), calc(100% - 0.6rem) 100%, 0.6rem 100%, 0 calc(100% - 0.6rem), 0 0.6rem);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.28) 0 18%, transparent 18%),
+    linear-gradient(180deg, #4a1fb0, #230a66 55%, #34128a);
+}
+.jewel > span {
+  position: absolute; inset: 0; left: 0; bottom: 0; transform: none; z-index: 1; min-width: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+  display: grid; place-items: center; font: 800 1.2rem/1 var(--font-head); letter-spacing: 0.12em; color: #fff; white-space: nowrap;
+  text-shadow: 0 1px 0 #12052e, 0 0 0.5rem #12052e, 0 0 0.2rem #000;
+}
+.jewel small {
+  position: absolute; left: auto; right: -0.5rem; top: -0.5rem; bottom: auto; transform: none; z-index: 2; min-width: 1.9rem; padding: 0.15rem 0.35rem; border-radius: 1rem;
+  background: #12052e; border: 1px solid #cfcbdd; font: 800 0.95rem/1.2 var(--font-head); color: #fff; text-align: center; text-shadow: none;
+}
+.jewel small:empty { display: none; }
+.jewel:not(.is-idle) { animation: jewel-pulse 2s ease-in-out infinite; }
+.jewel:not(.is-idle) .jewel__gem { animation: none; }
+@keyframes jewel-pulse {
+  50% { filter: drop-shadow(0 0 1.3rem rgba(200, 160, 255, 1)) drop-shadow(0 0 0.4rem rgba(255, 255, 255, 0.7)) brightness(1.18); }
+}
+.jewel.is-idle { filter: drop-shadow(0 0.2rem 0.3rem rgba(0, 0, 0, 0.8)); }
+.jewel.is-idle .jewel__gem { filter: saturate(0.25) brightness(0.55); }
+.jewel.is-idle > span { color: #b9b4cc; }
+@media (prefers-reduced-motion: reduce) { .jewel:not(.is-idle) { animation: none; filter: drop-shadow(0 0 1rem rgba(200, 160, 255, 1)); } }
+.game__next { height: auto; }
+.game__next img { height: 3.4rem; width: auto; display: block; }
+
+@media (min-width: 1000px) and (min-height: 700px) {
+  .jewel { width: 12.5rem; height: 5.2rem; }
+  .jewel > span { font-size: 1.4rem; }
+  .game__next img { height: 4rem; }
+}
+@media not all and (min-width: 1000px) and (min-height: 700px) {
+  .jewel { width: 9rem; height: 3.7rem; margin: 0; }
+  .jewel > span { font-size: 1.05rem; min-width: 0; padding: 0; }
+  .jewel__gem::after { inset: 0.75rem 0.95rem; }
+  .game__next img { height: 3rem; }
+  .game__bar { min-height: 4.3rem; }
+}
