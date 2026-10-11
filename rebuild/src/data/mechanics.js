@@ -130,7 +130,7 @@ m('Surveil', 'action', 'Look at the top N cards; put any into your graveyard and
 m('Tap and untap', 'action', 'Turn a permanent sideways to tap it; straighten it to untap.', { auto: 'auto', detect: '\\b(?:un)?tap target\\b', actions: ['tap', 'untap'] });
 m('Transform', 'action', 'Turn a transforming double-faced permanent to its other face. It is the same object.', { auto: 'partial', actions: ['transform'], rules: ['Only transforming double-faced cards (and meld, specially) can transform; a modal DFC can\'t.', 'Counters, Auras and damage stay.'] });
 m('Convert', 'action', 'Turn a double-faced permanent to its other face (Transformers cards).', { auto: 'manual', actions: ['transform'] });
-m('Venture into the dungeon', 'action', 'Enter a dungeon (or move to the next room) and get that room\'s ability.', { auto: 'auto', detect: '\\bventure into the dungeon\\b', rules: ['The dungeons are Lost Mine of Phandelver, Dungeon of the Mad Mage, Tomb of Annihilation, and (only through the initiative) Undercity.', 'Completing the last room removes the dungeon; your next venture starts a new one.'] });
+m('Venture into the dungeon', 'action', 'Enter a dungeon (or move to the next room) and get that room\'s ability.', { auto: 'partial', detect: '\\bventure into the dungeon\\b', rules: ['The dungeons are Lost Mine of Phandelver, Dungeon of the Mad Mage, Tomb of Annihilation, and (only through the initiative) Undercity.', 'Completing the last room removes the dungeon; your next venture starts a new one.'] });
 m('Explore', 'action', 'Reveal the top card: if it is a land, put it in your hand; otherwise put a +1/+1 counter on the creature and you may put the card into your graveyard.', { auto: 'manual', steps: 'Reveal the top card. Land: to hand. Nonland: +1/+1 counter on the explorer, then keep it on top or put it in the graveyard.', actions: ['counter+', 'mill', 'draw'] });
 m('Adapt', 'action', 'Adapt N: if this has no +1/+1 counters, put N +1/+1 counters on it.', { auto: 'manual', steps: 'Only if it has no +1/+1 counters: add N.', actions: ['counter+'] });
 m('Amass', 'action', 'Amass [type] N: put N +1/+1 counters on an Army you control; if you have none, create a 0/0 Army token first.', { auto: 'manual', steps: 'No Army? Create a 0/0 Army token. Then put N +1/+1 counters on your Army.', actions: ['token', 'counter+'] });
@@ -230,7 +230,7 @@ m('Escape', 'keyword', 'Cast this from your graveyard for its escape cost (inclu
 m('Eternalize', 'keyword', 'Exile this card from your graveyard and pay: create a token copy that is a 4/4 black Zombie with no mana cost.', { auto: 'manual', actions: ['copy-token', 'exile'] });
 m('Evoke', 'keyword', 'Cast for the evoke cost; when it enters, sacrifice it.', { auto: 'auto', tricky: ['Its enters-the-battlefield triggers still happen; you choose the order with the sacrifice trigger.'] });
 m('Evolve', 'keyword', 'Whenever a creature enters under your control with greater power or toughness than this, put a +1/+1 counter on this.', { auto: 'manual', actions: ['counter+'] });
-m('Exalted', 'keyword', 'Whenever a creature you control attacks alone, it gets +1/+1 until end of turn for each instance of exalted you control.', { auto: 'manual', actions: ['pt'] });
+m('Exalted', 'keyword', 'Whenever a creature you control attacks alone, it gets +1/+1 until end of turn for each instance of exalted you control.', { auto: 'auto', actions: ['pt'] });
 m('Exploit', 'keyword', 'When this enters, you may sacrifice a creature.', { auto: 'manual', actions: ['sacrifice'] });
 m('Extort', 'keyword', 'Whenever you cast a spell, you may pay {W/B}; if you do, each opponent loses 1 life and you gain that much.', { auto: 'manual', actions: ['life-loss', 'life-gain'] });
 m('Fabricate', 'keyword', 'Fabricate N: when this enters, put N +1/+1 counters on it or create N 1/1 Servo artifact creature tokens.', { auto: 'manual', actions: ['counter+', 'token'] });
@@ -251,13 +251,13 @@ m('Gravestorm', 'keyword', 'When you cast this, copy it for each permanent put i
 m('Haunt', 'keyword', 'When this dies (or resolves, for a spell), exile it haunting target creature; when that creature dies, the haunt effect happens again.', { auto: 'manual', actions: ['exile'] });
 m('Hidden agenda', 'keyword', 'Start the game with this conspiracy face down with a card name secretly chosen (Conspiracy draft).', { auto: 'manual' });
 m('Hideaway', 'keyword', 'When this enters, look at the top N cards, exile one face down and the rest to the bottom; later you may play the exiled card free when a condition is met.', { auto: 'manual', actions: ['exile'] });
-m('Horsemanship', 'keyword', 'Can be blocked only by creatures with horsemanship.', { auto: 'manual' });
+m('Horsemanship', 'keyword', 'Can be blocked only by creatures with horsemanship.', { auto: 'auto' });
 m('Impending', 'keyword', 'Cast for the impending cost: it enters with N time counters and isn\'t a creature while it has any; remove one at your end step.', { auto: 'manual', actions: ['counter-other'] });
 m('Improvise', 'keyword', 'Each artifact you tap while casting this pays for {1}.', { auto: 'manual', actions: ['tap'] });
 m('Infect', 'keyword', 'Deals damage to creatures as -1/-1 counters and to players as poison counters.', { auto: 'auto' });
 m('Ingest', 'keyword', 'Whenever this deals combat damage to a player, that player exiles the top card of their library.', { auto: 'manual', actions: ['exile'] });
-m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatures that share a color with it.', { auto: 'manual' });
-m('Jump-start', 'keyword', 'Cast this from your graveyard by discarding a card in addition to its cost; then exile it.', { auto: 'manual', actions: ['discard', 'exile'] });
+m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatures that share a color with it.', { auto: 'auto' });
+m('Jump-start', 'keyword', 'Cast this from your graveyard by discarding a card in addition to its cost; then exile it.', { auto: 'auto', actions: ['discard', 'exile'] });
 m('Kicker', 'keyword', 'You may pay an additional kicker cost as you cast this for an extra effect ("if this spell was kicked").', { auto: 'auto', tricky: ['Multikicker can be paid any number of times.', 'A copy of a kicked spell is also kicked.'] });
 m('Landwalk', 'keyword', '[Type]walk: can\'t be blocked as long as the defending player controls a land of that type.', { auto: 'manual', detect: '\\b(?:Plains|Island|Swamp|Mountain|Forest|Desert|Legendary land|Nonbasic land)walk\\b' });
 m('Level up', 'keyword', 'Pay the level up cost: put a level counter on this (sorcery speed); its abilities change at each level band.', { auto: 'manual', actions: ['counter-other'] });
@@ -297,7 +297,7 @@ m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay
 m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'manual', actions: ['counter+', 'discard'] });
 m('Renown', 'keyword', 'When this deals combat damage to a player, if it isn\'t renowned, put N +1/+1 counters on it; it becomes renowned.', { auto: 'manual', actions: ['counter+'] });
 m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the spell that many times.', { auto: 'manual' });
-m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'manual', actions: ['discard'] });
+m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'auto', actions: ['discard'] });
 m('Riot', 'keyword', 'Enters with your choice of a +1/+1 counter or haste.', { auto: 'manual', actions: ['counter+'] });
 m('Ripple', 'keyword', 'When you cast this, reveal the top N cards; you may cast cards with the same name free; the rest go to the bottom.', { auto: 'manual' });
 m('Saddle', 'keyword', 'Tap creatures with total power N or more: this Mount becomes saddled until end of turn. Sorcery speed.', { auto: 'manual', actions: ['tap', 'status'] });
@@ -321,7 +321,7 @@ m('Transfigure', 'keyword', 'Sacrifice this and pay: search for a creature card 
 m('Transmute', 'keyword', 'Discard this and pay: search for a card with the same mana value and put it in your hand. Sorcery speed.', { auto: 'manual', actions: ['discard', 'search'] });
 m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on it; if they don\'t, its tribute ability happens.', { auto: 'manual', actions: ['counter+'] });
 m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'manual', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
-m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'manual' });
+m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'auto' });
 m('Undying', 'keyword', 'When this dies, if it had no +1/+1 counters on it, return it with a +1/+1 counter.', { auto: 'auto' });
 m('Unearth', 'keyword', 'Return this from your graveyard with haste; exile it at the next end step or if it would leave the battlefield. Sorcery speed.', { auto: 'manual', actions: ['return-battlefield', 'exile'] });
 m('Unleash', 'keyword', 'You may have this enter with a +1/+1 counter; it can\'t block while it has one.', { auto: 'manual', actions: ['counter+'] });

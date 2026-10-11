@@ -296,6 +296,13 @@ function runPlay(game, op, ask) {
   const exileFromGraveyard = [];
   const graveRows = () => delveCards(player, card).filter(c => !exileFromGraveyard.includes(c.instanceId))
     .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+  let discardForCost = null;
+  if (mode.discard || mode.discardLand) {
+    const rows = player.deck.hand.filter(c => !mode.discardLand || isLand(defOf(game, c)))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError(mode.discardLand ? 'You need a land card to discard.' : 'You need a card to discard.');
+    if (rows.length) discardForCost = ask('cost:discard', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — ${mode.label.toLowerCase()}`, prompt: mode.discardLand ? 'Discard a land card.' : 'Discard a card.', options: rows }));
+  }
   if (mode.escapeExile) {
     const picked = ask('escape', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — escape`, prompt: `Exile ${plural(mode.escapeExile, 'other card')} from your graveyard.`, min: mode.escapeExile, max: mode.escapeExile, options: graveRows() }));
     exileFromGraveyard.push(...picked);
@@ -337,7 +344,7 @@ function runPlay(game, op, ask) {
     effectBindings: { ...bindings, sourceId: card.instanceId }, asEntersChoices: asEnters, guidedResolution: guided,
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
-    exileFromGraveyard, exileOnLeave: !!mode.exileAfter, adventure,
+    exileFromGraveyard, discardForCost, exileOnLeave: !!mode.exileAfter, adventure,
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
   if (commander) commit(game, { ...action, type: 'cast-commander', commanderId: commander.id });

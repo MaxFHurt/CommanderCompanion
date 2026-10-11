@@ -41,6 +41,12 @@ export function keywordTriggers(game, row, event) {
   if (onField && event.type === 'spell-cast' && event.controllerId === row.player.playerId && !/Creature/i.test(event.typeLine || '') && hasKeyword(d, 'Prowess'))
     add('prowess', 'Prowess — this creature gets +1/+1 until end of turn.', 'This creature gets +1/+1 until end of turn.');
 
+  // Exalted: each instance gives a creature attacking alone +1/+1.
+  if (onField && event.type === 'attackers-declared' && event.controllerId === row.player.playerId && (event.attackers || []).length === 1) {
+    const count = (strip(d.oracleText).match(/(?:^|\n|,\s*)\s*Exalted\b/gi) || []).length || ((d.keywords || []).some(k => /^exalted$/i.test(k)) ? 1 : 0);
+    for (let i = 0; i < count; i++)
+      add(`exalted-${i}`, 'Exalted — the creature attacking alone gets +1/+1 until end of turn.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'pump', targetId: event.attackers[0], power: 1, toughness: 1, expires: 'cleanup' }] } });
+  }
   if (onField && self && event.type === 'enters-battlefield' && card.castMode === 'evoke')
     add('evoke', 'Evoke — sacrifice it when it enters.', 'Sacrifice this creature.');
 
@@ -74,6 +80,8 @@ export function castTriggers(game, player, card, def) {
   const text = strip(def?.oracleText);
   const m = text.match(/(?:^|\n)\s*Cascade\b/gi);
   for (let i = 0; i < (m?.length || 0); i++) out.push({ special: 'cascade', label: 'Cascade', text: 'Cascade — exile cards from the top of your library until you exile a nonland card with lesser mana value. You may cast it without paying its mana cost.' });
+  const disc = text.match(/When you cast this spell, discover (\d+)/i);
+  if (disc) out.push({ special: 'discover', amount: Number(disc[1]), label: `Discover ${disc[1]}`, text: `Discover ${disc[1]} — exile cards from the top of your library until you exile a nonland card with mana value ${disc[1]} or less. Cast it free or put it into your hand.` });
   if (/(?:^|\n)\s*Storm\b/i.test(text)) out.push({ special: 'storm', label: 'Storm', text: 'Storm — copy this spell for each spell cast before it this turn.' });
   return out;
 }

@@ -415,4 +415,25 @@ section('ninjutsu, persist, monarch and initiative in combat');
   check('combat damage to the monarch steals the monarchy', t.P(0).statuses.includes('Monarch') && !t.P(1).statuses.includes('Monarch'), JSON.stringify([t.P(0).statuses, t.P(1).statuses]));
   check('combat damage to the initiative holder takes the initiative and ventures', t.P(0).statuses.includes('Initiative') && t.P(0).dungeon?.name === 'Undercity', JSON.stringify(t.P(0).dungeon));
 }
+
+section('blitz, exalted');
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 3);
+  t.give(0, 'Riveteers Requisitioner');
+  play(t, 0, 'Riveteers Requisitioner', { castMode: 'blitz' });
+  const hand = t.P(0).deck.hand.length;
+  t.end(0);
+  check('blitz: sacrificed at the end step, draws a card and leaves a Treasure', !t.bf(0, 'Riveteers Requisitioner') && gyNames(t, 0).includes('Riveteers Requisitioner') && t.P(0).deck.hand.length === hand + 1 && t.P(0).deck.battlefield.some(c => c.token), JSON.stringify({ hand: t.P(0).deck.hand.length, bf: t.names(0, 'battlefield').filter(n => !/Mountain/.test(n)) }));
+}
+{
+  const t = labGame('lab');
+  t.give(0, 'Akrasan Squire', 'battlefield'); t.give(0, 'Monastery Swiftspear', 'battlefield');
+  t.end(0); t.end(1);
+  t.do(0, { type: 'next-phase' });
+  const life = t.P(1).life;
+  t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Monastery Swiftspear').instanceId, defenderId: t.P(1).playerId }] });
+  settleWith(t);
+  check('exalted: a creature attacking alone gets +1/+1', t.P(1).life === life - 2, `${life} -> ${t.P(1).life}`);
+}
 done();

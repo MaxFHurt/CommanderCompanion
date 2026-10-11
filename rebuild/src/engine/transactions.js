@@ -228,6 +228,16 @@ function putSpellOnStack(game, player, action, deck) {
     gone.zone = 'exile';
     deck.exile.push(gone);
   }
+  if (action.discardForCost) {
+    const i = deck.hand.findIndex(c => c.instanceId === action.discardForCost);
+    if (i < 0)
+      throw new Error('The card chosen to discard is gone.');
+    const [gone] = deck.hand.splice(i, 1);
+    const to = graveyardDestination(game, gone);
+    gone.zone = to;
+    deck[to].push(gone);
+    emit(game, { type: 'discard', playerId: player.playerId, sourceId: gone.instanceId, definitionId: gone.definitionId, cost: true });
+  }
   delete card.onAdventure;
   delete card.foretold;
   delete card.foretoldTurn;

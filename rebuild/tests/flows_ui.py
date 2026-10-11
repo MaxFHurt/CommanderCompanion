@@ -90,7 +90,7 @@ async def guided(browser):
     await pass_all(page)
     jewel = (await page.locator('.jewel span').text_content()).strip()
     check('unsupported card asks to RESOLVE by hand', jewel == 'RESOLVE', jewel)
-    await page.click('.jewel'); await page.wait_for_selector('text=This effect is not automated')
+    await page.click('.jewel'); await page.wait_for_selector('.guided__steps')
     await page.screenshot(path=f'{OUT}phone-guided.png')
     await page.click('.modal .btn--confirm'); await page.wait_for_timeout(300)
     check('by-hand card finished', 'applied by hand' in await page.locator('.glog__list').text_content())

@@ -473,8 +473,15 @@ export function validateBlock({ blocker, definition, attackerDefinition, attacke
     reasons.push('A creature with flying can be blocked only by flying or reach unless another effect allows it.');
   if (instanceKeyword(attacker, attackerDefinition, 'Shadow') && !instanceKeyword(blocker, definition, 'Shadow'))
     reasons.push('Shadow prevents this creature from blocking that attacker.');
-  if (instanceKeyword(attacker, attackerDefinition, 'Fear') && !/Artifact/i.test(definition?.typeLine || '') && !/Black/i.test(definition?.colors?.join?.(' ') || ''))
-    reasons.push('Fear prevents this creature from blocking that attacker.');
+  if (!instanceKeyword(attacker, attackerDefinition, 'Shadow') && instanceKeyword(blocker, definition, 'Shadow'))
+    reasons.push('A creature with shadow can block only creatures with shadow.');
+  const blockerArtifact = /Artifact/i.test(definition?.typeLine || ''), blockerColors = definition?.colors || [];
+  if (instanceKeyword(attacker, attackerDefinition, 'Fear') && !blockerArtifact && !blockerColors.includes('B'))
+    reasons.push('Fear: only artifact or black creatures can block it.');
+  if (instanceKeyword(attacker, attackerDefinition, 'Intimidate') && !blockerArtifact && !blockerColors.some(c => (attackerDefinition?.colors || []).includes(c)))
+    reasons.push('Intimidate: only artifact creatures or creatures sharing a color can block it.');
+  if (instanceKeyword(attacker, attackerDefinition, 'Horsemanship') && !instanceKeyword(blocker, definition, 'Horsemanship'))
+    reasons.push('Horsemanship: only creatures with horsemanship can block it.');
   return { legal: !reasons.length, reasons };
 }
 export function validateForcedBlockAssignments({ game, defender, assignments = [] } = {}) {

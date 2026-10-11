@@ -54,6 +54,8 @@ export const LAB_CARDS = [
   labCard('Rest in Peace', '{1}{W}', 'Enchantment', 'When Rest in Peace enters, exile all graveyards.\nIf a card or token would be put into a graveyard from anywhere, exile it instead.'),
   labCard('Thalia, Guardian of Thraben', '{1}{W}', 'Legendary Creature — Human Soldier', 'First strike\nNoncreature spells cost {1} more to cast.', { power: '2', toughness: '1', keywords: ['First strike'] }),
   labCard('Kappa Cannoneer', '{5}{U}', 'Artifact Creature — Turtle Warrior', 'Improvise (Your artifacts can help cast this spell. Each artifact you tap after you\'re done activating mana abilities pays for {1}.)\nWard {4} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {4}.)\nWhenever an artifact you control enters, put a +1/+1 counter on Kappa Cannoneer and it can\'t be blocked this turn.', { power: '4', toughness: '4', keywords: ['Improvise', 'Ward'] }),
+  c('Riveteers Requisitioner', '{1}{R}', 'Human Rogue', 'When this creature dies, create a Treasure token.\nBlitz {2}{R} (If you cast this spell for its blitz cost, it gains haste and "When this creature dies, draw a card." Sacrifice it at the beginning of the next end step.)', 2, 1, ['Blitz']),
+  c('Akrasan Squire', '{W}', 'Human Soldier', 'Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)', 1, 1, ['Exalted']),
   labCard('Shivan Whelp', '{2}{R}', 'Creature — Dragon', 'Flying', { power: '2', toughness: '2', keywords: ['Flying'] })
 ];
 

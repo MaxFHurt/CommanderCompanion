@@ -150,7 +150,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
+  'jump-start': 'Jump-start', retrace: 'Retrace', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
 };
 
 /** Ways this card could be cast from its current zone (before checking mana and timing). */
@@ -177,6 +177,9 @@ export function castModes(game, player, card, def, base = null) {
   if (zone === 'graveyard') {
     const fb = keywordCost(text, 'Flashback');
     if (fb) modes.push({ id: 'flashback', cost: fb, exileAfter: true });
+    const js = keywordCost(text, 'Jump-start') !== null || /(?:^|\n)\s*Jump-start\b/i.test(strip(text));
+    if (js && def?.manaCost) modes.push({ id: 'jump-start', cost: def.manaCost, exileAfter: true, discard: 1 });
+    if (/(?:^|\n)\s*Retrace\b/i.test(strip(text)) && def?.manaCost) modes.push({ id: 'retrace', cost: def.manaCost, discardLand: true });
     const esc = escapeCost(text);
     if (esc && delveCards(player, card).length >= esc.exile) modes.push({ id: 'escape', cost: esc.cost, escapeExile: esc.exile, exileAfter: /Instant|Sorcery/i.test(def?.typeLine || '') });
   }
@@ -225,6 +228,8 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     const cost = adjustGeneric(priced.cost, -delve);
     const definition = mode.faceDown ? faceDownDefinition(mode.faceDown) : def;
     const result = validatePlay({ game, player, definition, instance: card, kind, commander, definitions: definitionsMap(game), costOverride: cost, extraFlex: priced.convoke });
+    if (mode.discard && !(player.deck?.hand || []).length) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a card in hand to discard.']; }
+    if (mode.discardLand && !(player.deck?.hand || []).some(c => isLand(defOf(game, c)))) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a land card in hand to discard.']; }
     if (mode.faceDown) result.reasons = result.reasons.filter(r => !/color identity/i.test(r));
     return { ...mode, ...result, legal: mode.faceDown ? result.reasons.length === 0 : result.legal, fullCost: priced.cost, notes: priced.notes };
   });
