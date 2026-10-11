@@ -670,14 +670,16 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .card-grid { display: flex; flex-wrap: wrap; gap: 0.7rem; --card-h: 9.4rem; }
 .card-grid--hand { --card-h: 13rem; justify-content: center; }
 
-.mana-pool { display: flex; flex-wrap: wrap; gap: 0.25rem 0.18rem; }
-.mana-pool__cell { display: grid; justify-items: center; gap: 0.1rem; width: 2.2rem; }
+/* One row, evenly spread: as many equal columns as there are symbols (up to six plus flexible sources). */
+.mana-pool { display: grid; grid-template-columns: repeat(var(--cells, 6), minmax(0, 1fr)); gap: 0.25rem 0.18rem; justify-items: center; }
+.mana-pool__cell { display: grid; justify-items: center; gap: 0.1rem; width: 100%; max-width: 2.6rem; }
 .mana-pool__cell b { font: 800 1.3rem/1 var(--font-head); }
-.mana-pool__cell img { width: 2rem; height: 2rem; }
+.mana-pool__cell img { width: 100%; max-width: 2rem; height: auto; aspect-ratio: 1; }
 .mana-pool__cell.is-zero { opacity: 0.38; }
 .mana-pool__cell--flex b { color: var(--gold); }
-.mana-pool--compact .mana-pool__cell { display: flex; align-items: center; width: auto; }
-.mana-pool--compact .mana-pool__cell img { width: 1.5rem; height: 1.5rem; }
+.mana-pool--compact { display: flex; flex-wrap: wrap; }
+.mana-pool--compact .mana-pool__cell { display: flex; align-items: center; width: auto; max-width: none; }
+.mana-pool--compact .mana-pool__cell img { width: 1.5rem; height: 1.5rem; max-width: none; }
 .mana-pool--compact .mana-pool__cell.is-zero { display: none; }
 
 /* ── 14. Game screen ─────────────────────────────────────────────────────────── */
@@ -950,8 +952,7 @@ input, textarea { user-select: text; -webkit-user-select: text; }
   .rail-mana { padding: 0.5rem 0.6rem; }
   .rail-mana h4 { font-size: 1.05rem; }
   .mana-pool { gap: 0.4rem 0.25rem; }
-  .mana-pool__cell { width: 2.5rem; }
-  .mana-pool__cell img { width: 2.3rem; height: 2.3rem; }
+  .mana-pool__cell img { max-width: 2.3rem; }
   .mana-pool__cell b { font-size: 1.5rem; }
   .rail-zones { gap: 0.5rem; }
   .rail-tools { min-height: 3.2rem; }

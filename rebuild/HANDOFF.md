@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.28, 2026-10-11)
+# Commander Companion — handoff (build 1.0.0-rebuild.29, 2026-10-11)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -7,7 +7,9 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.28** (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v28`).
+- Live build: **1.0.0-rebuild.29** (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v29`).
+- **Visual masters:** `design/` holds the owner's approved screens (`visual-master-game-ipad.png` is the
+  in-game screen). Match them; read `design/README.md` for intended differences.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
   844×390; `1rem = 10px` there and scales with the viewport. iPad tier is
   `@media (min-width:1000px) and (min-height:700px)`.
@@ -35,6 +37,8 @@ what each part does, the owner's rules, open notes, and the roadmap.
   suggestion first and a reason. It pulses when an action is available.
 - Tip bar: with a player's **Advice** toggle on it always gives advice and explains *why*.
 - Card counters (+1/+1, keyword counters, etc.) are anchored to a specific card.
+- Available Mana shows only the commanders' colors plus colorless, on one evenly spaced row
+  (`manaPoolHtml` in `src/ui/card-view.js`, `identityOf` in `src/ui/screens/game.js`).
 - Guided Play enforces the rules: no casting without mana, no "Play anyway" outside Free Play.
 - Resolving by hand must give all the right options and say in as few words as possible what to
   do; targeted effects ask for the target first.

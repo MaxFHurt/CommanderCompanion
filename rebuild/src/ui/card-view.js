@@ -105,11 +105,17 @@ export function watchCardImages(root) {
   return () => root.removeEventListener('error', handler, true);
 }
 
-export function manaPoolHtml(mana, { compact = false } = {}) {
+/**
+ * Mana the player can spend. `identity` (the commanders' color identity) limits the colors shown to
+ * the ones the deck can use; colorless is always shown, and any color the player actually has is
+ * shown even if it is outside the identity.
+ */
+export function manaPoolHtml(mana, { compact = false, identity = null } = {}) {
   const fixed = mana?.fixed || {};
   const flex = mana?.flex || [];
-  return html`<div class="mana-pool ${compact ? 'mana-pool--compact' : ''}">
-    ${['W', 'U', 'B', 'R', 'G', 'C'].map(c => html`<span class="mana-pool__cell ${Number(fixed[c] || 0) ? '' : 'is-zero'}"><b>${Number(fixed[c] || 0)}</b><img src="assets/img/mana/${c}.png" alt="${c}"></span>`)}
+  const colors = ['W', 'U', 'B', 'R', 'G', 'C'].filter(c => !identity || c === 'C' || identity.includes(c) || Number(fixed[c] || 0) > 0);
+  return html`<div class="mana-pool ${compact ? 'mana-pool--compact' : ''}" style="--cells:${colors.length + flex.length}">
+    ${colors.map(c => html`<span class="mana-pool__cell ${Number(fixed[c] || 0) ? '' : 'is-zero'}"><b>${Number(fixed[c] || 0)}</b><img src="assets/img/mana/${c}.png" alt="${c}"></span>`)}
     ${flex.map(g => html`<span class="mana-pool__cell mana-pool__cell--flex" title="Any of ${g.colors.join(', ')}"><b>${g.count}</b>${g.colors.length === 2
       ? html`<img src="assets/img/mana/split-${[...g.colors].sort().join('-')}.png" alt="${g.colors.join('/')}" onerror="this.src='assets/img/mana/any.png'">`
       : html`<img src="assets/img/mana/any.png" alt="any">`}</span>`)}

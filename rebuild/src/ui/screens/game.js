@@ -9,6 +9,13 @@ import { openModal, confirmDialog, closeAllModals } from '../modal.js';
 import { loadSettings } from '../../data/store.js';
 import { playmatById, matStyle, DEFAULT_MAT } from '../../data/playmats.js';
 import { cardHtml, cardBackHtml, imageOf, manaPoolHtml } from '../card-view.js';
+
+/** The commanders' combined color identity, or null (show every color) when it is unknown. */
+function identityOf(view, player) {
+  const defs = (player?.commanders || []).map(c => view.defs[c.def]).filter(Boolean);
+  if (!defs.length) return null;
+  return [...new Set(defs.flatMap(d => d.colorIdentity || []))];
+}
 import { openJudge } from '../judge-modal.js';
 import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
@@ -174,7 +181,7 @@ export const gameScreen = {
           </div>
           <div class="rail-mana">
             <h4>Available Mana <b>${focus.mana.total}</b></h4>
-            ${manaPoolHtml(focus.mana)}
+            ${manaPoolHtml(focus.mana, { identity: identityOf(view, focus) })}
           </div>
           <div class="rail-zones">
             ${[['graveyard', focus.graveyard.length], ['exile', focus.exile.length], ['tokens', tokens], ['attachments', attached]].map(([z, n]) => html`
