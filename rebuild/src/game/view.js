@@ -103,7 +103,7 @@ function promptFor(game, viewerId, defs, viewer) {
  * viewer: { playerId (null for a judge/host display), isHost }
  * Returns a plain object that is safe to JSON-serialise and send to that viewer.
  */
-export function buildView(game, viewer = {}, { canUndo = false } = {}) {
+export function buildView(game, viewer = {}, { canUndo = false, reversible = new Set() } = {}) {
   const viewerId = viewer.playerId || null;
   const me = playerById(game, viewerId);
   const defs = {};
@@ -183,6 +183,9 @@ export function buildView(game, viewer = {}, { canUndo = false } = {}) {
     canForce: game.mode === 'freeplay',
     canUndo: canUndo && (!!viewer.isHost || game.mode === 'freeplay'),
     rules: { ...game.rulesConfig }, players, stack, prompt,
+    // The judge's record: every play with a legality verdict. Only the host (or anyone in Free Play) can reverse.
+    legality: { plays: (game.plays || []).length, illegal: (game.plays || []).filter(p => p.verdict === 'illegal').length },
+    plays: viewer.isHost || game.mode === 'freeplay' ? (game.plays || []).slice(0, 150).map(p => ({ ...p, reasons: [...p.reasons], reversible: reversible.has(p.id) })) : null,
     log: (game.log || []).slice(0, 150).map(e => ({ id: e.id, text: e.text, turn: e.turn, type: e.type || '', playerId: e.playerId || null })),
     chat: (game.chat || []).slice(-80),
     winner: game.winner || null, result: game.result || null,

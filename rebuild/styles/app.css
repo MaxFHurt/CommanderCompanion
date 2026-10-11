@@ -1497,3 +1497,68 @@ body::before {
 body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 /* The app fills exactly the visible page: never taller, so nothing is pushed under the device's own bars. */
 #app { height: auto; min-height: 0; }
+
+/* ── 25. Host screens: Table / Judge switch, Judge mode, legality marks ───────── */
+/* Footer on table screens: phase | screen switch | Host Tools. */
+.game--judge .game__bar { grid-template-columns: auto minmax(0, 1fr) auto; }
+.screen-switch { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0.3rem; padding: 0.25rem; border-radius: 0.8rem; background: rgba(6, 4, 12, 0.75); box-shadow: inset 0 0 0 1px var(--line-soft); min-width: 0; }
+.game__bar .screen-switch { justify-self: center; width: min(100%, 34rem); }
+.screen-switch__btn {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 3.2rem; padding: 0 0.6rem; border-radius: 0.6rem;
+  font: 800 1.15rem/1 var(--font-head); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); white-space: nowrap;
+}
+.screen-switch__btn.is-on { color: #fff; background: linear-gradient(180deg, #6b3fd6, #3a1f86); box-shadow: inset 0 0 0 1px #b98bff, 0 0 0.9rem var(--accent-glow); }
+.legal-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 1.7rem; height: 1.7rem; padding: 0 0.35rem; border-radius: 1rem; font: 800 0.95rem/1 var(--font-ui); font-style: normal; letter-spacing: 0; }
+.legal-badge.is-ok { background: rgba(69, 212, 131, 0.18); color: var(--good); box-shadow: inset 0 0 0 1px rgba(69, 212, 131, 0.7); }
+.legal-badge.is-bad { background: rgba(255, 90, 106, 0.2); color: var(--bad); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, 0.8); animation: legal-pulse 1.6s ease-in-out infinite; }
+@keyframes legal-pulse { 50% { box-shadow: inset 0 0 0 1px rgba(255, 90, 106, 0.8), 0 0 0.8rem rgba(255, 90, 106, 0.8); } }
+/* The switch in a playing host's rail sits above Host Tools. */
+.rail-host .screen-switch { padding: 0.2rem; gap: 0.2rem; }
+.rail-host .screen-switch__btn { min-height: 2.6rem; font-size: 0.82rem; letter-spacing: 0.06em; padding: 0 0.2rem; gap: 0.2rem; }
+.rail-host .legal-badge { min-width: 1.3rem; height: 1.3rem; font-size: 0.75rem; padding: 0 0.2rem; }
+.game__left { grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
+
+/* Judge mode: the table stays, the right column becomes the judge's record. */
+.game.game--judge-mode { grid-template-columns: minmax(0, 1fr) 27rem; }
+.judge {
+  grid-row: 2; z-index: 1; position: relative; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 0.45rem; min-height: 0;
+  padding: 0.7rem 0.8rem; border-radius: 0.7rem; background: rgba(10, 7, 20, 0.92);
+  box-shadow: inset 0 0 1.2rem rgba(0, 0, 0, 0.28), 0 0.15rem 0.5rem rgba(0, 0, 0, 0.45);
+}
+.judge::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+  background: linear-gradient(135deg, #f1edff 0%, #8f86b3 14%, #4b3f78 32%, #b9a6ff 50%, #453a6e 68%, #9a90bd 86%, #ece7ff 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.judge__head { display: flex; align-items: center; justify-content: space-between; }
+.judge__head h4 { font: 800 1.2rem var(--font-head); letter-spacing: 0.16em; text-transform: uppercase; margin: 0; }
+.judge__head .chip { min-height: 1.9rem; font-size: 0.9rem; padding: 0 0.6rem; }
+.judge__status { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.7rem; border-radius: 0.6rem; font: 700 1.05rem/1.2 var(--font-head); letter-spacing: 0.04em; }
+.judge__status b { display: grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; font: 800 1.3rem/1 var(--font-ui); flex: none; }
+.judge__status.is-ok { background: rgba(69, 212, 131, 0.12); box-shadow: inset 0 0 0 1px rgba(69, 212, 131, 0.6); color: #c9f5dc; }
+.judge__status.is-ok b { background: var(--good); color: #062213; }
+.judge__status.is-bad { background: rgba(255, 90, 106, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, 0.7); color: #ffd3d8; }
+.judge__status.is-bad b { background: var(--bad); color: #2a0509; }
+.judge__plays { list-style: none; margin: 0; padding: 0; overflow-y: auto; scrollbar-width: none; display: grid; gap: 0.3rem; align-content: start; min-height: 0; }
+.judge__empty { color: var(--muted); font-size: 1rem; padding: 0.5rem; }
+.jplay { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; padding: 0.3rem 0.4rem; border-radius: 0.5rem; background: rgba(6, 4, 12, 0.7); border-left: 0.3rem solid var(--good); }
+.jplay__mark { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; font: 800 1rem/1 var(--font-ui); font-style: normal; background: rgba(69, 212, 131, 0.18); color: var(--good); }
+.jplay__text { display: grid; gap: 0.1rem; min-width: 0; }
+.jplay__text b { font-size: 0.95rem; font-weight: 600; line-height: 1.2; }
+.jplay__text small { font-size: 0.78rem; color: var(--muted); line-height: 1.2; }
+.jplay__undo { min-height: 2.4rem; padding: 0 0.6rem; border-radius: 0.5rem; font: 800 0.8rem var(--font-head); letter-spacing: 0.1em; text-transform: uppercase; color: #fff; background: rgba(155, 92, 255, 0.22); box-shadow: inset 0 0 0 1px var(--line); }
+.jplay__undo:disabled { opacity: 0.35; }
+.jplay--illegal { border-left-color: var(--bad); background: rgba(60, 8, 16, 0.75); }
+.jplay--illegal .jplay__mark { background: var(--bad); color: #2a0509; }
+.jplay--illegal .jplay__text small { color: #ffb3bb; }
+.jplay--approved, .jplay--host { border-left-color: var(--gold); }
+.jplay--approved .jplay__mark, .jplay--host .jplay__mark { background: rgba(242, 193, 78, 0.18); color: var(--gold); }
+.judge__foot { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.judge__foot .btn { min-width: 0; }
+@media (min-width: 1000px) and (min-height: 700px) {
+  .game.game--judge-mode { grid-template-columns: minmax(0, 1fr) 30rem; }
+  .screen-switch__btn { min-height: 3.6rem; font-size: 1.2rem; }
+  .rail-host .screen-switch__btn { min-height: 3rem; font-size: 0.95rem; }
+  .jplay__text b { font-size: 1.05rem; }
+  .jplay__text small { font-size: 0.88rem; }
+}

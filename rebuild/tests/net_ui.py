@@ -52,7 +52,8 @@ async def main():
         await host.wait_for_selector('.game')
         for pg in (a, b):
             await pg.wait_for_selector('text=opening hand', timeout=15000)
-        check('host sees HOST VIEW and no hand cards', await host.locator('text=HOST VIEW').count() == 1 and await host.locator('.zone--hand .card:not(.card--back)').count() == 0)
+        check('host device has Table and Judge screens and no hand cards', await host.locator('.screen-switch__btn').count() == 2 and 'Table' in await host.locator('.screen-switch__btn.is-on').text_content())
+        check('table shows no face-up hand cards', await host.locator('.zone--hand .card:not(.card--back), .hand-backs .card:not(.card--back)').count() == 0)
         check('player sees own 7 cards', await a.locator('.modal .card').count() == 7)
         await a.click('#keepHand'); await b.click('#keepHand')
         await a.wait_for_selector('.zone--hand .card')
@@ -66,6 +67,19 @@ async def main():
             await land.click(); await a.click('.modal .btn--confirm'); await a.wait_for_timeout(400)
             check('land appears on host display', await host.locator('.zone--table .card:not(.card--back)').count() == 1)
             check('land appears for the opponent (board popup)', True)
+            # Judge mode: the land drop is listed as legal and can be reversed from the host device.
+            await host.click('[data-act="screen"][data-screen="judge"]'); await host.wait_for_selector('.judge')
+            check('judge mode keeps the table view', await host.locator('.zone--table .table-view').count() == 1)
+            row = host.locator('.jplay', has_text='plays')
+            check('judge lists the land drop as legal', await row.count() == 1 and 'jplay--legal' in (await row.get_attribute('class')))
+            check('judge shows all plays legal', 'legal' in (await host.locator('.judge__status').text_content()) and await host.locator('.legal-badge.is-ok').count() == 1)
+            await host.screenshot(path=f'{OUT}net-host-judge.png')
+            await row.locator('[data-act="reverse"]').click(); await host.click('.modal .btn--confirm'); await host.wait_for_timeout(500)
+            check('reversed land leaves the table', await host.locator('.zone--table .card:not(.card--back)').count() == 0)
+            await a.wait_for_function("document.querySelectorAll('.zone--lands .card').length === 0")
+            check('reversed land returns to the player hand', await a.locator('.zone--hand .card').count() == 8)
+            await host.click('[data-act="screen"][data-screen="table"]'); await host.wait_for_selector('.game__right .glog')
+            check('switch back to table view', await host.locator('.judge').count() == 0)
         # A client cannot edit or undo.
         r = await a.evaluate("""async () => { const { getSession } = await import('./src/app/session.js'); const s = getSession(); return [await s.send({ type: 'edit', edit: { kind: 'life', playerId: s.view().you, delta: 50 } }), await s.send({ type: 'undo' }), await s.send({ type: 'pass', as: s.view().players[1].playerId })]; }""")
         check('client edit / undo / impersonation refused', all(not x['ok'] for x in r), str(r))
@@ -94,4 +108,5 @@ async def main():
     print(f'{sum(results)}/{len(results)} passed')
     sys.exit(0 if all(results) else 1)
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())

@@ -433,4 +433,31 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   const v = t.ctl.view({ playerId: t.P(0).playerId, isHost: true });
   check('free play on one device always has tools and force', v.canEdit && v.canForce);
 }
+{
+  // Judge record: every play has a legality verdict and can be reversed with everything after it.
+  const t = newGame(['white', 'simic'], { mode: 'freeplay' });
+  t.keepAll();
+  t.give(0, 'Plains'); t.give(0, 'Serra Angel');
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Serra Angel').instanceId, force: true });
+  const plays = t.view(null).plays;
+  const land = plays.find(p => /plays Plains/.test(p.text)), angel = plays.find(p => /casts Serra Angel/.test(p.text));
+  check('judge record marks a legal play as legal', land?.verdict === 'legal', JSON.stringify(land));
+  check('judge record marks a forced play as illegal, with the reason', angel?.verdict === 'illegal' && angel.reasons.length > 0, JSON.stringify(angel));
+  check('legality summary counts illegal plays', t.view(0).legality.illegal === 1);
+  check('every recent play can be reversed', plays.every(p => p.reversible));
+  const r = t.ctl.dispatch({ type: 'reverse', playId: land.id }, t.host);
+  check('reversing a play takes back it and every later play', r.ok && !t.bf(0, 'Serra Angel') && !t.bf(0, 'Plains') && !!t.hand(0, 'Plains') && !!t.hand(0, 'Serra Angel'), r.error);
+  check('the reversed plays leave the record and the log says so', !t.view(null).plays.some(p => p.id === land.id || p.id === angel.id) && /Judge reversed: .*Plains.*1 later play/.test(t.game.log[0].text), t.game.log[0].text);
+}
+{
+  const t = newGame(['white', 'simic']);
+  t.keepAll();
+  t.give(0, 'Plains');
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  const play = t.view(null).plays.find(p => /plays Plains/.test(p.text));
+  check('joined players do not get the judge record in guided play', t.view(1).plays === null && t.view(0).legality.plays > 0);
+  check('a joined player cannot reverse plays', !t.ctl.dispatch({ type: 'reverse', playId: play.id }, t.as(1)).ok && !!t.bf(0, 'Plains'));
+  check('the room host can reverse plays', t.ctl.dispatch({ type: 'reverse', playId: play.id }, t.host).ok && !t.bf(0, 'Plains'));
+}
 done();

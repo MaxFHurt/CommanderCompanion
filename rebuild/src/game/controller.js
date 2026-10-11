@@ -3,23 +3,74 @@
 // lets the game settle, and tells listeners to redraw.
 
 import { snapshotGame, restoreGameSnapshot } from '../engine/effects.js';
-import { GameError, log, playerById } from './helpers.js';
+import { GameError, log, playerById, findCard, defOf, isLand, newId } from './helpers.js';
 import { takeMulligan, keepHand } from './setup.js';
 import {
   startOp, answerOp, cancelOp, passPriority, nextPhase, declareAttack, declareBlocks, discardCards, finishGuided, settle
 } from './flow.js';
 import { applyEdit } from './edits.js';
 import { commit } from './ops.js';
-import { timingBlock, stackTop } from './legal.js';
+import { timingBlock, stackTop, playCheck, abilityRows } from './legal.js';
+import { phaseLabel } from '../engine/phase.js';
 import { buildView, actorId } from './view.js';
 
 const MAX_UNDO = 30;
 const NO_UNDO = new Set(['answer', 'cancel', 'chat', 'vote', 'vote-request', 'undo']);
+// Plays the judge sees and can reverse: everything a person decides except passing priority
+// and answering the questions inside a play (those belong to the play that asked them).
+const PLAYS = new Set(['mulligan', 'keep', 'play', 'activate', 'attack', 'block', 'discard', 'next-phase', 'end-turn', 'edit', 'concede', 'end-game', 'guided-done']);
+const MAX_REVERSE = 120;
+const MAX_PLAYS = 300;
 
 export function createController(game, { onChange = () => {} } = {}) {
   const undoStack = [];
+  // One restore point per recorded play, so the judge can take back any play (and the ones after it).
+  const checkpoints = [];
+  const seqOf = new WeakMap();
+  let seq = 0, assessment = null;
   const listeners = new Set([onChange]);
   let timer = null;
+
+  /** Was this play legal? Checked before it happens, so a forced play shows why it was not. */
+  function assess(intent, playerId, approved) {
+    const p = playerById(game, playerId);
+    const hit = p && findCard(game, intent.instanceId);
+    if (!hit) return null;
+    const card = hit.card, def = defOf(game, card);
+    const block = timingBlock(game, p.playerId);
+    let reasons = [];
+    if (intent.type === 'play') {
+      const check = playCheck(game, p, card, Number.isInteger(intent.faceIndex) ? intent.faceIndex : null);
+      reasons = [block, ...(check.legal ? [] : check.reasons)].filter(Boolean);
+    } else {
+      const row = abilityRows(game, p, card).find(r => r.ability.id === intent.abilityId);
+      reasons = [block, ...(row && !row.legal ? row.reasons : [])].filter(Boolean);
+    }
+    const verb = intent.type === 'activate' ? 'activates' : isLand(def) ? 'plays' : 'casts';
+    return { text: `${p.displayName} ${verb} ${def?.name || 'a card'}.`, verdict: !reasons.length ? 'legal' : approved ? 'approved' : 'illegal', reasons: reasons.slice(0, 3) };
+  }
+
+  function record(intent, actor, before, logBefore) {
+    const fresh = (game.log || []).filter(e => !logBefore.has(e.id));
+    const by = playerById(game, actor.playerId)?.displayName || 'Host';
+    const fallback = {
+      keep: `${by} keeps their hand.`, mulligan: `${by} takes a mulligan.`, attack: `${by} declares attackers.`, block: `${by} declares blockers.`,
+      'next-phase': `${by} moves on to ${phaseLabel(game.phase)}.`, 'end-turn': `${by} ends the turn.`, discard: `${by} discards.`, edit: 'Host change.'
+    };
+    const a = assessment;
+    const play = {
+      id: newId('play'), seq, turn: game.turnNumber, phase: phaseLabel(before.phase || game.phase), by,
+      text: a?.text || fresh[fresh.length - 1]?.text || fallback[intent.type] || 'A play was made.',
+      verdict: a?.verdict || (intent.type === 'edit' ? 'host' : 'legal'), reasons: a?.reasons || []
+    };
+    game.plays = [play, ...(game.plays || [])].slice(0, MAX_PLAYS);
+    checkpoints.push({ seq, playId: play.id, snap: before });
+    if (checkpoints.length > MAX_REVERSE) checkpoints.shift();
+  }
+
+  function dropAfter(fromSeq) {
+    while (checkpoints.length && checkpoints[checkpoints.length - 1].seq >= fromSeq) checkpoints.pop();
+  }
 
   // Guided Play enforces the rules: only the host of a room (a player or the table/judge
   // device) edits the game directly. One shared device is not a host, so it gets no tools.
@@ -46,6 +97,7 @@ export function createController(game, { onChange = () => {} } = {}) {
       case 'play':
       case 'activate': {
         const p = requirePlayer(who);
+        assessment = assess(intent, p.playerId, intent.approved === true);
         const block = timingBlock(game, p.playerId);
         if (block && !(force && !game.flow.op)) throw new GameError(block);
         startOp(game, intent.type, p.playerId, { instanceId: intent.instanceId, faceIndex: intent.faceIndex, abilityId: intent.abilityId, color: intent.color, force });
@@ -153,6 +205,7 @@ export function createController(game, { onChange = () => {} } = {}) {
       if (!(undoStack[i].stack || []).some(x => x.id === top.id)) {
         const keepLog = game.log, keepChat = game.chat;
         restoreGameSnapshot(game, undoStack[i]);
+        dropAfter(seqOf.get(undoStack[i]) || 0);
         undoStack.length = i;
         game.log = keepLog; game.chat = keepChat;
         log(game, `Host vetoed ${name}. The game went back to before it was played.`, { type: 'edit' });
@@ -164,7 +217,10 @@ export function createController(game, { onChange = () => {} } = {}) {
 
   function dispatch(intent, actor = { playerId: null, isHost: false }) {
     if (intent.type === 'undo') return undo(actor);
+    if (intent.type === 'reverse') return reverse(intent.playId, actor);
     const before = snapshotGame(game);
+    const logBefore = new Set((game.log || []).map(e => e.id));
+    assessment = null;
     try {
       if (game.status === 'complete' && !['chat', 'edit'].includes(intent.type)) throw new GameError('The game is over.');
       apply(intent, actor);
@@ -174,6 +230,10 @@ export function createController(game, { onChange = () => {} } = {}) {
       if (!(error instanceof GameError)) console.error('Game action failed', intent, error);
       return { ok: false, error: error?.message || 'That action could not be completed.', reasons: error?.reasons || [] };
     }
+    seq += 1;
+    seqOf.set(before, seq);
+    if (PLAYS.has(intent.type) || (intent.type === 'vote' && assessment)) record(intent, actor, before, logBefore);
+    assessment = null;
     if (!NO_UNDO.has(intent.type)) {
       undoStack.push(before);
       if (undoStack.length > MAX_UNDO) undoStack.shift();
@@ -182,10 +242,29 @@ export function createController(game, { onChange = () => {} } = {}) {
     return { ok: true };
   }
 
+  /** Take back one play and everything after it. */
+  function reverse(playId, actor = {}) {
+    if (!actor.isHost && game.mode !== 'freeplay') return { ok: false, error: 'Only the host can reverse plays in Guided Play.' };
+    const i = checkpoints.findIndex(c => c.playId === playId);
+    if (i < 0) return { ok: false, error: 'That play is too old to reverse (or was made before the app restarted).' };
+    const { seq: from, snap } = checkpoints[i];
+    const target = (game.plays || []).find(p => p.id === playId);
+    const later = (game.plays || []).filter(p => p.seq > from).length;
+    const chat = game.chat;
+    restoreGameSnapshot(game, snap);
+    game.chat = chat;
+    checkpoints.length = i;
+    while (undoStack.length && (seqOf.get(undoStack[undoStack.length - 1]) || 0) >= from) undoStack.pop();
+    log(game, `Judge reversed: ${target?.text || 'a play'}${later ? ` (and ${later} later play${later === 1 ? '' : 's'})` : ''}`, { type: 'edit' });
+    changed();
+    return { ok: true };
+  }
+
   function undo(actor = {}) {
     if (!actor.isHost && game.mode !== 'freeplay') return { ok: false, error: 'Only the host can undo in Guided Play.' };
     const snap = undoStack.pop();
     if (!snap) return { ok: false, error: 'Nothing to undo.' };
+    dropAfter(seqOf.get(snap) || 0);
     const chat = game.chat;
     restoreGameSnapshot(game, snap);
     game.chat = chat;
@@ -221,7 +300,7 @@ export function createController(game, { onChange = () => {} } = {}) {
     dispatch,
     canUndo: () => undoStack.length > 0,
     canEdit,
-    view: viewer => buildView(game, viewer, { canUndo: undoStack.length > 0 }),
+    view: viewer => buildView(game, viewer, { canUndo: undoStack.length > 0, reversible: new Set(checkpoints.map(c => c.playId)) }),
     actorId: () => actorId(game),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     start() { settle(game); changed(); },

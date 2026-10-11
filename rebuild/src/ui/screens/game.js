@@ -25,7 +25,7 @@ export const gameScreen = {
   mount(root, params = {}) {
     let session = getSession();
     const offs = [];
-    const ui = { promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0 };
+    const ui = { screen: null, promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0 };
     const ctx = {
       get session() { return session; },
       get view() { return session?.view(); },
@@ -48,6 +48,52 @@ export const gameScreen = {
     }
 
     // ── drawing ────────────────────────────────────────────────────────────────
+    /** Screens this device can switch between. Only a room host gets the table and Judge mode. */
+    function screensFor(view) {
+      if (session?.role === 'host-device') return ['table', 'judge'];
+      if (session?.role === 'host-player' && view.you) return ['player', 'table', 'judge'];
+      return [];
+    }
+
+    function legalityBadge(view) {
+      const bad = view.legality?.illegal || 0;
+      return bad ? html`<i class="legal-badge is-bad" title="${bad} illegal play${bad === 1 ? '' : 's'}">✕${bad}</i>` : html`<i class="legal-badge is-ok" title="All plays legal">✓</i>`;
+    }
+
+    function switchHtml(view, screens, screen) {
+      const label = { player: 'Board', table: 'Table', judge: 'Judge' };
+      return html`<div class="screen-switch" role="tablist" data-count="${screens.length}">${screens.map(k => html`
+        <button type="button" role="tab" class="screen-switch__btn ${k === screen ? 'is-on' : ''}" aria-selected="${k === screen ? 'true' : 'false'}" data-act="screen" data-screen="${k}">
+          <span>${label[k]}</span>${k === 'judge' ? legalityBadge(view) : ''}
+        </button>`)}</div>`;
+    }
+
+    const VERDICT = { legal: ['✓', 'Legal'], illegal: ['✕', 'Illegal'], approved: ['✓', 'Table vote'], host: ['✎', 'Host change'] };
+    function judgePanelHtml(view) {
+      const plays = view.plays || [];
+      const bad = view.legality?.illegal || 0;
+      return html`<aside class="judge">
+        <header class="judge__head">
+          <h4>Judge</h4>
+          <button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button>
+        </header>
+        <div class="judge__status ${bad ? 'is-bad' : 'is-ok'}">
+          <b>${bad ? '✕' : '✓'}</b>
+          <span>${bad ? `${bad} illegal play${bad === 1 ? '' : 's'} this game` : plays.length ? `All ${plays.length} plays legal` : 'No plays yet'}</span>
+        </div>
+        <ol class="judge__plays" data-keep-scroll="judge">${plays.length ? plays.map(p => html`
+          <li class="jplay jplay--${p.verdict}">
+            <i class="jplay__mark" title="${VERDICT[p.verdict]?.[1] || ''}">${VERDICT[p.verdict]?.[0] || '•'}</i>
+            <span class="jplay__text"><b>${p.text}</b><small>T${p.turn} • ${p.phase}${p.verdict !== 'legal' ? ` • ${VERDICT[p.verdict]?.[1] || ''}` : ''}${p.reasons.length ? `: ${p.reasons[0]}` : ''}</small></span>
+            <button type="button" class="jplay__undo" data-act="reverse" data-id="${p.id}" ${p.reversible ? "" : raw("disabled")}>Reverse</button>
+          </li>`) : html`<li class="judge__empty">Plays appear here as they happen.</li>`}</ol>
+        <footer class="judge__foot">
+          <button type="button" class="btn btn--small" data-act="log">Full Log</button>
+          <button type="button" class="btn btn--small" data-act="undo" ${view.canUndo ? '' : raw('disabled')}>Undo Last</button>
+        </footer>
+      </aside>`;
+    }
+
     function render() {
       const view = session?.view();
       if (!view) {
@@ -55,7 +101,10 @@ export const gameScreen = {
         return;
       }
       const settings = loadSettings();
-      const judge = !view.you;
+      // A host can switch between screens: their own board (if playing), the whole table, and Judge mode.
+      const screens = screensFor(view);
+      const screen = screens.includes(ui.screen) ? ui.screen : (screens[0] || 'player');
+      const judge = screen !== 'player';
       const focus = view.players.find(p => p.playerId === (judge ? (ui.focusId || view.activePlayerId) : view.you)) || view.players[0];
       const others = judge ? view.players : view.players.filter(p => p.playerId !== focus.playerId);
       const coach = view.coach || {};
@@ -82,7 +131,7 @@ export const gameScreen = {
       const endLabel = view.phase === 'postcombat-main';
 
       setHtml(root, html`
-      <main class="game ${judge ? 'game--judge' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
+      <main class="game ${judge ? 'game--judge' : ''} ${screen === 'judge' ? 'game--judge-mode' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
         <header class="game__top">
           <div class="game__top-side">
             <button type="button" class="btn-art" data-act="home"><img src="assets/img/ui/home.png" alt="Home"></button>
@@ -91,7 +140,6 @@ export const gameScreen = {
           </div>
           <img class="game__wordmark" src="assets/img/game/top-center.jpg" alt="Commander Companion">
           <div class="game__top-side game__top-side--end">
-            ${judge ? html`<span class="chip chip--gold">HOST VIEW</span>` : ''}
             <button type="button" class="btn-art" data-act="help"><img src="assets/img/ui/help.png" alt="Help"></button>
             <button type="button" class="btn-art" data-act="settings"><img src="assets/img/ui/settings.png" alt="Settings"></button>
             <button type="button" class="btn-art" data-act="profile"><img src="assets/img/ui/profile.png" alt="Profile"></button>
@@ -131,6 +179,7 @@ export const gameScreen = {
             ${[['graveyard', focus.graveyard.length], ['exile', focus.exile.length], ['tokens', tokens], ['attachments', attached]].map(([z, n]) => html`
               <button type="button" class="rail-zone" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
           </div>
+          ${screens.length ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
           ${view.canEdit ? html`<button type="button" class="btn btn--small rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>` : ''}
         </aside>`}
 
@@ -173,7 +222,8 @@ export const gameScreen = {
               <span class="phase-track">${PHASE_STEPS.map(([k, label]) => html`<i class="${phaseKey(view.phase) === k ? 'is-on' : ''}" title="${label}"></i>`)}</span>
             </button>
             ${judge ? html`
-            <button type="button" class="btn" data-act="tools">Host Tools</button>` : html`
+            ${switchHtml(view, screens, screen)}
+            ${view.canEdit ? html`<button type="button" class="btn" data-act="tools">Host Tools</button>` : html`<span></span>`}` : html`
             <button type="button" class="jewel ${jewel ? '' : 'is-idle'}" data-act="jewel" ${jewel ? '' : raw('disabled')}>
               <i class="jewel__gem"></i>
               <span>${jewel?.label || (prompt.kind === 'waiting' ? 'WAIT' : '•')}</span>
@@ -185,7 +235,7 @@ export const gameScreen = {
           </footer>
         </section>
 
-        <aside class="game__right">
+        ${screen === 'judge' ? judgePanelHtml(view) : html`<aside class="game__right">
           <div class="opps">
             <h4>${judge ? 'Players' : 'Opponents'}</h4>
             <div class="opps__list">
@@ -203,7 +253,7 @@ export const gameScreen = {
             <ol class="glog__list">${view.log.slice(0, 14).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>
             <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
           </div>
-        </aside>
+        </aside>`}
         ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
       </main>`);
 
@@ -341,6 +391,14 @@ export const gameScreen = {
         case 'player-info': return openPlayerInfo(ctx, el.dataset.id);
         case 'table': return openTable(ctx);
         case 'tools': return openHostTools(ctx);
+        case 'screen': ui.screen = el.dataset.screen; return render();
+        case 'reverse': {
+          const play = (view.plays || []).find(p => p.id === el.dataset.id);
+          if (!play) return;
+          const later = view.plays.filter(p => p.seq > play.seq).length;
+          return confirmDialog({ title: 'Reverse play', message: `Take back "${play.text}"${later ? ` and the ${later} play${later === 1 ? '' : 's'} after it` : ''}? The game goes back to just before it.`, confirmLabel: 'Reverse' })
+            .then(ok => ok && send({ type: 'reverse', playId: play.id }));
+        }
         case 'counters': return openPlayerInfo(ctx, focusId);
         case 'sort': ui.sort = ui.sort === 'played' ? 'type' : ui.sort === 'type' ? 'power' : 'played'; return render();
         case 'jewel': return doJewel(view);

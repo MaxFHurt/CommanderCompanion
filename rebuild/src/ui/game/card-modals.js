@@ -196,7 +196,7 @@ export function openPlayerBoard(ctx, playerId, { onFocus = null } = {}) {
 export function tableHtml(view) {
   return html`<div class="table-view" data-count="${view.players.length}">${view.players.map(p => html`
     <section class="table-view__seat ${p.playerId === view.activePlayerId ? 'is-active' : ''} ${p.eliminated ? 'is-out' : ''}">${boardHtml(view, p)}
-      ${p.hand ? '' : html`<div class="hand-backs">${Array.from({ length: Math.min(p.handCount, 10) }, () => cardBackHtml())}</div>`}
+      <div class="hand-backs">${Array.from({ length: Math.min(p.handCount, 10) }, () => cardBackHtml())}</div>
     </section>`)}</div>`;
 }
 
