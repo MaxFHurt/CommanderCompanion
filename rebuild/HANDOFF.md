@@ -91,6 +91,28 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   should be out (`trackerIssues`: 0 life, 10 poison, 21 commander damage). Phones can undo only
   their own newest change; the host reverses anything. Updates wait while a tracker room is open.
 
+## Agreed with the owner, not built yet (2026-10-11)
+
+- **Host Tools:** a non-playing host device (table/judge view) has Host Tools, Judge mode and Reverse
+  without asking anyone. One-device Guided games have Host Tools, and no Challenge. A playing host
+  has no special powers. Free Play has every tool from the start, with no Challenge.
+- **Challenge:** in hosted games without a non-playing host device, a single Challenge button sits
+  where Host Tools was. Every player still in the game must approve the challenge. The challenger
+  then proposes a correction, which must also be approved; if it isn't, they see "Correction rejected".
+- **Undo:** free on one device, and free in the Table Tracker. In multiplayer it is a rule chosen
+  before the game. When enabled, each undo needs approval from every player still in the game
+  (Accept/Decline; any decline and the play stands), and you can't undo after passing your turn.
+  Eliminated players never vote. Remove the phone undo that shipped in builds 25–27.
+- **Rules setup:** undo is one of the options on the rules screen. A non-playing host sets the rules
+  alone; otherwise every player agrees before the game. Profile default rules are House rules, with
+  a chip next to their toggle (if it fits between the columns).
+- **Resolve by hand:** give all the right options and say in as few words as possible what to do;
+  targeted effects prompt for the target first.
+- **Magic terms key:** a reference file in the repo covering every mechanic, including obscure ones,
+  that the engine uses to pick the right resolution, or the right options to offer when the card
+  needs player input.
+- **Order:** rules automation first, then the terms key.
+
 ## Recent state / open items
 
 - Pre-existing: with 5–6 players on a phone the tracker's narrow card layout overlaps the life
