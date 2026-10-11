@@ -345,7 +345,10 @@ export function lossHints(state, player) {
 
 /** Rules problems on the table right now: players who should have lost but are still in. */
 export function trackerIssues(state) {
-  return state.players.filter(p => !p.eliminated).flatMap(p => lossHints(state, p).map(hint => ({ playerId: p.id, text: `${p.name}: ${hint} — should be out of the game` })));
+  const lost = state.players.filter(p => !p.eliminated).flatMap(p => lossHints(state, p).map(hint => ({ playerId: p.id, text: `${p.name}: ${hint} — should be out of the game` })));
+  // The Monarch and the Initiative pass on when their holder leaves the game.
+  const held = state.players.filter(p => p.eliminated).flatMap(p => p.statuses.filter(s => EXCLUSIVE_STATUSES.has(s)).map(s => ({ playerId: p.id, text: `${p.name} is out but still has ${s === 'Monarch' ? 'the Monarch' : s} — give it to the next player` })));
+  return [...lost, ...held];
 }
 
 /** Shape expected by the profile's game history. */

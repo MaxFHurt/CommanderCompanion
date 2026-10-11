@@ -24,6 +24,9 @@ section('hosted tracker: record and legality');
   check('the table state flags a player who should be out', store.issues().length === 1 && /Lex: 10 poison/.test(store.issues()[0].text), JSON.stringify(store.issues()));
   store.act({ type: 'eliminate', playerId: l.id, eliminated: true });
   check('marking the player out clears the issue', store.issues().length === 0);
+  store.act({ type: 'status', playerId: l.id, status: 'Monarch', enabled: true });
+  check('an out player still holding the Monarch is flagged', /Lex is out but still has the Monarch/.test(store.issues()[0]?.text || ''));
+  store.act({ type: 'status', playerId: l.id, status: 'Monarch', enabled: false });
 
   let threw = '';
   try { store.remote({ type: 'reset' }, aaron); } catch (e) { threw = e.message; }
@@ -35,14 +38,19 @@ section('hosted tracker: record and legality');
   try { store.remote({ type: 'name', playerId: l.id, name: 'Bob' }, aaron); } catch (e) { threw = e.message; }
   check('a joined player cannot rename another seat', /Only the host/.test(threw));
 
-  threw = '';
-  try { store.remote({ type: 'undo' }, aaron); } catch (e) { threw = e.message; }
-  check('a player cannot undo once someone else changed the table', /ask the host/.test(threw));
-  const lifeEntry = store.plays().find(p => p.by === 'Aaron');
+  {
+    // Aaron undoes his own life change after others changed the table: only his change is cancelled.
+    const lifeBefore = store.state().players[0].life, poison = store.state().players[1].poison;
+    store.remote({ type: 'undo' }, aaron);
+    check('a player can undo their own change after others changed the table', store.state().players[0].life === lifeBefore + 1 && store.state().players[1].poison === poison, `${store.state().players[0].life} vs ${lifeBefore}`);
+    check('the undo shows in the record as theirs', /Aaron undid/.test(store.plays()[0].text), store.plays()[0].text);
+    store.remote({ type: 'life', playerId: a.id, delta: -1 }, aaron);
+  }
+  const lifeEntry = [...store.plays()].reverse().find(p => p.by === 'Aaron');   // Aaron's first change
   store.reverse(lifeEntry.id);
   const s = store.state();
   check('reversing an entry takes back it and every later change', s.players[0].life === 40 && s.players[1].poison === 0 && !s.players[1].eliminated && store.plays().length === 0, JSON.stringify(s.players.map(p => [p.life, p.poison])));
-  check('the log says the judge reversed it', /Judge reversed: .*Aaron.*3 later changes/.test(s.log[0].text), s.log[0].text);
+  check('the log says the judge reversed it', /Judge reversed: .*Aaron.*\d+ later changes/.test(s.log[0].text), s.log[0].text);
 }
 {
   const store = createTrackerStore(table(), { role: 'host-device' });

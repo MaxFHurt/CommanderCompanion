@@ -68,6 +68,7 @@ export function openCardDetail(ctx, id) {
     if (card.playable) actions.push({ label, kind: 'confirm', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id }); } });
     else if (view.canForce) actions.push({ label: 'Play anyway', kind: 'danger', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id, force: true }); } });
     else if (view.deviceMode === 'multi-device' && view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: async ({ close }) => { close(); const r = await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent: { type: 'play', instanceId: id } }); if (r.ok) toast('The table is voting.'); } });
+    else if (view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: ({ close }) => { close(); askTableHere(ctx, card, { type: 'play', instanceId: id }); } });
   }
 
   openModal({
@@ -101,6 +102,19 @@ export function openCardDetail(ctx, id) {
         }
       });
     }
+  });
+}
+
+/** One shared device: the players decide together whether to allow a play the rules block. */
+function askTableHere(ctx, card, intent) {
+  openModal({
+    title: `Allow ${card.name}?`, size: 'small',
+    body: html`<p class="modal__message">The rules say: <strong>${card.reason || 'this play is not legal right now'}</strong></p>
+      <p class="muted">Ask everyone at the table. If they all agree, the play goes ahead and the judge record marks it as a table vote.</p>`,
+    actions: [
+      { label: 'Not allowed', kind: 'cancel', onClick: async ({ close }) => { close(); await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent, decide: false }); } },
+      { label: 'The table allows it', kind: 'confirm', onClick: async ({ close }) => { close(); await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent, decide: true }); } }
+    ]
   });
 }
 

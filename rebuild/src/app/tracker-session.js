@@ -26,6 +26,39 @@ function emitter() {
 const mergeKey = (actor, a) => [actor.clientId || 'here', a.type, a.playerId, a.color, a.name, a.fromId, a.cardId].join('|');
 
 /**
+ * The change that cancels `action`, worked out from the table before and after it. Used when a
+ * phone undoes its own change after someone else has changed the table: only that change is
+ * taken back. Returns null for changes that cannot be cancelled this way (turns, players, reset).
+ */
+function inverseOf(action, before, after) {
+  const pb = before.players.find(p => p.id === action.playerId), pa = after.players.find(p => p.id === action.playerId);
+  if (!pb || !pa) return null;
+  const id = action.playerId;
+  switch (action.type) {
+    case 'life': return { type: 'life', playerId: id, delta: pb.life - pa.life };
+    case 'poison': return { type: 'poison', playerId: id, delta: pb.poison - pa.poison };
+    case 'tax': return { type: 'tax', playerId: id, delta: pb.commander.tax - pa.commander.tax };
+    case 'mana': return action.clear ? null : { type: 'mana', playerId: id, color: action.color, delta: pb.mana[action.color] - pa.mana[action.color] };
+    case 'commander-damage': return { type: 'commander-damage', playerId: id, fromId: action.fromId, delta: Number(pb.commanderDamage[action.fromId] || 0) - Number(pa.commanderDamage[action.fromId] || 0) };
+    case 'counter': {
+      const name = String(action.name || '').trim();
+      if (!(name in pb.counters)) return { type: 'counter', playerId: id, name, remove: true };
+      return { type: 'counter', playerId: id, name, delta: pb.counters[name] - Number(pa.counters[name] || 0) };
+    }
+    case 'card-counter': {
+      const cb = pb.cards.find(c => c.id === action.cardId), ca = pa.cards.find(c => c.id === action.cardId);
+      if (!cb || !ca) return null;
+      const name = String(action.name || '').trim();
+      return { type: 'card-counter', playerId: id, cardId: action.cardId, name, delta: Number(cb.counters[name] || 0) - Number(ca.counters[name] || 0) };
+    }
+    case 'card-add': return { type: 'card-remove', playerId: id, cardId: pa.cards.find(c => !pb.cards.some(x => x.id === c.id))?.id };
+    case 'status': return { type: 'status', playerId: id, status: action.status, enabled: pb.statuses.includes(String(action.status || '').trim().slice(0, 28)) };
+    case 'eliminate': return { type: 'eliminate', playerId: id, eliminated: pb.eliminated };
+    default: return null;
+  }
+}
+
+/**
  * The table lives on this device (one device, or the host of a room).
  * role: 'local' | 'host-player' | 'host-device'; seatId: the host's own seat when playing.
  */
@@ -65,12 +98,13 @@ export function createTrackerStore(initial, { role = 'local', seatId = null } = 
       : action.type === 'mat' ? `${target?.name}: Playmat changed` : `${actor.name}: ${action.type}`;
     const key = mergeKey(actor, action);
     const last = plays[0];
+    const inverse = inverseOf(action, JSON.parse(before), state);
     if (last && MERGEABLE.has(action.type) && last.key === key && Date.now() - Date.parse(last.at) < MERGE_MS) {
       last.at = new Date().toISOString();
       last.text = text;
-      last.acts.push({ seq, before, text });
+      last.acts.push({ seq, before, text, inverse });
     } else {
-      plays.unshift({ id: newId('tplay'), at: new Date().toISOString(), by: actor.name, clientId: actor.clientId || null, seatId: actor.seatId || null, key, verdict, note, text, acts: [{ seq, before, text }] });
+      plays.unshift({ id: newId('tplay'), at: new Date().toISOString(), by: actor.name, clientId: actor.clientId || null, seatId: actor.seatId || null, key, verdict, note, text, acts: [{ seq, before, text, inverse }] });
       if (plays.length > MAX_PLAYS) plays.length = MAX_PLAYS;
     }
     changed.emit();
@@ -115,9 +149,19 @@ export function createTrackerStore(initial, { role = 'local', seatId = null } = 
     /** For the room: a change asked for by a joined device. */
     remote(action, actor) {
       if (action.type === 'undo') {
-        // A player may take back their own newest change, as long as nobody changed anything since.
-        if (!plays[0] || plays[0].clientId !== actor.clientId) throw new Error('Someone changed the table since — ask the host to reverse it in Judge mode.');
-        return undoLast();
+        // A player takes back their own newest change. If nobody changed anything since, the table
+        // simply goes back; otherwise only that change is cancelled and everyone else's stays.
+        if (plays[0]?.clientId === actor.clientId) return undoLast();
+        const mine = plays.find(p => p.clientId === actor.clientId);
+        const step = mine?.acts[mine.acts.length - 1];
+        if (!step) throw new Error('You have no change to undo.');
+        if (!step.inverse) throw new Error('That change cannot be undone from a phone — ask the host to reverse it in Judge mode.');
+        apply(step.inverse, { ...actor, isHost: false });
+        plays[0].text = `${actor.name} undid: ${step.text}`;
+        mine.acts.pop();
+        if (!mine.acts.length) plays.splice(plays.indexOf(mine), 1); else mine.text = mine.acts[mine.acts.length - 1].text;
+        changed.emit();
+        return;
       }
       return apply(action, { ...actor, isHost: false });
     },

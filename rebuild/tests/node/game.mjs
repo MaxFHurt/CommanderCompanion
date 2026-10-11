@@ -417,6 +417,8 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   check('guided on one device refuses a forced play without mana', !forced.ok && !t.bf(0, 'Serra Angel'), forced.error);
   const v = t.ctl.view(local);
   check('guided on one device shows no host tools or force', !v.canEdit && !v.canForce);
+  const asked = t.ctl.dispatch({ type: 'vote-request', label: 'playing Serra Angel', intent: { type: 'play', instanceId: angel.instanceId }, decide: true }, local);
+  check('one device: the table can agree to allow a blocked play', asked.ok && !!t.bf(0, 'Serra Angel') && t.ctl.view(local).plays.some(p => p.verdict === 'approved'), asked.error);
   check('guided on one device refuses direct edits', !t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(0).playerId, delta: 5 } }, local).ok);
 }
 {

@@ -144,6 +144,8 @@ export function createController(game, { onChange = () => {} } = {}) {
         if (!['play', 'activate', 'attack', 'block'].includes(inner.type)) throw new GameError('That action cannot be put to a vote.');
         game.flow.vote = { id: `vote:${Date.now()}`, requesterId: p.playerId, intent: inner, reason: String(intent.reason || '').slice(0, 200), label: String(intent.label || 'an unusual play').slice(0, 80), votes: {} };
         log(game, `${p.displayName} asks the table to allow ${game.flow.vote.label}.`, { type: 'vote' });
+        // One shared device: the table agrees out loud and the answer comes with the request.
+        if (intent.decide !== undefined && game.deviceMode !== 'multi-device') game.flow.vote.decided = !!intent.decide;
         tallyVote(actor);
         break;
       }
@@ -232,7 +234,7 @@ export function createController(game, { onChange = () => {} } = {}) {
     }
     seq += 1;
     seqOf.set(before, seq);
-    if (PLAYS.has(intent.type) || (intent.type === 'vote' && assessment)) record(intent, actor, before, logBefore);
+    if (PLAYS.has(intent.type) || (['vote', 'vote-request'].includes(intent.type) && assessment)) record(intent, actor, before, logBefore);
     assessment = null;
     if (!NO_UNDO.has(intent.type)) {
       undoStack.push(before);

@@ -1586,3 +1586,16 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
   .tracker__title .screen-switch__btn { min-height: 3rem; font-size: 1.1rem; }
   .tracker__body.is-judge { grid-template-columns: minmax(0, 1fr) 30rem; }
 }
+
+/* ── 27. Narrow tracker cards (5–6 players on a phone): everything on one line each ── */
+@container (max-width: 25rem) {
+  .tp__mana-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 0.25rem; }
+  .tp__mana-row > .tp__mana { flex: 0 1 auto; min-width: 0; }
+  .tp__mana-row > :not(.tp__mana) { flex: none; }
+  .tp__add-counter { display: none !important; }
+  .tp__mid { min-height: 4.4rem; }
+  .tp__life { padding: 0.1rem 0.3rem; gap: 0.4rem; }
+  .tp__life .icon-btn { width: 2.6rem; height: 2.6rem; font-size: 1.6rem; }
+  .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 3.4rem; }
+  .tp__life-label { display: none; }
+}
