@@ -1,5 +1,6 @@
 // Commander Companion V0.7.27 shared Oracle-effect resolver.
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
+import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { effectivePower, effectiveToughness } from './combat.js';
 const WORD_NUMBERS = Object.freeze({
   zero: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
@@ -44,6 +45,10 @@ function emit(bindings, event) { try {
 catch (e) {
   console.error('Effect event bridge failed', e);
 } }
+function sourceColors(game, bindings) {
+  const hit = bindings?.sourceId ? locateCardInGame(game, bindings.sourceId) : null;
+  return hit ? (definitionFor(game, hit.card)?.colors || []) : [];
+}
 function cardName(game, card) { return definitionFor(game, card)?.name || 'Card'; }
 function isCreature(def) { return /\bCreature\b/i.test(def?.typeLine || ''); }
 function isPermanent(def) { return !/\b(?:Instant|Sorcery)\b/i.test(def?.typeLine || ''); }
@@ -56,6 +61,23 @@ function hasKeyword(card, def, name) {
   return (card?.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled !== false && String(e.keyword || '').toLowerCase() === k);
 }
 function isIndestructible(card, def) { return hasKeyword(card, def, 'Indestructible'); }
+/** A card changing zones becomes a new object: it stops being face down and forgets how it was cast. */
+export function clearCastState(card, to) {
+  if (!card || to === 'battlefield' || to === 'stack')
+    return;
+  if (card.realDefinitionId) {
+    card.definitionId = card.realDefinitionId;
+    delete card.realDefinitionId;
+    delete card.faceDownKind;
+  }
+  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags'])
+    delete card[key];
+  if (to !== 'exile') {
+    delete card.onAdventure;
+    delete card.foretold;
+    delete card.foretoldTurn;
+  }
+}
 function resetOnZoneChange(card) {
   card.tapped = false;
   card.damageMarked = 0;
@@ -70,6 +92,8 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   const hit = locateCardInGame(game, id);
   if (!hit || hit.zone === 'stack')
     throw new Error('Effect target is no longer in a movable tracked zone.');
+  if (to === 'graveyard')
+    to = graveyardDestination(game, hit.card);
   const from = hit.zone;
   const fromController = hit.card.controllerId || hit.player?.playerId;
   const wasTapped = !!hit.card.tapped;
@@ -78,8 +102,11 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   const owner = ownerFor(game, card, hit.player);
   if (!owner)
     throw new Error('Card owner is unavailable.');
+  // Last-known information for "dies" abilities (undying, persist, blitz).
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
   if (!preserveCounters)
     resetOnZoneChange(card);
+  clearCastState(card, to);
   card.zone = to;
   if (to === 'battlefield') {
     card.controllerId = controllerId || owner.playerId;
@@ -110,7 +137,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
     target.push(card);
   onEvent?.({ type: 'zone-change', sourceId: card.instanceId, definitionId: card.definitionId, from, to, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '' });
   if (from === 'battlefield' && to === 'graveyard' && isCreature(definition))
-    onEvent?.({ type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '' });
+    onEvent?.({ type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', last });
   if (from === 'battlefield' && to !== 'battlefield')
     onEvent?.({ type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', destination: to, wasTapped });
   if (to === 'battlefield')
@@ -361,7 +388,7 @@ function applyProliferate(game, controller, effect, bindings, notes) {
   }
   notes.push(`${controller.displayName} proliferates.`);
 }
-function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); const hit = locateCardInGame(game, targetId); if (left > 0 && hit?.zone === 'battlefield' && Number(hit.card?.counters?.shield || 0) > 0) {
+function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const hit = locateCardInGame(game, targetId); if (left > 0 && hit?.zone === 'battlefield' && Number(hit.card?.counters?.shield || 0) > 0) {
   hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);
   return 0;
 } for (const shield of game.damagePrevention || []) {
@@ -473,7 +500,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'life') {
       const players = targetPlayers(game, controllerId, effect.scope || 'you', effect.playerId || bindings[effect.bind]);
       for (const p of players) {
-        const delta = Number(effect.deltaSign || 1) * amount;
+        const delta = Number(effect.deltaSign || 1) >= 0 ? lifeGainAmount(game, p.playerId, amount) : -amount;
         const before = Number(p.life || 0);
         p.life = Math.max(0, before + delta);
         const actual = p.life - before;
@@ -497,8 +524,10 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const targetId = resolveBoundId(effect, bindings);
       if (!targetId)
         throw new Error('A damage target was not chosen.');
-      const dealt = preventDamage(game, targetId, amount);
-      const prevented = amount - dealt;
+      const victimCard = locateCardInGame(game, targetId);
+      const boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
+      const dealt = preventDamage(game, targetId, boosted);
+      const prevented = boosted - dealt;
       const p = game.players.find(x => x.playerId === targetId);
       if (p) {
         p.life = Math.max(0, Number(p.life || 0) - dealt);
@@ -515,6 +544,81 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (dealt)
         emit(bindings, { type: 'damage-permanent', targetId, amount: dealt, sourceId: bindings.sourceId || effect.sourceId || null, controllerId });
       checkLethal(game, targetId, notes, bindings);
+      continue;
+    }
+    if (effect.kind === 'return-self') {
+      // Undying / persist: the card returns from the graveyard with a counter.
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'graveyard') {
+        notes.push('The card is no longer in the graveyard, so it does not return.');
+        continue;
+      }
+      const moved = moveCard(game, hit.card.instanceId, 'battlefield', { controllerId: hit.card.ownerId, onEvent: e => emit(bindings, e) });
+      moved.card.counters = moved.card.counters || {};
+      moved.card.counters[effect.counter] = Number(moved.card.counters[effect.counter] || 0) + 1;
+      notes.push(`${cardName(game, moved.card)} returns to the battlefield with a ${effect.counter} counter.`);
+      continue;
+    }
+    if (effect.kind === 'designation') {
+      for (const p of game.players)
+        p.statuses = (p.statuses || []).filter(x => x.toLowerCase() !== effect.status.toLowerCase());
+      controller.statuses = [...(controller.statuses || []), effect.status];
+      notes.push(`${controller.displayName} becomes ${effect.status === 'Monarch' ? 'the monarch' : effect.status}.`);
+      continue;
+    }
+    if (effect.kind === 'goad') {
+      const hit = locateCardInGame(game, resolveBoundId(effect, bindings));
+      if (!hit || hit.zone !== 'battlefield')
+        throw new Error('The goad target is no longer on the battlefield.');
+      hit.card.temporaryEffects = hit.card.temporaryEffects || [];
+      hit.card.temporaryEffects.push({ kind: 'goad', by: controllerId, expires: `turn-start:${controllerId}` });
+      notes.push(`${cardName(game, hit.card)} is goaded.`);
+      continue;
+    }
+    if (effect.kind === 'transform') {
+      const hit = locateCardInGame(game, resolveBoundId(effect, bindings));
+      const base = hit ? game.cardDefinitions?.[hit.card.definitionId] : null;
+      if (!hit || hit.zone !== 'battlefield' || (base?.cardFaces || []).length < 2) {
+        notes.push('It cannot transform.');
+        continue;
+      }
+      hit.card.activeFaceIndex = Number(hit.card.activeFaceIndex || 0) === 0 ? 1 : 0;
+      notes.push(`${base.name} transforms into ${base.cardFaces[hit.card.activeFaceIndex]?.name || 'its other face'}.`);
+      emit(bindings, { type: 'transformed', sourceId: hit.card.instanceId, definitionId: hit.card.definitionId, controllerId: hit.card.controllerId });
+      continue;
+    }
+    if (effect.kind === 'unpreventable') {
+      game.unpreventableTurn = game.turnNumber;
+      notes.push('Damage can\u2019t be prevented this turn.');
+      continue;
+    }
+    if (effect.kind === 'exile-graveyards') {
+      let n = 0;
+      for (const p of game.players.filter(x => effect.scope !== 'opponents' || x.playerId !== controllerId)) {
+        for (const c of p.deck.graveyard.splice(0)) { c.zone = 'exile'; p.deck.exile.push(c); n++; }
+      }
+      notes.push(`${n} graveyard card${n === 1 ? '' : 's'} exiled.`);
+      continue;
+    }
+    if (effect.kind === 'damage-each') {
+      // "deals N damage to each creature [you don't control] [and each opponent/player]".
+      const creatureOwners = effect.creatures === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.creatures ? game.players.filter(p => !p.eliminated) : [];
+      const ids = creatureOwners.flatMap(p => (p.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature')).map(c => c.instanceId));
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') continue;
+        const dealt = preventDamage(game, id, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetControllerId: hit.card.controllerId }, amount));
+        hit.card.damageMarked = Number(hit.card.damageMarked || 0) + dealt;
+        if (dealt) emit(bindings, { type: 'damage-permanent', targetId: id, amount: dealt, sourceId: bindings.sourceId || null, controllerId });
+      }
+      const victims = effect.players === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.players === 'all' ? game.players.filter(p => !p.eliminated) : [];
+      for (const p of victims) {
+        const dealt = preventDamage(game, p.playerId, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: p.playerId }, amount));
+        p.life = Math.max(0, Number(p.life || 0) - dealt);
+        if (dealt) emit(bindings, { type: 'damage-player', playerId: p.playerId, amount: dealt, sourceId: bindings.sourceId || null, controllerId, combat: false });
+      }
+      notes.push(`${effect.sourceName || 'Effect'} deals ${amount} damage to ${[ids.length ? `${ids.length} ${effect.filter || 'creature'}${ids.length === 1 ? '' : 's'}` : '', victims.length ? `${victims.length} player${victims.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ') || 'nothing'}.`);
+      for (const id of ids) checkLethal(game, id, notes, bindings);
       continue;
     }
     if (effect.kind === 'damage-from-creature' || effect.kind === 'damage-from-selected-creature') {
@@ -627,7 +731,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('Combat-restriction target is no longer on the battlefield.');
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
-      hit.card.temporaryEffects.push({ kind: 'combat-restriction', restriction: effect.restriction, expires: effect.expires || 'cleanup' });
+      hit.card.temporaryEffects.push({ kind: 'combat-restriction', restriction: effect.restriction, expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
       notes.push(`${cardName(game, hit.card)} gains a temporary combat restriction.`);
       continue;
     }
@@ -700,7 +804,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The counter target is no longer legal.');
       const oldValue = Number(hit.card?.counters?.[effect.counter || '+1/+1'] || 0);
-      addCounter(hit.card, effect.counter || '+1/+1', amount);
+      const real = counterCount(game, hit.card.controllerId || hit.player?.playerId, effect.counter || '+1/+1', amount, { creature: isCreature(definitionFor(game, hit.card)) });
+      if (real !== amount) notes.push(`(${real} counters instead of ${amount}.)`);
+      addCounter(hit.card, effect.counter || '+1/+1', real);
       const newValue = Number(hit.card?.counters?.[effect.counter || '+1/+1'] || 0);
       notes.push(`${cardName(game, hit.card)} gets ${amount} ${effect.counter || '+1/+1'} counter${amount === 1 ? '' : 's'}.`);
       emit(bindings, { type: 'counter-added', targetId, controllerId: hit.card.controllerId, sourceId: bindings.sourceId || null, counter: effect.counter || '+1/+1', amount, oldValue, newValue });
@@ -715,7 +821,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           if (cardMatchesFilter(game, c, effect.filter || 'creature'))
             rows.push(c);
       for (const c of rows) {
-        addCounter(c, effect.counter || '+1/+1', amount);
+        addCounter(c, effect.counter || '+1/+1', counterCount(game, c.controllerId, effect.counter || '+1/+1', amount, { creature: isCreature(definitionFor(game, c)) }));
         emit(bindings, { type: 'counter-added', targetId: c.instanceId, controllerId: c.controllerId, sourceId: bindings.sourceId || null, counter: effect.counter || '+1/+1', amount });
       }
       notes.push(`${rows.length} permanent${rows.length === 1 ? '' : 's'} get ${amount} ${effect.counter || '+1/+1'} counter${amount === 1 ? '' : 's'}.`);
@@ -798,7 +904,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The pump target is no longer legal.');
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
-      hit.card.temporaryEffects.push({ kind: 'pt', power: Number(effect.power || 0), toughness: Number(effect.toughness || 0), expires: effect.expires || 'cleanup' });
+      hit.card.temporaryEffects.push({ kind: 'pt', power: Number(effect.power || 0), toughness: Number(effect.toughness || 0), expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
       notes.push(`${cardName(game, hit.card)} gets ${Number(effect.power || 0) >= 0 ? '+' : ''}${Number(effect.power || 0)}/${Number(effect.toughness || 0) >= 0 ? '+' : ''}${Number(effect.toughness || 0)} until end of turn.`);
       checkLethal(game, targetId, notes, bindings);
       continue;
@@ -827,13 +933,15 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'create-token') {
-      for (let i = 0; i < amount; i++) {
+      const probe = makeToken(game, controller, effect, 0);
+      const made = tokenCount(game, controllerId, amount, { creature: isCreature(definitionFor(game, probe)) });
+      for (let i = 0; i < made; i++) {
         const token = makeToken(game, controller, effect, i);
         controller.deck.battlefield.push(token);
         emit(bindings, { type: 'token-created', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '' });
         emit(bindings, { type: 'enters-battlefield', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '', token: true });
       }
-      notes.push(`${controller.displayName} creates ${amount} ${effect.name || effect.tokenName || 'token'} token${amount === 1 ? '' : 's'}.`);
+      notes.push(`${controller.displayName} creates ${made} ${effect.name || effect.tokenName || 'token'} token${made === 1 ? '' : 's'}.`);
       continue;
     }
     if (effect.kind === 'return-from-graveyard') {
@@ -1586,6 +1694,65 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     const bind = `creatureType${requirements.length}`;
     requirements.push({ kind: 'creature-type-choice', bind, label: 'Choose a creature type' });
     effects.push({ kind: 'choose-creature-type', bind });
+    return { effects, requirements, unsupported };
+  }
+  // Self references used by keyword reminder text (prowess, evoke, dash …).
+  const selfRef = `(?:${selfName}|this creature|this permanent)`;
+  if ((m = c.match(new RegExp(`^${selfRef} gets ([+-]\\d+)\\/([+-]\\d+) until end of turn\\.?$`, 'i')))) {
+    effects.push({ kind: 'pump', bind: 'sourceId', power: Number(m[1]), toughness: Number(m[2]), expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  if (new RegExp(`^Sacrifice ${selfRef}\\.?$`, 'i').test(c)) {
+    effects.push({ kind: 'sacrifice', bind: 'sourceId' });
+    return { effects, requirements, unsupported };
+  }
+  if (new RegExp(`^Return ${selfRef} to (?:its|their) owner'?s hand\\.?$`, 'i').test(c)) {
+    effects.push({ kind: 'bounce', bind: 'sourceId' });
+    return { effects, requirements, unsupported };
+  }
+  // "each" forms (overload and mass effects).
+  if ((m = c.match(/^(Destroy|Exile|Return) (?:each|all) (creature|artifact|enchantment|land|planeswalker|permanent|nonland permanent|noncreature permanent)s?( you don['’]?t control| your opponents control)?(?: to (?:its|their) owner(?:['’]s|s['’]?) hands?)?\.?$/i))) {
+    const verb = m[1].toLowerCase(), filter = m[2].toLowerCase() === 'noncreature permanent' ? 'noncreature' : m[2].toLowerCase();
+    effects.push({ kind: 'zone-each', scope: m[3] ? 'opponents' : 'all', filter, to: verb === 'exile' ? 'exile' : verb === 'return' ? 'hand' : 'graveyard', destroy: verb === 'destroy' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
+    effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
+    effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), creatures: null, players: /opponent/i.test(m[2]) ? 'opponents' : 'all', sourceName });
+    return { effects, requirements, unsupported };
+  }
+  if (/^You become the monarch\.?$/i.test(c)) {
+    effects.push({ kind: 'designation', status: 'Monarch' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Goad (target .+?)\.?$/i))) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'goad', bind });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(Target creature[^.]*) gets ([+-]\d+)\/([+-]\d+) until your next turn\.?$/i))) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: Number(m[2]), toughness: Number(m[3]), expires: 'your-next-turn' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(Target creature[^.]*) can['’]t attack until your next turn\.?$/i))) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'combat-restriction', bind, restriction: 'cant-attack', expires: 'your-next-turn' });
+    return { effects, requirements, unsupported };
+  }
+  if (new RegExp(`^Transform (?:${selfName}|this creature|this permanent|this artifact|this land|this enchantment|it)\\.?$`, 'i').test(c)) {
+    effects.push({ kind: 'transform', bind: 'sourceId' });
+    return { effects, requirements, unsupported };
+  }
+  if (/^Damage can['’]t be prevented this turn\.?$/i.test(c)) {
+    effects.push({ kind: 'unpreventable' });
+    return { effects, requirements, unsupported };
+  }
+  if (/^Exile all graveyards\.?$/i.test(c) || /^Exile each opponent['’]s graveyard\.?$/i.test(c)) {
+    effects.push({ kind: 'exile-graveyards', scope: /opponent/i.test(c) ? 'opponents' : 'all' });
     return { effects, requirements, unsupported };
   }
   // "Then sacrifice it" / pronoun continuations used after a source-creature choice.

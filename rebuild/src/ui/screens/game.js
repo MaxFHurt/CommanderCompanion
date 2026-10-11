@@ -178,7 +178,7 @@ export const gameScreen = {
           </div>
           <div class="rail-zones">
             ${[['graveyard', focus.graveyard.length], ['exile', focus.exile.length], ['tokens', tokens], ['attachments', attached]].map(([z, n]) => html`
-              <button type="button" class="rail-zone" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
+              <button type="button" class="rail-zone ${(focus[z] || []).some?.(c => c.playable) ? 'is-playable' : ''}" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
           </div>
           ${screens.length > 1 ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
           ${view.correction?.mine ? html`<button type="button" class="btn btn--small rail-tools" data-act="correction">Correcting…</button>`

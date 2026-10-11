@@ -751,6 +751,7 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .rail-zone img { width: 100%; }
 .rail-zone i { position: absolute; right: 0.35rem; top: 0.3rem; min-width: 1.6rem; padding: 0 0.3rem; border-radius: 0.8rem; background: rgba(40, 20, 90, 0.95); border: 1px solid var(--accent-strong); font: 800 0.95rem/1.5 var(--font-head); font-style: normal; text-align: center; }
 .rail-zone:active { filter: brightness(1.35); }
+.rail-zone.is-playable img { filter: drop-shadow(0 0 0.5rem rgba(69, 212, 131, 0.9)); }
 .rail-tools { min-height: 2.6rem; }
 
 .game__center { display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; gap: 0.35rem; min-width: 0; min-height: 0; }

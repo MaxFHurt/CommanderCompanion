@@ -38,7 +38,7 @@ export const CARDS = [
   creature('Fencing Ace', '{1}{W}', 'Human Soldier', 'Double strike', 1, 1, ['Double strike']),
   creature('Vampire Nighthawk', '{1}{B}{B}', 'Vampire Shaman', 'Flying, deathtouch, lifelink', 2, 3, ['Flying', 'Deathtouch', 'Lifelink']),
   creature('Elvish Visionary', '{1}{G}', 'Elf Shaman', 'When Elvish Visionary enters the battlefield, draw a card.', 1, 1),
-  creature('Mulldrifter', '{4}{U}', 'Elemental', 'Flying\nWhen Mulldrifter enters the battlefield, draw two cards.', 2, 2, ['Flying']),
+  creature('Mulldrifter', '{4}{U}', 'Elemental', 'Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it\'s sacrificed when it enters.)', 2, 2, ['Flying', 'Evoke']),
   creature('Raging Goblin', '{R}', 'Goblin Berserker', 'Haste', 1, 1, ['Haste']),
   creature('Wall of Omens', '{1}{W}', 'Wall', 'Defender\nWhen Wall of Omens enters the battlefield, draw a card.', 0, 4, ['Defender']),
   creature('Soul Warden', '{W}', 'Human Cleric', 'Whenever another creature enters the battlefield, you gain 1 life.', 1, 1),
@@ -106,6 +106,6 @@ export const DECKS = {
   white: { commander: 'Isamaru, Hound of Konda', list: deckList('Isamaru, Hound of Konda', ['Sol Ring', 'Mind Stone', 'Serra Angel', 'White Knight', 'Fencing Ace', 'Wall of Omens', 'Soul Warden', "Healer's Hawk", 'Day of Judgment', 'Swords to Plowshares', 'Glorious Anthem', 'Evolving Wilds', 'Swiftfoot Boots', 'Bonesplitter', 'Holy Strength'], { Plains: 1 }) },
   simic: { commander: 'Tatyova, Benthic Druid', list: deckList('Tatyova, Benthic Druid', ['Sol Ring', 'Arcane Signet', 'Command Tower', 'Llanowar Elves', 'Grizzly Bears', 'Elvish Visionary', 'Mulldrifter', 'Colossal Dreadmaw', 'Air Elemental', 'Fog Bank', 'Counterspell', 'Giant Growth', 'Divination', 'Cultivate', 'Rampant Growth', 'Naturalize', 'Opt', 'Evolving Wilds', 'Bala Ged Recovery // Bala Ged Sanctuary'], { Forest: 1, Island: 1 }) },
   rakdos: { commander: 'Lyzolda, the Blood Witch', list: deckList('Lyzolda, the Blood Witch', ['Sol Ring', 'Arcane Signet', 'Command Tower', 'Badlands', 'Vampire Nighthawk', 'Raging Goblin', 'Simian Spirit Guide', 'Gravedigger', 'Lightning Bolt', 'Shock', 'Murder', 'Reanimate', 'Mind Rot', 'Raise Dead', 'Dragon Fodder', 'Storm the Vault Oddity'], { Swamp: 1, Mountain: 1 }) },
-  lab: { commander: 'The Ur-Dragon', list: deckList('The Ur-Dragon', LAB_CARDS.filter(x => !/Legendary Creature/.test(x.type_line)).map(x => x.name), { Plains: 1, Island: 1, Swamp: 1, Mountain: 1, Forest: 1 }) },
+  lab: { commander: 'The Ur-Dragon', list: deckList('The Ur-Dragon', [...LAB_CARDS.filter(x => x.name !== 'The Ur-Dragon').map(x => x.name), 'Mulldrifter', 'Murder'], { Plains: 1, Island: 1, Swamp: 1, Mountain: 1, Forest: 1 }) },
   red: { commander: 'Zada, Hedron Grinder', list: deckList('Zada, Hedron Grinder', ['Sol Ring', 'Raging Goblin', 'Simian Spirit Guide', 'Lightning Bolt', 'Shock', 'Dragon Fodder'], { Mountain: 1 }) }
 };

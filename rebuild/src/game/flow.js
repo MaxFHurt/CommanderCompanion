@@ -7,7 +7,7 @@ import { resolveCombat, cardHasKeyword } from '../engine/combat.js';
 import { queueTriggers } from '../engine/triggers.js';
 import { GameError, activePlayer, alivePlayers, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
 import { Need, makeAsk, validateAnswer } from './requirements.js';
-import { OPS, commit } from './ops.js';
+import { OPS, commit, addLore } from './ops.js';
 import { attackOptions, blockOptions, hasResponse, stackTop } from './legal.js';
 import { syncAttachments } from './attachments.js';
 import { stateBasedActions } from './sba.js';
@@ -113,6 +113,14 @@ export function passPriority(game, playerId, { override = false } = {}) {
 
 function setPhase(game, phase, extra = {}) {
   commit(game, { type: 'phase', playerId: game.activePlayerId, phase, silent: true, ...extra });
+  // Sagas: a lore counter after your draw step (once per turn).
+  if (phase === 'precombat-main') {
+    for (const c of activePlayer(game)?.deck?.battlefield || []) {
+      if (!/\bSaga\b/i.test(defOf(game, c)?.typeLine || '') || c.loreTurn === game.turnNumber) continue;
+      c.loreTurn = game.turnNumber;
+      addLore(game, c, 1);
+    }
+  }
 }
 
 function untapStep(game) {
@@ -365,7 +373,7 @@ export function finishGuided(game, playerId, { override = false } = {}) {
 
 function finishGame(game) {
   const f = game.flow;
-  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null; f.proposal = null; f.correction = null;
+  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null; f.proposal = null; f.correction = null; f.freeCast = null;
   if (!game.endedAt) {
     game.endedAt = new Date().toISOString();
     const winner = playerById(game, game.winner);
@@ -393,6 +401,13 @@ export function settle(game) {
       const top = stackTop(game);
       if (top && top.id === f.guided.stackId) return;
       f.guided = null;
+      continue;
+    }
+    if (f.freeCast) {
+      // Cascade / discover: cast the hit card without paying its mana cost.
+      const { playerId, instanceId } = f.freeCast;
+      f.freeCast = null;
+      startOp(game, 'play', playerId, { instanceId, free: true }, { system: true });
       continue;
     }
     if ((game.pendingTriggers || []).length) {

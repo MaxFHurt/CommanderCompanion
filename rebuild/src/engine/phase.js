@@ -109,7 +109,16 @@ export function advanceTurn(game) {
       game.roundNumber++;
   }
   game.turnNumber++;
+  game.spellsCastThisTurn = 0;
+  for (const p of game.players)
+    if (p.counters)
+      p.counters.spellsCastThisTurn = 0;
   game.activePlayerId = next.playerId;
+  // "Until your next turn" effects (goad, some dungeon rooms) end as that player's turn begins.
+  for (const p of game.players || [])
+    for (const c of p.deck?.battlefield || [])
+      if ((c.temporaryEffects || []).some(e => e?.expires === `turn-start:${next.playerId}`))
+        c.temporaryEffects = c.temporaryEffects.filter(e => e?.expires !== `turn-start:${next.playerId}`);
   game.phase = 'untap';
   game.priorityState = null;
   game.stack = game.stack || [];

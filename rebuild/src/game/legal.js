@@ -2,11 +2,12 @@
 // actions and by the view to highlight playable cards and explain blocked ones.
 
 import {
-  validatePlay, validateAttack, validateBlock, parseActivatedAbilities, validateActivatedAbilityFull,
+  validatePlay, validateAttack, validateBlock, parseActivatedAbilities, validateActivatedAbilityFull, planMana,
   effectiveManaOptionsForSource, playerManaAvailability, blockerCapacity
 } from '../engine/rules.js';
 import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponentsOf, playerById, alivePlayers } from './helpers.js';
 import { candidatesFor } from './requirements.js';
+import { castOptions, keywordCost } from './casting.js';
 
 const HAND_MANA_COST = /^Exile\s+(?:this card|[^:]+?)\s+from your hand$/i;
 
@@ -49,8 +50,10 @@ export function playCheck(game, player, card, faceIndex = null) {
   if (!def) return { legal: false, reasons: ['Card data is missing.'], kind: 'cast', def: null };
   const kind = isLand(def) ? 'land' : 'cast';
   const commander = card.zone === 'command' ? commanderEntryFor(player, card) : null;
-  const result = validatePlay({ game, player, definition: def, instance: card, kind, commander, definitions: definitionsMap(game) });
-  return { ...result, kind, def, commander };
+  const options = castOptions(game, player, card, def, { commander });
+  if (!options.length) return { legal: false, reasons: [card.zone === 'graveyard' ? 'This card cannot be cast from a graveyard right now.' : card.zone === 'exile' ? 'This card cannot be cast from exile.' : 'This card cannot be cast.'], kind, def, commander, options };
+  const best = options.find(o => o.legal) || options[0];
+  return { ...best, legal: !!options.find(o => o.legal), kind, def, commander, options, mode: best.id };
 }
 
 /** Is this instant-speed card worth offering as a response to what is on the stack? */
@@ -80,7 +83,8 @@ function abilityRespondsToStack(game, ability) {
 /** Cards and abilities a player could legally use if given priority now. */
 export function responseOptions(game, player) {
   const graveyardCasting = (player.temporaryPermissions || []).some(x => x?.kind === 'cast-from-zone' && x?.zone === 'graveyard');
-  const cards = [...(player.deck?.hand || []), ...(graveyardCasting ? (player.deck?.graveyard || []) : [])].filter(card => {
+  const cards = [...(player.deck?.hand || []), ...(player.deck?.graveyard || []), ...(player.deck?.exile || [])].filter(card => {
+    if (card.zone !== 'hand' && !graveyardCasting && !castOptions(game, player, card, defOf(game, card)).length) return false;
     const def = defOf(game, card);
     if (!def || isLand(def) || !isInstantSpeed(def) || !responseRelevant(game, def, player)) return false;
     return playCheck(game, player, card).legal;
@@ -90,7 +94,9 @@ export function responseOptions(game, player) {
     return parseActivatedAbilities(def).some(a => !a.manaAbility && abilityRespondsToStack(game, a)
       && validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability: a, definitions: definitionsMap(game) }).legal);
   });
-  return { cards, abilities };
+  // Ninjutsu has a short window (after blockers), so it is worth stopping for.
+  const ninjas = (player.deck?.hand || []).filter(card => specialRows(game, player, card, { running: true }).some(r => r.ability.special === 'ninjutsu' && r.legal));
+  return { cards, abilities: [...abilities, ...ninjas] };
 }
 
 export function hasResponse(game, player) {
@@ -98,12 +104,43 @@ export function hasResponse(game, player) {
   return options.cards.length > 0 || options.abilities.length > 0;
 }
 
+/** Special actions and hand abilities: cycling, foretell, ninjutsu, turning a face-down creature up. */
+export function specialRows(game, player, card, { running = false } = {}) {
+  const def = defOf(game, card);
+  if (!def) return [];
+  const rows = [];
+  const text = String(def.oracleText || '');
+  // While the action itself is running, its own op must not count as "finish the current choice".
+  const block = running ? null : timingBlock(game, player.playerId);
+  const payable = cost => planMana(playerManaAvailability(player, game), cost, 0, { lifeAvailable: Number(player.life || 0) }).ok;
+  const row = (id, label, cost, reasons) => rows.push({ ability: { id: `special:${id}`, text: `${label} ${cost}`.trim(), cost, effect: label, manaAbility: false, special: id }, legal: !reasons.filter(Boolean).length, reasons: reasons.filter(Boolean), fromHand: card.zone === 'hand' });
+  if (card.zone === 'hand') {
+    const cyc = keywordCost(text, 'Cycling');
+    if (cyc) row('cycling', 'Cycling', cyc, [block, !payable(cyc) && 'Not enough mana.']);
+    const type = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*((?:Basic )?\w+cycling) ((?:\{[^}]+\})+)/i);
+    if (type && !/^Cycling$/i.test(type[1])) row(`typecycling:${type[1]}`, type[1], type[2], [block, !payable(type[2]) && 'Not enough mana.']);
+    const fore = keywordCost(text, 'Foretell');
+    if (fore) row('foretell', 'Foretell (exile face down)', '{2}', [block, game.activePlayerId !== player.playerId && 'Only during your turn.', !payable('{2}') && 'Not enough mana.']);
+    const ninja = keywordCost(text, 'Ninjutsu');
+    if (ninja) {
+      const cs = game.combatState;
+      const blocked = new Set(Object.values(cs?.blocks || {}).flatMap(b => (b.assignments || []).map(a => a.attackerId)));
+      const unblocked = game.phase === 'declare-blockers' && !game.flow.blocks && (cs?.attackers || []).some(a => a.playerId === player.playerId && !blocked.has(a.instanceId));
+      row('ninjutsu', 'Ninjutsu', ninja, [block, !unblocked && 'Only after blockers, with an unblocked attacker.', !payable(ninja) && 'Not enough mana.']);
+    }
+  }
+  if (card.zone === 'battlefield' && card.realDefinitionId && card.castFlags?.turnUpCost) {
+    row('turn-face-up', 'Turn face up', card.castFlags.turnUpCost, [block, !payable(card.castFlags.turnUpCost) && 'Not enough mana.']);
+  }
+  return rows;
+}
+
 /** Activated abilities of a card with their current legality. */
 export function abilityRows(game, player, card) {
   const def = defOf(game, card);
   if (!def) return [];
   const inHand = card.zone === 'hand';
-  return parseActivatedAbilities(def)
+  return [...specialRows(game, player, card), ...parseActivatedAbilities(def)
     .filter(ability => (inHand ? ability.manaAbility && HAND_MANA_COST.test(String(ability.cost || '').trim()) : true))
     .map(ability => {
       const check = inHand ? { legal: true, reasons: [] }
@@ -116,7 +153,7 @@ export function abilityRows(game, player, card) {
         if (ability.loyaltyDelta !== null && card.loyaltyUsedTurn === game.turnNumber) return { ability, legal: false, reasons: ['One loyalty ability each turn.'], fromHand: inHand };
       }
       return { ability, legal: check.legal, reasons: check.reasons, fromHand: inHand };
-    });
+    })];
 }
 
 export function manaOptionsForAbility(game, player, card, ability) {
@@ -190,8 +227,9 @@ export function availableMana(game, player) {
 export function hasMainPhaseAction(game, player) {
   for (const card of player.deck?.hand || []) if (playCheck(game, player, card).legal) return true;
   for (const card of player.deck?.commandZone || []) if (playCheck(game, player, card).legal) return true;
+  for (const card of [...(player.deck?.graveyard || []), ...(player.deck?.exile || [])]) if (castOptions(game, player, card, defOf(game, card)).some(o => o.legal)) return true;
   for (const card of player.deck?.battlefield || []) {
-    if (abilityRows(game, player, card).some(r => r.legal && !r.ability.manaAbility)) return true;
+    if (abilityRows(game, player, card).some(r => r.legal && !r.ability.manaAbility && !r.ability.special)) return true;
   }
   return false;
 }

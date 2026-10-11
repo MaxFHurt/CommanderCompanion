@@ -24,7 +24,7 @@ export function openCardDetail(ctx, id) {
   const { card, zone, player } = hit;
   const def = view.defs[card.def];
   const mine = !!view.you && (zone === 'battlefield' ? card.controller === view.you : player.playerId === view.you);
-  const playableZone = zone === 'hand' || zone === 'command';
+  const playableZone = zone === 'hand' || zone === 'command' || ((zone === 'graveyard' || zone === 'exile') && !!card.castLabel);
   const isLand = /\bLand\b/i.test(def?.typeLine || '') && !(def?.cardFaces?.length > 1);
   const others = view.players.filter(p => !p.eliminated);
 
@@ -37,6 +37,10 @@ export function openCardDetail(ctx, id) {
     if (card.power !== null) status.push(`Currently ${card.power}/${card.toughness}${card.damage ? ` with ${card.damage} damage` : ''}`);
     for (const [k, v] of Object.entries(card.counters || {})) if (v) status.push(`${v} ${k} counter${v === 1 ? '' : 's'}`);
     if (card.chosen) status.push(`Chosen: ${card.chosen}`);
+    if (card.faceDown) status.push(card.realName ? `Face down — it is really ${card.realName}` : 'Face down');
+    if (card.castMode) status.push(`Cast with ${card.castMode}`);
+    if (card.kicked) status.push(card.kicked > 1 ? `Kicked ${card.kicked} times` : 'Kicked');
+    if (card.goaded) status.push('Goaded — must attack, and not the player who goaded it if possible');
     if (card.controller !== card.owner) status.push(`Owned by ${view.players.find(p => p.playerId === card.owner)?.name || 'another player'}`);
   }
 
@@ -64,7 +68,7 @@ export function openCardDetail(ctx, id) {
 
   const actions = [];
   if (mine && playableZone) {
-    const label = isLand ? 'Play land' : zone === 'command' ? 'Cast commander' : 'Cast';
+    const label = isLand ? 'Play land' : zone === 'command' ? 'Cast commander' : card.castLabel && zone !== 'hand' ? card.castLabel : 'Cast';
     if (card.playable) actions.push({ label, kind: 'confirm', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id }); } });
     else if (view.canForce) actions.push({ label: 'Play anyway', kind: 'danger', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id, force: true }); } });
     else if (view.deviceMode === 'multi-device' && view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: async ({ close }) => { close(); const r = await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent: { type: 'play', instanceId: id } }); if (r.ok) toast('The table is voting.'); } });

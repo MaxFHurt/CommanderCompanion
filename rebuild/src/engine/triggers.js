@@ -1,6 +1,7 @@
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
 import { compileEffectText, applyEffects } from './effects.js';
+import { keywordTriggers, designationTriggers } from './keyword-triggers.js';
 function defFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function escRe(s) { return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -49,7 +50,7 @@ export function parseTriggeredAbilities(definition) {
         out.push(current);
       current = start;
     }
-    else if (current && (/^[•—-]/.test(line) || /^if\b/i.test(line) || /^you may\b/i.test(line) || /^this ability triggers only once each turn\.?$/i.test(line))) {
+    else if (current && (/^[•—-]/.test(line) || (/^if\b/i.test(line) && !/\bwould\b/i.test(line)) || /^you may\b/i.test(line) || /^this ability triggers only once each turn\.?$/i.test(line))) {
       current += `\n${line}`;
     }
     else if (current) {
@@ -369,8 +370,8 @@ export function collectTriggers(game, event) {
   const out = [];
   const seen = new Set();
   for (const row of sourceRows(game, event))
-    for (const ability of parseTriggeredAbilities(row.definition)) {
-      if (!triggerMatches(game, row, ability, event))
+    for (const ability of [...parseTriggeredAbilities(row.definition), ...keywordTriggers(game, row, event)]) {
+      if (!ability.builtin && !triggerMatches(game, row, ability, event))
         continue;
       const turnKey = `${ability.id}:${Number(game.turnNumber || 0)}`;
       row.card.triggerFireLedger = row.card.triggerFireLedger || {};
@@ -382,9 +383,10 @@ export function collectTriggers(game, event) {
       seen.add(key);
       if (ability.oncePerTurn)
         row.card.triggerFireLedger[turnKey] = true;
-      const compiled = ability.modes?.length ? { supported: true, effects: [], requirements: [], unsupported: [] } : compileEffectText(ability.effect, { sourceName: row.definition?.name || 'Triggered ability' });
+      const compiled = ability.compiled || (ability.modes?.length ? { supported: true, effects: [], requirements: [], unsupported: [] } : compileEffectText(ability.effect, { sourceName: row.definition?.name || 'Triggered ability' }));
       out.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: row.player.playerId, sourceId: row.card.instanceId, sourceDefinitionId: row.card.definitionId, sourceName: row.definition?.name || 'Card', abilityId: ability.id, abilityText: ability.text, effectText: ability.effect, modal: ability.modes?.length ? { modes: ability.modes, uniquePerTurn: !!ability.uniquePerTurn } : null, compiled, event: structuredClone(event), createdAt: new Date().toISOString() });
     }
+  out.push(...designationTriggers(game, event));
   return out;
 }
 export function orderTriggersAPNAP(game, rows = []) {

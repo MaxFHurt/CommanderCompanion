@@ -2,8 +2,10 @@ import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOpti
 import { sync } from './deck.js';
 import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js';
 import { effectivePower, effectiveToughness } from './combat.js';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard, snapshotGame, restoreGameSnapshot } from './effects.js';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard, snapshotGame, restoreGameSnapshot, clearCastState } from './effects.js';
 import { queueTriggers } from './triggers.js';
+import { FACE_DOWN_ID, faceDownDefinition } from './face-down.js';
+import { graveyardDestination } from './replacements.js';
 const ZONES = ['remainingLibrary', 'hand', 'battlefield', 'graveyard', 'exile', 'tokens', 'attachments', 'commandZone'];
 function locate(deck, id) { for (const z of ZONES) {
   const a = deck[z] || [];
@@ -114,6 +116,18 @@ function emit(game, event) {
   }
   return queueTriggers(game, event);
 }
+/** Leaving the battlefield: remember counters for "dies" abilities, then reset the card. */
+function leaveBattlefield(card, to = 'graveyard') {
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
+  card.damageMarked = 0;
+  card.deathtouchDamage = false;
+  card.counters = {};
+  card.temporaryEffects = [];
+  delete card.attacking;
+  delete card.blocking;
+  clearCastState(card, to);
+  return last;
+}
 function payMana(game, player, payment) {
   if (!payment)
     return;
@@ -205,6 +219,32 @@ function putSpellOnStack(game, player, action, deck) {
   payMana(game, player, action.payment);
   if (Number.isInteger(action.activeFaceIndex))
     card.activeFaceIndex = action.activeFaceIndex;
+  // Delve and escape exile graveyard cards as part of the cost.
+  for (const id of action.exileFromGraveyard || []) {
+    const i = deck.graveyard.findIndex(c => c.instanceId === id);
+    if (i < 0)
+      throw new Error('A graveyard card chosen to pay the cost is gone.');
+    const [gone] = deck.graveyard.splice(i, 1);
+    gone.zone = 'exile';
+    deck.exile.push(gone);
+  }
+  delete card.onAdventure;
+  delete card.foretold;
+  delete card.foretoldTurn;
+  if (action.castMode && action.castMode !== 'normal')
+    card.castMode = action.castMode;
+  if (action.kicked) {
+    card.kicked = true;
+    card.kickCount = Number(action.kickCount || 1);
+  }
+  if (action.faceDown) {
+    game.cardDefinitions[FACE_DOWN_ID] = game.cardDefinitions[FACE_DOWN_ID] || faceDownDefinition();
+    card.realDefinitionId = card.definitionId;
+    card.definitionId = FACE_DOWN_ID;
+    card.faceDownKind = action.faceDown;
+    card.castFlags = { turnUpCost: action.turnUpCost || null, megamorph: !!action.megamorph };
+    card.activeFaceIndex = null;
+  }
   card.zone = 'stack';
   game.stack = game.stack || [];
   const spellDef = defFor(game, card), defaultTo = /Instant|Sorcery/i.test(spellDef?.typeLine || '') ? 'graveyard' : 'battlefield';
@@ -212,10 +252,14 @@ function putSpellOnStack(game, player, action, deck) {
     id: action.stackId || `stack:${Date.now()}:${Math.random()}`, kind: 'spell', controllerId: player.playerId, ownerId: card.ownerId, card, sourceDefinitionId: card.definitionId,
     fromZone: from, to: action.to || defaultTo, effects: structuredClone(action.effects || []), effectBindings: structuredClone(action.effectBindings || {}), searchResult: structuredClone(action.searchResult || null),
     asEntersChoices: structuredClone(action.asEntersChoices || null), manaCapacityColor: action.manaCapacityColor || null, label: action.label || `Cast ${defFor(game, card)?.name || 'spell'}`,
-    commanderId: action.commanderId || null, guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString()
+    commanderId: action.commanderId || null, guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString(),
+    castMode: action.castMode || 'normal', exileOnLeave: !!action.exileOnLeave, adventure: !!action.adventure, kicked: !!action.kicked, kickCount: Number(action.kickCount || 0)
   };
+  player.counters = player.counters || {};
+  player.counters.spellsCastThisTurn = Number(player.counters.spellsCastThisTurn || 0) + 1;
+  game.spellsCastThisTurn = Number(game.spellsCastThisTurn || 0) + 1;
   game.stack.push(stackObject);
-  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
+  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
@@ -255,6 +299,7 @@ function payAbilityCosts(game, player, action, deck) {
         throw new Error('Chosen activation-cost card is unavailable');
       const def = defFor(game, mv.card), fromZone = mv.z, fromController = mv.card.controllerId || player.playerId, wasTapped = !!mv.card.tapped;
       const [paid] = mv.a.splice(mv.i, 1);
+      const last = fromZone === 'battlefield' ? leaveBattlefield(paid) : null;
       paid.zone = 'graveyard';
       paid.tapped = false;
       const owner = ownerFor(game, paid, player);
@@ -264,7 +309,7 @@ function payAbilityCosts(game, player, action, deck) {
         emit(game, { type: 'sacrificed', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, cost: true });
         emit(game, { type: 'leaves-battlefield', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, destination: 'graveyard', typeLine: def?.typeLine || '', wasTapped });
         if (/Creature/i.test(def?.typeLine || ''))
-          emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token });
+          emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, last });
       }
       else if (fromZone === 'hand') {
         emit(game, { type: 'discard', playerId: player.playerId, sourceId: paid.instanceId, definitionId: paid.definitionId, cost: true });
@@ -275,6 +320,7 @@ function payAbilityCosts(game, player, action, deck) {
     if (selfHit) {
       const def = defFor(game, selfHit.card), fromController = selfHit.card.controllerId || player.playerId, wasTapped = !!selfHit.card.tapped;
       const [sacrificed] = selfHit.a.splice(selfHit.i, 1);
+      const last = leaveBattlefield(sacrificed);
       sacrificed.zone = 'graveyard';
       sacrificed.tapped = false;
       const owner = ownerFor(game, sacrificed, player);
@@ -283,7 +329,7 @@ function payAbilityCosts(game, player, action, deck) {
       emit(game, { type: 'sacrificed', sourceId: sacrificed.instanceId, definitionId: sacrificed.definitionId, controllerId: fromController, ownerId: sacrificed.ownerId, typeLine: def?.typeLine || '', token: !!sacrificed.token, cost: true });
       emit(game, { type: 'leaves-battlefield', sourceId: sacrificed.instanceId, definitionId: sacrificed.definitionId, controllerId: fromController, ownerId: sacrificed.ownerId, destination: 'graveyard', typeLine: def?.typeLine || '', wasTapped });
       if (/Creature/i.test(def?.typeLine || ''))
-        emit(game, { type: 'dies', sourceId: sacrificed.instanceId, definitionId: sacrificed.definitionId, controllerId: fromController, ownerId: sacrificed.ownerId, typeLine: def?.typeLine || '', token: !!sacrificed.token });
+        emit(game, { type: 'dies', sourceId: sacrificed.instanceId, definitionId: sacrificed.definitionId, controllerId: fromController, ownerId: sacrificed.ownerId, typeLine: def?.typeLine || '', token: !!sacrificed.token, last });
     }
   }
   return card;
@@ -347,7 +393,10 @@ function resolveStackTop(game) {
     throw new Error('Stack object controller is unavailable.');
   let notes = [];
   if (obj.kind === 'spell' || obj.kind === 'spell-copy') {
-    const card = obj.card, def = defFor(game, card), isCopy = obj.kind === 'spell-copy' || obj.isCopy, to = isCopy ? 'none' : (obj.to || (/Instant|Sorcery/i.test(def?.typeLine || '') ? 'graveyard' : 'battlefield'));
+    const card = obj.card, def = defFor(game, card), isCopy = obj.kind === 'spell-copy' || obj.isCopy;
+    let to = isCopy ? 'none' : (obj.to || (/Instant|Sorcery/i.test(def?.typeLine || '') ? 'graveyard' : 'battlefield'));
+    if (to === 'graveyard' && graveyardDestination(game, card) === 'exile')
+      obj.to = to = 'exile';
     card.zone = to;
     if (to === 'battlefield') {
       card.controllerId = player.playerId;
@@ -375,8 +424,12 @@ function resolveStackTop(game) {
     notes.push(...applyTrackedEffects(game, player, obj.effects || [], { ...obj.effectBindings, sourceId: card.instanceId }));
     if (!isCopy && to === 'battlefield')
       emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: def?.typeLine || '' });
-    if (!isCopy && to !== 'battlefield')
+    if (!isCopy && to !== 'battlefield') {
       card.activeFaceIndex = null;
+      clearCastState(card, to);
+      if (to === 'exile' && obj.adventure)
+        card.onAdventure = true;
+    }
     if (obj.commanderId) {
       const cmd = player.commanders.find(c => c.id === obj.commanderId);
       if (cmd) {
@@ -450,6 +503,73 @@ export function createTransactionEngine(game) {
         deck[zoneKey(card.zone)].push(card);
         addMana(player, action.manaColor, Math.max(1, Number(action.manaAmount || 1)));
       }
+      else if (action.type === 'special-action') {
+        // Cycling, foretell, ninjutsu, turning a face-down creature face up.
+        payMana(game, player, action.payment);
+        const card = locate(deck, action.instanceId)?.card;
+        if (!card)
+          throw new Error('That card is no longer available.');
+        const def = defFor(game, card);
+        if (action.kind === 'cycle') {
+          const hit = locate(deck, card.instanceId);
+          hit.a.splice(hit.i, 1);
+          card.zone = 'graveyard';
+          deck.graveyard.push(card);
+          emit(game, { type: 'discard', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, cost: true });
+          emit(game, { type: 'cycled', playerId: player.playerId, controllerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId });
+        }
+        else if (action.kind === 'foretell') {
+          const hit = locate(deck, card.instanceId);
+          hit.a.splice(hit.i, 1);
+          card.zone = 'exile';
+          card.foretold = true;
+          card.foretoldTurn = game.turnNumber;
+          deck.exile.push(card);
+        }
+        else if (action.kind === 'turn-face-up') {
+          if (!card.realDefinitionId)
+            throw new Error('That permanent is not face down.');
+          card.definitionId = card.realDefinitionId;
+          delete card.realDefinitionId;
+          delete card.faceDownKind;
+          if (card.castFlags?.megamorph) {
+            card.counters = card.counters || {};
+            card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + 1;
+          }
+          delete card.castFlags;
+          emit(game, { type: 'turned-face-up', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId });
+        }
+        else if (action.kind === 'ninjutsu') {
+          const back = locate(deck, action.returnId);
+          const attack = (game.combatState?.attackers || []).find(a => a.instanceId === action.returnId);
+          if (!back || back.z !== 'battlefield' || !attack)
+            throw new Error('The unblocked attacker is gone.');
+          back.a.splice(back.i, 1);
+          const returned = back.card;
+          returned.zone = 'hand';
+          returned.tapped = false;
+          returned.counters = {};
+          returned.temporaryEffects = [];
+          clearCastState(returned, 'hand');
+          deck.hand.push(returned);
+          emit(game, { type: 'leaves-battlefield', sourceId: returned.instanceId, definitionId: returned.definitionId, controllerId: player.playerId, ownerId: returned.ownerId, destination: 'hand', typeLine: defFor(game, returned)?.typeLine || '' });
+          const hit = locate(deck, card.instanceId);
+          hit.a.splice(hit.i, 1);
+          card.zone = 'battlefield';
+          card.tapped = true;
+          card.controllerId = player.playerId;
+          card.enteredTurn = game.turnNumber;
+          card.controlSinceTurn = game.turnNumber;
+          deck.battlefield.push(card);
+          attack.instanceId = card.instanceId;
+          card.attacking = attack.defenderId;
+          emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: def?.typeLine || '' });
+        }
+        if (action.stack) {
+          game.stack = game.stack || [];
+          game.stack.push({ id: action.stack.id, kind: 'ability', controllerId: player.playerId, sourceId: card.instanceId, sourceDefinitionId: card.definitionId, effects: structuredClone(action.stack.effects || []), effectBindings: structuredClone(action.stack.effectBindings || {}), label: action.stack.label, abilityText: action.stack.text || '', guidedResolution: structuredClone(action.stack.guided || null), createdAt: new Date().toISOString() });
+        }
+      }
       else if (action.type === 'put-trigger-stack') {
         game.stack = game.stack || [];
         game.stack.push({ id: action.stackId || `stack:${Date.now()}:${Math.random()}`, kind: 'trigger', controllerId: player.playerId, sourceId: action.sourceId || null, sourceDefinitionId: action.sourceDefinitionId || null, effects: structuredClone(action.effects || []), effectBindings: structuredClone(action.effectBindings || {}), label: action.label || 'Triggered ability', abilityText: action.abilityText || '', guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString() });
@@ -481,11 +601,26 @@ export function createTransactionEngine(game) {
         emit(game, { type: 'draw', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, drawNumberThisTurn: player.counters.cardsDrawnThisTurn, isFirstNormalDrawStepDraw: game.phase === 'draw' && player.counters.cardsDrawnThisTurn === 1 });
       }
       else if (action.type === 'move-card') {
+        if (action.to === 'graveyard') {
+          const probe = locate(deck, action.instanceId);
+          if (probe && graveyardDestination(game, probe.card) === 'exile')
+            action = { ...action, to: 'exile' };
+        }
         const hit = locate(deck, action.instanceId);
         if (!hit)
           throw new Error('Card not found');
         const card = hit.card, def = defFor(game, card), from = hit.z, fromController = card.controllerId || player.playerId;
         hit.a.splice(hit.i, 1);
+        const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
+        if (from === 'battlefield' && action.to !== 'battlefield') {
+          card.damageMarked = 0;
+          card.deathtouchDamage = false;
+          card.counters = {};
+          card.temporaryEffects = [];
+          delete card.attacking;
+          delete card.blocking;
+        }
+        clearCastState(card, action.to);
         const wasTappedBeforeMove = !!card.tapped;
         card.zone = action.to;
         card.tapped = action.to === 'battlefield' ? !!action.tapped : false;
@@ -500,7 +635,7 @@ export function createTransactionEngine(game) {
         if (from === 'battlefield' && action.to !== 'battlefield') {
           emit(game, { type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, destination: action.to, typeLine: def?.typeLine || '', wasTapped: wasTappedBeforeMove });
           if (action.to === 'graveyard' && /Creature/i.test(def?.typeLine || ''))
-            emit(game, { type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: def?.typeLine || '', token: !!card.token });
+            emit(game, { type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: def?.typeLine || '', token: !!card.token, last });
         }
         if (action.to === 'battlefield') {
           card.enteredTurn = game.turnNumber;
@@ -646,7 +781,7 @@ export function createTransactionEngine(game) {
               emit(game, { type: 'sacrificed', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, cost: true });
               emit(game, { type: 'leaves-battlefield', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, destination: 'graveyard', typeLine: def?.typeLine || '', wasTapped });
               if (/Creature/i.test(def?.typeLine || ''))
-                emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token });
+                emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, last });
             }
             else if (fromZone === 'hand') {
               emit(game, { type: 'discard', playerId: player.playerId, sourceId: paid.instanceId, definitionId: paid.definitionId, cost: true });

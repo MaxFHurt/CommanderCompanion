@@ -136,8 +136,9 @@ function planFixedMana(available, req) {
   chosen.C += cUse;
   pool.C -= cUse;
   generic -= cUse;
+  // Creatures tapped for convoke pay generic last, after lands and other sources.
   while (generic > 0) {
-    const src = flex.find(x => !usedFlex.has(x.instanceId));
+    const src = flex.find(x => !usedFlex.has(x.instanceId) && !x.convoke);
     if (!src)
       break;
     usedFlex.add(src.instanceId);
@@ -152,6 +153,14 @@ function planFixedMana(available, req) {
     chosen[c] += use;
     pool[c] -= use;
     generic -= use;
+  }
+  while (generic > 0) {
+    const src = flex.find(x => !usedFlex.has(x.instanceId));
+    if (!src)
+      break;
+    usedFlex.add(src.instanceId);
+    assignments.push({ instanceId: src.instanceId, color: src.options[0], generic: true, zone: src.zone, convoke: !!src.convoke });
+    generic--;
   }
   if (generic)
     return null;
@@ -317,7 +326,7 @@ function spellTargetLegalityIssues({ game, player, definition, definitions } = {
   }
   return issues;
 }
-export function validatePlay({ game, player, definition, instance, kind = 'cast', commander = null, definitions }) {
+export function validatePlay({ game, player, definition, instance, kind = 'cast', commander = null, definitions, costOverride = null, extraFlex = [] }) {
   const reasons = [];
   const warnings = [];
   if (!definition || !isCardDefinitionComplete(definition))
@@ -349,7 +358,9 @@ export function validatePlay({ game, player, definition, instance, kind = 'cast'
   // A card cannot help pay for itself (for example a Spirit Guide exiled from hand for mana).
   const available = playerManaAvailability(player, game);
   if (instance) available.__flex = available.__flex.filter(x => x.instanceId !== instance.instanceId);
-  const payment = kind === 'land' ? { ok: true, chosen: {} } : planMana(available, definition?.manaCost || '', tax, { lifeAvailable: Number(player?.life || 0) });
+  available.__flex.push(...extraFlex.filter(x => !available.__flex.some(y => y.instanceId === x.instanceId)));
+  // costOverride is the full cost already worked out (alternative cost, tax, reductions).
+  const payment = kind === 'land' ? { ok: true, chosen: {} } : costOverride !== null ? planMana(available, costOverride, 0, { lifeAvailable: Number(player?.life || 0) }) : planMana(available, definition?.manaCost || '', tax, { lifeAvailable: Number(player?.life || 0) });
   if (!payment.ok)
     reasons.push(payment.reason);
   if (rules.ruleZeroOverrides && reasons.length) {
@@ -427,12 +438,16 @@ export function validateAttack({ game, attackerId, defenderId, instance, definit
     reasons.push('An eliminated player cannot be attacked.');
   if (instance?.tapped)
     reasons.push('A tapped creature cannot attack.');
-  if (combatRestriction(instance, 'cant-attack-or-block'))
-    reasons.push('This creature cannot attack this turn.');
+  if (combatRestriction(instance, 'cant-attack-or-block') || combatRestriction(instance, 'cant-attack'))
+    reasons.push('This creature cannot attack right now.');
   if (definition && !/Creature/i.test(definition.typeLine || ''))
     reasons.push('Only creatures can attack.');
   if (instanceKeyword(instance, definition, 'Defender') && !/can attack as though it didn'?t have defender/i.test(definition?.oracleText || ''))
     reasons.push('A creature with defender cannot attack.');
+  // Goaded: it attacks a player other than the goading player(s) if it can.
+  const goaders = new Set((instance?.temporaryEffects || []).filter(e => e?.kind === 'goad').map(e => e.by));
+  if (goaders.has(defenderId) && (game.players || []).some(p => !p.eliminated && p.playerId !== attackerId && !goaders.has(p.playerId)))
+    reasons.push('This creature is goaded: it must attack a player who did not goad it.');
   const haste = instanceKeyword(instance, definition, 'Haste');
   if (!haste && Number(instance?.controlSinceTurn ?? instance?.enteredTurn ?? -1) >= Number(game.turnNumber))
     reasons.push('This creature has summoning sickness and cannot attack this turn.');
@@ -816,12 +831,13 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
   const chosen = new Set((draft || []).map(x => x.instanceId));
   const opponents = (game.players || []).filter(p => p.playerId !== player.playerId && !p.eliminated);
   for (const c of player.deck?.battlefield || []) {
-    if (!combatRestriction(c, 'must-attack'))
+    const goaded = (c.temporaryEffects || []).some(e => e?.kind === 'goad');
+    if (!combatRestriction(c, 'must-attack') && !goaded)
       continue;
     const d = game.cardDefinitions?.[c.definitionId];
     const able = opponents.some(o => validateAttack({ game: { ...game, phase: 'declare-attackers' }, attackerId: player.playerId, defenderId: o.playerId, instance: c, definition: d }).legal);
     if (able && !chosen.has(c.instanceId))
-      reasons.push(`${d?.name || 'A creature'} must attack this combat if able.`);
+      reasons.push(`${d?.name || 'A creature'} ${goaded ? 'is goaded and ' : ''}must attack this combat if able.`);
   }
   return { legal: reasons.length === 0, reasons };
 }

@@ -26,7 +26,8 @@ export function scryfallToDefinition(c) {
     definitionId: c.id,
     name: face?.name || c.name,
     combinedName: c.name,
-    manaCost: c.mana_cost || face?.mana_cost || '',
+    // Split and adventure cards list both costs at the top level ("{2}{R} // {1}{R}"); use the main face's.
+    manaCost: (face && face.mana_cost !== undefined ? face.mana_cost : c.mana_cost) || '',
     typeLine: face?.type_line || c.type_line || '',
     oracleText: face?.oracle_text ?? c.oracle_text ?? '',
     power: face?.power ?? c.power ?? null,
@@ -43,6 +44,7 @@ export function scryfallToDefinition(c) {
     legalities: c.legalities || null,
     manaValue: Number(c.cmc ?? 0),
     loyalty: face?.loyalty ?? c.loyalty ?? null,
+    layout: c.layout || 'normal',
     hydrationStatus: 'complete'
   });
 }

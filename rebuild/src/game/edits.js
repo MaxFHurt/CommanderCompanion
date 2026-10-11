@@ -1,6 +1,8 @@
 // Direct changes to the game used by Free Play, by the host/judge, and while a player resolves
 // an unsupported card by hand. Every edit is logged so the table can see what was changed.
 
+import { clearCastState } from '../engine/effects.js';
+import { graveyardDestination } from '../engine/replacements.js';
 import { evaluateLosses, normalizeRulesConfig } from '../engine/rules.js';
 import { shuffleLibrary, sync } from '../engine/deck.js';
 import { createCardInstance } from '../engine/schema.js';
@@ -22,6 +24,20 @@ function needCard(game, id) {
   const hit = findCard(game, id);
   if (!hit) throw new GameError('That card is no longer available.');
   return hit;
+}
+
+/** A countered spell leaves the stack: commander to the command zone, flashback to exile, else the graveyard. */
+export function sendCounteredSpell(game, obj) {
+  if (obj.kind !== 'spell' || !obj.card) return;
+  const owner = playerById(game, obj.card.ownerId);
+  const cmd = owner?.commanders?.find(c => c.cardId === (obj.card.realDefinitionId || obj.card.definitionId));
+  let to = cmd ? 'command' : obj.exileOnLeave ? 'exile' : 'graveyard';
+  if (to === 'graveyard') to = graveyardDestination(game, obj.card);
+  clearCastState(obj.card, to);
+  obj.card.zone = to;
+  obj.card.activeFaceIndex = null;
+  if (owner && !obj.card.token) owner.deck[to === 'command' ? 'commandZone' : to].push(obj.card);
+  if (cmd) { cmd.zone = 'command'; cmd.commandZone = true; }
 }
 
 export function applyEdit(game, e, who = 'Host') {
@@ -232,14 +248,7 @@ export function applyEdit(game, e, who = 'Host') {
       const i = (game.stack || []).findIndex(x => x.id === e.stackId);
       if (i < 0) throw new GameError('That spell is no longer on the stack.');
       const [obj] = game.stack.splice(i, 1);
-      if (obj.kind === 'spell' && obj.card) {
-        const owner = playerById(game, obj.card.ownerId);
-        const cmd = owner?.commanders?.find(c => c.cardId === obj.card.definitionId);
-        const to = cmd ? 'command' : obj.exileOnLeave ? 'exile' : 'graveyard';
-        obj.card.zone = to;
-        if (owner && !obj.card.token) owner.deck[to === 'command' ? 'commandZone' : to].push(obj.card);
-        if (cmd) { cmd.zone = 'command'; cmd.commandZone = true; }
-      }
+      sendCounteredSpell(game, obj);
       tag(`${obj.name || obj.label || 'a spell'} is countered.`);
       break;
     }

@@ -9,6 +9,7 @@ import {
 } from './legal.js';
 import { openingPenalty, mulliganInfo } from './setup.js';
 import { playableFaces } from './ops.js';
+import { castOptions, FACE_DOWN_ID, faceDownDefinition } from './casting.js';
 import { coachFor } from './coach.js';
 import { guidedActionsFor, guidedHintFor } from '../data/mechanics.js';
 
@@ -43,6 +44,7 @@ export function actorId(game) {
 function sick(game, card, def) {
   if (!isCreature(def)) return false;
   if ((def.keywords || []).some(k => String(k).toLowerCase() === 'haste') || /\bHaste\b/.test(def.oracleText || '')) return false;
+  if ((card.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled !== false && String(e.keyword).toLowerCase() === 'haste')) return false;
   return Number(card.controlSinceTurn ?? card.enteredTurn ?? -1) >= Number(game.turnNumber);
 }
 
@@ -59,6 +61,14 @@ function cardView(game, card, defs, extra = {}) {
     chosen: card.chosenColor || card.chosenCreatureType || card.chosenCardName || null,
     ...extra
   };
+}
+
+/** Can this graveyard or exile card be cast now (flashback, escape, foretold, adventure)? */
+function castable(game, p, c, block) {
+  const options = castOptions(game, p, c, defOf(game, c));
+  if (!options.length) return {};
+  const best = options.find(o => o.legal) || options[0];
+  return { playable: !!best.legal && !block, castLabel: best.label, reason: block || (best.legal ? '' : best.reasons?.[0] || '') };
 }
 
 function publicDecision(decision) {
@@ -147,6 +157,13 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
     const battlefield = p.deck.battlefield.map(c => {
       const def = defOf(game, c);
       const extra = { sick: sick(game, c, def), land: isLand(def), creature: isCreature(def) };
+      if (c.realDefinitionId) {
+        extra.faceDown = c.faceDownKind || 'morph';
+        if (own || judge) { extra.realDef = c.realDefinitionId; extra.realName = game.cardDefinitions[c.realDefinitionId]?.name || ''; defs[c.realDefinitionId] = game.cardDefinitions[c.realDefinitionId]; }
+      }
+      if (c.castMode && c.castMode !== 'normal') extra.castMode = c.castMode;
+      if (c.kicked) extra.kicked = Number(c.kickCount || 1);
+      if ((c.temporaryEffects || []).some(e => e?.kind === 'goad')) extra.goaded = true;
       if (inCombat && attacking.has(c.instanceId)) extra.attacking = attacking.get(c.instanceId);
       if (inCombat && blocking.has(c.instanceId)) extra.blocking = blocking.get(c.instanceId);
       if (own) {
@@ -166,8 +183,15 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       }),
       mana, handCount: p.deck.hand.length, libraryCount: p.deck.remainingLibrary.length,
       battlefield,
-      graveyard: p.deck.graveyard.map(c => cardView(game, c, defs)),
-      exile: p.deck.exile.map(c => cardView(game, c, defs)),
+      graveyard: p.deck.graveyard.map(c => cardView(game, c, defs, own ? castable(game, p, c, block) : {})),
+      exile: p.deck.exile.map(c => {
+        if (c.foretold && !own && !judge) {
+          defs[FACE_DOWN_ID] = faceDownDefinition();
+          return { id: c.instanceId, def: FACE_DOWN_ID, face: null, name: 'Foretold card', type: 'Face down', owner: c.ownerId, controller: c.ownerId, tapped: false, token: false, counters: {}, power: null, toughness: null, damage: 0, attachedTo: null, attachments: [], chosen: null, foretold: true };
+        }
+        return cardView(game, c, defs, { ...(own ? castable(game, p, c, block) : {}), ...(c.foretold ? { foretold: true } : {}), ...(c.onAdventure ? { onAdventure: true } : {}) });
+      }),
+      dungeon: p.dungeon ? { ...p.dungeon } : null, dungeonsCompleted: Number(p.dungeonsCompleted || 0),
       command: p.deck.commandZone.map(c => {
         const extra = {};
         if (own) { const check = playCheck(game, p, c); extra.playable = check.legal && !block; extra.reason = block || check.reasons[0] || ''; }
@@ -187,7 +211,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
         return cardView(game, c, defs, {
           playable: !!best?.legal && !block, reason: block || best?.reasons?.[0] || '', land: isLand(best?.def),
           instant: /\bInstant\b/i.test(best?.def?.typeLine || '') || /\bFlash\b/.test(best?.def?.oracleText || ''),
-          abilities: handAbility.map(r => ({ id: r.ability.id, text: r.ability.text, cost: r.ability.cost, mana: true, legal: !block, reason: block || '' }))
+          abilities: handAbility.map(r => ({ id: r.ability.id, text: r.ability.text, cost: r.ability.cost, mana: !!r.ability.manaAbility, legal: r.ability.manaAbility ? !block : r.legal && !block, reason: block || r.reasons?.[0] || '' }))
         });
       });
     }

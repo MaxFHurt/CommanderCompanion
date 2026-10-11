@@ -5,6 +5,7 @@
 import { effectiveToughness, cardHasKeyword } from '../engine/combat.js';
 import { defOf, log } from './helpers.js';
 import { commit } from './ops.js';
+import { sagaFinalChapter } from '../engine/keyword-triggers.js';
 
 export function stateBasedActions(game) {
   let changed = false;
@@ -22,6 +23,17 @@ export function stateBasedActions(game) {
           else if ((Number(c.damageMarked || 0) >= t || c.deathtouchDamage) && !cardHasKeyword(c, d, 'Indestructible', game)) reason = 'has lethal damage';
         }
         if (!reason && /\bPlaneswalker\b/i.test(type) && Number(c.counters?.loyalty || 0) <= 0 && c.loyaltyInitialised !== false && c.enteredTurn !== undefined && Number(d.loyalty || 0) > 0 && c.counters && 'loyalty' in c.counters) reason = 'has no loyalty';
+        if (!reason && /\bSaga\b/i.test(type)) {
+          // A Saga with lore counters at its last chapter is sacrificed once no chapter ability is waiting.
+          const final = sagaFinalChapter(d);
+          const waiting = (game.stack || []).some(x => x.sourceId === c.instanceId) || (game.pendingTriggers || []).some(x => x.sourceId === c.instanceId);
+          if (final && Number(c.counters?.lore || 0) >= final && !waiting) {
+            commit(game, { type: 'move-card', playerId: p.playerId, instanceId: c.instanceId, to: 'graveyard', silent: true });
+            log(game, `${d.name} has finished its last chapter and is sacrificed.`);
+            acted = changed = true;
+            continue;
+          }
+        }
         if (!reason) continue;
         commit(game, { type: 'move-card', playerId: p.playerId, instanceId: c.instanceId, to: 'graveyard', silent: true });
         log(game, `${d.name} ${reason} and is put into the graveyard.`);

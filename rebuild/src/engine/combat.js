@@ -1,4 +1,6 @@
 import { evaluateLosses } from './rules.js';
+import { clearCastState } from './effects.js';
+import { damageAmount, lifeGainAmount, graveyardDestination } from './replacements.js';
 const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Number(m[0]) : 0; };
 function tempEffects(card, kind) { return (card?.temporaryEffects || []).filter(e => e?.kind === kind && e?.enabled !== false); }
 function temporaryPt(card, key) { return tempEffects(card, 'pt').reduce((n, e) => n + Number(e?.[key] || 0), 0); }
@@ -153,7 +155,7 @@ function emit(onEvent, e) { try {
 catch (err) {
   console.error('Combat event bridge failed', err);
 } }
-function combatDamageAfterPrevention(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); const owner = game.players.find(p => (p.deck?.battlefield || []).some(c => c.instanceId === targetId)); const card = owner?.deck?.battlefield?.find(c => c.instanceId === targetId); if (left > 0 && Number(card?.counters?.shield || 0) > 0) {
+function combatDamageAfterPrevention(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const owner = game.players.find(p => (p.deck?.battlefield || []).some(c => c.instanceId === targetId)); const card = owner?.deck?.battlefield?.find(c => c.instanceId === targetId); if (left > 0 && Number(card?.counters?.shield || 0) > 0) {
   card.counters.shield = Math.max(0, Number(card.counters.shield) - 1);
   return 0;
 } for (const shield of game.damagePrevention || []) {
@@ -169,7 +171,8 @@ function applyQueue(game, queue, events, onEvent) {
   for (const hit of queue) {
     const { sourcePlayer, source, sourceDef } = hit;
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
-    const original = Number(hit.amount || 0), amount = combatDamageAfterPrevention(game, targetId, original), prevented = original - amount;
+    const boosted = damageAmount(game, { sourceControllerId: sourcePlayer.playerId, colors: sourceDef?.colors || [], targetPlayerId: hit.kind === 'player' ? targetId : null, targetControllerId: hit.kind === 'player' ? null : (hit.target.controllerId || null) }, Number(hit.amount || 0));
+    const original = boosted, amount = combatDamageAfterPrevention(game, targetId, original), prevented = original - amount;
     if (hit.kind === 'player') {
       const target = hit.targetPlayer;
       if (amount > 0 && isInfect(source, sourceDef, game)) {
@@ -196,8 +199,9 @@ function applyQueue(game, queue, events, onEvent) {
       sourcePlayer.counters = sourcePlayer.counters || {};
       sourcePlayer.counters.damageDealt = Number(sourcePlayer.counters.damageDealt || 0) + amount;
       if (amount > 0 && isLifelink(source, sourceDef, game)) {
-        sourcePlayer.life = Math.max(0, Number(sourcePlayer.life || 0) + amount);
-        emit(onEvent, { type: 'life-gained', playerId: sourcePlayer.playerId, amount, sourceId: source.instanceId, controllerId: sourcePlayer.playerId });
+        const gained = lifeGainAmount(game, sourcePlayer.playerId, amount);
+        sourcePlayer.life = Math.max(0, Number(sourcePlayer.life || 0) + gained);
+        emit(onEvent, { type: 'life-gained', playerId: sourcePlayer.playerId, amount: gained, sourceId: source.instanceId, controllerId: sourcePlayer.playerId });
       }
       if (amount > 0)
         emit(onEvent, { type: 'combat-damage-player', sourceId: source.instanceId, definitionId: source.definitionId, controllerId: sourcePlayer.playerId, playerId: target.playerId, amount });
@@ -240,15 +244,22 @@ function stateBasedDeaths(game, events, onEvent) {
         if (t > 0 && isIndestructible(c, d, game))
           continue;
         bf.splice(i, 1);
+        const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null };
         c.zone = 'graveyard';
         c.tapped = false;
         c.damageMarked = 0;
         c.deathtouchDamage = false;
+        c.counters = {};
+        c.temporaryEffects = [];
+        clearCastState(c, 'graveyard');
         const owner = game.players.find(x => x.playerId === c.ownerId) || p;
+        const exiled = graveyardDestination(game, c) === 'exile';
+        if (exiled)
+          c.zone = 'exile';
         if (!c.token)
-          owner.deck.graveyard.push(c);
+          owner.deck[exiled ? 'exile' : 'graveyard'].push(c);
         events.push(`${d?.name || 'A creature'} dies${c.token ? ' and the token ceases to exist' : ` and is put into ${owner.displayName}'s graveyard`}.`);
-        emit(onEvent, { type: 'dies', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, typeLine: d?.typeLine || '', token: !!c.token });
+        if (!exiled) emit(onEvent, { type: 'dies', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, typeLine: d?.typeLine || '', token: !!c.token, last });
         emit(onEvent, { type: 'leaves-battlefield', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, destination: 'graveyard', typeLine: d?.typeLine || '' });
         changed = true;
       }
