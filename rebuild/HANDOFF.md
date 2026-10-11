@@ -68,6 +68,7 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   Game Settings) it always gives advice and explains *why* (see land advice in `coach.js`).
 - Card counters (+1/+1, keyword counters, etc.) must be anchored to a specific card.
 - Do only what was asked; ask if a change goes beyond the request.
+- **Never push to `main` (ship a build) without the owner's explicit confirmation.** Commit locally, report what is ready, and wait for a yes.
 - **Host tools / Play anyway (build 23):** Guided Play on one shared device has no Host Tools and no
   "Play anyway"/Force — the rules are enforced. Hosted Guided games give Host Tools to the host
   device (host-player or table/judge view) but still no forcing. Free Play always has both. Logic:
