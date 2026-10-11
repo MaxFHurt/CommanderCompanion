@@ -112,6 +112,10 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   that the engine uses to pick the right resolution, or the right options to offer when the card
   needs player input.
 - **Order:** rules automation first, then the terms key.
+- **Later (owner deferred):** play without internet. Safari has no Bluetooth, so the plan is
+  local Wi-Fi/hotspot WebRTC with QR-code pairing (the QR reader bundled in the app), plus saving
+  all app files for offline use on first launch. A native iOS wrapper with Multipeer Connectivity
+  (true Bluetooth) is the bigger alternative and needs an Apple Developer account and a Mac.
 
 ## Recent state / open items
 
