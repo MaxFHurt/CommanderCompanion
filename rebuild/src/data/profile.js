@@ -125,8 +125,10 @@ export async function recordGame(game, localPlayerId = null, storage = globalThi
   const winnerId = game?.winner || game?.postGame?.winnerId || null;
   if (localPlayerId && winnerId === localPlayerId)
     p.wins++;
+  // Only the awards this device's player earned count toward their profile.
   for (const a of game?.postGame?.awards || game?.awards || [])
-    p.awards[a.label] = (p.awards[a.label] || 0) + 1;
+    if (!localPlayerId || !a.playerId || a.playerId === localPlayerId)
+      p.awards[a.label] = (p.awards[a.label] || 0) + 1;
   for (const gp of game?.players || []) {
     const key = playerKey(gp.displayName), row = p.players[key] || { name: cleanName(gp.displayName), games: 0, wins: 0, decks: {} };
     row.games = (row.games || 0) + 1;

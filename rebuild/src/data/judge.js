@@ -2,7 +2,7 @@
 // Each entry: { id, topic, question, answer, keywords }. Keep answers short and practical;
 // this is a table aid, not a replacement for the Comprehensive Rules.
 
-export const JUDGE_TOPICS = ['Turn & Priority', 'Combat', 'Commander', 'Counters & Status', 'Keywords', 'Zones & Cards'];
+export const JUDGE_TOPICS = ['Turn & Priority', 'Casting', 'Combat', 'Commander', 'Counters & Status', 'Keywords', 'Zones & Cards'];
 
 export const JUDGE_ENTRIES = [
   // ── Turn & Priority ────────────────────────────────────────────────────────────────────
@@ -250,6 +250,206 @@ export const JUDGE_ENTRIES = [
     id: 'mdfc', topic: 'Zones & Cards', question: 'How do double-faced cards with a land on one side work?',
     answer: 'You choose which face to play. Playing the land face uses your land play for the turn and is not casting a spell. Everywhere except the stack and battlefield, the card has only its front face\'s characteristics.',
     keywords: 'mdfc modal double faced land'
+  },
+  // ── Casting: costs and ways to cast ────────────────────────────────────────────────────
+  {
+    id: 'kicker', topic: 'Casting', question: 'How do kicker and multikicker work?',
+    answer: 'Kicker is an optional extra cost you choose to pay as you cast the spell. If you pay it, the spell is "kicked" and gets the bonus written on it. Multikicker can be paid any number of times. The app asks whether to kick when you cast.',
+    keywords: 'kicker kicked multikicker additional cost extra'
+  },
+  {
+    id: 'alt-costs', topic: 'Casting', question: 'Can I combine flashback, evoke, dash or other alternative costs?',
+    answer: 'You can use only one alternative cost per spell (flashback, escape, evoke, dash, blitz, overload, foretell, or "without paying its mana cost"). Additional costs such as kicker and buyback can be added on top. Commander tax is also added on top when casting from the command zone.',
+    keywords: 'alternative cost flashback evoke dash blitz overload combine free'
+  },
+  {
+    id: 'flashback', topic: 'Casting', question: 'What happens to a flashback or escape spell after it resolves?',
+    answer: 'A spell cast with flashback is exiled instead of going anywhere else, even if it is countered. An instant or sorcery cast with escape is exiled too; an escaped permanent stays on the battlefield and often enters with counters.',
+    keywords: 'flashback escape graveyard exile cast from graveyard jump-start'
+  },
+  {
+    id: 'cost-reduction', topic: 'Casting', question: 'Can cost reductions lower colored mana or commander tax?',
+    answer: 'Generic reductions ("costs {1} less") reduce only the generic part of the total cost, which includes commander tax and kicker. They never reduce colored mana. Increases (like Thalia) are added first, then reductions are applied.',
+    keywords: 'cost reduction less more thalia affinity eminence tax generic'
+  },
+  {
+    id: 'convoke-delve', topic: 'Casting', question: 'How do convoke and delve pay for a spell?',
+    answer: 'Convoke: tap your untapped creatures while casting; each pays {1} or one mana of its color (summoning sick creatures can convoke). Delve: exile cards from your graveyard while casting; each pays {1} of the generic cost. Neither can pay colored costs beyond what is described.',
+    keywords: 'convoke delve tap creatures exile graveyard pay'
+  },
+  {
+    id: 'x-zero', topic: 'Casting', question: 'What is X when a spell is cast for free or is not on the stack?',
+    answer: 'If you cast a spell without paying its mana cost, X is 0. On the stack, X is what was chosen; everywhere else (your hand, the graveyard, the battlefield) X is 0 for mana value.',
+    keywords: 'x cost free cascade mana value zero'
+  },
+  {
+    id: 'cascade', topic: 'Casting', question: 'How does cascade work?',
+    answer: 'When you cast a spell with cascade, exile cards from the top of your library until you exile a nonland card with lower mana value. You may cast it for free right away (ignoring timing). The rest go on the bottom in a random order. Cascade triggers on cast, so the cascaded spell resolves first.',
+    keywords: 'cascade free cast exile top library discover'
+  },
+  {
+    id: 'storm', topic: 'Casting', question: 'What counts for storm?',
+    answer: 'Storm copies the spell once for each other spell cast before it this turn — by any player. Copies are not cast, so they do not add to the storm count or trigger "whenever you cast". You may choose new targets for each copy.',
+    keywords: 'storm copy count spells cast this turn'
+  },
+  {
+    id: 'morph', topic: 'Casting', question: 'How do morph and disguise work?',
+    answer: 'Cast the card face down for {3} as a nameless, colorless 2/2 with no abilities (disguise also gives it ward {2}). Any time you have priority you may turn it face up by paying its morph or disguise cost — this does not use the stack. A face-down card that leaves the battlefield is revealed.',
+    keywords: 'morph megamorph disguise face down 2/2 manifest turn face up'
+  },
+  {
+    id: 'foretell', topic: 'Casting', question: 'How does foretell work?',
+    answer: 'During your turn, pay {2} and exile the card from your hand face down. On a later turn you may cast it from exile for its foretell cost. Opponents do not see what you foretold.',
+    keywords: 'foretell exile face down later turn'
+  },
+  {
+    id: 'adventure', topic: 'Casting', question: 'How do adventure cards work?',
+    answer: 'You may cast the adventure half (an instant or sorcery). As it resolves it goes to exile instead of the graveyard, and later you may cast the creature half from exile. If the adventure is countered, the card goes to the graveyard.',
+    keywords: 'adventure exile cast creature later bonecrusher'
+  },
+  {
+    id: 'split-second', topic: 'Casting', question: 'What does split second stop?',
+    answer: 'While a spell with split second is on the stack, players cannot cast spells or activate abilities that aren\'t mana abilities. Triggered abilities still trigger, and special actions such as turning a face-down creature up are still allowed.',
+    keywords: 'split second respond stop mana abilities'
+  },
+  // ── More turn and priority questions ───────────────────────────────────────────────────
+  {
+    id: 'instant-speed-end-step', topic: 'Turn & Priority', question: 'When is the best time to cast instants on an opponent\'s turn?',
+    answer: 'Usually in their end step: they have tapped out, and anything you put onto the battlefield untaps on your turn. You get priority in every step except untap and (usually) cleanup.',
+    keywords: 'end step instant flash timing opponent turn'
+  },
+  {
+    id: 'special-actions', topic: 'Turn & Priority', question: 'Which actions do not use the stack?',
+    answer: 'Playing a land, mana abilities, turning a face-down creature face up, foretelling, suspending a card, and conceding. Nobody can respond to them.',
+    keywords: 'special action stack land play foretell morph suspend respond'
+  },
+  {
+    id: 'fizzle', topic: 'Turn & Priority', question: 'What happens if my target disappears before my spell resolves?',
+    answer: 'If every target is gone or no longer legal, the spell or ability does nothing and (for a spell) goes to the graveyard. If only some targets are illegal, it does as much as it can to the legal ones.',
+    keywords: 'fizzle target illegal removed countered on resolution'
+  },
+  {
+    id: 'intervening-if', topic: 'Turn & Priority', question: 'What is an "intervening if" trigger?',
+    answer: 'A trigger written "When/Whenever/At …, if …" checks the condition twice: when it would trigger and again when it resolves. If the condition is false at either time, it does nothing.',
+    keywords: 'intervening if condition trigger undying persist'
+  },
+  // ── Combat ─────────────────────────────────────────────────────────────────────────────
+  {
+    id: 'goad', topic: 'Combat', question: 'What does goad do?',
+    answer: 'A goaded creature must attack each combat if able, and must attack a player other than the one who goaded it if it can. It lasts until the goading player\'s next turn.',
+    keywords: 'goad must attack forced'
+  },
+  {
+    id: 'ninjutsu', topic: 'Combat', question: 'When can I use ninjutsu?',
+    answer: 'After blockers are declared, while you have an unblocked attacker. Pay the cost and return the unblocked attacker to your hand: the ninja enters tapped and attacking the same player. It never was declared as an attacker, so "whenever attacks" does not trigger.',
+    keywords: 'ninjutsu unblocked attacker return hand ninja'
+  },
+  {
+    id: 'evasion', topic: 'Combat', question: 'Who can block fear, intimidate, shadow and horsemanship creatures?',
+    answer: 'Fear: only artifact or black creatures. Intimidate: artifact creatures or creatures sharing a color. Shadow: only creatures with shadow (and shadow creatures can block only shadow creatures). Horsemanship: only creatures with horsemanship.',
+    keywords: 'fear intimidate shadow horsemanship skulk evasion block'
+  },
+  {
+    id: 'exalted', topic: 'Combat', question: 'How does exalted work?',
+    answer: 'Whenever a creature you control attacks alone, it gets +1/+1 until end of turn for each exalted instance you control. "Alone" means it is the only creature you declared as an attacker.',
+    keywords: 'exalted attacks alone bonus'
+  },
+  {
+    id: 'combat-tricks', topic: 'Combat', question: 'When should I cast a pump spell in combat?',
+    answer: 'After blockers are declared, before damage. Then the attacker and defender are locked in: blocked creatures stay blocked even if the blocker is removed, and the opponent must answer your trick on the stack.',
+    keywords: 'pump trick giant growth combat damage timing'
+  },
+  // ── Commander ──────────────────────────────────────────────────────────────────────────
+  {
+    id: 'commander-zone-choice', topic: 'Commander', question: 'Does my commander "die" if I move it to the command zone?',
+    answer: 'Yes. Your commander goes to the graveyard (or exile) first, so "dies" and "leaves the battlefield" abilities trigger. Then, the next time state-based actions are checked, you may move it to the command zone.',
+    keywords: 'commander dies graveyard command zone trigger'
+  },
+  {
+    id: 'commander-tax-zones', topic: 'Commander', question: 'Does commander tax apply when I cast it from my hand or graveyard?',
+    answer: 'No. Commander tax applies only when you cast it from the command zone. It goes up by {2} for every previous cast from the command zone.',
+    keywords: 'commander tax hand graveyard cast'
+  },
+  {
+    id: 'commander-damage-copies', topic: 'Commander', question: 'Does damage from a copy of my commander count as commander damage?',
+    answer: 'No. Only combat damage from the actual commander card counts. A token copy or a different card with the same name does not. Damage from a commander controlled by another player still counts toward its owner\'s commander.',
+    keywords: 'commander damage copy token stolen control'
+  },
+  {
+    id: 'eminence', topic: 'Commander', question: 'What is eminence?',
+    answer: 'An eminence ability works while the commander is in the command zone as well as on the battlefield — for example The Ur-Dragon makes your other Dragons cost {1} less even before you cast it.',
+    keywords: 'eminence command zone ur-dragon edgar'
+  },
+  {
+    id: 'rule-zero', topic: 'Commander', question: 'What is rule zero?',
+    answer: 'Before the game, the table can agree to house rules: proxies, banned cards, undo, power level. In the app, house rules from your profile are shown with a chip and everyone must accept the rules before starting (unless a non-playing host sets them).',
+    keywords: 'rule zero house rules agree pregame proxy power level'
+  },
+  // ── Counters, designations, zones ──────────────────────────────────────────────────────
+  {
+    id: 'undying-persist', topic: 'Counters & Status', question: 'How do undying and persist work?',
+    answer: 'When the creature dies, if it had no +1/+1 counter (undying) or no -1/-1 counter (persist), it returns with one. With both kinds of counter, they cancel in pairs, which can let it return again.',
+    keywords: 'undying persist return counter dies'
+  },
+  {
+    id: 'sagas', topic: 'Counters & Status', question: 'How do Sagas work?',
+    answer: 'A Saga gets a lore counter as it enters and after your draw step each turn. Each chapter triggers when its number of lore counters is reached. After the last chapter ability leaves the stack, the Saga is sacrificed.',
+    keywords: 'saga lore counter chapter sacrifice'
+  },
+  {
+    id: 'dungeons', topic: 'Counters & Status', question: 'How do dungeons and venture work?',
+    answer: 'Venture into the dungeon: if you are not in a dungeon, choose one and enter its first room; otherwise move to a connected room. Each room has an ability. Finishing the last room completes the dungeon. Undercity can only be entered through the initiative.',
+    keywords: 'dungeon venture room undercity initiative completed'
+  },
+  {
+    id: 'doubling', topic: 'Counters & Status', question: 'How do Doubling Season and Hardened Scales stack?',
+    answer: 'Replacement effects apply one at a time, in an order chosen by the affected player (or the controller of the affected permanent). Doubling then +1 gives more than +1 then doubling, so choose the order that helps you most. The app applies doublers first, then +1 effects.',
+    keywords: 'doubling season hardened scales replacement order counters tokens'
+  },
+  {
+    id: 'rest-in-peace', topic: 'Zones & Cards', question: 'With Rest in Peace out, do "dies" abilities trigger?',
+    answer: 'No. "Dies" means put into a graveyard from the battlefield, and Rest in Peace exiles the card instead. "Leaves the battlefield" abilities still trigger.',
+    keywords: 'rest in peace leyline dies exile graveyard replacement'
+  },
+  {
+    id: 'face-down-identity', topic: 'Zones & Cards', question: 'Can I look at my own face-down cards?',
+    answer: 'Yes. You may look at your face-down permanents and your foretold cards at any time. Opponents may not. When the game ends or a face-down card leaves the battlefield, it is revealed.',
+    keywords: 'face down morph foretold look peek reveal'
+  },
+  {
+    id: 'copies', topic: 'Zones & Cards', question: 'What does a copy of a permanent copy?',
+    answer: 'A copy takes the printed card\'s values plus other copy effects: name, mana cost, types, abilities, power and toughness. It does not copy counters, tapped status, Auras, or temporary effects. A copy of a face-down creature is a face-down 2/2.',
+    keywords: 'copy clone token copiable values counters'
+  },
+  {
+    id: 'ownership', topic: 'Zones & Cards', question: 'Where does a stolen creature go when it dies?',
+    answer: 'To its owner\'s graveyard. Cards always go to their owner\'s hand, library, graveyard or exile; only the battlefield and the stack care about who controls them.',
+    keywords: 'steal control owner graveyard dies'
+  },
+  {
+    id: 'cycling', topic: 'Zones & Cards', question: 'Is cycling a spell? Can it be countered?',
+    answer: 'Cycling is an activated ability from your hand: pay the cost and discard the card, then draw when the ability resolves. Discarding is part of the cost, so it happens even if the ability is countered. Typecycling searches for a card of that type instead.',
+    keywords: 'cycling landcycling typecycling discard draw ability'
+  },
+  {
+    id: 'ward-pay', topic: 'Keywords', question: 'What if I can\'t pay a ward cost?',
+    answer: 'Ward triggers when the permanent becomes a target of your spell or ability. If you don\'t pay when it resolves, your spell or ability is countered. The app asks you to pay as you target.',
+    keywords: 'ward pay counter target'
+  },
+  {
+    id: 'prowess', topic: 'Keywords', question: 'What triggers prowess?',
+    answer: 'Casting a noncreature spell (instants, sorceries, artifacts, enchantments, planeswalkers). The creature gets +1/+1 until end of turn for each one. Copies of spells are not cast, so they do not trigger it.',
+    keywords: 'prowess noncreature spell cast trigger'
+  },
+  {
+    id: 'evoke', topic: 'Keywords', question: 'Do I get the enters ability of an evoked creature?',
+    answer: 'Yes. Both the "enters" ability and the evoke sacrifice trigger go on the stack; you choose the order, so you can even sacrifice it first and still get the enters effect.',
+    keywords: 'evoke sacrifice enters trigger elemental'
+  },
+  {
+    id: 'dash-blitz', topic: 'Keywords', question: 'What is the difference between dash and blitz?',
+    answer: 'Both give haste. Dash returns the creature to its owner\'s hand at the beginning of the next end step. Blitz sacrifices it at the next end step and gives it "When this creature dies, draw a card."',
+    keywords: 'dash blitz haste end step return sacrifice draw'
   }
 ];
 

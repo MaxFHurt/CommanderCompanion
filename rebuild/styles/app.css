@@ -1628,3 +1628,17 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 .guided__who b { font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .guided__acts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .guided__acts .btn { min-width: 0; }
+
+/* 31. Post-game awards ------------------------------------------------------------------------ */
+.postgame-awards { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.45rem; margin: 0.4rem 0 0.8rem; }
+.postgame-award { display: grid; gap: 0.1rem; padding: 0.55rem 0.7rem; border-radius: 0.7rem; background: rgba(20, 10, 50, 0.65); border: 1px solid var(--player); }
+.postgame-award strong { font: 800 0.95rem/1.2 var(--font-head); color: var(--accent-strong); }
+.postgame-award span { font-weight: 700; }
+.postgame-award small { color: var(--muted); }
+
+/* 32. Deck analytics: curve bars and suggestions ---------------------------------------------- */
+.deck-analytics-panel .deck-curve { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; align-items: end; height: 6.5rem; }
+.deck-curve__bar { display: grid; grid-template-rows: 1fr auto auto; justify-items: center; height: 100%; }
+.deck-curve__bar i { align-self: end; width: 70%; height: var(--h); min-height: 2px; border-radius: 0.3rem 0.3rem 0 0; background: linear-gradient(var(--accent-strong), var(--accent)); }
+.deck-curve__bar small { color: var(--muted); font-size: 0.8rem; }
+.deck-analytics-panel .deck-tips { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }

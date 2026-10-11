@@ -10,6 +10,7 @@ import {
 import { openingPenalty, mulliganInfo } from './setup.js';
 import { playableFaces } from './ops.js';
 import { castOptions, FACE_DOWN_ID, faceDownDefinition } from './casting.js';
+import { gameAwards, statsView } from './stats.js';
 import { coachFor } from './coach.js';
 import { guidedActionsFor, guidedHintFor } from '../data/mechanics.js';
 
@@ -199,6 +200,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       }),
       hand: null,
       landsPlayed: Number(p.counters?.landsPlayedThisTurn || 0),
+      stats: statsView(p),
       deckName: p.deck.sourceName || ''
     };
     if (own) {
@@ -249,6 +251,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
     log: (game.log || []).slice(0, 150).map(e => ({ id: e.id, text: e.text, turn: e.turn, type: e.type || '', playerId: e.playerId || null })),
     chat: (game.chat || []).slice(-80),
     winner: game.winner || null, result: game.result || null,
+    awards: game.status === 'complete' ? gameAwards(game) : [],
     actions: {
       nextPhase: isTurn && ['precombat-main', 'combat', 'begin-combat', 'postcombat-main'].includes(game.phase),
       endTurn: isTurn && ['precombat-main', 'combat', 'begin-combat', 'postcombat-main'].includes(game.phase),

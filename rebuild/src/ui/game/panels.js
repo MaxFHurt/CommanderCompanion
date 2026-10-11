@@ -214,6 +214,10 @@ export function openPostGame(ctx, leave) {
     <p class="modal__message postgame__winner">${winner ? html`<b>${winner.name}</b> wins` : 'The game is over'} after ${view.turn} turn${view.turn === 1 ? '' : 's'}.</p>
     <div class="postgame">${view.players.map(p => html`<div class="postgame__row ${p.playerId === view.winner ? 'is-winner' : ''}" style="--player:${p.color}">
       <strong>${p.name}</strong><span>${p.commanders.map(c => c.name).join(' + ')}</span><b>${p.eliminated ? (p.eliminationReason || 'out') : `${p.life} life`}</b></div>`)}</div>
+    ${(view.awards || []).length ? html`<h4 class="section-title">Awards</h4><div class="postgame-awards">${view.awards.map(a => {
+      const p = view.players.find(x => x.playerId === a.playerId);
+      return html`<div class="postgame-award" style="--player:${p?.color || 'var(--accent)'}"><strong>${a.label}</strong><span>${p?.name || ''}</span><small>${a.detail}</small></div>`;
+    })}</div>` : ''}
     ${unlocked?.length ? html`<p class="modal__message">Achievement unlocked: <b>${unlocked.join(', ')}</b></p>` : ''}`;
   const modal = openModal({
     title: 'Game complete', dismissible: false, body: body(null),
@@ -230,7 +234,7 @@ export function openPostGame(ctx, leave) {
       const profileName = String(loadProfile().account?.name || '').trim().toLowerCase();
       const mine = view.you || view.players.find(p => p.name.trim().toLowerCase() === profileName)?.playerId || view.players[0]?.playerId;
       const profile = await recordGame({
-        completionId: view.gameId, winner: view.winner, result: view.result, turnNumber: view.turn, mode: view.mode,
+        completionId: view.gameId, winner: view.winner, result: view.result, turnNumber: view.turn, mode: view.mode, awards: view.awards || [],
         players: view.players.map(p => ({ playerId: p.playerId, displayName: p.name, life: p.life, commanders: p.commanders.map(c => ({ card: { name: c.name } })), deck: { sourceName: p.deckName } }))
       }, mine);
       const unlocked = earnedLabels(profile).filter(l => !before.includes(l));

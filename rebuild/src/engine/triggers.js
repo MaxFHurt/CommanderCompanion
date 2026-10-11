@@ -2,6 +2,7 @@
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
 import { compileEffectText, applyEffects } from './effects.js';
 import { keywordTriggers, designationTriggers } from './keyword-triggers.js';
+import { recordStat } from '../game/stats.js';
 function defFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function escRe(s) { return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -399,6 +400,7 @@ export function orderTriggersAPNAP(game, rows = []) {
   return rows.map((row, index) => ({ row, index })).filter(x => rank.has(x.row.controllerId)).sort((a, b) => (rank.get(a.row.controllerId) - rank.get(b.row.controllerId)) || (a.index - b.index)).map(x => x.row);
 }
 export function queueTriggers(game, event) {
+  recordStat(game, event);
   const collected = collectTriggers(game, event);
   if (!collected.length)
     return collected;
