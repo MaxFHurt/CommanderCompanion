@@ -9,6 +9,8 @@ import { settle } from '../game/flow.js';
 import { saveRecord, deleteRecord, loadRecord } from '../data/store.js';
 import { GAME_SAVE_KEY } from '../game/save-keys.js';
 import { debounce } from '../ui/dom.js';
+import { checkpointStore } from './checkpoints.js';
+import { hostRoom } from '../net/room.js';
 
 let current = null;
 
@@ -24,9 +26,10 @@ function baseHostSession(game, { role, seatId = null, net = null }) {
   const listeners = new Set();
   const save = debounce(() => {
     if (game.status === 'complete') { deleteRecord(GAME_SAVE_KEY); return; }
-    saveRecord(GAME_SAVE_KEY, { savedAt: new Date().toISOString(), status: game.status, role, seatId, game }).catch(error => console.warn('Autosave failed', error));
+    saveRecord(GAME_SAVE_KEY, { savedAt: new Date().toISOString(), status: game.status, role, seatId, roomCode: net?.code || null, game }).catch(error => console.warn('Autosave failed', error));
   }, 600);
   const controller = createController(game, {
+    checkpoints: checkpointStore(game.gameId),
     onChange: () => {
       save();
       net?.pushViews();
@@ -100,16 +103,38 @@ export function startClientSession(link) {
   return current;
 }
 
-/** Restore the autosaved game on this device (single device or host seat). */
-export async function resumeSavedSession() {
+/**
+ * Restore the autosaved game on this device. A hosted game reopens its room with the same code,
+ * so joined phones reconnect to their own seats; if the room cannot be reopened, this device
+ * takes over the remote seats and the game carries on here.
+ */
+export async function resumeSavedSession({ onStatus = () => {} } = {}) {
   const saved = await loadRecord(GAME_SAVE_KEY);
   if (!saved?.game || saved.game.status === 'complete') return null;
   const game = saved.game;
-  // Remote seats cannot be restored without their devices: the host device takes them over.
-  game.deviceMode = 'single-device';
-  for (const p of game.players) p.ownership = { local: true, clientId: null };
+  let net = null;
+  if (saved.roomCode && (saved.role === 'host-device' || saved.role === 'host-player')) {
+    onStatus(`Reopening room ${saved.roomCode}…`);
+    const known = game.players.filter(p => p.ownership?.clientId).map(p => ({ clientId: p.ownership.clientId, name: p.displayName }));
+    // The connection service may still hold the old room for a short while after a restart.
+    for (let attempt = 0; attempt < 8 && !net; attempt++) {
+      try { net = await hostRoom(saved.roomCode, { remoteSeats: 0, known }); }
+      catch { await new Promise(r => setTimeout(r, 2500)); }
+    }
+  }
   endSession({ keepSave: true });
-  current = baseHostSession(game, { role: 'local' });
+  if (net) {
+    current = baseHostSession(game, { role: saved.role, seatId: saved.role === 'host-player' ? saved.seatId : null, net });
+    net.attach(current.controller);
+    current.net = net;
+  } else {
+    // Remote seats cannot be restored without their devices: this device takes them over.
+    game.deviceMode = 'single-device';
+    for (const p of game.players) p.ownership = { local: true, clientId: null };
+    current = baseHostSession(game, { role: 'local' });
+  }
+  const snaps = await checkpointStore(game.gameId).load().catch(() => new Map());
+  current.controller.restoreCheckpoints(snaps);
   settle(game);
   current.controller.start();
   return current;

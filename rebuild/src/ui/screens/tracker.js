@@ -9,13 +9,13 @@ import { toast } from '../toast.js';
 import { openModal, confirmDialog } from '../modal.js';
 import { openJudge } from '../judge-modal.js';
 import { openCardId } from '../game/panels.js';
-import { saveRecord, loadRecord } from '../../data/store.js';
+import { saveRecord, loadRecord, deleteRecord } from '../../data/store.js';
 import { playmatById, matStyle } from '../../data/playmats.js';
 import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { searchCards } from '../../data/card-api.js';
 import {
-  TRACKER_SAVE_KEY, MANA_COLORS, MANA_NAMES, STATUS_PRESETS, PLAYER_COUNTER_PRESETS, CARD_COUNTER_PRESETS, CARD_COUNTER_GROUPS,
+  TRACKER_SAVE_KEY, TRACKER_ROOM_KEY, MANA_COLORS, MANA_NAMES, STATUS_PRESETS, PLAYER_COUNTER_PRESETS, CARD_COUNTER_PRESETS, CARD_COUNTER_GROUPS,
   trackerPlayer, lossHints, trackerToGameRecord
 } from '../../game/tracker.js';
 import { newId } from '../../game/helpers.js';
@@ -33,13 +33,15 @@ export const trackerScreen = {
     let disposed = false;
     const cleanups = [];
 
+    let resumeRoom = null;   // the room this table had open before the app restarted
     if (client && !state) { go('tracker-join'); return () => {}; }
     if (state) start();
     else {
-      loadRecord(TRACKER_SAVE_KEY).then(saved => {
+      Promise.all([loadRecord(TRACKER_SAVE_KEY), loadRecord(TRACKER_ROOM_KEY)]).then(([saved, room]) => {
         if (disposed) return;
         if (!saved) return go('tracker-setup');
         state = saved;
+        resumeRoom = room?.tableId === saved.id ? room : null;
         start();
       });
     }
@@ -47,9 +49,10 @@ export const trackerScreen = {
     function start() {
       const lastLife = new Map();
       // Hosting: this device owns the table and other phones join. Joined: the host owns it.
-      const hostRole = client ? null : params.host || null;
+      const hostRole = client ? null : params.host || resumeRoom?.role || null;
+      const hostSeat = hostRole === 'host-player' ? (resumeRoom?.seatId && trackerPlayer(state, resumeRoom.seatId) ? resumeRoom.seatId : state.players[0].id) : null;
       const store = client ? createTrackerClientStore(client)
-        : createTrackerStore(state, { role: hostRole || 'local', seatId: hostRole === 'host-player' ? state.players[0].id : null });
+        : createTrackerStore(state, { role: hostRole || 'local', seatId: hostSeat });
       const hosting = !!hostRole;
       const ui = { screen: 'table' };
       let room = null;
@@ -99,16 +102,28 @@ export const trackerScreen = {
       if (client) cleanups.push(client.onStatus(() => { if (client.status() === 'closed') { toast(client.reason || 'The host closed the table.', { bad: true }); go('landing'); } }));
 
       if (hosting) {
+        const rememberRoom = () => room && saveRecord(TRACKER_ROOM_KEY, {
+          tableId: state.id, code: room.code, role: hostRole, seatId: hostSeat,
+          devices: room.devices().map(d => ({ clientId: d.clientId, name: d.name, seatId: d.seatId }))
+        }).catch(() => {});
         (async () => {
+          // After a restart, reopen the same room (the connection service may hold it briefly).
+          if (resumeRoom?.code) {
+            for (let attempt = 0; attempt < 8 && !room && !disposed; attempt++) {
+              try { room = await hostTrackerRoom(resumeRoom.code, store, { known: resumeRoom.devices || [] }); }
+              catch { await new Promise(r => setTimeout(r, 2500)); }
+            }
+          }
           for (let attempt = 0; attempt < 3 && !room && !disposed; attempt++) {
             try { room = await hostTrackerRoom(newRoomCode(), store); } catch (error) { if (attempt === 2) toast(error.message, { bad: true, ms: 5000 }); }
           }
           if (disposed) return room?.close();
           if (!room) return;
           window.__ccRoomCode = room.code;
-          cleanups.push(room.onChange(() => { if (!disposed) refresh(); }));
+          rememberRoom();
+          cleanups.push(room.onChange(() => { if (!disposed) { refresh(); rememberRoom(); } }));
           cleanups.push(() => room.close());
-          toast(`Table open — room code ${room.code}`, { ms: 4000 });
+          toast(resumeRoom?.code === room.code ? `Room ${room.code} is open again — phones reconnect to their seats.` : `Table open — room code ${room.code}`, { ms: 4500 });
           refresh();
         })();
       }
@@ -822,6 +837,7 @@ export const trackerScreen = {
             if (hosting && room && !(await confirmDialog({ title: 'Leave table', message: 'Close the room? Joined phones are disconnected. The table stays saved on this device.', confirmLabel: 'Leave' }))) return;
             save.flush();
             if (client) client.close();
+            if (hosting) deleteRecord(TRACKER_ROOM_KEY);   // left on purpose: Continue later is a one-device table
             return void go('landing');
           }
           case 'clear-log':

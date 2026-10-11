@@ -203,6 +203,7 @@ export function createTrackerClientStore(link) {
     state: () => state,
     act(action) {
       const local = action.type === 'art';   // art looked up on this device only
+      if (!local && link.status() !== 'online') { changed.emit({ error: 'Reconnecting to the host — try again in a moment.' }); return false; }
       if (!local && !link.lastState?.you?.seatId) { changed.emit({ error: 'You are watching. Rejoin and pick a seat to make changes.' }); return false; }
       try { trackerApply(state, structuredClone(action)); }
       catch (error) { changed.emit({ error: error.message }); return false; }

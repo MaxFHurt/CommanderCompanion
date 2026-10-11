@@ -22,7 +22,7 @@ const PLAYS = new Set(['mulligan', 'keep', 'play', 'activate', 'attack', 'block'
 const MAX_REVERSE = 120;
 const MAX_PLAYS = 300;
 
-export function createController(game, { onChange = () => {} } = {}) {
+export function createController(game, { onChange = () => {}, checkpoints: saved = null } = {}) {
   const undoStack = [];
   // One restore point per recorded play, so the judge can take back any play (and the ones after it).
   const checkpoints = [];
@@ -65,11 +65,14 @@ export function createController(game, { onChange = () => {} } = {}) {
     };
     game.plays = [play, ...(game.plays || [])].slice(0, MAX_PLAYS);
     checkpoints.push({ seq, playId: play.id, snap: before });
-    if (checkpoints.length > MAX_REVERSE) checkpoints.shift();
+    saved?.put(play.id, before);
+    if (checkpoints.length > MAX_REVERSE) saved?.remove([checkpoints.shift().playId]);
   }
 
   function dropAfter(fromSeq) {
-    while (checkpoints.length && checkpoints[checkpoints.length - 1].seq >= fromSeq) checkpoints.pop();
+    const gone = [];
+    while (checkpoints.length && checkpoints[checkpoints.length - 1].seq >= fromSeq) gone.push(checkpoints.pop().playId);
+    saved?.remove(gone);
   }
 
   // Guided Play enforces the rules: only the host of a room (a player or the table/judge
@@ -255,7 +258,7 @@ export function createController(game, { onChange = () => {} } = {}) {
     const chat = game.chat;
     restoreGameSnapshot(game, snap);
     game.chat = chat;
-    checkpoints.length = i;
+    saved?.remove(checkpoints.splice(i).map(c => c.playId));
     while (undoStack.length && (seqOf.get(undoStack[undoStack.length - 1]) || 0) >= from) undoStack.pop();
     log(game, `Judge reversed: ${target?.text || 'a play'}${later ? ` (and ${later} later play${later === 1 ? '' : 's'})` : ''}`, { type: 'edit' });
     changed();
@@ -306,6 +309,15 @@ export function createController(game, { onChange = () => {} } = {}) {
     actorId: () => actorId(game),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     start() { settle(game); changed(); },
+    /** After an app restart: bring back the saved restore points (Map playId → snapshot). */
+    restoreCheckpoints(snaps) {
+      const plays = [...(game.plays || [])].reverse();   // oldest first
+      plays.forEach((p, i) => { p.seq = i + 1; });
+      seq = plays.length;
+      checkpoints.length = 0;
+      for (const p of plays) if (snaps.has(p.id)) checkpoints.push({ seq: p.seq, playId: p.id, snap: snaps.get(p.id) });
+      undoStack.length = 0;
+    },
     stop() { clearTimeout(timer); listeners.clear(); }
   };
 }

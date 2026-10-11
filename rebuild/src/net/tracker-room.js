@@ -10,9 +10,11 @@ function emitter() {
 }
 
 /** Host side. `store` is a tracker store created with a host role. */
-export async function hostTrackerRoom(code, store) {
+export async function hostTrackerRoom(code, store, { known = [] } = {}) {
   const transport = await openHostTransport(code);
   const clients = new Map(); // clientId → { name, seatId, online }
+  // Reopened after a restart: phones get their seats back when they reconnect.
+  for (const k of known) if (k.clientId) clients.set(k.clientId, { name: k.name, seatId: k.seatId || null, online: false });
   const changed = emitter();
 
   const seats = () => {
@@ -40,6 +42,7 @@ export async function hostTrackerRoom(code, store) {
     }
     const c = clients.get(clientId);
     if (!c) return transport.send(clientId, { type: 'refused', reason: 'Join the room first.' });
+    if (!c.online) { c.online = true; pushAll(); }
     if (msg.type === 'claim') {
       const seatId = msg.seatId || null;
       const taken = seatId && Object.entries(seats()).some(([id, s]) => id === seatId && s.clientId !== clientId && (s.host || s.online));
@@ -100,7 +103,7 @@ export async function joinTrackerRoom(code, { clientId, name = '' }) {
     transport.onClose(async () => {
       if (status === 'closed') return;
       status = 'lost'; statusEv.emit(status);
-      for (let attempt = 0; attempt < 20 && status === 'lost'; attempt++) {
+      for (let attempt = 0; attempt < 40 && status === 'lost'; attempt++) {   // about two minutes: covers a host restart
         await new Promise(r => setTimeout(r, 3000));
         try {
           transport = await openClientTransport(code, clientId);

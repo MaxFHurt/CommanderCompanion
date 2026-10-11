@@ -103,6 +103,18 @@ async def main():
         check('a watching device sees the table without hands or host screens', await w.locator('.screen-switch').count() == 0 and await w.locator('.zone--table .hand-backs .card:not(.card--back)').count() == 0 and await w.locator('[data-act="tools"]').count() == 0)
         await w.close()
         await a.screenshot(path=f'{OUT}net-player-view.png')
+        # Host restart: the room reopens with the same code, phones reconnect, old plays stay reversible.
+        await host.wait_for_timeout(900)
+        await host.reload(); await host.wait_for_function('window.__ccReady === true')
+        await host.wait_for_function("!document.querySelector('[data-act=\"continue\"]').disabled", timeout=5000)
+        await host.click('[data-act="continue"]'); await host.wait_for_selector('.game .zone--table', timeout=30000)
+        await host.wait_for_function(f"window.__ccRoomCode === '{code}' || document.body.textContent.includes('{code}')", timeout=30000)
+        await host.click('[data-act="tools"]'); await host.click('[data-life="-5"]'); await host.wait_for_timeout(400); await host.click('.modal [data-modal-back]')
+        await a.wait_for_function("document.querySelector('.rail-life__value').textContent === '30'", timeout=30000)
+        check('after a host restart the room reopens and phones reconnect', True)
+        await host.click('[data-act="screen"][data-screen="judge"]'); await host.wait_for_selector('.judge')
+        check('plays from before the restart can still be reversed', await host.locator('.jplay [data-act="reverse"]:not([disabled])').count() >= 3, str(await host.locator('.jplay [data-act="reverse"]:not([disabled])').count()))
+        await host.click('[data-act="screen"][data-screen="table"]')
         # Reconnect: reload the player page and rejoin with the same code.
         await a.reload(); await a.wait_for_function('window.__ccReady === true')
         await a.click('[data-act="start"]'); await a.click('[data-mode="fully-tracked"]'); await a.click('[data-play="join"]')

@@ -91,6 +91,18 @@ async def main():
             check(f'{tag}: a phone can undo its own newest change (one tap at a time)', True)
             await host.click('[data-act="screen"][data-screen="table"]')
             check(f'{tag}: switch back to the table and its log', await host.locator('.tlog').is_visible() and 'Judge reversed' in await host.inner_text('#trackerLog'))
+            # Host restart: Continue reopens the same room and the phones reconnect to their seats.
+            await host.wait_for_timeout(900)
+            await host.reload(); await host.wait_for_function('window.__ccReady === true')
+            await host.wait_for_function("!document.querySelector('[data-act=\"continue\"]').disabled", timeout=5000)
+            await host.click('[data-act="continue"]'); await host.wait_for_selector('.tracker .tp')
+            await host.wait_for_function(f"document.querySelector('#trackerTurn').textContent.includes('{code}')", timeout=30000)
+            check(f'{tag}: after a restart the table reopens with the same room code', await host.locator('#trackerScreens .screen-switch__btn').count() == 2)
+            await a.wait_for_timeout(500)
+            await a.wait_for_function("!document.querySelector('#trackerTurn').textContent.includes('reconnecting')", timeout=30000)
+            await a.locator('.tp').nth(0).locator('[data-act="life"][data-delta="1"]').click()
+            await host.wait_for_function("document.querySelectorAll('.tp [data-life]')[0].textContent === '39'", timeout=30000)
+            check(f'{tag}: phones reconnect to their seats after the host restarts', 'You: Aaron' in await a.text_content('#trackerTurn'))
             for pg, n in ((host, 'host'), (a, 'a'), (b, 'b'), (w, 'w')):
                 check(f'{tag}: no console errors ({n})', not pg.errors, str(pg.errors[:3]))
             await ctx.close()

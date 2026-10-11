@@ -74,7 +74,7 @@ export const gameScreen = {
       const bad = view.legality?.illegal || 0;
       return html`<aside class="judge">
         <header class="judge__head">
-          <h4>Judge</h4>
+          <h4>Judge${session?.net?.code ? html` <small class="judge__room">Room ${session.net.code}</small>` : ''}</h4>
           <button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button>
         </header>
         <div class="judge__status ${bad ? 'is-bad' : 'is-ok'}">
@@ -424,9 +424,11 @@ export const gameScreen = {
 
     if (session) boot();
     else if (params.resume) {
-      resumeSavedSession().then(s => {
+      const loading = text => { const el = root.querySelector('.game__loading'); if (el) el.textContent = text; };
+      resumeSavedSession({ onStatus: loading }).then(s => {
         if (!s) { toast('No saved game was found.', { bad: true }); return go('landing'); }
         session = s;
+        if (s.net) { window.__ccRoomCode = s.net.code; toast(`Room ${s.net.code} is open again. Players reconnect to their seats automatically.`, { ms: 5000 }); }
         boot();
       });
     } else { go('landing'); }

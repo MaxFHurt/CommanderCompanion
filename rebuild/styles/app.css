@@ -1599,3 +1599,4 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
   .tracker__players:not([data-count="2"]) .tp__life-value { --life-size: 3.4rem; }
   .tp__life-label { display: none; }
 }
+.judge__room { font: 700 0.85rem var(--font-ui); letter-spacing: 0.06em; color: var(--muted); text-transform: none; margin-left: 0.4rem; }

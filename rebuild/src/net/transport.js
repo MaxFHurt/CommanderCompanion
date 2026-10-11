@@ -35,6 +35,8 @@ function loopbackHost(code) {
     if (m.body?.type === 'hello') return channel.postMessage({ to: m.from, from: 'host', body: { type: 'welcome' } });
     if (m.body?.type === 'bye') leave.emit(m.from); else message.emit(m.from, m.body);
   };
+  // Reloading or closing the host page: tell the tabs so they start reconnecting.
+  addEventListener('pagehide', () => { try { channel.postMessage({ to: '*', from: 'host', body: { type: 'closed' } }); } catch { /* closed */ } });
   return Promise.resolve({
     kind: 'loopback',
     send: (clientId, body) => channel.postMessage({ to: clientId, from: 'host', body }),
@@ -85,6 +87,12 @@ async function peerHost(code) {
     conn.on('close', () => { if (clientId && conns.get(clientId) === conn) { conns.delete(clientId); leave.emit(clientId); } });
   });
   peer.on('disconnected', () => { try { peer.reconnect(); } catch { /* retry on next event */ } });
+  // Reloading or closing the host page: tell the phones, and free the room code so a restarted
+  // host can open the same room again straight away.
+  addEventListener('pagehide', () => {
+    for (const c of conns.values()) { try { c.send({ type: 'closed' }); } catch { /* closing */ } }
+    try { peer.destroy(); } catch { /* closing */ }
+  });
   return {
     kind: 'peer',
     send: (clientId, body) => { const c = conns.get(clientId); if (c?.open) c.send(body); },

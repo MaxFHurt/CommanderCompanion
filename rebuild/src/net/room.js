@@ -9,9 +9,11 @@ function emitter() {
 }
 
 /** Host side. `seats` = how many remote players are expected. */
-export async function hostRoom(code, { remoteSeats = 0 } = {}) {
+export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
   const transport = await openHostTransport(code);
   const clients = new Map(); // clientId → { name, seat (prepared setup), playerId, sentDefs:Set, online }
+  // Reopened after a restart: the players who were seated get their seats back when they reconnect.
+  for (const k of known) clients.set(k.clientId, { name: k.name, seat: { name: k.name, deckName: '' }, playerId: null, sentDefs: new Set(), online: false });
   const lobby = emitter();
   let controller = null, open = true;
 
@@ -54,6 +56,7 @@ export async function hostRoom(code, { remoteSeats = 0 } = {}) {
     }
     const c = clients.get(clientId);
     if (!c) return transport.send(clientId, { type: 'refused', reason: 'Join the room first.' });
+    if (!c.online) { c.online = true; c.sentDefs = new Set(); tellLobby(); pushView(clientId); }
     if (msg.type === 'intent') {
       if (!controller) return transport.send(clientId, { type: 'result', id: msg.id, result: { ok: false, error: 'The game has not started.' } });
       const intent = { ...(msg.intent || {}) };
@@ -119,7 +122,7 @@ export async function joinRoom(code, { clientId, seat = null, name = '' }) {
       if (state === 'closed') return;
       state = 'lost'; status.emit(state);
       // Try to get back in for a while (phone slept, wifi blip).
-      for (let attempt = 0; attempt < 20 && state === 'lost'; attempt++) {
+      for (let attempt = 0; attempt < 40 && state === 'lost'; attempt++) {   // about two minutes: covers a host restart
         await new Promise(r => setTimeout(r, 3000));
         try {
           transport = await openClientTransport(code, clientId);

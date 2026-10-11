@@ -6,6 +6,8 @@
 import { newId } from './helpers.js';
 
 export const TRACKER_SAVE_KEY = 'cc-tracker-v1';
+// The room a hosted table had open, so a restarted host can reopen it with the same code.
+export const TRACKER_ROOM_KEY = 'cc-tracker-room-v1';
 export const PLAYER_COLORS = ['#4d7dff', '#ff5a52', '#3fce6b', '#b06bff', '#f2c14e', '#35c9c3'];
 export const MANA_COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
 export const MANA_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', C: 'Colorless' };
