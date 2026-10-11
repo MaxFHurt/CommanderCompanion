@@ -184,6 +184,13 @@ export function trackerApply(state, action) {
     case 'commander': {
       const player = need();
       player.commander.name = String(action.name || '').trim().slice(0, 60);
+      player.commander.image = '';
+      return state;
+    }
+    case 'art': {
+      // Commander art found by a lookup: cosmetic, not logged.
+      const player = need();
+      if (player.commander.name === action.name) player.commander.image = String(action.image || '');
       return state;
     }
     case 'tax': {
@@ -213,7 +220,9 @@ export function trackerApply(state, action) {
       const name = String(action.name || '').trim().slice(0, 80);
       if (!name) throw new Error('Enter a card name.');
       if (player.cards.length >= 12) throw new Error('Remove a tracked card before adding another.');
-      player.cards.push({ id: newId('tc'), name, image: action.image || '', counters: {} });
+      // A joined device picks the id itself so it can anchor counters to the card straight away.
+      const id = action.id && !player.cards.some(c => c.id === action.id) ? String(action.id).slice(0, 40) : newId('tc');
+      player.cards.push({ id, name, image: action.image || '', counters: {} });
       addLog(state, player.id, `${player.name}: Now tracking ${name}`);
       return state;
     }
@@ -332,6 +341,11 @@ export function lossHints(state, player) {
     if (amount >= 21) hints.push(`21 commander damage from ${trackerPlayer(state, fromId)?.name || 'a commander'}`);
   }
   return hints;
+}
+
+/** Rules problems on the table right now: players who should have lost but are still in. */
+export function trackerIssues(state) {
+  return state.players.filter(p => !p.eliminated).flatMap(p => lossHints(state, p).map(hint => ({ playerId: p.id, text: `${p.name}: ${hint} — should be out of the game` })));
 }
 
 /** Shape expected by the profile's game history. */

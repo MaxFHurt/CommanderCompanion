@@ -10,6 +10,14 @@ const CHECK_EVERY_MS = 60 * 1000;
 const RELOADED_FOR = 'cc-reloaded-for';
 const RESUME_FLAG = 'cc-resume-after-update';
 let pending = null;
+let roomsOpen = 0;
+
+/** A Table Tracker room is open on this device (hosting or joined): wait with updates until it closes. Returns a release function. */
+export function holdUpdates() {
+  roomsOpen += 1;
+  let released = false;
+  return () => { if (!released) { released = true; roomsOpen -= 1; } };
+}
 
 async function latestVersion() {
   try {
@@ -34,6 +42,10 @@ async function check() {
   const latest = await latestVersion();
   if (!latest || latest === VERSION) return;
   const session = getSession();
+  if (!session && roomsOpen) {
+    if (pending !== latest) { pending = latest; toast('An update is ready. It will load when you leave this table.', { ms: 5000 }); }
+    return;
+  }
   if (!session) return reloadNow(latest);
   if (session.role === 'local') {
     // A game on this device is saved first and reopened after the reload.

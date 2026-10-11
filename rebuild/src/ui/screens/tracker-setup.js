@@ -10,7 +10,8 @@ import { listPlaymats, DEFAULT_MAT } from '../../data/playmats.js';
 import { unlockedMatSlots } from '../../data/achievements.js';
 
 export const trackerSetupScreen = {
-  mount(root) {
+  mount(root, params = {}) {
+    const play = params.play || 'local';   // local | host-player | host-device
     const defaults = accountSetupDefaults();
     const profile = loadProfile();
     const startingLife = Number(defaults.tableRuleDefaults?.startingLife || 40);
@@ -23,14 +24,14 @@ export const trackerSetupScreen = {
         <main class="page">
           <header class="page__head">
             <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
-            <h1 class="chrome-text">Table Tracker</h1>
+            <h1 class="chrome-text">${play === 'host-device' ? 'Host Table' : play === 'host-player' ? 'Host a Table' : 'Table Tracker'}</h1>
           </header>
           <div class="page__body">
             <div class="setup-players">
               ${players.map((p, i) => html`
                 <section class="setup-player" style="--player:${PLAYER_COLORS[i]}" data-seat="${i}">
                   <div class="setup-player__head">
-                    <span>Player ${i + 1}</span>
+                    <span>Player ${i + 1}${play === 'host-player' && i === 0 ? ' — this device' : play !== 'local' ? ' — joins on their phone' : ''}</span>
                     ${players.length > 2 ? html`<button type="button" class="chip chip--bad" data-act="remove" data-seat="${i}">Remove</button>` : ''}
                   </div>
                   <input class="input" data-field="name" maxlength="24" placeholder="Player name" value="${p.name}" autocomplete="off">
@@ -46,7 +47,7 @@ export const trackerSetupScreen = {
             <label class="row"><span class="muted">Starting life</span>
               <input class="input" id="startingLife" type="number" inputmode="numeric" min="1" max="999" value="${startingLife}" style="width:8rem">
             </label>
-            <button type="button" class="btn btn--confirm" data-act="start">Start Tracking</button>
+            <button type="button" class="btn btn--confirm" data-act="start">${play === 'local' ? 'Start Tracking' : 'Open Table'}</button>
           </footer>
         </main>`);
     }
@@ -81,7 +82,7 @@ export const trackerSetupScreen = {
           try {
             const state = createTracker({ players, startingLife: life });
             await saveRecord(TRACKER_SAVE_KEY, state);
-            go('tracker', { state });
+            go('tracker', { state, host: play === 'local' ? null : play });
           } catch (error) {
             toast(error.message, { bad: true });
           }

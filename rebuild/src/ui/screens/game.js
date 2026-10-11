@@ -52,7 +52,7 @@ export const gameScreen = {
     function screensFor(view) {
       if (session?.role === 'host-device') return ['table', 'judge'];
       if (session?.role === 'host-player' && view.you) return ['player', 'table', 'judge'];
-      return [];
+      return view.you ? [] : ['table'];   // a device that only watches sees the table
     }
 
     function legalityBadge(view) {
@@ -179,7 +179,7 @@ export const gameScreen = {
             ${[['graveyard', focus.graveyard.length], ['exile', focus.exile.length], ['tokens', tokens], ['attachments', attached]].map(([z, n]) => html`
               <button type="button" class="rail-zone" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
           </div>
-          ${screens.length ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
+          ${screens.length > 1 ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
           ${view.canEdit ? html`<button type="button" class="btn btn--small rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>` : ''}
         </aside>`}
 
@@ -222,7 +222,7 @@ export const gameScreen = {
               <span class="phase-track">${PHASE_STEPS.map(([k, label]) => html`<i class="${phaseKey(view.phase) === k ? 'is-on' : ''}" title="${label}"></i>`)}</span>
             </button>
             ${judge ? html`
-            ${switchHtml(view, screens, screen)}
+            ${screens.length > 1 ? switchHtml(view, screens, screen) : html`<span></span>`}
             ${view.canEdit ? html`<button type="button" class="btn" data-act="tools">Host Tools</button>` : html`<span></span>`}` : html`
             <button type="button" class="jewel ${jewel ? '' : 'is-idle'}" data-act="jewel" ${jewel ? '' : raw('disabled')}>
               <i class="jewel__gem"></i>

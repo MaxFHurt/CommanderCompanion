@@ -1562,3 +1562,27 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
   .jplay__text b { font-size: 1.05rem; }
   .jplay__text small { font-size: 0.88rem; }
 }
+
+/* ── 26. Hosted Table Tracker: Table / Judge switch, judge record, your seat ─── */
+.tracker__title .screen-switch { width: min(100%, 26rem); margin: 0 auto 0.15rem; padding: 0.2rem; }
+.tracker__title .screen-switch__btn { min-height: 2.6rem; font-size: 1rem; }
+/* Narrow enough on a phone that the player cards keep their full layout. */
+.tracker__body.is-judge { grid-template-columns: minmax(0, 1fr) 22rem; }
+.tjudge .jplay__undo { padding: 0 0.4rem; font-size: 0.72rem; letter-spacing: 0.06em; }
+.tjudge { grid-row: auto; }
+.judge__status span { display: grid; gap: 0.15rem; }
+.judge__issue { font-style: normal; }
+.jplay--other { border-left-color: var(--gold); }
+.jplay--other .jplay__mark { background: rgba(242, 193, 78, 0.22); color: var(--gold); }
+.jplay--host { border-left-color: #5aa8ff; }
+.jplay--host .jplay__mark { background: rgba(90, 168, 255, 0.2); color: #9ccaff; }
+/* The seat this phone tracks. */
+.tp.is-you { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tp.is-you .tp__name { color: var(--gold); }
+.tracker__foot--joined .tracker__foot-sep { display: none; }
+.tjoin { max-width: 60rem; margin: 0 auto; width: 100%; display: grid; gap: 0.9rem; }
+@media (min-width: 1000px) and (min-height: 700px) {
+  .tracker__title .screen-switch { width: min(100%, 30rem); }
+  .tracker__title .screen-switch__btn { min-height: 3rem; font-size: 1.1rem; }
+  .tracker__body.is-judge { grid-template-columns: minmax(0, 1fr) 30rem; }
+}

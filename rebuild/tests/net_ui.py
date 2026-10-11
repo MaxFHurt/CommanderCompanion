@@ -95,6 +95,13 @@ async def main():
         await a.wait_for_function("document.querySelector('.rail-life__value').textContent === '35'")
         check('host life edit shows on the player device', True)
         await host.screenshot(path=f'{OUT}net-host-view.png')
+        # A device that joins only to watch sees the table, with no switch and no hands.
+        w = await open_page(ctx); await w.set_viewport_size({'width': 844, 'height': 390})
+        await w.click('[data-act="start"]'); await w.click('[data-mode="fully-tracked"]'); await w.click('[data-play="join"]')
+        await w.fill('[data-code]', code); await w.click('[data-act="watch"]')
+        await w.wait_for_selector('.game .zone--table', timeout=15000)
+        check('a watching device sees the table without hands or host screens', await w.locator('.screen-switch').count() == 0 and await w.locator('.zone--table .hand-backs .card:not(.card--back)').count() == 0 and await w.locator('[data-act="tools"]').count() == 0)
+        await w.close()
         await a.screenshot(path=f'{OUT}net-player-view.png')
         # Reconnect: reload the player page and rejoin with the same code.
         await a.reload(); await a.wait_for_function('window.__ccReady === true')

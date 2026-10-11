@@ -16,17 +16,24 @@ import { earnedLabels } from '../../data/achievements.js';
 import { searchCards } from '../../data/card-api.js';
 import {
   TRACKER_SAVE_KEY, MANA_COLORS, MANA_NAMES, STATUS_PRESETS, PLAYER_COUNTER_PRESETS, CARD_COUNTER_PRESETS, CARD_COUNTER_GROUPS,
-  trackerApply, trackerPlayer, lossHints, trackerToGameRecord
+  trackerPlayer, lossHints, trackerToGameRecord
 } from '../../game/tracker.js';
+import { newId } from '../../game/helpers.js';
+import { createTrackerStore, createTrackerClientStore } from '../../app/tracker-session.js';
+import { hostTrackerRoom } from '../../net/tracker-room.js';
+import { newRoomCode } from '../../net/transport.js';
+import { holdUpdates } from '../../app/update-check.js';
 
-const UNDO_LIMIT = 30;
+const VERDICT = { legal: ['✓', 'Own seat'], other: ['!', 'Other seat'], host: ['✎', 'Host change'] };
 
 export const trackerScreen = {
   mount(root, params = {}) {
-    let state = params.state || null;
+    const client = params.client || null;   // joined someone else's table
+    let state = client ? client.lastState?.state || null : params.state || null;
     let disposed = false;
     const cleanups = [];
 
+    if (client && !state) { go('tracker-join'); return () => {}; }
     if (state) start();
     else {
       loadRecord(TRACKER_SAVE_KEY).then(saved => {
@@ -38,10 +45,19 @@ export const trackerScreen = {
     }
 
     function start() {
-      const undoStack = [];
       const lastLife = new Map();
+      // Hosting: this device owns the table and other phones join. Joined: the host owns it.
+      const hostRole = client ? null : params.host || null;
+      const store = client ? createTrackerClientStore(client)
+        : createTrackerStore(state, { role: hostRole || 'local', seatId: hostRole === 'host-player' ? state.players[0].id : null });
+      const hosting = !!hostRole;
+      const ui = { screen: 'table' };
+      let room = null;
+      const mySeat = () => client ? store.seatId() : store.seatId;
+      if (hosting || client) cleanups.push(holdUpdates());
 
       const save = debounce(() => {
+        if (client) return;
         state.savedAt = new Date().toISOString();
         saveRecord(TRACKER_SAVE_KEY, state).catch(error => toast(error.message, { bad: true }));
       }, 600);
@@ -51,29 +67,50 @@ export const trackerScreen = {
 
       // ── Actions ────────────────────────────────────────────────────────────────
       function act(action) {
-        const before = JSON.stringify(state);
+        if (action.type === 'card-add' && !action.id) action.id = newId('tc');
         try {
-          trackerApply(state, action);
+          return store.act(action) !== false;
         } catch (error) {
           toast(error.message, { bad: true });
           return false;
         }
-        undoStack.push(before);
-        if (undoStack.length > UNDO_LIMIT) undoStack.shift();
-        const structural = ['add-player', 'remove-player', 'reset'].includes(action.type);
-        if (structural) buildPlayers(); else refresh();
-        save();
-        return true;
       }
 
-      function undo() {
-        const previous = undoStack.pop();
-        if (!previous) return toast('Nothing to undo.');
-        const countBefore = state.players.length;
-        state = JSON.parse(previous);
-        if (state.players.length !== countBefore) buildPlayers(); else refresh();
+      async function undo() {
+        try {
+          const result = await store.undo();
+          if (result && result.ok === false) return toast(result.error, { bad: true });
+          toast('Last change undone.');
+        } catch (error) { toast(error.message, { bad: true }); }
+      }
+
+      // Every change, from this device or another, redraws from the store.
+      const seatsKey = s => s.players.map(p => p.id).join('|');
+      cleanups.push(store.onChange(info => {
+        if (info?.error) toast(info.error, { bad: true });
+        const next = store.state();
+        if (!next || disposed) return;
+        const rebuild = seatsKey(next) !== seatsKey(state);
+        state = next;
+        if (rebuild) buildPlayers(); else refresh();
         save();
-        toast('Last change undone.');
+      }));
+      if (client) cleanups.push(() => client.close());
+      if (client) cleanups.push(client.onStatus(() => { if (client.status() === 'closed') { toast(client.reason || 'The host closed the table.', { bad: true }); go('landing'); } }));
+
+      if (hosting) {
+        (async () => {
+          for (let attempt = 0; attempt < 3 && !room && !disposed; attempt++) {
+            try { room = await hostTrackerRoom(newRoomCode(), store); } catch (error) { if (attempt === 2) toast(error.message, { bad: true, ms: 5000 }); }
+          }
+          if (disposed) return room?.close();
+          if (!room) return;
+          window.__ccRoomCode = room.code;
+          cleanups.push(room.onChange(() => { if (!disposed) refresh(); }));
+          cleanups.push(() => room.close());
+          toast(`Table open — room code ${room.code}`, { ms: 4000 });
+          refresh();
+        })();
       }
 
       // ── Rendering ──────────────────────────────────────────────────────────────
@@ -85,7 +122,7 @@ export const trackerScreen = {
               <button type="button" class="btn-pill" data-act="next-turn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4l9 8-9 8zM16 4h3v16h-3z" fill="currentColor"/></svg><span>Next Turn</span></button>
             </div>
             <div class="tracker__title">
-              <h1 class="chrome-text">Table Tracker</h1>
+              ${hosting ? html`<div class="screen-switch" role="tablist" id="trackerScreens"></div>` : html`<h1 class="chrome-text">Table Tracker</h1>`}
               <small id="trackerTurn"></small>
             </div>
             <div class="tracker__head-end">
@@ -94,7 +131,7 @@ export const trackerScreen = {
               <button type="button" class="btn-pill" data-act="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="currentColor"/><path d="M3.500 21a8.500 8.500 0 0 1 17 0z" fill="currentColor"/></svg><span>Profile</span></button>
             </div>
           </header>
-          <div class="tracker__body">
+          <div class="tracker__body" id="trackerBody">
             <section class="tracker__players" id="trackerPlayers"></section>
             <aside class="tlog">
               <div class="tlog__head">
@@ -103,14 +140,16 @@ export const trackerScreen = {
                 <button type="button" class="judge-btn" data-act="card-id">Card ID</button>
               </div>
               <div class="tlog__list scroll-y" id="trackerLog"></div>
-              <div class="tlog__foot"><button type="button" class="btn btn--small btn--ghost" data-act="clear-log">Clear Log</button></div>
+              ${client ? '' : html`<div class="tlog__foot"><button type="button" class="btn btn--small btn--ghost" data-act="clear-log">Clear Log</button></div>`}
             </aside>
+            ${hosting ? html`<aside class="judge tjudge" id="trackerJudge" hidden></aside>` : ''}
           </div>
-          <footer class="tracker__foot">
+          <footer class="tracker__foot ${client ? 'tracker__foot--joined' : ''}">
+            ${client ? '' : html`
             <button type="button" class="btn-frame" data-act="tool" data-tool="players">Edit Players</button>
-            <button type="button" class="btn-frame" data-act="tool" data-tool="decks">Edit Decks</button>
+            <button type="button" class="btn-frame" data-act="tool" data-tool="decks">Edit Decks</button>`}
             <button type="button" class="btn-frame" data-act="tool" data-tool="stats">Game Stats</button>
-            <button type="button" class="btn-frame" data-act="tool" data-tool="reset">Reset Game</button>
+            ${client ? '' : html`<button type="button" class="btn-frame" data-act="tool" data-tool="reset">Reset Game</button>`}
             <i class="tracker__foot-sep"></i>
             <button type="button" class="btn-frame" data-act="tool" data-tool="counters">Counters</button>
             <button type="button" class="btn-frame" data-act="tool" data-tool="life">Life</button>
@@ -152,9 +191,62 @@ export const trackerScreen = {
 
       function refresh() {
         const active = trackerPlayer(state, state.activeId);
-        $('#trackerTurn', root).textContent = `Turn ${state.turn} — ${active?.name || ''}`;
+        const turn = `Turn ${state.turn} — ${active?.name || ''}`;
+        const you = trackerPlayer(state, mySeat());
+        $('#trackerTurn', root).textContent = hosting ? `Room ${room?.code || '····'} • ${turn}`
+          : client ? `Room ${client.code} • ${you ? `You: ${you.name}` : 'Watching'}${client.status() === 'online' ? '' : ' • reconnecting…'} • Turn ${state.turn}` : turn;
         for (const p of state.players) refreshPlayer(p);
         refreshLog();
+        if (hosting) refreshHost();
+      }
+
+      // ── Host screens: the table, and Judge mode (the table plus the judge's record) ──
+      function refreshHost() {
+        const issues = store.issues();
+        setHtml($('#trackerScreens', root), ['table', 'judge'].map(k => html`
+          <button type="button" role="tab" class="screen-switch__btn ${ui.screen === k ? 'is-on' : ''}" aria-selected="${ui.screen === k ? 'true' : 'false'}" data-act="screen" data-screen="${k}">
+            <span>${k === 'table' ? 'Table' : 'Judge'}</span>
+            ${k === 'judge' ? (issues.length ? html`<i class="legal-badge is-bad" title="Rules problems">✕${issues.length}</i>` : html`<i class="legal-badge is-ok" title="Table state legal">✓</i>`) : ''}
+          </button>`));
+        const judgeMode = ui.screen === 'judge';
+        $('#trackerBody', root).classList.toggle('is-judge', judgeMode);
+        $('.tlog', root).hidden = judgeMode;
+        const panel = $('#trackerJudge', root);
+        panel.hidden = !judgeMode;
+        if (!judgeMode) return;
+        const plays = store.plays();
+        const devices = room ? room.devices() : [];
+        const keep = $('.judge__plays', panel)?.scrollTop || 0;
+        setHtml(panel, html`
+          <header class="judge__head"><h4>Judge</h4><button type="button" class="chip ${devices.some(d => d.online) ? 'chip--good' : 'chip--none'}" data-act="devices">Devices (${devices.filter(d => d.online).length})</button></header>
+          <div class="judge__status ${issues.length ? 'is-bad' : 'is-ok'}">
+            <b>${issues.length ? '✕' : '✓'}</b>
+            <span>${issues.length ? issues.map(i => html`<em class="judge__issue">${i.text}</em>`) : 'Table state legal'}</span>
+          </div>
+          <ol class="judge__plays">${plays.length ? plays.map(p => html`
+            <li class="jplay jplay--${p.verdict}">
+              <i class="jplay__mark" title="${VERDICT[p.verdict]?.[1] || ''}">${VERDICT[p.verdict]?.[0] || '•'}</i>
+              <span class="jplay__text"><b>${p.text}</b><small>${clockTime(p.at)} • by ${p.by}${p.taps > 1 ? ` • ${p.taps} taps` : ''}${p.note ? ` • ${p.note}` : ''}</small></span>
+              <button type="button" class="jplay__undo" data-act="reverse" data-id="${p.id}">Reverse</button>
+            </li>`) : html`<li class="judge__empty">Changes appear here as they happen, with who made them.</li>`}</ol>
+          <footer class="judge__foot">
+            <button type="button" class="btn btn--small" data-act="screen" data-screen="table">Game Log</button>
+            <button type="button" class="btn btn--small" data-act="undo" ${plays.length ? '' : html`disabled`}>Undo Last</button>
+          </footer>`);
+        const list = $('.judge__plays', panel);
+        if (list) list.scrollTop = keep;
+      }
+
+      function openDevices() {
+        const devices = room ? room.devices() : [];
+        openModal({
+          title: `Room ${room?.code || ''} — devices`, size: 'small',
+          body: html`<p class="muted">On each phone: Start Game → Table Tracker → Join a table, then enter ${room?.code || 'the code'}.</p>
+            <div class="option-list">${devices.length ? devices.map(d => html`<div class="option ${d.online ? 'is-on' : ''}"><span><strong>${d.name}</strong><small>${d.online ? 'Connected' : 'Disconnected'} • ${trackerPlayer(state, d.seatId)?.name ? `Seat: ${trackerPlayer(state, d.seatId).name}` : 'Watching'}</small></span>
+              <span class="option__end"><button type="button" class="chip chip--bad" data-kick="${d.clientId}">Remove</button></span></div>`) : html`<p class="muted">No devices have joined yet.</p>`}</div>`,
+          actions: [{ label: 'Close', kind: 'cancel' }],
+          onMount(el, { close }) { on(el, 'click', '[data-kick]', (event, b) => { room?.kick(b.dataset.kick); close(); }); }
+        });
       }
 
       function refreshPlayer(p) {
@@ -162,6 +254,7 @@ export const trackerScreen = {
         if (!card) return;
         const isActive = p.id === state.activeId;
         card.classList.toggle('is-active', isActive);
+        card.classList.toggle('is-you', !!mySeat() && p.id === mySeat());
         card.classList.toggle('is-out', !!p.eliminated);
         card.setAttribute('style', `--player:${p.color};${matStyle(playmatById(p.matId))}`);
 
@@ -174,6 +267,7 @@ export const trackerScreen = {
         loadCommanderArt(p);
         const nameInput = $('.tp__name', card);
         if (document.activeElement !== nameInput) nameInput.value = p.name;
+        nameInput.readOnly = !!client && p.id !== mySeat();
 
         const hints = lossHints(state, p);
         const chips = [
@@ -248,8 +342,7 @@ export const trackerScreen = {
           const hit = rows.find(d => d.name.toLowerCase() === name.toLowerCase()) || rows[0];
           const live = trackerPlayer(state, p.id);
           if (disposed || !hit?.imageUris?.art_crop || !live || live.commander.name !== name) return;
-          live.commander.image = hit.imageUris.art_crop;
-          refreshPlayer(live); save();
+          act({ type: 'art', playerId: p.id, name, image: hit.imageUris.art_crop });
         }).catch(() => {});
       }
 
@@ -430,11 +523,7 @@ export const trackerScreen = {
             on(el, 'click', '[data-anchor]', (event, b) => {
               close();
               if (b.dataset.anchor !== 'new') return void act({ type: 'card-counter', playerId, cardId: b.dataset.anchor, name, delta: 1 });
-              const before = new Set(p.cards.map(c => c.id));
-              openAddCard(playerId, () => {
-                const added = trackerPlayer(state, playerId).cards.find(c => !before.has(c.id));
-                if (added) act({ type: 'card-counter', playerId, cardId: added.id, name, delta: 1 });
-              });
+              openAddCard(playerId, cardId => act({ type: 'card-counter', playerId, cardId, name, delta: 1 }));
             });
           }
         });
@@ -457,7 +546,7 @@ export const trackerScreen = {
           actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'Save', kind: 'confirm', onClick: ({ close, el }) => {
             for (const input of el.querySelectorAll('[data-cmd]')) {
               const p = trackerPlayer(state, input.dataset.cmd), name = input.value.trim();
-              if (p && name !== p.commander.name) { act({ type: 'commander', playerId: p.id, name }); trackerPlayer(state, p.id).commander.image = ''; }
+              if (p && name !== p.commander.name) act({ type: 'commander', playerId: p.id, name });
             }
             close(); refresh();
           } }]
@@ -579,12 +668,14 @@ export const trackerScreen = {
             const addTyped = () => {
               const name = input.value.trim();
               if (!name) return toast('Enter a card name.', { bad: true });
-              if (act({ type: 'card-add', playerId, name })) { close(); onAdded?.(); }
+              const id = newId('tc');
+              if (act({ type: 'card-add', playerId, name, id })) { close(); onAdded?.(id); }
             };
             on(el, 'click', '[data-add]', (event, target) => {
               if (target.dataset.add === 'typed') return addTyped();
               const d = results[Number(target.dataset.index)];
-              if (d && act({ type: 'card-add', playerId, name: d.name, image: d.imageUris?.art_crop || '' })) { close(); onAdded?.(); }
+              const id = newId('tc');
+              if (d && act({ type: 'card-add', playerId, name: d.name, image: d.imageUris?.art_crop || '', id })) { close(); onAdded?.(id); }
             });
             input.focus();
           }
@@ -598,10 +689,12 @@ export const trackerScreen = {
           size: 'small',
           body: html`
             <div class="option-list">
+              ${client ? html`<p class="muted">The host saves the table, changes players and ends the game.</p>` : html`
               <button type="button" class="option" data-menu="save"><span><strong>Save now</strong><small>The table also saves itself as you go.</small></span></button>
+              ${hosting ? html`<button type="button" class="option" data-menu="devices"><span><strong>Devices in this room</strong><small>Room ${room?.code || '····'} — who joined and which seat they track.</small></span></button>` : ''}
               <button type="button" class="option" data-menu="players"><span><strong>Add or remove players</strong><small>${state.players.length} at the table (2–6).</small></span></button>
               <button type="button" class="option" data-menu="end"><span><strong>End game</strong><small>Pick the winner and record the game to your profile.</small></span></button>
-              <button type="button" class="option" data-menu="reset"><span><strong>Reset table</strong><small>New game with the same players.</small></span></button>
+              <button type="button" class="option" data-menu="reset"><span><strong>Reset table</strong><small>New game with the same players.</small></span></button>`}
             </div>`,
           actions: [{ label: 'Close', kind: 'cancel' }],
           onMount(el, { close }) {
@@ -610,6 +703,7 @@ export const trackerScreen = {
               close();
               if (choice === 'save') { save.flush(); toast('Table saved.'); }
               if (choice === 'players') openPlayers();
+              if (choice === 'devices') openDevices();
               if (choice === 'end') openEndGame();
               if (choice === 'reset') {
                 const ok = await confirmDialog({ title: 'Reset Table', message: 'Start a new game with the same players? Life, counters, mana, tracked cards and the change log are cleared.', confirmLabel: 'Reset Table', danger: true });
@@ -700,6 +794,16 @@ export const trackerScreen = {
           case 'set-active': return void act({ type: 'active', playerId });
           case 'next-turn': return void act({ type: 'next-turn' });
           case 'undo': return void undo();
+          case 'screen': ui.screen = el.dataset.screen; return void refresh();
+          case 'devices': return void openDevices();
+          case 'reverse': {
+            const plays = store.plays();
+            const i = plays.findIndex(p => p.id === el.dataset.id);
+            if (i < 0) return;
+            const ok = await confirmDialog({ title: 'Reverse change', message: `Take back "${plays[i].text}"${i ? ` and the ${i} change${i === 1 ? '' : 's'} after it` : ''}? The table goes back to just before it.`, confirmLabel: 'Reverse' });
+            if (ok) { try { store.reverse(el.dataset.id); } catch (error) { toast(error.message, { bad: true }); } }
+            return;
+          }
           case 'judge': return void openJudge();
           case 'menu': return void openMenu();
           case 'card-id': return void openCardId({});
@@ -714,7 +818,12 @@ export const trackerScreen = {
             case 'status': return void pickPlayer('Status — which player?', openStatus);
             case 'mana': return void pickPlayer('Mana — which player?', openMana);
           } return;
-          case 'home': save.flush(); return void go('landing');
+          case 'home': {
+            if (hosting && room && !(await confirmDialog({ title: 'Leave table', message: 'Close the room? Joined phones are disconnected. The table stays saved on this device.', confirmLabel: 'Leave' }))) return;
+            save.flush();
+            if (client) client.close();
+            return void go('landing');
+          }
           case 'clear-log':
             if (await confirmDialog({ title: 'Clear Log', message: 'Clear the change log for this table?', confirmLabel: 'Clear Log', danger: true })) act({ type: 'clear-log' });
             return;

@@ -29,10 +29,11 @@ async def new_page(browser, device):
     return page
 
 
-async def start_tracker(page, players=4):
+async def start_tracker(page, players=4, play='local'):
     await page.click('[data-act="start"]')
     await page.wait_for_selector('.mode-select')
     await page.click('[data-mode="table-tracker"]')
+    await page.click(f'[data-track="{play}"]')
     await page.wait_for_selector('.setup-players')
     for _ in range(players - 2):
         await page.click('[data-act="add"]')

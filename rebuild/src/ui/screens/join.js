@@ -62,6 +62,7 @@ export const joinScreen = {
         link = await joinRoom(code, { clientId: deviceClientId(), seat: prepared, name: seat.name || 'Spectator' });
         try { localStorage.setItem('cc-last-room', code); } catch { /* optional */ }
         if (left) return link.close();
+        if (link.kind === 'tracker') { link.close(); link = null; left = true; return go('tracker-join', { code, name: seat.name }); }
         const enter = () => { startClientSession(link); go('game'); };
         if (link.lastView) return enter();
         offs.push(link.onView(() => { if (!left) { left = true; enter(); } }));

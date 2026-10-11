@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.22, 2026-10-10)
+# Commander Companion — handoff (build 1.0.0-rebuild.24, 2026-10-11)
 
 Read this before changing anything. It records how the app is built, how to ship it, and the
 owner's design rules learned the hard way.
@@ -34,13 +34,16 @@ loopback with `?net=loopback` for tests). Screens are in `src/ui/screens/`, in-g
 
 ## Tests (run before every push)
 
-    node tests/node/game.mjs          # 124 rules/coach checks
+    node tests/node/game.mjs          # 133 rules/coach/judge checks
+    node tests/node/tracker.mjs       # 18 hosted-tracker store checks
     node tests/node/soak.mjs 20       # random full games, expects "0 problems"
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites
     python3 tests/tracker_test.py     # 40   (also writes tracker screenshots)
     python3 tests/game_ui.py          # 28
     python3 tests/flows_ui.py         # 25
-    python3 tests/net_ui.py           # 16
+    python3 tests/net_ui.py           # 24   (hosted game: Table / Judge, reverse, watcher)
+    python3 tests/tracker_net_ui.py   # 40   (hosted Table Tracker: phones, seats, judge)
+    python3 tests/shots_judge.py      # host-screen screenshots, phone + iPad
     python3 tests/shots_more.py       # game screenshots, phone + iPad
 
 Playwright screenshots never show real card images (no network) — the owner's device
@@ -71,7 +74,28 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   `canEdit`/`force` in `src/game/controller.js`, `canEdit`/`canForce` in `src/game/view.js`.
   Playwright tracker tests need `pip install playwright==1.56.0` (matches /opt/pw-browsers 1194).
 
+## Host screens and Judge mode (build 24)
+
+- **Hosted games** (`src/ui/screens/game.js`): the host device switches TABLE / JUDGE in the bottom bar;
+  a host who plays switches BOARD / TABLE / JUDGE in the left rail. Judge mode = table view + the
+  judge's record (every play, legality mark, Reverse). The table never shows face-up hands.
+  Record + restore points live in `src/game/controller.js` (`game.plays`, `checkpoints`, `reverse`);
+  legality is checked before each play (forced plays show why they were illegal). Restore points
+  are memory-only (last 120 plays) — after an app restart old plays show but cannot be reversed.
+- **Hosted Table Tracker**: Table Tracker now asks One device / Host (playing) / Host device / Join.
+  `src/app/tracker-session.js` (store: record, legality marks, undo, reverse, permissions),
+  `src/net/tracker-room.js` (room; sends the whole table — the tracker has no hidden cards),
+  `src/ui/screens/tracker-join.js` (code → pick seat or watch). Phones change any seat; changes to
+  another seat are flagged amber, host changes blue. The Judge badge/banner turns red when a player
+  should be out (`trackerIssues`: 0 life, 10 poison, 21 commander damage). Phones can undo only
+  their own newest change; the host reverses anything. Updates wait while a tracker room is open.
+
 ## Recent state / open items
+
+- Pre-existing: with 5–6 players on a phone the tracker's narrow card layout overlaps the life
+  number and buttons (see `phone-tracker6.png`). Judge mode on a phone avoids it with a 22rem panel.
+- Hosted Table Tracker and game Judge mode are tested only over the same-browser loopback; check
+  across real devices.
 
 - **iPad home-screen black strip at the bottom** — iPadOS 26 WebKit bug 301108 with
   `black-translucent` status bar. Build 22 switched to `apple-mobile-web-app-status-bar-style:

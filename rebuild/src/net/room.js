@@ -133,7 +133,7 @@ export async function joinRoom(code, { clientId, seat = null, name = '' }) {
   const joined = new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('The host did not answer.')), 10000);
     const off = transport.onMessage(msg => {
-      if (msg.type === 'joined') { clearTimeout(timer); off(); link.seated = !!msg.seated; link.reason = msg.reason || ''; resolve(); }
+      if (msg.type === 'joined') { clearTimeout(timer); off(); link.seated = !!msg.seated; link.reason = msg.reason || ''; link.kind = msg.kind || 'game'; resolve(); }
     });
   });
   wire();

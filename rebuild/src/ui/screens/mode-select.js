@@ -25,7 +25,20 @@ export const modeSelectScreen = {
     const offBack = on(root, 'click', '[data-act="back"]', () => go('landing'));
     const offMode = on(root, 'click', '[data-mode]', (event, el) => {
       const mode = el.dataset.mode;
-      if (mode === 'table-tracker') return go('tracker-setup');
+      if (mode === 'table-tracker') {
+        return openModal({
+          title: 'Table Tracker',
+          body: html`<div class="option-list">
+            <button type="button" class="option" data-track="local"><span><strong>One device</strong><small>Track the whole table on this device</small></span></button>
+            <button type="button" class="option" data-track="host-player"><span><strong>Host a table — I am playing too</strong><small>Players track their own seat on their phones; you get the host tools and Judge mode</small></span></button>
+            <button type="button" class="option" data-track="host-device"><span><strong>Host device — table view</strong><small>This device shows the whole table and acts as judge</small></span></button>
+            <button type="button" class="option" data-track="join"><span><strong>Join a table</strong><small>Enter the code shown on the host device</small></span></button>
+          </div>`,
+          onMount(box, { close }) {
+            on(box, 'click', '[data-track]', (e, b) => { close(); b.dataset.track === 'join' ? go('tracker-join') : go('tracker-setup', { play: b.dataset.track }); });
+          }
+        });
+      }
       openModal({
         title: mode === 'freeplay' ? 'Free Play' : 'Guided Play',
         body: html`<div class="option-list">
