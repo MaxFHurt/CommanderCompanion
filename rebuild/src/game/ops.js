@@ -20,6 +20,23 @@ import { librarySearchSpec, searchFilter } from './library-search.js';
 import { commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, stackTop } from './legal.js';
 import { attach, enchantTarget } from './attachments.js';
 import { candidatesFor } from './requirements.js';
+import { targetRequirementsFromText } from './guided.js';
+
+/** Source qualities targeting checks need (protection, hexproof from a color). */
+const sourceOf = def => ({ colors: def?.colors || [], typeLine: def?.typeLine || '', name: def?.name || '' });
+
+/** A card resolved by hand still chooses its targets now; returns the chosen ids with labels. */
+function guidedTargets(game, player, def, text, bindings, ask, { cancellable = true } = {}) {
+  const reqs = targetRequirementsFromText(text);
+  if (!reqs.length) return [];
+  try {
+    gatherRequirements(game, { player, sourceName: def?.name || 'Effect', cancellable, source: sourceOf(def) }, reqs, bindings, ask, 'guided');
+  } catch (error) {
+    if (error instanceof NoLegalChoice) throw new GameError(error.message);
+    throw error;
+  }
+  return reqs.map(r => ({ id: bindings[r.bind] || null, label: r.label, kind: r.kind })).filter(x => x.id);
+}
 
 export function commit(game, action) {
   return createTransactionEngine(game).commit(action);
@@ -173,8 +190,10 @@ function runPlay(game, op, ask) {
     extra = bindings.X * cost.X;
   }
   const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && cost.X)));
+  const guidedPicks = guided ? guidedTargets(game, player, def, guided.oracleText || def.oracleText, bindings, ask) : [];
+  if (guided) guided.targets = guidedPicks;
   try {
-    gatherRequirements(game, { player, sourceName: def.name }, cast, bindings, ask, 'cast');
+    gatherRequirements(game, { player, sourceName: def.name, source: sourceOf(def) }, cast, bindings, ask, 'cast');
   } catch (error) {
     if (error instanceof NoLegalChoice) throw new GameError(error.message);
     throw error;
@@ -314,8 +333,9 @@ function runActivate(game, op, ask) {
     else guided = guidedSpec(`${def.name} — resolve by hand`, effectText, result.compiled.unsupported);
   }
   const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && bindings.X !== undefined)));
+  if (guided) guided.targets = guidedTargets(game, player, def, effectText, bindings, ask);
   try {
-    gatherRequirements(game, { player, sourceName: def.name }, cast, bindings, ask, 'cast');
+    gatherRequirements(game, { player, sourceName: def.name, source: sourceOf(def) }, cast, bindings, ask, 'cast');
   } catch (error) {
     if (error instanceof NoLegalChoice) throw new GameError(error.message);
     throw error;
@@ -364,7 +384,7 @@ function runTrigger(game, op, ask) {
     const split = splitRequirements(compiled.requirements || []);
     resolve = split.resolve;
     try {
-      gatherRequirements(game, { player, sourceName: name, cancellable: false }, split.cast, bindings, ask, 'cast');
+      gatherRequirements(game, { player, sourceName: name, cancellable: false, source: sourceOf(game.cardDefinitions[trigger.sourceDefinitionId]) }, split.cast, bindings, ask, 'cast');
     } catch (error) {
       if (!(error instanceof NoLegalChoice)) throw error;
       log(game, `${name} triggers, but there is no legal target, so it does nothing.`);
@@ -372,6 +392,13 @@ function runTrigger(game, op, ask) {
     }
   } else {
     guided = guidedSpec(`${name} — resolve by hand`, text, compiled?.unsupported?.length ? compiled.unsupported : [text]);
+    try {
+      guided.targets = guidedTargets(game, player, game.cardDefinitions[trigger.sourceDefinitionId], text, bindings, ask, { cancellable: false });
+    } catch (error) {
+      if (!(error instanceof GameError)) throw error;
+      log(game, `${name} triggers, but there is no legal target, so it does nothing.`);
+      return drop();
+    }
   }
 
   if (modeIndex !== null) {

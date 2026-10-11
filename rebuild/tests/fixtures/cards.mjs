@@ -1,3 +1,4 @@
+import { LAB_CARDS } from './lab-cards.mjs';
 // Scryfall-shaped card fixtures for tests. The test environment cannot reach Scryfall,
 // so both the node tests and the Playwright route mocks read from this list.
 
@@ -33,7 +34,7 @@ export const CARDS = [
   creature('Llanowar Elves', '{G}', 'Elf Druid', '{T}: Add {G}.', 1, 1),
   creature('Grizzly Bears', '{1}{G}', 'Bear', '', 2, 2),
   creature('Serra Angel', '{3}{W}{W}', 'Angel', 'Flying, vigilance', 4, 4, ['Flying', 'Vigilance']),
-  creature('White Knight', '{W}{W}', 'Human Knight', 'First strike', 2, 2, ['First strike']),
+  creature('White Knight', '{W}{W}', 'Human Knight', 'First strike\nProtection from black', 2, 2, ['First strike', 'Protection']),
   creature('Fencing Ace', '{1}{W}', 'Human Soldier', 'Double strike', 1, 1, ['Double strike']),
   creature('Vampire Nighthawk', '{1}{B}{B}', 'Vampire Shaman', 'Flying, deathtouch, lifelink', 2, 3, ['Flying', 'Deathtouch', 'Lifelink']),
   creature('Elvish Visionary', '{1}{G}', 'Elf Shaman', 'When Elvish Visionary enters the battlefield, draw a card.', 1, 1),
@@ -82,6 +83,8 @@ export const CARDS = [
   }
 ];
 
+CARDS.push(...LAB_CARDS);
+
 export const BY_NAME = new Map(CARDS.flatMap(c => [[c.name.toLowerCase(), c], ...(c.card_faces ? [[c.card_faces[0].name.toLowerCase(), c]] : [])]));
 
 /** A 100-card singleton-ish list for a commander (basics may repeat). */
@@ -103,5 +106,6 @@ export const DECKS = {
   white: { commander: 'Isamaru, Hound of Konda', list: deckList('Isamaru, Hound of Konda', ['Sol Ring', 'Mind Stone', 'Serra Angel', 'White Knight', 'Fencing Ace', 'Wall of Omens', 'Soul Warden', "Healer's Hawk", 'Day of Judgment', 'Swords to Plowshares', 'Glorious Anthem', 'Evolving Wilds', 'Swiftfoot Boots', 'Bonesplitter', 'Holy Strength'], { Plains: 1 }) },
   simic: { commander: 'Tatyova, Benthic Druid', list: deckList('Tatyova, Benthic Druid', ['Sol Ring', 'Arcane Signet', 'Command Tower', 'Llanowar Elves', 'Grizzly Bears', 'Elvish Visionary', 'Mulldrifter', 'Colossal Dreadmaw', 'Air Elemental', 'Fog Bank', 'Counterspell', 'Giant Growth', 'Divination', 'Cultivate', 'Rampant Growth', 'Naturalize', 'Opt', 'Evolving Wilds', 'Bala Ged Recovery // Bala Ged Sanctuary'], { Forest: 1, Island: 1 }) },
   rakdos: { commander: 'Lyzolda, the Blood Witch', list: deckList('Lyzolda, the Blood Witch', ['Sol Ring', 'Arcane Signet', 'Command Tower', 'Badlands', 'Vampire Nighthawk', 'Raging Goblin', 'Simian Spirit Guide', 'Gravedigger', 'Lightning Bolt', 'Shock', 'Murder', 'Reanimate', 'Mind Rot', 'Raise Dead', 'Dragon Fodder', 'Storm the Vault Oddity'], { Swamp: 1, Mountain: 1 }) },
+  lab: { commander: 'The Ur-Dragon', list: deckList('The Ur-Dragon', LAB_CARDS.filter(x => !/Legendary Creature/.test(x.type_line)).map(x => x.name), { Plains: 1, Island: 1, Swamp: 1, Mountain: 1, Forest: 1 }) },
   red: { commander: 'Zada, Hedron Grinder', list: deckList('Zada, Hedron Grinder', ['Sol Ring', 'Raging Goblin', 'Simian Spirit Guide', 'Lightning Bolt', 'Shock', 'Dragon Fodder'], { Mountain: 1 }) }
 };

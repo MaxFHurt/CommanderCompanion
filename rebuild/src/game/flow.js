@@ -10,6 +10,7 @@ import { Need, makeAsk, validateAnswer } from './requirements.js';
 import { OPS, commit } from './ops.js';
 import { attackOptions, blockOptions, hasResponse, stackTop } from './legal.js';
 import { syncAttachments } from './attachments.js';
+import { stateBasedActions } from './sba.js';
 
 const MAIN = ['precombat-main', 'postcombat-main'];
 const COMBAT_QUEUE = () => [
@@ -377,6 +378,7 @@ export function settle(game) {
     // Re-read every pass: a failed engine commit restores the game and replaces these objects.
     const f = game.flow;
     syncAttachments(game);
+    if (!f.op && game.status !== 'complete') stateBasedActions(game);
     if (game.status !== 'complete') evaluateLosses(game);
     if (game.status === 'complete') { finishGame(game); return; }
     if (f.stage !== 'play') return;

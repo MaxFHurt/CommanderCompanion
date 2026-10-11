@@ -10,6 +10,22 @@ import {
 import { openingPenalty, mulliganInfo } from './setup.js';
 import { playableFaces } from './ops.js';
 import { coachFor } from './coach.js';
+import { guidedActionsFor, guidedHintFor } from '../data/mechanics.js';
+
+/** What a hand-resolved effect targeted, described for the resolution screen. */
+function guidedTargetsView(game, picks = []) {
+  return picks.map(t => {
+    const p = playerById(game, t.id);
+    if (p) return { id: t.id, kind: 'player', name: p.displayName, label: t.label };
+    const s = (game.stack || []).find(x => x.id === t.id);
+    if (s) return { id: t.id, kind: 'stack', name: s.name || s.label || 'Spell', label: t.label };
+    for (const q of game.players) for (const zone of ['battlefield', 'graveyard', 'exile', 'hand']) {
+      const c = (q.deck[zone] || []).find(x => x.instanceId === t.id);
+      if (c) return { id: t.id, kind: zone === 'battlefield' ? 'permanent' : 'card', zone, name: defOf(game, c)?.name || 'Card', owner: q.displayName, label: t.label };
+    }
+    return { id: t.id, kind: 'gone', name: 'No longer there', label: t.label };
+  });
+}
 
 /** The player the game is waiting on right now (used by single-device pass-and-play). */
 export function actorId(game) {
@@ -83,7 +99,11 @@ function promptFor(game, viewerId, defs, viewer) {
   }
   if (f.guided) {
     const top = stackTop(game);
-    if (top?.controllerId === viewerId || viewer.isHost) return { kind: 'guided', stackId: top.id, name: top.name || top.label, text: top.guidedResolution?.oracleText || top.text || '', notes: top.guidedResolution?.unsupported || [], controllerId: top.controllerId };
+    if (top?.controllerId === viewerId || viewer.isHost) {
+      const text = top.guidedResolution?.oracleText || top.text || '';
+      return { kind: 'guided', stackId: top.id, name: top.name || top.label, text, notes: top.guidedResolution?.unsupported || [], controllerId: top.controllerId,
+        targets: guidedTargetsView(game, top.guidedResolution?.targets), actions: guidedActionsFor(text), hint: guidedHintFor(text) };
+    }
     return waiting(top?.controllerId, `Waiting for ${name(top?.controllerId)} to resolve ${top?.name || 'an effect'} by hand.`);
   }
   if (f.priority?.holderId) {
@@ -180,7 +200,8 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
     return { id: x.id, kind: x.kind, name: x.name || game.cardDefinitions[id]?.name || x.label, label: x.label, text: x.text || x.abilityText || '', controllerId: x.controllerId, def: id || null, face: x.card?.activeFaceIndex ?? null, guided: !!x.guidedResolution };
   });
 
-  const prompt = promptFor(game, viewerId, defs, viewer);
+  // Prompts that give host powers (deciding votes, resolving anyone's card by hand) go to the judge only.
+  const prompt = promptFor(game, viewerId, defs, { ...viewer, isHost: judge });
   const active = activePlayer(game);
   const isTurn = prompt.kind === 'turn';
   const view = {

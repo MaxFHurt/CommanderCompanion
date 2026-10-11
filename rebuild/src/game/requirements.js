@@ -7,6 +7,64 @@
 
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
+import { cardHasKeyword } from '../engine/combat.js';
+
+const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+
+/** "Protection from …" qualities on a permanent (printed, granted by effects, or by anthems). */
+export function protectionsOf(game, card) {
+  const d = defOf(game, card), out = new Set();
+  const texts = [String(d?.oracleText || ''), ...(card?.temporaryEffects || []).filter(e => e?.kind === 'keyword').map(e => String(e.keyword || ''))];
+  for (const t of texts) for (const m of t.matchAll(/protection from ([a-z ,]+?)(?:\.|\n|$| and from)/gi)) {
+    for (const part of m[1].split(/,| and | or /)) {
+      const w = part.trim().toLowerCase().replace(/^the color of your choice$/, '');
+      if (COLOR_WORDS[w]) out.add(COLOR_WORDS[w]);
+      else if (/^everything$/.test(w)) out.add('everything');
+      else if (/^all colors$/.test(w)) ['W', 'U', 'B', 'R', 'G'].forEach(c => out.add(c));
+      else if (/^(creatures|artifacts|enchantments|instants|sorceries|planeswalkers|multicolored|monocolored|colorless)$/.test(w)) out.add(w);
+    }
+  }
+  return out;
+}
+
+/** Does a source (its colors and types) have a quality the permanent is protected from? */
+export function protectedFrom(game, card, source) {
+  if (!source) return false;
+  const p = protectionsOf(game, card);
+  if (!p.size) return false;
+  if (p.has('everything')) return true;
+  const colors = source.colors || [], type = String(source.typeLine || '').toLowerCase();
+  if (colors.some(c => p.has(c))) return true;
+  if (p.has('multicolored') && colors.length > 1) return true;
+  if (p.has('monocolored') && colors.length === 1) return true;
+  if (p.has('colorless') && !colors.length) return true;
+  return ['creature', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker'].some(k => p.has(`${k === 'sorcery' ? 'sorceries' : `${k}s`}`) && type.includes(k));
+}
+
+/** May `player` target this permanent with a spell or ability from `source`? (hexproof, shroud, protection) */
+export function canTarget(game, card, player, source = null) {
+  const d = defOf(game, card);
+  if (cardHasKeyword(card, d, 'Shroud', game)) return false;
+  const opponent = (card.controllerId || card.ownerId) !== player?.playerId;
+  if (opponent && cardHasKeyword(card, d, 'Hexproof', game)) {
+    // "Hexproof from [color]" only stops sources of that color.
+    const from = String(d?.oracleText || '').match(/hexproof from (white|blue|black|red|green|monocolored|multicolored)/i);
+    if (!from) return false;
+    const w = from[1].toLowerCase(), colors = source?.colors || [];
+    if (COLOR_WORDS[w] ? colors.includes(COLOR_WORDS[w]) : w === 'multicolored' ? colors.length > 1 : colors.length === 1) return false;
+  }
+  return !protectedFrom(game, card, source);
+}
+
+/** Players with "You have hexproof/shroud" (Leyline of Sanctity, True Believer) can't be targeted by opponents / anyone. */
+export function canTargetPlayer(game, target, player) {
+  for (const c of target.deck?.battlefield || []) {
+    const t = String(defOf(game, c)?.oracleText || '');
+    if (/\bYou have shroud\b/i.test(t)) return false;
+    if (target.playerId !== player?.playerId && /\bYou have hexproof\b/i.test(t)) return false;
+  }
+  return true;
+}
 
 export class Need {
   constructor(spec) { this.spec = spec; }
@@ -70,12 +128,12 @@ function matchesPermanentScope(game, card, scope) {
 }
 
 /** Legal choices for a single-target style requirement. */
-export function candidatesFor(game, req, player) {
+export function candidatesFor(game, req, player, source = null) {
   const scope = String(req?.scope || '').toLowerCase();
   const out = [];
   if (req.kind === 'player') {
     const rows = scope === 'opponent' ? opponentsOf(game, player.playerId) : alivePlayers(game);
-    return rows.map(playerOption);
+    return rows.filter(q => canTargetPlayer(game, q, player)).map(playerOption);
   }
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
@@ -91,13 +149,14 @@ export function candidatesFor(game, req, player) {
   }
   if (req.kind === 'stack-target') {
     return (game.stack || [])
-      .filter(x => req.scope !== 'spell' || x.kind === 'spell')
+      .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }
   if (req.kind === 'target') {
     if (/any target|any other target|target player|target opponent/.test(scope)) {
       for (const q of alivePlayers(game)) {
         if (/opponent/.test(scope) && q.playerId === player.playerId) continue;
+        if (!canTargetPlayer(game, q, player)) continue;
         out.push(playerOption(q));
       }
     }
@@ -109,6 +168,7 @@ export function candidatesFor(game, req, player) {
         if (anyTarget) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
         } else if (!matchesPermanentScope(game, c, scope)) continue;
+        if (!canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }
     }
@@ -186,7 +246,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
     if (req.kind === 'multi-target') {
       const max = Math.max(0, Number(req.max || 1)), min = Math.max(0, Number(req.min || 0));
-      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player);
+      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null);
       bindings[req.bind] = rows.length
         ? ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: req.label || `Choose up to ${max}`, options: rows, min: Math.min(min, rows.length), max: Math.min(max, rows.length) }))
         : [];
@@ -276,10 +336,13 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
 
     // Single choice: target, player, graveyard-target, stack-target.
-    let rows = candidatesFor(game, req, player);
+    let rows = candidatesFor(game, req, player, ctx.source || null);
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
-    if (!rows.length) throw new NoLegalChoice(`No legal choice is available for "${req.label || req.scope || 'this effect'}".`);
-    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label || 'a target'}.`, options: rows, targeting: true }));
+    if (!rows.length) {
+      if (req.optional) { bindings[req.bind] = null; return; }
+      throw new NoLegalChoice(`No legal choice is available for "${req.label || req.scope || 'this effect'}".`);
+    }
+    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label || 'a target'}.`, options: rows, targeting: true, allowNone: !!req.optional, noneLabel: 'No target' }));
   });
   return bindings;
 }

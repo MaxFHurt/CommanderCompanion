@@ -12,7 +12,7 @@ import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
-import { openCardDetail, openTable } from './card-modals.js';
+import { openCardDetail, openTable, pickNumber, pickText } from './card-modals.js';
 
 const me = view => view.players.find(p => p.playerId === view.you);
 
@@ -80,25 +80,83 @@ export function openDiscard(ctx, need, { minimize } = {}) {
 }
 
 // ── Resolve a card by hand ──────────────────────────────────────────────────────
+// Short instruction, the chosen targets with the actions the card's words call for, and Done.
+const ACTION_LABEL = {
+  destroy: 'Destroy', exile: 'Exile', bounce: 'To hand', tap: 'Tap', untap: 'Untap', 'counter+': '+1/+1 counter', 'counter-': '−1/−1 counter',
+  'counter-other': 'Other counter…', damage: 'Damage…', 'gain-control': 'Gain control', sacrifice: 'Sacrifice', 'return-hand': 'To hand',
+  'return-battlefield': 'To battlefield', 'life-gain': 'Gain life…', 'life-loss': 'Lose life…', draw: 'Draw…', discard: 'Discard…', mill: 'Mill…',
+  poison: 'Poison…', 'counter-spell': 'Counter it', pt: 'P/T change…', transform: 'Transform', shuffle: 'Shuffle', token: 'Create token…'
+};
+const FOR_KIND = {
+  permanent: ['destroy', 'exile', 'bounce', 'sacrifice', 'tap', 'untap', 'counter+', 'counter-', 'counter-other', 'damage', 'pt', 'gain-control', 'transform'],
+  player: ['damage', 'life-loss', 'life-gain', 'draw', 'discard', 'mill', 'poison'],
+  stack: ['counter-spell'],
+  card: ['return-hand', 'return-battlefield', 'exile']
+};
+const FOR_YOU = ['draw', 'life-gain', 'life-loss', 'mill', 'token', 'shuffle'];
+
 export function openGuided(ctx) {
   const view = ctx.view, p = view.prompt;
   const top = view.stack.find(s => s.id === p.stackId);
   const def = top?.def ? view.defs[top.def] : null;
+  const wanted = new Set(p.actions || []);
+  const pick = (kind) => { const all = FOR_KIND[kind] || []; const hit = all.filter(a => wanted.has(a)); return hit.length ? hit : all; };
+  const you = view.players.find(x => x.playerId === p.controllerId);
+  const selfActions = FOR_YOU.filter(a => wanted.has(a));
+  const steps = p.targets?.length ? 'Tap what the card does to each target, then Done.' : 'Do what the card says with the buttons or Host Tools, then Done.';
   const modal = openModal({
     title: `${p.name} — resolve by hand`, size: 'wide',
     body: html`
       ${def ? cardDetailHtml(def, top.face) : html`<p class="card-detail__oracle">${oracleHtml(p.text)}</p>`}
-      <p class="card-detail__why"><b>This effect is not automated.</b> Do what the card says using the tools (life, counters, moving cards, tokens), then press Effect resolved.</p>
-      ${p.notes?.length ? html`<p class="muted">Needs doing by hand: ${p.notes.join(' • ')}</p>` : ''}`,
+      <p class="guided__steps"><b>${steps}</b>${p.hint ? html` <span>${p.hint.name}: ${p.hint.steps}</span>` : ''}</p>
+      ${(p.targets || []).map((t, i) => html`<div class="guided__target">
+        <span class="guided__who"><small>${t.label}</small><b>${t.name}</b>${t.owner ? html`<small>${t.owner}</small>` : ''}</span>
+        <span class="guided__acts">${t.kind === 'gone' ? html`<small class="muted">Left its zone — nothing to do to it.</small>` : pick(t.kind).map(a => html`<button type="button" class="btn btn--small" data-act-guided="${a}" data-t="${i}">${ACTION_LABEL[a] || a}</button>`)}</span>
+      </div>`)}
+      ${selfActions.length ? html`<div class="guided__target"><span class="guided__who"><small>You</small><b>${you?.name || 'You'}</b></span>
+        <span class="guided__acts">${selfActions.map(a => html`<button type="button" class="btn btn--small" data-act-guided="${a}" data-t="you">${ACTION_LABEL[a]}</button>`)}</span></div>` : ''}`,
     actions: [
-      { label: 'Open tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } },
-      { label: 'Effect resolved', kind: 'confirm', onClick: async ({ close }) => { const r = await ctx.send({ type: 'guided-done' }); if (r.ok) close(); } }
-    ]
+      { label: 'Host Tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } },
+      { label: 'Done', kind: 'confirm', onClick: async ({ close }) => { const r = await ctx.send({ type: 'guided-done' }); if (r.ok) close(); } }
+    ],
+    onMount(el) {
+      on(el, 'click', '[data-act-guided]', (event, b) => runGuidedAction(ctx, b.dataset.actGuided, b.dataset.t === 'you' ? { id: p.controllerId, kind: 'player' } : p.targets[Number(b.dataset.t)], p.controllerId));
+    }
   });
   return modal.close;
 }
 
-// ── Table vote ──────────────────────────────────────────────────────────────────
+function runGuidedAction(ctx, action, target, controllerId) {
+  const edit = e => ctx.send({ type: 'edit', edit: e }).then(r => { if (r.ok) toast(`${ACTION_LABEL[action] || action} — done.`); return r; });
+  const n = (title, fn, start = 1) => pickNumber(title, start, fn, { min: 0, max: 999 });
+  const id = target?.id;
+  switch (action) {
+    case 'destroy': case 'sacrifice': return edit({ kind: 'move', instanceId: id, to: 'graveyard' });
+    case 'exile': return edit({ kind: 'move', instanceId: id, to: 'exile' });
+    case 'bounce': case 'return-hand': return edit({ kind: 'move', instanceId: id, to: 'hand' });
+    case 'return-battlefield': return edit({ kind: 'move', instanceId: id, to: 'battlefield', controllerId });
+    case 'tap': return edit({ kind: 'tap', instanceId: id, tapped: true });
+    case 'untap': return edit({ kind: 'tap', instanceId: id, tapped: false });
+    case 'counter+': return edit({ kind: 'card-counter', instanceId: id, counter: '+1/+1', delta: 1 });
+    case 'counter-': return edit({ kind: 'card-counter', instanceId: id, counter: '-1/-1', delta: 1 });
+    case 'counter-other': return pickText('Counter name', 'loyalty, charge, shield, stun…', name => n(`${name} counters to add (negative removes)`, v => edit({ kind: 'card-counter', instanceId: id, counter: name, delta: v })));
+    case 'damage': return n('How much damage?', v => edit({ kind: 'damage', targetId: id, amount: v }), 2);
+    case 'pt': return pickText('Power/toughness change', '+2/+2 or -3/-0', v => { const m = String(v).match(/([+-]?\d+)\s*\/\s*([+-]?\d+)/); if (!m) return toast('Write it like +2/+2.'); edit({ kind: 'pt', instanceId: id, power: Number(m[1]), toughness: Number(m[2]) }); });
+    case 'gain-control': return edit({ kind: 'control', instanceId: id, playerId: controllerId });
+    case 'transform': return edit({ kind: 'transform', instanceId: id });
+    case 'life-gain': return n('Gain how much life?', v => edit({ kind: 'life', playerId: id, delta: v }), 1);
+    case 'life-loss': return n('Lose how much life?', v => edit({ kind: 'life', playerId: id, delta: -v }), 1);
+    case 'draw': return n('Draw how many?', v => v && edit({ kind: 'draw', playerId: id, count: v }), 1);
+    case 'mill': return n('Mill how many?', v => v && edit({ kind: 'mill', playerId: id, count: v }), 1);
+    case 'poison': return n('Poison counters to add', v => edit({ kind: 'poison', playerId: id, delta: v }), 1);
+    case 'discard': return toast(`${ctx.view.players.find(x => x.playerId === id)?.name || 'That player'} chooses the card to discard — use their hand in Host Tools.`);
+    case 'counter-spell': return edit({ kind: 'counter-stack', stackId: id });
+    case 'shuffle': return edit({ kind: 'shuffle', playerId: id });
+    case 'token': return openHostTools(ctx);
+    default: return openHostTools(ctx);
+  }
+}
+
 export function openVote(ctx) {
   const view = ctx.view, p = view.prompt;
   const who = view.players.find(x => x.playerId === p.requesterId)?.name || 'A player';

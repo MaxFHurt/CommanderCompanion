@@ -156,6 +156,19 @@ export function applyEdit(game, e, who = 'Host') {
       tag(target ? `${defOf(game, hit.card)?.name || 'Card'} is attached to ${defOf(game, target.card)?.name || 'a permanent'}.` : `${defOf(game, hit.card)?.name || 'Card'} is unattached.`);
       break;
     }
+    case 'damage': {
+      // Damage by hand: to a player it is life loss; to a creature it is marked (state-based actions kill it).
+      const amount = clampInt(e.amount, 0, 999, 0);
+      const target = playerById(game, e.targetId);
+      if (target) { target.life = Math.max(0, Number(target.life || 0) - amount); tag(`${amount} damage to ${target.displayName} (life ${target.life}).`); break; }
+      const hit = needCard(game, e.targetId);
+      if (hit.zone !== 'battlefield') throw new GameError('Only permanents on the battlefield can be dealt damage.');
+      const d = defOf(game, hit.card);
+      if (/Planeswalker/i.test(d?.typeLine || '')) { hit.card.counters = hit.card.counters || {}; hit.card.counters.loyalty = Math.max(0, Number(hit.card.counters.loyalty || 0) - amount); }
+      else hit.card.damageMarked = Number(hit.card.damageMarked || 0) + amount;
+      tag(`${amount} damage to ${d?.name || 'a permanent'}.`);
+      break;
+    }
     case 'pt': {
       const hit = needCard(game, e.instanceId);
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
@@ -212,6 +225,29 @@ export function applyEdit(game, e, who = 'Host') {
       game.pendingTriggers = [];
       game.flow.priority = null; game.flow.guided = null; game.flow.op = null;
       tag('the stack was cleared.');
+      break;
+    }
+    case 'counter-stack': {
+      // Counter one particular spell or ability (not necessarily the top), for example from a hand-resolved counterspell.
+      const i = (game.stack || []).findIndex(x => x.id === e.stackId);
+      if (i < 0) throw new GameError('That spell is no longer on the stack.');
+      const [obj] = game.stack.splice(i, 1);
+      if (obj.kind === 'spell' && obj.card) {
+        const owner = playerById(game, obj.card.ownerId);
+        const cmd = owner?.commanders?.find(c => c.cardId === obj.card.definitionId);
+        const to = cmd ? 'command' : obj.exileOnLeave ? 'exile' : 'graveyard';
+        obj.card.zone = to;
+        if (owner && !obj.card.token) owner.deck[to === 'command' ? 'commandZone' : to].push(obj.card);
+        if (cmd) { cmd.zone = 'command'; cmd.commandZone = true; }
+      }
+      tag(`${obj.name || obj.label || 'a spell'} is countered.`);
+      break;
+    }
+    case 'transform': {
+      const hit = needCard(game, e.instanceId), base = game.cardDefinitions[hit.card.definitionId];
+      if ((base?.cardFaces || []).length < 2) throw new GameError('Only a double-faced card can transform.');
+      hit.card.activeFaceIndex = Number(hit.card.activeFaceIndex || 0) === 0 ? 1 : 0;
+      tag(`${base.name} transforms into ${base.cardFaces[hit.card.activeFaceIndex]?.name || 'its other face'}.`);
       break;
     }
     case 'counter-top': {
