@@ -410,8 +410,9 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   // One shared device in Guided Play: the rules hold, no host tools, no "play anyway".
   const t = newGame(['white', 'simic'], { deviceMode: 'single-device' });
   t.keepAll();
-  const angel = t.game.players[0].deck.remainingLibrary.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Serra Angel');
-  angel.zone = 'hand'; t.game.players[0].deck.hand.push(t.game.players[0].deck.remainingLibrary.splice(t.game.players[0].deck.remainingLibrary.indexOf(angel), 1)[0]);
+  // The opening draw can already have put Serra Angel in hand.
+  const angel = t.hand(0, 'Serra Angel') || t.game.players[0].deck.remainingLibrary.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Serra Angel');
+  if (angel.zone !== 'hand') { angel.zone = 'hand'; t.game.players[0].deck.hand.push(t.game.players[0].deck.remainingLibrary.splice(t.game.players[0].deck.remainingLibrary.indexOf(angel), 1)[0]); }
   const local = { playerId: t.P(0).playerId, isHost: true };
   const forced = t.ctl.dispatch({ type: 'play', instanceId: angel.instanceId, force: true }, local);
   check('guided on one device refuses a forced play without mana', !forced.ok && !t.bf(0, 'Serra Angel'), forced.error);

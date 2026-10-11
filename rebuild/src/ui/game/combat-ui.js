@@ -12,13 +12,15 @@ export function openAttack(ctx) {
   if (!me || !rows.length) return toast('None of your creatures can attack right now.');
   const opponents = view.players.filter(p => p.playerId !== me.playerId && !p.eliminated);
   const draft = new Map(); // instanceId → defenderId
+  // Creatures that must attack (goaded, "attacks this combat if able") start chosen.
+  for (const r of rows) if (r.mustAttack && r.defenders.length) draft.set(r.instanceId, r.defenders[0]);
   const draw = el => {
     setHtml($('[data-attackers]', el), rows.map(r => {
       const c = me.battlefield.find(x => x.id === r.instanceId);
       const target = draft.get(r.instanceId);
       return html`<div class="combat-row ${target ? 'is-on' : ''}">
         ${cardHtml(c, view.defs[c.def], { act: 'peek', cls: 'card--thumb' })}
-        <span class="pick__text"><strong>${c.name}</strong><small>${c.power}/${c.toughness}${target ? ` → attacks ${opponents.find(o => o.playerId === target)?.name}` : ' — staying home'}</small></span>
+        <span class="pick__text"><strong>${c.name}</strong><small>${c.power}/${c.toughness}${target ? ` → attacks ${opponents.find(o => o.playerId === target)?.name}` : ' — staying home'}${r.mustAttack ? html` · <b>${r.goaded ? 'Goaded — must attack' : 'Must attack'}</b>` : ''}</small></span>
         <span class="combat-row__targets">
           ${opponents.filter(o => r.defenders.includes(o.playerId)).map(o => html`<button type="button" class="chip ${target === o.playerId ? 'chip--gold is-on' : ''}" data-attacker="${r.instanceId}" data-defender="${o.playerId}" style="--player:${o.color}">${o.name} <b>${o.life}</b></button>`)}
         </span>

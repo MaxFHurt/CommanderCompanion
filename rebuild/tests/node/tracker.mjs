@@ -39,11 +39,12 @@ section('hosted tracker: record and legality');
   check('a joined player cannot rename another seat', /Only the host/.test(threw));
 
   {
-    // Aaron undoes his own life change after others changed the table: only his change is cancelled.
-    const lifeBefore = store.state().players[0].life, poison = store.state().players[1].poison;
-    store.remote({ type: 'undo' }, aaron);
-    check('a player can undo their own change after others changed the table', store.state().players[0].life === lifeBefore + 1 && store.state().players[1].poison === poison, `${store.state().players[0].life} vs ${lifeBefore}`);
-    check('the undo shows in the record as theirs', /Aaron undid/.test(store.plays()[0].text), store.plays()[0].text);
+    // Undo in the tracker is free: anyone takes back the newest change, whoever made it.
+    const before = JSON.stringify(store.state().players.map(p => [p.life, p.poison]));
+    store.remote({ type: 'life', playerId: a.id, delta: -1 }, aaron);
+    store.remote({ type: 'undo' }, { clientId: 'c2', name: 'Lex', seatId: l.id });
+    check('anyone can undo the newest change on the table', JSON.stringify(store.state().players.map(p => [p.life, p.poison])) === before);
+    check('the log says who undid it', /Lex undid/.test(store.state().log[0].text), store.state().log[0].text);
     store.remote({ type: 'life', playerId: a.id, delta: -1 }, aaron);
   }
   const lifeEntry = [...store.plays()].reverse().find(p => p.by === 'Aaron');   // Aaron's first change

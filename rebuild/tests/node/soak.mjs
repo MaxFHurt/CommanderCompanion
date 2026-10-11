@@ -20,7 +20,7 @@ function answerFor(d) {
 }
 
 for (let g = 0; g < GAMES; g++) {
-  const decks = [...['white', 'simic', 'rakdos', 'red']].sort(() => Math.random() - 0.5).slice(0, 2 + (g % 3));
+  const decks = [...['white', 'simic', 'rakdos', 'red', 'lab']].sort(() => Math.random() - 0.5).slice(0, 2 + (g % 3));
   const t = newGame(decks, { keepHands: true, autoPass: false, mode: g % 5 === 4 ? 'freeplay' : 'fully-tracked' });
   const game = t.game;
   const report = (what, extra = '') => { problems++; console.log(`PROBLEM game ${g} turn ${game.turnNumber}: ${what} ${extra}`.slice(0, 600)); };
@@ -44,9 +44,9 @@ for (let g = 0; g < GAMES; g++) {
     else if (p.kind === 'turn') {
       const playable = [...me.hand.filter(c => c.playable), ...me.command.filter(c => c.playable)];
       const abilities = me.battlefield.flatMap(c => (c.abilities || []).filter(a => a.legal && !a.mana).map(a => ({ c, a })));
-      if (view.actions.attack?.length && Math.random() < 0.8) {
+      if (view.actions.attack?.length && (view.actions.attack.some(a => a.mustAttack) || Math.random() < 0.8)) {
         const foes = view.players.filter(q => q.playerId !== me.playerId && !q.eliminated);
-        intent = { type: 'attack', attacks: view.actions.attack.filter(() => Math.random() < 0.7).map(a => ({ instanceId: a.instanceId, defenderId: pick(a.defenders.filter(d => foes.some(f => f.playerId === d))) })) };
+        intent = { type: 'attack', attacks: view.actions.attack.filter(a => a.mustAttack || Math.random() < 0.7).map(a => ({ instanceId: a.instanceId, defenderId: pick(a.defenders.filter(d => foes.some(f => f.playerId === d))) })) };
         if (!intent.attacks.length) intent = { type: 'next-phase' };
       } else if (playable.length && Math.random() < 0.85) intent = { type: 'play', instanceId: (playable.find(c => c.land) || pick(playable)).id };
       else if (abilities.length && Math.random() < 0.3) { const x = pick(abilities); intent = { type: 'activate', instanceId: x.c.id, abilityId: x.a.id }; }

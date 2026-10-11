@@ -186,7 +186,9 @@ export function attackOptions(game, player) {
   for (const card of player.deck?.battlefield || []) {
     const def = defOf(game, card);
     const legal = defenders.filter(d => validateAttack({ game: view, attackerId: player.playerId, defenderId: d.playerId, instance: card, definition: def }).legal);
-    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: legal.map(d => d.playerId) });
+    const goaded = (card.temporaryEffects || []).some(e => e?.kind === 'goad');
+    const mustAttack = goaded || (card.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack');
+    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: legal.map(d => d.playerId), mustAttack, goaded });
   }
   return rows;
 }

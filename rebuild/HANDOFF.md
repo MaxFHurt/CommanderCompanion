@@ -34,17 +34,20 @@ loopback with `?net=loopback` for tests). Screens are in `src/ui/screens/`, in-g
 
 ## Tests (run before every push)
 
-    node tests/node/game.mjs          # 133 rules/coach/judge checks
-    node tests/node/tracker.mjs       # 18 hosted-tracker store checks
-    node tests/node/soak.mjs 20       # random full games, expects "0 problems"
+    node tests/node/game.mjs          # 149 rules/coach/judge/undo/challenge checks
+    node tests/node/mechanics.mjs     # 64 terms key, targeting, every automated mechanic, awards, analytics
+    node tests/node/tracker.mjs       # 20 hosted-tracker store checks
+    node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites
     python3 tests/tracker_test.py     # 40   (also writes tracker screenshots)
     python3 tests/game_ui.py          # 28
     python3 tests/flows_ui.py         # 25
-    python3 tests/net_ui.py           # 24   (hosted game: Table / Judge, reverse, watcher)
-    python3 tests/tracker_net_ui.py   # 40   (hosted Table Tracker: phones, seats, judge)
+    python3 tests/challenge_ui.py     # 13   (challenge, correction, voted undo, rules agreement)
+    python3 tests/net_ui.py           # 26   (hosted game: Table / Judge, reverse, watcher)
+    python3 tests/tracker_net_ui.py   # 44   (hosted Table Tracker: phones, seats, judge)
     python3 tests/shots_judge.py      # host-screen screenshots, phone + iPad
     python3 tests/shots_more.py       # game screenshots, phone + iPad
+    python3 tests/style_diff.py capture DIR / compare A B   # pixel check for CSS changes
 
 Playwright screenshots never show real card images (no network) — the owner's device
 screenshots are the truth. **Look at screenshots before claiming a visual fix.**
@@ -88,34 +91,56 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   `src/net/tracker-room.js` (room; sends the whole table — the tracker has no hidden cards),
   `src/ui/screens/tracker-join.js` (code → pick seat or watch). Phones change any seat; changes to
   another seat are flagged amber, host changes blue. The Judge badge/banner turns red when a player
-  should be out (`trackerIssues`: 0 life, 10 poison, 21 commander damage). Phones can undo only
-  their own newest change; the host reverses anything. Updates wait while a tracker room is open.
+  should be out (`trackerIssues`: 0 life, 10 poison, 21 commander damage). Undo in the tracker is
+  free; the host reverses anything. Updates wait while a tracker room is open.
 
-## Agreed with the owner, not built yet (2026-10-11)
+## Built 2026-10-11 (committed locally, not shipped — waiting for the owner's yes)
 
-- **Host Tools:** a non-playing host device (table/judge view) has Host Tools, Judge mode and Reverse
-  without asking anyone. One-device Guided games have Host Tools, and no Challenge. A playing host
-  has no special powers. Free Play has every tool from the start, with no Challenge.
-- **Challenge:** in hosted games without a non-playing host device, a single Challenge button sits
-  where Host Tools was. Every player still in the game must approve the challenge. The challenger
-  then proposes a correction, which must also be approved; if it isn't, they see "Correction rejected".
-- **Undo:** free on one device, and free in the Table Tracker. In multiplayer it is a rule chosen
-  before the game. When enabled, each undo needs approval from every player still in the game
-  (Accept/Decline; any decline and the play stands), and you can't undo after passing your turn.
-  Eliminated players never vote. Remove the phone undo that shipped in builds 25–27.
-- **Rules setup:** undo is one of the options on the rules screen. A non-playing host sets the rules
-  alone; otherwise every player agrees before the game. Profile default rules are House rules, with
-  a chip next to their toggle (if it fits between the columns).
-- **Resolve by hand:** give all the right options and say in as few words as possible what to do;
-  targeted effects prompt for the target first.
-- **Magic terms key:** a reference file in the repo covering every mechanic, including obscure ones,
-  that the engine uses to pick the right resolution, or the right options to offer when the card
-  needs player input.
-- **Order:** rules automation first, then the terms key.
+- **Host Tools / Challenge / Undo / Rules agreement** as agreed: judge powers only for a non-playing
+  host device or a one-device Guided game (`isJudge` in `src/game/controller.js`); Challenge →
+  approval → correction → approval (or "Correction rejected"); undo is a table rule (`rules.undo`),
+  free on one device and in the Table Tracker, otherwise every living player must accept and never
+  after passing the turn; players agree to the rules unless a non-playing host sets them; profile
+  defaults show a **House rule** chip.
+- **Resolve by hand** (`openGuided` in `src/ui/game/panels.js`): targets are chosen when cast; the panel
+  shows one short instruction, each target with the quick actions its words call for, and Done.
+- **Magic terms key** `src/data/mechanics.js` (373 terms). `automation` says what the engine does
+  ('auto' / 'partial' / 'manual' / 'info'); keep it honest when you add or remove automation.
+  `guidedActionsFor` / `guidedHintFor` feed the resolve-by-hand panel.
+- **Rules automation** (tests in `tests/node/mechanics.mjs`, lab cards in `tests/fixtures/lab-cards.mjs`):
+  - `src/game/casting.js` — every way to cast from the card's zone: normal, kicker/multikicker,
+    buyback, flashback, jump-start, retrace, escape, evoke, dash, blitz, overload, foretell (special
+    action), morph/megamorph/disguise (face down = `definitionId` swapped to `face-down-2-2`, real id in
+    `realDefinitionId`; owner and judge see it), adventure (exile, then cast the creature). Cost
+    changes: commander tax, affinity, undaunted, "costs {N} less for each", eminence, Thalia-style
+    increases; convoke (creatures pay last) and delve.
+  - `src/engine/keyword-triggers.js` — prowess, exalted, evoke, dash, blitz, undying, persist, saga
+    chapters (lore counters each precombat main; sacrificed as a state-based action), cascade and
+    storm (cast triggers), monarch and initiative (designation triggers). Cascade, discover, storm,
+    venture and the initiative resolve with choices in `runSpecial` (`src/game/ops.js`); dungeons in
+    `src/data/dungeons.js`.
+  - Cycling/typecycling, ninjutsu (stops priority after blockers), turn face up: `specialRows` in
+    `src/game/legal.js` → `special-action` transaction.
+  - `src/engine/replacements.js` — token, counter and life-gain doublers, Hardened Scales, damage
+    doubling/tripling/+N (Torbran), Rest in Peace / Leyline of the Void.
+  - Ward (pay or the spell is countered), goad (must attack, not the goader, until their next turn;
+    the attack picker preselects it), "until your next turn", transform, "damage can't be prevented",
+    exile all graveyards, fear/shadow/intimidate/horsemanship blocking.
+  - Dies events carry last-known counters and cast mode (`event.last`); a card changing zones loses
+    its cast state (`clearCastState` in `src/engine/effects.js`).
+- **Content:** game stats per player (`src/game/stats.js`, fed by every event) and end-of-game awards on
+  the Game complete screen (your profile counts only awards you won); deck analytics with roles
+  (ramp, draw, removal, wipes, counters, tutors), mana symbols vs sources, curve bars and suggestions;
+  Ask the Judge has 86 answers (new Casting topic).
+- **Stylesheet cleanup:** `node tools/css-clean.mjs [--write]` removes unused selectors and
+  declarations a later identical selector always overrides. Checked pixel-identical on 32 phone/iPad
+  screens with `tests/style_diff.py`. The override sections (16–24) still exist; folding them into
+  their base rules is the next step if wanted (re-check with style_diff).
 - **Later (owner deferred):** play without internet. Safari has no Bluetooth, so the plan is
   local Wi-Fi/hotspot WebRTC with QR-code pairing (the QR reader bundled in the app), plus saving
   all app files for offline use on first launch. A native iOS wrapper with Multipeer Connectivity
   (true Bluetooth) is the bigger alternative and needs an Apple Developer account and a Mac.
+- **Ship as build 28** once the owner says yes (version, stamp, sw cache v28).
 
 ## Recent state / open items
 
@@ -136,5 +161,4 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   (`CARD_COUNTER_GROUPS`). The owner's mockup is the reference for remaining polish.
 - Not verified on real hardware: PeerJS cross-device rooms, precon catalog (MTGJSON),
   camera card scan.
-- `styles/app.css` grew by appended override sections (13–24). Later sections win. A cleanup
-  pass that folds overrides into their base rules would help, but re-check screenshots after.
+- `styles/app.css` still has appended override sections (16–32). Dead rules are gone (see above).
