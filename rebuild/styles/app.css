@@ -1600,3 +1600,13 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
   .tp__life-label { display: none; }
 }
 .judge__room { font: 700 0.85rem var(--font-ui); letter-spacing: 0.06em; color: var(--muted); text-transform: none; margin-left: 0.4rem; }
+
+/* ── 28. Card ID camera: card-shaped guide over the picture ───────────────────── */
+.scanner { position: relative; width: 100%; max-width: 100%; height: 18rem; max-height: none; margin: 0.6rem auto; object-fit: initial; overflow: hidden; }
+.scanner[hidden] { display: none; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; }
+.scanner__guide { position: absolute; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 0.8rem; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45); pointer-events: none; }
+/* The strip that gets read: the title bar, left of the mana cost. */
+.scanner__title { position: absolute; left: 5%; top: 3.5%; width: 72%; height: 7.5%; border: 2px dashed var(--gold); border-radius: 0.3rem; }
+.scanner__hint { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 0.4rem 0.8rem; font-size: 1rem; text-align: center; color: #fff; background: rgba(0, 0, 0, 0.6); }
+@media (min-width: 1000px) and (min-height: 700px) { .scanner__hint { font-size: 1.2rem; } }

@@ -6,7 +6,8 @@ import { openModal, confirmDialog } from '../modal.js';
 import { toast } from '../toast.js';
 import { cardHtml, cardDetailHtml, oracleHtml } from '../card-view.js';
 import { loadSettings, saveSettings } from '../../data/store.js';
-import { searchCards } from '../../data/card-api.js';
+import { searchCards, resolveNamedCard } from '../../data/card-api.js';
+import { prepareReader, readCardTitle } from '../../data/card-scan.js';
 import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
@@ -247,45 +248,76 @@ export function openGameSettings(ctx, leave) {
 
 // ── Card ID (lookup + camera) ───────────────────────────────────────────────────
 export function openCardId(ctx) {
-  let results = [], stream = null;
+  let results = [], stream = null, frame = null, busy = false;
   const stop = () => { stream?.getTracks().forEach(t => t.stop()); stream = null; };
   openModal({
     title: 'Card ID', size: 'wide', onClose: stop,
     body: html`<div class="row"><input class="input" data-q type="search" placeholder="Card name" autocomplete="off"><button type="button" class="btn" data-go>Search</button><button type="button" class="btn" data-scan>Scan</button></div>
-      <video class="scanner" data-video playsinline muted hidden></video>
-      <div data-results><p class="muted">Look up any card by name, or point the camera at a card's title and press Scan.</p></div>`,
+      <div class="scanner" data-scanner hidden>
+        <video data-video playsinline muted></video>
+        <div class="scanner__guide" data-guide><i class="scanner__title"></i></div>
+        <p class="scanner__hint" data-hint>Fit the card inside the frame, title at the top, then press Read Title.</p>
+      </div>
+      <div data-results><p class="muted">Look up any card by name, or press Scan and hold the card up to the camera.</p></div>`,
     actions: [{ label: 'Close', kind: 'cancel', onClick: ({ close }) => { stop(); close(); } }],
     onMount(el) {
       const out = $('[data-results]', el);
+      const show = defs => {
+        results = defs;
+        if (results.length === 1) return setHtml(out, cardDetailHtml(results[0]));
+        setHtml(out, results.length ? html`<div class="option-list">${results.slice(0, 40).map((d, i) => html`<button type="button" class="option" data-show="${i}"><span><strong>${d.name}</strong><small>${d.typeLine}</small></span></button>`)}</div>` : html`<p class="muted">No cards found.</p>`);
+      };
       const run = async () => {
         const q = $('[data-q]', el).value.trim();
         if (q.length < 2) return toast('Type at least two letters.');
         setHtml(out, html`<p class="muted">Searching…</p>`);
         const local = Object.values(ctx.view?.defs || {}).filter(d => d.name.toLowerCase().includes(q.toLowerCase()));
-        try { results = await searchCards(q, { allPrintings: false }); } catch { results = local; if (!local.length) return setHtml(out, html`<p class="muted">The card catalog could not be reached, and no card in this game matches.</p>`); }
-        if (!results.length) results = local;
-        if (results.length === 1) return setHtml(out, cardDetailHtml(results[0]));
-        setHtml(out, results.length ? html`<div class="option-list">${results.slice(0, 40).map((d, i) => html`<button type="button" class="option" data-show="${i}"><span><strong>${d.name}</strong><small>${d.typeLine}</small></span></button>`)}</div>` : html`<p class="muted">No cards found.</p>`);
+        let found;
+        try { found = await searchCards(q, { allPrintings: false }); } catch { found = local; if (!local.length) return setHtml(out, html`<p class="muted">The card catalog could not be reached, and no card in this game matches.</p>`); }
+        show(found.length ? found : local);
       };
       on(el, 'click', '[data-go]', run);
       $('[data-q]', el).addEventListener('keydown', e => { if (e.key === 'Enter') run(); });
       on(el, 'click', '[data-show]', (e, b) => setHtml(out, cardDetailHtml(results[Number(b.dataset.show)])));
+
+      const video = $('[data-video]', el), guide = $('[data-guide]', el), hint = $('[data-hint]', el), scanBtn = $('[data-scan]', el);
+      /** Place the card-shaped guide (63×88) in the middle of the picture and remember where it is. */
+      const placeGuide = () => {
+        const vw = video.videoWidth || 16, vh = video.videoHeight || 9;
+        // Same shape as the camera picture, so the guide maps exactly onto the picture.
+        const box = $('[data-scanner]', el), room = box.parentElement.clientWidth, maxH = Math.min(innerHeight * 0.55, 520);
+        const width = Math.min(room, maxH * vw / vh);
+        Object.assign(box.style, { width: `${Math.round(width)}px`, height: `${Math.round(width * vh / vw)}px` });
+        const h = 0.9, w = Math.min(0.9, h * (vh * 63 / 88) / vw);
+        frame = { x: (1 - w) / 2, y: (1 - h) / 2, w, h };
+        Object.assign(guide.style, { left: `${frame.x * 100}%`, top: `${frame.y * 100}%`, width: `${frame.w * 100}%`, height: `${frame.h * 100}%` });
+      };
       on(el, 'click', '[data-scan]', async () => {
-        const video = $('[data-video]', el);
+        if (busy) return;
         try {
           if (!stream) {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            video.srcObject = stream; video.hidden = false; await video.play();
-            if (!('TextDetector' in window)) return toast('Camera is on. This browser cannot read text from the camera, so type the name you see.');
-            return toast('Hold the card title in view, then press Scan again.');
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
+            video.srcObject = stream; $('[data-scanner]', el).hidden = false;
+            await video.play(); placeGuide();
+            video.addEventListener('loadedmetadata', placeGuide);
+            scanBtn.textContent = 'Read Title';
+            prepareReader().catch(() => {});   // start downloading the reader while the card is lined up
+            return;
           }
-          if (!('TextDetector' in window)) return toast('Type the card name shown in the camera.');
-          const blocks = await new window.TextDetector().detect(video);
-          const best = blocks.map(b => b.rawValue.trim()).filter(t => /^[A-Za-z][A-Za-z ,'\-]{2,40}$/.test(t)).sort((a, b) => b.length - a.length)[0];
-          if (!best) return toast('No card title was readable. Move closer and try again.');
-          $('[data-q]', el).value = best;
-          run();
-        } catch { toast('The camera could not be opened. Check camera permission for this site.', { bad: true }); }
+          busy = true; scanBtn.disabled = true;
+          hint.textContent = 'Reading the title…';
+          const title = await readCardTitle(video, frame);
+          if (title.length < 3) { hint.textContent = 'No title could be read. Move closer, avoid glare, and try again.'; return; }
+          hint.textContent = `Read: “${title}”. Looking it up…`;
+          $('[data-q]', el).value = title;
+          try {
+            // A fuzzy lookup forgives a misread letter or two.
+            const def = await resolveNamedCard(title);
+            show([def]); hint.textContent = `Found ${def.name}. Hold up another card and press Read Title.`;
+          } catch { hint.textContent = `No exact match for “${title}” — showing the closest names.`; await run(); }
+        } catch (error) {
+          toast(stream ? (error.message || 'The title could not be read.') : 'The camera could not be opened. Check camera permission for this site.', { bad: true });
+        } finally { busy = false; scanBtn.disabled = false; }
       });
     }
   });
