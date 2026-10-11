@@ -15,7 +15,7 @@ import { phaseLabel } from '../engine/phase.js';
 import { buildView, actorId } from './view.js';
 
 const MAX_UNDO = 30;
-const NO_UNDO = new Set(['answer', 'cancel', 'chat', 'vote', 'vote-request', 'undo']);
+const NO_UNDO = new Set(['answer', 'cancel', 'chat', 'vote', 'vote-request', 'undo', 'ask-undo', 'challenge', 'propose-correction', 'cancel-correction', 'propose-rules', 'answer-proposal', 'seen-notice']);
 // Plays the judge sees and can reverse: everything a person decides except passing priority
 // and answering the questions inside a play (those belong to the play that asked them).
 const PLAYS = new Set(['mulligan', 'keep', 'play', 'activate', 'attack', 'block', 'discard', 'next-phase', 'end-turn', 'edit', 'concede', 'end-game', 'guided-done']);
@@ -59,7 +59,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
     };
     const a = assessment;
     const play = {
-      id: newId('play'), seq, turn: game.turnNumber, phase: phaseLabel(before.phase || game.phase), by,
+      id: newId('play'), seq, turn: before.turnNumber ?? game.turnNumber, phase: phaseLabel(before.phase || game.phase), by,
       text: a?.text || fresh[fresh.length - 1]?.text || fallback[intent.type] || 'A play was made.',
       verdict: a?.verdict || (intent.type === 'edit' ? 'host' : 'legal'), reasons: a?.reasons || []
     };
@@ -75,13 +75,103 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
     saved?.remove(gone);
   }
 
-  // Guided Play enforces the rules: only the host of a room (a player or the table/judge
-  // device) edits the game directly. One shared device is not a host, so it gets no tools.
+  // The judge: one shared device, or a host device that is not playing. A host who plays has no
+  // special powers: they ask the table like everyone else.
+  function isJudge(actor) {
+    return !!actor.isHost && (game.deviceMode !== 'multi-device' || !actor.playerId);
+  }
+
+  // Who may change the game directly: everyone in Free Play, the judge, a challenger whose
+  // challenge the table accepted (while they prepare the correction), and the player resolving
+  // a card by hand.
   function canEdit(actor) {
-    if (game.mode === 'freeplay' || (actor.isHost && game.deviceMode === 'multi-device')) return true;
+    if (game.mode === 'freeplay' || isJudge(actor)) return true;
+    if (game.flow.correction && game.flow.correction.challengerId === actor.playerId) return true;
     const top = stackTop(game);
     return !!(game.flow.guided && top && top.controllerId === actor.playerId);
   }
+
+  // ── Table proposals: undo, challenge, correction, rule change ──────────────────────────────
+  // Every player still in the game except the one asking must accept. Any decline and the play
+  // stands. Eliminated players never vote.
+  let correctionSnap = null;   // the game before a correction started, kept on the host only
+
+  function voters(requesterId) {
+    return game.players.filter(p => !p.eliminated && p.playerId !== requesterId).map(p => p.playerId);
+  }
+
+  function propose(requester, kind, label, detail, data = {}) {
+    if (game.flow.proposal) throw new GameError('The table is already answering a request.');
+    game.flow.proposal = { id: newId('proposal'), kind, requesterId: requester.playerId, label, detail: String(detail || '').slice(0, 400), data, votes: {} };
+    log(game, `${requester.displayName} asks the table: ${label}`, { type: 'vote' });
+    settleProposal();
+  }
+
+  function settleProposal() {
+    const pr = game.flow.proposal;
+    if (!pr) return;
+    const need = voters(pr.requesterId);
+    const declined = need.find(id => pr.votes[id] === false);
+    if (declined) {
+      game.flow.proposal = null;
+      const who = playerById(game, declined)?.displayName || 'A player';
+      if (pr.kind === 'correction') {
+        rejectCorrection(`${who} declined the correction. Correction rejected — the play stands.`);
+      } else {
+        log(game, `${who} declined. ${pr.kind === 'rules' ? 'The rules stay as they are.' : 'The play stands.'}`, { type: 'vote' });
+        notify(pr.requesterId, pr.kind === 'challenge' ? 'Challenge declined — the play stands.' : pr.kind === 'undo' ? 'Undo declined — the play stands.' : 'Rule change declined.');
+      }
+      return;
+    }
+    if (need.some(id => pr.votes[id] !== true)) return;
+    game.flow.proposal = null;
+    const requester = playerById(game, pr.requesterId);
+    if (pr.kind === 'undo') {
+      log(game, 'Everyone agreed to undo.', { type: 'vote' });
+      pendingReverse = pr.data.playId;
+    } else if (pr.kind === 'challenge') {
+      correctionSnap = snapshotGame(game);
+      game.flow.correction = { challengerId: pr.requesterId, playId: pr.data.playId, playText: pr.data.playText, since: (game.log || [])[0]?.id || null };
+      log(game, `Challenge accepted. ${requester?.displayName || 'The challenger'} is preparing a correction.`, { type: 'vote' });
+    } else if (pr.kind === 'correction') {
+      game.flow.correction = null;
+      correctionSnap = null;
+      log(game, 'Everyone accepted the correction.', { type: 'vote' });
+      notify(pr.requesterId, 'Correction accepted.');
+    } else if (pr.kind === 'rules') {
+      applyEdit(game, { kind: 'rules', patch: pr.data.rules }, requester?.displayName || 'Table');
+      log(game, 'Everyone agreed to the rule change.', { type: 'vote' });
+    }
+  }
+
+  function rejectCorrection(text) {
+    const requesterId = game.flow.correction?.challengerId;
+    const keepLog = game.log, keepChat = game.chat;
+    if (correctionSnap) restoreGameSnapshot(game, correctionSnap);
+    correctionSnap = null;
+    game.log = keepLog; game.chat = keepChat;
+    game.flow.correction = null;
+    game.flow.proposal = null;
+    log(game, text, { type: 'vote' });
+    notify(requesterId, 'Correction rejected');
+  }
+
+  /** A one-off message for one player (shown once on their device). */
+  function notify(playerId, text) {
+    if (!playerId) return;
+    game.notices = [...(game.notices || []), { id: newId('notice'), playerId, text, at: Date.now() }].slice(-20);
+  }
+
+  /** Undo for players: allowed by the table rules, only for a play made this turn. */
+  function askUndo(p) {
+    if (!game.rulesConfig?.undo) throw new GameError('Undo is off for this game. It is chosen in the table rules before the game starts.');
+    const last = (game.plays || [])[0];
+    if (!last) throw new GameError('There is nothing to undo.');
+    if (last.turn !== game.turnNumber) throw new GameError('Once a turn has passed, its plays cannot be undone.');
+    if (!checkpoints.some(c => c.playId === last.id)) throw new GameError('That play can no longer be undone.');
+    propose(p, 'undo', `Undo "${last.text}"`, 'The game goes back to just before this play.', { playId: last.id });
+  }
+  let pendingReverse = null;
 
   function requirePlayer(actor) {
     const p = playerById(game, actor.playerId);
@@ -91,7 +181,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
   }
 
   function apply(intent, actor) {
-    const override = !!actor.isHost && !!intent.as;
+    const override = isJudge(actor) && !!intent.as;
     const who = { ...actor, playerId: override ? intent.as : actor.playerId };
     const force = !!intent.force && (game.mode === 'freeplay' || intent.approved === true);
     switch (intent.type) {
@@ -107,17 +197,17 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
         if (game.flow.priority?.holderId === p.playerId && !game.flow.op) { /* responding: a new round opens when the game settles */ }
         break;
       }
-      case 'answer': answerOp(game, who.playerId, intent.key, intent.value, { override: actor.isHost && game.deviceMode !== 'multi-device' || override }); break;
-      case 'cancel': cancelOp(game, who.playerId, { override: !!actor.isHost }); break;
+      case 'answer': answerOp(game, who.playerId, intent.key, intent.value, { override: isJudge(actor) && game.deviceMode !== 'multi-device' || override }); break;
+      case 'cancel': cancelOp(game, who.playerId, { override: isJudge(actor) }); break;
       case 'pass': passPriority(game, who.playerId, { override }); break;
       case 'next-phase': nextPhase(game, who.playerId, { override }); break;
       case 'end-turn': nextPhase(game, who.playerId, { override, endTurn: true }); break;
       case 'attack': declareAttack(game, who.playerId, intent.attacks || [], { override: force }); break;
       case 'block': declareBlocks(game, who.playerId, intent.assignments || [], { override: force }); break;
       case 'discard': discardCards(game, who.playerId, intent.ids || [], { override }); break;
-      case 'guided-done': finishGuided(game, who.playerId, { override: !!actor.isHost }); break;
+      case 'guided-done': finishGuided(game, who.playerId, { override: isJudge(actor) }); break;
       case 'edit': {
-        if (!canEdit(actor)) throw new GameError('Only the host can change the game directly in Guided Play.');
+        if (!canEdit(actor)) throw new GameError(game.deviceMode === 'multi-device' ? 'Use Challenge to ask the table to correct a play.' : 'Only the host can change the game directly in Guided Play.');
         const name = actor.isHost && !playerById(game, actor.playerId) ? 'Host' : (playerById(game, actor.playerId)?.displayName || 'Host');
         applyEdit(game, intent.edit || {}, name);
         break;
@@ -128,7 +218,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
         break;
       }
       case 'end-game': {
-        if (!actor.isHost && game.mode !== 'freeplay') throw new GameError('Only the host can end the game.');
+        if (!isJudge(actor) && game.mode !== 'freeplay') throw new GameError('Only the host can end the game.');
         game.status = 'complete';
         game.winner = intent.winnerId || null;
         game.result = intent.winnerId ? 'winner' : 'ended';
@@ -136,7 +226,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
         break;
       }
       case 'veto': {
-        if (!actor.isHost) throw new GameError('Only the host can veto a play.');
+        if (!isJudge(actor)) throw new GameError('Only the host can veto a play.');
         veto(intent.stackId);
         break;
       }
@@ -155,9 +245,52 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
       case 'vote': {
         const v = game.flow.vote;
         if (!v) throw new GameError('There is nothing to vote on.');
-        if (actor.isHost && intent.decide !== undefined) { v.decided = !!intent.decide; }
+        if (isJudge(actor) && intent.decide !== undefined) { v.decided = !!intent.decide; }
         else { const p = requirePlayer(who); if (p.playerId === v.requesterId) throw new GameError('You asked for this vote.'); v.votes[p.playerId] = !!intent.approve; }
         tallyVote(actor);
+        break;
+      }
+      case 'ask-undo': askUndo(requirePlayer(who)); break;
+      case 'challenge': {
+        const p = requirePlayer(who);
+        if (game.mode === 'freeplay') throw new GameError('Free Play has no illegal plays to challenge.');
+        if (game.flow.correction) throw new GameError('A correction is already being prepared.');
+        const last = (game.plays || [])[0];
+        if (!last) throw new GameError('There is no play to challenge yet.');
+        propose(p, 'challenge', `Challenge "${last.text}"`, `${p.displayName} thinks this was resolved wrong and wants to propose a correction.`, { playId: last.id, playText: last.text });
+        break;
+      }
+      case 'propose-correction': {
+        const p = requirePlayer(who), c = game.flow.correction;
+        if (!c || c.challengerId !== p.playerId) throw new GameError('Only the challenger can propose the correction.');
+        const changes = [];
+        for (const e of game.log || []) { if (e.id === c.since) break; changes.unshift(e.text); }
+        if (!changes.length) throw new GameError('Make the correction first (Host Tools), then propose it.');
+        propose(p, 'correction', `Accept this correction to "${c.playText}"?`, changes.join(' • '), {});
+        break;
+      }
+      case 'cancel-correction': {
+        const p = requirePlayer(who), c = game.flow.correction;
+        if (!c || (c.challengerId !== p.playerId && !isJudge(actor))) throw new GameError('There is no correction of yours to cancel.');
+        rejectCorrection(`${p.displayName} withdrew the correction. The play stands.`);
+        break;
+      }
+      case 'propose-rules': {
+        const p = requirePlayer(who);
+        if (isJudge(actor) || game.mode === 'freeplay') { applyEdit(game, { kind: 'rules', patch: intent.rules || {} }, p.displayName); break; }
+        propose(p, 'rules', 'Change the table rules', 'See the rules screen for the proposed change.', { rules: intent.rules || {} });
+        break;
+      }
+      case 'answer-proposal': {
+        const p = requirePlayer(who), pr = game.flow.proposal;
+        if (!pr || pr.id !== intent.id) throw new GameError('That request has already been settled.');
+        if (p.playerId === pr.requesterId) throw new GameError('You made this request.');
+        pr.votes[p.playerId] = !!intent.accept;
+        settleProposal();
+        break;
+      }
+      case 'seen-notice': {
+        game.notices = (game.notices || []).filter(n => n.id !== intent.id);
         break;
       }
       case 'set-advice': {
@@ -223,6 +356,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
   function dispatch(intent, actor = { playerId: null, isHost: false }) {
     if (intent.type === 'undo') return undo(actor);
     if (intent.type === 'reverse') return reverse(intent.playId, actor);
+    pendingReverse = null;
     const before = snapshotGame(game);
     const logBefore = new Set((game.log || []).map(e => e.id));
     assessment = null;
@@ -243,13 +377,14 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
       undoStack.push(before);
       if (undoStack.length > MAX_UNDO) undoStack.shift();
     }
+    if (pendingReverse) { const id = pendingReverse; pendingReverse = null; return reverse(id, { isHost: true, playerId: null }); }
     changed();
     return { ok: true };
   }
 
   /** Take back one play and everything after it. */
   function reverse(playId, actor = {}) {
-    if (!actor.isHost && game.mode !== 'freeplay') return { ok: false, error: 'Only the host can reverse plays in Guided Play.' };
+    if (!isJudge(actor) && game.mode !== 'freeplay') return { ok: false, error: 'Only the host can reverse plays in Guided Play.' };
     const i = checkpoints.findIndex(c => c.playId === playId);
     if (i < 0) return { ok: false, error: 'That play is too old to reverse (or was made before the app restarted).' };
     const { seq: from, snap } = checkpoints[i];
@@ -266,7 +401,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
   }
 
   function undo(actor = {}) {
-    if (!actor.isHost && game.mode !== 'freeplay') return { ok: false, error: 'Only the host can undo in Guided Play.' };
+    if (!isJudge(actor) && game.mode !== 'freeplay') return { ok: false, error: game.deviceMode === 'multi-device' ? 'Ask the table to undo instead.' : 'Only the host can undo in Guided Play.' };
     const snap = undoStack.pop();
     if (!snap) return { ok: false, error: 'Nothing to undo.' };
     dropAfter(seqOf.get(snap) || 0);
@@ -305,7 +440,7 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
     dispatch,
     canUndo: () => undoStack.length > 0,
     canEdit,
-    view: viewer => buildView(game, viewer, { canUndo: undoStack.length > 0, reversible: new Set(checkpoints.map(c => c.playId)) }),
+    view: viewer => buildView(game, viewer, { canUndo: undoStack.length > 0, reversible: new Set(checkpoints.map(c => c.playId)), judge: isJudge(viewer) }),
     actorId: () => actorId(game),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     start() { settle(game); changed(); },

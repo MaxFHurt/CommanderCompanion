@@ -16,6 +16,7 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
   for (const k of known) clients.set(k.clientId, { name: k.name, seat: { name: k.name, deckName: '' }, playerId: null, sentDefs: new Set(), online: false });
   const lobby = emitter();
   let controller = null, open = true;
+  let rulesVote = null;   // { id, rules, answers: Map clientId → bool, resolve }
 
   const lobbyState = () => ({
     code, remoteSeats, started: !!controller,
@@ -57,6 +58,11 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
     const c = clients.get(clientId);
     if (!c) return transport.send(clientId, { type: 'refused', reason: 'Join the room first.' });
     if (!c.online) { c.online = true; c.sentDefs = new Set(); tellLobby(); pushView(clientId); }
+    if (msg.type === 'rules-answer') {
+      if (!rulesVote || msg.id !== rulesVote.id || !c.seat) return;
+      rulesVote.answers.set(clientId, !!msg.accept);
+      return checkRulesVote();
+    }
     if (msg.type === 'intent') {
       if (!controller) return transport.send(clientId, { type: 'result', id: msg.id, result: { ok: false, error: 'The game has not started.' } });
       const intent = { ...(msg.intent || {}) };
@@ -68,6 +74,17 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
     }
   });
   transport.onLeave(clientId => { const c = clients.get(clientId); if (c) { c.online = false; tellLobby(); } });
+
+  function checkRulesVote() {
+    const v = rulesVote;
+    if (!v) return;
+    const seated = [...clients.entries()].filter(([, c]) => c.seat);
+    const declined = seated.filter(([id]) => v.answers.get(id) === false).map(([, c]) => c.name);
+    const waiting = seated.filter(([id]) => !v.answers.has(id)).map(([, c]) => c.name);
+    lobby.emit({ ...lobbyState(), rulesWaiting: waiting, rulesDeclined: declined });
+    if (declined.length) { rulesVote = null; v.resolve({ ok: false, declined }); return; }
+    if (!waiting.length) { rulesVote = null; v.resolve({ ok: true }); }
+  }
 
   return {
     code, kind: transport.kind, fallback: !!transport.fallback,
@@ -86,6 +103,16 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
       tellLobby();
     },
     pushViews() { for (const id of clients.keys()) pushView(id); },
+    /** A playing host proposes the table rules; every joined player must accept before the game starts. */
+    proposeRules(rules) {
+      const id = `rules:${Date.now()}`;
+      return new Promise(resolve => {
+        rulesVote = { id, rules, answers: new Map(), resolve };
+        for (const [clientId, c] of clients) if (c.seat && c.online) transport.send(clientId, { type: 'rules', id, rules });
+        checkRulesVote();
+      });
+    },
+    cancelRules() { if (rulesVote) { const v = rulesVote; rulesVote = null; v.resolve({ ok: false, cancelled: true }); } },
     close() { transport.close(); }
   };
 }
@@ -93,12 +120,13 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
 /** Client side. Resolves once the host has accepted the join. */
 export async function joinRoom(code, { clientId, seat = null, name = '' }) {
   let transport = await openClientTransport(code, clientId);
-  const view = emitter(), status = emitter(), lobby = emitter();
+  const view = emitter(), status = emitter(), lobby = emitter(), rulesEv = emitter();
   const pending = new Map();
   let state = 'online', next = 1, lastLobby = null;
   const link = {
     code, clientId, lastView: null, seated: false, reason: '',
-    onView: view.on, onStatus: status.on, onLobby: lobby.on, lobby: () => lastLobby,
+    onView: view.on, onStatus: status.on, onLobby: lobby.on, lobby: () => lastLobby, onRules: rulesEv.on, pendingRules: null,
+    answerRules(id, accept) { link.pendingRules = null; transport.send({ type: 'rules-answer', id, accept: !!accept }); },
     status: () => state,
     request(intent) {
       if (state !== 'online') return Promise.resolve({ ok: false, error: 'Not connected to the host.' });
@@ -116,6 +144,7 @@ export async function joinRoom(code, { clientId, seat = null, name = '' }) {
       if (msg.type === 'view') { link.lastView = msg.view; view.emit(msg.view); }
       else if (msg.type === 'result') { pending.get(msg.id)?.(msg.result); pending.delete(msg.id); }
       else if (msg.type === 'lobby') { lastLobby = msg.lobby; lobby.emit(msg.lobby); }
+      else if (msg.type === 'rules') { link.pendingRules = msg; rulesEv.emit(msg); }
       else if (msg.type === 'refused') { state = 'closed'; link.reason = msg.reason; status.emit(state); }
     });
     transport.onClose(async () => {

@@ -1610,3 +1610,10 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 .scanner__title { position: absolute; left: 5%; top: 3.5%; width: 72%; height: 7.5%; border: 2px dashed var(--gold); border-radius: 0.3rem; }
 .scanner__hint { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; padding: 0.4rem 0.8rem; font-size: 1rem; text-align: center; color: #fff; background: rgba(0, 0, 0, 0.6); }
 @media (min-width: 1000px) and (min-height: 700px) { .scanner__hint { font-size: 1.2rem; } }
+
+/* ── 29. House rules chip, rules summary, Challenge ────────────────────────────── */
+.chip--house { font-style: normal; min-height: 1.8rem; padding: 0 0.55rem; font-size: 0.85rem; border-color: rgba(242, 193, 78, 0.8); color: var(--gold); background: rgba(242, 193, 78, 0.1); white-space: nowrap; }
+.rules-editor .option__end { display: inline-flex; align-items: center; gap: 0.5rem; }
+.rules-editor .field .chip--house { margin-top: 0.3rem; align-self: flex-start; }
+.rules-summary__end { display: inline-flex; align-items: center; gap: 0.6rem; }
+.rail-tools--challenge { border-image-source: none; }

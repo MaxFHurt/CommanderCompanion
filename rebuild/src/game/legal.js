@@ -25,6 +25,8 @@ export function timingBlock(game, playerId) {
   if (game.status === 'complete') return 'The game is over.';
   if (f.stage !== 'play') return 'Opening hands are still being chosen.';
   if (f.op) return 'Finish the current choice first.';
+  if (f.proposal) return 'The table is answering a request.';
+  if (f.correction) return 'A correction is being prepared.';
   if (f.guided) return 'A spell or ability is waiting to be resolved by hand.';
   if (f.priority) {
     return f.priority.holderId === playerId ? null : `${playerById(game, f.priority.holderId)?.displayName || 'Another player'} has priority.`;

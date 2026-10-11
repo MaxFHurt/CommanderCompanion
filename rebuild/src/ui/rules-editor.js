@@ -16,8 +16,30 @@ const TOGGLES = [
   ['autoSkip', 'Skip empty phases', 'Move past steps where nobody can act (logged every time)'],
   ['wishes', 'Outside-the-game effects', 'House rule: allow Wish effects', true],
   ['ruleZeroOverrides', 'Rule Zero overrides', 'House rule: allow normally illegal plays', true],
-  ['allowExtraLand', 'Extra land play', 'House rule: one additional land each turn', true]
+  ['allowExtraLand', 'Extra land play', 'House rule: one additional land each turn', true],
+  ['undo', 'Undo (multiplayer)', 'A player may ask to undo the last play of the turn; everyone still in must agree', true]
 ];
+
+// Standard Commander rules. Anything set differently is a house rule and gets a chip. App
+// conveniences (confirmations, skipping, the response timer, physical draws) are not rules.
+const STANDARD = { commanderDamage: true, poisonLoss: true, commanderTax: true, bannedList: true, colorIdentity: true, singleton: true, firstPlayerDraw: true, wishes: false, ruleZeroOverrides: false, allowExtraLand: false, undo: false };
+const isHouse = (key, on) => key in STANDARD && STANDARD[key] !== on;
+const chip = () => html`<i class="chip chip--house">House rule</i>`;
+
+/** Read-only list of the rules, for players asked to agree to them. */
+export function rulesSummaryHtml(config) {
+  const r = normalizeRulesConfig(config);
+  const rows = [
+    ['Starting life', r.startingLife, Number(r.startingLife) !== 40],
+    ['Mulligan', r.mulligan === 'free' ? 'Free mulligans' : r.mulligan === 'london' ? 'London' : 'Commander — first one free', r.mulligan === 'free'],
+    ...TOGGLES.filter(([key]) => key in STANDARD).map(([key, label, , house]) => {
+      const on = house ? !!r[key] : r[key] !== false;
+      return [label, on ? 'On' : 'Off', isHouse(key, on)];
+    })
+  ];
+  rows.sort((a, b) => Number(b[2]) - Number(a[2]));   // house rules first: they are what players need to check
+  return html`<div class="kv-list rules-summary">${rows.map(([label, value, house]) => html`<div class="kv"><span>${label}</span><span class="rules-summary__end">${house ? chip() : ''}<b>${value}</b></span></div>`)}</div>`;
+}
 
 export function rulesEditorHtml(config) {
   const r = normalizeRulesConfig(config);
@@ -26,6 +48,7 @@ export function rulesEditorHtml(config) {
       <div class="grid-3">
         <label class="field">Starting life
           <input type="number" inputmode="numeric" min="1" max="999" data-rule="startingLife" value="${Number(r.startingLife || 40)}">
+          ${Number(r.startingLife || 40) !== 40 ? chip() : ''}
         </label>
         <label class="field">Mulligan rule
           <select data-rule="mulligan">
@@ -42,7 +65,7 @@ export function rulesEditorHtml(config) {
         ${TOGGLES.map(([key, label, text, house]) => {
           const on = key === 'autoSkip' ? r.autoSkip !== false : (house ? !!r[key] : r[key] !== false);
           return html`<button type="button" class="option ${on ? 'is-on' : ''}" data-rule-toggle="${key}" aria-pressed="${on ? 'true' : 'false'}">
-            <span><strong>${label}</strong><small>${text}</small></span><span class="option__end">${on ? 'On' : 'Off'}</span>
+            <span><strong>${label}</strong><small>${text}</small></span><span class="option__end">${isHouse(key, on) ? chip() : ''}<b data-state>${on ? 'On' : 'Off'}</b></span>
           </button>`;
         })}
       </div>
@@ -60,7 +83,10 @@ export function bindRulesEditor(root, initial) {
     state[key] = button.getAttribute('aria-pressed') !== 'true';
     button.setAttribute('aria-pressed', state[key] ? 'true' : 'false');
     button.classList.toggle('is-on', state[key]);
-    button.querySelector('.option__end').textContent = state[key] ? 'On' : 'Off';
+    const end = button.querySelector('.option__end');
+    end.querySelector('.chip--house')?.remove();
+    if (isHouse(key, state[key])) end.insertAdjacentHTML('afterbegin', '<i class="chip chip--house">House rule</i>');
+    end.querySelector('[data-state]').textContent = state[key] ? 'On' : 'Off';
   });
   return () => {
     const life = root.querySelector('[data-rule="startingLife"]');

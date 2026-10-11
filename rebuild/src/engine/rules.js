@@ -21,7 +21,9 @@ export const DEFAULT_COMMANDER_RULES = Object.freeze({
   // Seconds a player has to respond before priority passes automatically. 0 turns the timer off.
   priorityTimer: 69,
   // When true the player picks the card they drew from a physical deck instead of drawing the top card.
-  physicalDraw: false
+  physicalDraw: false,
+  // Multiplayer undo needs every player still in to agree, and only for this turn's plays. One shared device always may undo.
+  undo: false
 });
 export function normalizeRulesConfig(config = {}) { return { ...DEFAULT_COMMANDER_RULES, ...(config || {}) }; }
 export function evaluateLosses(game) {

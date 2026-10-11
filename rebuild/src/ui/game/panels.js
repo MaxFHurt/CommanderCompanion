@@ -11,6 +11,7 @@ import { prepareReader, readCardTitle } from '../../data/card-scan.js';
 import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
+import { rulesSummaryHtml } from '../rules-editor.js';
 import { openCardDetail, openTable } from './card-modals.js';
 
 const me = view => view.players.find(p => p.playerId === view.you);
@@ -114,6 +115,39 @@ export function openVote(ctx) {
   return modal.close;
 }
 
+/** A request to the table (undo, challenge, correction, rule change): accept or decline. */
+export function openProposal(ctx) {
+  const p = ctx.view.prompt;
+  const what = { undo: 'Undo request', challenge: 'Challenge', correction: 'Proposed correction', rules: 'Rule change' }[p.proposalKind] || 'Request';
+  const modal = openModal({
+    title: what, size: p.rules ? 'wide' : 'small', dismissible: false,
+    body: html`<p class="modal__message"><b>${p.requester}</b>: ${p.label}</p>
+      ${p.detail ? html`<p class="muted">${p.detail}</p>` : ''}
+      ${p.rules ? rulesSummaryHtml(p.rules) : ''}
+      <p class="muted">Everyone still in the game must accept. If anyone declines, the play stands.</p>`,
+    actions: [
+      { label: 'Decline', kind: 'cancel', onClick: () => ctx.send({ type: 'answer-proposal', id: p.id, accept: false }) },
+      { label: 'Accept', kind: 'confirm', onClick: () => ctx.send({ type: 'answer-proposal', id: p.id, accept: true }) }
+    ]
+  });
+  return modal.close;
+}
+
+/** The challenger's options while their challenge is accepted. */
+export function openCorrection(ctx) {
+  const c = ctx.view.correction;
+  openModal({
+    title: 'Your correction', size: 'small',
+    body: html`<p class="modal__message">Correcting: <b>${c?.playText || 'the last play'}</b></p>
+      <p class="muted">1. Make the change with Host Tools. 2. Propose it. Everyone must accept, or the play stands.</p>`,
+    actions: [
+      { label: 'Withdraw', kind: 'cancel', onClick: ({ close }) => { close(); ctx.send({ type: 'cancel-correction' }); } },
+      { label: 'Host Tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } },
+      { label: 'Propose', kind: 'confirm', onClick: async ({ close }) => { close(); const r = await ctx.send({ type: 'propose-correction' }); if (r.ok) toast('Sent to the table.'); } }
+    ]
+  });
+}
+
 // ── Game over ───────────────────────────────────────────────────────────────────
 export function openPostGame(ctx, leave) {
   const view = ctx.view;
@@ -169,7 +203,7 @@ export function openStack(ctx) {
     title: `Stack (${view.stack.length})`,
     body: view.stack.length ? html`<p class="muted">The top item resolves first.</p><div class="option-list">${[...view.stack].reverse().map((s, i) => html`
       <div class="option ${i === 0 ? 'is-on' : ''}"><span><strong>${s.name}</strong><small>${name(s.controllerId)} • ${s.kind}${s.guided ? ' • resolve by hand' : ''}</small><small>${oracleHtml(s.text)}</small></span>
-        ${view.isHost ? html`<span class="option__end"><button type="button" class="btn btn--small btn--danger" data-veto="${s.id}">Veto</button></span>` : ''}</div>`)}</div>`
+        ${view.isJudge ? html`<span class="option__end"><button type="button" class="btn btn--small btn--danger" data-veto="${s.id}">Veto</button></span>` : ''}</div>`)}</div>`
       : html`<p class="muted">The stack is empty. Spells and abilities wait here until everyone has had a chance to respond.</p>`,
     onMount(el, { close }) {
       on(el, 'click', '[data-veto]', async (event, b) => {
@@ -220,10 +254,10 @@ export function openGameSettings(ctx, leave) {
       </div>
       <h4 class="section-title">This game</h4>
       <div class="option-list">
-        <button type="button" class="option" data-do="rules"><span><strong>Table rules</strong><small>${view.isHost || view.mode === 'freeplay' ? 'Change rules for this game' : 'Only the host can change rules'} • response timer ${view.rules.priorityTimer ? `${view.rules.priorityTimer}s` : 'off'}</small></span></button>
+        <button type="button" class="option" data-do="rules"><span><strong>Table rules</strong><small>${view.isJudge || view.mode === 'freeplay' ? 'Change rules for this game' : view.you ? 'Propose a change — everyone must agree' : 'Only the host can change rules'} • undo ${view.rules.undo ? 'allowed' : 'off'} • response timer ${view.rules.priorityTimer ? `${view.rules.priorityTimer}s` : 'off'}</small></span></button>
         ${view.canEdit ? html`<button type="button" class="option" data-do="tools"><span><strong>${view.mode === 'freeplay' ? 'Edit game' : 'Host tools'}</strong><small>Adjust life, cards, phases, the stack</small></span></button>` : ''}
         ${view.you && view.status !== 'complete' ? html`<button type="button" class="option" data-do="concede"><span><strong>Concede</strong><small>Leave this game as a loss</small></span></button>` : ''}
-        ${view.isHost || view.mode === 'freeplay' ? html`<button type="button" class="option" data-do="end"><span><strong>End game</strong><small>Stop the game for everyone</small></span></button>` : ''}
+        ${view.isJudge || view.mode === 'freeplay' ? html`<button type="button" class="option" data-do="end"><span><strong>End game</strong><small>Stop the game for everyone</small></span></button>` : ''}
         <button type="button" class="option" data-do="leave"><span><strong>Leave to main menu</strong><small>${ctx.session.role === 'client' ? 'You can rejoin with the room code' : 'The game stays saved on this device'}</small></span></button>
       </div>`,
     onMount(el, { close }) {
@@ -233,7 +267,7 @@ export function openGameSettings(ctx, leave) {
       on(el, 'click', '[data-toggle]', (e, b) => { const k = b.dataset.toggle; saveSettings({ [k]: loadSettings()[k] === false }); again(); });
       on(el, 'click', '[data-do]', async (e, b) => {
         const what = b.dataset.do;
-        if (what === 'rules') return view.isHost || view.mode === 'freeplay' ? openRulesEdit(ctx, close) : toast('Only the host can change the rules.');
+        if (what === 'rules') return view.isJudge || view.mode === 'freeplay' ? openRulesEdit(ctx, close) : view.you ? openRulesEdit(ctx, close, { propose: true }) : toast('Only the host can change the rules.');
         if (what === 'tools') { close(); return openHostTools(ctx); }
         if (what === 'end') { close(); return openEndGame(ctx); }
         if (what === 'leave') { close(); return leave(); }

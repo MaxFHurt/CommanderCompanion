@@ -258,7 +258,8 @@ function openTableDefaults(onSaved) {
             </select>
           </div>`)}
       </div>
-      <h3 class="section-title">Game rule defaults</h3>
+      <h3 class="section-title">Your house rules</h3>
+      <p class="muted">These start every game you set up. Anything that differs from standard Commander rules is marked <i class="chip chip--house">House rule</i> so the table can see it before agreeing.</p>
       <div id="defaultRules">${rulesEditorHtml(account.tableRuleDefaults || DEFAULT_COMMANDER_RULES)}</div>`,
     onMount(el) {
       readRules = bindRulesEditor($('#defaultRules', el), account.tableRuleDefaults || DEFAULT_COMMANDER_RULES);

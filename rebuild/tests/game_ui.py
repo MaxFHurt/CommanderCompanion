@@ -222,7 +222,7 @@ async def flow(browser, device, tag):
     await page.screenshot(path=f'{OUT}{tag}-after-combat.png')
 
     # Guided Play on one device has no host tools (hosted games: see net_ui.py). Table + log + settings popups.
-    check('no host tools in guided play on one device', await page.locator('[data-act="tools"]').count() == 0)
+    check('host tools on one device, no challenge', await page.locator('[data-act="tools"]').count() >= 1 and await page.locator('[data-act="challenge"]').count() == 0)
     await page.click('[data-act="table"]'); await page.wait_for_selector('.table-view'); await page.screenshot(path=f'{OUT}{tag}-table.png'); await page.click('.modal [data-modal-back]')
     await page.click('[data-act="opponent"]'); await page.wait_for_selector('.board'); await page.screenshot(path=f'{OUT}{tag}-opponent.png'); await page.click('.modal [data-modal-back]')
     await page.click('[data-act="settings"]'); await page.wait_for_selector('text=Guidance on this device'); await page.screenshot(path=f'{OUT}{tag}-settings.png'); await page.click('.modal [data-modal-back]')

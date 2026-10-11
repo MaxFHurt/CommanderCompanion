@@ -416,16 +416,19 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   const forced = t.ctl.dispatch({ type: 'play', instanceId: angel.instanceId, force: true }, local);
   check('guided on one device refuses a forced play without mana', !forced.ok && !t.bf(0, 'Serra Angel'), forced.error);
   const v = t.ctl.view(local);
-  check('guided on one device shows no host tools or force', !v.canEdit && !v.canForce);
+  check('guided on one device has host tools but no forcing', v.canEdit && !v.canForce && !v.canChallenge);
   const asked = t.ctl.dispatch({ type: 'vote-request', label: 'playing Serra Angel', intent: { type: 'play', instanceId: angel.instanceId }, decide: true }, local);
   check('one device: the table can agree to allow a blocked play', asked.ok && !!t.bf(0, 'Serra Angel') && t.ctl.view(local).plays.some(p => p.verdict === 'approved'), asked.error);
-  check('guided on one device refuses direct edits', !t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(0).playerId, delta: 5 } }, local).ok);
+  check('guided on one device allows host-tool edits', t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(0).playerId, delta: 5 } }, local).ok);
 }
 {
   // Hosted Guided Play: the host (player or table/judge device) keeps the host tools.
   const t = newGame(['white', 'simic']);
   t.keepAll();
-  check('room host gets host tools in guided play', t.view(null).canEdit && t.ctl.view({ playerId: t.P(0).playerId, isHost: true }).canEdit);
+  const playingHost = { playerId: t.P(0).playerId, isHost: true };
+  check('only a non-playing host device gets host tools in a room', t.view(null).canEdit && t.view(null).isJudge && !t.ctl.view(playingHost).canEdit);
+  check('a playing host gets Challenge like everyone else', t.ctl.view(playingHost).canChallenge && t.view(1).canChallenge);
+  check('a playing host cannot edit, undo or reverse directly', !t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(1).playerId, delta: -5 } }, playingHost).ok && !t.ctl.dispatch({ type: 'undo' }, playingHost).ok);
   check('room host cannot force plays in guided play', !t.view(null).canForce);
   check('joined player gets no host tools in guided play', !t.view(1).canEdit);
 }
@@ -461,5 +464,65 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   check('joined players do not get the judge record in guided play', t.view(1).plays === null && t.view(0).legality.plays > 0);
   check('a joined player cannot reverse plays', !t.ctl.dispatch({ type: 'reverse', playId: play.id }, t.as(1)).ok && !!t.bf(0, 'Plains'));
   check('the room host can reverse plays', t.ctl.dispatch({ type: 'reverse', playId: play.id }, t.host).ok && !t.bf(0, 'Plains'));
+}
+{
+  // Players without a judge: undo is a table rule, needs every player still in, and only this turn.
+  {
+    const o = newGame(['white', 'simic', 'rakdos']);
+    o.keepAll(); o.give(0, 'Plains');
+    o.do(0, { type: 'play', instanceId: o.hand(0, 'Plains').instanceId });
+    const off = o.ctl.dispatch({ type: 'ask-undo' }, o.as(0));
+    check('undo is refused when the table rules leave it off', !off.ok && /table rules/.test(off.error), off.error);
+  }
+  const t = newGame(['white', 'simic', 'rakdos'], { rules: { undo: true } });
+  t.keepAll();
+  t.give(0, 'Plains');
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  check('asking to undo opens a request for the other players', t.ctl.dispatch({ type: 'ask-undo' }, t.as(0)).ok && t.view(1).prompt.kind === 'proposal' && t.view(0).prompt.kind === 'waiting');
+  const id = t.game.flow.proposal.id;
+  t.ctl.dispatch({ type: 'answer-proposal', id, accept: true }, t.as(1));
+  check('one acceptance is not enough', !!t.bf(0, 'Plains') && !!t.game.flow.proposal);
+  t.ctl.dispatch({ type: 'answer-proposal', id, accept: true }, t.as(2));
+  check('when everyone accepts, the play is undone', !t.bf(0, 'Plains') && !!t.hand(0, 'Plains') && !t.game.flow.proposal);
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  t.ctl.dispatch({ type: 'ask-undo' }, t.as(0));
+  t.ctl.dispatch({ type: 'answer-proposal', id: t.game.flow.proposal.id, accept: false }, t.as(1));
+  check('any decline and the play stands', !!t.bf(0, 'Plains') && !t.game.flow.proposal && t.view(0).notices.some(n => /declined/.test(n.text)));
+  t.end(0);
+  const late = t.ctl.dispatch({ type: 'ask-undo' }, t.as(0));
+  check('once the turn has passed, its plays cannot be undone', !late.ok && /turn has passed/.test(late.error), late.error);
+}
+{
+  // Challenge: the table accepts, the challenger corrects, the table accepts or rejects the correction.
+  const t = newGame(['white', 'simic', 'rakdos']);
+  t.keepAll();
+  const lifeBefore = t.P(1).life;
+  t.give(0, 'Plains');
+  t.do(0, { type: 'play', instanceId: t.hand(0, 'Plains').instanceId });
+  check('a player cannot edit the game without a challenge', !t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(1).playerId, delta: -3 } }, t.as(1)).ok);
+  t.ctl.dispatch({ type: 'challenge' }, t.as(1));
+  const cid = t.game.flow.proposal.id;
+  t.ctl.dispatch({ type: 'answer-proposal', id: cid, accept: true }, t.as(0));
+  t.ctl.dispatch({ type: 'answer-proposal', id: cid, accept: true }, t.as(2));
+  check('an accepted challenge lets the challenger make a correction', t.view(1).correction?.mine && t.view(1).canEdit && !t.view(2).canEdit && t.view(2).prompt.kind === 'waiting');
+  t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(1).playerId, delta: -3 } }, t.as(1));
+  t.ctl.dispatch({ type: 'propose-correction' }, t.as(1));
+  check('the correction goes to the table with the changes listed', t.view(0).prompt.kind === 'proposal' && /life/i.test(t.view(0).prompt.detail), JSON.stringify(t.view(0).prompt));
+  t.ctl.dispatch({ type: 'answer-proposal', id: t.game.flow.proposal.id, accept: false }, t.as(0));
+  check('a rejected correction is undone and the challenger is told', t.P(1).life === lifeBefore && !t.game.flow.correction && t.view(1).notices.some(n => n.text === 'Correction rejected'));
+  // Accepted path; an eliminated player does not vote.
+  t.P(2).eliminated = true;
+  t.ctl.dispatch({ type: 'challenge' }, t.as(1));
+  t.ctl.dispatch({ type: 'answer-proposal', id: t.game.flow.proposal.id, accept: true }, t.as(0));
+  t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(1).playerId, delta: -3 } }, t.as(1));
+  t.ctl.dispatch({ type: 'propose-correction' }, t.as(1));
+  t.ctl.dispatch({ type: 'answer-proposal', id: t.game.flow.proposal.id, accept: true }, t.as(0));
+  check('an accepted correction stays, and eliminated players never vote', t.P(1).life === lifeBefore - 3 && !t.game.flow.correction && !t.game.flow.proposal);
+  check('Free Play has no challenge', !newGame(['white', 'simic'], { mode: 'freeplay' }).view(0).canChallenge);
+}
+{
+  const t = newGame(['white', 'simic']);
+  t.game.hasJudge = true;
+  check('with a judge device in the room, players get no Challenge button', !t.view(0).canChallenge);
 }
 done();

@@ -364,7 +364,7 @@ export function finishGuided(game, playerId, { override = false } = {}) {
 
 function finishGame(game) {
   const f = game.flow;
-  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null;
+  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null; f.proposal = null; f.correction = null;
   if (!game.endedAt) {
     game.endedAt = new Date().toISOString();
     const winner = playerById(game, game.winner);
@@ -380,7 +380,7 @@ export function settle(game) {
     if (game.status !== 'complete') evaluateLosses(game);
     if (game.status === 'complete') { finishGame(game); return; }
     if (f.stage !== 'play') return;
-    if (f.vote) return;
+    if (f.vote || f.proposal || f.correction) return;
     if (f.op) {
       if (f.op.decision) return;
       runOp(game);

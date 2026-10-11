@@ -14,7 +14,7 @@ import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
 import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml } from '../game/card-modals.js';
 import { openHostTools } from '../game/host-tools.js';
-import { openOpeningHand, openDiscard, openGuided, openVote, openPostGame, openLog, openStack, openChat, openGameSettings, openCardId, openPlayerInfo } from '../game/panels.js';
+import { openOpeningHand, openDiscard, openGuided, openVote, openProposal, openCorrection, openPostGame, openLog, openStack, openChat, openGameSettings, openCardId, openPlayerInfo } from '../game/panels.js';
 
 const PHASE_STEPS = [['untap', 'Untap'], ['upkeep', 'Upkeep'], ['draw', 'Draw'], ['precombat-main', 'Main 1'], ['combat', 'Combat'], ['postcombat-main', 'Main 2'], ['end-step', 'End']];
 const COMBAT = ['combat', 'begin-combat', 'declare-attackers', 'declare-blockers', 'combat-damage', 'end-combat'];
@@ -25,7 +25,7 @@ export const gameScreen = {
   mount(root, params = {}) {
     let session = getSession();
     const offs = [];
-    const ui = { screen: null, promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0 };
+    const ui = { screen: null, seenNotices: new Set(), promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0 };
     const ctx = {
       get session() { return session; },
       get view() { return session?.view(); },
@@ -51,7 +51,8 @@ export const gameScreen = {
     /** Screens this device can switch between. Only a room host gets the table and Judge mode. */
     function screensFor(view) {
       if (session?.role === 'host-device') return ['table', 'judge'];
-      if (session?.role === 'host-player' && view.you) return ['player', 'table', 'judge'];
+      // A playing host has no judge powers: their own board and the table only.
+      if (session?.role === 'host-player' && view.you) return ['player', 'table'];
       return view.you ? [] : ['table'];   // a device that only watches sees the table
     }
 
@@ -180,7 +181,9 @@ export const gameScreen = {
               <button type="button" class="rail-zone" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
           </div>
           ${screens.length > 1 ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
-          ${view.canEdit ? html`<button type="button" class="btn btn--small rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>` : ''}
+          ${view.correction?.mine ? html`<button type="button" class="btn btn--small rail-tools" data-act="correction">Correcting…</button>`
+            : view.canEdit ? html`<button type="button" class="btn btn--small rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>`
+            : view.canChallenge ? html`<button type="button" class="btn btn--small rail-tools" data-act="challenge">Challenge</button>` : ''}
         </aside>`}
 
         <section class="game__center">
@@ -251,7 +254,7 @@ export const gameScreen = {
           <div class="glog">
             <header><button type="button" class="link-btn glog__title" data-act="log">Game Log</button><button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button></header>
             <ol class="glog__list">${view.log.slice(0, 14).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>
-            <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
+            <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo || (view.canAskUndo && view.undoRule) ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
           </div>
         </aside>`}
         ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
@@ -277,7 +280,7 @@ export const gameScreen = {
     // ── prompts ────────────────────────────────────────────────────────────────
     function promptKeyOf(view) {
       const p = view.prompt;
-      return [view.you, p.kind, p.decision?.key, p.stackId, p.need, p.mulligans, p.label, view.turn, p.rows?.length].join('|');
+      return [view.you, p.kind, p.id, p.decision?.key, p.stackId, p.need, p.mulligans, p.label, view.turn, p.rows?.length].join('|');
     }
 
     function closePrompt() {
@@ -297,6 +300,7 @@ export const gameScreen = {
         case 'blocks': return opened(openBlocks(ctx, p.rows, { minimize }));
         case 'discard': return opened(openDiscard(ctx, p.need, { minimize }));
         case 'vote': return opened(openVote(ctx));
+        case 'proposal': return opened(openProposal(ctx));
         case 'guided': return manual ? opened(openGuided(ctx)) : null;
         case 'complete': return opened(openPostGame(ctx, leave));
         default: return null;
@@ -325,6 +329,13 @@ export const gameScreen = {
         if (view.prompt.kind === 'guided') toast(`${view.prompt.name}: resolve this card by hand, then press RESOLVE.`);
       }
       if (view.status === 'complete' && !ui.recorded) { ui.recorded = true; }
+      // One-off messages for this player (for example "Correction rejected").
+      for (const n of view.notices || []) {
+        if (ui.seenNotices.has(n.id)) continue;
+        ui.seenNotices.add(n.id);
+        toast(n.text, { bad: /rejected|declined/i.test(n.text), ms: 4500 });
+        send({ type: 'seen-notice', id: n.id }, { quiet: true });
+      }
     }
 
     async function leave({ finished = false } = {}) {
@@ -408,7 +419,16 @@ export const gameScreen = {
         case 'end-turn': return endTurn(view);
         case 'log': return openLog(ctx);
         case 'stack': return openStack(ctx);
-        case 'undo': return confirmDialog({ title: 'Undo', message: 'Undo the last action for the whole table?', confirmLabel: 'Undo' }).then(ok => ok && send({ type: 'undo' }));
+        case 'undo':
+          if (view.canUndo) return confirmDialog({ title: 'Undo', message: 'Undo the last action for the whole table?', confirmLabel: 'Undo' }).then(ok => ok && send({ type: 'undo' }));
+          if (!view.undoRule) return toast('Undo is off for this game. It is chosen in the table rules before the game starts.');
+          return confirmDialog({ title: 'Ask to undo', message: `Ask the other players to undo ${view.lastPlay ? `"${view.lastPlay.text}"` : 'the last play'}? Everyone still in the game must accept.`, confirmLabel: 'Ask' })
+            .then(async ok => { if (ok && (await send({ type: 'ask-undo' })).ok) toast('Waiting for the other players.'); });
+        case 'challenge': {
+          return confirmDialog({ title: 'Challenge', message: `Challenge ${view.lastPlay ? `"${view.lastPlay.text}"` : 'the last play'}? If everyone agrees, you propose the correction.`, confirmLabel: 'Challenge' })
+            .then(async ok => { if (ok && (await send({ type: 'challenge' })).ok) toast('Waiting for the other players.'); });
+        }
+        case 'correction': return openCorrection(ctx);
         case 'chat': ui.chatSeen = view.chat?.length || 0; return openChat(ctx);
         case 'card-id': return openCardId(ctx);
         case 'help': return openJudge();

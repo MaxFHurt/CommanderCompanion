@@ -9,6 +9,8 @@ import { seatFormHtml, readSeatForm, handleSeatAction } from '../seat-form.js';
 import { prepareSeats } from '../../app/start-game.js';
 import { joinRoom, deviceClientId } from '../../net/room.js';
 import { startClientSession } from '../../app/session.js';
+import { openModal } from '../modal.js';
+import { rulesSummaryHtml } from '../rules-editor.js';
 
 export const joinScreen = {
   mount(root, params = {}) {
@@ -67,11 +69,25 @@ export const joinScreen = {
         if (link.lastView) return enter();
         offs.push(link.onView(() => { if (!left) { left = true; enter(); } }));
         offs.push(link.onLobby(draw));
+        // A playing host proposes the rules: every player must accept before the game starts.
+        offs.push(link.onRules(askRules));
+        if (link.pendingRules) askRules(link.pendingRules);
         offs.push(link.onStatus(() => { if (link.status() === 'closed') { toast(link.reason || 'The room was closed.', { bad: true }); link = null; draw(); } }));
         draw();
       } catch (error) {
         toast(error.message || 'Could not join the room.', { bad: true, ms: 4500 });
       } finally { busy = false; }
+    }
+
+    function askRules(msg) {
+      openModal({
+        title: 'Table rules', size: 'wide', dismissible: false,
+        body: html`<p class="modal__message">The host proposes these rules. The game starts when every player accepts.</p>${rulesSummaryHtml(msg.rules)}`,
+        actions: [
+          { label: 'Decline', kind: 'cancel', onClick: ({ close }) => { close(); link?.answerRules(msg.id, false); toast('You declined. The host can change the rules.'); } },
+          { label: 'Accept', kind: 'confirm', onClick: ({ close }) => { close(); link?.answerRules(msg.id, true); } }
+        ]
+      });
     }
 
     draw();

@@ -65,6 +65,13 @@ function promptFor(game, viewerId, defs, viewer) {
     const next = game.players.find(p => !f.opening[p.playerId]?.kept);
     return waiting(next?.playerId, `Waiting for ${name(next?.playerId)} to keep a hand.`);
   }
+  if (f.proposal) {
+    const pr = f.proposal, voters = game.players.filter(p => !p.eliminated && p.playerId !== pr.requesterId).map(p => p.playerId);
+    const pending = voters.filter(id => pr.votes[id] === undefined);
+    if (voters.includes(viewerId) && pr.votes[viewerId] === undefined) return { kind: 'proposal', id: pr.id, proposalKind: pr.kind, requesterId: pr.requesterId, requester: name(pr.requesterId), label: pr.label, detail: pr.detail, rules: pr.kind === 'rules' ? pr.data.rules : null };
+    return waiting(pending[0], `Waiting for ${pending.map(name).join(', ')} to answer: ${pr.label}`);
+  }
+  if (f.correction && f.correction.challengerId !== viewerId) return waiting(f.correction.challengerId, `${name(f.correction.challengerId)} is preparing a correction to "${f.correction.playText}".`);
   if (f.vote) {
     const v = f.vote;
     return { kind: 'vote', requesterId: v.requesterId, label: v.label, reason: v.reason, canVote: !!viewerId && viewerId !== v.requesterId && v.votes[viewerId] === undefined, voted: v.votes[viewerId], canDecide: !!viewer.isHost };
@@ -103,7 +110,7 @@ function promptFor(game, viewerId, defs, viewer) {
  * viewer: { playerId (null for a judge/host display), isHost }
  * Returns a plain object that is safe to JSON-serialise and send to that viewer.
  */
-export function buildView(game, viewer = {}, { canUndo = false, reversible = new Set() } = {}) {
+export function buildView(game, viewer = {}, { canUndo = false, reversible = new Set(), judge = false } = {}) {
   const viewerId = viewer.playerId || null;
   const me = playerById(game, viewerId);
   const defs = {};
@@ -179,13 +186,21 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
   const view = {
     gameId: game.gameId, mode: game.mode, deviceMode: game.deviceMode, status: game.status, stage: game.flow.stage,
     turn: game.turnNumber, phase: game.phase, phaseLabel: phaseLabel(game.phase), activePlayerId: game.activePlayerId,
-    you: viewerId, isHost: !!viewer.isHost, canEdit: game.mode === 'freeplay' || (!!viewer.isHost && game.deviceMode === 'multi-device') || (prompt.kind === 'guided' && prompt.controllerId === viewerId),
+    you: viewerId, isHost: !!viewer.isHost, isJudge: judge,
+    canEdit: game.mode === 'freeplay' || judge || (!!game.flow.correction && game.flow.correction.challengerId === viewerId) || (prompt.kind === 'guided' && prompt.controllerId === viewerId),
     canForce: game.mode === 'freeplay',
-    canUndo: canUndo && (!!viewer.isHost || game.mode === 'freeplay'),
+    canUndo: canUndo && (judge || game.mode === 'freeplay'),
+    // Players without a judge: ask the table to undo (if the rules allow it) or challenge a play.
+    canAskUndo: !judge && game.mode !== 'freeplay' && game.deviceMode === 'multi-device' && !!me && !me.eliminated,
+    undoRule: !!game.rulesConfig?.undo,
+    canChallenge: !judge && game.mode !== 'freeplay' && game.deviceMode === 'multi-device' && !game.hasJudge && !!me && !me.eliminated,
+    correction: game.flow.correction ? { mine: game.flow.correction.challengerId === viewerId, challengerId: game.flow.correction.challengerId, playText: game.flow.correction.playText } : null,
+    lastPlay: (game.plays || [])[0] ? { text: game.plays[0].text, turn: game.plays[0].turn } : null,
+    notices: (game.notices || []).filter(n => n.playerId === viewerId).map(n => ({ id: n.id, text: n.text })),
     rules: { ...game.rulesConfig }, players, stack, prompt,
     // The judge's record: every play with a legality verdict. Only the host (or anyone in Free Play) can reverse.
     legality: { plays: (game.plays || []).length, illegal: (game.plays || []).filter(p => p.verdict === 'illegal').length },
-    plays: viewer.isHost || game.mode === 'freeplay' ? (game.plays || []).slice(0, 150).map(p => ({ ...p, reasons: [...p.reasons], reversible: reversible.has(p.id) })) : null,
+    plays: judge || game.mode === 'freeplay' ? (game.plays || []).slice(0, 150).map(p => ({ ...p, reasons: [...p.reasons], reversible: reversible.has(p.id) })) : null,
     log: (game.log || []).slice(0, 150).map(e => ({ id: e.id, text: e.text, turn: e.turn, type: e.type || '', playerId: e.playerId || null })),
     chat: (game.chat || []).slice(-80),
     winner: game.winner || null, result: game.result || null,

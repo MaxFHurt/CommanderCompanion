@@ -12,7 +12,7 @@ import { startHostSession } from '../../app/session.js';
 export const lobbyScreen = {
   mount(root, params = {}) {
     const { mode = 'fully-tracked', hostDevice = false, localSeats = [], remoteSeats = 2 } = params;
-    let room = null, closed = false, started = false, offLobby = null;
+    let room = null, closed = false, started = false, offLobby = null, agreeing = false, rulesStatus = null;
 
     function draw(error = '') {
       const state = room?.lobby();
@@ -39,6 +39,7 @@ export const lobbyScreen = {
                 ${Array.from({ length: Math.max(0, remoteSeats - joined.length) }, () => html`<div class="option"><span><strong class="muted">Open seat</strong><small>Waiting for a player to join…</small></span></div>`)}
               </div>
               ${hostDevice ? html`<p class="muted">This device shows the table for everyone and has the host tools. It does not see any hand.</p>` : ''}
+              ${agreeing ? html`<p class="warn">Waiting for ${rulesStatus?.rulesWaiting?.length ? rulesStatus.rulesWaiting.join(', ') : 'the players'} to accept the table rules… <button type="button" class="chip" data-act="cancel-rules">Change rules</button></p>` : ''}
             </section>
           </div>
           <footer class="page__foot">
@@ -54,7 +55,7 @@ export const lobbyScreen = {
       }
       if (closed) return room?.close();
       window.__ccRoomCode = room.code;
-      offLobby = room.onLobby(() => draw());
+      offLobby = room.onLobby(state => { if (state?.rulesWaiting) rulesStatus = state; draw(); });
       draw();
     }
 
@@ -67,8 +68,19 @@ export const lobbyScreen = {
       }
       const choice = await chooseRules({ mode, names: seats.map(s => s.name) });
       if (!choice) return;
+      // A host who also plays has no say over the others: everyone who joined must accept the rules.
+      if (!hostDevice && room.seats().length) {
+        agreeing = true; draw();
+        const answer = await room.proposeRules(choice.rules);
+        agreeing = false; draw();
+        if (!answer.ok) {
+          if (!answer.cancelled) toast(`${answer.declined.join(', ')} declined the rules. Change them and try again.`, { bad: true, ms: 5000 });
+          return;
+        }
+      }
       try {
         const game = buildGame({ mode, deviceMode: 'multi-device', rules: choice.rules, firstPlayer: choice.firstPlayer, seats });
+        game.hasJudge = !!hostDevice;   // a host device that is not playing judges; otherwise players use Challenge
         started = true;
         const seatId = hostDevice ? null : game.players[0].playerId;
         startHostSession(game, { seatId, net: room });
@@ -83,6 +95,7 @@ export const lobbyScreen = {
         case 'back': return go(hostDevice ? 'mode-select' : 'player-setup', { mode, play: 'host-player', seats: params.setupSeats, remoteSeats });
         case 'kick': return room?.kick(el.dataset.id);
         case 'start': return start();
+        case 'cancel-rules': return room?.cancelRules();
       }
     });
     return () => { closed = true; off(); offLobby?.(); if (!started) room?.close(); };
