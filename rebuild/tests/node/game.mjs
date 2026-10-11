@@ -406,4 +406,31 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   check('a player can switch advice off', t.view(0).players[0].advice === false && t.view(1).players[1].advice === true);
   check('coach always has advice text, even while waiting', !!t.view(1).coach.detail && !!t.view(0).coach.detail, JSON.stringify(t.view(1).coach));
 }
+{
+  // One shared device in Guided Play: the rules hold, no host tools, no "play anyway".
+  const t = newGame(['white', 'simic'], { deviceMode: 'single-device' });
+  t.keepAll();
+  const angel = t.game.players[0].deck.remainingLibrary.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Serra Angel');
+  angel.zone = 'hand'; t.game.players[0].deck.hand.push(t.game.players[0].deck.remainingLibrary.splice(t.game.players[0].deck.remainingLibrary.indexOf(angel), 1)[0]);
+  const local = { playerId: t.P(0).playerId, isHost: true };
+  const forced = t.ctl.dispatch({ type: 'play', instanceId: angel.instanceId, force: true }, local);
+  check('guided on one device refuses a forced play without mana', !forced.ok && !t.bf(0, 'Serra Angel'), forced.error);
+  const v = t.ctl.view(local);
+  check('guided on one device shows no host tools or force', !v.canEdit && !v.canForce);
+  check('guided on one device refuses direct edits', !t.ctl.dispatch({ type: 'edit', edit: { kind: 'life', playerId: t.P(0).playerId, delta: 5 } }, local).ok);
+}
+{
+  // Hosted Guided Play: the host (player or table/judge device) keeps the host tools.
+  const t = newGame(['white', 'simic']);
+  t.keepAll();
+  check('room host gets host tools in guided play', t.view(null).canEdit && t.ctl.view({ playerId: t.P(0).playerId, isHost: true }).canEdit);
+  check('room host cannot force plays in guided play', !t.view(null).canForce);
+  check('joined player gets no host tools in guided play', !t.view(1).canEdit);
+}
+{
+  const t = newGame(['white', 'simic'], { mode: 'freeplay', deviceMode: 'single-device' });
+  t.keepAll();
+  const v = t.ctl.view({ playerId: t.P(0).playerId, isHost: true });
+  check('free play on one device always has tools and force', v.canEdit && v.canForce);
+}
 done();

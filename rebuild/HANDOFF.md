@@ -34,11 +34,11 @@ loopback with `?net=loopback` for tests). Screens are in `src/ui/screens/`, in-g
 
 ## Tests (run before every push)
 
-    node tests/node/game.mjs          # 117 rules/coach checks
+    node tests/node/game.mjs          # 124 rules/coach checks
     node tests/node/soak.mjs 20       # random full games, expects "0 problems"
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites
     python3 tests/tracker_test.py     # 40   (also writes tracker screenshots)
-    python3 tests/game_ui.py          # 26
+    python3 tests/game_ui.py          # 28
     python3 tests/flows_ui.py         # 25
     python3 tests/net_ui.py           # 16
     python3 tests/shots_more.py       # game screenshots, phone + iPad
@@ -65,6 +65,11 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   Game Settings) it always gives advice and explains *why* (see land advice in `coach.js`).
 - Card counters (+1/+1, keyword counters, etc.) must be anchored to a specific card.
 - Do only what was asked; ask if a change goes beyond the request.
+- **Host tools / Play anyway (build 23):** Guided Play on one shared device has no Host Tools and no
+  "Play anyway"/Force — the rules are enforced. Hosted Guided games give Host Tools to the host
+  device (host-player or table/judge view) but still no forcing. Free Play always has both. Logic:
+  `canEdit`/`force` in `src/game/controller.js`, `canEdit`/`canForce` in `src/game/view.js`.
+  Playwright tracker tests need `pip install playwright==1.56.0` (matches /opt/pw-browsers 1194).
 
 ## Recent state / open items
 

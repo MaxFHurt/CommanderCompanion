@@ -21,8 +21,10 @@ export function createController(game, { onChange = () => {} } = {}) {
   const listeners = new Set([onChange]);
   let timer = null;
 
+  // Guided Play enforces the rules: only the host of a room (a player or the table/judge
+  // device) edits the game directly. One shared device is not a host, so it gets no tools.
   function canEdit(actor) {
-    if (actor.isHost || game.mode === 'freeplay') return true;
+    if (game.mode === 'freeplay' || (actor.isHost && game.deviceMode === 'multi-device')) return true;
     const top = stackTop(game);
     return !!(game.flow.guided && top && top.controllerId === actor.playerId);
   }
@@ -37,7 +39,7 @@ export function createController(game, { onChange = () => {} } = {}) {
   function apply(intent, actor) {
     const override = !!actor.isHost && !!intent.as;
     const who = { ...actor, playerId: override ? intent.as : actor.playerId };
-    const force = !!intent.force && (actor.isHost || game.mode === 'freeplay' || intent.approved === true);
+    const force = !!intent.force && (game.mode === 'freeplay' || intent.approved === true);
     switch (intent.type) {
       case 'mulligan': takeMulligan(game, requirePlayer(who).playerId); break;
       case 'keep': keepHand(game, requirePlayer(who).playerId, intent.bottom || []); break;

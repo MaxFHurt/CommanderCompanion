@@ -18,7 +18,8 @@ async def main():
             await page.wait_for_selector('.zone--hand .card')
             await page.evaluate("""async () => {
               const { getSession } = await import('./src/app/session.js');
-              const s = getSession(), g = s.game, host = { playerId: null, isHost: true };
+              const s = getSession(), g = s.game, host = { playerId: null, isHost: true }, deviceMode = g.deviceMode;
+              g.deviceMode = 'multi-device'; // test setup only: edit as a room host
               const put = (i, name, to = 'battlefield') => { const p = g.players[i]; const c = [...p.deck.remainingLibrary, ...p.deck.hand].find(c => g.cardDefinitions[c.definitionId].name === name); if (c) s.controller.dispatch({ type: 'edit', edit: { kind: 'move', instanceId: c.instanceId, to } }, host); };
               ['Plains','Plains','Plains','Sol Ring','Serra Angel','White Knight','Bonesplitter','Glorious Anthem','Soul Warden','Wall of Omens'].forEach(n => put(0, n));
               ['Forest','Island','Command Tower','Grizzly Bears','Air Elemental'].forEach(n => put(1, n));
@@ -29,6 +30,7 @@ async def main():
               const k = g.players[0].deck.battlefield.find(c => g.cardDefinitions[c.definitionId].name === 'White Knight');
               s.controller.dispatch({ type: 'edit', edit: { kind: 'card-counter', instanceId: k.instanceId, counter: '+1/+1', delta: 2 } }, host);
               s.controller.dispatch({ type: 'edit', edit: { kind: 'poison', playerId: g.players[2].playerId, delta: 3 } }, host);
+              g.deviceMode = deviceMode; s.actAs(s.actingAs());
             }""")
             await page.wait_for_timeout(300)
             await page.screenshot(path=f'{OUT}{tag}-game4.png')

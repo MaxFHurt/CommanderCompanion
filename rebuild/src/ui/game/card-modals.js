@@ -47,7 +47,7 @@ export function openCardDetail(ctx, id) {
     ${abilities.length ? html`<div class="ability-list">${abilities.map(a => html`
       <button type="button" class="option ${a.legal ? 'is-on' : ''}" data-ability="${a.id}" data-legal="${a.legal ? '1' : ''}">
         <span><strong>${oracleHtml(a.text)}</strong>${a.legal ? '' : html`<small>${a.reason || 'Not available right now'}</small>`}</span>
-        <span class="option__end">${a.legal ? 'Use' : view.canEdit ? 'Force' : ''}</span>
+        <span class="option__end">${a.legal ? 'Use' : view.canForce ? 'Force' : ''}</span>
       </button>`)}</div>` : ''}
     ${view.canEdit ? html`<div class="edit-tools">
       <h4 class="section-title">${view.mode === 'freeplay' ? 'Edit' : 'Host tools'}</h4>
@@ -66,8 +66,8 @@ export function openCardDetail(ctx, id) {
   if (mine && playableZone) {
     const label = isLand ? 'Play land' : zone === 'command' ? 'Cast commander' : 'Cast';
     if (card.playable) actions.push({ label, kind: 'confirm', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id }); } });
-    else if (view.canEdit) actions.push({ label: 'Play anyway', kind: 'danger', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id, force: true }); } });
-    else if (view.mode !== 'freeplay' && view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: async ({ close }) => { close(); const r = await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent: { type: 'play', instanceId: id } }); if (r.ok) toast('The table is voting.'); } });
+    else if (view.canForce) actions.push({ label: 'Play anyway', kind: 'danger', onClick: async ({ close }) => { close(); await ctx.send({ type: 'play', instanceId: id, force: true }); } });
+    else if (view.deviceMode === 'multi-device' && view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: async ({ close }) => { close(); const r = await ctx.send({ type: 'vote-request', label: `playing ${card.name}`, reason: card.reason, intent: { type: 'play', instanceId: id } }); if (r.ok) toast('The table is voting.'); } });
   }
 
   openModal({
@@ -77,7 +77,7 @@ export function openCardDetail(ctx, id) {
     onMount(el, { close }) {
       on(el, 'click', '[data-ability]', async (event, b) => {
         const legal = !!b.dataset.legal;
-        if (!legal && !view.canEdit) return toast(b.querySelector('small')?.textContent || 'That ability cannot be used right now.');
+        if (!legal && !view.canForce) return toast(b.querySelector('small')?.textContent || 'That ability cannot be used right now.');
         close();
         await ctx.send({ type: 'activate', instanceId: id, abilityId: b.dataset.ability, force: !legal });
       });

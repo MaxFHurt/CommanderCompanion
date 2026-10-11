@@ -179,7 +179,8 @@ export function buildView(game, viewer = {}, { canUndo = false } = {}) {
   const view = {
     gameId: game.gameId, mode: game.mode, deviceMode: game.deviceMode, status: game.status, stage: game.flow.stage,
     turn: game.turnNumber, phase: game.phase, phaseLabel: phaseLabel(game.phase), activePlayerId: game.activePlayerId,
-    you: viewerId, isHost: !!viewer.isHost, canEdit: !!viewer.isHost || game.mode === 'freeplay' || (prompt.kind === 'guided' && prompt.controllerId === viewerId),
+    you: viewerId, isHost: !!viewer.isHost, canEdit: game.mode === 'freeplay' || (!!viewer.isHost && game.deviceMode === 'multi-device') || (prompt.kind === 'guided' && prompt.controllerId === viewerId),
+    canForce: game.mode === 'freeplay',
     canUndo: canUndo && (!!viewer.isHost || game.mode === 'freeplay'),
     rules: { ...game.rulesConfig }, players, stack, prompt,
     log: (game.log || []).slice(0, 150).map(e => ({ id: e.id, text: e.text, turn: e.turn, type: e.type || '', playerId: e.playerId || null })),

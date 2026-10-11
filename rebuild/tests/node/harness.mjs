@@ -21,7 +21,7 @@ export function playerSetup(name, deckKey) {
 }
 
 export function newGame(decks = ['white', 'simic'], opts = {}) {
-  const game = createGame({ players: decks.map((d, i) => playerSetup(`P${i + 1}`, d)), definitions: DEFS, firstPlayer: 0, rules: { priorityTimer: 0, ...(opts.rules || {}) }, mode: opts.mode || 'fully-tracked' });
+  const game = createGame({ players: decks.map((d, i) => playerSetup(`P${i + 1}`, d)), definitions: DEFS, firstPlayer: 0, rules: { priorityTimer: 0, ...(opts.rules || {}) }, mode: opts.mode || 'fully-tracked', deviceMode: opts.deviceMode || 'multi-device' });
   const ctl = createController(game);
   const given = new Set();
   const t = {

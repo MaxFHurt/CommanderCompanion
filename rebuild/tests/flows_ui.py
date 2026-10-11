@@ -9,6 +9,8 @@ HOST = "{ playerId: null, isHost: true }"
 SETUP = """async (rows) => {
   const { getSession } = await import('./src/app/session.js');
   const s = getSession(), g = s.game;
+  // Test setup only: act as a room host for the edits, then return to one shared device.
+  const deviceMode = g.deviceMode; g.deviceMode = 'multi-device';
   for (const [i, name, to] of rows) {
     const p = g.players[i];
     const c = [...p.deck.remainingLibrary, ...p.deck.hand].find(c => g.cardDefinitions[c.definitionId].name === name && !c.__used);
@@ -18,6 +20,7 @@ SETUP = """async (rows) => {
   }
   for (const p of g.players) for (const c of p.deck.battlefield) { c.enteredTurn = 0; c.controlSinceTurn = 0; }
   s.controller.dispatch({ type: 'edit', edit: { kind: 'note', text: 'ready' } }, { playerId: null, isHost: true });
+  g.deviceMode = deviceMode; s.actAs(s.actingAs());
 }"""
 
 async def keep_both(page, mulligan_first=False):

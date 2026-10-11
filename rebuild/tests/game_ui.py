@@ -146,6 +146,8 @@ async def flow(browser, device, tag):
     await page.evaluate("""async () => {
       const { getSession } = await import('./src/app/session.js');
       const s = getSession(), g = s.game;
+      // Test setup only: act as a room host for the edits, then return to one shared device.
+      const deviceMode = g.deviceMode; g.deviceMode = 'multi-device';
       const find = (p, name) => [...p.deck.remainingLibrary, ...p.deck.hand].find(c => g.cardDefinitions[c.definitionId].name === name);
       const put = (i, name, to = 'battlefield') => { const c = find(g.players[i], name); if (c) s.controller.dispatch({ type: 'edit', edit: { kind: 'move', instanceId: c.instanceId, to } }, { playerId: null, isHost: true }); };
       for (const n of ['Plains', 'Plains', 'Plains', 'Plains', 'Sol Ring', 'Serra Angel', 'White Knight', 'Soul Warden', 'Glorious Anthem']) put(0, n);
@@ -155,6 +157,7 @@ async def flow(browser, device, tag):
       // Treat the test board as if it had been there since earlier turns (no summoning sickness).
       for (const p of g.players) for (const c of p.deck.battlefield) { c.enteredTurn = 0; c.controlSinceTurn = 0; }
       s.controller.dispatch({ type: 'edit', edit: { kind: 'note', text: 'Test board ready' } }, { playerId: null, isHost: true });
+      g.deviceMode = deviceMode; s.actAs(s.actingAs());
     }""")
     await page.wait_for_timeout(300)
     await page.screenshot(path=f'{OUT}{tag}-game-board.png')
@@ -218,8 +221,8 @@ async def flow(browser, device, tag):
     check('Lex took combat damage', int(life) < 46, life)
     await page.screenshot(path=f'{OUT}{tag}-after-combat.png')
 
-    # Host tools + table + log + settings popups
-    await page.click('[data-act="tools"]'); await page.wait_for_selector('.host-players'); await page.screenshot(path=f'{OUT}{tag}-host-tools.png'); await page.click('.modal [data-modal-back]')
+    # Guided Play on one device has no host tools (hosted games: see net_ui.py). Table + log + settings popups.
+    check('no host tools in guided play on one device', await page.locator('[data-act="tools"]').count() == 0)
     await page.click('[data-act="table"]'); await page.wait_for_selector('.table-view'); await page.screenshot(path=f'{OUT}{tag}-table.png'); await page.click('.modal [data-modal-back]')
     await page.click('[data-act="opponent"]'); await page.wait_for_selector('.board'); await page.screenshot(path=f'{OUT}{tag}-opponent.png'); await page.click('.modal [data-modal-back]')
     await page.click('[data-act="settings"]'); await page.wait_for_selector('text=Guidance on this device'); await page.screenshot(path=f'{OUT}{tag}-settings.png'); await page.click('.modal [data-modal-back]')
