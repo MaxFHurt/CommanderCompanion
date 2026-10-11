@@ -94,7 +94,7 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   should be out (`trackerIssues`: 0 life, 10 poison, 21 commander damage). Undo in the tracker is
   free; the host reverses anything. Updates wait while a tracker room is open.
 
-## Built 2026-10-11 (committed locally, not shipped — waiting for the owner's yes)
+## Build 28 (2026-10-11)
 
 - **Host Tools / Challenge / Undo / Rules agreement** as agreed: judge powers only for a non-playing
   host device or a one-device Guided game (`isJudge` in `src/game/controller.js`); Challenge →
@@ -136,11 +136,17 @@ screenshots are the truth. **Look at screenshots before claiming a visual fix.**
   declarations a later identical selector always overrides. Checked pixel-identical on 32 phone/iPad
   screens with `tests/style_diff.py`. The override sections (16–24) still exist; folding them into
   their base rules is the next step if wanted (re-check with style_diff).
+- **Notes from the owner (no new features until the weekly usage reset):** add QR pairing so two
+  devices in the same place can connect (e.g. two iPads with no cell service), but keep room codes
+  over the internet as the main option for players who are not together. Open question the owner
+  raised: phone as host via its Personal Hotspot. Plan: the hotspot only provides the local Wi-Fi;
+  the QR codes carry the WebRTC offer/answer so no internet signaling server (PeerJS cloud) is
+  needed; game traffic then goes device to device over that Wi-Fi. Test on real iPhone/iPad:
+  whether Personal Hotspot can be switched on with no signal, and Safari's mDNS ICE candidates.
 - **Later (owner deferred):** play without internet. Safari has no Bluetooth, so the plan is
   local Wi-Fi/hotspot WebRTC with QR-code pairing (the QR reader bundled in the app), plus saving
   all app files for offline use on first launch. A native iOS wrapper with Multipeer Connectivity
   (true Bluetooth) is the bigger alternative and needs an Apple Developer account and a Mac.
-- **Ship as build 28** once the owner says yes (version, stamp, sw cache v28).
 
 ## Recent state / open items
 
