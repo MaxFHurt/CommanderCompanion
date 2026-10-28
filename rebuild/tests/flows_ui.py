@@ -159,6 +159,8 @@ async def deck_builder(browser):
     await page.click('[data-act="start"]'); await page.click('[data-mode="fully-tracked"]'); await page.click('[data-play="local"]')
     await page.click('[data-seat-act="saved"]'); await page.locator('.modal [data-deck]').first.click()
     check('saved deck fills the commander', await page.input_value('[data-field="commander1"]') == white['commander'])
+    deck_ids = await page.evaluate("import('./src/data/deck-store.js').then(m => m.listDecks().map(d => d.id))")
+    check('a moved deck keeps its old id on the game side', 'old1' in deck_ids, str(deck_ids))
     check('no console errors (decks)', not page.errors, str(page.errors[:3]))
     await page.click('[data-act="deck-builder"]')
     await page.wait_for_url('**/deck/'); await page.wait_for_selector('.top [data-act="cc-home"]')

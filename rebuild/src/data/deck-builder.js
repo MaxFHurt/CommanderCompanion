@@ -44,12 +44,15 @@ export function writeBuilderProfile(profile, storage = globalThis.localStorage) 
   try { storage.setItem(BUILDER_PROFILE_KEY, JSON.stringify(profile)); return true; } catch { return false; }
 }
 
+// A deck moved from the old editor keeps its old id on this side, so Table Defaults and deck stats still find it.
+const gameId = id => (String(id).startsWith('cc-') ? String(id).slice(3) : String(id));
+
 /** One Deck Builder deck in the game side's deck shape: commanders first, then the rest of the list. */
 export function toGameDeck(d) {
   const commanders = [d.commander, d.partner].filter(Boolean);
   const lines = [...commanders.map(name => `1 ${name}`), ...(d.cards || []).filter(e => e?.n && e.q > 0 && !commanders.includes(e.n)).map(e => `${e.q} ${e.n}`)];
   return {
-    id: String(d.id),
+    id: gameId(d.id),
     name: d.name || 'Untitled deck',
     commander1: d.commander || '',
     commander2: d.partner || '',
