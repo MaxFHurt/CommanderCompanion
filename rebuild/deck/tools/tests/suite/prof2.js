@@ -1,0 +1,10 @@
+// Where full generation time goes (buildPlan + tier fill + polish). node prof2.js <dir> <slug> [tier]
+const path = require('path'), [, , dir, slug, tier] = process.argv; const H = require('./h.js')(path.resolve(dir)), X = H.ctx, run = H.run;
+const pd = H.retail(slug || 'abzan-armor'); H.edh(pd.commander); X.__n = pd.commander; X.__tier = tier || 'apex';
+run(`(() => { const T = globalThis.__T = {}; const wrap = n => { const f = globalThis[n] || eval(n); const g = function(){ const t0 = Date.now(); try { return f.apply(this, arguments); } finally { T[n] = T[n] || {n:0, ms:0}; T[n].n++; T[n].ms += Date.now() - t0; } }; Object.assign(g, f); return g; };
+  upgradePaths = wrap('upgradePaths'); scoreCheck = wrap('scoreCheck'); evaluateDeck = wrap('evaluateDeck'); simulate = wrap('simulate'); fillDeck = wrap('fillDeck'); manaBase = wrap('manaBase'); swapScore2 = wrap('swapScore2'); polishDeck = wrap('polishDeck'); apexMeans = (o => { const g = wrap('apexMeans'); g.C = o.C; g.n = o.n; return g; })(apexMeans);
+  const a0 = apexRef0; apexRef0 = function(){ const t0 = Date.now(); try { return a0.apply(this, arguments); } finally { T.apexRef0 = T.apexRef0 || {n:0, ms:0}; T.apexRef0.n++; T.apexRef0.ms += Date.now() - t0; } }; })()`);
+const t0 = Date.now(); run(`(() => { const d = {id:'g', name:'g', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], aimLocked:false, cards:[], dismissed:[], auto:'commander'}; setCommander(d, __n);
+  const E = EDH, t = (E.tags || []).filter(x => E.tmap && E.tmap[x.slug]).slice(0, 3); if (t.length) d.aims = t.map(x => 'edh:' + x.slug);
+  const plan = buildPlan(d, [], null, new Set()); d.cards = []; plan.forEach(s => addCard(d, __tier === 'apex' ? s.a : planPick(s, __tier), s.q)); d.tier = __tier; if (__tier !== 'apex') polishDeck(d); return 1; })()`);
+console.log('total', Date.now() - t0, 'ms'); const T = run('__T'); Object.entries(T).sort((a, b) => b[1].ms - a[1].ms).forEach(([k, v]) => console.log(k.padEnd(14), String(v.n).padStart(6), 'calls', String(v.ms).padStart(7), 'ms (nested)'));

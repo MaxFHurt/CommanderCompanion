@@ -1,0 +1,6 @@
+await page.evaluate(async () => { S.syncRecs = false; S.noAsk = true; await loadPreconLive('doom-prevails', 'Doom Prevails'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); S.tab = 'up'; render(); await recsReady(d); render(); });
+const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', {rate:4});
+const r = await page.evaluate(async () => { const d = cur(); let t0 = performance.now(); recsFor.k = null; render(); const first = Math.round(performance.now() - t0); await recsReady(d); const ready = Math.round(performance.now() - t0);
+  const b = document.querySelector('.paths [data-act="swap"]'); t0 = performance.now(); b.click(); const swapFirst = Math.round(performance.now() - t0); await recsReady(d); await new Promise(r => setTimeout(r, 0)); const swapReady = Math.round(performance.now() - t0);
+  return {openFirstPaint:first, openListReady:ready, swapFirstPaint:swapFirst, swapListReady:swapReady}; });
+await cdp.send('Emulation.setCPUThrottlingRate', {rate:1}); return r;

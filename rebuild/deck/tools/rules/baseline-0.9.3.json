@@ -1,0 +1,100 @@
+{
+ "_": "Baseline of Version 0.9.3 (build 148) for the engine redesign (phase 0, 20 Oct 2026). The new engine must match or beat these.",
+ "benchmark (SCORECHECK=1, agreement@5 / row@5 / @10)": {
+  "tuneall": {
+   "plain": [
+    0.248,
+    0.249,
+    0.13
+   ],
+   "weighted 3,6": [
+    0.279,
+    0.279,
+    0.158
+   ]
+  },
+  "test": {
+   "plain": [
+    0.298,
+    0.3,
+    0.191
+   ],
+   "weighted 3,6": [
+    0.317,
+    0.32,
+    0.21
+   ]
+  },
+  "holdout": {
+   "plain": [
+    0.3,
+    0.3,
+    0.211
+   ],
+   "weighted 3,6": [
+    0.326,
+    0.326,
+    0.245
+   ]
+  }
+ },
+ "benchmark with the whole-card search (POOL=1, agreement@5 / row@5 / @10)": {
+  "tuneall": {
+   "plain": [
+    -0.121,
+    0.249,
+    -0.187
+   ],
+   "weighted 3,6": [
+    -0.099,
+    0.279,
+    -0.166
+   ]
+  },
+  "test": {
+   "plain": [
+    -0.132,
+    0.3,
+    -0.212
+   ],
+   "weighted 3,6": [
+    -0.122,
+    0.32,
+    -0.203
+   ]
+  },
+  "holdout": {
+   "plain": [
+    -0.085,
+    0.3,
+    -0.145
+   ],
+   "weighted 3,6": [
+    -0.065,
+    0.326,
+    -0.123
+   ]
+  }
+ },
+ "tourney (Apex decks vs top-16 lists, 10 commanders)": {
+  "match": "59%",
+  "core": "57%",
+  "mid match": "52%",
+  "score raised by missed core cards": "31/80"
+ },
+ "genstrong tuneall (generated vs strong decks)": {
+  "typicality": 0.406,
+  "median strong deck": 0.358,
+  "precon": 0.367,
+  "strong-core coverage": 0.71,
+  "beats median strong deck": "12/13",
+  "score": 92.6
+ },
+ "card reading": {
+  "semantics": "51/51",
+  "retail spells with every sentence read": "156 of 289 (54%)",
+  "misread list (misread.js, this data)": "281 cards across 52 commanders"
+ },
+ "accept": "39 passed, 0 failed, 1 not applicable",
+ "ui suite": "118/118 (9.5 min alone; FAST=1 111 in 6.3 min)"
+}

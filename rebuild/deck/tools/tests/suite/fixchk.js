@@ -1,0 +1,6 @@
+const path = require('path'); process.argv = [process.argv[0], 'x', path.resolve(process.argv[2]), 'g', 'tuneall', '--quiet']; const B = require('./bench.js'), H = B.H, X = H.ctx, run = H.run;
+for (const [slug] of B.SETS.tuneall.slice(0, 5).concat(B.SETS.test.slice(0, 3))){ const d = H.retail(slug); H.edh(d.commander); X.__d = d;
+  const A = run('analyze(__d)'); const base = run('evaluateDeck(__d, {games:200})'); X.__b = base;
+  const line = []; for (const k of (process.env.KINDS || 'ramp,draw,removal,wipe,landsUp,landsDown,curve,wins').split(',')){ X.__k = k; const F = run('fixSwaps(__d, __k, {n:4, score:(c, a) => swapScore(__d, __b, null, c, a, 1), landScore:(c, a) => { const u = JSON.parse(JSON.stringify(__d)); cutCard(u, c, 1); addCard(u, a, 1); return +(evaluateDeck(u, {games:200}).exact - evaluateDeck(__d, {games:200}).exact).toFixed(2); }})');
+    const ds = F.map(p => p.dScore); line.push(k + ':' + F.length + '[' + ds.map(x => x == null ? '?' : x.toFixed(1)).join(',') + ']' + (F[0] ? ' ' + F[0].cut + '→' + F[0].add : '')); }
+  console.log(slug, JSON.stringify(A.roles), 'T', JSON.stringify({ramp:A.T.ramp, draw:A.T.draw, removal:A.T.removal, wipe:A.T.wipe, lands:A.T.lands}), 'lands', A.lands, 'avg', A.avg.toFixed(2)); line.forEach(l => console.log('   ', l)); }

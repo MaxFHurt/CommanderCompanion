@@ -1,0 +1,23 @@
+# Commanders whose EDHREC pages the card-data job saves for testing. One name per line.
+Captain America, Team Leader
+Doctor Doom, King of Latveria
+Ghalta, Primal Hunger
+Heroes in a Half Shell
+T'Challa, the Black Panther
+Lathril, Blade of the Elves
+Emmara, Soul of the Accord
+Isperia, Supreme Judge
+Gisa and Geralf
+Kardur, Doomscourge
+Atarka, World Render
+Wilhelt, the Rotcleaver
+Neyali, Suns' Vanguard
+Hakbal of the Surging Soul
+Pantlaza, Sun-Favored
+Bello, Bard of the Brambles
+Atraxa, Praetors' Voice
+Urza, Chief Artificer
+Anikthea, Hand of Erebos
+Edgar Markov
+The Ur-Dragon
+Leonardo, the Balance

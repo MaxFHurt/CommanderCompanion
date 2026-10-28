@@ -1,0 +1,4 @@
+const OUT = '/tmp/claude-0/-home-user-Deck-Companion/74e967d5-8ea8-52f2-8f51-de9d671167f5/scratchpad/proto/out/' + (process.env.PHONE ? 'phone-' : 'ipad-');
+await page.evaluate(async () => { await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); });
+await page.waitForTimeout(3000); await page.screenshot({path:OUT + 'list.png'});
+return await page.evaluate(() => ({cmdRow:document.querySelector('.cmdrow') && document.querySelector('.cmdrow').textContent, sym:[...document.querySelectorAll('img.ms')].slice(0, 4).map(i => { const r = i.getBoundingClientRect(), cs = getComputedStyle(i); return [Math.round(r.width), Math.round(r.height), cs.borderTopWidth, cs.fontSize]; }), sw:document.documentElement.scrollWidth, vw:innerWidth}));

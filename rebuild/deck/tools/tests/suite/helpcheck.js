@@ -1,0 +1,31 @@
+// Build 144: does a helper with only its slice of the cards measure swaps exactly like the full engine? node helpcheck.js <dir> <slug>
+const path = require('path'), dir = path.resolve(process.argv[2]), H = require('./h.js')(dir), X = H.ctx, run = H.run;
+const d = H.retail(process.argv[3] || 'avengers-assemble'); H.edh(d.commander); X.__d = d;
+const b = run(`(() => { const AR = apexRef(__d), base = evaluateDeck(__d, {apex:AR, games:300}), R = upgradePaths(__d), keys = [];
+  R.paths.forEach(L => ['apex','mid','budget'].forEach(t => { const p = L.opts[t]; if (p) keys.push([p.cut, p.add, p.q || 1]); })); return {kind:'swap', d:__d, base:{sim:base.sim, exact:base.exact, cmp:base.cmp}, apex:AR, keys}; })()`);
+X.__b = b; const full = run('measureBatch(__b)');
+// the slice, as work.js packFor builds it
+const rows = run(`(() => { const cs = new Map(), add = n => { const c = n && find(n); if (c) cs.set(c._k, c); }; const b = __b;
+  (b.d.cards || []).forEach(e => add(e.n)); add(b.d.commander); add(b.d.partner); b.keys.forEach(k => { add(k[0]); add(k[1]); });
+  const A = b.apex && b.apex.cards; if (A) ['apex', 'mid', 'budget', 'floor'].forEach(t => (A[t] || []).forEach(e => add(e.n)));
+  if (EDH && EDH.map) EDH.map.forEach((v, k) => { const c = IDX.get(k); if (c) cs.set(c._k, c); });
+  if (EDH && EDH.tmap) for (const t in EDH.tmap) EDH.tmap[t].forEach((v, k) => { const c = IDX.get(k); if (c) cs.set(c._k, c); });
+  if (EDH && EDH.pre) for (const k in EDH.pre) if (Array.isArray(EDH.pre[k])) EDH.pre[k].forEach(n => typeof n === 'string' && add(n));
+  const KI = new Map(LIB.map(c => [c._k, c])), cmb = [], seen = new Set(), ci = new Map(); COMBOS.list.forEach((x, i) => ci.set(x, i));
+  const give = c => { if (!c || seen.has(c._k)) return; seen.add(c._k); (COMBOS.by.get(c._k) || []).forEach(x => { const i = ci.get(x); if (cmb.some(y => y[0] === i)) return; cmb.push([i, x]); x.keys.forEach(k => { const c = KI.get(k); if (c) seen.add(c._k); }); }); };
+  [...cs.values()].forEach(give); const clean = c => { const x = {}; for (const k in c) if (k[0] !== '_') x[k] = c[k]; return x; };
+  const E = {}; for (const k in EDH) if (k !== 'wait' && k[0] !== '_' && typeof EDH[k] !== 'function') E[k] = EDH[k];
+  return JSON.stringify({rows:[...seen].map(k => clean(KI.get(k))), cmb, edh:{...E, map:[...EDH.map], tmap:Object.fromEntries(Object.entries(EDH.tmap || {}).map(([k, v]) => [k, [...v]]))}, up:UP, bt:{mld:[...BTAGS.mld], turns:[...BTAGS.turns], v:BTAGS.v}}); })()`);
+const S = JSON.parse(rows); console.log('slice cards', S.rows.length, 'combos', S.cmb.length);
+const vm = require('vm'), fs = require('fs'), ctx = vm.createContext({console, Math, JSON, Set, Map, Date, RegExp, Object, Array, String, Number, Infinity, isNaN, parseFloat, parseInt, Error});
+for (const f of (() => { const F = JSON.parse(fs.readFileSync(path.join(dir, 'files.json'), 'utf8')); return F.data.concat(F.engine); })()) vm.runInContext(fs.readFileSync(path.join(dir, f), 'utf8'), ctx, {filename:f});
+ctx.__S = S; ctx.__b = JSON.parse(JSON.stringify(b));
+ctx.__full = run('LIB.length'); const hv = vm.runInContext(`(() => { buildIndex(__S.rows); LIB.full = __full; const list = __S.cmb.sort((a, b) => a[0] - b[0]).map(x => x[1]), by = new Map(); list.forEach(x => x.keys.forEach(k => { if (!by.has(k)) by.set(k, []); by.get(k).push(x); })); COMBOS = {list, by, at:'', state:'ok'};
+  const E = __S.edh; E.map = new Map(E.map); E.tmap = Object.fromEntries(Object.entries(E.tmap).map(([k, v]) => [k, new Map(v)])); EDH = E; Object.assign(UP, __S.up); BTAGS = {mld:new Set(__S.bt.mld), turns:new Set(__S.bt.turns), v:__S.bt.v};
+  const miss = new Set(), g0 = IDX.get.bind(IDX); IDX.get = k => { const v = g0(k); if (v === undefined) miss.add(k); return v; };
+  return {vals:measureBatch(__b), miss:[...miss]}; })()`, ctx);
+let diff = 0; full.forEach((v, i) => { if (JSON.stringify(v) !== JSON.stringify(hv.vals[i])){ diff++; if (diff <= 5) console.log('DIFF', b.keys[i].join(' > '), JSON.stringify(v), JSON.stringify(hv.vals[i])); } });
+console.log('keys', full.length, 'different', diff, '| helper misses', hv.miss.length, hv.miss.slice(0, 8).join('; '));
+X.__b2 = b; const fp = run('(() => { const e = evaluateDeck(__b2.d, {apex:__b2.apex, sim:__b2.base.sim}); return {parts:e.parts, why:e.why, raw:e.raw}; })()');
+const hp = vm.runInContext('(() => { const e = evaluateDeck(__b.d, {apex:__b.apex, sim:__b.base.sim}); return {parts:e.parts, why:e.why, raw:e.raw}; })()', ctx);
+for (const k in fp.parts) if (fp.parts[k] !== hp.parts[k]) console.log('PART', k, fp.parts[k], hp.parts[k], '|', fp.why[k], '||', hp.why[k]);

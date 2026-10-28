@@ -1,0 +1,4 @@
+const path = require('path'); process.argv = [process.argv[0], 'x', path.resolve('../candidate'), 'g', 'test', '--quiet']; const B = require('./bench.js'), H = B.H, X = H.ctx, run = H.run;
+for (const slug of ['doom-prevails', 'avengers-assemble']){ const d = H.retail(slug); H.edh(d.commander); X.__d = d; d.tier = 'apex';
+  const out = {}; for (const r of [0, 1]){ X.__r = r; out[r] = run('(() => { UP.rank = __r; const AR = apexRef(__d), R = upgradePaths(__d); scoreCheck(__d, R, {apex:AR}); return R.paths.slice(0, 6).map(L => L.cut + " → " + (L.opts.apex ? L.opts.apex.add + " (" + L.opts.apex.dScore + ", " + Math.round(100 * ((edhOf(EDH.map, find(L.opts.apex.add)) || {}).inc || 0)) + "%)" : "-")); })()'); }
+  console.log('\n' + slug); out[0].forEach((x, i) => console.log('  before: ' + x + '\n  after:  ' + (out[1][i] || ''))); }

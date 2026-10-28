@@ -1,0 +1,30 @@
+{
+ "_": "The app\u2019s scripts in load order (0.9.3 flattening). index.html loads data, lists, engine and ui; work.js loads data, lists and engine; the tests read this list.",
+ "data": [
+  "data.js",
+  "lists.js"
+ ],
+ "engine": [
+  "engine/core.js",
+  "engine/practice.js",
+  "engine/reading.js",
+  "engine/rules.js",
+  "engine/functions.js",
+  "engine/score.js",
+  "engine/library.js",
+  "engine/upgrades.js",
+  "engine/mana.js",
+  "engine/generator.js"
+ ],
+ "ui": [
+  "ui/base.js",
+  "ui/storage.js",
+  "ui/library.js",
+  "ui/views.js",
+  "ui/upgrades.js",
+  "ui/deck.js",
+  "ui/cards.js",
+  "ui/events.js",
+  "ui/boot.js"
+ ]
+}

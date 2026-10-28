@@ -1,0 +1,1692 @@
+{
+ "_": "Expected readings for the rules reader (engine redesign phase 0, 20 Oct 2026). Format: README.md. Written from Oracle text by Claude in a work session (owner's choice).",
+ "cards": [
+  {
+   "name": "Sol Ring",
+   "areas": [
+    "mana",
+    "costs:tap"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{1}",
+    "mv": 1,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "mana",
+     "cost": [
+      {
+       "tap": true
+      }
+     ],
+     "makes": {
+      "amount": 2,
+      "colors": [
+       "C"
+      ]
+     }
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Llanowar Elves",
+   "areas": [
+    "mana",
+    "status:summoning-sickness",
+    "costs:tap"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Elf",
+     "Druid"
+    ]
+   },
+   "cost": {
+    "mana": "{G}",
+    "mv": 1,
+    "colors": [
+     "G"
+    ]
+   },
+   "body": {
+    "power": 1,
+    "toughness": 1
+   },
+   "abilities": [
+    {
+     "kind": "mana",
+     "cost": [
+      {
+       "tap": true
+      }
+     ],
+     "makes": {
+      "amount": 1,
+      "colors": [
+       "G"
+      ]
+     },
+     "note": "a creature: can't tap for mana the turn it arrives (summoning sickness)"
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Arcane Signet",
+   "areas": [
+    "mana"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}",
+    "mv": 2,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "mana",
+     "cost": [
+      {
+       "tap": true
+      }
+     ],
+     "makes": {
+      "amount": 1,
+      "choice": "any color in your commander's color identity"
+     }
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Fellwar Stone",
+   "areas": [
+    "mana"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}",
+    "mv": 2,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "mana",
+     "cost": [
+      {
+       "tap": true
+      }
+     ],
+     "makes": {
+      "amount": 1,
+      "choice": "any color a land an opponent controls could produce"
+     }
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Cultivate",
+   "areas": [
+    "spell-types:sorcery",
+    "zones:library"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "sorcery"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{G}",
+    "mv": 3,
+    "colors": [
+     "G"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "sorcery",
+     "effects": [
+      {
+       "do": "search",
+       "from": "library",
+       "what": "basic land",
+       "count": "up to 2"
+      },
+      {
+       "do": "put",
+       "what": "one of them",
+       "to": "battlefield",
+       "tapped": true
+      },
+      {
+       "do": "put",
+       "what": "the other",
+       "to": "hand"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "mana",
+    "cards"
+   ],
+   "uses": [],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Rhystic Study",
+   "areas": [
+    "triggers:opponent-casts",
+    "unless-pays"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{U}",
+    "mv": 3,
+    "colors": [
+     "U"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "cast",
+      "subject": "a spell",
+      "controller": "opponent"
+     },
+     "optional": true,
+     "unless": {
+      "who": "that player",
+      "pays": "{1}"
+     },
+     "effects": [
+      {
+       "do": "draw",
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "cards"
+   ],
+   "uses": [
+    "opponent-casts"
+   ],
+   "roles": [
+    "draw"
+   ]
+  },
+  {
+   "name": "Smothering Tithe",
+   "areas": [
+    "triggers:opponent-draws",
+    "tokens:treasure"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{3}{W}",
+    "mv": 4,
+    "colors": [
+     "W"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "draw",
+      "subject": "a card",
+      "controller": "opponent"
+     },
+     "unless": {
+      "who": "that player",
+      "pays": "{2}"
+     },
+     "effects": [
+      {
+       "do": "create-token",
+       "token": "Treasure",
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "treasure",
+    "mana",
+    "tokens"
+   ],
+   "uses": [
+    "opponent-draws"
+   ],
+   "roles": [
+    "ramp"
+   ]
+  },
+  {
+   "name": "Esper Sentinel",
+   "areas": [
+    "triggers:opponent-casts",
+    "limits:once-each-turn",
+    "body"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact",
+     "creature"
+    ],
+    "sub": [
+     "Human",
+     "Soldier"
+    ]
+   },
+   "cost": {
+    "mana": "{W}",
+    "mv": 1,
+    "colors": [
+     "W"
+    ]
+   },
+   "body": {
+    "power": 1,
+    "toughness": 1
+   },
+   "abilities": [
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "cast",
+      "subject": "first noncreature spell each turn",
+      "controller": "opponent",
+      "limit": "each opponent's first each turn"
+     },
+     "unless": {
+      "who": "that player",
+      "pays": "{X}, X = this creature's power"
+     },
+     "effects": [
+      {
+       "do": "draw",
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "cards"
+   ],
+   "uses": [
+    "opponent-casts"
+   ],
+   "roles": [
+    "draw"
+   ]
+  },
+  {
+   "name": "Swords to Plowshares",
+   "areas": [
+    "spell-types:instant",
+    "targets",
+    "zones:exile"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{W}",
+    "mv": 1,
+    "colors": [
+     "W"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "effects": [
+      {
+       "do": "exile",
+       "target": {
+        "count": 1,
+        "what": "creature"
+       }
+      },
+      {
+       "do": "gain-life",
+       "who": "its controller",
+       "amount": "its power"
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "removal"
+   ]
+  },
+  {
+   "name": "Beast Within",
+   "areas": [
+    "spell-types:instant",
+    "targets",
+    "tokens"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{G}",
+    "mv": 3,
+    "colors": [
+     "G"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "effects": [
+      {
+       "do": "destroy",
+       "target": {
+        "count": 1,
+        "what": "permanent"
+       }
+      },
+      {
+       "do": "create-token",
+       "for": "its controller",
+       "token": "3/3 green Beast creature",
+       "count": 1
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "removal"
+   ],
+   "note": "the token goes to the permanent's controller, not to you"
+  },
+  {
+   "name": "Counterspell",
+   "areas": [
+    "spell-types:instant",
+    "stack"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{U}{U}",
+    "mv": 2,
+    "colors": [
+     "U"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "effects": [
+      {
+       "do": "counter",
+       "target": {
+        "count": 1,
+        "what": "spell"
+       }
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "counterspell"
+   ]
+  },
+  {
+   "name": "Wrath of God",
+   "areas": [
+    "spell-types:sorcery",
+    "all"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "sorcery"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{W}{W}",
+    "mv": 4,
+    "colors": [
+     "W"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "sorcery",
+     "effects": [
+      {
+       "do": "destroy",
+       "all": "creatures",
+       "no-regeneration": true
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "wipe"
+   ]
+  },
+  {
+   "name": "Heliod's Intervention",
+   "areas": [
+    "modal",
+    "cost:X",
+    "targets"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{X}{W}{W}",
+    "mv": 2,
+    "colors": [
+     "W"
+    ],
+    "x": true
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "choose": 1,
+     "modes": [
+      [
+       {
+        "do": "destroy",
+        "target": {
+         "count": "X",
+         "what": "artifacts and/or enchantments"
+        }
+       }
+      ],
+      [
+       {
+        "do": "gain-life",
+        "target": {
+         "count": 1,
+         "what": "player"
+        },
+        "amount": "2X"
+       }
+      ]
+     ]
+    }
+   ],
+   "makes": [
+    "life"
+   ],
+   "uses": [],
+   "roles": [
+    "removal"
+   ]
+  },
+  {
+   "name": "Demonic Tutor",
+   "areas": [
+    "spell-types:sorcery",
+    "zones:library"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "sorcery"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{1}{B}",
+    "mv": 2,
+    "colors": [
+     "B"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "sorcery",
+     "effects": [
+      {
+       "do": "search",
+       "from": "library",
+       "what": "a card",
+       "count": 1,
+       "to": "hand"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "cards"
+   ],
+   "uses": [],
+   "roles": [
+    "tutor"
+   ]
+  },
+  {
+   "name": "Reanimate",
+   "areas": [
+    "zones:graveyard",
+    "targets"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "sorcery"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{B}",
+    "mv": 1,
+    "colors": [
+     "B"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "sorcery",
+     "effects": [
+      {
+       "do": "return-to-battlefield",
+       "target": {
+        "count": 1,
+        "what": "creature card in a graveyard (any)"
+       },
+       "under": "you"
+      },
+      {
+       "do": "lose-life",
+       "who": "you",
+       "amount": "that card's mana value"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "bodies"
+   ],
+   "uses": [
+    "graveyard"
+   ],
+   "roles": [
+    "recursion"
+   ]
+  },
+  {
+   "name": "Animate Dead",
+   "areas": [
+    "auras",
+    "zones:graveyard",
+    "triggers:enters",
+    "triggers:leaves"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": [
+     "Aura"
+    ]
+   },
+   "cost": {
+    "mana": "{1}{B}",
+    "mv": 2,
+    "colors": [
+     "B"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "keyword",
+     "name": "enchant",
+     "what": "creature card in a graveyard"
+    },
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "enters",
+      "subject": "this Aura"
+     },
+     "effects": [
+      {
+       "do": "return-to-battlefield",
+       "what": "enchanted creature card",
+       "under": "you"
+      },
+      {
+       "do": "attach",
+       "what": "this Aura",
+       "to": "it"
+      }
+     ]
+    },
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "leaves",
+      "subject": "this Aura"
+     },
+     "effects": [
+      {
+       "do": "sacrifice",
+       "who": "that creature's controller",
+       "what": "that creature"
+      }
+     ]
+    },
+    {
+     "kind": "static",
+     "scope": "enchanted creature",
+     "effects": [
+      {
+       "do": "pump",
+       "power": -1,
+       "toughness": 0
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "bodies"
+   ],
+   "uses": [
+    "graveyard"
+   ],
+   "roles": [
+    "recursion"
+   ]
+  },
+  {
+   "name": "Skullclamp",
+   "areas": [
+    "equipment",
+    "triggers:dies",
+    "costs:equip"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": [
+     "Equipment"
+    ]
+   },
+   "cost": {
+    "mana": "{1}",
+    "mv": 1,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "static",
+     "scope": "equipped creature",
+     "effects": [
+      {
+       "do": "pump",
+       "power": 1,
+       "toughness": -1
+      }
+     ]
+    },
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "dies",
+      "subject": "equipped creature"
+     },
+     "effects": [
+      {
+       "do": "draw",
+       "count": 2
+      }
+     ]
+    },
+    {
+     "kind": "keyword",
+     "name": "equip",
+     "cost": [
+      {
+       "mana": "{1}"
+      }
+     ],
+     "timing": "sorcery"
+    }
+   ],
+   "makes": [
+    "cards"
+   ],
+   "uses": [
+    "creature-dies",
+    "tokens"
+   ],
+   "roles": [
+    "draw"
+   ]
+  },
+  {
+   "name": "Blood Artist",
+   "areas": [
+    "triggers:dies",
+    "drain"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Vampire"
+    ]
+   },
+   "cost": {
+    "mana": "{1}{B}",
+    "mv": 2,
+    "colors": [
+     "B"
+    ]
+   },
+   "body": {
+    "power": 0,
+    "toughness": 1
+   },
+   "abilities": [
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "dies",
+      "subject": "this creature or another creature (any player's)"
+     },
+     "effects": [
+      {
+       "do": "lose-life",
+       "target": {
+        "count": 1,
+        "what": "player"
+       },
+       "amount": 1
+      },
+      {
+       "do": "gain-life",
+       "who": "you",
+       "amount": 1
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "life",
+    "damage"
+   ],
+   "uses": [
+    "creature-dies"
+   ],
+   "roles": [
+    "finisher"
+   ]
+  },
+  {
+   "name": "Altar of Dementia",
+   "areas": [
+    "costs:sacrifice",
+    "zones:graveyard"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}",
+    "mv": 2,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "activated",
+     "cost": [
+      {
+       "sacrifice": {
+        "count": 1,
+        "what": "creature"
+       }
+      }
+     ],
+     "effects": [
+      {
+       "do": "mill",
+       "target": {
+        "count": 1,
+        "what": "player"
+       },
+       "amount": "the sacrificed creature's power"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "graveyard"
+   ],
+   "uses": [
+    "bodies",
+    "tokens"
+   ],
+   "roles": [
+    "sac-outlet"
+   ]
+  },
+  {
+   "name": "Ashnod's Altar",
+   "areas": [
+    "costs:sacrifice",
+    "mana"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{3}",
+    "mv": 3,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "mana",
+     "cost": [
+      {
+       "sacrifice": {
+        "count": 1,
+        "what": "creature"
+       }
+      }
+     ],
+     "makes": {
+      "amount": 2,
+      "colors": [
+       "C"
+      ]
+     }
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [
+    "bodies",
+    "tokens"
+   ],
+   "roles": [
+    "sac-outlet",
+    "ramp"
+   ]
+  },
+  {
+   "name": "Chatterfang, Squirrel General",
+   "areas": [
+    "replacement:tokens",
+    "costs:sacrifice-X",
+    "keywords:landwalk",
+    "legendary"
+   ],
+   "types": {
+    "super": [
+     "legendary"
+    ],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Squirrel",
+     "Warrior"
+    ]
+   },
+   "cost": {
+    "mana": "{2}{G}",
+    "mv": 3,
+    "colors": [
+     "G"
+    ]
+   },
+   "body": {
+    "power": 3,
+    "toughness": 3
+   },
+   "abilities": [
+    {
+     "kind": "keyword",
+     "name": "forestwalk"
+    },
+    {
+     "kind": "replacement",
+     "event": "create-token",
+     "scope": "tokens created under your control",
+     "instead": {
+      "plus": "that many 1/1 green Squirrel creature tokens"
+     }
+    },
+    {
+     "kind": "activated",
+     "cost": [
+      {
+       "mana": "{B}"
+      },
+      {
+       "sacrifice": {
+        "count": "X",
+        "what": "Squirrel"
+       }
+      }
+     ],
+     "effects": [
+      {
+       "do": "pump",
+       "target": {
+        "count": 1,
+        "what": "creature"
+       },
+       "power": "+X",
+       "toughness": "-X",
+       "until": "end-of-turn"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "tokens",
+    "bodies"
+   ],
+   "uses": [
+    "token-created",
+    "tokens"
+   ],
+   "roles": [
+    "removal"
+   ]
+  },
+  {
+   "name": "Doubling Season",
+   "areas": [
+    "replacement:tokens",
+    "replacement:counters"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{4}{G}",
+    "mv": 5,
+    "colors": [
+     "G"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "replacement",
+     "event": "create-token",
+     "scope": "tokens an effect creates under your control",
+     "instead": {
+      "times": 2
+     }
+    },
+    {
+     "kind": "replacement",
+     "event": "put-counters",
+     "scope": "counters an effect puts on permanents you control (any kind, loyalty too)",
+     "instead": {
+      "times": 2
+     }
+    }
+   ],
+   "makes": [
+    "tokens",
+    "counters"
+   ],
+   "uses": [
+    "token-created",
+    "counters-placed"
+   ],
+   "roles": []
+  },
+  {
+   "name": "Hardened Scales",
+   "areas": [
+    "replacement:counters"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{G}",
+    "mv": 1,
+    "colors": [
+     "G"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "replacement",
+     "event": "put-counters",
+     "scope": "+1/+1 counters on creatures you control",
+     "instead": {
+      "plus": 1
+     }
+    }
+   ],
+   "makes": [
+    "counters"
+   ],
+   "uses": [
+    "counters-placed"
+   ],
+   "roles": []
+  },
+  {
+   "name": "The Ozolith",
+   "areas": [
+    "triggers:leaves",
+    "counters:move",
+    "phases:beginning-of-combat",
+    "legendary"
+   ],
+   "types": {
+    "super": [
+     "legendary"
+    ],
+    "card": [
+     "artifact"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{1}",
+    "mv": 1,
+    "colors": []
+   },
+   "abilities": [
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "leaves",
+      "subject": "a creature you control",
+      "condition": "it had counters on it"
+     },
+     "effects": [
+      {
+       "do": "put-counters",
+       "what": "those counters",
+       "on": "this artifact"
+      }
+     ]
+    },
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "beginning-of-combat",
+      "subject": "your turn",
+      "condition": "this artifact has counters"
+     },
+     "optional": true,
+     "effects": [
+      {
+       "do": "move-counters",
+       "what": "all",
+       "from": "this artifact",
+       "target": {
+        "count": 1,
+        "what": "creature"
+       }
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "counters"
+   ],
+   "uses": [
+    "creature-leaves-with-counters",
+    "counters"
+   ],
+   "roles": []
+  },
+  {
+   "name": "Bioshift",
+   "areas": [
+    "counters:move",
+    "hybrid-mana",
+    "targets"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{G/U}",
+    "mv": 1,
+    "colors": [
+     "G",
+     "U"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "effects": [
+      {
+       "do": "move-counters",
+       "what": "any number of +1/+1 counters",
+       "from": {
+        "target": {
+         "count": 1,
+         "what": "creature"
+        }
+       },
+       "to": {
+        "target": {
+         "count": 1,
+         "what": "another creature with the same controller"
+        }
+       }
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [
+    "counters"
+   ],
+   "roles": []
+  },
+  {
+   "name": "Seedborn Muse",
+   "areas": [
+    "status:untap",
+    "others' turns"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Spirit"
+    ]
+   },
+   "cost": {
+    "mana": "{3}{G}{G}",
+    "mv": 5,
+    "colors": [
+     "G"
+    ]
+   },
+   "body": {
+    "power": 2,
+    "toughness": 4
+   },
+   "abilities": [
+    {
+     "kind": "static",
+     "scope": "permanents you control",
+     "effects": [
+      {
+       "do": "untap",
+       "when": "each other player's untap step"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "mana"
+   ],
+   "uses": [
+    "tap-abilities"
+   ],
+   "roles": []
+  },
+  {
+   "name": "Disrupt Decorum",
+   "areas": [
+    "status:goad",
+    "all"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "sorcery"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{R}{R}",
+    "mv": 4,
+    "colors": [
+     "R"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "sorcery",
+     "effects": [
+      {
+       "do": "goad",
+       "all": "creatures you don't control",
+       "until": "your-next-turn"
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "combat"
+   ]
+  },
+  {
+   "name": "Doran, the Siege Tower",
+   "areas": [
+    "combat:toughness",
+    "legendary",
+    "body"
+   ],
+   "types": {
+    "super": [
+     "legendary"
+    ],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Treefolk",
+     "Shaman"
+    ]
+   },
+   "cost": {
+    "mana": "{W}{B}{G}",
+    "mv": 3,
+    "colors": [
+     "W",
+     "B",
+     "G"
+    ]
+   },
+   "body": {
+    "power": 0,
+    "toughness": 5
+   },
+   "abilities": [
+    {
+     "kind": "static",
+     "scope": "each creature (every player's)",
+     "effects": [
+      {
+       "do": "assign-damage-by-toughness"
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [
+    "high-toughness"
+   ],
+   "roles": [
+    "combat"
+   ]
+  },
+  {
+   "name": "Gratuitous Violence",
+   "areas": [
+    "replacement:damage"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "enchantment"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{R}{R}{R}",
+    "mv": 5,
+    "colors": [
+     "R"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "replacement",
+     "event": "deal-damage",
+     "scope": "damage a creature you control would deal to a permanent or player",
+     "instead": {
+      "times": 2
+     }
+    }
+   ],
+   "makes": [
+    "damage"
+   ],
+   "uses": [
+    "combat-damage"
+   ],
+   "roles": [
+    "combat"
+   ]
+  },
+  {
+   "name": "Craterhoof Behemoth",
+   "areas": [
+    "keywords:haste",
+    "triggers:enters",
+    "pump"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "creature"
+    ],
+    "sub": [
+     "Beast"
+    ]
+   },
+   "cost": {
+    "mana": "{5}{G}{G}{G}",
+    "mv": 8,
+    "colors": [
+     "G"
+    ]
+   },
+   "body": {
+    "power": 5,
+    "toughness": 5
+   },
+   "abilities": [
+    {
+     "kind": "keyword",
+     "name": "haste"
+    },
+    {
+     "kind": "triggered",
+     "trigger": {
+      "event": "enters",
+      "subject": "this creature"
+     },
+     "effects": [
+      {
+       "do": "grant",
+       "all": "creatures you control",
+       "keywords": [
+        "trample"
+       ],
+       "until": "end-of-turn"
+      },
+      {
+       "do": "pump",
+       "all": "creatures you control",
+       "power": "+X",
+       "toughness": "+X",
+       "X": "the number of creatures you control",
+       "until": "end-of-turn"
+      }
+     ]
+    }
+   ],
+   "makes": [
+    "damage"
+   ],
+   "uses": [
+    "bodies",
+    "tokens"
+   ],
+   "roles": [
+    "finisher"
+   ]
+  },
+  {
+   "name": "Teferi's Protection",
+   "areas": [
+    "status:phasing",
+    "protection",
+    "until-your-next-turn",
+    "zones:exile"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{2}{W}",
+    "mv": 3,
+    "colors": [
+     "W"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "effects": [
+      {
+       "do": "protection",
+       "who": "you",
+       "from": "everything",
+       "until": "your-next-turn"
+      },
+      {
+       "do": "life-total-cant-change",
+       "who": "you",
+       "until": "your-next-turn"
+      },
+      {
+       "do": "phase-out",
+       "all": "permanents you control"
+      },
+      {
+       "do": "exile",
+       "what": "this spell"
+      }
+     ]
+    }
+   ],
+   "makes": [],
+   "uses": [],
+   "roles": [
+    "protection"
+   ]
+  },
+  {
+   "name": "Akroma's Will",
+   "areas": [
+    "modal",
+    "commander-condition",
+    "grant-keywords"
+   ],
+   "types": {
+    "super": [],
+    "card": [
+     "instant"
+    ],
+    "sub": []
+   },
+   "cost": {
+    "mana": "{3}{W}",
+    "mv": 4,
+    "colors": [
+     "W"
+    ]
+   },
+   "abilities": [
+    {
+     "kind": "spell",
+     "timing": "instant",
+     "choose": 1,
+     "choose-both-if": "you control a commander as you cast it",
+     "modes": [
+      [
+       {
+        "do": "grant",
+        "all": "creatures you control",
+        "keywords": [
+         "flying",
+         "vigilance",
+         "double strike"
+        ],
+        "until": "end-of-turn"
+       }
+      ],
+      [
+       {
+        "do": "grant",
+        "all": "creatures you control",
+        "keywords": [
+         "lifelink",
+         "indestructible",
+         "protection from each color"
+        ],
+        "until": "end-of-turn"
+       }
+      ]
+     ]
+    }
+   ],
+   "makes": [
+    "damage"
+   ],
+   "uses": [
+    "bodies"
+   ],
+   "roles": [
+    "finisher",
+    "protection"
+   ]
+  }
+ ]
+}

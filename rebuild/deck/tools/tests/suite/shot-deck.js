@@ -1,0 +1,3 @@
+await page.evaluate(async () => { await loadPreconLive('wakanda-forever', 'Wakanda Forever'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.profile.example = false; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); $('#modal').hidden = true; });
+await page.waitForTimeout(600); const out = await page.evaluate(() => { const w = document.querySelector('.work'), sc = document.querySelector('.work .scroll'); return {workH:w && w.getBoundingClientRect().height, workTop:w && Math.round(w.getBoundingClientRect().top), scrollH:sc && sc.clientHeight, scrollContent:sc && sc.scrollHeight, page:document.scrollingElement.scrollHeight, vh:innerHeight}; });
+await page.screenshot({path:process.env.OUT}); return out;

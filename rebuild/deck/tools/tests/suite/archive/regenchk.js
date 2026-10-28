@@ -1,0 +1,11 @@
+const path = require('path'), H = require('./h.js')(path.resolve(process.argv[2])), X = H.ctx, run = H.run;
+const n = 'Don & Leo, Problem Solvers'; H.edh(n);
+console.log(JSON.stringify(run(`(() => { const d = {id:'g', name:'g', format:'commander', commander:'', tier:'apex', aims:[], tribe:'', colors:[], cards:[], dismissed:[]}; setCommander(d, ${JSON.stringify(n)}); d.aims = ctxOf(d).cmdThemes.slice(0, 3);
+  const P0 = buildPlan(d, [], null, new Set()), ctx = ctxOf(d), inP = new Set(P0.map(x => x.a));
+  P0.filter(x => !x.basic).slice(0, 10).forEach(x => addCard(d, x.a, 1));
+  const mine = LIB.filter(c => c.cmd && c.r && c.r < 3000 && !tags(c).land && /Creature/.test(c.t) && !inP.has(c.n) && c.ci.every(k => ctx.ident.includes(k)) && c.n !== d.commander).slice(0, 25); mine.forEach(c => addCard(d, c.n, 1));
+  const left = P0.filter(x => !d.cards.some(e => e.n === x.a)), seeds = d.cards.map(e => find(e.n)), P1 = buildPlan(d, seeds, null, new Set()).filter(x => !d.cards.some(e => e.n === x.a) || x.basic);
+  const s1 = new Set(P1.map(x => x.a)), dropped = left.filter(x => !s1.has(x.a)), added = P1.filter(x => !left.some(y => y.a === x.a));
+  const kind = L => { const o = {}; L.forEach(x => { const c = find(x.a), k = x.basic ? 'basic' : tags(c).land ? 'land' : mainJob(c.n) || mainType(c); o[k] = (o[k] || 0) + x.q; }); return o; };
+  const fin = JSON.parse(JSON.stringify(d)); P1.forEach(x => addCard(fin, x.a, x.q)); const A = analyze(fin), naive = JSON.parse(JSON.stringify(d)); left.filter(x => !x.basic).slice(0, 64 - left.filter(x => x.basic).reduce((a, x) => a + x.q, 0)).concat(left.filter(x => x.basic)).forEach(x => addCard(naive, x.a, x.q)); const B = analyze(naive); const jobs = A2 => ({size:A2.size, lands:A2.lands, ramp:A2.roles.ramp, draw:A2.roles.draw, removal:A2.roles.removal, wipe:A2.roles.wipe, avg:+A2.avg.toFixed(2)});
+  return {target:{lands:A.T.lands, ramp:A.T.ramp, draw:A.T.draw, removal:A.T.removal, wipe:A.T.wipe}, regenerated:jobs(A), keepOldPlanTop:jobs(B), score:{regen:evaluateDeck(fin, {games:200}).total, naive:evaluateDeck(naive, {games:200}).total}, raw:{left:left.reduce((a, x) => a + x.q, 0), regen:P1.reduce((a, x) => a + x.q, 0), deck:d.cards.reduce((a, e) => a + e.q, 0)}, dropped:kind(dropped), added:kind(added), addedNames:added.map(x => x.a).slice(0, 12)}; })()`)));

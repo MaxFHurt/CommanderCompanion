@@ -1,0 +1,1988 @@
+{
+ "Avengers Assemble": {
+  "commander": "Captain America, Team Leader",
+  "deck": [
+   [
+    1,
+    "Ant-Man, Elusive Avenger"
+   ],
+   [
+    1,
+    "Arcane Denial"
+   ],
+   [
+    1,
+    "Arcane Signet"
+   ],
+   [
+    1,
+    "Austere Command"
+   ],
+   [
+    1,
+    "Avenge"
+   ],
+   [
+    1,
+    "Avengers Monitoring Station"
+   ],
+   [
+    1,
+    "Avengers Quinjet"
+   ],
+   [
+    1,
+    "Avengers Tower"
+   ],
+   [
+    1,
+    "Biorganic Carapace"
+   ],
+   [
+    1,
+    "Black Widow, Agile Avenger"
+   ],
+   [
+    1,
+    "Captain America, Living Legend"
+   ],
+   [
+    1,
+    "Captain Mar-Vell, Space-Born"
+   ],
+   [
+    1,
+    "Captain Marvel, Apex Avenger"
+   ],
+   [
+    1,
+    "Clifftop Retreat"
+   ],
+   [
+    1,
+    "Coastal Peak"
+   ],
+   [
+    1,
+    "Command Tower"
+   ],
+   [
+    1,
+    "Daredevil, Man Without Fear"
+   ],
+   [
+    1,
+    "Destroy Evil"
+   ],
+   [
+    1,
+    "Director Nick Fury"
+   ],
+   [
+    1,
+    "Dismantling Wave"
+   ],
+   [
+    1,
+    "Door of Destinies"
+   ],
+   [
+    1,
+    "Exotic Orchard"
+   ],
+   [
+    1,
+    "Falcon and Redwing"
+   ],
+   [
+    1,
+    "Firebird, Blazing Ranger"
+   ],
+   [
+    1,
+    "Folk Hero"
+   ],
+   [
+    1,
+    "Frostboil Snarl"
+   ],
+   [
+    1,
+    "Furycalm Snarl"
+   ],
+   [
+    1,
+    "Glacial Fortress"
+   ],
+   [
+    1,
+    "Glittering Massif"
+   ],
+   [
+    1,
+    "Hawkeye, Avenging Archer"
+   ],
+   [
+    1,
+    "Hero's Blade"
+   ],
+   [
+    1,
+    "Heroic Sacrifice"
+   ],
+   [
+    1,
+    "Hulkbuster Armor"
+   ],
+   [
+    1,
+    "Iron Man, Armored Avenger"
+   ],
+   [
+    1,
+    "Irrigated Farmland"
+   ],
+   [
+    5,
+    "Island"
+   ],
+   [
+    1,
+    "Jarvis, Earth's Mightiest Butler"
+   ],
+   [
+    1,
+    "Jocasta, Automaton Avenger"
+   ],
+   [
+    1,
+    "Kindred Discovery"
+   ],
+   [
+    1,
+    "Love on the Battlefield"
+   ],
+   [
+    1,
+    "Metallic Mimic"
+   ],
+   [
+    1,
+    "Methods of the Mighty"
+   ],
+   [
+    5,
+    "Mountain"
+   ],
+   [
+    1,
+    "Mystic Monastery"
+   ],
+   [
+    1,
+    "Origin of the Avengers"
+   ],
+   [
+    1,
+    "Path of Ancestry"
+   ],
+   [
+    1,
+    "Patriot, Shield Wielder"
+   ],
+   [
+    1,
+    "Photon, Mighty Marvel"
+   ],
+   [
+    6,
+    "Plains"
+   ],
+   [
+    1,
+    "Plaza of Heroes"
+   ],
+   [
+    1,
+    "Port Town"
+   ],
+   [
+    1,
+    "Prairie Stream"
+   ],
+   [
+    1,
+    "Professor Hulk"
+   ],
+   [
+    1,
+    "Quicksilver, Speedster"
+   ],
+   [
+    1,
+    "Radiant Summit"
+   ],
+   [
+    1,
+    "Raise Repulsor Shields"
+   ],
+   [
+    1,
+    "Reconnaissance Mission"
+   ],
+   [
+    1,
+    "Relic of Legends"
+   ],
+   [
+    1,
+    "Rescue, Pepper Potts"
+   ],
+   [
+    1,
+    "Rip Apart"
+   ],
+   [
+    1,
+    "S.H.I.E.L.D. Spy Satellite"
+   ],
+   [
+    1,
+    "Scarlet Witch, Chaotic Avenger"
+   ],
+   [
+    1,
+    "Scavenger Grounds"
+   ],
+   [
+    1,
+    "Scorched Geyser"
+   ],
+   [
+    1,
+    "Secluded Courtyard"
+   ],
+   [
+    1,
+    "Shang-Chi and the Ten Rings"
+   ],
+   [
+    1,
+    "She-Hulk, Wallbreaker"
+   ],
+   [
+    1,
+    "Silver Sable, Mercenary Leader"
+   ],
+   [
+    1,
+    "Sol Ring"
+   ],
+   [
+    1,
+    "SP//dr, Piloted by Peni"
+   ],
+   [
+    1,
+    "Spectacular Spider-Man"
+   ],
+   [
+    1,
+    "Spectator Seating"
+   ],
+   [
+    1,
+    "Arachne, Psionic Weaver"
+   ],
+   [
+    1,
+    "Sulfur Falls"
+   ],
+   [
+    1,
+    "Swords to Plowshares"
+   ],
+   [
+    1,
+    "Talisman of Conviction"
+   ],
+   [
+    1,
+    "Talisman of Creativity"
+   ],
+   [
+    1,
+    "Talisman of Progress"
+   ],
+   [
+    1,
+    "The Mighty Thor, Jane Foster"
+   ],
+   [
+    1,
+    "The Wasp, Winsome Avenger"
+   ],
+   [
+    1,
+    "Thor, Asgard's Avenger"
+   ],
+   [
+    1,
+    "Thought Vessel"
+   ],
+   [
+    1,
+    "Unclaimed Territory"
+   ],
+   [
+    1,
+    "War Machine, Avenging Arsenal"
+   ],
+   [
+    1,
+    "West Coast Expansion"
+   ],
+   [
+    1,
+    "Winter Soldier, Reborn Avenger"
+   ]
+  ],
+  "recs": [
+   {
+    "cut": "Avenge",
+    "apex": "Cathars' Crusade"
+   },
+   {
+    "cut": "Biorganic Carapace",
+    "mid": "Ozolith, the Shattered Spire",
+    "apex": "The Ozolith"
+   },
+   {
+    "cut": "Captain Mar-Vell, Space-Born",
+    "budget": "Captain America, Wings of Freedom"
+   },
+   {
+    "cut": "Daredevil, Man Without Fear",
+    "mid": "Lae'zel, Vlaakith's Champion",
+    "apex": "King T'Challa"
+   },
+   {
+    "cut": "Folk Hero",
+    "budget": "The Vision"
+   },
+   {
+    "cut": "Hawkeye, Avenging Archer",
+    "mid": "Tocasia's Welcome",
+    "apex": "Hawkeye, Trick Shot"
+   },
+   {
+    "cut": "Hero's Blade",
+    "budget": "Captain America's Shield",
+    "mid": "Sword of Hours",
+    "apex": "Sword of Truth and Justice"
+   },
+   {
+    "cut": "Love on the Battlefield",
+    "budget": "Avengers Assemble!",
+    "mid": "Mystic Remora",
+    "apex": "Rhystic Study"
+   },
+   {
+    "cut": "Origin of the Avengers",
+    "mid": "Reflections of Littjara",
+    "apex": "Roaming Throne"
+   },
+   {
+    "cut": "Patriot, Shield Wielder",
+    "mid": "Captain America, Super-Soldier"
+   },
+   {
+    "cut": "Silver Sable, Mercenary Leader",
+    "mid": "Generous Gift",
+    "apex": "Cyclonic Rift"
+   },
+   {
+    "cut": "The Mighty Thor, Jane Foster",
+    "mid": "Unbreakable Formation",
+    "apex": "Teferi's Protection"
+   },
+   {
+    "cut": "The Wasp, Winsome Avenger",
+    "budget": "Spider-Woman, Stunning Savior"
+   }
+  ],
+  "removed": [
+   "Bastion Protector",
+   "Gift of Immortality",
+   "Hercules, Olympian Hero",
+   "Heroic Return",
+   "Make Your Move",
+   "Speed, Young Avenger",
+   "Tome of Legends",
+   "Vision, Synthezoid Avenger"
+  ]
+ },
+ "Doom Prevails": {
+  "commander": "Doctor Doom, King of Latveria",
+  "deck": [
+   [
+    1,
+    "Abomination"
+   ],
+   [
+    1,
+    "Awesome Android"
+   ],
+   [
+    1,
+    "Green Goblin, Revenant"
+   ],
+   [
+    1,
+    "Norman Osborn // Green Goblin"
+   ],
+   [
+    1,
+    "Chameleon"
+   ],
+   [
+    1,
+    "Helmut Zemo, Mastermind"
+   ],
+   [
+    1,
+    "Iron Monger"
+   ],
+   [
+    1,
+    "Kang Prime"
+   ],
+   [
+    1,
+    "Kang, Temporal Tyrant"
+   ],
+   [
+    1,
+    "Killmonger"
+   ],
+   [
+    1,
+    "Klaw, Master of Sound"
+   ],
+   [
+    1,
+    "Lady Loki's Manifestation"
+   ],
+   [
+    1,
+    "Lady Loki, Agent of Chaos"
+   ],
+   [
+    1,
+    "Living Laser"
+   ],
+   [
+    1,
+    "Loki's Double"
+   ],
+   [
+    1,
+    "Loki, the Deceiver"
+   ],
+   [
+    1,
+    "Madame Hydra"
+   ],
+   [
+    1,
+    "Molecule Man"
+   ],
+   [
+    1,
+    "Moonstone"
+   ],
+   [
+    1,
+    "Mysterio, Master of Illusion"
+   ],
+   [
+    1,
+    "Prowler"
+   ],
+   [
+    1,
+    "Puppet Master"
+   ],
+   [
+    1,
+    "Red Ghost"
+   ],
+   [
+    1,
+    "Superior Foes of Spider-Man"
+   ],
+   [
+    1,
+    "The Frightful Four"
+   ],
+   [
+    1,
+    "The Squadron Sinister"
+   ],
+   [
+    1,
+    "Tombstone"
+   ],
+   [
+    1,
+    "Doctor Octopus, Master Planner"
+   ],
+   [
+    1,
+    "Typhoid Mary"
+   ],
+   [
+    1,
+    "Ultron Unlimited"
+   ],
+   [
+    1,
+    "Bedevil"
+   ],
+   [
+    1,
+    "Chaos Warp"
+   ],
+   [
+    1,
+    "Lethal Scheme"
+   ],
+   [
+    1,
+    "Terminate"
+   ],
+   [
+    1,
+    "Withering Torment"
+   ],
+   [
+    1,
+    "Blasphemous Act"
+   ],
+   [
+    1,
+    "Endless Ranks of HYDRA"
+   ],
+   [
+    1,
+    "Extract Power"
+   ],
+   [
+    1,
+    "Kindred Dominance"
+   ],
+   [
+    1,
+    "Night's Whisper"
+   ],
+   [
+    1,
+    "Behold the Sinister Six!"
+   ],
+   [
+    1,
+    "Toxic Deluge"
+   ],
+   [
+    1,
+    "Vandalblast"
+   ],
+   [
+    1,
+    "Arcane Signet"
+   ],
+   [
+    1,
+    "Currency Converter"
+   ],
+   [
+    1,
+    "Damocles Base, Sword of Kang"
+   ],
+   [
+    1,
+    "Doom's Time Platform"
+   ],
+   [
+    1,
+    "Loki's Scepter"
+   ],
+   [
+    1,
+    "Patchwork Banner"
+   ],
+   [
+    1,
+    "Progenitor's Icon"
+   ],
+   [
+    1,
+    "Skullclamp"
+   ],
+   [
+    1,
+    "Sol Ring"
+   ],
+   [
+    1,
+    "Swiftfoot Boots"
+   ],
+   [
+    1,
+    "Talisman of Dominance"
+   ],
+   [
+    1,
+    "Talisman of Indulgence"
+   ],
+   [
+    1,
+    "Age of Ultron"
+   ],
+   [
+    1,
+    "Archnemesis"
+   ],
+   [
+    1,
+    "Leader, Super-Genius"
+   ],
+   [
+    1,
+    "Glorious Purpose"
+   ],
+   [
+    1,
+    "Kang Dynasty"
+   ],
+   [
+    1,
+    "Propaganda"
+   ],
+   [
+    1,
+    "Canyon Slough"
+   ],
+   [
+    1,
+    "Choked Estuary"
+   ],
+   [
+    1,
+    "Coastal Peak"
+   ],
+   [
+    1,
+    "Command Tower"
+   ],
+   [
+    1,
+    "Crumbling Necropolis"
+   ],
+   [
+    1,
+    "Dragonskull Summit"
+   ],
+   [
+    1,
+    "Drowned Catacomb"
+   ],
+   [
+    1,
+    "Exotic Orchard"
+   ],
+   [
+    1,
+    "Fetid Pools"
+   ],
+   [
+    1,
+    "Foreboding Ruins"
+   ],
+   [
+    1,
+    "Frostboil Snarl"
+   ],
+   [
+    4,
+    "Island"
+   ],
+   [
+    1,
+    "Luxury Suite"
+   ],
+   [
+    5,
+    "Mountain"
+   ],
+   [
+    1,
+    "Path of Ancestry"
+   ],
+   [
+    1,
+    "Scavenger Grounds"
+   ],
+   [
+    1,
+    "Scorched Geyser"
+   ],
+   [
+    1,
+    "Secluded Courtyard"
+   ],
+   [
+    1,
+    "Smoldering Marsh"
+   ],
+   [
+    1,
+    "Sulfur Falls"
+   ],
+   [
+    1,
+    "Sunken Hollow"
+   ],
+   [
+    6,
+    "Swamp"
+   ],
+   [
+    1,
+    "Terramorphic Expanse"
+   ],
+   [
+    1,
+    "Unclaimed Territory"
+   ],
+   [
+    1,
+    "Villainous Hideout"
+   ],
+   [
+    1,
+    "Baron Strucker, HYDRA Overlord"
+   ]
+  ],
+  "recs": [
+   {
+    "cut": "Green Goblin, Revenant",
+    "mid": "Faithless Looting",
+    "apex": "Green Goblin, Nemesis"
+   },
+   {
+    "cut": "Helmut Zemo, Mastermind",
+    "budget": "Ultimate Green Goblin",
+    "apex": "Glint-Horn Buccaneer"
+   },
+   {
+    "cut": "Kang Prime",
+    "mid": "Big Score",
+    "apex": "Seismic Assault"
+   },
+   {
+    "cut": "Klaw, Master of Sound",
+    "apex": "Archfiend of Ifnir"
+   },
+   {
+    "cut": "Lady Loki, Agent of Chaos",
+    "mid": "M.O.D.O.K.",
+    "apex": "Crucible of Worlds"
+   },
+   {
+    "cut": "Mysterio, Master of Illusion",
+    "mid": "Diabolic Intent",
+    "apex": "Demonic Tutor"
+   },
+   {
+    "cut": "Superior Foes of Spider-Man",
+    "apex": "Monument to Endurance"
+   },
+   {
+    "cut": "Doctor Octopus, Master Planner",
+    "apex": "Waste Not"
+   },
+   {
+    "cut": "Damocles Base, Sword of Kang",
+    "apex": "Bone Miser"
+   },
+   {
+    "cut": "Age of Ultron",
+    "apex": "Teferi's Ageless Insight"
+   },
+   {
+    "cut": "Kang Dynasty",
+    "mid": "An Offer You Can't Refuse",
+    "apex": "Fierce Guardianship"
+   }
+  ],
+  "removed": [
+   "Batroc the Leaper",
+   "Leader, Super-Genius",
+   "Stilt-Man, Towering Terror",
+   "Syphon Mind",
+   "Titania, Proud Pummeler",
+   "Tri-Sentinel, Act of Vengeance"
+  ]
+ },
+ "Tramplesaurus Rex": {
+  "commander": "Ghalta, Primal Hunger",
+  "deck": [
+   [
+    1,
+    "Arachnogenesis"
+   ],
+   [
+    1,
+    "Arasta of the Endless Web"
+   ],
+   [
+    1,
+    "Beast Whisperer"
+   ],
+   [
+    1,
+    "Birds of Paradise"
+   ],
+   [
+    1,
+    "Carnage Tyrant"
+   ],
+   [
+    1,
+    "Curious Altisaur"
+   ],
+   [
+    1,
+    "Dungrove Elder"
+   ],
+   [
+    1,
+    "Elder Gargaroth"
+   ],
+   [
+    1,
+    "Ezuri's Predation"
+   ],
+   [
+    1,
+    "Gigantosaurus"
+   ],
+   [
+    1,
+    "Hulking Raptor"
+   ],
+   [
+    1,
+    "Loot, Exuberant Explorer"
+   ],
+   [
+    1,
+    "Managorger Hydra"
+   ],
+   [
+    1,
+    "Overwhelming Stampede"
+   ],
+   [
+    1,
+    "Pugnacious Hammerskull"
+   ],
+   [
+    1,
+    "Regal Imperiosaur"
+   ],
+   [
+    1,
+    "Rhonas the Indomitable"
+   ],
+   [
+    1,
+    "Ripjaw Raptor"
+   ],
+   [
+    1,
+    "Rishkar's Expertise"
+   ],
+   [
+    1,
+    "Scavenging Ooze"
+   ],
+   [
+    1,
+    "Scrapshooter"
+   ],
+   [
+    1,
+    "Shamanic Revelation"
+   ],
+   [
+    1,
+    "Steel Leaf Champion"
+   ],
+   [
+    1,
+    "Surrak and Goreclaw"
+   ],
+   [
+    1,
+    "Surrak, the Hunt Caller"
+   ],
+   [
+    1,
+    "Tangleweave Armor"
+   ],
+   [
+    1,
+    "Thickest in the Thicket"
+   ],
+   [
+    1,
+    "Unnatural Growth"
+   ],
+   [
+    1,
+    "Verdant Sun's Avatar"
+   ],
+   [
+    1,
+    "Whiptongue Hydra"
+   ],
+   [
+    1,
+    "Yeva, Nature's Herald"
+   ],
+   [
+    1,
+    "Bonders' Enclave"
+   ],
+   [
+    1,
+    "Mosswort Bridge"
+   ],
+   [
+    1,
+    "Scavenger Grounds"
+   ],
+   [
+    1,
+    "War Room"
+   ],
+   [
+    1,
+    "Witch's Clinic"
+   ],
+   [
+    1,
+    "Beast Within"
+   ],
+   [
+    1,
+    "Bite Down"
+   ],
+   [
+    1,
+    "Challenger Troll"
+   ],
+   [
+    1,
+    "Clifftop Lookout"
+   ],
+   [
+    1,
+    "Collective Resistance"
+   ],
+   [
+    1,
+    "Colossal Majesty"
+   ],
+   [
+    1,
+    "Elemental Bond"
+   ],
+   [
+    1,
+    "Elvish Mystic"
+   ],
+   [
+    1,
+    "Fyndhorn Elves"
+   ],
+   [
+    1,
+    "Garruk's Packleader"
+   ],
+   [
+    1,
+    "Garruk's Uprising"
+   ],
+   [
+    1,
+    "Goreclaw, Terror of Qal Sisma"
+   ],
+   [
+    1,
+    "Harmonize"
+   ],
+   [
+    1,
+    "Ilysian Caryatid"
+   ],
+   [
+    1,
+    "Kenrith's Transformation"
+   ],
+   [
+    1,
+    "Llanowar Elves"
+   ],
+   [
+    1,
+    "Llanowar Tribe"
+   ],
+   [
+    1,
+    "Monstrous Onslaught"
+   ],
+   [
+    1,
+    "Paradise Druid"
+   ],
+   [
+    1,
+    "Ram Through"
+   ],
+   [
+    1,
+    "Rishkar, Peema Renegade"
+   ],
+   [
+    1,
+    "Tamiyo's Safekeeping"
+   ],
+   [
+    1,
+    "Terrian, World Tyrant"
+   ],
+   [
+    1,
+    "Thrashing Brontodon"
+   ],
+   [
+    1,
+    "Whisperer of the Wilds"
+   ],
+   [
+    1,
+    "Commander's Sphere"
+   ],
+   [
+    1,
+    "Rhonas's Monument"
+   ],
+   [
+    1,
+    "Sol Ring"
+   ],
+   [
+    1,
+    "Swiftfoot Boots"
+   ],
+   [
+    1,
+    "Rogue's Passage"
+   ],
+   [
+    1,
+    "Tranquil Thicket"
+   ],
+   [
+    32,
+    "Forest"
+   ]
+  ],
+  "recs": [
+   {
+    "cut": "Curious Altisaur",
+    "budget": "Ghalta, the Unstoppable",
+    "mid": "Majestic Genesis",
+    "apex": "Old Gnawbone"
+   },
+   {
+    "cut": "Pugnacious Hammerskull",
+    "budget": "Rancor",
+    "mid": "God-Eternal Rhonas",
+    "apex": "Craterhoof Behemoth"
+   },
+   {
+    "cut": "Regal Imperiosaur",
+    "budget": "Mossborn Hydra",
+    "mid": "Zopandrel, Hunger Dominus",
+    "apex": "Vorinclex, Voice of Hunger"
+   },
+   {
+    "cut": "Shamanic Revelation",
+    "budget": "Bushwhack",
+    "mid": "Tribute to the World Tree",
+    "apex": "Nyxbloom Ancient"
+   },
+   {
+    "cut": "Steel Leaf Champion",
+    "budget": "Monstrous Vortex",
+    "mid": "Fanatic of Rhonas",
+    "apex": "The Great Henge"
+   },
+   {
+    "cut": "Surrak, the Hunt Caller",
+    "budget": "Topiary Stomper",
+    "mid": "Selvala, Heart of the Wilds",
+    "apex": "Nykthos, Shrine to Nyx"
+   },
+   {
+    "cut": "Verdant Sun's Avatar",
+    "budget": "Hunter's Insight",
+    "mid": "Defense of the Heart",
+    "apex": "Finale of Devastation"
+   },
+   {
+    "cut": "Tamiyo's Safekeeping",
+    "budget": "Snakeskin Veil",
+    "mid": "Heroic Intervention",
+    "apex": "Force of Vigor"
+   },
+   {
+    "cut": "Commander's Sphere",
+    "budget": "Lumbering Worldwagon",
+    "mid": "Greater Good",
+    "apex": "Last March of the Ents"
+   },
+   {
+    "cut": "Tranquil Thicket",
+    "budget": "Escape Tunnel",
+    "mid": "Yavimaya, Cradle of Growth",
+    "apex": "Gaea's Cradle"
+   }
+  ],
+  "removed": []
+ },
+ "Turtle Power": {
+  "commander": "Heroes in a Half Shell",
+  "deck": [
+   [
+    1,
+    "Leonardo, the Balance"
+   ],
+   [
+    1,
+    "April O'Neil"
+   ],
+   [
+    1,
+    "Baxter"
+   ],
+   [
+    1,
+    "Bebop"
+   ],
+   [
+    1,
+    "Big Mother Mouser"
+   ],
+   [
+    1,
+    "Biogenic Ooze"
+   ],
+   [
+    1,
+    "Casey Jones"
+   ],
+   [
+    1,
+    "Dimension X Pizzasaur"
+   ],
+   [
+    1,
+    "Donatello"
+   ],
+   [
+    1,
+    "Raphael, the Nightwatcher"
+   ],
+   [
+    1,
+    "Heralds of the Shredder"
+   ],
+   [
+    1,
+    "Humongous Fungus"
+   ],
+   [
+    1,
+    "Irma"
+   ],
+   [
+    1,
+    "Mikey & Don, Party Planners"
+   ],
+   [
+    1,
+    "Leatherhead, Iron Gator"
+   ],
+   [
+    1,
+    "Lita, Sewer Samurai"
+   ],
+   [
+    1,
+    "Marauding Mutagen"
+   ],
+   [
+    1,
+    "Michelangelo, Mutant BFF"
+   ],
+   [
+    1,
+    "Michelangelo, the Heart"
+   ],
+   [
+    1,
+    "Mona Lisa"
+   ],
+   [
+    1,
+    "Raphael, the Muscle"
+   ],
+   [
+    1,
+    "Genghis Frog"
+   ],
+   [
+    1,
+    "Ray Fillet"
+   ],
+   [
+    1,
+    "Rocksteady"
+   ],
+   [
+    1,
+    "Shredder"
+   ],
+   [
+    1,
+    "Slash Clone"
+   ],
+   [
+    1,
+    "Splinter, the Mentor"
+   ],
+   [
+    1,
+    "Tempestra, Dame of Games"
+   ],
+   [
+    1,
+    "Tokka & Rahzar, Unsupervised"
+   ],
+   [
+    1,
+    "Assassin's Trophy"
+   ],
+   [
+    1,
+    "Continue?"
+   ],
+   [
+    1,
+    "Double Jump // Flying Kick"
+   ],
+   [
+    1,
+    "Shellshock"
+   ],
+   [
+    1,
+    "Special Move"
+   ],
+   [
+    1,
+    "Swift Demise"
+   ],
+   [
+    1,
+    "Blasphemous Act"
+   ],
+   [
+    1,
+    "Cultivate"
+   ],
+   [
+    1,
+    "Fast Forward"
+   ],
+   [
+    1,
+    "Game Over"
+   ],
+   [
+    1,
+    "Leader's Talent"
+   ],
+   [
+    1,
+    "Here Comes a New Hero!"
+   ],
+   [
+    1,
+    "Lessons from Life"
+   ],
+   [
+    1,
+    "Super Combo"
+   ],
+   [
+    1,
+    "Vanquish the Horde"
+   ],
+   [
+    1,
+    "Wave Goodbye"
+   ],
+   [
+    1,
+    "Arcade Cabinet"
+   ],
+   [
+    1,
+    "Arcane Signet"
+   ],
+   [
+    1,
+    "Chromatic Lantern"
+   ],
+   [
+    1,
+    "Coin of Mastery"
+   ],
+   [
+    1,
+    "Everything Pizza"
+   ],
+   [
+    1,
+    "Exploding Barrel"
+   ],
+   [
+    1,
+    "Foot Chopper"
+   ],
+   [
+    1,
+    "The Ooze"
+   ],
+   [
+    1,
+    "Sol Ring"
+   ],
+   [
+    1,
+    "Endless Foot Assault"
+   ],
+   [
+    1,
+    "High Score"
+   ],
+   [
+    1,
+    "Level Up"
+   ],
+   [
+    1,
+    "Ninja Pizza"
+   ],
+   [
+    1,
+    "Together Forever"
+   ],
+   [
+    1,
+    "Turtle Power!"
+   ],
+   [
+    1,
+    "Ash Barrens"
+   ],
+   [
+    1,
+    "Big Apple, 3 A.M."
+   ],
+   [
+    1,
+    "Cinder Glade"
+   ],
+   [
+    1,
+    "City of Brass"
+   ],
+   [
+    1,
+    "Command Tower"
+   ],
+   [
+    1,
+    "Dragonskull Summit"
+   ],
+   [
+    1,
+    "Escape Tunnel"
+   ],
+   [
+    1,
+    "Evolving Wilds"
+   ],
+   [
+    1,
+    "Exotic Orchard"
+   ],
+   [
+    1,
+    "Fabled Passage"
+   ],
+   [
+    3,
+    "Forest"
+   ],
+   [
+    1,
+    "Grand Coliseum"
+   ],
+   [
+    1,
+    "Hidden Hideout"
+   ],
+   [
+    1,
+    "Hinterland Harbor"
+   ],
+   [
+    3,
+    "Island"
+   ],
+   [
+    2,
+    "Mountain"
+   ],
+   [
+    1,
+    "Path of Ancestry"
+   ],
+   [
+    2,
+    "Plains"
+   ],
+   [
+    1,
+    "Rain-Slicked Copse"
+   ],
+   [
+    1,
+    "Rootbound Crag"
+   ],
+   [
+    1,
+    "Smoldering Marsh"
+   ],
+   [
+    1,
+    "Sodden Verdure"
+   ],
+   [
+    1,
+    "Spire Garden"
+   ],
+   [
+    1,
+    "Sunken Hollow"
+   ],
+   [
+    2,
+    "Swamp"
+   ],
+   [
+    1,
+    "Thriving Grove"
+   ],
+   [
+    1,
+    "Thriving Isle"
+   ],
+   [
+    1,
+    "Thriving Moor"
+   ],
+   [
+    1,
+    "Turtle Lair"
+   ],
+   [
+    1,
+    "Undergrowth Stadium"
+   ],
+   [
+    1,
+    "Vernal Fen"
+   ],
+   [
+    1,
+    "Vibrant Cityscape"
+   ]
+  ],
+  "recs": [
+   {
+    "cut": "Biogenic Ooze",
+    "budget": "Michelangelo, Weirdness to 11",
+    "mid": "Primal Vigor",
+    "apex": "Doubling Season"
+   },
+   {
+    "cut": "Raphael, the Nightwatcher",
+    "mid": "Impact Tremors",
+    "apex": "All Will Be One"
+   },
+   {
+    "cut": "Mikey & Don, Party Planners",
+    "apex": "The Ozolith"
+   },
+   {
+    "cut": "Marauding Mutagen",
+    "mid": "Mikey & Leo, Chaos & Order",
+    "apex": "Branching Evolution"
+   },
+   {
+    "cut": "Michelangelo, Mutant BFF",
+    "mid": "Tribute to the World Tree",
+    "apex": "The Great Henge"
+   },
+   {
+    "cut": "Genghis Frog",
+    "mid": "Toski, Bearer of Secrets",
+    "apex": "Herald of Secret Streams"
+   },
+   {
+    "cut": "Tempestra, Dame of Games",
+    "budget": "Raph & Leo, Sibling Rivals",
+    "mid": "Maskwood Nexus",
+    "apex": "Roaming Throne"
+   },
+   {
+    "cut": "Tokka & Rahzar, Unsupervised",
+    "apex": "Hardened Scales"
+   },
+   {
+    "cut": "Leader's Talent",
+    "apex": "Rhystic Study"
+   },
+   {
+    "cut": "Foot Chopper",
+    "budget": "Michelangelo's Technique",
+    "mid": "Beast Within",
+    "apex": "Cyclonic Rift"
+   },
+   {
+    "cut": "The Ooze",
+    "apex": "Ozolith, the Shattered Spire"
+   },
+   {
+    "cut": "Turtle Power!",
+    "mid": "Unbreakable Formation",
+    "apex": "Teferi's Protection"
+   }
+  ],
+  "removed": [
+   "Aggro Amalgam",
+   "Electric Seaweed",
+   "Harmonize",
+   "Krang, the All-Powerful",
+   "Mole Module",
+   "Rat King, Pale Piper",
+   "Roadkill Rodney"
+  ]
+ },
+ "Wakanda Forever": {
+  "commander": "T'Challa, the Black Panther",
+  "deck": [
+   [
+    1,
+    "Bast, Panther Goddess"
+   ],
+   [
+    1,
+    "Ancestral Communion"
+   ],
+   [
+    1,
+    "Arc Reactor"
+   ],
+   [
+    1,
+    "Arcane Signet"
+   ],
+   [
+    1,
+    "Beast Within"
+   ],
+   [
+    1,
+    "Birds of Paradise"
+   ],
+   [
+    1,
+    "Black Panther's Claws"
+   ],
+   [
+    1,
+    "Bountiful Promenade"
+   ],
+   [
+    1,
+    "Canopy Vista"
+   ],
+   [
+    1,
+    "Command Tower"
+   ],
+   [
+    1,
+    "Coveted Jewel"
+   ],
+   [
+    1,
+    "Dispatch"
+   ],
+   [
+    1,
+    "Divine Visitation"
+   ],
+   [
+    1,
+    "Dora Milaje Elite"
+   ],
+   [
+    1,
+    "Everett K. Ross"
+   ],
+   [
+    1,
+    "Evolving Wilds"
+   ],
+   [
+    1,
+    "Fight for the Throne"
+   ],
+   [
+    12,
+    "Forest"
+   ],
+   [
+    1,
+    "Fortified Village"
+   ],
+   [
+    1,
+    "Generous Gift"
+   ],
+   [
+    1,
+    "Gilded Lotus"
+   ],
+   [
+    1,
+    "Greater Good"
+   ],
+   [
+    1,
+    "Hatut Zeraze Strike Force"
+   ],
+   [
+    1,
+    "Heart-Shaped Herb"
+   ],
+   [
+    1,
+    "Helm of the Host"
+   ],
+   [
+    1,
+    "Ingenious Smith"
+   ],
+   [
+    1,
+    "Interdimensional Web Watch"
+   ],
+   [
+    1,
+    "Kimoyo Beads"
+   ],
+   [
+    1,
+    "King Solomon's Frogs"
+   ],
+   [
+    1,
+    "Living Brain, Mechanical Marvel"
+   ],
+   [
+    1,
+    "Loyal Guardian"
+   ],
+   [
+    1,
+    "Loyal Retainers"
+   ],
+   [
+    1,
+    "M'Baku, Jabari Chieftain"
+   ],
+   [
+    1,
+    "Martial Coup"
+   ],
+   [
+    1,
+    "Metalwork Colossus"
+   ],
+   [
+    1,
+    "Meteor Golem"
+   ],
+   [
+    1,
+    "Midnight Angel Armor"
+   ],
+   [
+    1,
+    "N'Yami-Class Mother Ship"
+   ],
+   [
+    1,
+    "Nakia"
+   ],
+   [
+    1,
+    "Nature's Lore"
+   ],
+   [
+    1,
+    "Okoye"
+   ],
+   [
+    1,
+    "Orbital Vibranium Bomb"
+   ],
+   [
+    1,
+    "Overwhelming Stampede"
+   ],
+   [
+    1,
+    "Panther Habit"
+   ],
+   [
+    1,
+    "Panther Idol"
+   ],
+   [
+    1,
+    "Panther Robot"
+   ],
+   [
+    1,
+    "Path of Ancestry"
+   ],
+   [
+    12,
+    "Plains"
+   ],
+   [
+    1,
+    "Wakandan War Panther"
+   ],
+   [
+    1,
+    "Razorverge Thicket"
+   ],
+   [
+    1,
+    "Royal Talon Fighter Jet"
+   ],
+   [
+    1,
+    "S.H.I.E.L.D. Helicarrier"
+   ],
+   [
+    1,
+    "Scattered Groves"
+   ],
+   [
+    1,
+    "Scavenger Grounds"
+   ],
+   [
+    1,
+    "Shuri"
+   ],
+   [
+    1,
+    "Shuri's Fabricator"
+   ],
+   [
+    1,
+    "Skybreaker, Sword of Bashenga"
+   ],
+   [
+    1,
+    "Sol Ring"
+   ],
+   [
+    1,
+    "Solemn Simulacrum"
+   ],
+   [
+    1,
+    "Storm"
+   ],
+   [
+    1,
+    "Sungrass Prairie"
+   ],
+   [
+    1,
+    "Sunpetal Grove"
+   ],
+   [
+    1,
+    "T'Chaka"
+   ],
+   [
+    1,
+    "Terramorphic Expanse"
+   ],
+   [
+    1,
+    "The Great Mound"
+   ],
+   [
+    1,
+    "The Spear of Bashenga"
+   ],
+   [
+    1,
+    "The Vision"
+   ],
+   [
+    1,
+    "Throne of the High City"
+   ],
+   [
+    1,
+    "Valorous Stance"
+   ],
+   [
+    1,
+    "Vanquish the Horde"
+   ],
+   [
+    1,
+    "Vibranium Dynamo"
+   ],
+   [
+    1,
+    "Vibranium Energy Daggers"
+   ],
+   [
+    1,
+    "Vibranium Mining Mech"
+   ],
+   [
+    1,
+    "Vibranium Strike Gauntlets"
+   ],
+   [
+    1,
+    "W'Kabi"
+   ],
+   [
+    1,
+    "Wakanda Forever!"
+   ],
+   [
+    1,
+    "Zuri"
+   ]
+  ],
+  "recs": [
+   {
+    "cut": "Arc Reactor",
+    "mid": "Sculpting Steel",
+    "apex": "Roaming Throne"
+   },
+   {
+    "cut": "Coveted Jewel",
+    "apex": "Darksteel Forge"
+   },
+   {
+    "cut": "Divine Visitation",
+    "mid": "Cosmic Cube",
+    "apex": "The One Ring"
+   },
+   {
+    "cut": "Interdimensional Web Watch",
+    "mid": "Mystic Forge",
+    "apex": "Portal to Phyrexia"
+   },
+   {
+    "cut": "Living Brain, Mechanical Marvel",
+    "mid": "Foundry Inspector",
+    "apex": "Unwinding Clock"
+   },
+   {
+    "cut": "M'Baku, Jabari Chieftain",
+    "budget": "Iron Man Armor",
+    "mid": "Batterskull",
+    "apex": "Kaldra Compleat"
+   },
+   {
+    "cut": "Meteor Golem",
+    "mid": "Brightglass Gearhulk",
+    "apex": "Wurmcoil Engine"
+   },
+   {
+    "cut": "Wakandan War Panther",
+    "mid": "Ozolith, the Shattered Spire",
+    "apex": "Blightsteel Colossus"
+   },
+   {
+    "cut": "S.H.I.E.L.D. Helicarrier",
+    "mid": "Jhoira's Familiar",
+    "apex": "Akroma's Memorial"
+   }
+  ],
+  "removed": [
+   "Conduit of Worlds",
+   "Harmonize",
+   "Palace Jailer",
+   "Trading Post",
+   "Whispersilk Cloak"
+  ]
+ }
+}

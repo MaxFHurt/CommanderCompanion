@@ -1,0 +1,6 @@
+await page.evaluate(async () => { S.syncRecs = false; S.noAsk = true; await loadPreconLive('doom-prevails', 'Doom Prevails'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); S.tab = 'up'; render(); await recsReady(d); render(); });
+return await page.evaluate(async () => { const d = cur(), cnt = {}, tm = {}; const wrap = n => { const f = window[n]; window[n] = function(){ cnt[n] = (cnt[n] || 0) + 1; const t = performance.now(); const r = f.apply(this, arguments); tm[n] = (tm[n] || 0) + performance.now() - t; return r; }; Object.assign(window[n], f); };
+  ['upgradePaths', 'scoreCheck', 'evaluateDeck', 'simulate', 'apexRef', 'render', 'altsFor', 'capFor', 'evalFor', 'recsKey'].forEach(wrap);
+  const keys = []; const rk = window.recsKey; window.recsKey = function(dd){ const k = rk(dd); return k; };
+  const b = document.querySelector('.paths [data-act="swap"]'); const t0 = performance.now(); b.click(); await recsReady(d); await new Promise(r => setTimeout(r, 200));
+  return {ms:Math.round(performance.now() - t0), cnt, tm:Object.fromEntries(Object.entries(tm).map(([k, v]) => [k, Math.round(v)]))}; });

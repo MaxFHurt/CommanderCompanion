@@ -1,0 +1,11 @@
+const OUT = '/tmp/claude-0/-home-user-Deck-Companion/74e967d5-8ea8-52f2-8f51-de9d671167f5/scratchpad/proto/out/';
+await page.evaluate(async () => { await loadPreconLive('doom-prevails', 'Doom Prevails'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); render(); });
+for (let i = 0; i < 60 && await page.evaluate(() => !/% of the way from random/.test(document.body.textContent)); i++) await page.waitForTimeout(250);
+const r1 = await page.evaluate(() => ({strip:document.querySelector('.statbar').textContent, base:cur().base}));
+await page.evaluate(async () => { for (let k = 0; k < 3; k++){ document.querySelector('.paths [data-act="swap"][data-v$="|apex"]').click(); await new Promise(r => setTimeout(r, 400)); } });
+for (let i = 0; i < 40 && await page.evaluate(() => !/% of the way from random/.test(document.body.textContent)); i++) await page.waitForTimeout(250);
+const el = await page.$('#stats-more'); await el.scrollIntoViewIfNeeded(); const bx = await page.$('.statbar').then(x => x.boundingBox());
+await page.screenshot({path:OUT + 'stats.png', clip:{x:0, y:Math.max(0, bx.y - 6), width:page.viewportSize().width, height:Math.min(1100, page.viewportSize().height - bx.y + 6)}});
+await page.evaluate(() => { document.querySelector('#upscroll').scrollTop = 1500; }); await page.waitForTimeout(200);
+await page.screenshot({path:OUT + 'stats-scrolled.png'});
+return await page.evaluate(() => ({strip:document.querySelector('.statbar').textContent, sw:document.documentElement.scrollWidth, stats:document.querySelector('#stats-more').textContent.slice(0, 900)})).then(r => ({r1, r}));
