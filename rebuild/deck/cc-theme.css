@@ -10,8 +10,8 @@
   --gold: #f2c14e; --good: #45d483; --bad: #ff5a6a;
   /* The game side's condensed lettering (built into Apple devices); elsewhere the Barlow Condensed web font keeps the
      same narrow widths, so labels and buttons fit as they did. */
-  --display: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-  --label: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --display: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+  --label: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --cc-frame: url("../assets/img/ui/button-frame.png");
   --cc-frame-large: url("../assets/img/ui/button-frame-large.png");
@@ -38,7 +38,8 @@ h1, h2, h3 { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800
 .modal .panel { background: linear-gradient(180deg, #170f2e 0%, #0a0714 100%) padding-box; box-shadow: 0 0 30px rgba(120, 70, 230, 0.5), 0 12px 40px rgba(0, 0, 0, 0.85); }
 .panel::before { display: none; }
 .ph { border-bottom-color: var(--line); }
-.ph h2 { font-size: 19px; }
+.ph h2 { font-size: 18px; }
+.panel { padding: 10px 12px; }   /* the frame is thicker than the old 1px line: less padding keeps panels the same size */
 
 /* Header: the Commander Companion logo, then DECK BUILDER. Home is always there, also on the Deck Builder's home. */
 .top { padding: 2px 10px; }
@@ -65,7 +66,7 @@ h1, h2, h3 { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800
 }
 .btn:hover, .nav button:not(.cc-home):hover { border-color: transparent; box-shadow: none; filter: brightness(1.25); }
 .btn:active:not([disabled]), .nav button:active { filter: brightness(1.4); }
-.btn.sm { border-width: 5px 9px; border-image-width: 5px 9px; padding: 1px 2px; font-size: 12.5px; }
+.btn.sm { border-width: 5px 9px; border-image-width: 5px 9px; padding: 0 2px; font-size: 12.5px; line-height: 1.05; }
 .btn.pri { background: none; box-shadow: none; filter: hue-rotate(-145deg) saturate(1.25); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
 .btn.pri:hover { filter: hue-rotate(-145deg) saturate(1.25) brightness(1.25); }
 .btn.danger { color: var(--ink); filter: hue-rotate(88deg) saturate(1.5); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
