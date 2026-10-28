@@ -460,6 +460,12 @@ function handleAct(act, v, n, pArg) {
   let changed = true;
   if (manaCheck(d, act, v, n)) return;
   switch (act) {
+    case 'cc-home':
+      ccOpen();
+      return;
+    case 'cc-profile':
+      ccOpen('profile');
+      return;
     case 'nav':
       S.view = v;
       S.open = false;

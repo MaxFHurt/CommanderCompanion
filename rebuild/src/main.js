@@ -3,7 +3,7 @@
 import { VERSION } from './version.js';
 import { registerScreen, go } from './app/router.js';
 import { initDeckStore } from './data/deck-store.js';
-import { initProfileStore } from './data/profile.js';
+import { initProfileStore, loadProfile, saveAccountProfile } from './data/profile.js';
 import { initPlaymats } from './data/playmats.js';
 import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
 import { watchCardImages } from './ui/card-view.js';
@@ -17,7 +17,7 @@ import { playerSetupScreen } from './ui/screens/player-setup.js';
 import { gameScreen } from './ui/screens/game.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
 import { joinScreen } from './ui/screens/join.js';
-import { deckEditorScreen } from './ui/screens/deck-editor.js';
+import { takeReturn, builderPlayerName } from './data/deck-builder.js';
 
 registerScreen('landing', landingScreen);
 registerScreen('mode-select', modeSelectScreen);
@@ -29,7 +29,6 @@ registerScreen('player-setup', playerSetupScreen);
 registerScreen('game', gameScreen);
 registerScreen('lobby', lobbyScreen);
 registerScreen('join', joinScreen);
-registerScreen('deck-editor', deckEditorScreen);
 
 async function start() {
   // Card images that fail to load fall back to the text version everywhere (screens and popups).
@@ -37,7 +36,11 @@ async function start() {
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);
   try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch { /* not supported */ }
-  if (shouldResumeAfterUpdate()) go('game', { resume: true }); else go('landing');
+  // One player name. Before the merge the Deck Builder kept its own; adopt it once if this side has none.
+  const builderName = builderPlayerName();
+  if (builderName && !loadProfile().account?.displayName) await saveAccountProfile({ displayName: builderName }).catch(() => {});
+  const back = takeReturn();   // coming back from the Deck Builder: reopen the screen that opened it
+  if (shouldResumeAfterUpdate()) go('game', { resume: true }); else if (!back || !go(back.screen, back.params)) go('landing');
   window.__ccReady = true;
   window.__ccVersion = VERSION;
   document.getElementById('bootError').hidden = true;

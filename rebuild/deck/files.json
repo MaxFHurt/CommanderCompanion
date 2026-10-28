@@ -18,6 +18,7 @@
  ],
  "ui": [
   "ui/base.js",
+  "ui/companion.js",
   "ui/storage.js",
   "ui/library.js",
   "ui/views.js",

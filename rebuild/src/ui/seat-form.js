@@ -72,7 +72,7 @@ export function handleSeatAction(act, el, seat, redraw) {
     const decks = listDecks();
     return openModal({
       title: 'Saved decks',
-      body: decks.length ? html`<div class="option-list">${decks.map((d, i) => html`<button type="button" class="option" data-deck="${i}"><span><strong>${d.name || 'Untitled deck'}</strong><small>${[d.commander1, d.commander2].filter(Boolean).join(' + ') || 'No commander set'}</small></span></button>`)}</div>`
+      body: decks.length ? html`<div class="option-list">${decks.map((d, i) => html`<button type="button" class="option" data-deck="${i}"><span><strong>${d.name || 'Untitled deck'}</strong><small>${[d.owner && `${d.owner}'s deck`, [d.commander1, d.commander2].filter(Boolean).join(' + ') || 'No commander set'].filter(Boolean).join(' • ')}</small></span></button>`)}</div>`
         : html`<p class="muted">No saved decks yet. Build one in the Deck Builder, pick a precon, or paste a list.</p>`,
       onMount(m, { close }) {
         on(m, 'click', '[data-deck]', (e, b) => {

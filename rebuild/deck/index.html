@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Magic: The Gathering deck builder for Commander and Standard with aimed upgrade recommendations in three price tiers.">
-<meta name="theme-color" content="#06030d">
-<title>Deck Companion</title>
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=1">
-<link rel="manifest" href="manifest.json?v=1">
-<meta name="apple-mobile-web-app-title" content="Deck Companion">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<meta name="theme-color" content="#050407">
+<title>Deck Builder · Commander Companion</title>
+<link rel="apple-touch-icon" href="../assets/img/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="../assets/img/icon-192.png">
+<link rel="manifest" href="manifest.json?v=2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Commander Companion">
 <style>
 /* Layout: gothic command console. Chrome-framed panels over a painted night sky; three working columns (aim, decklist, upgrades). Single dark look by design. */
 :root{
@@ -425,6 +425,7 @@ a{color:var(--glow)}
 }
 @media (prefers-reduced-motion:reduce){ .brand .spin,.brand .pulse{animation:none} .think::before{animation:pulse 1.6s ease-in-out infinite} button.card:hover{transform:none} }
 </style>
+<link rel="stylesheet" href="cc-theme.css?v=167">
 </head>
 <body>
 
@@ -432,21 +433,15 @@ a{color:var(--glow)}
 <div class="app">
   <header class="top">
     <nav class="nav" id="nav-l" aria-label="Main"></nav>
-    <button class="brand" data-act="nav" data-v="home" aria-label="Deck Companion home">
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#b993ff"/><stop offset="1" stop-color="#4a2aa8"/></linearGradient></defs>
-        <g class="spin"><circle cx="32" cy="32" r="27" fill="none" stroke="url(#g1)" stroke-width="1.5" stroke-dasharray="3 5"/></g>
-        <circle cx="32" cy="32" r="21" fill="#12082a" stroke="url(#g1)" stroke-width="2"/>
-        <path d="M32 4 L37 27 L60 32 L37 37 L32 60 L27 37 L4 32 L27 27 Z" fill="url(#g1)"/>
-        <path class="pulse" d="M32 16 L35 29 L48 32 L35 35 L32 48 L29 35 L16 32 L29 29 Z" fill="#fff"/>
-      </svg>
-      <div><b>DECK</b><span>COMPANION</span></div>
+    <button class="brand" data-act="nav" data-v="home" aria-label="Deck Builder home">
+      <img src="../assets/img/landing/logo.png" alt="Commander Companion">
+      <div><b>DECK BUILDER</b></div>
     </button>
     <nav class="nav right" id="nav-r" aria-label="Library and profile"></nav>
   </header>
   <div id="status" class="chip gold" role="status" style="align-self:center;position:sticky;top:calc(6px + env(safe-area-inset-top,0px));z-index:30;box-shadow:0 4px 14px rgba(0,0,0,.6)" hidden></div>
   <main id="main"></main>
-  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Deck Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Version <span id="build-no">0.9</span>.</footer>
+  <footer class="note" style="text-align:center;max-width:90ch;margin:8px auto 0">Commander Companion is unofficial Fan Content permitted under the Fan Content Policy. Not approved or endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC. Card data and images are provided by <a href="https://scryfall.com" target="_blank" rel="noopener">Scryfall</a>; precon lists and commander statistics from EDHREC; combos from <a href="https://commanderspellbook.com" target="_blank" rel="noopener">Commander Spellbook</a>. Version <span id="build-no">0.9</span>.</footer>
 </div>
 <div id="modal" class="modal" hidden></div>
 <div id="toast" role="status" hidden></div>
@@ -454,7 +449,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 166; window.VERSION = '0.9.21';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
+window.BUILD = 167; window.VERSION = '0.9.22';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
 (function(){
   var last = 0;
   function check(){
@@ -470,7 +465,7 @@ window.BUILD = 166; window.VERSION = '0.9.21';   // Version 0.9 from build 145 (
 // The app (owner's choice 2c, 0.9.3): one minified bundle made by tools/build.sh; with ?dev=1 the readable files instead, in
 // files.json order (the same program). In order, one after another (async false), after the page above is in place.
 window.DEV = /[?&]dev=1(&|$)/.test(location.search);
-window.DEV_FILES = ["data.js", "lists.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js", "ui/base.js", "ui/storage.js", "ui/library.js", "ui/views.js", "ui/upgrades.js", "ui/deck.js", "ui/cards.js", "ui/events.js", "ui/boot.js"];
+window.DEV_FILES = ["data.js", "lists.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js", "ui/base.js", "ui/companion.js", "ui/storage.js", "ui/library.js", "ui/views.js", "ui/upgrades.js", "ui/deck.js", "ui/cards.js", "ui/events.js", "ui/boot.js"];
 (window.DEV ? window.DEV_FILES : ['app.min.js']).forEach(function(f){ var s = document.createElement('script'); s.src = f + '?v=' + window.BUILD; s.async = false; document.body.appendChild(s); });
 </script>
 </body>

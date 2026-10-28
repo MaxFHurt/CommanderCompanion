@@ -1,5 +1,6 @@
 import { loadProfile } from './profile.js';
 import { listDecks } from './deck-store.js';
+import { readBuilderProfile, writeBuilderProfile, moveGameDecks } from './deck-builder.js';
 import { durableSet } from './userdata-db.js';
 import { listPlaymats } from './playmats.js';
 const PROFILE_KEY = 'ccv07-profile';
@@ -28,7 +29,8 @@ export function buildProfileBackup() {
     backupVersion: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     profile,
-    decks,
+    decks,                              // the Deck Builder's Commander decks as lists (older builds read these)
+    deckBuilder: readBuilderProfile(),  // the Deck Builder's whole profile: decks, collection, buy lists, tablemates
     playmats: listPlaymats()
   };
 }
@@ -68,10 +70,13 @@ export async function restoreProfileBackupFile(file) {
   const backup = validateBackup(raw);
   const profile = structuredClone(backup.profile);
   const decks = structuredClone(backup.decks);
+  // A backup made since the merge carries the Deck Builder's profile; an older one carries the old editor's decks,
+  // which move into the Deck Builder.
+  const builder = backup.deckBuilder ? structuredClone(backup.deckBuilder) : null;
   let localOk = true;
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
+    if (!builder) localStorage.setItem(DECKS_KEY, JSON.stringify(decks));
   }
   catch {
     localOk = false;
@@ -79,7 +84,7 @@ export async function restoreProfileBackupFile(file) {
   let durableOk = true;
   try {
     await durableSet('profile', profile);
-    await durableSet('decks', decks);
+    if (!builder) await durableSet('decks', decks);
     if (Array.isArray(backup.playmats))
       await durableSet('playmats', structuredClone(backup.playmats));
   }
@@ -88,5 +93,7 @@ export async function restoreProfileBackupFile(file) {
   }
   if (!localOk && !durableOk)
     throw new Error('The profile could not be restored because this browser is not allowing local storage.');
+  if (builder) writeBuilderProfile(builder);
+  else moveGameDecks(decks, localStorage, { again: true });
   return { profile, decks, exportedAt: backup.exportedAt || null };
 }

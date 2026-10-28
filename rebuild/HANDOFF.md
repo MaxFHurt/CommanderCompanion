@@ -1,15 +1,16 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.29, 2026-10-11)
+# Commander Companion — handoff (build 1.0.0-rebuild.30, 2026-10-28)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 1. Where things are
 
-- Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder.
+- Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
+  forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.29** (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v29`).
-- **Visual masters:** `design/` holds the owner's approved screens (`visual-master-game-ipad.png` is the
-  in-game screen). Match them; read `design/README.md` for intended differences.
+- Live build: **1.0.0-rebuild.30** (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v30`).
+- **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
+  (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
   844×390; `1rem = 10px` there and scales with the viewport. iPad tier is
   `@media (min-width:1000px) and (min-height:700px)`.
@@ -127,8 +128,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
   life gained, tokens per player; the Game complete screen shows awards (Heavy Hitter, Biggest
   Swing, Spellslinger, Card Advantage, Life Gain Leader, Token Maker, Last One Standing). Your
   profile counts only awards you won.
-- **Deck analytics** (`src/data/deck-analytics.js`): types, curve bars, roles (ramp, draw, removal,
-  wipes, counterspells, tutors), mana symbols vs sources per color, suggestions.
+- **Deck Builder** (`deck/`): every deck lives there; analytics, upgrades and generation are its own.
 - **Ask the Judge** (`src/data/judge.js`): 86 answers in 7 topics.
 - **Card ID:** name lookup, plus camera scan with a card frame and Tesseract OCR (iOS-capable).
 - **Profile:** games, wins, decks, achievements, awards, house rules.
@@ -150,7 +150,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 ## 6. Tests (run before every push)
 
     node tests/node/game.mjs          # 149 rules/coach/judge/undo/challenge checks
-    node tests/node/mechanics.mjs     # 64 terms key, targeting, every automated mechanic, awards, analytics
+    node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites — stop it after

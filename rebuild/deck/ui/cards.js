@@ -6,7 +6,10 @@ function viewProfile() {
     '</small></div>' +
     '<div class="grp" style="max-width:420px"><label class="lab" for="p-name">Player name</label><input type="text" id="p-name" value="' +
     esc(P.name) +
-    '" maxlength="40"></div>' +
+    '" maxlength="40"' +
+    (ccName() ? ' readonly title="Your name is set in your player profile"' : '') +
+    '></div>' +
+    ccRecordHtml() +
     playersHtml() +
     '<div class="grp"><span class="lab">Saved decks · ' +
     P.decks.length +

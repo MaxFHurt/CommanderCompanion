@@ -590,7 +590,7 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .profile__name-row { display: flex; gap: 1rem; }
 .profile__name { flex: 1; min-height: 4.6rem; font-size: 2rem; font-weight: 700; }
 .profile__name-row .btn { min-height: 4.6rem; }
-.profile__stats { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0; }
+.profile__stats { display: grid; grid-template-columns: repeat(4, 1fr); padding: 0; }
 .profile__stats div { display: grid; justify-items: center; gap: 0.2rem; padding: 0.8rem; }
 .profile__stats div + div { border-left: 1px solid var(--line-soft); }
 .profile__stats b { font: 800 2.6rem/1 var(--font-head); }
@@ -908,27 +908,6 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .lobby__seats { overflow-y: auto; }
 .page__title { text-align: center; line-height: 1; }
 .page__title small { font: 700 0.85rem var(--font-head); letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-strong); }
-.page--deck .page__head h1 { font-size: 2.3rem; }
-.deck-editor { display: grid; grid-template-columns: 17rem minmax(0, 1fr) minmax(0, 1fr); gap: 0.9rem; overflow: hidden; padding-top: 0.7rem; padding-bottom: 0.7rem; }
-.deck-editor__side { display: grid; grid-template-rows: repeat(4, auto) minmax(0, 1fr); gap: 0.4rem; padding: 0.3rem 0.4rem; min-height: 0; }
-.deck-editor__side { overflow: hidden; }
-.deck-editor__side .btn { min-height: 2.9rem; font-size: 1rem; letter-spacing: 0.05em; width: 100%; min-width: 0; padding: 0; }
-.deck-editor__saved { display: grid; gap: 0.3rem; align-content: start; border-top: 1px solid var(--line-soft); padding-top: 0.4rem; }
-.deck-editor__saved .option { min-height: 2.8rem; padding: 0.3rem 0.8rem; }
-.deck-editor__main, .deck-editor__right { display: grid; gap: 0.6rem; min-height: 0; align-content: start; }
-.deck-editor__main { grid-template-rows: auto minmax(0, 1fr); }
-.deck-editor__list { grid-template-rows: auto minmax(0, 1fr); min-height: 0; position: relative; }
-.deck-editor__list .deck-textarea { height: 100%; min-height: 0; }
-.deck-editor__count { position: absolute; right: 0.2rem; top: 0; color: var(--gold); }
-.deck-editor__right { grid-template-rows: auto auto auto auto minmax(0, 1fr); }
-.deck-editor__right .input, .deck-editor__main > .field > .input { min-height: 3.1rem; font-size: 1.3rem; }
-.deck-editor__results { display: grid; gap: 0.35rem; align-content: start; padding: 0.5rem; border: 1px solid var(--line-soft); border-radius: 0.8rem; background: rgba(6, 4, 12, 0.7); font-size: 1.1rem; }
-.deck-editor__results .option { min-height: 2.8rem; padding: 0.3rem 0.8rem; }
-.deck-editor__status { flex: 1; font-size: 1.1rem; color: var(--good); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.deck-editor__status.is-bad { color: var(--bad); white-space: normal; }
-.deck-analytics-panel { display: grid; gap: 0.5rem; }
-.deck-analytics-panel div { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; }
-.deck-analytics-panel b { color: var(--accent-strong); }
 
 /* iPad: the extra height goes to the playmat and the cards. */
 @media (min-width: 1000px) and (min-height: 700px) {
@@ -1509,9 +1488,3 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 .postgame-award span { font-weight: 700; }
 .postgame-award small { color: var(--muted); }
 
-/* 32. Deck analytics: curve bars and suggestions ---------------------------------------------- */
-.deck-analytics-panel .deck-curve { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; align-items: end; height: 6.5rem; }
-.deck-curve__bar { display: grid; grid-template-rows: 1fr auto auto; justify-items: center; height: 100%; }
-.deck-curve__bar i { align-self: end; width: 70%; height: var(--h); min-height: 2px; border-radius: 0.3rem 0.3rem 0 0; background: linear-gradient(var(--accent-strong), var(--accent)); }
-.deck-curve__bar small { color: var(--muted); font-size: 0.8rem; }
-.deck-analytics-panel .deck-tips { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }

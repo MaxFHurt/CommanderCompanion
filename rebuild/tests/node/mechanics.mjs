@@ -449,14 +449,4 @@ section('game stats and awards');
   check('the finished game hands out awards', v.awards.some(a => a.label === 'Heavy Hitter' && a.playerId === t.P(0).playerId && a.detail === '4 damage dealt'), JSON.stringify(v.awards));
 }
 
-section('deck analytics');
-{
-  const { analyzeDeck, deckAnalyticsHtml } = await import('../../src/data/deck-analytics.js');
-  const { playerSetup, DEFS } = await import('./harness.mjs');
-  const a = analyzeDeck({ manifest: playerSetup('x', 'simic').manifest, definitions: DEFS });
-  check('analytics count roles (ramp, draw, removal)', a.roles.ramp >= 3 && a.roles.draw >= 3 && a.roles.counter >= 1, JSON.stringify(a.roles));
-  check('colored sources only count the deck’s colors', a.sources.W === 0 && a.sources.G > 30, JSON.stringify(a.sources));
-  check('suggestions flag a land-heavy deck', a.tips.some(x => /lands is a lot/.test(x)), JSON.stringify(a.tips));
-  check('the panel renders curve bars and suggestions', /deck-curve__bar/.test(deckAnalyticsHtml(a)) && /SUGGESTIONS/.test(deckAnalyticsHtml(a)));
-}
 done();

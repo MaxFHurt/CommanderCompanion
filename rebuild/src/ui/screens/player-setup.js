@@ -11,6 +11,7 @@ import { seatFormHtml, readSeatForm, handleSeatAction } from '../seat-form.js';
 import { prepareSeats, confirmSeats, chooseRules, buildGame } from '../../app/start-game.js';
 import { startLocalSession } from '../../app/session.js';
 import { PLAYER_COLORS } from '../../game/setup.js';
+import { openDeckBuilder } from '../../data/deck-builder.js';
 
 function seatFromDefaults(index, defaults) {
   const seat = emptySeat(defaults.playerNames?.[index] || '');
@@ -55,6 +56,7 @@ export const playerSetupScreen = {
           </div>
           <footer class="page__foot">
             <span class="muted">${mode === 'freeplay' ? 'Free Play: any deck is allowed and every rule can be overridden.' : 'Guided Play checks each deck against the Commander rules.'}</span>
+            <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
             <button type="button" class="btn btn--confirm" data-act="start">${hosting ? 'Open room' : 'Continue'}</button>
           </footer>
         </main>`);
@@ -95,6 +97,7 @@ export const playerSetupScreen = {
         case 'remove': seats.splice(active, 1); active = Math.max(0, active - 1); return draw();
         case 'remote': remote = Math.max(1, Math.min(6 - seats.length, remote + Number(el.dataset.step))); return draw();
         case 'start': return start();
+        case 'deck-builder': return openDeckBuilder({ screen: 'player-setup', params: { mode, play, seats, remoteSeats: remote } });
       }
     });
     return () => { offInput(); offClick(); };

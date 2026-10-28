@@ -1081,7 +1081,7 @@ async function linkBackup() {
   try {
     backupHandle = await window.showSaveFilePicker({
       suggestedName: 'deck-companion-backup.json',
-      types: [{description: 'Deck Companion backup', accept: {'application/json': ['.json']}}]
+      types: [{description: 'Deck Builder backup', accept: {'application/json': ['.json']}}]
     });
     try {
       await idb('readwrite', s => s.put(backupHandle, 'backupHandle'));
@@ -1118,7 +1118,7 @@ function readBackup(text) {
     when = j.savedAt || '';
   } catch (e) {}
   if (!p || !Array.isArray(p.decks)) {
-    toast('That is not a Deck Companion backup file.');
+    toast('That is not a Deck Builder backup file.');
     return;
   }
   p.decks = p.decks

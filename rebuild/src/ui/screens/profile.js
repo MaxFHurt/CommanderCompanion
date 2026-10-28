@@ -6,6 +6,7 @@ import { toast } from '../toast.js';
 import { openModal, confirmDialog } from '../modal.js';
 import { loadProfile, saveAccountProfile, recordDeckSelection, initProfileStore } from '../../data/profile.js';
 import { listDecks, initDeckStore } from '../../data/deck-store.js';
+import { openDeckBuilder, builderSummary } from '../../data/deck-builder.js';
 import { saveProfileBackupFile, restoreProfileBackupFile } from '../../data/profile-backup.js';
 import { ACHIEVEMENTS, earnedAchievements, matSlotPlan } from '../../data/achievements.js';
 import { listPlaymats, savePlaymat, updatePlaymat, deletePlaymat, compressImageFile, initPlaymats, DEFAULT_MAT } from '../../data/playmats.js';
@@ -34,6 +35,7 @@ export const profileScreen = {
       const winRate = profile.games ? Math.round((profile.wins / profile.games) * 100) : 0;
       const deck = mostPlayedDeck(profile);
       const top = topAchievements(profile);
+      const builder = builderSummary();
       setHtml(root, html`
         <main class="page profile">
           <header class="page__head">
@@ -64,6 +66,7 @@ export const profileScreen = {
                 <div><b>${profile.games || 0}</b><span>Games</span></div>
                 <div><b>${profile.wins || 0}</b><span>Wins</span></div>
                 <div><b>${winRate}%</b><span>Win rate</span></div>
+                <div title="${builder.collection} cards in your collection • ${builder.buyList} on buy lists"><b>${builder.decks}</b><span>Decks</span></div>
               </div>
               <button type="button" class="panel profile__achievements" data-act="achievements" aria-label="View all achievements">
                 <h3>Achievements</h3>
@@ -78,6 +81,7 @@ export const profileScreen = {
             <label class="btn">Load Profile<input id="profileFile" type="file" accept=".ccsave,application/json" hidden></label>
             <button type="button" class="btn" data-act="save">Save Profile</button>
             <button type="button" class="btn" data-act="history">Game History</button>
+            <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
           </footer>
         </main>`);
     }
@@ -103,6 +107,7 @@ export const profileScreen = {
               : html`<p class="muted">Finished games will be listed here.</p>`
           });
           case 'achievements': return openAchievements();
+          case 'deck-builder': await persistName(); return openDeckBuilder({ screen: 'profile' });
           case 'save':
             try {
               await persistName();

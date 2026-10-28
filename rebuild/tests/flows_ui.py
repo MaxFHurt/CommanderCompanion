@@ -1,4 +1,4 @@
-"""More Guided/Free Play flows on one device: mulligan, search, scry, by-hand cards, discard, win, Free Play, deck editor."""
+"""More Guided/Free Play flows on one device: mulligan, search, scry, by-hand cards, discard, win, Free Play, Deck Builder link."""
 import asyncio, os, sys
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(__file__))
@@ -141,29 +141,32 @@ async def freeplay(browser):
     check('no console errors (free play)', not page.errors, str(page.errors[:3]))
     await page.context.close()
 
-async def deck_editor(browser):
+async def deck_builder(browser):
+    """The Deck Builder (deck/) owns the decks: old editor decks move into it once, player setup lists its decks,
+    and Deck Builder ↔ game side keep the calling screen and the seats."""
     page = await new_page(browser, PHONE)
-    await page.click('[data-act="decks"]')
-    await page.wait_for_selector('.deck-editor')
-    await page.fill('#deckName', 'Mono White')
-    await page.fill('#deckList', FIX['decks']['white']['list'])
-    await page.click('[data-act="pick-cmd"][data-slot="1"]')
-    await page.wait_for_selector('.modal .option')
-    check('commander picker lists the legendary creature', 'Isamaru' in await page.locator('.modal .option-list').text_content())
-    await page.locator('.modal .option').first.click()
-    await page.fill('#cardSearch', 'Serra'); await page.click('[data-act="search"]'); await page.wait_for_selector('[data-act="add-card"]')
-    await page.screenshot(path=f'{OUT}phone-deck-editor.png')
-    await page.click('[data-act="validate"]'); await page.wait_for_selector('.deck-analytics-panel')
-    status = await page.locator('#deckStatus').text_content()
-    check('deck validates as legal', 'Commander legal' in status, status)
-    await page.click('[data-act="save"]'); await page.wait_for_selector('.deck-editor__saved .option')
-    check('deck saved and listed', 'Mono White' in await page.locator('.deck-editor__saved').text_content())
-    await page.screenshot(path=f'{OUT}phone-deck-editor-saved.png')
-    # Saved deck is offered in player setup
-    await page.click('[data-act="back"]'); await page.click('[data-act="start"]'); await page.click('[data-mode="fully-tracked"]'); await page.click('[data-play="local"]')
+    white = FIX['decks']['white']
+    await page.evaluate("""(w) => {
+      localStorage.setItem('ccv07-decks', JSON.stringify([{ id: 'old1', name: 'Mono White', commander1: w.commander, commander2: '', deckList: w.list }]));
+      localStorage.removeItem('dc.profile'); localStorage.removeItem('cc.decksMoved');
+    }""", white)
+    await page.reload(); await page.wait_for_function('window.__ccReady === true', timeout=15000)
+    moved = await page.evaluate("JSON.parse(localStorage.getItem('dc.profile') || 'null')")
+    check('old editor deck moved into the Deck Builder', bool(moved) and any(d['id'] == 'cc-old1' and d['commander'] == white['commander'] for d in moved['decks']), str(moved)[:200])
+    await page.reload(); await page.wait_for_function('window.__ccReady === true', timeout=15000)
+    count = await page.evaluate("JSON.parse(localStorage.getItem('dc.profile')).decks.filter(d => d.id === 'cc-old1').length")
+    check('a deck moves only once', count == 1, str(count))
+    await page.click('[data-act="start"]'); await page.click('[data-mode="fully-tracked"]'); await page.click('[data-play="local"]')
     await page.click('[data-seat-act="saved"]'); await page.locator('.modal [data-deck]').first.click()
-    check('saved deck fills the commander', await page.input_value('[data-field="commander1"]') == 'Isamaru, Hound of Konda')
-    check('no console errors (deck editor)', not page.errors, str(page.errors[:3]))
+    check('saved deck fills the commander', await page.input_value('[data-field="commander1"]') == white['commander'])
+    check('no console errors (decks)', not page.errors, str(page.errors[:3]))
+    await page.click('[data-act="deck-builder"]')
+    await page.wait_for_url('**/deck/'); await page.wait_for_selector('.top [data-act="cc-home"]')
+    check('Deck Builder opens with the Commander Companion header', 'DECK BUILDER' in (await page.locator('.brand').text_content()).upper())
+    await page.click('[data-act="cc-home"]')
+    await page.wait_for_function('window.__ccReady === true', timeout=15000)
+    check('Home returns to player setup', await page.evaluate("document.getElementById('app').dataset.screen") == 'player-setup')
+    check('the seat keeps its deck after the round trip', await page.input_value('[data-field="commander1"]') == white['commander'])
     await page.context.close()
 
 async def main():
@@ -172,7 +175,7 @@ async def main():
         which = sys.argv[1] if len(sys.argv) > 1 else 'all'
         if which in ('all', 'guided'): await guided(browser)
         if which in ('all', 'freeplay'): await freeplay(browser)
-        if which in ('all', 'decks'): await deck_editor(browser)
+        if which in ('all', 'decks'): await deck_builder(browser)
         await browser.close()
     print(f'{sum(results)}/{len(results)} passed')
     sys.exit(0 if all(results) else 1)

@@ -18,6 +18,7 @@ addEventListener('resize', () => {
   } else fitWork();
 });
 loadLocal();
+ccAdoptName();
 if (!S.profile.decks.length) {
   exampleDeck();
   S.profile.example = true;

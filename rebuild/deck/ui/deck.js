@@ -1346,7 +1346,7 @@ function themeBuildBox() {
     cols = g.tcol || [],
     tribe = g.ttribe || '';
   let h =
-    '<div class="grp" id="themebuild"><span class="lab">Or start from a theme</span><p class="note" style="margin:0">Pick what the deck should do. Deck Companion suggests the commanders that build around it best, then designs the deck with that theme first.</p><div class="row" role="group" aria-label="Theme">' +
+    '<div class="grp" id="themebuild"><span class="lab">Or start from a theme</span><p class="note" style="margin:0">Pick what the deck should do. The Deck Builder suggests the commanders that build around it best, then designs the deck with that theme first.</p><div class="row" role="group" aria-label="Theme">' +
     themeKeys()
       .map(
         t =>
@@ -1517,7 +1517,7 @@ function openGenerate() {
     c = find(g.cmd),
     st = detectStrategy(c);
   let h =
-    '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature and how to build it. Deck Companion builds the full 100 cards straight into a new deck, then offers upgrades from there.</p>' +
+    '<div class="panel" role="dialog" aria-label="Generate from a commander"><div class="ph"><h2>Generate from a commander</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Pick any legendary creature and how to build it. The Deck Builder builds the full 100 cards straight into a new deck, then offers upgrades from there.</p>' +
     '<div class="grp"><label class="lab" for="gen-q">Commander</label><div class="dd"><input type="search" id="gen-q" placeholder="Search commanders" autocomplete="off"><div class="ddl" id="gen-res" hidden></div></div></div>';
   if (c)
     h +=
@@ -1826,7 +1826,7 @@ function openSeed() {
   const I = seedInfo(),
     g = S.gen;
   let h =
-    '<div class="panel full" role="dialog" aria-label="Generate from cards"><div class="ph"><h2>Generate from cards</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Add any number of cards you want in the deck. Deck Companion works out their colors and what they do, suggests commanders that fit, then designs the strongest build around them, with Mid and Budget stand-ins for each expensive card. Nothing goes into the decklist until you add it.</p>' +
+    '<div class="panel full" role="dialog" aria-label="Generate from cards"><div class="ph"><h2>Generate from cards</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><p class="note" style="margin:0">Add any number of cards you want in the deck. The Deck Builder works out their colors and what they do, suggests commanders that fit, then designs the strongest build around them, with Mid and Budget stand-ins for each expensive card. Nothing goes into the decklist until you add it.</p>' +
     '<div class="grp"><label class="lab" for="seed-q">Cards you want to play</label><div class="dd"><input type="search" id="seed-q" placeholder="Search for a card to add" autocomplete="off"><div class="ddl" id="seed-res" hidden></div></div>' +
     (S.seed.paste
       ? '<textarea id="seed-text" placeholder="1 Doubling Season&#10;1 Craterhoof Behemoth"></textarea><div class="row"><button class="btn sm pri" data-act="seed-paste-go">Add these cards</button></div>'

@@ -1,5 +1,6 @@
 import { html, setHtml, on } from '../dom.js';
 import { go } from '../../app/router.js';
+import { openDeckBuilder } from '../../data/deck-builder.js';
 import { VERSION } from '../../version.js';
 import { loadRecord } from '../../data/store.js';
 import { TRACKER_SAVE_KEY } from '../../game/tracker.js';
@@ -48,7 +49,7 @@ export const landingScreen = {
         case 'start': return go('mode-select');
         case 'continue': return resume ? go(resume.screen, { resume: true }) : toast('No saved game yet.');
         case 'profile': return go('profile');
-        case 'decks': return go('deck-editor');
+        case 'decks': return openDeckBuilder({ screen: 'landing' });
         case 'settings': return openSettings();
         case 'help': return openJudge();
       }
