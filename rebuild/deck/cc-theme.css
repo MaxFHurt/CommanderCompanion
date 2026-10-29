@@ -30,7 +30,7 @@ h1, h2, h3 { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800
 
 /* Metal frame (the game side's .panel and pop-ups). */
 .panel, .top, .modal .panel, .tile.big {
-  border: solid transparent; border-width: 8px 9.5px; border-radius: 0;
+  border: solid transparent; border-width: 5px 9.5px; border-radius: 0;
   border-image: var(--cc-frame-large) 34 70 34 70 / 18.5px 38.5px stretch;
   background: rgba(12, 8, 24, 0.88) padding-box;
   box-shadow: none;
@@ -66,7 +66,7 @@ h1, h2, h3 { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800
 }
 .btn:hover, .nav button:not(.cc-home):hover { border-color: transparent; box-shadow: none; filter: brightness(1.25); }
 .btn:active:not([disabled]), .nav button:active { filter: brightness(1.4); }
-.btn.sm { border-width: 5px 9px; border-image-width: 5px 9px; padding: 0 2px; font-size: 12.5px; line-height: 1.05; }
+.btn.sm { border-width: 5px 9px; border-image-width: 5px 9px; padding: 0 2px; font-size: 12.5px; line-height: 1.05; min-height: 24px; }   /* 24px: the smallest touch target (WCAG 2.2) */
 .btn.pri { background: none; box-shadow: none; filter: hue-rotate(-145deg) saturate(1.25); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
 .btn.pri:hover { filter: hue-rotate(-145deg) saturate(1.25) brightness(1.25); }
 .btn.danger { color: var(--ink); filter: hue-rotate(88deg) saturate(1.5); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
@@ -112,3 +112,5 @@ a { color: var(--glow); }
   .nav button:not(.cc-home) { font-size: 11px; border-width: 6px 8px; border-image-width: 6px 8px; }
 }
 .tab { font-family: var(--label); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Touch screens: framed buttons stay comfortable to tap, as the page's own touch rules intend. */
+@media (pointer: coarse) { .btn, .btn.sm { min-height: 30px; } }
