@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.35**. Build 36 (iPhone frame) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v36`).
+- Live build: **1.0.0-rebuild.36**. Build 37 (one-off spells: Brainstorm, Ponder, Arcane Denial, Mana Drain, Force of Will, Farewell, Growth Spiral …) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v37`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -123,6 +123,15 @@ what each part does, the owner's rules, open notes, and the roadmap.
   "untap up to N lands" (`upTo` on card-selection), "can't be countered" (respected by counter-spell), several
   keywords on one target, "Non-Human creatures you control get …", "return all attacking creatures …",
   "it deals N damage to you" (`toController`).
+- **One-off spells (build 37):** Brainstorm (`hand-to-top` + 'brainstorm' gather: arrange with `pick`), Ponder /
+  "put them back in any order" (scry `reorderOnly`), "You may shuffle." ('yes-no'), Sensei's Top
+  (`source-to-library-top`); delayed effects ("at the beginning of the next turn's upkeep", "At the beginning of
+  your next main phase, …") become `{ kind: 'delay' }` → `game.delayedTriggers`, fired by `dueDelayedTriggers`
+  in triggers.js (Arcane Denial, Mana Drain with `counteredManaValue`); modal "Choose one or more" (Farewell) and
+  "you may choose both instead" with a commander (`modalSpellSpec` → `oneOrMore`, `commanderBoth`); Force of Will's
+  alternative cost (cast mode 'force-exile', `exileFromHandForCost`); Growth Spiral (`hand-to-battlefield` +
+  'hand-card' gather). An instant or sorcery now goes to the graveyard after its effects (608.2n), so Farewell's
+  "Exile all graveyards" no longer takes the spell itself.
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -273,7 +282,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 9. Roadmap
 
-**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (681 of 1,000 automatic).
+**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (693 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
 2. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):

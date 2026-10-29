@@ -556,9 +556,21 @@ export function orderTriggersAPNAP(game, rows = []) {
   const rank = new Map(controllerOrder.map((id, i) => [id, i]));
   return rows.map((row, index) => ({ row, index })).filter(x => rank.has(x.row.controllerId)).sort((a, b) => (rank.get(a.row.controllerId) - rank.get(b.row.controllerId)) || (a.index - b.index)).map(x => x.row);
 }
+/** Delayed triggers left by spells (Arcane Denial, Mana Drain) whose moment has come. */
+function dueDelayedTriggers(game, event) {
+  const due = [], keep = [];
+  for (const d of game.delayedTriggers || []) {
+    const w = d.when || {};
+    const ready = event.type === w.event && Number(game.turnNumber || 0) > Number(w.afterTurn || 0) && (w.whose !== 'owner' || event.playerId === d.ownerId);
+    (ready ? due : keep).push(d);
+  }
+  if (!due.length) return [];
+  game.delayedTriggers = keep;
+  return due.map(d => ({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: d.controllerId, sourceId: d.sourceId, sourceDefinitionId: d.sourceDefinitionId, sourceName: d.sourceName, abilityId: d.id, abilityText: `${d.sourceName}: delayed effect`, effectText: '', modal: null, compiled: { supported: true, effects: d.effects, requirements: d.requirements || [], unsupported: [] }, event: structuredClone(event), createdAt: new Date().toISOString() }));
+}
 export function queueTriggers(game, event) {
   recordStat(game, event);
-  const collected = collectTriggers(game, event);
+  const collected = [...dueDelayedTriggers(game, event), ...collectTriggers(game, event)];
   if (!collected.length)
     return collected;
   const batchId = `trigger-batch:${Date.now()}:${Math.random()}`, ordered = orderTriggersAPNAP(game, collected);

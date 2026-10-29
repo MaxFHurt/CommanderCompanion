@@ -471,6 +471,44 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (top && isPermanent(td)) { moveCard(game, top.instanceId, 'battlefield', { controllerId: owner.playerId, onEvent: e => emit(bindings, e) }); notes.push(`${td.name} is put onto the battlefield.`); }
       continue;
     }
+    if (effect.kind === 'hand-to-battlefield') {
+      const id = bindings[effect.bind], i = controller.deck.hand.findIndex(c => c.instanceId === id);
+      if (i < 0) { notes.push('No land was put onto the battlefield.'); continue; }
+      moveCard(game, id, 'battlefield', { controllerId, onEvent: e => emit(bindings, e) });
+      notes.push(`${controller.displayName} puts ${cardName(game, locateCardInGame(game, id)?.card)} onto the battlefield.`);
+      continue;
+    }
+    if (effect.kind === 'hand-to-top') {
+      // Brainstorm: the chosen cards (now in hand) go on top, the first chosen on the very top.
+      const ids = [...(bindings[effect.bind]?.top || [])];
+      for (const id of ids.reverse()) {
+        const i = controller.deck.hand.findIndex(c => c.instanceId === id);
+        if (i < 0) continue;
+        const [card] = controller.deck.hand.splice(i, 1);
+        card.zone = 'library';
+        controller.deck.remainingLibrary.unshift(card);
+      }
+      notes.push(`${controller.displayName} puts ${ids.length} card${ids.length === 1 ? '' : 's'} back on top of their library.`);
+      continue;
+    }
+    if (effect.kind === 'source-to-library-top') {
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (hit && hit.zone === 'battlefield') { moveCard(game, bindings.sourceId, 'library', { position: 'top', onEvent: e => emit(bindings, e) }); notes.push(`${cardName(game, hit.card)} goes on top of its owner's library.`); }
+      continue;
+    }
+    if (effect.kind === 'delay') {
+      // Leave a delayed trigger. Amounts known now are fixed now; "its controller …" decides who it belongs to.
+      const owner = effect.effects.find(e => e.forPlayerBind) ? bindings[effect.effects.find(e => e.forPlayerBind).forPlayerBind] : controllerId;
+      const fixed = effect.effects.map(e => {
+        const out = { ...e, forPlayerBind: null };
+        if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'binding' && bindings[e.amount.bind] !== undefined) out.amount = Number(bindings[e.amount.bind] || 0);
+        return out;
+      });
+      const src = locateCardInGame(game, bindings.sourceId)?.card || (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId)?.card;
+      game.delayedTriggers = [...(game.delayedTriggers || []), { id: `delayed:${Date.now()}:${Math.random()}`, controllerId: owner || controllerId, ownerId: controllerId, when: { ...effect.when, afterTurn: game.turnNumber }, effects: fixed, requirements: effect.requirements || [], sourceId: bindings.sourceId || null, sourceDefinitionId: src?.definitionId || null, sourceName: (src && cardName(game, src)) || 'Delayed effect' }];
+      notes.push(`${cardName(game, src) || 'It'} will do the rest ${effect.when.event === 'upkeep' ? "at the next turn's upkeep" : effect.when.event === 'end-step' ? 'at the next end step' : 'at the next main phase'}.`);
+      continue;
+    }
     if (effect.kind === 'their-search') continue;   // done by ops.js as the spell resolves (it asks that player)
     // "… unless that player pays {1}": ops.js asked them before resolving; if they paid, skip what follows.
     if (effect.kind === 'unless-pays') {
@@ -1188,10 +1226,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const [obj] = game.stack.splice(i, 1);
       if (obj.kind !== 'spell')
         throw new Error('The chosen stack object is not a spell.');
+      bindings.counteredManaValue = Number(definitionFor(game, obj.card)?.manaValue ?? definitionFor(game, obj.card)?.cmc ?? 0);   // Mana Drain
       const owner = ownerFor(game, obj.card, game.players.find(p => p.playerId === obj.controllerId));
-      obj.card.zone = 'graveyard';
+      const where = effect.exile ? 'exile' : 'graveyard';   // Force of Negation exiles it
+      obj.card.zone = where;
       obj.card.controllerId = owner.playerId;
-      owner.deck.graveyard.push(obj.card);
+      owner.deck[where].push(obj.card);
       notes.push(`${obj.label || cardName(game, obj.card)} is countered.`);
       emit(bindings, { type: 'spell-countered', sourceId: obj.card.instanceId, definitionId: obj.card.definitionId, controllerId: obj.controllerId });
       continue;
@@ -1439,7 +1479,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Damage, fight.
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player or planeswalker|target opponent or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return { effects, requirements, unsupported };
@@ -1682,6 +1722,16 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   if (/^This spell can'?t be countered\.?$/i.test(c)) return { effects, requirements, unsupported };
+  if ((m = c.match(/^(?:You may )?Draw up to (one|two|three|four|\d+) cards\.?$/i))) {
+    const bind = `number${requirements.length}`, max = numberFromText(m[1]);
+    requirements.push({ kind: 'number', bind, min: 0, max, label: `Draw how many cards (0–${max})?` });
+    effects.push({ kind: 'draw', scope: 'you', amount: { kind: 'binding', bind } });
+    return { effects, requirements, unsupported };
+  }
+  if (/^Add an amount of \{C\} equal to that spell'?s mana value\.?$/i.test(c)) {
+    effects.push({ kind: 'add-mana', color: 'C', amount: { kind: 'binding', bind: 'counteredManaValue' } });
+    return { effects, requirements, unsupported };
+  }
   // "It deals 1 damage to you." (City of Brass, Mana Vault)
   if ((m = c.match(new RegExp(`^(?:This (?:artifact|creature|land|enchantment|permanent)|It|~|${String(sourceName || '~').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}) deals (one|two|three|\\d+) damage to you\\.?$`, 'i')))) {
     effects.push({ kind: 'damage', amount: numberFromText(m[1]), toController: true, sourceName });
@@ -2003,8 +2053,19 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
   const clauses = splitSentences(raw);
   const parts = [];
   let skipNextClause = false;
-  for (const clause of clauses) {
+  // "… at the beginning of the next turn's upkeep" / "At the beginning of your next main phase, …": the clause is
+  // compiled as usual, then its effects are wrapped in a delayed trigger (marks are closed when the next clause starts).
+  const delays = [];
+  const closeDelay = () => { const d = delays[delays.length - 1]; if (d && d.to === undefined) d.to = parts.length; };
+  for (let clause of clauses) {
+    closeDelay();
     if (skipNextClause) { skipNextClause = false; continue; }
+    let dm = clause.match(/^(.+?),? at the beginning of the next turn'?s upkeep\.?$/i);
+    if (dm) { delays.push({ from: parts.length, when: { event: 'upkeep', whose: 'any' } }); clause = `${dm[1]}.`; }
+    else if ((dm = clause.match(/^At the beginning of (your|the) next (upkeep|main phase|precombat main phase|end step),\s*(.+)$/i))) {
+      delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any' } });
+      clause = dm[3].charAt(0).toUpperCase() + dm[3].slice(1);
+    }
     // "that much": the amount from the event that triggered this (life gained, damage dealt).
     if (/\bthat much\b/i.test(clause) && !/\bX\b/.test(clause)) {
       const c = compileSingleClause(clause.replace(/\bthat much\b/gi, 'X'), { sourceName });
@@ -2045,6 +2106,42 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
           continue;
         }
       }
+    }
+    // Force of Negation: "If that spell is countered this way, exile it instead of putting it into its owner's graveyard."
+    if (/^If that spell is countered this way, exile it instead of putting it into its owner'?s graveyard\.?$/i.test(clause)) {
+      const cs = [...parts].reverse().flatMap(p => p.effects).find(e => e.kind === 'counter-spell');
+      if (cs) { cs.exile = true; continue; }
+    }
+    // Growth Spiral: "You may put a land card from your hand onto the battlefield." (the card just drawn counts too)
+    if (/^You may put a land card from your hand onto the battlefield\.?$/i.test(clause)) {
+      const drawn = parts.flatMap(p => p.effects).filter(e => e.kind === 'draw' && typeof e.amount === 'number' && (e.scope || 'you') === 'you').reduce((n, e) => n + e.amount, 0);
+      const bind = `handLand${parts.length}`;
+      parts.push({ effects: [{ kind: 'hand-to-battlefield', bind, optionalTarget: true }], requirements: [{ kind: 'hand-card', bind, filter: 'land', plusDraw: drawn, label: 'a land card to put onto the battlefield' }], unsupported: [] });
+      continue;
+    }
+    // Brainstorm: "Draw three cards, then put two cards from your hand on top of your library in any order."
+    const storm = clause.match(/^Draw (two|three|four|\d+) cards?,? then put (one|two|three|a|\d+) cards? from your hand on top of your library in any order\.?$/i);
+    if (storm) {
+      const bind = `brainstorm${parts.length}`, draw = numberFromText(storm[1]), put = numberFromText(storm[2]) ?? 1;
+      parts.push({ effects: [{ kind: 'draw', scope: 'you', amount: draw }, { kind: 'hand-to-top', bind }], requirements: [{ kind: 'brainstorm', bind, draw, put, label: `put ${put} back` }], unsupported: [] });
+      continue;
+    }
+    // Ponder, Sensei's Divining Top: "Look at the top three cards of your library, then put them back in any order."
+    const look = clause.match(/^Look at the top (two|three|four|five|\d+) cards of your library,? then put them back in any order\.?$/i);
+    if (look) {
+      const bind = `reorder${parts.length}`, amount = numberFromText(look[1]);
+      parts.push({ effects: [{ kind: 'scry', scope: 'you', amount, bind }], requirements: [{ kind: 'scry', bind, amount, reorderOnly: true, label: `top ${look[1]} cards` }], unsupported: [] });
+      continue;
+    }
+    if (/^You may shuffle(?: your library)?\.?$/i.test(clause)) {
+      const bind = `mayShuffle${parts.length}`;
+      parts.push({ effects: [{ kind: 'shuffle', optional: true, optionalBind: bind, label: 'Shuffle' }], requirements: [{ kind: 'yes-no', bind, label: 'Shuffle your library?' }], unsupported: [] });
+      continue;
+    }
+    // Sensei's Divining Top: "Draw a card, then put this artifact on top of its owner's library."
+    if (/^Draw a card,? then put (?:this artifact|~|it) on top of its owner'?s library\.?$/i.test(clause)) {
+      parts.push({ effects: [{ kind: 'draw', scope: 'you', amount: 1 }, { kind: 'source-to-library-top' }], requirements: [], unsupported: [] });
+      continue;
     }
     // Wheels: "Each player discards their hand, then draws seven cards." / "… draws cards equal to the greatest number …"
     const wheel = clause.match(/^Each player discards their hand,? then draws (seven|\d+) cards\.?$/i) || clause.match(/^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i);
@@ -2107,7 +2204,7 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     }
     // "Its controller creates a 3/3 green Beast creature token." (Beast Within, Swan Song, Pongify): the same
     // instruction, done for whoever controlled the earlier target.
-    const theirs = clause.match(/^(?:Its|That (?:creature|permanent|spell|card)'s) controller (creates|draws|gains|loses|mills|discards|scries|surveils) (.+)$/i)
+    const theirs = clause.match(/^(?:Its|That (?:creature|permanent|spell|card)'s) controller (?:may )?(creates|draws|draw|gains|loses|mills|discards|scries|surveils) (.+)$/i)
       || clause.match(/^(?:That player|Its owner) (creates|draws|gains|loses|mills|discards) (.+)$/i);
     const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target' || r.kind === 'stack-target');
     if (theirs && !earlier && /^That player/i.test(clause)) {
@@ -2140,6 +2237,12 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
       }
     }
     parts.push(single);
+  }
+  closeDelay();
+  for (const d of delays.reverse()) {
+    const inner = mergeCompiled(parts.slice(d.from, d.to));
+    if (inner.unsupported.length || !inner.effects.length) continue;
+    parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
   const merged = mergeCompiled(parts);
   // X must be chosen unless a caller already binds it from an X cost.

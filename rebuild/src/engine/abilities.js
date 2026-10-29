@@ -30,17 +30,21 @@ export function entersWithCountersSpec(definition) {
 }
 export function modalSpellSpec(definition) {
   const text = oracle(definition).trim();
-  const m = text.match(/^Choose\s+(one|two|three|four|five|\d+)\s*[—-]\s*([\s\S]+)$/i);
+  // "Choose one —", "Choose one or more —" (Farewell), "Choose one. If you control a commander as you cast this
+  // spell, you may choose both instead." (Jeska's Will, Akroma's Will).
+  const m = text.match(/^Choose\s+(one or more|one|two|three|four|five|\d+)\s*(?:[—-]|\.\s*(If you control a commander as you cast this spell, you may choose both instead\.))\s*([\s\S]+)$/i);
   if (!m)
     return null;
   const words = { one: 1, two: 2, three: 3, four: 4, five: 5 };
-  const count = Number(m[1]) || words[m[1].toLowerCase()] || 1;
+  const oneOrMore = /one or more/i.test(m[1]);
+  const count = oneOrMore ? 1 : Number(m[1]) || words[m[1].toLowerCase()] || 1;
+  m[2] = m[3];
   const modes = [...text.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim());
   if (!modes.length) {
     const tail = m[2].split(/\s*[;•]\s*/).map(x => x.trim()).filter(Boolean);
     modes.push(...tail);
   }
-  return { count, modes, compiledModes: modes.map(mode => compileEffectText(mode, { sourceName: definition?.name || 'Modal spell' })) };
+  return { count, oneOrMore, commanderBoth: !!m[2] && !oneOrMore && /choose both/i.test(text), modes, compiledModes: modes.map(mode => compileEffectText(mode, { sourceName: definition?.name || 'Modal spell' })) };
 }
 export function activatedAbilitySupport(definition, ability) {
   if (!ability)

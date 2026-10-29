@@ -246,6 +246,14 @@ function putSpellOnStack(game, player, action, deck) {
     if (/Creature/i.test(def?.typeLine || ''))
       emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, last });
   }
+  if (action.exileFromHandForCost) {
+    const i = deck.hand.findIndex(c => c.instanceId === action.exileFromHandForCost);
+    if (i < 0)
+      throw new Error('The card chosen to exile is gone.');
+    const [gone] = deck.hand.splice(i, 1);
+    gone.zone = 'exile';
+    deck.exile.push(gone);
+  }
   if (action.lifeForCost) {
     if (player.life < action.lifeForCost)
       throw new Error('Not enough life to pay this cost.');
@@ -454,14 +462,20 @@ function resolveStackTop(game) {
       if (obj.manaCapacityColor)
         card.manaCapacityColor = obj.manaCapacityColor;
     }
-    if (!isCopy) {
+    // A permanent spell enters before its effects; an instant or sorcery goes to its graveyard as the last step of
+    // resolving (608.2n), so "Exile all graveyards" (Farewell) does not take the spell itself.
+    const place = () => {
       const owner = ownerFor(game, card, player), target = (to === 'battlefield' ? player.deck : owner.deck)[zoneKey(to)];
       if (!target)
         throw new Error('Invalid spell destination');
       target.push(card);
-    }
+    };
+    if (!isCopy && to === 'battlefield')
+      place();
     applySearchResult(game, player, obj);
     notes.push(...applyTrackedEffects(game, player, obj.effects || [], { ...obj.effectBindings, sourceId: card.instanceId }));
+    if (!isCopy && to !== 'battlefield')
+      place();
     if (!isCopy && to === 'battlefield')
       emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: def?.typeLine || '' });
     if (!isCopy && to !== 'battlefield') {

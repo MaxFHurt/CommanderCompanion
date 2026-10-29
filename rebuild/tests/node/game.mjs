@@ -991,4 +991,126 @@ section('more effects: conditions, up to one target, wheels, devotion, flicker, 
     check('Aetherize: the attacking creature returns to its owner’s hand', !t.bf(0, 'Grizzly Bears') && t.P(0).deck.hand.some(c => t.game.cardDefinitions[c.definitionId]?.name === 'Grizzly Bears'));
   }
 }
+section('library tricks: Brainstorm, Ponder, Sensei’s Divining Top');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const setup = () => { const t = newGame(['simic', 'simic']); t.keepAll(); for (let i = 0; i < 3; i++) t.give(0, 'Island', 'battlefield'); t.autoPass = false; return t; };
+  const answerAll = (t, fn) => { for (let g = 0; g < 20; g++) { t.passAll(); const d = t.decision(); if (!d) break; const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: fn(d) }, { playerId: d.playerId, isHost: false }); if (!r.ok) throw new Error(`${d.key}: ${r.error}`); } };
+  // Brainstorm: hand + the three cards about to be drawn are shown; the two chosen go back, first chosen on top.
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears'); t.give(0, 'Llanowar Elves'); t.give(0, 'Opt');
+    const spell = asText(t, t.hand(0, 'Opt'), 'Draw three cards, then put two cards from your hand on top of your library in any order.');
+    const coming = t.P(0).deck.remainingLibrary.slice(0, 3).map(c => c.instanceId);
+    const bear = t.hand(0, 'Grizzly Bears').instanceId, elf = t.hand(0, 'Llanowar Elves').instanceId;
+    let seen = null;
+    t.ctl.dispatch({ type: 'play', instanceId: spell.instanceId }, t.as(0));
+    answerAll(t, d => { if (d.kind === 'arrange') { seen = d; return { top: [elf, bear], other: d.cards.map(c => c.id).filter(id => id !== elf && id !== bear) }; } return d.options?.[0]?.id ?? true; });
+    check('Brainstorm shows your hand and the three cards you will draw', seen && coming.every(id => seen.cards.some(c => c.id === id)) && seen.pick === 2, JSON.stringify(seen && seen.cards.map(c => c.sub)));
+    const lib = t.P(0).deck.remainingLibrary;
+    check('…draws three and puts the two chosen back, first chosen on top', lib[0].instanceId === elf && lib[1].instanceId === bear && coming.every(id => t.P(0).deck.hand.some(c => c.instanceId === id)));
+  }
+  // Ponder: reorder the top three (no bottom pile), don't shuffle, draw the new top card.
+  {
+    const t = setup(); t.give(0, 'Opt');
+    const spell = asText(t, t.hand(0, 'Opt'), 'Look at the top three cards of your library, then put them back in any order. You may shuffle. Draw a card.');
+    const top3 = t.P(0).deck.remainingLibrary.slice(0, 3).map(c => c.instanceId);
+    let arrange = null;
+    t.ctl.dispatch({ type: 'play', instanceId: spell.instanceId }, t.as(0));
+    answerAll(t, d => (d.kind === 'arrange' ? (arrange = d, { top: [...top3].reverse(), other: [] }) : d.kind === 'confirm' ? false : d.options?.[0]?.id));
+    check('Ponder: put them back in any order (no bottom pile)', arrange && !arrange.otherLabel);
+    check('…then draw the card chosen for the top', t.P(0).deck.hand.some(c => c.instanceId === top3[2]) && t.P(0).deck.remainingLibrary[0].instanceId === top3[1]);
+  }
+  // Sensei's Divining Top: {T}: Draw a card, then put this artifact on top of its owner's library.
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield');
+    const top = asText(t, t.bf(0, 'Grizzly Bears'), "{1}: Look at the top three cards of your library, then put them back in any order.\n{T}: Draw a card, then put this artifact on top of its owner's library.", { name: "Sensei's Divining Top", typeLine: 'Artifact' });
+    t.end(0); t.end(1); t.autoPass = false;
+    const abilities = t.view(0).players[0].battlefield.find(c => c.id === top.instanceId).abilities;
+    const draw = abilities.find(a => /Draw a card/.test(a.text || ''));
+    const hand = t.P(0).deck.hand.length;
+    t.ctl.dispatch({ type: 'activate', instanceId: top.instanceId, abilityId: draw.id }, t.as(0));
+    answerAll(t, d => d.options?.[0]?.id ?? true);
+    check("Sensei's Top: draw a card, then the Top goes on top of your library", t.P(0).deck.hand.length === hand + 1 && t.P(0).deck.remainingLibrary[0].instanceId === top.instanceId, `${hand} → ${t.P(0).deck.hand.length}`);
+  }
+}
+section('delayed effects: Arcane Denial, Mana Drain');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const answerAll = (t, fn) => { for (let g = 0; g < 30; g++) { t.passAll(); const d = t.decision(); if (!d) break; const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: fn(d) }, { playerId: d.playerId, isHost: false }); if (!r.ok) throw new Error(`${d.key}: ${r.error}`); } };
+  // P2 casts Llanowar Elves on their turn; P1 responds with the counterspell.
+  const counterOnTheirTurn = text => {
+    const t = newGame(['simic', 'simic']); t.keepAll();
+    t.give(0, 'Island', 'battlefield'); t.give(0, 'Island', 'battlefield'); t.give(0, 'Counterspell');
+    asText(t, t.hand(0, 'Counterspell'), text);
+    t.give(1, 'Forest', 'battlefield'); t.give(1, 'Llanowar Elves');
+    t.end(0); t.autoPass = false;
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Llanowar Elves').instanceId }, t.as(1));
+    for (let g = 0; g < 5 && t.game.flow.priority?.holderId !== t.P(0).playerId; g++) t.ctl.dispatch({ type: 'pass' }, { playerId: t.game.flow.priority.holderId, isHost: false });
+    const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Counterspell').instanceId }, t.as(0));
+    if (!r.ok) throw new Error(r.error);
+    return t;
+  };
+  {
+    const t = counterOnTheirTurn("Counter target spell. Its controller may draw up to two cards at the beginning of the next turn's upkeep. You draw a card at the beginning of the next turn's upkeep.");
+    answerAll(t, d => d.options?.find(o => /Llanowar/.test(o.label))?.id ?? d.options?.[0]?.id ?? true);
+    check('Arcane Denial counters the spell now', t.P(1).deck.graveyard.some(c => t.game.cardDefinitions[c.definitionId]?.name === 'Llanowar Elves'));
+    const h0 = t.P(0).deck.hand.length, h1 = t.P(1).deck.hand.length;
+    let asked = null;
+    t.autoPass = true; t.ctl.dispatch({ type: 'end-turn' }, t.as(1));
+    answerAll(t, d => { if (d.kind === 'number') { asked = d; return 2; } return d.options?.[0]?.id ?? true; });
+    t.discardIfNeeded(1);
+    check('…at the next upkeep its controller is asked how many to draw (up to two)', asked?.playerId === t.P(1).playerId && asked.max === 2, JSON.stringify(asked && [asked.playerId, asked.max]));
+    check('…they draw two, and you draw one more (plus your normal draw)', t.P(1).deck.hand.length === h1 + 2 && t.P(0).deck.hand.length === h0 + 2, `${h0}→${t.P(0).deck.hand.length} ${h1}→${t.P(1).deck.hand.length}`);
+  }
+  {
+    const t = counterOnTheirTurn("Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.");
+    answerAll(t, d => d.options?.find(o => /Llanowar/.test(o.label))?.id ?? d.options?.[0]?.id ?? true);
+    t.autoPass = true; t.ctl.dispatch({ type: 'end-turn' }, t.as(1));
+    answerAll(t, d => d.options?.[0]?.id ?? true);
+    for (let g = 0; g < 4 && t.game.phase !== 'precombat-main'; g++) { t.passAll(); answerAll(t, d => d.options?.[0]?.id ?? true); }
+    answerAll(t, d => d.options?.[0]?.id ?? true);
+    check('Mana Drain: at your next main phase you get {C} equal to the countered spell (1)', Number(t.P(0).mana?.available?.C || 0) === 1, JSON.stringify(t.P(0).mana?.available));
+  }
+}
+section('modal "both" with a commander, "one or more", Force of Will, Growth Spiral');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const answerAll = (t, fn) => { for (let g = 0; g < 30; g++) { t.passAll(); const d = t.decision(); if (!d) break; const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: fn(d) }, { playerId: d.playerId, isHost: false }); if (!r.ok) throw new Error(`${d.key}: ${r.error}`); } };
+  const setup = () => { const t = newGame(['simic', 'simic']); t.keepAll(); for (let i = 0; i < 4; i++) t.give(0, 'Island', 'battlefield'); t.give(0, 'Grizzly Bears', 'battlefield'); t.autoPass = false; return t; };
+  {
+    const t = setup(); t.give(0, 'Tatyova, Benthic Druid', 'battlefield'); t.give(0, 'Opt');
+    asText(t, t.hand(0, 'Opt'), "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from all colors until end of turn.");
+    let modes = null;
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+    answerAll(t, d => { if (d.key.includes('modes')) { modes = d; return [0, 1]; } return d.options?.[0]?.id ?? true; });
+    const kws = (t.bf(0, 'Grizzly Bears').temporaryEffects || []).map(e => String(e.keyword || '').toLowerCase());
+    check("Akroma's Will: with a commander you may choose both modes", modes?.max === 2 && kws.includes('double strike') && kws.includes('lifelink'), JSON.stringify([modes?.min, modes?.max, kws]));
+  }
+  {
+    const t = setup(); t.give(1, 'Llanowar Elves', 'battlefield'); t.give(0, 'Opt');
+    asText(t, t.hand(0, 'Opt'), 'Choose one or more —\n• Exile all artifacts.\n• Exile all creatures.\n• Exile all enchantments.\n• Exile all graveyards.');
+    let modes = null;
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+    answerAll(t, d => { if (d.key.includes('modes')) { modes = d; return [1, 3]; } return d.options?.[0]?.id ?? true; });
+    check('Farewell: choose one or more modes', modes?.min === 1 && modes?.max === 4 && !t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves'), JSON.stringify([modes?.min, modes?.max]));
+  }
+  {
+    const t = setup(); for (const c of t.P(0).deck.battlefield) c.tapped = true;
+    t.give(0, 'Counterspell'); t.give(0, 'Opt');
+    asText(t, t.hand(0, 'Counterspell'), "You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.\nDraw a card.", { manaCost: '{3}{U}{U}' });
+    const opt = t.hand(0, 'Opt');
+    const hand = t.P(0).deck.hand.length;
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Counterspell').instanceId }, t.as(0));
+    answerAll(t, d => (d.key.includes('castMode') ? 'force-exile' : d.key.includes('exile-blue') ? opt.instanceId : d.options?.[0]?.id ?? true));
+    check('Force of Will: free by paying 1 life and exiling a blue card', t.P(0).life === 39 && t.P(0).deck.exile.some(c => c.instanceId === opt.instanceId) && t.P(0).deck.hand.length === hand - 2 + 1, `${t.P(0).life} ${hand}→${t.P(0).deck.hand.length}`);
+  }
+  {
+    const t = setup(); t.give(0, 'Opt'); t.give(0, 'Forest');
+    asText(t, t.hand(0, 'Opt'), 'Draw a card. You may put a land card from your hand onto the battlefield.');
+    const forest = t.hand(0, 'Forest');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+    answerAll(t, d => (d.key.includes('resolve') ? forest.instanceId : d.options?.[0]?.id ?? true));
+    check('Growth Spiral: a land from your hand onto the battlefield', t.P(0).deck.battlefield.some(c => c.instanceId === forest.instanceId));
+  }
+}
 done();

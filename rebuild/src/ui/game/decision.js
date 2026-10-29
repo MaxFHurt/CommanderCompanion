@@ -107,24 +107,27 @@ export function openDecision(ctx, d, { minimize } = {}) {
       actions: [...boardAction, { label: d.noLabel || 'No', kind: 'cancel', onClick: ({ close }) => answer(false, close) }, { label: d.yesLabel || 'Yes', kind: 'confirm', onClick: ({ close }) => answer(true, close) }]
     });
   } else if (d.kind === 'arrange') {
-    // Each card is kept on top (in the order shown) or sent to the other pile.
-    let top = (d.cards || []).map(c => c.id), other = [];
+    // Each card is kept on top (in the order shown) or sent to the other pile. With no other pile (Ponder), the
+    // cards are only put in order; with d.pick (Brainstorm), exactly that many go on top, starting from none.
+    let top = d.pick ? [] : (d.cards || []).map(c => c.id), other = d.pick ? (d.cards || []).map(c => c.id) : [];
     const draw = el => {
       const row = (id, where, i) => {
         const c = d.cards.find(x => x.id === id), def = ctx.def(c.definitionId);
         return html`<div class="arrange__row">
           ${def ? cardHtml({ id, name: c.label, counters: {} }, def, { act: 'peek', cls: 'card--thumb' }) : ''}
-          <span class="pick__text"><strong>${c.label}</strong><small>${where === 'top' ? `Top — position ${i + 1}` : d.otherLabel}</small></span>
+          <span class="pick__text"><strong>${c.label}</strong><small>${where === 'top' ? `Top — position ${i + 1}` : c.sub || d.otherLabel}</small></span>
           ${where === 'top' && top.length > 1 ? html`<button type="button" class="icon-btn" data-move="up" data-id="${id}">↑</button>` : ''}
-          <button type="button" class="btn btn--small" data-move="${where === 'top' ? 'other' : 'top'}" data-id="${id}">${where === 'top' ? d.otherLabel : 'Keep on top'}</button>
+          ${d.otherLabel ? html`<button type="button" class="btn btn--small" data-move="${where === 'top' ? 'other' : 'top'}" data-id="${id}" ${where === 'other' && d.pick && top.length >= d.pick ? html`disabled` : ''}>${where === 'top' ? d.otherLabel : d.pick ? 'Put on top' : 'Keep on top'}</button>` : ''}
         </div>`;
       };
       setHtml($('[data-arrange]', el), html`${top.map((id, i) => row(id, 'top', i))}${other.map((id, i) => row(id, 'other', i))}`);
+      const ok = $('#arrangeConfirm', el.closest('.modal') || document);
+      if (ok) { ok.disabled = !!d.pick && top.length !== d.pick; ok.textContent = d.pick && top.length !== d.pick ? `Choose ${d.pick - top.length} more` : 'Confirm'; }
     };
     modal = openModal({
       title: d.title || 'Arrange', dismissible: false, size: 'wide',
       body: html`<div class="decision">${promptHtml}<div class="arrange" data-arrange></div></div>`,
-      actions: [{ label: 'Confirm', kind: 'confirm', onClick: ({ close }) => answer({ top, other }, close) }],
+      actions: [{ label: 'Confirm', kind: 'confirm', id: 'arrangeConfirm', onClick: ({ close }) => { if (d.pick && top.length !== d.pick) return; answer({ top, other }, close); } }],
       onMount(el) {
         draw(el);
         on(el, 'click', '[data-move]', (event, b) => {

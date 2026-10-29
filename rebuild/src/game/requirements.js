@@ -304,6 +304,35 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       bindings[req.bind] = ['each-opponent', 'each-player'].includes(req.scope) ? chosen : (chosen[targets[0]?.playerId] || []);
       return;
     }
+    if (req.kind === 'brainstorm') {
+      // Brainstorm: the cards about to be drawn are the top of the library, so the choice can be made now
+      // with exactly what the player will hold: their hand plus those cards.
+      const coming = (player.deck.remainingLibrary || []).slice(0, req.draw);
+      const cards = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId).map(c => cardOption(game, c, player, 'In your hand')), ...coming.map(c => cardOption(game, c, player, 'You draw this'))];
+      const pick = Math.min(req.put, cards.length);
+      if (!pick) { bindings[req.bind] = { top: [] }; return; }
+      const answer = ask(key, () => ({
+        ...base, cancellable: false, kind: 'arrange', private: true, pick, otherLabel: 'Keep in hand',
+        title: `${sourceName} — put ${pick} back`,
+        prompt: `You draw ${plural(coming.length, 'card')}, then put ${plural(pick, 'card')} from your hand on top of your library. Choose them; the first one you choose goes on top.`,
+        cards
+      }));
+      bindings[req.bind] = { top: answer.top || [] };
+      return;
+    }
+    if (req.kind === 'hand-card') {
+      // A card from hand, chosen as it resolves; cards about to be drawn by this effect are offered too.
+      const fits = c => !req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter);
+      const rows = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && fits(c)).map(c => cardOption(game, c, player, 'In your hand')),
+        ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || 0).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
+      if (!rows.length) { bindings[req.bind] = null; return; }
+      bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', private: true, title: `${sourceName} — ${req.label}`, prompt: `You may choose ${req.label}.`, options: rows, allowNone: true, noneLabel: 'None' }));
+      return;
+    }
+    if (req.kind === 'yes-no') {
+      bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'confirm', title: `${sourceName}`, prompt: req.label, yesLabel: 'Yes', noLabel: 'No' }));
+      return;
+    }
     if (req.kind === 'scry' || req.kind === 'surveil') {
       const amount = Math.max(0, requirementAmount(req, bindings));
       const top = (player.deck.remainingLibrary || []).slice(0, amount);
@@ -311,10 +340,10 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       if (!top.length) { bindings[req.bind] = { top: [], [otherZone]: [] }; return; }
       const answer = ask(key, () => ({
         ...base, cancellable: false, kind: 'arrange', private: true,
-        title: `${sourceName} — ${req.kind === 'scry' ? 'Scry' : 'Surveil'} ${amount}`,
-        prompt: `Look at the top ${plural(top.length, 'card')} of your library. Keep cards on top in the order shown, or send them to the ${otherZone === 'bottom' ? 'bottom' : 'graveyard'}.`,
+        title: req.reorderOnly ? `${sourceName} — top ${plural(top.length, 'card')}` : `${sourceName} — ${req.kind === 'scry' ? 'Scry' : 'Surveil'} ${amount}`,
+        prompt: req.reorderOnly ? `Look at the top ${plural(top.length, 'card')} of your library and put them back in any order (top first).` : `Look at the top ${plural(top.length, 'card')} of your library. Keep cards on top in the order shown, or send them to the ${otherZone === 'bottom' ? 'bottom' : 'graveyard'}.`,
         cards: top.map(c => cardOption(game, c, player, 'Top of library')),
-        otherLabel: otherZone === 'bottom' ? 'Bottom of library' : 'Graveyard'
+        otherLabel: req.reorderOnly ? null : otherZone === 'bottom' ? 'Bottom of library' : 'Graveyard'
       }));
       bindings[req.bind] = { top: answer.top || [], [otherZone]: answer.other || [] };
       return;
@@ -401,6 +430,8 @@ export function validateAnswer(decision, value) {
       const top = Array.isArray(value?.top) ? value.top : [], other = Array.isArray(value?.other) ? value.other : [];
       const given = [...top, ...other];
       if (given.length !== all.size || new Set(given).size !== all.size || given.some(id => !all.has(id))) throw new Error('Place every card either on top or in the other pile.');
+      if (decision.pick && top.length !== decision.pick) throw new Error(`Choose exactly ${decision.pick} cards to put on top.`);
+      if (!decision.otherLabel && other.length) throw new Error('Put every card back on top, in the order you want.');
       return { top, other };
     }
     default:

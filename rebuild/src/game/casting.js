@@ -150,7 +150,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -196,6 +196,13 @@ export function castModes(game, player, card, def, base = null) {
   }
   if ((zone === 'hand' || zone === 'command') && /If you control a commander, you may cast this spell without paying its mana cost/i.test(text) && controlsACommander(game, player))
     modes.push({ id: 'commander-free', cost: '' });
+  // Force of Will ("pay 1 life and exile a blue card"), Force of Negation ("if it's not your turn").
+  const forceCost = text.match(/(If it'?s not your turn, )?You may (?:pay (\d+) life and )?exile an? (white|blue|black|red|green) card from your hand rather than pay this spell'?s mana cost/i);
+  if (zone === 'hand' && forceCost && !(forceCost[1] && game.activePlayerId === player.playerId)) {
+    const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[forceCost[3].toLowerCase()];
+    if ((player.deck.hand || []).some(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(color)) && Number(player.life || 0) >= Number(forceCost[2] || 0))
+      modes.push({ id: 'force-exile', cost: '', exileColor: color, lifeCost: Number(forceCost[2] || 0) });
+  }
   if (zone === 'graveyard') {
     const fb = keywordCost(text, 'Flashback');
     if (fb) modes.push({ id: 'flashback', cost: fb, exileAfter: true });

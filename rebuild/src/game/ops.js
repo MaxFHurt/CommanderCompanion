@@ -22,7 +22,7 @@ import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
-import { adjustGeneric, additionalCost, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
+import { adjustGeneric, additionalCost, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
 import { castTriggers } from '../engine/keyword-triggers.js';
 import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
@@ -130,6 +130,7 @@ export function castText(text, { kicked = false, overload = false } = {}) {
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
   t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
+  t = t.replace(/(?:If it'?s not your turn, )?You may (?:pay \d+ life and )?exile an? \w+ card from your hand rather than pay this spell'?s mana cost\.\s*/gi, '');
   t = t.replace(/\s*If (?:this spell|it) was kicked, ([^.]+)\./gi, (all, clause) => {
     if (!kicked) return '';
     const dmg = clause.match(/^it deals (\w+) damage instead$/i);
@@ -239,7 +240,15 @@ function runPlay(game, op, ask) {
 
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
-  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null;
+  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null;
+  // Force of Will / Force of Negation: exile a blue card from your hand instead of paying mana.
+  if (mode.exileColor) {
+    const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(mode.exileColor))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError('You need another blue card in your hand to exile.');
+    if (rows.length) exileFromHandForCost = ask('cost:exile-blue', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Exile a blue card from your hand${mode.lifeCost ? ` and pay ${mode.lifeCost} life` : ''} instead of paying its mana cost.`, options: rows }));
+    lifeForCost += Number(mode.lifeCost || 0);
+  }
   if (addCost?.kind === 'sacrifice') {
     const rows = player.deck.battlefield.filter(c => addCost.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
@@ -265,9 +274,12 @@ function runPlay(game, op, ask) {
     const support = spellSupport(castDef);
     if (support.kind === 'modal' && support.modal) {
       const modal = support.modal, count = Math.min(modal.count, modal.modes.length);
+      // "one or more" (Farewell): any number; "choose both" with a commander (Jeska's Will, Akroma's Will).
+      const both = modal.commanderBoth && controlsACommander(game, player);
+      const min = count, max = modal.oneOrMore ? modal.modes.length : both ? Math.min(2, modal.modes.length) : count;
       const picked = ask('modes', () => ({
-        playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — choose ${count}`,
-        prompt: `Choose ${plural(count, 'mode')}.`, min: count, max: count,
+        playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — choose ${max > min ? `${min} or more` : count}`,
+        prompt: modal.oneOrMore ? 'Choose one or more modes.' : both ? 'You control a commander: choose one mode, or both.' : `Choose ${plural(count, 'mode')}.`, min, max,
         options: modal.modes.map((text, i) => ({ id: i, label: text }))
       }));
       const chosen = picked.map(i => modal.compiledModes[i]);
@@ -383,7 +395,7 @@ function runPlay(game, op, ask) {
     effectBindings: { ...bindings, sourceId: card.instanceId }, asEntersChoices: asEnters, guidedResolution: guided,
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
-    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileOnLeave: !!mode.exileAfter, adventure,
+    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
   if (commander) commit(game, { ...action, type: 'cast-commander', commanderId: commander.id });
