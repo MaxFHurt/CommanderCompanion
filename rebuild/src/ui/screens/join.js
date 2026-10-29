@@ -11,6 +11,7 @@ import { joinRoom, deviceClientId } from '../../net/room.js';
 import { startClientSession } from '../../app/session.js';
 import { openModal } from '../modal.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
+import { scanJoinCode, goToJoin } from '../share-code.js';
 
 export const joinScreen = {
   mount(root, params = {}) {
@@ -40,6 +41,7 @@ export const joinScreen = {
                 <p class="muted">The host device shows the code. Choose your deck here — your hand stays on this device.</p>
                 ${lastRoom ? html`<button type="button" class="btn btn--small btn--confirm" data-act="watch">Rejoin room ${lastRoom}</button>` : ''}
                 <button type="button" class="btn btn--small" data-act="watch">Just watch</button>
+                <button type="button" class="btn btn--small" data-act="scan">Scan QR</button>
               </nav>
               <section class="setup__form panel">${seatFormHtml(seat, 0)}</section>`}
           </div>
@@ -99,6 +101,11 @@ export const joinScreen = {
         case 'back': if (link) { link.close(); link = null; } left = !link && false; return go('mode-select');
         case 'join': return join(false);
         case 'watch': return join(true);
+        case 'scan': return scanJoinCode().then(found => {
+          if (!found) return;
+          if (found.kind !== 'room') return goToJoin(found, go);
+          code = found.code; draw(); toast(`Room ${code} — choose your deck, then Join.`);
+        });
       }
     }));
     return () => { const entered = left; left = true; for (const off of offs) off(); if (link && !entered) link.close(); };

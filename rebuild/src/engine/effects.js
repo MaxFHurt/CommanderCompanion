@@ -800,6 +800,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'counter') {
       const targetId = resolveBoundId(effect, bindings);
+      if (!targetId && effect.optional) { notes.push('No creature was chosen.'); continue; }
       const hit = locateCardInGame(game, targetId);
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The counter target is no longer legal.');
@@ -1491,6 +1492,20 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   if ((m = c.match(/^Put (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|\+1\/\+1|-1\/-1|[A-Za-z][A-Za-z -]+) counters? on (target .+?)\.?$/i))) {
     const bind = targetRequirement(requirements, m[3].toLowerCase(), m[3]);
     effects.push({ kind: 'counter', bind, counter: m[2].trim(), amount: numberFromText(m[1]) });
+    return { effects, requirements, unsupported };
+  }
+  // "another target creature", "up to one target creature": the player picks (or, for "up to one", may pick none).
+  if ((m = c.match(/^Put (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|\+1\/\+1|-1\/-1|[A-Za-z][A-Za-z -]+) counters? on (another target|up to one (?:other )?target) (.+?)\.?$/i))) {
+    const upTo = /^up to one/i.test(m[3]), other = /another|other/i.test(m[3]);
+    const bind = targetRequirement(requirements, `target ${m[4].toLowerCase()}`, `${m[3].toLowerCase()} ${m[4]}`, { optional: upTo, notSource: other });
+    effects.push({ kind: 'counter', bind, counter: m[2].trim(), amount: numberFromText(m[1]), optional: upTo });
+    return { effects, requirements, unsupported };
+  }
+  // "on a creature you control" (no "target"): chosen as it resolves; hexproof does not stop it.
+  if ((m = c.match(/^Put (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|\+1\/\+1|-1\/-1|[A-Za-z][A-Za-z -]+) counters? on (a|an|another) (creature|artifact creature|artifact|permanent|planeswalker|land)( you control)?\.?$/i))) {
+    const bind = `choice${requirements.length}`;
+    requirements.push({ kind: 'choose-permanent', optional: true, bind, scope: `${m[4].toLowerCase()}${m[5] ? ' you control' : ''}`, label: `${m[3].toLowerCase()} ${m[4]}${m[5] || ''} to get the counter${numberFromText(m[1]) === 1 ? '' : 's'}`, notSource: /another/i.test(m[3]) });
+    effects.push({ kind: 'counter', bind, counter: m[2].trim(), amount: numberFromText(m[1]), optional: true });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Put (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|\+1\/\+1|-1\/-1|[A-Za-z][A-Za-z -]+) counters? on each (creature|artifact|enchantment|land|permanent) you control\.?$/i))) {

@@ -19,6 +19,7 @@ import { lobbyScreen } from './ui/screens/lobby.js';
 import { joinScreen } from './ui/screens/join.js';
 import { onlineScreen } from './ui/screens/online.js';
 import { takeReturn, builderPlayerName } from './data/deck-builder.js';
+import { codeFromText, goToJoin } from './ui/share-code.js';
 
 registerScreen('landing', landingScreen);
 registerScreen('mode-select', modeSelectScreen);
@@ -42,7 +43,12 @@ async function start() {
   const builderName = builderPlayerName();
   if (builderName && !loadProfile().account?.displayName) await saveAccountProfile({ displayName: builderName }).catch(() => {});
   const back = takeReturn();   // coming back from the Deck Builder: reopen the screen that opened it
-  if (shouldResumeAfterUpdate()) go('game', { resume: true }); else if (!back || !go(back.screen, back.params)) go('landing');
+  // Opened from a join link or a scanned QR code: straight to that join screen, then drop the code from the address.
+  const invite = codeFromText(location.href);
+  if (invite) { const url = new URL(location.href); for (const k of ['join', 'room', 'table']) url.searchParams.delete(k); history.replaceState(null, '', url); }
+  if (shouldResumeAfterUpdate()) go('game', { resume: true });
+  else if (invite) { go('landing'); goToJoin(invite, go); }
+  else if (!back || !go(back.screen, back.params)) go('landing');
   window.__ccReady = true;
   window.__ccVersion = VERSION;
   document.getElementById('bootError').hidden = true;

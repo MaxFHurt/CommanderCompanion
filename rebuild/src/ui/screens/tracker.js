@@ -22,6 +22,7 @@ import { newId } from '../../game/helpers.js';
 import { createTrackerStore, createTrackerClientStore } from '../../app/tracker-session.js';
 import { hostTrackerRoom } from '../../net/tracker-room.js';
 import { newRoomCode } from '../../net/transport.js';
+import { shareCodeHtml, bindShareCode } from '../share-code.js';
 import { holdUpdates } from '../../app/update-check.js';
 
 const VERDICT = { legal: ['✓', 'Own seat'], other: ['!', 'Other seat'], host: ['✎', 'Host change'] };
@@ -256,11 +257,11 @@ export const trackerScreen = {
         const devices = room ? room.devices() : [];
         openModal({
           title: `Room ${room?.code || ''} — devices`, size: 'small',
-          body: html`<p class="muted">On each phone: Start Game → Table Tracker → Join a table, then enter ${room?.code || 'the code'}.</p>
+          body: html`<p class="muted">On each phone: Start Game → Table Tracker → Join a table, then enter ${room?.code || 'the code'} — or scan the QR code.</p>${room ? shareCodeHtml({ code: room.code, kind: 'table', what: 'table' }) : ''}
             <div class="option-list">${devices.length ? devices.map(d => html`<div class="option ${d.online ? 'is-on' : ''}"><span><strong>${d.name}</strong><small>${d.online ? 'Connected' : 'Disconnected'} • ${trackerPlayer(state, d.seatId)?.name ? `Seat: ${trackerPlayer(state, d.seatId).name}` : 'Watching'}</small></span>
               <span class="option__end"><button type="button" class="chip chip--bad" data-kick="${d.clientId}">Remove</button></span></div>`) : html`<p class="muted">No devices have joined yet.</p>`}</div>`,
           actions: [{ label: 'Close', kind: 'cancel' }],
-          onMount(el, { close }) { on(el, 'click', '[data-kick]', (event, b) => { room?.kick(b.dataset.kick); close(); }); }
+          onMount(el, { close }) { bindShareCode(el); on(el, 'click', '[data-kick]', (event, b) => { room?.kick(b.dataset.kick); close(); }); }
         });
       }
 

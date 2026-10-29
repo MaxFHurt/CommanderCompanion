@@ -645,4 +645,23 @@ section('attacking planeswalkers and battles');
     check('nobody can attack their own planeswalker', !r.ok);
   }
 }
+section('counters: the player chooses which creature gets them');
+{
+  const t = newGame(['simic', 'simic']);
+  t.keepAll();
+  t.give(0, 'Colossal Dreadmaw', 'battlefield'); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield');
+  const maw = t.bf(0, 'Colossal Dreadmaw'), bear = t.bf(0, 'Grizzly Bears'), elf = t.bf(0, 'Llanowar Elves');
+  t.game.cardDefinitions[maw.definitionId] = { ...t.game.cardDefinitions[maw.definitionId], oracleText: 'Whenever this creature attacks, put a +1/+1 counter on another creature you control.' };
+  t.end(0); t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.autoPass = false;
+  t.do(0, { type: 'attack', attacks: [{ instanceId: maw.instanceId, defenderId: t.P(1).playerId }] });
+  t.passAll();
+  const d = t.decision();
+  const ids = (d?.options || []).map(o => o.id);
+  check('the player is asked which other creature gets the counter', d && ids.includes(bear.instanceId) && ids.includes(elf.instanceId) && !ids.includes(maw.instanceId), JSON.stringify(d && { title: d.title, ids }));
+  if (d) t.answer(elf.instanceId);
+  t.passAll();
+  check('the chosen creature gets it', elf.counters?.['+1/+1'] === 1 && !bear.counters?.['+1/+1'] && !maw.counters?.['+1/+1'], JSON.stringify([elf.counters, bear.counters]));
+}
 done();

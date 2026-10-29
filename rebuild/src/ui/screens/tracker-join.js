@@ -6,6 +6,7 @@ import { toast } from '../toast.js';
 import { accountSetupDefaults } from '../../data/profile.js';
 import { joinTrackerRoom } from '../../net/tracker-room.js';
 import { deviceClientId } from '../../net/room.js';
+import { scanJoinCode, goToJoin } from '../share-code.js';
 
 export const trackerJoinScreen = {
   mount(root, params = {}) {
@@ -41,7 +42,8 @@ export const trackerJoinScreen = {
               <section class="panel tjoin">
                 <label class="field">Room code<input class="input input--code" data-code maxlength="4" value="${code}" placeholder="ABCD" autocomplete="off" autocapitalize="characters"></label>
                 <label class="field">Your name<input class="input" data-name maxlength="24" value="${name}" placeholder="Name" autocomplete="off"></label>
-                <p class="muted">The host device shows the code at the top of the Table Tracker.</p>
+                <p class="muted">The host device shows the code at the top of the Table Tracker; its "Devices in this room" menu shows a QR code.</p>
+                <button type="button" class="btn btn--small" data-act="scan">Scan QR</button>
               </section>`}
           </div>
           <footer class="page__foot">${msg ? '' : html`<button type="button" class="btn btn--confirm" data-act="join">Join</button>`}</footer>
@@ -83,6 +85,11 @@ export const trackerJoinScreen = {
       switch (el.dataset.act) {
         case 'back': link?.close(); link = null; return go('mode-select');
         case 'join': return join();
+        case 'scan': return scanJoinCode().then(found => {
+          if (!found) return;
+          if (found.kind !== 'table') return goToJoin(found, go);
+          code = found.code; name = ($('[data-name]', root)?.value || name).trim(); join();
+        });
       }
     }));
     return () => { for (const off of offs) off(); if (link && !entered) link.close(); };

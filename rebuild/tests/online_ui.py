@@ -20,6 +20,22 @@ def start_worker():
     raise RuntimeError('test Worker did not start')
 
 
+def fake_camera(png):
+    """A one-frame Y4M video of the picture, for Chromium's fake camera."""
+    from PIL import Image
+    img = Image.open(png).convert('RGB')
+    canvas = Image.new('RGB', (640, 480), 'white')
+    img.thumbnail((440, 440))
+    canvas.paste(img, ((640 - img.width) // 2, (480 - img.height) // 2))
+    y, cb, cr = canvas.convert('YCbCr').split()
+    out = png.replace('.png', '.y4m')
+    with open(out, 'wb') as f:
+        f.write(b'YUV4MPEG2 W640 H480 F10:1 Ip A1:1 C420jpeg\n')
+        for _ in range(10):
+            f.write(b'FRAME\n' + y.tobytes() + cb.resize((320, 240)).tobytes() + cr.resize((320, 240)).tobytes())
+    return out
+
+
 async def session_eval(page, body):
     return await page.evaluate(f"async () => {{ const {{ getSession }} = await import('./src/app/session.js'); const s = getSession(); {body} }}")
 
@@ -57,12 +73,32 @@ async def main():
             check('game code is 6 letters', len(code) == 6 and code.isalpha(), code)
             check('waiting room shows one open seat', await a.locator('text=Open seat').count() == 1)
             await a.screenshot(path=f'{OUT}online-wait.png')
+            await a.set_viewport_size({'width': 844, 'height': 390}); await a.wait_for_timeout(300)
+            await a.screenshot(path=f'{OUT}online-wait-phone.png')
+            await a.set_viewport_size({'width': 1180, 'height': 820})
 
-            # Lex joins with the code on another device.
-            await open_online(b)
-            await b.fill('[data-code]', code)
-            await b.click('[data-act="join-code"]')
-            await b.wait_for_selector('text=invited you')
+            # Copy code, and a QR code another phone can scan with the app's camera.
+            await a.context.grant_permissions(['clipboard-read', 'clipboard-write'], origin='http://127.0.0.1:4180')
+            await a.click('[data-share-act="copy"]')
+            check('Copy code puts the code on the clipboard', (await a.evaluate('navigator.clipboard.readText()')) == code)
+            link = await a.locator('[data-share-link]').get_attribute('data-share-link')
+            check('the invite link carries the code', f'join={code}' in link, link)
+            qr_png = f'{OUT}online-qr.png'
+            await a.locator('.share-code__qr').screenshot(path=qr_png)
+            cam = await p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', f'--use-file-for-fake-video-capture={fake_camera(qr_png)}'])
+            s1 = await new_page(cam, PHONE, Q)
+            await s1.context.grant_permissions(['camera'], origin='http://127.0.0.1:4180')
+            await open_online(s1)
+            await s1.click('[data-act="scan"]')
+            await s1.wait_for_selector('text=invited you', timeout=20000)
+            check('scanning the QR code with the app opens that game\'s join screen', code in await s1.locator('h1').text_content())
+            await cam.close()
+
+            # Lex opens the invite link (what the phone camera or a text message opens).
+            await b.goto(link)
+            await b.wait_for_function('window.__ccReady === true')
+            await b.wait_for_selector('text=invited you', timeout=15000)
+            check('the invite link opens straight on the join screen', 'join=' not in b.url, b.url)
             check('joiner sees who invited them and the rules', await b.locator('text=Aaron').count() >= 1)
             await fill_seat(b, 'Lex', 'simic')
             await b.click('[data-act="take-seat"]')

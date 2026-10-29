@@ -152,8 +152,9 @@ export function candidatesFor(game, req, player, source = null) {
       .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }
-  if (req.kind === 'target') {
-    if (/any target|any other target|target player|target opponent/.test(scope)) {
+  if (req.kind === 'target' || req.kind === 'choose-permanent') {
+    const targeted = req.kind === 'target';   // a plain choice ("a creature you control") ignores hexproof and shroud
+    if (targeted && /any target|any other target|target player|target opponent/.test(scope)) {
       for (const q of alivePlayers(game)) {
         if (/opponent/.test(scope) && q.playerId === player.playerId) continue;
         if (!canTargetPlayer(game, q, player)) continue;
@@ -168,7 +169,7 @@ export function candidatesFor(game, req, player, source = null) {
         if (anyTarget) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
         } else if (!matchesPermanentScope(game, c, scope)) continue;
-        if (!canTarget(game, c, player, source)) continue;
+        if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }
     }
@@ -338,11 +339,13 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     // Single choice: target, player, graveyard-target, stack-target.
     let rows = candidatesFor(game, req, player, ctx.source || null);
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
+    if (req.notSource && bindings.sourceId) rows = rows.filter(r => r.id !== bindings.sourceId);   // "another"
+    if (req.kind === 'choose-permanent' && rows.length === 1) { bindings[req.bind] = rows[0].id; return; }   // only one choice: no question
     if (!rows.length) {
       if (req.optional) { bindings[req.bind] = null; return; }
       throw new NoLegalChoice(`No legal choice is available for "${req.label || req.scope || 'this effect'}".`);
     }
-    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label || 'a target'}.`, options: rows, targeting: true, allowNone: !!req.optional, noneLabel: 'No target' }));
+    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label || 'a target'}.`, options: rows, targeting: req.kind === 'target', allowNone: !!req.optional && req.kind === 'target', noneLabel: 'No target' }));
   });
   return bindings;
 }

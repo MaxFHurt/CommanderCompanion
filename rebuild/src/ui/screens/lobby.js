@@ -8,6 +8,7 @@ import { hostRoom } from '../../net/room.js';
 import { newRoomCode } from '../../net/transport.js';
 import { chooseRules, buildGame } from '../../app/start-game.js';
 import { startHostSession } from '../../app/session.js';
+import { shareCodeHtml, bindShareCode } from '../share-code.js';
 
 export const lobbyScreen = {
   mount(root, params = {}) {
@@ -29,6 +30,7 @@ export const lobbyScreen = {
               <small>Room code</small>
               <b class="chrome-text">${room ? room.code : '····'}</b>
               <p class="muted">${error || (room ? 'On each other device: Start Game → choose a mode → Join a room, then enter this code.' : 'Opening the room…')}</p>
+              ${room ? shareCodeHtml({ code: room.code, kind: 'room', what: 'game', inlineQr: true }) : ''}
               ${room?.kind === 'loopback' ? html`<p class="warn">Same-browser room: the online connection service could not be reached, so only tabs of this browser can join.</p>` : ''}
             </section>
             <section class="panel lobby__seats">
@@ -98,6 +100,7 @@ export const lobbyScreen = {
         case 'cancel-rules': return room?.cancelRules();
       }
     });
-    return () => { closed = true; off(); offLobby?.(); if (!started) room?.close(); };
+    const offShare = bindShareCode(root);
+    return () => { closed = true; off(); offShare(); offLobby?.(); if (!started) room?.close(); };
   }
 };

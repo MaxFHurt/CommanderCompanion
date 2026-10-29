@@ -17,6 +17,7 @@ import { openOnlineGame } from '../../app/online-session.js';
 import { useSession } from '../../app/session.js';
 import { settle } from '../../game/flow.js';
 import { actorId } from '../../game/view.js';
+import { shareCodeHtml, bindShareCode, scanJoinCode, goToJoin } from '../share-code.js';
 
 const WAIT_POLL = 4000;
 
@@ -67,7 +68,7 @@ export const onlineScreen = {
             <p class="muted">Each player plays on their own device, whenever they have time. The game is saved online after every move, and you see the others' moves when you open it.</p>
             <button type="button" class="btn btn--confirm" data-act="new">New online game</button>
             <label class="field">Game code<input class="input input--code" data-code maxlength="6" value="${code}" placeholder="ABCDEF" autocomplete="off" autocapitalize="characters"></label>
-            <button type="button" class="btn" data-act="join-code">Join with this code</button>
+            <div class="row row--wrap" style="justify-content:center"><button type="button" class="btn" data-act="join-code">Join with this code</button><button type="button" class="btn" data-act="scan">Scan QR</button></div>
           </section>
         </div>`;
     }
@@ -92,8 +93,8 @@ export const onlineScreen = {
           <section class="panel lobby__code">
             <small>Game code</small>
             <b class="chrome-text" data-online-code>${code}</b>
-            <p class="muted">Send this code to the other players. They open Start Game → Online games, enter it and choose their deck. The game starts when every seat is filled — you can close the app meanwhile.</p>
-            <button type="button" class="btn btn--small" data-act="share">Share code</button>
+            <p class="muted">Text this code to the other players, or let them scan the QR code. They choose their deck; the game starts when every seat is filled — you can close the app meanwhile.</p>
+            ${shareCodeHtml({ code, kind: 'online', what: 'online game', inlineQr: true })}
           </section>
           <section class="panel lobby__seats">
             <h3 class="section-title">Players (${lobby?.seats.length || 0} of ${lobby?.seatsWanted || 2})</h3>
@@ -210,14 +211,11 @@ export const onlineScreen = {
             .then(ok => { if (ok) { forgetOnlineGame(el.dataset.code); draw(); } });
         case 'take-seat': return takeSeat();
         case 'pick-seat': return open(code, el.dataset.player);
-        case 'share': {
-          const text = `Join my Commander Companion game: Start Game → Online games → code ${code}`;
-          if (navigator.share) return navigator.share({ text }).catch(() => {});
-          return navigator.clipboard?.writeText(text).then(() => toast('Copied.'), () => toast(`Code: ${code}`));
-        }
+        case 'scan': return scanJoinCode().then(found => found && (found.kind === 'online' ? open(found.code) : goToJoin(found, go)));
       }
     });
-    return () => { left = true; clearTimeout(timer); off(); };
+    const offShare = bindShareCode(root);
+    return () => { left = true; clearTimeout(timer); off(); offShare(); };
   }
 };
 

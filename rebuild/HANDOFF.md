@@ -84,6 +84,16 @@ what each part does, the owner's rules, open notes, and the roadmap.
   and battles (`targetId` on an attacker; defending player = the planeswalker's controller / battle's protector).
   Damage removes loyalty / defense. Sieges get an opponent as protector as they enter (asked when there are
   several); a defeated Siege is exiled and its back face is cast by hand.
+- **Sharing codes (build 32):** `src/ui/share-code.js` — Copy code, Text invite (share sheet, link) and a QR code
+  on the online waiting room, the room lobby and the Table Tracker's "Devices in this room". Links: `?join=ABCDEF`
+  (online game), `?room=ABCD` (hosted game), `?table=ABCD` (Table Tracker); `main.js` opens the join screen and
+  drops the code from the address. "Scan QR" on the join screens reads a code with the camera (`src/vendor/jsqr.js`,
+  loaded only when scanning; QR drawing `src/vendor/qrcode.js`; licences in `src/vendor/LICENSES.md`). A QR scanned
+  with the iPhone Camera app opens Safari, not the home-screen app (iOS keeps their saved data apart) — scanning
+  from inside the app is the way for players who use the home-screen icon.
+- **Counter choices (build 32):** "put … counters on a/another creature you control" asks which creature as it
+  resolves (no hexproof check, no question with one choice); "another target creature" leaves out the source;
+  "up to one target creature" may choose none.
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -174,7 +184,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 162 rules/coach/judge/undo/challenge checks
+    node tests/node/game.mjs          # 164 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
@@ -184,7 +194,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     python3 tests/flows_ui.py         # 25
     python3 tests/challenge_ui.py     # 13   (challenge, correction, voted undo, rules agreement)
     python3 tests/net_ui.py           # 26   (hosted game: Table / Judge, reverse, watcher)
-    python3 tests/online_ui.py        # 29   (online games + online profile; starts cloud/dev-server.mjs, a local copy of the Worker)
+    python3 tests/online_ui.py        # 33   (online games, copy/invite/QR scan with a fake camera, online profile; starts cloud/dev-server.mjs)
     python3 tests/tracker_net_ui.py   # 44   (hosted Table Tracker)
     python3 tests/shots_judge.py      # host-screen screenshots
     python3 tests/shots_more.py       # game screenshots
