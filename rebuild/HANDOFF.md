@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.35, 2026-10-29)
+# Commander Companion — handoff (build 1.0.0-rebuild.36, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.34**. Build 35 (more effects) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v35`).
+- Live build: **1.0.0-rebuild.35**. Build 36 (iPhone frame) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v36`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -253,6 +253,11 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 - Online games: hands are hidden on screen, but each device holds the whole game (it runs the rules), so
   someone reading the app's data with developer tools could see other hands. Fine between friends.
+- **Backdrop frame (build 36, owner 29 Oct: on iPhone it had no top edge and its corners were cut off):** the art
+  `assets/img/ui/background.webp` now has a top edge made by mirroring its own bottom edge and corners (original
+  kept in `assets/img/ui/orig/background.webp`). On phones (`max-height: 699px`) the backdrop is inset 12px / 5px
+  so the frame's rounded corners stay inside the screen's, and `.page` gets a 14px top margin so headers sit under
+  the frame. On iPad the art still covers the screen (sides cropped as before, now with top and bottom lines).
 - Ward works for spells only, not activated abilities.
 - Still resolved by hand: mutate, madness, suspend, spectacle, and anything the terms key marks
   'manual' or 'partial' (e.g. split/fuse, flip cards, Room, Class, attractions).

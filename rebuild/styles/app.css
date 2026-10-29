@@ -1351,6 +1351,19 @@ body::before {
 body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 /* The app fills exactly the visible page: never taller, so nothing is pushed under the device's own bars. */
 #app { height: auto; min-height: 0; }
+/* iPhone: pull the frame in from the screen edges so its rounded corners are not clipped by the screen's own
+   rounded corners (screen radius about 55pt, frame about 30pt; 12px across and 5px down keeps the arc inside). */
+@media (max-height: 699px) {
+  body::before {
+    --frame-x: 12px; --frame-y: 5px;
+    left: var(--frame-x); top: var(--frame-y);
+    width: calc(100vw - 2 * var(--frame-x));
+    height: calc(max(100lvh, var(--cc-screen-h, 0px)) - 2 * var(--frame-y));
+    background-size: 100% 100%;
+  }
+  /* Page headers sit just under the frame's top edge instead of on it. */
+  .page { padding-top: max(var(--safe-t), 14px); }
+}
 
 /* ── 25. Host screens: Table / Judge switch, Judge mode, legality marks ───────── */
 /* Footer on table screens: phase | screen switch | Host Tools. */
