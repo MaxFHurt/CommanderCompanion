@@ -67,6 +67,10 @@ export async function restoreProfileBackupFile(file) {
   catch {
     throw new Error('That backup file could not be read.');
   }
+  return restoreProfileBackup(raw);
+}
+/** Replace this device's profile, decks and playmats with a backup (from a file or online). */
+export async function restoreProfileBackup(raw) {
   const backup = validateBackup(raw);
   const profile = structuredClone(backup.profile);
   const decks = structuredClone(backup.decks);

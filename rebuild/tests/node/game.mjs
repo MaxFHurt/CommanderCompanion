@@ -526,4 +526,123 @@ section('cleanup discard, undo, veto, vote, redaction, concede, physical draw, f
   t.game.hasJudge = true;
   check('with a judge device in the room, players get no Challenge button', !t.view(0).canChallenge);
 }
+section('"deals combat damage" triggers: blocking and attacking, once per step');
+{
+  const TEXT = 'Whenever this creature deals combat damage, put a +1/+1 counter on it.';
+  const withText = (t, card, text) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text }; };
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Colossal Dreadmaw', 'battlefield');
+    const maw = t.bf(1, 'Colossal Dreadmaw');
+    withText(t, maw, TEXT);
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    const bear = t.bf(0, 'Grizzly Bears');
+    t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+    t.do(1, { type: 'block', assignments: [{ attackerId: bear.instanceId, blockerId: maw.instanceId }] });
+    t.passAll();
+    check('a blocker that deals combat damage gets its +1/+1 counter', maw.counters?.['+1/+1'] === 1, JSON.stringify(maw.counters));
+  }
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Colossal Dreadmaw', 'battlefield');
+    const maw = t.bf(0, 'Colossal Dreadmaw');
+    withText(t, maw, TEXT);
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.do(0, { type: 'attack', attacks: [{ instanceId: maw.instanceId, defenderId: t.P(1).playerId }] });
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('an unblocked attacker triggers once and gets one counter', maw.counters?.['+1/+1'] === 1 && t.game.log.filter(e => /triggers\./.test(e.text)).length === 1, JSON.stringify(maw.counters));
+  }
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Colossal Dreadmaw', 'battlefield');
+    const maw = t.bf(1, 'Colossal Dreadmaw');
+    withText(t, maw, 'Whenever this creature deals combat damage to a player, put a +1/+1 counter on it.');
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    const bear = t.bf(0, 'Grizzly Bears');
+    t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+    t.do(1, { type: 'block', assignments: [{ attackerId: bear.instanceId, blockerId: maw.instanceId }] });
+    t.passAll();
+    check('"to a player" does not trigger when blocking', !maw.counters?.['+1/+1'], JSON.stringify(maw.counters));
+  }
+}
+section('attacking planeswalkers and battles');
+{
+  // Test-only cards: put straight onto the battlefield by cloning a land's card object.
+  const addPermanent = (t, i, def, extra = {}) => {
+    t.game.cardDefinitions[def.definitionId] = def;
+    const land = t.give(i, 'Forest', 'battlefield') || t.bf(i, 'Forest');
+    const card = { ...structuredClone(land), definitionId: def.definitionId, instanceId: `test-${def.definitionId}`, counters: {}, tapped: false, ...extra };
+    t.P(i).deck.battlefield.push(card);
+    return card;
+  };
+  const walker = { definitionId: 'test-walker', name: 'Test Walker', typeLine: 'Legendary Planeswalker — Test', oracleText: '', loyalty: '5', manaCost: '{3}', manaValue: 3, colors: [] };
+  const battle = { definitionId: 'test-battle', name: 'Test Siege', typeLine: 'Battle — Siege', oracleText: '', defense: '4', manaCost: '{3}', manaValue: 3, colors: [] };
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    const pw = addPermanent(t, 1, walker, { counters: { loyalty: 5 } });
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    const row = t.view(0).actions.attack.find(r => r.instanceId === t.bf(0, 'Grizzly Bears').instanceId);
+    check('the opponent\'s planeswalker is offered as an attack target', row?.targets?.some(x => x.id === pw.instanceId && x.kind === 'planeswalker' && x.value === 5), JSON.stringify(row));
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId, targetId: pw.instanceId }] });
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('unblocked damage removes loyalty, not life', pw.counters.loyalty === 3 && t.P(1).life === 40, `${pw.counters.loyalty} ${t.P(1).life}`);
+    check('the log names the planeswalker', t.game.log.some(e => /attacks Test Walker/.test(e.text)));
+  }
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Colossal Dreadmaw', 'battlefield');
+    const pw = addPermanent(t, 1, walker, { counters: { loyalty: 2 } });
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Colossal Dreadmaw').instanceId, defenderId: t.P(1).playerId, targetId: pw.instanceId }] });
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('a planeswalker with no loyalty left goes to the graveyard', !t.P(1).deck.battlefield.some(c => c.instanceId === pw.instanceId) && t.P(1).life === 40);
+  }
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    const siege = addPermanent(t, 0, battle);   // P1's own Siege, protected by P2
+    t.end(0); t.end(1);
+    check('a Siege gets its defense and an opponent as protector', siege.counters.defense === 4 && siege.protectorId === t.P(1).playerId, JSON.stringify([siege.counters, siege.protectorId]));
+    t.do(0, { type: 'next-phase' });
+    const row = t.view(0).actions.attack.find(r => r.instanceId === t.bf(0, 'Grizzly Bears').instanceId);
+    check('its controller can attack their own Siege', row?.targets?.some(x => x.id === siege.instanceId && x.kind === 'battle'), JSON.stringify(row));
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId, targetId: siege.instanceId }] });
+    check('the protector is the one who blocks', !t.game.flow.blocks || t.game.flow.blocks.pending.includes(t.P(1).playerId));
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('damage removes defense counters', siege.counters.defense === 2 && t.P(1).life === 40, `${siege.counters.defense} ${t.P(1).life}`);
+    siege.counters.defense = 1;
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId, targetId: siege.instanceId }] });
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('a defeated Siege is exiled', t.P(0).deck.exile.some(c => c.instanceId === siege.instanceId), t.game.log.slice(0, 3).map(e => e.text).join(' / '));
+  }
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    const pw = addPermanent(t, 0, walker, { counters: { loyalty: 5 } });
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    const r = t.try(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId, targetId: pw.instanceId }] });
+    check('nobody can attack their own planeswalker', !r.ok);
+  }
+}
 done();

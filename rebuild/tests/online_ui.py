@@ -132,7 +132,32 @@ async def main():
             check('a new device can carry on as Lex', (await session_eval(c, "return s.view().you;")) == (await session_eval(b, "return s.view().you;")))
 
             await a.screenshot(path=f'{OUT}online-game.png')
-            for name, pg in (('a', a), ('b', b), ('c', c)):
+
+            # Online profile: save on one device, load it on a new one, quiet save after a change.
+            d = await new_page(browser, IPAD, Q)
+            await d.click('[data-act="profile"]'); await d.fill('#profileName', 'Max'); await d.press('#profileName', 'Tab')
+            await d.click('[data-act="online"]'); await d.click('[data-online="save"]')
+            await d.wait_for_selector('[data-profile-key]')
+            key = (await d.locator('[data-profile-key]').text_content()).strip()
+            check('saving online gives a 12-letter key', len(key.replace('-', '')) == 12, key)
+            await d.screenshot(path=f'{OUT}online-profile.png')
+            await d.click('.modal button:has-text("Close")')
+            e = await new_page(browser, PHONE, Q)
+            await e.click('[data-act="profile"]'); await e.click('[data-act="online"]')
+            await e.fill('[data-key]', key.lower()); await e.click('[data-online="load-key"]')
+            await e.click('.modal .btn--danger:text-is("Load Profile")')
+            await e.wait_for_function("document.querySelector('#profileName')?.value === 'Max'", timeout=10000)
+            check('another device loads the profile with the key', True)
+            await d.fill('#profileName', 'Max H'); await d.press('#profileName', 'Tab')
+            await d.click('[data-act="back"]'); await d.wait_for_timeout(1500)
+            rev = await d.evaluate("JSON.parse(localStorage.getItem('cc-online-profile')).rev")
+            check('a linked device saves again by itself after a change', rev == 2, str(rev))
+            await e.click('[data-act="back"]'); await e.click('[data-act="profile"]'); await e.click('[data-act="online"]')
+            await e.click('[data-online="save"]')
+            await e.wait_for_selector('text=Saved from another device')
+            check('saving over a newer copy from another device asks first', True)
+            await e.click('.modal .btn--cancel:text-is("Cancel")')
+            for name, pg in (('a', a), ('b', b), ('c', c), ('d', d), ('e', e)):
                 errors = [e for e in pg.errors if '409 (Conflict)' not in e and 'ERR_FAILED' not in e]   # 409 = someone saved first, handled
                 check(f'no page errors on {name}', not errors, '; '.join(errors[:3]))
             await browser.close()

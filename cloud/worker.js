@@ -12,12 +12,20 @@
 //   GET  /games/:code/summary                            → { rev, summary, updatedAt }  (small, for lists)
 //
 // Games nobody opens for 120 days are deleted.
+//
+// Online profiles (a player's profile backup, to load on another device) use the same storage under
+// a private 12-letter key:
+//   GET  /profiles/:key                      → { rev, updatedAt, backup }
+//   PUT  /profiles/:key  { baseRev, backup }  → { rev }  or 409 { rev, updatedAt } if another device saved first
+// baseRev 0 creates it. Profiles nobody saves or loads for two years are deleted.
 
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // no I or O: easy to read out loud
 const CODE_RE = /^[A-Z]{6}$/;
 const MAX_BODY = 12 * 1024 * 1024;
 const CHUNK = 1000 * 1000;                          // stored values must stay under 2 MB
 const KEEP_MS = 120 * 24 * 3600 * 1000;
+const PROFILE_KEEP_MS = 2 * 365 * 24 * 3600 * 1000;
+const PROFILE_RE = /^[A-Z]{12}$/;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +55,16 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(request.url);
     const parts = url.pathname.split('/').filter(Boolean);
+    if (parts[0] === 'profiles') {
+      const key = String(parts[1] || '').toUpperCase();
+      if (!PROFILE_RE.test(key) || parts.length > 2) return fail(404, 'That profile key does not exist.');
+      try {
+        const res = await stub(env, `profile:${key}`).fetch(`https://game/${key}/profile`, { method: request.method, body: request.method === 'PUT' ? await request.text() : undefined });
+        return withCors(res);
+      } catch (error) {
+        return fail(500, 'The online save service had a problem. Try again.');
+      }
+    }
     if (parts[0] !== 'games') return parts.length ? fail(404, 'Not found.') : json({ ok: true, service: 'Commander Companion online games' });
     try {
       if (parts.length === 1 && request.method === 'POST') {
@@ -121,19 +139,37 @@ export class GameStore {
     }
     meta.updatedAt = Date.now();
     writes.meta = meta;
+    const keep = meta.kind === 'profile' ? PROFILE_KEEP_MS : KEEP_MS;
     // storage.put takes at most 128 keys at a time.
     const entries = Object.entries(writes);
     for (let i = 0; i < entries.length; i += 100) await this.storage.put(Object.fromEntries(entries.slice(i, i + 100)));
     if (gone.length) await this.storage.delete(gone);
     this.meta = meta;
-    await this.storage.setAlarm(Date.now() + KEEP_MS);
+    await this.storage.setAlarm(Date.now() + keep);
   }
 
   async alarm() {
     const meta = await this.loadMeta();
-    if (meta && Date.now() - meta.updatedAt < KEEP_MS - 60000) return this.storage.setAlarm(meta.updatedAt + KEEP_MS);
+    const keep = meta?.kind === 'profile' ? PROFILE_KEEP_MS : KEEP_MS;
+    if (meta && Date.now() - meta.updatedAt < keep - 60000) return this.storage.setAlarm(meta.updatedAt + keep);
     await this.storage.deleteAll();
     this.meta = null;
+  }
+
+  async profile(request, meta) {
+    if (request.method === 'GET') {
+      if (!meta) return fail(404, 'That profile key does not exist. Check the letters.');
+      await this.storage.setAlarm(Date.now() + PROFILE_KEEP_MS);   // loading counts as use
+      return json({ rev: meta.rev, updatedAt: meta.updatedAt, backup: await this.getBig('profile', meta) });
+    }
+    if (request.method !== 'PUT') return fail(405, 'Not allowed.');
+    const { baseRev, backup } = await readBody(request);
+    if (!backup || typeof backup !== 'object') return fail(400, 'Nothing to save.');
+    if (Number(baseRev || 0) !== (meta?.rev || 0)) return json({ error: 'This profile was saved from another device first.', rev: meta?.rev || 0, updatedAt: meta?.updatedAt || 0 }, 409);
+    const next = meta || { kind: 'profile', rev: 0, createdAt: Date.now() };
+    next.rev += 1;
+    await this.save(next, { profile: backup });
+    return json({ rev: next.rev });
   }
 
   async fetch(request) {
@@ -141,6 +177,7 @@ export class GameStore {
     const [code, action] = url.pathname.split('/').filter(Boolean).concat('');
     try {
       const meta = await this.loadMeta();
+      if (action === 'profile') return this.profile(request, meta);
       if (action === 'create') {
         if (meta) return fail(409, 'Code in use.');
         const { lobby } = await readBody(request);

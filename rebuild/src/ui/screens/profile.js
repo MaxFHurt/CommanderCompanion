@@ -8,6 +8,7 @@ import { loadProfile, saveAccountProfile, recordDeckSelection, initProfileStore 
 import { listDecks, initDeckStore } from '../../data/deck-store.js';
 import { openDeckBuilder, builderSummary } from '../../data/deck-builder.js';
 import { saveProfileBackupFile, restoreProfileBackupFile } from '../../data/profile-backup.js';
+import { onlineProfileLink, saveProfileOnline, loadProfileOnline, unlinkOnlineProfile, formatKey, cleanKey } from '../../app/online-profile.js';
 import { ACHIEVEMENTS, earnedAchievements, matSlotPlan } from '../../data/achievements.js';
 import { listPlaymats, savePlaymat, updatePlaymat, deletePlaymat, compressImageFile, initPlaymats, DEFAULT_MAT } from '../../data/playmats.js';
 import { rulesEditorHtml, bindRulesEditor } from '../rules-editor.js';
@@ -80,6 +81,7 @@ export const profileScreen = {
           <footer class="page__foot">
             <label class="btn">Load Profile<input id="profileFile" type="file" accept=".ccsave,application/json" hidden></label>
             <button type="button" class="btn" data-act="save">Save Profile</button>
+            <button type="button" class="btn" data-act="online" title="Online Profile: load your profile on another device">Online</button>
             <button type="button" class="btn" data-act="history">Game History</button>
             <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
           </footer>
@@ -107,6 +109,11 @@ export const profileScreen = {
               : html`<p class="muted">Finished games will be listed here.</p>`
           });
           case 'achievements': return openAchievements();
+          case 'online': await persistName(); return openOnlineProfile(async () => {
+            await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+            avatarImage = loadProfile().account?.avatarImage || '';
+            draw();
+          });
           case 'deck-builder': await persistName(); return openDeckBuilder({ screen: 'profile' });
           case 'save':
             try {
@@ -297,5 +304,62 @@ function openTableDefaults(onSaved) {
         }
       }
     ]
+  });
+}
+
+/** Online Profile: keep this profile online under a private key and load it on another device. */
+function openOnlineProfile(onLoaded) {
+  const link = onlineProfileLink();
+  const when = iso => iso ? new Date(iso).toLocaleString() : '';
+  openModal({
+    title: 'Online Profile', size: 'wide',
+    body: link ? html`
+      <p class="modal__message">This profile is saved online. Its key:</p>
+      <p class="lobby__code"><b class="chrome-text" data-profile-key style="font-size:3.2rem;letter-spacing:.12em;white-space:nowrap">${formatKey(link.key)}</b></p>
+      <p class="muted">Keep this key private — anyone with it can load your profile. On another device: Profile → Online → enter the key. Last saved ${when(link.savedAt)}. It saves again by itself after changes, whenever you return to the start screen.</p>
+      <div class="row row--wrap">
+        <button type="button" class="btn btn--confirm" data-online="save">Save now</button>
+        <button type="button" class="btn" data-online="load">Load the online copy</button>
+        <button type="button" class="btn" data-online="copy">Copy key</button>
+        <button type="button" class="btn" data-online="unlink">Stop saving online</button>
+      </div>` : html`
+      <p class="modal__message">Save your profile, decks, playmats and stats online, then load them on another iPad or phone.</p>
+      <div class="row row--wrap"><button type="button" class="btn btn--confirm" data-online="save">Save my profile online</button></div>
+      <h4 class="section-title">Already saved it on another device?</h4>
+      <label class="field">Profile key<input class="input input--code" data-key maxlength="14" placeholder="ABCD-EFGH-JKLM" autocomplete="off" autocapitalize="characters"></label>
+      <div class="row row--wrap"><button type="button" class="btn" data-online="load-key">Load profile</button></div>`,
+    actions: [{ label: 'Close', kind: 'cancel' }],
+    onMount(el, { close }) {
+      on(el, 'click', '[data-online]', async (event, b) => {
+        const act = b.dataset.online;
+        try {
+          if (act === 'save') {
+            try { await saveProfileOnline(); }
+            catch (error) {
+              if (error.status !== 409) throw error;
+              const ok = await confirmDialog({ title: 'Saved from another device', message: 'This profile was saved online from another device since this one last saved. Replace the online copy with this device\'s profile? (Or choose Load the online copy instead.)', confirmLabel: 'Replace online copy', danger: true });
+              if (!ok) return;
+              await saveProfileOnline({ force: true });
+            }
+            close(); toast('Profile saved online.'); return openOnlineProfile(onLoaded);
+          }
+          if (act === 'load' || act === 'load-key') {
+            const key = act === 'load' ? link.key : cleanKey($('[data-key]', el)?.value);
+            if (!/^[A-Z]{12}$/.test(key)) return toast('Enter the 12-letter profile key.');
+            const ok = await confirmDialog({ title: 'Load Profile', message: 'Replace the profile, saved decks and playmats on this device with the online copy?', confirmLabel: 'Load Profile', danger: true });
+            if (!ok) return;
+            await loadProfileOnline(key);
+            close(); await onLoaded(); return toast('Profile loaded.');
+          }
+          if (act === 'copy') return navigator.clipboard?.writeText(formatKey(link.key)).then(() => toast('Key copied.'), () => toast(formatKey(link.key)));
+          if (act === 'unlink') {
+            const ok = await confirmDialog({ title: 'Stop saving online', message: 'This device stops saving to the online copy. The online copy stays; you can load it again with the key.', confirmLabel: 'Stop' });
+            if (ok) { unlinkOnlineProfile(); close(); toast('This device no longer saves online.'); }
+          }
+        } catch (error) {
+          toast(error.message || 'That did not work.', { bad: true, ms: 4500 });
+        }
+      });
+    }
   });
 }

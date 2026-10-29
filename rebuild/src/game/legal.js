@@ -5,7 +5,7 @@ import {
   validatePlay, validateAttack, validateBlock, parseActivatedAbilities, validateActivatedAbilityFull, planMana,
   effectiveManaOptionsForSource, playerManaAvailability, blockerCapacity
 } from '../engine/rules.js';
-import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponentsOf, playerById, alivePlayers } from './helpers.js';
+import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponentsOf, playerById, alivePlayers, attackablePermanents } from './helpers.js';
 import { candidatesFor } from './requirements.js';
 import { castOptions, keywordCost } from './casting.js';
 
@@ -188,7 +188,10 @@ export function attackOptions(game, player) {
     const legal = defenders.filter(d => validateAttack({ game: view, attackerId: player.playerId, defenderId: d.playerId, instance: card, definition: def }).legal);
     const goaded = (card.temporaryEffects || []).some(e => e?.kind === 'goad');
     const mustAttack = goaded || (card.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack');
-    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: legal.map(d => d.playerId), mustAttack, goaded });
+    // Planeswalkers and battles are attacked through the player who controls / protects them.
+    const targets = legal.flatMap(d => attackablePermanents(game, d).filter(x => x.controller.playerId !== player.playerId || x.kind === 'battle')
+      .map(x => ({ id: x.card.instanceId, playerId: d.playerId, kind: x.kind, name: defOf(game, x.card)?.name || x.kind, value: Number(x.card.counters?.[x.kind === 'battle' ? 'defense' : 'loyalty'] || 0) })));
+    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: legal.map(d => d.playerId), targets, mustAttack, goaded });
   }
   return rows;
 }
@@ -203,7 +206,8 @@ export function blockOptions(game, defender) {
     const blockers = (defender.deck?.battlefield || [])
       .filter(b => validateBlock({ blocker: b, definition: defOf(game, b), attackerDefinition: attackerDef, attacker }).legal)
       .map(b => ({ instanceId: b.instanceId, capacity: blockerCapacity(defOf(game, b)) }));
-    return { attackerId: attack.instanceId, attackerName: attackerDef?.name || 'Attacker', blockers };
+    const attacked = attack.targetId ? (game.players || []).flatMap(q => q.deck?.battlefield || []).find(c => c.instanceId === attack.targetId) : null;
+    return { attackerId: attack.instanceId, attackerName: attackerDef?.name || 'Attacker', targetName: attacked ? defOf(game, attacked)?.name || null : null, blockers };
   });
 }
 

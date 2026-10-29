@@ -71,6 +71,12 @@ function searchCount(spec) {
 }
 
 function askAsEnters(game, player, def, ask, source) {
+  // A Siege's controller chooses which opponent protects it (rule 310.12a).
+  if (/\bBattle\b/i.test(def?.typeLine || '') && /\bSiege\b/i.test(def?.typeLine || '')) {
+    const opponents = opponentsOf(game, player.playerId);
+    if (opponents.length < 2) return opponents.length ? { protectorId: opponents[0].playerId } : null;
+    return { protectorId: ask('enters:protector', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — as it enters`, kind: 'choose-one', prompt: 'Choose the opponent who protects this battle. You and the other players can attack it; they defend it.', options: opponents.map(q => ({ id: q.playerId, label: q.displayName, playerId: q.playerId })) })) };
+  }
   const spec = asEntersChoiceSpec(def);
   if (!spec) return null;
   const base = { playerId: player.playerId, cancellable: true, source, title: `${def.name} — as it enters` };

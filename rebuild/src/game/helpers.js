@@ -135,3 +135,20 @@ export class GameError extends Error {
     this.reasons = reasons.length ? reasons : [message];
   }
 }
+
+/**
+ * Permanents that can be attacked through `defender` (rule 506.3): the planeswalkers they control
+ * and the battles they protect. Attacking one of them makes `defender` the defending player.
+ */
+export function attackablePermanents(game, defender) {
+  const out = [];
+  for (const p of game.players || []) {
+    if (p.eliminated) continue;
+    for (const c of p.deck?.battlefield || []) {
+      const type = String(defOf(game, c)?.typeLine || '');
+      if (/\bPlaneswalker\b/i.test(type) && p.playerId === defender.playerId && !/\bCreature\b/i.test(type)) out.push({ card: c, kind: 'planeswalker', controller: p });
+      else if (/\bBattle\b/i.test(type) && c.protectorId === defender.playerId) out.push({ card: c, kind: 'battle', controller: p });
+    }
+  }
+  return out;
+}

@@ -421,6 +421,8 @@ function resolveStackTop(game) {
         card.chosenCardName = obj.asEntersChoices.cardName;
       if (obj.asEntersChoices?.playerId)
         card.chosenPlayerId = obj.asEntersChoices.playerId;
+      if (obj.asEntersChoices?.protectorId)
+        card.protectorId = obj.asEntersChoices.protectorId;
       if (obj.manaCapacityColor)
         card.manaCapacityColor = obj.manaCapacityColor;
     }

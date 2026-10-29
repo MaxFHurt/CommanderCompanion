@@ -44,6 +44,7 @@ export function scryfallToDefinition(c) {
     legalities: c.legalities || null,
     manaValue: Number(c.cmc ?? 0),
     loyalty: face?.loyalty ?? c.loyalty ?? null,
+    defense: face?.defense ?? c.defense ?? null,
     layout: c.layout || 'normal',
     hydrationStatus: 'complete'
   });

@@ -11,18 +11,22 @@ export function openAttack(ctx) {
   const rows = view.actions.attack || [];
   if (!me || !rows.length) return toast('None of your creatures can attack right now.');
   const opponents = view.players.filter(p => p.playerId !== me.playerId && !p.eliminated);
-  const draft = new Map(); // instanceId → defenderId
+  const draft = new Map(); // instanceId → defenderId, or 'defenderId|permanentId' for a planeswalker or battle
   // Creatures that must attack (goaded, "attacks this combat if able") start chosen.
   for (const r of rows) if (r.mustAttack && r.defenders.length) draft.set(r.instanceId, r.defenders[0]);
   const draw = el => {
     setHtml($('[data-attackers]', el), rows.map(r => {
       const c = me.battlefield.find(x => x.id === r.instanceId);
       const target = draft.get(r.instanceId);
+      const [who, permanentId] = String(target || '').split('|');
+      const permanent = (r.targets || []).find(x => x.id === permanentId);
+      const name = permanent ? `${permanent.name} (${permanent.kind === 'battle' ? `battle ${opponents.find(o => o.playerId === who)?.name} protects` : `${opponents.find(o => o.playerId === who)?.name}'s planeswalker`})` : opponents.find(o => o.playerId === who)?.name;
       return html`<div class="combat-row ${target ? 'is-on' : ''}">
         ${cardHtml(c, view.defs[c.def], { act: 'peek', cls: 'card--thumb' })}
-        <span class="pick__text"><strong>${c.name}</strong><small>${c.power}/${c.toughness}${target ? ` → attacks ${opponents.find(o => o.playerId === target)?.name}` : ' — staying home'}${r.mustAttack ? html` · <b>${r.goaded ? 'Goaded — must attack' : 'Must attack'}</b>` : ''}</small></span>
+        <span class="pick__text"><strong>${c.name}</strong><small>${c.power}/${c.toughness}${target ? ` → attacks ${name}` : ' — staying home'}${r.mustAttack ? html` · <b>${r.goaded ? 'Goaded — must attack' : 'Must attack'}</b>` : ''}</small></span>
         <span class="combat-row__targets">
           ${opponents.filter(o => r.defenders.includes(o.playerId)).map(o => html`<button type="button" class="chip ${target === o.playerId ? 'chip--gold is-on' : ''}" data-attacker="${r.instanceId}" data-defender="${o.playerId}" style="--player:${o.color}">${o.name} <b>${o.life}</b></button>`)}
+          ${(r.targets || []).map(x => { const key = `${x.playerId}|${x.id}`, o = opponents.find(q => q.playerId === x.playerId); return html`<button type="button" class="chip ${target === key ? 'chip--gold is-on' : ''}" data-attacker="${r.instanceId}" data-defender="${key}" style="--player:${o?.color || ''}" title="${x.kind === 'battle' ? 'Battle — defense' : 'Planeswalker — loyalty'}">${x.kind === 'battle' ? '⚔' : '◆'} ${x.name} <b>${x.value}</b></button>`; })}
         </span>
       </div>`;
     }));
@@ -32,13 +36,13 @@ export function openAttack(ctx) {
   openModal({
     title: 'Declare attackers', size: 'wide',
     body: html`<div class="decision">
-      <p class="decision__prompt">Tap the opponent each creature should attack. Nothing happens until you confirm.</p>
+      <p class="decision__prompt">Tap the opponent${rows.some(r => r.targets?.length) ? ', planeswalker (◆ loyalty) or battle (⚔ defense)' : ''} each creature should attack. Nothing happens until you confirm.</p>
       <div class="row">${opponents.map(o => html`<button type="button" class="btn btn--small" data-all="${o.playerId}">All → ${o.name}</button>`)}<button type="button" class="btn btn--small" data-all="">Clear</button></div>
       <div class="combat-list" data-attackers></div></div>`,
     actions: [
       { label: 'Cancel', kind: 'cancel' },
       { label: 'Attack', kind: 'confirm', id: 'attackConfirm', onClick: async ({ close }) => {
-        const result = await ctx.send({ type: 'attack', attacks: [...draft].map(([instanceId, defenderId]) => ({ instanceId, defenderId })) });
+        const result = await ctx.send({ type: 'attack', attacks: [...draft].map(([instanceId, to]) => { const [defenderId, targetId] = to.split('|'); return { instanceId, defenderId, ...(targetId ? { targetId } : {}) }; }) });
         if (result.ok) close();
       } }
     ],
@@ -71,7 +75,7 @@ export function openBlocks(ctx, rows, { minimize } = {}) {
       return html`<section class="block-row">
         <div class="block-row__attacker">
           ${attacker ? cardHtml(attacker, view.defs[attacker.def], { act: 'peek', cls: 'card--thumb' }) : ''}
-          <span class="pick__text"><strong>${r.attackerName}</strong><small>${attacker ? `${attacker.power}/${attacker.toughness} attacking you` : ''}${mine.length ? '' : ' — unblocked'}</small></span>
+          <span class="pick__text"><strong>${r.attackerName}</strong><small>${attacker ? `${attacker.power}/${attacker.toughness} attacking ${r.targetName ? `your ${r.targetName}` : 'you'}` : ''}${mine.length ? '' : ' — unblocked'}</small></span>
         </div>
         <div class="block-row__blockers">
           ${r.blockers.length ? r.blockers.map(b => {

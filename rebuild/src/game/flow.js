@@ -5,7 +5,7 @@ import { evaluateLosses, validateAttack, validateRequiredAttackers, validateBloc
 import { phaseLabel } from '../engine/phase.js';
 import { resolveCombat, cardHasKeyword } from '../engine/combat.js';
 import { queueTriggers } from '../engine/triggers.js';
-import { GameError, activePlayer, alivePlayers, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
+import { GameError, activePlayer, alivePlayers, attackablePermanents, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
 import { Need, makeAsk, validateAnswer } from './requirements.js';
 import { OPS, commit, addLore } from './ops.js';
 import { attackOptions, blockOptions, hasResponse, stackTop } from './legal.js';
@@ -243,7 +243,12 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
     if (!card || !defender || defender.eliminated || defender.playerId === p.playerId) throw new GameError('An attacker or its target is no longer available.');
     const check = validateAttack({ game: { ...game, phase: 'declare-attackers' }, attackerId: p.playerId, defenderId: defender.playerId, instance: card, definition: def });
     if (!check.legal && strict) throw new GameError(`${def?.name || 'That creature'} cannot attack: ${check.reasons[0]}`);
-    rows.push({ card, def, defender });
+    let target = null;
+    if (a.targetId) {
+      target = attackablePermanents(game, defender).find(x => x.card.instanceId === a.targetId && x.card.instanceId !== card.instanceId);
+      if (!target) throw new GameError('That planeswalker or battle cannot be attacked.');
+    }
+    rows.push({ card, def, defender, target });
   }
   if (!rows.length) throw new GameError('Choose at least one attacker, or skip combat with Next Phase.');
   const required = validateRequiredAttackers({ game, player: p, draft: rows.map(r => ({ instanceId: r.card.instanceId })) });
@@ -254,14 +259,15 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
     if (!cardHasKeyword(r.card, r.def, 'Vigilance', game) && !r.card.tapped) {
       commit(game, { type: 'tap-card', playerId: p.playerId, instanceId: r.card.instanceId, tapped: true, silent: true });
     }
-    attackers.push({ playerId: p.playerId, instanceId: r.card.instanceId, defenderId: r.defender.playerId, blocksConfirmed: false });
-    log(game, `${p.displayName} attacks ${r.defender.displayName} with ${r.def?.name || 'a creature'}.`, { type: 'combat' });
+    attackers.push({ playerId: p.playerId, instanceId: r.card.instanceId, defenderId: r.defender.playerId, targetId: r.target?.card.instanceId || null, blocksConfirmed: false });
+    const what = r.target ? `${defOf(game, r.target.card)?.name || 'a permanent'} (${r.target.kind === 'battle' ? `the battle ${r.defender.displayName} protects` : `${r.defender.displayName}'s planeswalker`})` : r.defender.displayName;
+    log(game, `${p.displayName} attacks ${what} with ${r.def?.name || 'a creature'}.`, { type: 'combat' });
   }
   const defenders = [...new Set(attackers.map(a => a.defenderId))];
   p.confirmations = { ...(p.confirmations || {}), attackers: true };
   game.combatState = { attackers, defenders, blocks: {}, damage: [], waitingFor: null, resolved: false };
   game.phase = 'declare-attackers';
-  for (const a of attackers) queueTriggers(game, { type: 'attacks', sourceId: a.instanceId, controllerId: p.playerId, defenderId: a.defenderId });
+  for (const a of attackers) queueTriggers(game, { type: 'attacks', sourceId: a.instanceId, controllerId: p.playerId, defenderId: a.defenderId, targetId: a.targetId });
   queueTriggers(game, { type: 'attackers-declared', controllerId: p.playerId, attackers: attackers.map(a => a.instanceId), defenders });
   f.queue = COMBAT_QUEUE();
 }

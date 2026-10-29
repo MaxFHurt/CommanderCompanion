@@ -236,6 +236,20 @@ function triggerMatches(game, row, ability, event) {
     if (/one or more creatures you control deal combat damage to a player/i.test(t))
       return event.controllerId === row.player.playerId;
   }
+  if (event.type === 'combat-damage-dealt') {
+    // "deals combat damage" with nothing after it (or "to a creature"): attacking or blocking.
+    // "to a player / an opponent" is the combat-damage-player event above.
+    const any = /deals combat damage(?! to)/i.test(t), toCreature = /deals combat damage to a creature/i.test(t);
+    if (!any && !toCreature)
+      return false;
+    if (toCreature && !event.to?.includes('creature'))
+      return false;
+    if (self)
+      return row.card.instanceId === event.sourceId;
+    if (/(?:a|another) creature you control/i.test(t))
+      return event.controllerId === row.player.playerId && (!/another/i.test(t) || otherThanSource(row, event));
+    return false;
+  }
   if (event.type === 'damage-player') {
     if (/deals damage to (?:a player|an opponent)/i.test(t) && self)
       return row.card.instanceId === event.sourceId;
@@ -418,5 +432,28 @@ export function resolveTrigger(game, trigger, bindings = {}) {
   game.log?.unshift?.({ text: `${trigger.sourceName} trigger resolves. ${notes.join(' ')}`, turn: game.turnNumber, at: new Date().toISOString() });
   return notes;
 }
-export function auditTriggers(definition) { return parseTriggeredAbilities(definition).map(a => { if (a.modes?.length)
-  return { ...a, supported: true, unsupported: [], effectKinds: ['modal-trigger'] }; const compiled = compileEffectText(a.effect, { sourceName: definition?.name || 'Card' }); return { ...a, supported: compiled.supported, unsupported: compiled.unsupported, effectKinds: [...new Set(compiled.effects.map(x => x.kind))] }; }); }
+/**
+ * Does the game ever fire this trigger by itself? Tries every event the game sends, done by this
+ * card, by another of its controller's cards and by an opponent, with each common card type. A
+ * trigger nothing matches is one players must remember and resolve by hand.
+ */
+const PROBE_EVENTS = ['attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
+const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem'];
+export function triggerCanFire(definition, ability) {
+  const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
+  const cardDefinitions = Object.fromEntries(PROBE_TYPES.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3 }]));
+  cardDefinitions[definition.definitionId || 'self-def'] = definition;
+  const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };
+  for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) {
+    const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {} }, definition, player: me, zone };
+    for (const type of PROBE_EVENTS) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < PROBE_TYPES.length; i++) {
+      const event = { type, sourceId, controllerId: who.playerId, playerId: who.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
+        typeLine: sourceId === 'self' ? definition.typeLine : PROBE_TYPES[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId], defenders: ['opp'], defenderId: who === me ? 'opp' : 'me',
+        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe' };
+      try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
+    }
+  }
+  return false;
+}
+export function auditTriggers(definition) { return parseTriggeredAbilities(definition).map(a => { const fires = triggerCanFire(definition, a); const never = fires ? [] : [`The game never fires "${a.trigger}" by itself`]; if (a.modes?.length)
+  return { ...a, fires, supported: fires, unsupported: never, effectKinds: ['modal-trigger'] }; const compiled = compileEffectText(a.effect, { sourceName: definition?.name || 'Card' }); return { ...a, fires, supported: fires && compiled.supported, unsupported: [...never, ...compiled.unsupported], effectKinds: [...new Set(compiled.effects.map(x => x.kind))] }; }); }

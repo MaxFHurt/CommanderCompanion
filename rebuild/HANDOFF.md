@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.31, 2026-10-29)
+# Commander Companion — handoff (build 1.0.0-rebuild.32, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.30**; build 31 (online games) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v31`).
+- Live build: **1.0.0-rebuild.31** (online games). Build 32 is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v32`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -75,6 +75,18 @@ what each part does, the owner's rules, open notes, and the roadmap.
   Deploy the Worker: `sh cloud/deploy.sh` (needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, set in the
   cloud environment). Games nobody opens for 120 days are deleted. Free Cloudflare plan: 100,000 requests a
   day, far more than a few games need.
+- **Online profile** (build 32): Profile → Online. The profile backup (same as Save Profile) is kept by the
+  same Worker under a private 12-letter key (`/profiles/KEY`, kept 2 years after last use). A linked device saves
+  again by itself when the start screen opens and the profile changed (`src/app/online-profile.js`); if
+  another device saved first it never overwrites — the player chooses. Load on a new device with the key.
+- **Combat (build 32):** "Whenever ~ deals combat damage" (no "to a player") and "… to a creature" fire when
+  attacking or blocking, once per damage step (`combat-damage-dealt` event). Creatures can attack planeswalkers
+  and battles (`targetId` on an attacker; defending player = the planeswalker's controller / battle's protector).
+  Damage removes loyalty / defense. Sieges get an opponent as protector as they enter (asked when there are
+  several); a defeated Siege is exiled and its back face is cast by hand.
+- **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
+  1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
+  (`triggerCanFire` probes every game event).
 - Screens `src/ui/screens/`, in-game popups `src/ui/game/`.
 - Table Tracker is separate: `src/game/tracker.js` (pure state), `src/ui/screens/tracker.js`,
   hosted via `src/app/tracker-session.js`, `src/net/tracker-room.js`, `src/ui/screens/tracker-join.js`.
@@ -162,7 +174,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 149 rules/coach/judge/undo/challenge checks
+    node tests/node/game.mjs          # 162 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
@@ -172,7 +184,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     python3 tests/flows_ui.py         # 25
     python3 tests/challenge_ui.py     # 13   (challenge, correction, voted undo, rules agreement)
     python3 tests/net_ui.py           # 26   (hosted game: Table / Judge, reverse, watcher)
-    python3 tests/online_ui.py        # 23   (online games; starts cloud/dev-server.mjs, a local copy of the Worker)
+    python3 tests/online_ui.py        # 29   (online games + online profile; starts cloud/dev-server.mjs, a local copy of the Worker)
     python3 tests/tracker_net_ui.py   # 44   (hosted Table Tracker)
     python3 tests/shots_judge.py      # host-screen screenshots
     python3 tests/shots_more.py       # game screenshots
@@ -213,6 +225,11 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   rules is optional cleanup (verify with `style_diff.py`).
 
 ## 9. Roadmap
+
+**Waiting on the owner's OK (29 Oct):** fix the triggers the game never fires (RULES_AUDIT.md, 126 triggers on
+120 of the top 1,000 cards): plural verbs ("casts", "draws"), short self-names ("Etali", "Urza"), the newer
+"… you control enters" wording, draw step / "first main phase" / "each upkeep", equipped/enchanted creature
+triggers, tapping for mana, other "dies" wordings. Then the 152 spells and 115 activated abilities resolved by hand.
 
 **Next (after the weekly usage reset, when the owner says go)**
 1. QR pairing for local multiplayer (two-step scan: host offer → joiner answer), working over a

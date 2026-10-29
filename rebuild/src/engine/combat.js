@@ -105,6 +105,7 @@ export function cardHasKeyword(card, def, name, game = null) {
 }
 const kw = (card, def, k, game) => cardHasKeyword(card, def, k, game);
 function locatePlayer(game, id) { return game.players.find(p => p.playerId === id); }
+function findPermanent(game, id) { for (const player of game.players || []) { const card = (player.deck?.battlefield || []).find(c => c.instanceId === id); if (card) return { player, card }; } return null; }
 function locateCard(player, id) { return player?.deck?.battlefield?.find(c => c.instanceId === id) || null; }
 function commanderFor(player, card) { return player?.commanders?.find(c => c.cardId === card?.definitionId && c.zone === 'battlefield') || null; }
 function toxicValue(def) { const ms = [...String(def?.oracleText || '').matchAll(/\bToxic\s+(\d+)\b/ig)]; return ms.reduce((n, m) => n + Number(m[1] || 0), 0); }
@@ -168,6 +169,9 @@ function combatDamageAfterPrevention(game, targetId, amount) { let left = Math.m
   left -= used;
 } game.damagePrevention = (game.damagePrevention || []).filter(s => Number(s.amount || 0) > 0); return left; }
 function applyQueue(game, queue, events, onEvent) {
+  // Per source, what it hit this step: "Whenever ~ deals combat damage" triggers once per step,
+  // whether it attacked or blocked, and however many things it damaged.
+  const dealt = new Map();
   for (const hit of queue) {
     const { sourcePlayer, source, sourceDef } = hit;
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
@@ -205,10 +209,20 @@ function applyQueue(game, queue, events, onEvent) {
       }
       if (amount > 0)
         emit(onEvent, { type: 'combat-damage-player', sourceId: source.instanceId, definitionId: source.definitionId, controllerId: sourcePlayer.playerId, playerId: target.playerId, amount });
+      if (amount > 0)
+        noteDealt(dealt, hit, amount, 'player');
     }
     else {
-      const target = hit.target;
-      if (amount > 0 && (isInfect(source, sourceDef, game) || isWither(source, sourceDef, game))) {
+      const target = hit.target, targetType = String(definition(game, target)?.typeLine || '');
+      // Damage to a planeswalker removes loyalty, to a battle removes defense (rule 120.3c, 120.3h).
+      const counter = /\bPlaneswalker\b/i.test(targetType) ? 'loyalty' : /\bBattle\b/i.test(targetType) ? 'defense' : null;
+      if (amount > 0 && counter) {
+        target.counters = target.counters || {};
+        target.counters[counter] = Math.max(0, Number(target.counters[counter] || 0) - amount);
+        events.push(`${definition(game, target)?.name || 'It'} loses ${amount} ${counter} (${target.counters[counter]} left).`);
+      }
+      if (counter && !/\bCreature\b/i.test(targetType)) { /* not a creature: no damage marked */ }
+      else if (amount > 0 && (isInfect(source, sourceDef, game) || isWither(source, sourceDef, game))) {
         target.counters = target.counters || {};
         target.counters['-1/-1'] = Number(target.counters['-1/-1'] || 0) + amount;
       }
@@ -219,13 +233,25 @@ function applyQueue(game, queue, events, onEvent) {
       if (prevented)
         events.push(`${prevented} combat damage to ${definition(game, target)?.name || 'a creature'} is prevented.`);
       if (amount > 0 && isLifelink(source, sourceDef, game)) {
-        sourcePlayer.life = Math.max(0, Number(sourcePlayer.life || 0) + amount);
-        emit(onEvent, { type: 'life-gained', playerId: sourcePlayer.playerId, amount, sourceId: source.instanceId, controllerId: sourcePlayer.playerId });
+        const gained = lifeGainAmount(game, sourcePlayer.playerId, amount);
+        sourcePlayer.life = Math.max(0, Number(sourcePlayer.life || 0) + gained);
+        emit(onEvent, { type: 'life-gained', playerId: sourcePlayer.playerId, amount: gained, sourceId: source.instanceId, controllerId: sourcePlayer.playerId });
       }
       if (amount > 0)
         emit(onEvent, { type: 'combat-damage-creature', sourceId: source.instanceId, definitionId: source.definitionId, controllerId: sourcePlayer.playerId, targetId: target.instanceId, amount });
+      if (amount > 0)
+        noteDealt(dealt, hit, amount, /Planeswalker/i.test(definition(game, target)?.typeLine || '') ? 'planeswalker' : /Battle/i.test(definition(game, target)?.typeLine || '') ? 'battle' : 'creature');
     }
   }
+  for (const d of dealt.values())
+    emit(onEvent, { type: 'combat-damage-dealt', sourceId: d.sourceId, definitionId: d.definitionId, controllerId: d.controllerId, amount: d.amount, to: [...d.to] });
+}
+function noteDealt(dealt, hit, amount, kind) {
+  const id = hit.source.instanceId;
+  const row = dealt.get(id) || { sourceId: id, definitionId: hit.source.definitionId, controllerId: hit.sourcePlayer.playerId, amount: 0, to: new Set() };
+  row.amount += amount;
+  row.to.add(kind);
+  dealt.set(id, row);
 }
 function stateBasedDeaths(game, events, onEvent) {
   // Repeat because one death can change anthem effects and make another creature lethal.
@@ -276,10 +302,17 @@ function resolveStep(game, cs, step, events, onEvent) {
     const assignments = cs.blocks?.[defender.playerId]?.assignments?.filter(x => x.attackerId === a.instanceId) || [];
     const blockerRows = assignments.map(x => ({ assignment: x, card: locateCard(defender, x.blockerId) })).filter(x => x.card);
     const blockedEver = assignments.length > 0 || a.blocked === true;
+    // Attacking a planeswalker or battle: unblocked (and trample) damage goes to it. If it has left
+    // the battlefield, that damage is not dealt (rule 506.4).
+    const attacked = a.targetId ? findPermanent(game, a.targetId) : null;
+    const hitDefender = (amount) => {
+      if (!a.targetId) return queuePlayerDamage(queue, attackerPlayer, attacker, ad, defender, amount);
+      if (attacked) queueCreatureDamage(queue, attackerPlayer, attacker, ad, attacked.player, attacked.card, definition(game, attacked.card), amount);
+    };
     if (dealsInStep(attacker, ad, step, game)) {
       const power = effectivePower(attacker, ad, game);
       if (!blockedEver)
-        queuePlayerDamage(queue, attackerPlayer, attacker, ad, defender, power);
+        hitDefender(power);
       else if (blockerRows.length) {
         const trample = isTrample(attacker, ad, game);
         const plan = (a.damageAssignments?.[step]) || smartAttackerAssignment({ power, blockers: blockerRows, game, source: attacker, sourceDef: ad, trample });
@@ -294,11 +327,11 @@ function resolveStep(game, cs, step, events, onEvent) {
         }
         if (trample) {
           const spill = Math.max(0, Math.min(power - assigned, Number(plan.target ?? (power - assigned))));
-          queuePlayerDamage(queue, attackerPlayer, attacker, ad, defender, spill);
+          hitDefender(spill);
         }
       }
       else if (isTrample(attacker, ad, game))
-        queuePlayerDamage(queue, attackerPlayer, attacker, ad, defender, power);
+        hitDefender(power);
     }
     for (const row of blockerRows) {
       const bd = definition(game, row.card);

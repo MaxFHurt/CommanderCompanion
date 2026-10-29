@@ -48,3 +48,7 @@ export const saveOnlineGame = (code, baseRev, game, summary) => call('PUT', `/ga
 export const onlineSummary = code => call('GET', `/games/${code}/summary`);
 
 export function newCodeOk(code) { return /^[A-Z]{6}$/.test(code); }
+
+// Online profile: a profile backup kept under a private 12-letter key, to load on another device.
+export const fetchOnlineProfile = key => call('GET', `/profiles/${key}`);
+export const saveOnlineProfile = (key, baseRev, backup) => call('PUT', `/profiles/${key}`, { baseRev, backup });
