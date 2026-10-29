@@ -74,11 +74,14 @@ export function effectiveToughness(card, def, game = null) {
 }
 export function cardHasKeyword(card, def, name, game = null) {
   const n = String(name || ''), low = n.toLowerCase();
+  // "loses hexproof and indestructible until end of turn" (Shadowspear) wins over every source of the keyword.
+  if ((card?.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled === false && String(e.keyword || '').toLowerCase() === low))
+    return false;
   if ((def?.keywords || []).some(x => String(x).toLowerCase() === low))
     return true;
   if (new RegExp(`\\b${n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '')))
     return true;
-  if (tempEffects(card, 'keyword').some(e => String(e.keyword || '').toLowerCase() === low))
+  if (tempEffects(card, 'keyword').some(e => e.enabled !== false && String(e.keyword || '').toLowerCase() === low))
     return true;
   if (game && card) {
     const targetController = card.controllerId;

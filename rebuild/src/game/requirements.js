@@ -8,6 +8,7 @@
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
+import { cardMatchesFilter } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -107,25 +108,39 @@ function isCombatParticipant(game, instanceId) {
   return Object.values(cs.blocks || {}).some(row => (row?.assignments || []).some(x => x.blockerId === instanceId));
 }
 
+/** The card-type words of a target phrase: all of them ("artifact creature"), or any one with "or" ("artifact, enchantment, or nonbasic land"). */
+const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle', 'equipment', 'instant', 'sorcery'];
+function typesFit(typeLine, scope) {
+  const t = String(typeLine || '').toLowerCase();
+  const words = TYPE_WORDS.filter(w => new RegExp(`(?:^|[^a-z])${w}s?\\b`).test(scope.replace(/\bnon\w+/g, '')));
+  if (words.length) {
+    const any = /\bor\b|and\/or/.test(scope);
+    if (any ? !words.some(w => t.includes(w)) : !words.every(w => t.includes(w))) return false;
+  }
+  for (const m of scope.matchAll(/\bnon(creature|artifact|enchantment|land|basic|legendary|token)\b/g)) if (m[1] !== 'token' && t.includes(m[1])) return false;
+  if (/\blegendary\b/.test(scope) && !t.includes('legendary')) return false;
+  if (/\bpermanent card\b/.test(scope) && /instant|sorcery/.test(t)) return false;
+  return true;
+}
+function manaValueFits(def, scope) {
+  const m = scope.match(/with mana value (\d+) or (less|greater)/);
+  if (!m) return true;
+  const v = Number(def?.manaValue ?? def?.cmc ?? 0);
+  return m[2] === 'less' ? v <= Number(m[1]) : v >= Number(m[1]);
+}
+
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
 function matchesPermanentScope(game, card, scope) {
-  const t = String(defOf(game, card)?.typeLine || '');
-  if (/artifact or enchantment/.test(scope)) { if (!/(Artifact|Enchantment)/i.test(t)) return false; }
-  else if (/creature or planeswalker/.test(scope)) { if (!/(Creature|Planeswalker)/i.test(t)) return false; }
-  else {
-    if (/creature/.test(scope) && !/Creature/i.test(t)) return false;
-    if (/artifact/.test(scope) && !/Artifact/i.test(t)) return false;
-    if (/enchantment/.test(scope) && !/Enchantment/i.test(t)) return false;
-    if (/planeswalker/.test(scope) && !/Planeswalker/i.test(t)) return false;
-    if (/equipment/.test(scope) && !/Equipment/i.test(t)) return false;
-  }
+  const def = defOf(game, card), t = String(def?.typeLine || '');
+  if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
-  if (/\bland\b/.test(scope) && !/nonland/.test(scope) && !/Land/i.test(t)) return false;
-  if (/\bbattle\b/.test(scope) && !/Battle/i.test(t)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
+  else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/with a counter on it/.test(scope) && !Object.values(card.counters || {}).some(v => Number(v) > 0)) return false;
+  if (/\bnontoken\b/.test(scope) && card.token) return false;
+  if (!manaValueFits(def, scope)) return false;
   const pw = scope.match(/with power (\d+) or (less|greater)/);
-  if (pw) { const p = Number(effectivePower(card, defOf(game, card), game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
+  if (pw) { const p = Number(effectivePower(card, def, game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
   return true;
 }
 
@@ -140,11 +155,8 @@ export function candidatesFor(game, req, player, source = null) {
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
     for (const q of owners) for (const c of q.deck.graveyard || []) {
-      const t = String(defOf(game, c)?.typeLine || '');
-      if (/creature/.test(scope) && !/Creature/i.test(t)) continue;
-      if (/artifact/.test(scope) && !/Artifact/i.test(t)) continue;
-      if (/\bland\b/.test(scope) && !/Land/i.test(t)) continue;
-      if (/instant or sorcery/.test(scope) && !/(Instant|Sorcery)/i.test(t)) continue;
+      const def = defOf(game, c), t = String(def?.typeLine || '');
+      if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '')) || !manaValueFits(def, scope)) continue;
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;
@@ -153,8 +165,10 @@ export function candidatesFor(game, req, player, source = null) {
     // "target noncreature spell", "target instant or sorcery spell": spellFilter is "noncreature" or "instant|sorcery".
     const fits = x => {
       if (!req.spellFilter) return true;
-      const type = String(defOf(game, x.card)?.typeLine || '').toLowerCase();
-      return req.spellFilter.split('|').some(w => w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
+      const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
+      const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      return req.spellFilter.split('|').some(w => w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+        : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])
       .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
@@ -172,7 +186,7 @@ export function candidatesFor(game, req, player, source = null) {
     }
     if (/any target|any other target|creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment/.test(scope)) {
       const anyTarget = /any (?:other )?target/.test(scope);
-      const dontControl = /you don'?t control/.test(scope);
+      const dontControl = /you don'?t control|an opponent controls|your opponents control/.test(scope);
       const owners = dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
       for (const q of owners) for (const c of q.deck.battlefield || []) {
         if (anyTarget) {
@@ -193,6 +207,7 @@ function battlefieldRows(game, owner, filter = 'permanent') {
       const t = String(defOf(game, c)?.typeLine || '').toLowerCase();
       if (f === 'permanent') return true;
       if (f === 'artifact or enchantment') return /artifact|enchantment/.test(t);
+      if (/[|]| or /.test(f)) return cardMatchesFilter(game, c, f);
       return t.includes(f);
     })
     .map(c => cardOption(game, c, owner));
@@ -236,6 +251,10 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       }));
       return;
     }
+    if (req.kind === 'choose-text') {
+      bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: req.label || 'Choose one', options: (req.options || []).map(o => ({ id: o, label: o })) }));
+      return;
+    }
     if (req.kind === 'text-choice') {
       bindings[req.bind] = ask(key, () => ({ ...base, kind: 'text', title, prompt: req.label || 'Enter a choice' }));
       return;
@@ -271,13 +290,13 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       const chosen = {};
       for (const q of targets) {
         const rows = battlefieldRows(game, q, req.filter);
-        const need = Math.min(amount, rows.length);
+        const need = Math.min(amount, rows.length), noun = String(req.filter || 'permanent').split('|')[0];
         // The affected player chooses what they sacrifice, on their own device.
         chosen[q.playerId] = need === 0 ? [] : need === rows.length && !req.upTo ? rows.map(r => r.id)
           : ask(`${key}:${q.playerId}`, () => ({
             ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many',
             title: `${sourceName} — ${q.displayName}`,
-            prompt: req.upTo ? `${q.displayName}: choose up to ${plural(need, req.filter || 'permanent')} (${req.label || 'chosen for the effect'}).` : `${q.displayName}: choose ${plural(need, req.filter || 'permanent')} (${req.label || 'required by the effect'}).`,
+            prompt: req.upTo ? `${q.displayName}: choose up to ${plural(need, noun)} (${req.label || 'chosen for the effect'}).` : `${q.displayName}: choose ${plural(need, noun)} (${req.label || 'required by the effect'}).`,
             options: rows, min: req.upTo ? 0 : need, max: need
           }));
       }
@@ -291,14 +310,16 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
         : [playerById(game, req.playerBind ? bindings[req.playerBind] : player.playerId)].filter(Boolean);
       const chosen = {};
       for (const q of targets) {
-        const hand = q.deck.hand || [];
+        // Cards drawn earlier in the same spell ("draw two cards, then discard a card") can be discarded too.
+        const coming = (q.deck.remainingLibrary || []).slice(0, Number(req.plusDraw || 0));
+        const hand = [...(q.deck.hand || []), ...coming];
         const need = Math.min(amount, hand.length);
         chosen[q.playerId] = need === 0 ? [] : need === hand.length ? hand.map(c => c.instanceId)
           : ask(`${key}:${q.playerId}`, () => ({
             ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: true,
             title: `${sourceName} — Discard`,
-            prompt: `${q.displayName}: choose ${plural(need, 'card')} to discard.`,
-            options: hand.map(c => cardOption(game, c, q, 'Your hand')), min: need, max: need
+            prompt: `${q.displayName}: choose ${plural(need, 'card')} to discard${coming.length ? ' (including the cards you are about to draw)' : ''}.`,
+            options: hand.map(c => cardOption(game, c, q, coming.includes(c) ? 'You draw this' : 'Your hand')), min: need, max: need
           }));
       }
       bindings[req.bind] = ['each-opponent', 'each-player'].includes(req.scope) ? chosen : (chosen[targets[0]?.playerId] || []);

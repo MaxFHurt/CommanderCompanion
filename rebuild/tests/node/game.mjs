@@ -1,5 +1,7 @@
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { newGame, check, section, done } from './harness.mjs';
+import { effectivePower, cardHasKeyword } from '../../src/engine/combat.js';
+import { candidatesFor } from '../../src/game/requirements.js';
 
 const mana = (t, i) => t.view(i).players[i].mana;
 
@@ -1112,5 +1114,154 @@ section('modal "both" with a commander, "one or more", Force of Will, Growth Spi
     answerAll(t, d => (d.key.includes('resolve') ? forest.instanceId : d.options?.[0]?.id ?? true));
     check('Growth Spiral: a land from your hand onto the battlefield', t.P(0).deck.battlefield.some(c => c.instanceId === forest.instanceId));
   }
+}
+section('build 38: more card wording (mass pumps, looting, sacrifices, X counts, pronouns)');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const answerAll = (t, fn, seen = []) => { for (let g = 0; g < 30; g++) { t.passAll(); const d = t.decision(); if (!d) break; seen.push(d); const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: fn(d) }, { playerId: d.playerId, isHost: false }); if (!r.ok) throw new Error(`${d.key}: ${r.error}`); } return seen; };
+  const setup = () => { const t = newGame(['simic', 'simic']); t.keepAll(); for (let i = 0; i < 4; i++) t.give(0, 'Forest', 'battlefield'); for (let i = 0; i < 3; i++) t.give(0, 'Island', 'battlefield'); t.autoPass = false; return t; };
+  const first = d => (d.kind === 'choose-many' ? (d.options || []).slice(0, d.min || 0).map(o => o.id) : d.kind === 'number' ? (d.min || 0) : d.kind === 'confirm' ? true : d.options?.[0]?.id);
+  const spell = (t, text, fn = first, extra = {}) => { t.give(0, 'Opt'); const c = asText(t, t.hand(0, 'Opt'), text, extra); const r = t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error); return answerAll(t, fn); };
+  const power = (t, c) => effectivePower(c, t.game.cardDefinitions[c.definitionId], t.game);
+  const has = (t, c, k) => cardHasKeyword(c, t.game.cardDefinitions[c.definitionId], k, t.game);
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves');
+    asText(t, t.hand(0, 'Llanowar Elves'), 'When this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Llanowar Elves').instanceId }, t.as(0)); answerAll(t, first);
+    const bear = t.bf(0, 'Grizzly Bears');
+    check('Craterhoof: +X/+X and trample, X = creatures you control', power(t, bear) === 4 && has(t, bear, 'Trample'), String(power(t, bear)));
+  }
+  {
+    const t = setup(); const top2 = t.P(0).deck.remainingLibrary.slice(0, 2).map(c => c.instanceId);
+    const seen = spell(t, 'Draw two cards, then discard a card.', d => (d.title?.includes('Discard') ? [top2[1]] : first(d)));
+    const dis = seen.find(d => d.title?.includes('Discard'));
+    check('looting: the discard choice includes the cards about to be drawn', !!dis && top2.every(id => dis.options.some(o => o.id === id)) && t.P(0).deck.graveyard.some(c => c.instanceId === top2[1]) && t.P(0).deck.hand.some(c => c.instanceId === top2[0]));
+  }
+  {
+    const t = setup(); t.give(1, 'Forest'); const h1 = t.P(1).deck.hand.length;
+    const seen = spell(t, 'Each player draws a card, then discards a card.');
+    check('Geier Reach: each player draws, then each chooses their own discard', seen.filter(d => d.title?.includes('Discard')).map(d => d.playerId).sort().join() === [t.P(0).playerId, t.P(1).playerId].sort().join() && t.P(1).deck.hand.length === h1 && t.P(1).deck.graveyard.length === 1);
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Grizzly Bears', 'battlefield'); t.give(1, 'Llanowar Elves', 'battlefield');
+    const seen = spell(t, 'Each player sacrifices a nontoken creature of their choice.', d => (d.playerId === t.P(1).playerId && d.kind === 'choose-many' ? [t.bf(1, 'Llanowar Elves').instanceId] : first(d)));
+    check('Fleshbag Marauder: each player sacrifices one, the opponent chooses theirs', !t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves') && !!t.bf(1, 'Grizzly Bears') && seen.some(d => d.playerId === t.P(1).playerId));
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield');
+    t.bf(0, 'Grizzly Bears').counters = { '+1/+1': 1 };
+    const hand = t.P(0).deck.hand.length;
+    spell(t, 'Draw a card for each creature you control with a +1/+1 counter on it. Those creatures gain indestructible until end of turn.');
+    check('Inspiring Call: draws for each creature with a counter; those gain indestructible', t.P(0).deck.hand.length === hand + 1 && has(t, t.bf(0, 'Grizzly Bears'), 'Indestructible') && !has(t, t.bf(0, 'Llanowar Elves'), 'Indestructible'), `${hand}→${t.P(0).deck.hand.length}`);
+  }
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield'); const bear = t.bf(1, 'Grizzly Bears');
+    bear.temporaryEffects = [{ kind: 'keyword', keyword: 'Hexproof', enabled: true, expires: 'cleanup' }];
+    spell(t, 'Permanents your opponents control lose hexproof and indestructible until end of turn.');
+    check("Shadowspear: opponents' permanents lose hexproof", !has(t, bear, 'Hexproof'));
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield');
+    spell(t, 'Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn.');
+    const bear = t.bf(0, 'Grizzly Bears');
+    check('Snakeskin Veil: "it" is the creature just targeted', bear.counters?.['+1/+1'] === 1 && has(t, bear, 'Hexproof'));
+  }
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield');
+    spell(t, 'Tap target creature. Metalcraft — If you control three or more artifacts, exile that creature.', d => (d.options?.find(o => o.label === 'Grizzly Bears')?.id ?? first(d)));
+    const bear = t.bf(1, 'Grizzly Bears');
+    check('Dispatch without three artifacts: tapped, not exiled', !!bear && bear.tapped);
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Llanowar Elves', 'battlefield');
+    spell(t, 'Chain Reaction deals X damage to each creature, where X is the number of creatures on the battlefield.', first, { name: 'Chain Reaction' });
+    check('Chain Reaction: X counts every creature on the battlefield', !t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves'));
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Llanowar Elves', 'battlefield');
+    spell(t, 'Destroy all creatures. You gain 1 life for each creature destroyed this way.');
+    check('Fumigate: 1 life for each creature destroyed', t.P(0).life === 42, String(t.P(0).life));
+  }
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield');
+    spell(t, 'Target creature gets -1/-1 until end of turn for each Forest you control.', d => (d.options?.find(o => o.label === 'Grizzly Bears')?.id ?? first(d)));
+    check('Defile: -1/-1 for each Forest you control (4 Forests kill a 2/2)', !t.bf(1, 'Grizzly Bears'));
+  }
+  {
+    const t = setup();
+    spell(t, 'Create a Food token or a Treasure token.', d => (d.options?.some(o => o.id === 'Treasure') ? 'Treasure' : first(d)));
+    check('Tireless Provisioner: choose a Treasure', t.names(0, 'battlefield').includes('Treasure') && !t.names(0, 'battlefield').includes('Food'));
+  }
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'graveyard');
+    spell(t, 'Put all creature cards from all graveyards onto the battlefield under your control.');
+    check('Rise of the Dark Realms: creature cards from every graveyard, under your control', !!t.bf(0, 'Grizzly Bears'));
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield');
+    t.bf(0, 'Grizzly Bears').counters = { '+1/+1': 1 };
+    spell(t, 'Destroy all creatures with power 3 or greater.');
+    check('Dusk: only creatures with power 3 or greater', !t.bf(0, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves'));
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield');
+    spell(t, 'Double the power and toughness of each creature you control until end of turn.');
+    check('Unnatural Growth: power and toughness doubled', power(t, t.bf(0, 'Grizzly Bears')) === 4);
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Llanowar Elves', 'battlefield');
+    spell(t, 'Exile up to two target creatures.', d => (d.kind === 'choose-many' ? d.options.map(o => o.id) : first(d)));
+    check('Angel of the Ruins: up to two targets', !t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves'));
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves');
+    asText(t, t.hand(0, 'Llanowar Elves'), 'At the beginning of each upkeep, if you control no Snakes, create a 1/1 black Snake creature token with deathtouch.');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Llanowar Elves').instanceId }, t.as(0)); answerAll(t, first);
+    t.autoPass = true; t.end(0); answerAll(t, first); t.end(1); answerAll(t, first);
+    check('Ophiomancer: a Snake only when you control none', t.names(0, 'battlefield').filter(n => n === 'Snake').length === 1, t.names(0, 'battlefield').join());
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves');
+    asText(t, t.hand(0, 'Llanowar Elves'), 'Whenever an opponent draws a card, they lose 2 life.');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Llanowar Elves').instanceId }, t.as(0)); answerAll(t, first);
+    t.autoPass = true; t.end(0); answerAll(t, first);
+    check('Sheoldred, the Apocalypse: the opponent who draws loses 2 life', t.P(1).life === 38 && t.P(0).life === 40, `${t.P(0).life} ${t.P(1).life}`);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves'); t.give(1, 'Grizzly Bears', 'battlefield');
+    asText(t, t.hand(0, 'Llanowar Elves'), "At the beginning of each opponent's upkeep, that player sacrifices a creature of their choice.");
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Llanowar Elves').instanceId }, t.as(0)); answerAll(t, first);
+    t.autoPass = true; t.end(0); answerAll(t, first);
+    check('Sheoldred, Whispering One: the opponent sacrifices at their upkeep', !t.bf(1, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves'));
+  }
+  {
+    const t = setup(); t.give(1, 'Opt'); t.give(1, 'Grizzly Bears');
+    t.game.stack = t.game.stack || [];
+    const reqOpts = candidatesFor(t.game, { kind: 'stack-target', scope: 'spell', spellFilter: 'mv=1' }, t.P(0));
+    check('Mental Misstep: only spells with mana value 1 can be chosen (none on the stack yet)', Array.isArray(reqOpts) && reqOpts.length === 0);
+  }  {
+    const t = setup(); t.give(0, 'Llanowar Elves'); t.give(1, 'Grizzly Bears', 'battlefield');
+    const card = asText(t, t.hand(0, 'Llanowar Elves'), 'Channel — {1}{G}, Discard this card: It deals 4 damage to target creature. This ability costs {1} less to activate for each legendary creature you control.', { name: 'Eiganjo Test' });
+    const ab = t.view(0).players[0].hand.find(c => c.id === card.instanceId).abilities.find(a => /Channel/.test(a.text));
+    t.ctl.dispatch({ type: 'activate', instanceId: card.instanceId, abilityId: ab.id }, t.as(0));
+    answerAll(t, d => (d.options?.find(o => o.label === 'Grizzly Bears')?.id ?? first(d)));
+    check('Channel: used from the hand, the card is discarded as the cost', !!ab?.legal && !t.bf(1, 'Grizzly Bears') && t.P(0).deck.graveyard.some(c => c.instanceId === card.instanceId));
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield');
+    const card = asText(t, t.bf(0, 'Llanowar Elves'), 'Channel — {1}{G}, Discard this card: Draw a card.');
+    const abs = t.view(0).players[0].battlefield.find(c => c.id === card.instanceId).abilities || [];
+    check('…but not from the battlefield', !abs.some(a => /Channel/.test(a.text)));
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'graveyard');
+    const card = asText(t, t.P(0).deck.graveyard.find(c => t.game.cardDefinitions[c.definitionId].name === 'Llanowar Elves'), '{1}{G}: Return this card from your graveyard to the battlefield tapped.');
+    const ab = (t.view(0).players[0].graveyard.find(c => c.id === card.instanceId).abilities || [])[0];
+    t.ctl.dispatch({ type: 'activate', instanceId: card.instanceId, abilityId: ab?.id }, t.as(0));
+    answerAll(t, first);
+    const back = t.bf(0, 'Llanowar Elves');
+    check('Reassembling Skeleton: returns from the graveyard to the battlefield tapped', !!ab?.legal && !!back && back.tapped);
+  }
+
 }
 done();

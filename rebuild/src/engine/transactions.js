@@ -309,7 +309,8 @@ function putSpellOnStack(game, player, action, deck) {
 }
 function payAbilityCosts(game, player, action, deck) {
   const hit = locate(deck, action.instanceId);
-  if (!hit || hit.z !== 'battlefield')
+  // Channel (from the hand) and "return this card from your graveyard" abilities name the zone they work from.
+  if (!hit || (hit.z !== 'battlefield' && !(action.fromZone && hit.z === action.fromZone)))
     throw new Error('Ability source must be on the battlefield');
   const card = hit.card;
   if (action.requiresTap) {

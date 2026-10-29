@@ -135,15 +135,27 @@ export function specialRows(game, player, card, { running = false } = {}) {
   return rows;
 }
 
+/** Where an activated ability works from: 'hand' (Channel — "Discard this card"), 'graveyard' ("Return this card from your graveyard …"), or the battlefield. */
+export function abilityZone(ability) {
+  if (/\bDiscard this card\b/i.test(ability?.cost || '')) return 'hand';
+  if (/\bthis card from your graveyard\b/i.test(ability?.effect || '')) return 'graveyard';
+  return 'battlefield';
+}
+
 /** Activated abilities of a card with their current legality. */
 export function abilityRows(game, player, card) {
   const def = defOf(game, card);
   if (!def) return [];
   const inHand = card.zone === 'hand';
-  return [...specialRows(game, player, card), ...parseActivatedAbilities(def)
-    .filter(ability => (inHand ? ability.manaAbility && HAND_MANA_COST.test(String(ability.cost || '').trim()) : true))
+  const zone = card.zone === 'hand' || card.zone === 'graveyard' ? card.zone : 'battlefield';
+  const payable = cost => planMana(playerManaAvailability(player, game), (String(cost || '').match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), 0, { lifeAvailable: Number(player.life || 0) }).ok;
+  return [...(zone === 'graveyard' ? [] : specialRows(game, player, card)), ...parseActivatedAbilities(def)
+    .filter(ability => (inHand && ability.manaAbility ? HAND_MANA_COST.test(String(ability.cost || '').trim()) : abilityZone(ability) === zone))
     .map(ability => {
-      const check = inHand ? { legal: true, reasons: [] }
+      const fromZone = zone !== 'battlefield' && !ability.manaAbility;
+      const instantSpeed = !/Activate only as a sorcery/i.test(ability.text) || (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length);
+      const check = fromZone ? { legal: payable(ability.cost) && instantSpeed, reasons: [!payable(ability.cost) && 'Not enough mana.', !instantSpeed && 'Only during your main phase while the stack is empty.'].filter(Boolean) }
+        : inHand ? { legal: true, reasons: [] }
         : validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
       const sorcery = /Activate only as a sorcery/i.test(ability.text) || ability.loyaltyDelta !== null;
       if (sorcery && check.legal) {

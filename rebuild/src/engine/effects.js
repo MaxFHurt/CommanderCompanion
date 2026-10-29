@@ -152,9 +152,14 @@ function shuffled(array) {
   }
   return array;
 }
-function cardMatchesFilter(game, card, filter) {
+export function cardMatchesFilter(game, card, filter) {
   if (!filter || filter === 'card')
     return true;
+  // "creature or planeswalker": any one of the types.
+  if (/ or /.test(String(filter).split('|')[0])) {
+    const [base, ...conds] = String(filter).split('|');
+    return base.split(/ or /).some(b => cardMatchesFilter(game, card, [b.trim(), ...conds].join('|')));
+  }
   const d = definitionFor(game, card), type = String(d?.typeLine || '').toLowerCase(), text = String(d?.oracleText || '').toLowerCase();
   const f = String(filter).toLowerCase().trim();
   if (f === 'creature')
@@ -190,6 +195,14 @@ function cardMatchesFilter(game, card, filter) {
       if (c === 'attacking') return (game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId);
       if (c.startsWith('type:')) return type.includes(c.slice(5));
       if (c.startsWith('non:')) return !type.includes(c.slice(4));
+      if (c === 'nontoken') return !card.token;
+      if (c === 'token') return !!card.token;
+      if (c === 'entered') return card.enteredTurn === game.turnNumber;
+      if (c.startsWith('color:')) return (d?.colors || []).includes(c.slice(6).toUpperCase());
+      if (c.startsWith('counter:')) return Number(card.counters?.[c.slice(8)] || 0) > 0;
+      if (c === 'basictype') return /\b(?:plains|island|swamp|mountain|forest)\b/.test(type);
+      const pw = c.match(/^power(<=|>=)(\d+)$/);
+      if (pw) { const p = Number(effectivePower(card, d, game)); return pw[1] === '<=' ? p <= Number(pw[2]) : p >= Number(pw[2]); }
       const m = c.match(/^mv(<=|>=)(\d+)$/);
       return !m || (m[1] === '<=' ? mv <= Number(m[2]) : mv >= Number(m[2]));
     });
@@ -236,7 +249,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return n == null ? 0 : n;
   }
   if (amount.kind === 'count')
-    return countCards(game, amount.controllerId || controllerId, amount);
+    return amount.all ? game.players.filter(p => !p.eliminated).reduce((n, p) => n + countCards(game, p.playerId, amount), 0) : countCards(game, amount.controllerId || controllerId, amount);
   if (amount.kind === 'opponents')
     return Math.max(0, (game.players || []).filter(p => !p.eliminated && p.playerId !== controllerId).length);
   if (amount.kind === 'hand-size') {
@@ -265,6 +278,16 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     // Mana symbols of that color among the mana costs of permanents you control (hybrid counts once).
     const p = game.players.find(x => x.playerId === controllerId);
     return (p?.deck?.battlefield || []).reduce((n, c) => n + (String(definitionFor(game, c)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(sym => sym.includes(amount.color)).length, 0);
+  }
+  if (amount.kind === 'times')
+    return Number(amount.n || 1) * resolveAmount(game, controllerId, amount.of, bindings);
+  if (amount.kind === 'spells-cast-this-turn')
+    return (game.players.find(x => x.playerId === controllerId)?.counters?.castThisTurn || []).length;
+  if (amount.kind === 'source-counters')
+    return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[amount.counter] || 0);
+  if (amount.kind === 'event-card-power') {
+    const hit = locateCardInGame(game, bindings.eventCard);
+    return hit ? Math.max(0, Number(effectivePower(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
   }
   if (amount.kind === 'sum')
     return (amount.parts || []).reduce((n, x) => n + resolveAmount(game, controllerId, x, bindings), 0);
@@ -432,6 +455,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
   if (!controller)
     throw new Error('Effect controller is unavailable.');
   const notes = [];
+  if (!bindings.eventCard && bindings.sourceId) bindings.eventCard = bindings.sourceId;
   for (let effect of effects || []) {
     // "Its controller creates …": remember who controlled the target before it moves, then do it for them.
     if (effect.optionalTarget && effect.bind && !bindings[effect.bind]) { notes.push('No target was chosen.'); continue; }
@@ -529,6 +553,67 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     const amount = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings));
+    if (effect.kind === 'set-x') { bindings.X = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings)); continue; }
+    if (effect.kind === 'goad-each') {
+      let n = 0;
+      for (const p of game.players.filter(x => x.playerId !== controllerId && !x.eliminated))
+        for (const c of p.deck?.battlefield || [])
+          if (cardMatchesFilter(game, c, 'creature')) { c.temporaryEffects = c.temporaryEffects || []; c.temporaryEffects.push({ kind: 'goad', by: controllerId, expires: `turn-start:${controllerId}` }); n++; }
+      notes.push(`${n} creature${n === 1 ? ' is' : 's are'} goaded.`);
+      continue;
+    }
+    if (effect.kind === 'double-counter-each') {
+      let n = 0;
+      for (const c of controller.deck?.battlefield || [])
+        if (cardMatchesFilter(game, c, effect.filter || 'creature') && Number(c.counters?.[effect.counter] || 0) > 0) { addCounter(c, effect.counter, Number(c.counters[effect.counter])); n++; }
+      notes.push(`${n} permanent${n === 1 ? '' : 's'} double their ${effect.counter} counters.`);
+      continue;
+    }
+    if (effect.kind === 'double-pt-each') {
+      // "Double the power and toughness": each creature gets +X/+Y where X and Y are its power and toughness now.
+      let n = 0;
+      for (const c of controller.deck?.battlefield || []) {
+        const d = definitionFor(game, c);
+        if (!isCreature(d)) continue;
+        c.temporaryEffects = c.temporaryEffects || [];
+        c.temporaryEffects.push({ kind: 'pt', power: Number(effectivePower(c, d, game) || 0), toughness: Number(effectiveToughness(c, d, game) || 0), expires: effect.expires || 'cleanup' });
+        n++;
+      }
+      notes.push(`${n} creature${n === 1 ? '' : 's'} double their power and toughness.`);
+      continue;
+    }
+    if (effect.kind === 'return-self-graveyard') {
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'graveyard') { notes.push('The card is no longer in the graveyard.'); continue; }
+      moveCard(game, hit.card.instanceId, 'battlefield', { controllerId: hit.card.ownerId, tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
+      notes.push(`${cardName(game, hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}.`);
+      continue;
+    }
+    if (effect.kind === 'counter-many') {
+      const ids = [].concat(bindings[effect.bind] || []);
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') continue;
+        addCounter(hit.card, effect.counter || '+1/+1', counterCount(game, hit.card.controllerId, effect.counter || '+1/+1', amount, { creature: isCreature(definitionFor(game, hit.card)) }));
+        emit(bindings, { type: 'counter-added', targetId: id, controllerId: hit.card.controllerId, sourceId: bindings.sourceId || null, counter: effect.counter || '+1/+1', amount });
+        notes.push(`${cardName(game, hit.card)} gets ${amount} ${effect.counter} counter${amount === 1 ? '' : 's'}.`);
+      }
+      if (!ids.length) notes.push('No targets were chosen.');
+      continue;
+    }
+    if (effect.kind === 'exile-many' || effect.kind === 'destroy-many') {
+      const ids = [].concat(bindings[effect.bind] || []);
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') continue;
+        const d = definitionFor(game, hit.card), n = cardName(game, hit.card);
+        if (effect.kind === 'destroy-many' && isIndestructible(hit.card, d)) { notes.push(`${n} is indestructible.`); continue; }
+        moveCard(game, id, effect.kind === 'exile-many' ? 'exile' : 'graveyard', { onEvent: e => emit(bindings, e) });
+        notes.push(`${n} ${effect.kind === 'exile-many' ? 'is exiled' : 'is destroyed'}.`);
+      }
+      if (!ids.length) notes.push('No targets were chosen.');
+      continue;
+    }
     if (effect.optional && bindings[effect.optionalBind] === false) {
       notes.push(`${effect.label || 'Optional effect'} was declined.`);
       continue;
@@ -801,7 +886,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e) });
         moved++;
       }
-      notes.push(`${moved} ${effect.filter || 'permanent'}${moved === 1 ? '' : 's'} ${effect.to === 'graveyard' ? 'move to graveyards' : effect.to === 'exile' ? 'are exiled' : 'move zones'}.`);
+      bindings.movedThisWay = moved;
+      notes.push(`${moved} ${String(effect.filter || 'permanent').split('|')[0]}${moved === 1 ? '' : 's'} ${effect.to === 'graveyard' ? 'move to graveyards' : effect.to === 'exile' ? 'are exiled' : 'move zones'}.`);
       continue;
     }
     if (effect.kind === 'untap-selection') {
@@ -811,16 +897,17 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'grant-keyword-each') {
-      const players = effect.scope === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : [controller];
+      const players = effect.scope === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.scope === 'all' ? game.players.filter(p => !p.eliminated) : [controller];
+      const only = effect.onlyIds ? new Set([].concat(bindings[effect.onlyIds] || [])) : null;
       let changed = 0;
       for (const p of players)
         for (const c of p.deck?.battlefield || [])
-          if (cardMatchesFilter(game, c, effect.filter || 'creature')) {
+          if ((only ? only.has(c.instanceId) : cardMatchesFilter(game, c, effect.filter || 'creature'))) {
             c.temporaryEffects = c.temporaryEffects || [];
-            c.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: true, expires: effect.expires || 'cleanup' });
+            c.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: effect.enabled !== false, expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
             changed++;
           }
-      notes.push(`${changed} permanent${changed === 1 ? '' : 's'} gain ${effect.keyword}.`);
+      notes.push(`${changed} permanent${changed === 1 ? '' : 's'} ${effect.enabled === false ? 'lose' : 'gain'} ${effect.keyword}.`);
       continue;
     }
     if (effect.kind === 'grant-cast-zone') {
@@ -936,9 +1023,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'counter-each') {
-      const player = effect.scope === 'opponents' ? null : controller;
+      const player = effect.scope === 'opponents' || effect.scope === 'all' ? null : controller;
       const rows = [];
-      for (const p of (player ? [player] : game.players.filter(x => x.playerId !== controllerId)))
+      for (const p of (player ? [player] : game.players.filter(x => !x.eliminated && (effect.scope === 'all' || x.playerId !== controllerId))))
         for (const c of p.deck?.battlefield || [])
           if (cardMatchesFilter(game, c, effect.filter || 'creature'))
             rows.push(c);
@@ -980,12 +1067,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'graveyard-zone-each') {
-      const players = effect.scope === 'target-player' ? [game.players.find(p => p.playerId === (effect.playerId || bindings[effect.playerBind]))].filter(Boolean) : effect.scope === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : [controller];
+      const players = effect.scope === 'target-player' ? [game.players.find(p => p.playerId === (effect.playerId || bindings[effect.playerBind]))].filter(Boolean) : effect.scope === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.scope === 'all' ? game.players.filter(p => !p.eliminated) : [controller];
       let moved = 0;
       for (const p of players) {
         const ids = (p.deck.graveyard || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'card')).map(c => c.instanceId);
         for (const id of ids) {
-          moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e) });
+          moveCard(game, id, effect.to, { tapped: !!effect.tapped, ...(effect.to === 'battlefield' ? { controllerId: effect.underYourControl ? controllerId : p.playerId } : {}), onEvent: e => emit(bindings, e) });
           moved++;
         }
       }
@@ -1026,6 +1113,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The pump target is no longer legal.');
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
+      const sizedPt = v => /X/i.test(String(v)) ? (String(v).startsWith('-') ? -1 : 1) * Math.max(0, resolveAmount(game, controllerId, 'X', bindings)) : Number(v || 0);
+      effect = { ...effect, power: sizedPt(effect.power), toughness: sizedPt(effect.toughness) };
       hit.card.temporaryEffects.push({ kind: 'pt', power: Number(effect.power || 0), toughness: Number(effect.toughness || 0), expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
       notes.push(`${cardName(game, hit.card)} gets ${Number(effect.power || 0) >= 0 ? '+' : ''}${Number(effect.power || 0)}/${Number(effect.toughness || 0) >= 0 ? '+' : ''}${Number(effect.toughness || 0)} until end of turn.`);
       checkLethal(game, targetId, notes, bindings);
@@ -1058,10 +1147,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'create-token') {
+      if (effect.chooseBind && effect.alt?.[bindings[effect.chooseBind]]) effect = { ...effect, ...effect.alt[bindings[effect.chooseBind]], chooseBind: null };
       const probe = makeToken(game, controller, effect, 0);
       const made = tokenCount(game, controllerId, amount, { creature: isCreature(definitionFor(game, probe)) });
       for (let i = 0; i < made; i++) {
         const token = makeToken(game, controller, effect, i);
+        if (effect.tempKeywords?.length) token.temporaryEffects = effect.tempKeywords.map(keyword => ({ kind: 'keyword', keyword, enabled: true, expires: 'cleanup' }));
         controller.deck.battlefield.push(token);
         emit(bindings, { type: 'token-created', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '' });
         emit(bindings, { type: 'enters-battlefield', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '', token: true });
@@ -1285,7 +1376,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
     if (!subject || !me) return false;
     const row = { card: { instanceId: bindings.sourceId || 'none' }, player: me };
     const n = (me.deck?.battlefield || []).filter(c => subjectMatches(game, row, { ...subject, controller: null }, c, definitionFor(game, c), controllerId)).length;
-    return n >= (effect.min || 1);
+    return effect.none ? n === 0 : n >= (effect.min || 1);
   }
   if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
   if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
@@ -1304,6 +1395,10 @@ export function applyEffects(game, controllerId, effects = [], bindings = {}) {
 }
 function countExprFromPhrase(phrase) {
   const s = String(phrase || '').toLowerCase();
+  if (!/graveyard|hand|library|opponent|player/.test(s) && /\bwith\b|that entered|nontoken|\bgreen|\bwhite|\bblue|\bblack|\bred\b/.test(s)) {
+    const f = filterFromNoun(s);
+    if (f) return { kind: 'count', zone: 'battlefield', filter: f };
+  }
   let zone = 'battlefield', filter = 'card';
   if (/in your graveyard/.test(s))
     zone = 'graveyard';
@@ -1635,7 +1730,10 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   }
   // Counters.
   const selfName = String(sourceName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const selfCounterRe = new RegExp(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfName}|this (?:creature|permanent)|it)\\.?$`, 'i');
+  // Every way a card's text names itself: full name, the short name before a comma ("Mondrak"), "this artifact" …
+  const shortName = String(sourceName || '').split(',')[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const selfAny = `(?:${selfName}|${shortName}|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker))`;
+  const selfCounterRe = new RegExp(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfAny}|it)\\.?$`, 'i');
   if ((m = c.match(selfCounterRe))) {
     effects.push({ kind: 'counter', bind: 'sourceId', counter: m[2].trim(), amount: numberFromText(m[1]) });
     return { effects, requirements, unsupported };
@@ -1931,7 +2029,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Self references used by keyword reminder text (prowess, evoke, dash …).
-  const selfRef = `(?:${selfName}|this creature|this permanent)`;
+  const selfRef = selfAny;
   if ((m = c.match(new RegExp(`^${selfRef} gets ([+-]\\d+)\\/([+-]\\d+) until end of turn\\.?$`, 'i')))) {
     effects.push({ kind: 'pump', bind: 'sourceId', power: Number(m[1]), toughness: Number(m[2]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
@@ -1994,8 +2092,288 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'sacrifice', bind: 'lastTarget' });
     return { effects, requirements, unsupported };
   }
+  const more = compileMoreClauses(c, { sourceName, selfAny, effects, requirements });
+  if (more) return { effects, requirements, unsupported };
   unsupported.push(c);
   return { effects, requirements, unsupported };
+}
+// "creatures you control with power 4 or greater", "green creature that entered this turn", "nontoken creature",
+// "creature or planeswalker": a filter for cardMatchesFilter ("creature|power>=4"), or null if not understood.
+const COLOR_WORDS = { white: 'w', blue: 'u', black: 'b', red: 'r', green: 'g' };
+function filterFromNoun(phrase) {
+  let s = String(phrase || '').toLowerCase().trim().replace(/\.$/, '').replace(/^(?:a|an|each|all|other)\s+/, '');
+  const conds = [];
+  let m;
+  s = s.replace(/\s+(?:you control|your opponents control|an opponent controls|you don'?t control|on the battlefield)\b/, '');
+  if ((m = s.match(/\s+with power (\d+) or (greater|less)/))) { conds.push(`power${m[2] === 'greater' ? '>=' : '<='}${m[1]}`); s = s.replace(m[0], ''); }
+  if ((m = s.match(/\s+with mana value (\d+) or (greater|less)/))) { conds.push(`mv${m[2] === 'greater' ? '>=' : '<='}${m[1]}`); s = s.replace(m[0], ''); }
+  if ((m = s.match(/\s+with (?:a|an|one or more) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on (?:it|them)/))) { conds.push(`counter:${m[1]}`); s = s.replace(m[0], ''); }
+  if ((m = s.match(/\s+that entered (?:the battlefield )?this turn/))) { conds.push('entered'); s = s.replace(m[0], ''); }
+  s = s.trim();
+  if ((m = s.match(/^([a-z]+?)s? or ([a-z]+?)s?$/))) return [`${m[1]} or ${m[2]}`, ...conds].join('|');
+  const words = s.split(/\s+/).filter(Boolean);
+  const noun = (words.pop() || '').replace(/s$/, '');
+  if (!/^[a-z]+$/.test(noun)) return null;
+  for (const w of words) {
+    if (COLOR_WORDS[w]) conds.push(`color:${COLOR_WORDS[w]}`);
+    else if (w === 'nontoken' || w === 'token') conds.push(w);
+    else if (/^non[a-z]+$/.test(w)) conds.push(`non:${w.slice(3)}`);
+    else if (['artifact', 'enchantment', 'legendary', 'snow', 'basic', 'land', 'creature'].includes(w)) conds.push(`type:${w}`);
+    else return null;
+  }
+  return [noun, ...conds].join('|');
+}
+function scopeOfPhrase(phrase) {
+  return /your opponents control|an opponent controls|you don'?t control/i.test(phrase) ? 'opponents' : /you control/i.test(phrase) ? 'you' : 'all';
+}
+const KEYWORD_LIST = s => String(s || '').split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean);
+
+/** More instructions (build 38). Pushes onto effects/requirements and returns true when the sentence is understood. */
+function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
+  let m;
+  const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
+  // Keyword lines that share a line with the spell's text once reminder text is removed.
+  if ((m = c.match(/^(?:Split second|Flash|Cleave [^ ]+)\s+([A-Z].+)$/))) {
+    const inner = compileSingleClause(m[1], { sourceName });
+    if (inner.unsupported.length || !inner.effects.length) return false;
+    effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
+  }
+  // Ability words: "Ferocious — You gain 4 life for each …" (a condition, if any, is read elsewhere).
+  if ((m = c.match(/^(?:Ferocious|Morbid|Raid|Revolt|Hellbent|Delirium|Spell mastery|Coven|Formidable|Alliance|Domain|Landfall|Constellation|Magecraft|Valiant|Heroic) — (?!If\b)(.+)$/))) {
+    const inner = compileSingleClause(m[1], { sourceName });
+    if (inner.unsupported.length || !inner.effects.length) return false;
+    effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
+  }
+  // Life.
+  if ((m = c.match(new RegExp(`^(?:You )?(gain|lose)s? ${N} life\\.?$`, 'i')))) {
+    effects.push({ kind: 'life', scope: 'you', amount: numberFromText(m[2]) ?? m[2].toUpperCase(), deltaSign: /gain/i.test(m[1]) ? 1 : -1 });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^(You|Each opponent|Each player) (gains?|loses?) ${N} life for each (.+?)\\.?$`, 'i')))) {
+    const per = numberFromText(m[3]) ?? 1, what = m[4];
+    let of;
+    if (/^spell you'?ve cast this turn$/i.test(what)) of = { kind: 'spells-cast-this-turn' };
+    else if ((m[5] = (what.match(/^([a-z]+) counter on (?:it|.+)$/i) || [])[1])) of = { kind: 'source-counters', counter: m[5] };
+    else if (/destroyed this way$/i.test(what)) of = { kind: 'binding', bind: 'movedThisWay' };
+    else { const f = filterFromNoun(what); if (!f) return false; of = { kind: 'count', zone: 'battlefield', filter: f, all: scopeOfPhrase(what) === 'all' && !/you control/i.test(what) && /on the battlefield/i.test(what) }; }
+    effects.push({ kind: 'life', scope: scopeFromSubject(m[1]), amount: { kind: 'times', n: per, of }, deltaSign: /gain/i.test(m[2]) ? 1 : -1 });
+    return true;
+  }
+  if ((m = c.match(/^You (gain|lose) life equal to (the number of .+|the greatest power among .+|the greatest toughness among .+)\.?$/i))) {
+    const amount = amountExpr(m[2]);
+    if (amount == null) return false;
+    effects.push({ kind: 'life', scope: 'you', amount, deltaSign: /gain/i.test(m[1]) ? 1 : -1 });
+    return true;
+  }
+  // Draw / mill with "a".
+  if ((m = c.match(/^(You|Target player|Target opponent|Each player|Each opponent) mills? (?:a card|that many cards)\.?$/i))) {
+    const scope = scopeFromSubject(m[1]), e = { kind: 'mill', scope: scope.startsWith('target-') ? 'you' : scope, amount: /that many/i.test(c) ? { kind: 'binding', bind: 'eventAmount' } : 1 };
+    if (scope.startsWith('target-')) e.bind = playerRequirement(requirements, scope === 'target-opponent' ? 'opponent' : 'player', m[1]);
+    effects.push(e);
+    return true;
+  }
+  if ((m = c.match(/^You and (target opponent|target player) each draw (a|one|two|three) cards?\.?$/i))) {
+    const n = numberFromText(m[2]);
+    effects.push({ kind: 'draw', scope: 'you', amount: n });
+    effects.push({ kind: 'draw', scope: 'you', amount: n, bind: playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]) });
+    return true;
+  }
+  // Sacrifice "of their choice", "nontoken creature", "creature or planeswalker", "each other player".
+  if ((m = c.match(/^(You|Each player|Each opponent|Each other player|Target player|Target opponent) sacrifices? (a|an|one|two|three|four|five|\d+) ((?:nontoken )?(?:creature|artifact|enchantment|land|permanent)s?(?: or planeswalkers?)?)(?: of their choice)?\.?$/i))) {
+    const scope = /each other player/i.test(m[1]) ? 'each-opponent' : scopeFromSubject(m[1]), amount = numberFromText(m[2]);
+    const filter = filterFromNoun(m[3]);
+    if (!filter) return false;
+    const e = { kind: 'sacrifice-many', scope: scope.startsWith('target-') ? 'you' : scope, amount, filter };
+    if (scope.startsWith('target-')) e.playerBind = playerRequirement(requirements, scope === 'target-opponent' ? 'opponent' : 'player', m[1]);
+    e.bind = cardSelectionRequirement(requirements, { scope: scope === 'each-opponent' ? 'each-opponent' : scope === 'each-player' ? 'each-player' : scope === 'you' ? 'you' : 'target', filter, amount, label: `Choose ${m[3].toLowerCase()} to sacrifice`, playerBind: e.playerBind || null });
+    effects.push(e);
+    return true;
+  }
+  // Untap / tap / goad everything of a kind.
+  if ((m = c.match(/^(Tap|Untap) all (nonland permanents|creatures|artifacts|lands|permanents) you control\.?$/i))) {
+    effects.push({ kind: m[1].toLowerCase() === 'tap' ? 'tap-each' : 'untap-each', scope: 'you', filter: m[2].toLowerCase().replace(/s$/, '') });
+    return true;
+  }
+  if (/^Goad all creatures (?:you don'?t control|your opponents control)\.?$/i.test(c)) {
+    effects.push({ kind: 'goad-each', scope: 'opponents' });
+    return true;
+  }
+  // Self: untap, fight, double counters, return from the graveyard.
+  if (new RegExp(`^Untap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'untap', bind: 'sourceId' }); return true; }
+  if (new RegExp(`^Tap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'tap', bind: 'sourceId' }); return true; }
+  if ((m = c.match(new RegExp(`^${selfAny} fights (another target creature|target creature(?: you don'?t control)?)\\.?$`, 'i')))) {
+    const targetBind = targetRequirement(requirements, m[1].toLowerCase(), m[1], { notSource: true });
+    effects.push({ kind: 'fight', sourceBind: 'sourceId', targetBind });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^Double the number of ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (?:${selfAny}|it)\\.?$`, 'i')))) {
+    effects.push({ kind: 'double-counter', bind: 'sourceId', counter: m[1] });
+    return true;
+  }
+  if ((m = c.match(/^Double the number of ([+-]\d+\/[+-]\d+|[a-z]+) counters on each (creature|permanent) you control\.?$/i))) {
+    effects.push({ kind: 'double-counter-each', scope: 'you', filter: m[2].toLowerCase(), counter: m[1] });
+    return true;
+  }
+  if ((m = c.match(/^Return (?:this card|this creature card|it) from your graveyard to the battlefield( tapped)?\.?$/i))) {
+    effects.push({ kind: 'return-self-graveyard', tapped: !!m[1] });
+    return true;
+  }
+  // Mass power/toughness and keywords.
+  if ((m = c.match(/^(?:Creatures|Each creature) your opponents control gets? ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    effects.push({ kind: 'pump-each', scope: 'opponents', filter: 'creature', power: Number(m[1]), toughness: Number(m[2]), expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^Each creature gets ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i))) {
+    effects.push({ kind: 'pump-each', scope: 'all', filter: 'creature', power: m[1], toughness: m[2], expires: 'cleanup' });
+    return true;
+  }
+  // "Each creature you control with power 4 or greater gets +1/+1 and gains trample until end of turn." (Goreclaw)
+  if ((m = c.match(/^Each (.+?) gets? ([+-]\d+)\/([+-]\d+)(?: and gains? ([a-z ,]+?))? until end of turn\.?$/i))) {
+    const filter = filterFromNoun(m[1]);
+    if (!filter) return false;
+    const scope = scopeOfPhrase(m[1]);
+    effects.push({ kind: 'pump-each', scope, filter, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    for (const keyword of KEYWORD_LIST(m[4])) effects.push({ kind: 'grant-keyword-each', scope, filter, keyword, expires: 'cleanup' });
+    return true;
+  }
+  // "Creatures you control gain trample and get +X/+X until end of turn" (Craterhoof; X comes from "where X is …").
+  if ((m = c.match(/^(?:Until end of turn, )?creatures you control gain ([a-z ,]+?) and get ([+-](?:\d+|X))\/([+-](?:\d+|X))(?: until end of turn)?\.?$/i))) {
+    for (const keyword of KEYWORD_LIST(m[1])) effects.push({ kind: 'grant-keyword-each', scope: 'you', filter: 'creature', keyword, expires: 'cleanup' });
+    effects.push({ kind: 'pump-each', scope: 'you', filter: 'creature', power: m[2], toughness: m[3], expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^(?:Until end of turn, )?creatures you control get ([+-](?:\d+|X))\/([+-](?:\d+|X)) and gain ([a-z ,]+?)(?: until end of turn)?\.?$/i))) {
+    effects.push({ kind: 'pump-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], expires: 'cleanup' });
+    for (const keyword of KEYWORD_LIST(m[3])) effects.push({ kind: 'grant-keyword-each', scope: 'you', filter: 'creature', keyword, expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^(Permanents|Creatures) your opponents control lose ([a-z ,]+?) until end of turn\.?$/i))) {
+    for (const keyword of KEYWORD_LIST(m[2])) effects.push({ kind: 'grant-keyword-each', scope: 'opponents', filter: m[1].toLowerCase().replace(/s$/, ''), keyword, enabled: false, expires: 'cleanup' });
+    return true;
+  }
+  if (/^Double the power and toughness of each creature you control until end of turn\.?$/i.test(c)) {
+    effects.push({ kind: 'double-pt-each', scope: 'you', expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^(Target creature[^.]*) gets ([+-])1\/([+-])1 until end of turn for each (.+?)\.?$/i))) {
+    const filter = filterFromNoun(m[4]);
+    if (!filter) return false;
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'set-x', amount: { kind: 'count', zone: 'battlefield', filter } }, { kind: 'pump', bind, power: `${m[2]}X`, toughness: `${m[3]}X`, expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^(Target creature[^.]*) gets ([+-]X)\/([+-]X) until end of turn\.?$/i))) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: m[2], toughness: m[3], expires: 'cleanup' });
+    return true;
+  }
+  // Counters on many.
+  if ((m = c.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on each (.+?)\.?$/i)) && !/^of /i.test(m[3])) {
+    const filter = filterFromNoun(m[3]);
+    if (!filter) return false;
+    effects.push({ kind: 'counter-each', scope: scopeOfPhrase(m[3]), filter, counter: m[2], amount: numberFromText(m[1]) });
+    return true;
+  }
+  if ((m = c.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on each of up to (two|three|four|\d+) target (.+?)\.?$/i))) {
+    const max = numberFromText(m[3]), bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[4]}`, min: 0, max, label: `Choose up to ${max} ${m[4]}` });
+    effects.push({ kind: 'counter-many', bind, counter: m[2], amount: numberFromText(m[1]) });
+    return true;
+  }
+  if ((m = c.match(/^(Exile|Destroy|Tap|Untap) up to (two|three|four|\d+) target (.+?)\.?$/i))) {
+    const max = numberFromText(m[2]), bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[3]}`, min: 0, max, label: `Choose up to ${max} ${m[3]}` });
+    effects.push({ kind: `${m[1].toLowerCase()}-many`, bind });
+    return true;
+  }
+  // Mass removal with a condition, graveyards.
+  if ((m = c.match(/^Destroy all (creatures) with power (\d+) or (greater|less)\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: `creature|power${m[3].toLowerCase() === 'greater' ? '>=' : '<='}${m[2]}`, to: 'graveyard', destroy: true });
+    return true;
+  }
+  if ((m = c.match(/^Destroy each (nonland permanent|creature|artifact|permanent) with mana value (\d+) or (less|greater)\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: `${m[1].toLowerCase()}|mv${m[3].toLowerCase() === 'less' ? '<=' : '>='}${m[2]}`, to: 'graveyard', destroy: true });
+    return true;
+  }
+  if ((m = c.match(/^Return all (land|creature|artifact|enchantment|permanent) cards from your graveyard to the battlefield( tapped)?\.?$/i))) {
+    effects.push({ kind: 'graveyard-zone-each', scope: 'you', filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[2] });
+    return true;
+  }
+  if ((m = c.match(/^Put all (creature|artifact|land|permanent) cards from all graveyards onto the battlefield under your control\.?$/i))) {
+    effects.push({ kind: 'graveyard-zone-each', scope: 'all', filter: m[1].toLowerCase(), to: 'battlefield', underYourControl: true });
+    return true;
+  }
+  if ((m = c.match(/^Put (target card) from a graveyard on top of its owner'?s library\.?$/i))) {
+    const bind = `grave${requirements.length}`;
+    requirements.push({ kind: 'graveyard-target', bind, scope: 'target card', label: 'target card in a graveyard' });
+    effects.push({ kind: 'move-zone', bind, to: 'library', position: 'top' });
+    return true;
+  }
+  if ((m = c.match(/^Return (another target|target) (.+? card(?: with [^.]+?)?) from your graveyard to (your hand|the battlefield)( tapped)?\.?$/i))) {
+    const bind = `grave${requirements.length}`;
+    requirements.push({ kind: 'graveyard-target', bind, scope: `${m[1].toLowerCase()} ${m[2].toLowerCase()} in your graveyard`, label: `${m[1]} ${m[2]} in your graveyard` });
+    effects.push({ kind: 'return-from-graveyard', bind, to: /hand/i.test(m[3]) ? 'hand' : 'battlefield', tapped: !!m[4] });
+    return true;
+  }
+  // Damage to a wider set of targets ("target creature or planeswalker an opponent controls", "target attacking or blocking creature").
+  if ((m = c.match(new RegExp(`^(?:This spell|${selfAny}|It|[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
+    const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
+    effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
+    return true;
+  }
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? X damage to each (creature|creature and each player|player|opponent)\.?$/i))) {
+    effects.push({ kind: 'damage-each', amount: 'X', filter: 'creature', creatures: /creature/i.test(m[1]) ? 'all' : null, players: /player/i.test(m[1]) ? 'all' : /opponent/i.test(m[1]) ? 'opponents' : null, sourceName });
+    return true;
+  }
+  // "… deals damage equal to that creature's power to any target" (Terror of the Peaks): the creature that caused the trigger.
+  if ((m = c.match(/^(?:This creature|It|[A-Z][^.]*?) deals damage equal to that creature'?s power to (any target|target [^.]+?)\.?$/i))) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'damage', amount: { kind: 'event-card-power' }, bind, sourceName });
+    return true;
+  }
+  // Tokens: "a number of … equal to Krenko's power", "that many Treasure tokens", "a Food token or a Treasure token".
+  if ((m = c.match(/^Create a number of (\d+)\/(\d+) ([^.]*?) creature tokens equal to (?:its|this creature'?s|[A-Z][^']*'s) power\.?$/i))) {
+    const subtype = (m[3].match(/([A-Z][A-Za-z'-]+)$/) || [])[1] || 'Creature';
+    effects.push({ kind: 'create-token', amount: { kind: 'source-power' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}` });
+    return true;
+  }
+  if ((m = c.match(/^Create that many (Treasure|Food|Clue) tokens\.?$/i))) {
+    const name = m[1], text = name === 'Treasure' ? '{T}, Sacrifice this artifact: Add one mana of any color.' : name === 'Clue' ? '{2}, Sacrifice this artifact: Draw a card.' : '{2}, {T}, Sacrifice this artifact: You gain 3 life.';
+    effects.push({ kind: 'create-token', amount: { kind: 'binding', bind: 'eventAmount' }, name, typeLine: 'Token Artifact', oracleText: text });
+    return true;
+  }
+  if (/^Create a Food token or a Treasure token\.?$/i.test(c)) {
+    const bind = `tokenKind${requirements.length}`;
+    requirements.push({ kind: 'choose-text', bind, options: ['Food', 'Treasure'], label: 'Create which token?' });
+    effects.push({ kind: 'create-token', chooseBind: bind, amount: 1, name: 'Food', typeLine: 'Token Artifact', oracleText: '{2}, {T}, Sacrifice this artifact: You gain 3 life.',
+      alt: { Treasure: { name: 'Treasure', oracleText: '{T}, Sacrifice this artifact: Add one mana of any color.' } } });
+    return true;
+  }
+  // Stack: "Counter target spell with mana value 1." "Counter target spell if it's blue." (Pyroblast: only a blue spell is worth it).
+  if ((m = c.match(/^Counter target spell with mana value (\d+)\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target spell with mana value ${m[1]}`, spellFilter: `mv=${m[1]}` });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  if ((m = c.match(/^Counter target spell if it'?s (white|blue|black|red|green)\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target ${m[1].toLowerCase()} spell`, spellFilter: m[1].toLowerCase() });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  // Equipment entering: "attach it to target legendary creature you control" (Mithril Coat).
+  if ((m = c.match(new RegExp(`^Attach (?:${selfAny}|it) to (target [^.]*creature you control)\\.?$`, 'i')))) {
+    const creatureBind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
+    return true;
+  }
+  // Event creature: "it gains haste until end of turn" in a trigger about another creature (Dragon Tempest).
+  if ((m = c.match(/^(?:It|That creature) gains? ([a-z ,]+?) until end of turn\.?$/i))) {
+    for (const keyword of KEYWORD_LIST(m[1])) effects.push({ kind: 'grant-keyword', bind: 'eventCard', keyword, enabled: true, expires: 'cleanup' });
+    return true;
+  }
+  return false;
 }
 function mergeCompiled(parts) {
   const effects = [], requirements = [], unsupported = [];
@@ -2048,6 +2426,21 @@ function compileAndClause(clause, opts) {
   }
   return null;
 }
+// "It gains hexproof until end of turn." "Untap it." "Exile that creature." — the same instruction, about the
+// card an earlier sentence targeted (Snakeskin Veil, Dispatch). Returns a compiled part, or null.
+function bridgePronoun(clause, parts, sourceName) {
+  if (/\b(?:this|target)\b/i.test(clause)) return null;
+  const pronoun = /^(?:It|That (?:creature|permanent|card)) /i.test(clause) ? clause.replace(/^(?:It|That (?:creature|permanent|card)) /i, 'Target creature ')
+    : /\b(?:it|that creature|that permanent)\.?$/i.test(clause) && !/^(?:Sacrifice|Return) it\.?$/i.test(clause) ? clause.replace(/\b(?:it|that creature|that permanent)(\.?)$/i, 'target creature$1') : null;
+  const earlier = pronoun && [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'choose-permanent');
+  if (!earlier) return null;
+  const c = compileSingleClause(pronoun, { sourceName });
+  const own = c.requirements.filter(r => r.kind === 'target');
+  if (c.unsupported.length || !c.effects.length || own.length !== 1 || c.requirements.length !== 1) return null;
+  const rebind = e => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, v === own[0].bind ? earlier.bind : v]));
+  const optional = parts.some(p => p.effects.some(e => e.optionalTarget && e.bind === earlier.bind)) || earlier.optional;
+  return { effects: c.effects.map(e => ({ ...rebind(e), ...(optional ? { optionalTarget: true } : {}) })), requirements: [], unsupported: [] };
+}
 export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
   const raw = cleanOracle(text);
   const clauses = splitSentences(raw);
@@ -2065,6 +2458,41 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     else if ((dm = clause.match(/^At the beginning of (your|the) next (upkeep|main phase|precombat main phase|end step),\s*(.+)$/i))) {
       delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any' } });
       clause = dm[3].charAt(0).toUpperCase() + dm[3].slice(1);
+    }
+    // "…, where X is the number of creatures you control." — X is counted as it resolves.
+    const whereX = clause.match(/^(.+?),? where X is (the number of .+?|the greatest power among .+?|your devotion to (?:white|blue|black|red|green)|.+?'?s power)\.?$/i);
+    if (whereX) {
+      const expr = /devotion/i.test(whereX[2]) ? { kind: 'devotion', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[whereX[2].split(' ').pop().toLowerCase()] }
+        : /'?s power$/i.test(whereX[2]) ? { kind: 'source-power' }
+        : /^the number of (.+?) on the battlefield$/i.test(whereX[2]) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(whereX[2].replace(/^the number of /i, '')) || 'creature', all: true }
+        : /^the number of /i.test(whereX[2]) && filterFromNoun(whereX[2].replace(/^the number of /i, '')) && !/graveyard|hand|library/i.test(whereX[2]) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(whereX[2].replace(/^the number of /i, '')) }
+        : amountExpr(whereX[2]);
+      const inner = expr != null ? compileEffectText(`${whereX[1]}.`, { sourceName }) : null;
+      if (inner && inner.supported) {
+        parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });
+        continue;
+      }
+    }
+    // "Those creatures gain indestructible until end of turn." (Inspiring Call, Elspeth): the creatures the sentence before counted or changed.
+    const those = clause.match(/^Those creatures gain ([a-z ,]+?) until (end of turn|your next turn)\.?$/i);
+    const before = those && [...parts].reverse().flatMap(p => [...p.effects].reverse()).find(e => e.kind === 'counter-each' || e.kind === 'pump-each' || (e.kind === 'draw' && e.amount?.kind === 'count'));
+    if (before) {
+      const filter = before.filter || before.amount?.filter || 'creature';
+      parts.push({ effects: KEYWORD_LIST(those[1]).map(keyword => ({ kind: 'grant-keyword-each', scope: before.scope === 'opponents' ? 'opponents' : 'you', filter, keyword, expires: /next turn/i.test(those[2]) ? 'your-next-turn' : 'cleanup' })), requirements: [], unsupported: [] });
+      continue;
+    }
+    // "Create two 1/1 … tokens. They gain haste until end of turn." / "That token gains haste until end of turn."
+    const tokenKw = clause.match(/^(?:They|That token|Those tokens|It) gains? ([a-z ,]+?) until end of turn\.?$/i);
+    const lastToken = tokenKw && parts[parts.length - 1]?.effects?.slice(-1)[0];
+    if (lastToken?.kind === 'create-token') {
+      lastToken.tempKeywords = [...(lastToken.tempKeywords || []), ...KEYWORD_LIST(tokenKw[1])];
+      continue;
+    }
+    // "Each player draws a card, then discards a card." — the second instruction keeps the first one's subject.
+    const carried = clause.match(/^(Each player|Each opponent|You) (draws?|discards?|mills?) ([^,]+?),? then (draws?|discards?|mills?|loses?|gains?) (.+)$/i);
+    if (carried) {
+      const a = compileSingleClause(`${carried[1]} ${carried[2]} ${carried[3]}.`, { sourceName }), b = compileSingleClause(`${carried[1]} ${carried[4]} ${carried[5]}`, { sourceName });
+      if (!a.unsupported.length && !b.unsupported.length && a.effects.length && b.effects.length) { parts.push(mergeCompiled([a, b])); continue; }
     }
     // "that much": the amount from the event that triggered this (life gained, damage dealt).
     if (/\bthat much\b/i.test(clause) && !/\bX\b/.test(clause)) {
@@ -2093,12 +2521,12 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
-    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is tapped|it'?s not your turn|it'?s your turn),\s*(.+)$/i);
+    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is tapped|it'?s not your turn|it'?s your turn),\s*(.+)$/i);
     if (cond && !/^If you do\b/i.test(clause)) {
       const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
-      const innerAlt = inner.unsupported.length ? compileEffectText(cond[4], { sourceName }) : inner;
-      const counts = { a: 1, an: 1, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7 };
-      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()] } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
+      const innerAlt = !inner.unsupported.length ? inner : bridgePronoun(`${cond[4].charAt(0).toUpperCase()}${cond[4].slice(1)}`, parts, sourceName) || compileEffectText(cond[4], { sourceName });
+      const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7 };
+      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
         if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/s$/, '');
         if (!innerAlt.unsupported.length && innerAlt.effects.length) {
@@ -2205,9 +2633,20 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     // "Its controller creates a 3/3 green Beast creature token." (Beast Within, Swan Song, Pongify): the same
     // instruction, done for whoever controlled the earlier target.
     const theirs = clause.match(/^(?:Its|That (?:creature|permanent|spell|card)'s) controller (?:may )?(creates|draws|draw|gains|loses|mills|discards|scries|surveils) (.+)$/i)
-      || clause.match(/^(?:That player|Its owner) (creates|draws|gains|loses|mills|discards) (.+)$/i);
+      || clause.match(/^(?:That player|Its owner|They) (creates|draws|gains|loses|lose|mills|discards) (.+)$/i);
     const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target' || r.kind === 'stack-target');
-    if (theirs && !earlier && /^That player/i.test(clause)) {
+    // "that player sacrifices a creature of their choice" (Sheoldred, Whispering One): they choose, on their device.
+    const theirSac = clause.match(/^That player sacrifices (.+)$/i);
+    if (theirSac && !earlier) {
+      const c = compileSingleClause(`Target player sacrifices ${theirSac[1]}`, { sourceName });
+      const preq = c.requirements.find(r => r.kind === 'player');
+      if (!c.unsupported.length && c.effects.length && preq) {
+        const swap = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === preq.bind ? 'eventPlayer' : v]));
+        parts.push({ effects: c.effects.map(swap), requirements: c.requirements.filter(r => r !== preq).map(swap), unsupported: [] });
+        continue;
+      }
+    }
+    if (theirs && !earlier && /^(?:That player|They)\b/i.test(clause)) {
       // In a trigger: "that player" is whoever caused it (Massacre Wurm: "that player loses 2 life").
       const verb = theirs[1].toLowerCase().replace(/s$/, '').replace(/^los$/, 'lose');
       const asYou = compileSingleClause(`You ${verb} ${theirs[2]}`, { sourceName });
@@ -2227,6 +2666,8 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
         continue;
       }
     }
+    const bridged = bridgePronoun(clause, parts, sourceName);
+    if (bridged) { parts.push(bridged); continue; }
     const single = compileSingleClause(clause, { sourceName });
     if (single.unsupported.length && / and /i.test(clause)) {
       // "You gain 1 life and draw a card." — try the two halves as separate instructions.
@@ -2245,6 +2686,16 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
   const merged = mergeCompiled(parts);
+  // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
+  // carried out, so the choice also shows the cards about to be drawn (the top of the library).
+  const drawn = {};
+  for (const e of merged.effects) {
+    if (e.kind === 'draw' && typeof e.amount === 'number' && !e.bind) drawn[e.scope || 'you'] = (drawn[e.scope || 'you'] || 0) + e.amount;
+    if (e.kind === 'discard' && e.cardsBind && drawn[e.scope || 'you']) {
+      const req = merged.requirements.find(r => r.bind === e.cardsBind);
+      if (req) req.plusDraw = drawn[e.scope || 'you'];
+    }
+  }
   // X must be chosen unless a caller already binds it from an X cost.
   if (merged.effects.some(e => JSON.stringify(e).includes('"X"')) && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
     merged.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });

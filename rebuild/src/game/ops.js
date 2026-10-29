@@ -17,7 +17,7 @@ import {
 } from './helpers.js';
 import { gatherRequirements, splitRequirements, NoLegalChoice } from './requirements.js';
 import { librarySearchSpec, searchFilter } from './library-search.js';
-import { commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
+import { abilityZone, commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
 import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
@@ -466,15 +466,17 @@ function runActivate(game, op, ask) {
   if (!ability) throw new GameError('That ability is not available.');
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
 
-  if (hit.zone === 'hand') {
+  const fromZone = !ability.manaAbility && hit.zone !== 'battlefield' && abilityZone(ability) === hit.zone ? hit.zone : null;
+  if (hit.zone === 'hand' && !fromZone) {
     if (!ability.manaAbility) throw new GameError('That ability cannot be used from your hand.');
     const options = [...new Set(ability.manaOptions || [])];
     const color = options.length > 1 ? ask('mana', () => ({ ...base, kind: 'choose-one', title: `${def.name} — mana`, prompt: 'Choose the mana to add.', options: options.map(c => ({ id: c, label: COLOR_NAMES[c], mana: c })) })) : (options[0] || 'C');
     commit(game, { type: 'activate-zone-mana-ability', playerId: player.playerId, instanceId: card.instanceId, fromZone: 'hand', toZone: 'exile', manaColor: color, manaAmount: manaAmountForAbility(ability), label: `${player.displayName} exiles ${def.name} from hand for mana.` });
     return;
   }
-  if (hit.zone !== 'battlefield') throw new GameError('That permanent is no longer on the battlefield.');
-  const legality = validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
+  if (hit.zone !== 'battlefield' && !fromZone) throw new GameError('That permanent is no longer on the battlefield.');
+  if (!fromZone && abilityZone(ability) !== 'battlefield') throw new GameError(abilityZone(ability) === 'hand' ? 'That ability works only from your hand.' : 'That ability works only from your graveyard.');
+  const legality = fromZone ? { legal: true, reasons: [] } : validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
   if (!legality.legal && !force) throw new GameError(legality.reasons[0], legality.reasons);
   if (ability.loyaltyDelta !== null && !force) {
     if (card.loyaltyUsedTurn === game.turnNumber) throw new GameError('A planeswalker can use only one loyalty ability each turn.');
@@ -498,13 +500,14 @@ function runActivate(game, op, ask) {
   if (ability.hasX) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
+  if (fromZone === 'hand') costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
   if (ability.sacrificeRequirement && !ability.sacrificesSelf) {
     const type = ability.sacrificeRequirement;
     const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${type === 'permanent' ? '' : type}`, 'i').test(defOf(game, c)?.typeLine || ''));
     if (!rows.length) throw new GameError(`You have no ${type.toLowerCase()} to sacrifice.`);
     costMoveIds.push(ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) })));
   }
-  if (ability.discardCount) {
+  if (ability.discardCount && fromZone !== 'hand') {
     const rows = player.deck.hand;
     if (!rows.length) throw new GameError('You have no card to discard.');
     costMoveIds.push(ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) })));
@@ -515,7 +518,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost
+    sacrificeSelf: ability.sacrificesSelf, costMoveIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 
@@ -634,7 +637,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0) };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId };
   let resolve = [], guided = null, search = null;
   if (!compiled?.supported && /^(?:you may )?search your library/i.test(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''))) {
     search = librarySearchSpec(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''));

@@ -65,6 +65,12 @@ function cardView(game, card, defs, extra = {}) {
 }
 
 /** Can this graveyard or exile card be cast now (flashback, escape, foretold, adventure)? */
+/** "Return this card from your graveyard to the battlefield" (Reassembling Skeleton): offered from the graveyard. */
+function graveAbilities(game, p, c, block) {
+  const rows = abilityRows(game, p, c);
+  return rows.length ? { abilities: rows.map(r => ({ id: r.ability.id, text: r.ability.text, cost: r.ability.cost, mana: false, legal: r.legal && !block, reason: block || r.reasons?.[0] || '' })) } : {};
+}
+
 function castable(game, p, c, block) {
   const options = castOptions(game, p, c, defOf(game, c));
   if (!options.length) return {};
@@ -184,7 +190,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       }),
       mana, handCount: p.deck.hand.length, libraryCount: p.deck.remainingLibrary.length,
       battlefield,
-      graveyard: p.deck.graveyard.map(c => cardView(game, c, defs, own ? castable(game, p, c, block) : {})),
+      graveyard: p.deck.graveyard.map(c => cardView(game, c, defs, own ? { ...castable(game, p, c, block), ...graveAbilities(game, p, c, block) } : {})),
       exile: p.deck.exile.map(c => {
         if (c.foretold && !own && !judge) {
           defs[FACE_DOWN_ID] = faceDownDefinition();

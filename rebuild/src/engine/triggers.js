@@ -62,7 +62,9 @@ export function parseTriggeredAbilities(definition) {
   }
   if (current)
     out.push(current);
-  return out.map((line, index) => { const comma = line.indexOf(','); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
+  // The trigger ends at the first comma that does not continue a list ("Whenever you cast an Aura, Equipment, or Vehicle spell, …").
+  const triggerComma = line => { let at = line.indexOf(','); while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
+  return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
   const ledger = card?.triggerModeChoices || {};
@@ -145,7 +147,7 @@ function spellFits(filter, spell) {
     f = m[1].trim();
   }
   if (!f) return true;
-  return f.split(/\s+or\s+/).some(part => part.split(/\s+/).every(w => {
+  return f.split(/,\s*(?:or\s+)?|\s+or\s+/).filter(Boolean).some(part => part.split(/\s+/).every(w => {
     if (w === 'multicolored') return colors.length > 1;
     if (w === 'colorless') return colors.length === 0;
     if (w === 'monocolored') return colors.length === 1;
