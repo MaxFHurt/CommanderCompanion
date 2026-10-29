@@ -46,12 +46,14 @@ export const modeSelectScreen = {
           <button type="button" class="option" data-play="host-player"><span><strong>Host a room — I am playing too</strong><small>Other players join from their own devices; you get the host tools</small></span></button>
           <button type="button" class="option" data-play="host-device"><span><strong>Host device — table view</strong><small>This device shows the battlefield for everyone and acts as judge. It never shows hands</small></span></button>
           <button type="button" class="option" data-play="join"><span><strong>Join a room</strong><small>Enter the code shown on the host device</small></span></button>
+          <button type="button" class="option" data-play="online"><span><strong>Online games — play over time</strong><small>Each player on their own device, whenever they have time. Saved online after every move</small></span></button>
         </div>`,
         onMount(el, { close }) {
           on(el, 'click', '[data-play]', (e, b) => {
             close();
             const play = b.dataset.play;
             if (play === 'join') return go('join');
+            if (play === 'online') return go('online', { mode });
             if (play === 'host-device') return pickRemoteCount(count => go('lobby', { mode, hostDevice: true, localSeats: [], remoteSeats: count }));
             go('player-setup', { mode, play });
           });

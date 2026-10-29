@@ -10,6 +10,9 @@ import { emptySeat } from '../../app/seat-setup.js';
 import { seatFormHtml, readSeatForm, handleSeatAction } from '../seat-form.js';
 import { prepareSeats, confirmSeats, chooseRules, buildGame } from '../../app/start-game.js';
 import { startLocalSession } from '../../app/session.js';
+import { deviceClientId } from '../../net/room.js';
+import { createOnlineGame, onlineSeat } from '../../net/online.js';
+import { rememberOnlineGame } from '../../app/online-games.js';
 import { PLAYER_COLORS } from '../../game/setup.js';
 import { openDeckBuilder } from '../../data/deck-builder.js';
 
@@ -29,9 +32,10 @@ function seatFromDefaults(index, defaults) {
 export const playerSetupScreen = {
   mount(root, params = {}) {
     const mode = params.mode === 'freeplay' ? 'freeplay' : 'fully-tracked';
-    const play = params.play || 'local'; // local | host-player
+    const play = params.play || 'local'; // local | host-player | online
     const defaults = accountSetupDefaults();
-    const hosting = play === 'host-player';
+    const online = play === 'online';
+    const hosting = play === 'host-player' || online;   // online: one seat here, the others join with the code
     const seats = params.seats || (hosting ? [seatFromDefaults(0, defaults)] : [seatFromDefaults(0, defaults), seatFromDefaults(1, defaults)]);
     let active = 0, remote = hosting ? Math.max(1, params.remoteSeats || 1) : 0, busy = false;
     const minLocal = hosting ? 1 : 2;
@@ -42,7 +46,7 @@ export const playerSetupScreen = {
         <main class="page page--setup">
           <header class="page__head">
             <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
-            <h1 class="chrome-text">Player Setup — ${title}</h1>
+            <h1 class="chrome-text">Player Setup — ${title}${online ? ' Online' : ''}</h1>
           </header>
           <div class="page__body setup">
             <nav class="setup__tabs">
@@ -50,14 +54,14 @@ export const playerSetupScreen = {
                 <b>${s.name.trim() || `Player ${i + 1}`}</b><small>${s.deckList && s.commander1 ? `✓ ${s.deckName}` : 'Needs a deck'}</small></button>`)}
               ${seats.length + remote < 6 ? html`<button type="button" class="setup__tab setup__tab--add" data-act="add">+ Add player${hosting ? ' on this device' : ''}</button>` : ''}
               ${seats.length > minLocal ? html`<button type="button" class="setup__tab setup__tab--add" data-act="remove">Remove ${seats[active].name.trim() || `Player ${active + 1}`}</button>` : ''}
-              ${hosting ? html`<div class="setup__remote"><span>Players joining from other devices</span><div class="stepper"><button type="button" class="icon-btn" data-act="remote" data-step="-1">−</button><b class="stepper__value">${remote}</b><button type="button" class="icon-btn" data-act="remote" data-step="1">+</button></div></div>` : ''}
+              ${hosting ? html`<div class="setup__remote"><span>${online ? 'Players joining online' : 'Players joining from other devices'}</span><div class="stepper"><button type="button" class="icon-btn" data-act="remote" data-step="-1">−</button><b class="stepper__value">${remote}</b><button type="button" class="icon-btn" data-act="remote" data-step="1">+</button></div></div>` : ''}
             </nav>
             <section class="setup__form panel">${seatFormHtml(seats[active], active)}</section>
           </div>
           <footer class="page__foot">
             <span class="muted">${mode === 'freeplay' ? 'Free Play: any deck is allowed and every rule can be overridden.' : 'Guided Play checks each deck against the Commander rules.'}</span>
             <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
-            <button type="button" class="btn btn--confirm" data-act="start">${hosting ? 'Open room' : 'Continue'}</button>
+            <button type="button" class="btn btn--confirm" data-act="start">${online ? 'Create online game' : hosting ? 'Open room' : 'Continue'}</button>
           </footer>
         </main>`);
     }
@@ -69,6 +73,7 @@ export const playerSetupScreen = {
         const prepared = await prepareSeats(seats, { mode, rules: accountSetupDefaults().tableRuleDefaults || {} });
         if (!prepared) return;
         if (!(await confirmSeats(prepared))) return;
+        if (online) return createOnline(prepared);
         if (hosting) return go('lobby', { mode, hostDevice: false, localSeats: prepared.map(r => r.seat), remoteSeats: remote, setupSeats: seats });
         const choice = await chooseRules({ mode, names: prepared.map(r => r.seat.name) });
         if (!choice) return;
@@ -81,6 +86,18 @@ export const playerSetupScreen = {
       } finally { busy = false; }
     }
 
+    /** Online game: only this device's seat (the first) is set up here; the rules are fixed now. */
+    async function createOnline(prepared) {
+      if (prepared.length !== 1) return toast('An online game has one player per device. Remove the extra players on this device.', { bad: true, ms: 4500 });
+      const choice = await chooseRules({ mode, names: [prepared[0].seat.name] });
+      if (!choice) return;
+      toast('Creating the game…');
+      const clientId = deviceClientId();
+      const made = await createOnlineGame({ mode, rules: { ...choice.rules, priorityTimer: 0 }, firstPlayer: choice.firstPlayer, seatsWanted: 1 + remote, seats: [onlineSeat(prepared[0].seat, clientId)] });
+      rememberOnlineGame({ code: made.code, clientId, name: prepared[0].seat.name, names: [prepared[0].seat.name], mode });
+      go('online', { mode, code: made.code });
+    }
+
     draw();
     const offInput = on(root, 'input', '[data-field]', () => {
       readSeatForm(root, seats[active]);
@@ -91,7 +108,7 @@ export const playerSetupScreen = {
       readSeatForm(root, seats[active]);
       if (el.dataset.seatAct) return handleSeatAction(el.dataset.seatAct, el, seats[active], draw);
       switch (el.dataset.act) {
-        case 'back': return go('mode-select');
+        case 'back': return online ? go('online', { mode }) : go('mode-select');
         case 'tab': active = Number(el.dataset.seat); return draw();
         case 'add': seats.push(seatFromDefaults(seats.length, defaults)); active = seats.length - 1; return draw();
         case 'remove': seats.splice(active, 1); active = Math.max(0, active - 1); return draw();

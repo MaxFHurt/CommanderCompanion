@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.30, 2026-10-28)
+# Commander Companion — handoff (build 1.0.0-rebuild.31, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.30** (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v30`).
+- Live build: **1.0.0-rebuild.30**; build 31 (online games) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v31`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -62,6 +62,19 @@ what each part does, the owner's rules, open notes, and the roadmap.
   single-device / multi-device. `src/net/` PeerJS rooms (BroadcastChannel loopback with
   `?net=loopback` for tests). Checkpoints persist in IndexedDB (`src/app/checkpoints.js`); a host
   restart reopens the same room and phones reconnect to their seats.
+- **Online games ("play over time")**: Start Game → a mode → *Online games*. The shared copy lives in a
+  Cloudflare Worker (`../cloud/worker.js`, live at https://commander-companion-games.ajw226.workers.dev, one
+  Durable Object per 6-letter game code). Every device runs the game itself (`src/app/online-session.js`,
+  role `online`) and saves after its own moves with the version it was based on; a save based on an old
+  copy is refused (409), the device takes the newer copy and repeats its own actions on it. Devices check
+  for new moves every 4 s (20 s after 10 quiet minutes, 60 s in the background). Moves made offline are
+  kept in IndexedDB (`cc-online:CODE`) and saved when the connection is back. Setup: the creator picks
+  their deck, the number of players and the rules; the others join with the code (joining = accepting the
+  rules); the device that sees every seat filled deals the game. This device's games: `src/app/online-games.js`
+  (localStorage). Screen: `src/ui/screens/online.js`. No priority timer and no judge in online games.
+  Deploy the Worker: `sh cloud/deploy.sh` (needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, set in the
+  cloud environment). Games nobody opens for 120 days are deleted. Free Cloudflare plan: 100,000 requests a
+  day, far more than a few games need.
 - Screens `src/ui/screens/`, in-game popups `src/ui/game/`.
 - Table Tracker is separate: `src/game/tracker.js` (pure state), `src/ui/screens/tracker.js`,
   hosted via `src/app/tracker-session.js`, `src/net/tracker-room.js`, `src/ui/screens/tracker-join.js`.
@@ -159,13 +172,14 @@ what each part does, the owner's rules, open notes, and the roadmap.
     python3 tests/flows_ui.py         # 25
     python3 tests/challenge_ui.py     # 13   (challenge, correction, voted undo, rules agreement)
     python3 tests/net_ui.py           # 26   (hosted game: Table / Judge, reverse, watcher)
+    python3 tests/online_ui.py        # 23   (online games; starts cloud/dev-server.mjs, a local copy of the Worker)
     python3 tests/tracker_net_ui.py   # 44   (hosted Table Tracker)
     python3 tests/shots_judge.py      # host-screen screenshots
     python3 tests/shots_more.py       # game screenshots
     python3 tests/style_diff.py capture DIR / compare A B   # pixel check for CSS changes
     python3 tests/scan_ui.py          # Card ID scan (needs internet)
 
-Playwright needs `pip install playwright==1.56.0` (matches /opt/pw-browsers). Lab test cards for
+Playwright needs the version matching /opt/pw-browsers (chromium-1243 → `pip install playwright==1.63.0`; was 1.56.0). Lab test cards for
 mechanics are in `tests/fixtures/lab-cards.mjs` (the `lab` deck).
 
 Stylesheet: `node tools/css-clean.mjs [--write]` removes unused selectors and always-overridden
@@ -183,6 +197,8 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 8. Known issues and limits
 
+- Online games: hands are hidden on screen, but each device holds the whole game (it runs the rules), so
+  someone reading the app's data with developer tools could see other hands. Fine between friends.
 - Ward works for spells only, not activated abilities.
 - Still resolved by hand: mutate, madness, suspend, spectacle, and anything the terms key marks
   'manual' or 'partial' (e.g. split/fuse, flip cards, Room, Class, attractions).

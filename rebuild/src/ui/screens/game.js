@@ -350,7 +350,7 @@ export const gameScreen = {
         const hosting = session.role !== 'client';
         const ok = await confirmDialog({
           title: 'Leave game', confirmLabel: 'Leave',
-          message: hosting ? 'The game is saved on this device. You can pick it up again with Continue Game.' : 'You can rejoin with the same room code while the host keeps the game open.'
+          message: session.role === 'online' ? `The game is saved online. Open it again any time from Start Game → Online games (code ${session.code}).` : hosting ? 'The game is saved on this device. You can pick it up again with Continue Game.' : 'You can rejoin with the same room code while the host keeps the game open.'
         });
         if (!ok) return;
       }

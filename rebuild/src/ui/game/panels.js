@@ -320,7 +320,7 @@ export function openGameSettings(ctx, leave) {
         ${view.canEdit ? html`<button type="button" class="option" data-do="tools"><span><strong>${view.mode === 'freeplay' ? 'Edit game' : 'Host tools'}</strong><small>Adjust life, cards, phases, the stack</small></span></button>` : ''}
         ${view.you && view.status !== 'complete' ? html`<button type="button" class="option" data-do="concede"><span><strong>Concede</strong><small>Leave this game as a loss</small></span></button>` : ''}
         ${view.isJudge || view.mode === 'freeplay' ? html`<button type="button" class="option" data-do="end"><span><strong>End game</strong><small>Stop the game for everyone</small></span></button>` : ''}
-        <button type="button" class="option" data-do="leave"><span><strong>Leave to main menu</strong><small>${ctx.session.role === 'client' ? 'You can rejoin with the room code' : 'The game stays saved on this device'}</small></span></button>
+        <button type="button" class="option" data-do="leave"><span><strong>Leave to main menu</strong><small>${ctx.session.role === 'online' ? `Saved online: open it again from Online games (code ${ctx.session.code})` : ctx.session.role === 'client' ? 'You can rejoin with the room code' : 'The game stays saved on this device'}</small></span></button>
       </div>`,
     onMount(el, { close }) {
       const again = () => { close(); ctx.refresh(); openGameSettings(ctx, leave); };

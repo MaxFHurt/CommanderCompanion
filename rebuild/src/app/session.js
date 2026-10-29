@@ -17,9 +17,17 @@ let current = null;
 export function getSession() { return current; }
 
 export function endSession({ keepSave = false } = {}) {
+  const online = current?.role === 'online';   // its save is online, not this device's game save
   current?.close?.();
   current = null;
-  if (!keepSave) deleteRecord(GAME_SAVE_KEY);
+  if (!keepSave && !online) deleteRecord(GAME_SAVE_KEY);
+}
+
+/** An online game opened by src/app/online-session.js becomes the current session. */
+export function useSession(session) {
+  endSession({ keepSave: true });
+  current = session;
+  return current;
 }
 
 function baseHostSession(game, { role, seatId = null, net = null }) {

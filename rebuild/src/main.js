@@ -17,6 +17,7 @@ import { playerSetupScreen } from './ui/screens/player-setup.js';
 import { gameScreen } from './ui/screens/game.js';
 import { lobbyScreen } from './ui/screens/lobby.js';
 import { joinScreen } from './ui/screens/join.js';
+import { onlineScreen } from './ui/screens/online.js';
 import { takeReturn, builderPlayerName } from './data/deck-builder.js';
 
 registerScreen('landing', landingScreen);
@@ -29,6 +30,7 @@ registerScreen('player-setup', playerSetupScreen);
 registerScreen('game', gameScreen);
 registerScreen('lobby', lobbyScreen);
 registerScreen('join', joinScreen);
+registerScreen('online', onlineScreen);
 
 async function start() {
   // Card images that fail to load fall back to the text version everywhere (screens and popups).
