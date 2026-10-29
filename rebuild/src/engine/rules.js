@@ -338,7 +338,7 @@ export function validatePlay({ game, player, definition, instance, kind = 'cast'
   const stackEmpty = !Array.isArray(game?.stack) || game.stack.length === 0;
   const type = definition?.typeLine || '';
   const hasFlash = /\bFlash\b/i.test(String(definition?.oracleText || '')) || (definition?.keywords || []).some(k => String(k).toLowerCase() === 'flash');
-  const instantSpeed = /\bInstant\b/i.test(type) || hasFlash;
+  const instantSpeed = /\bInstant\b/i.test(type) || hasFlash || (player?.temporaryPermissions || []).some(x => x?.kind === 'flash');
   if (kind === 'land') {
     if (!active || !main || !stackEmpty)
       reasons.push('A land can normally be played only during your own main phase while the stack is empty.');
@@ -702,13 +702,15 @@ export function manaOptionsFromAbility(line = '') {
   const out = [];
   for (const m of effect.matchAll(/\{([WUBRGC])\}/g))
     out.push(m[1]);
-  if (/mana of any color/i.test(effect))
+  // "one mana of any color", "three mana of any one color" (Gilded Lotus), "Choose a color. Add … mana of that color" (Nykthos).
+  if (/mana of any (?:one )?color|mana in any combination of colors|Choose a color\.[^]*mana of that color/i.test(effect))
     out.push('W', 'U', 'B', 'R', 'G');
   if (/mana of any type/i.test(effect))
     out.push('W', 'U', 'B', 'R', 'G', 'C');
   return [...new Set(out)];
 }
-export function tapManaAbilities(definition) { return parseActivatedAbilities(definition).filter(a => a.requiresTap && a.manaAbility && a.manaOptions.length).map(a => ({ text: a.text, options: a.manaOptions, ability: a })); }
+// Free tap abilities only: Nykthos's "{2}, {T}: …" is not mana the auto-payer can count on.
+export function tapManaAbilities(definition) { return parseActivatedAbilities(definition).filter(a => a.requiresTap && a.manaAbility && a.manaOptions.length && !/\{(?:\d+|[WUBRGCX])(?:\/[WUBRGP])?\}/i.test(String(a.cost || '').replace(/\{T\}/gi, ''))).map(a => ({ text: a.text, options: a.manaOptions, ability: a })); }
 export function validateActivatedAbility({ game, instance, definition, ability }) {
   const reasons = [];
   if (!instance)

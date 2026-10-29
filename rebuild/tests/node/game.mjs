@@ -1132,13 +1132,13 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
     check('Craterhoof: +X/+X and trample, X = creatures you control', power(t, bear) === 4 && has(t, bear, 'Trample'), String(power(t, bear)));
   }
   {
-    const t = setup(); const top2 = t.P(0).deck.remainingLibrary.slice(0, 2).map(c => c.instanceId);
+    const t = setup(); t.give(0, 'Opt'); const top2 = t.P(0).deck.remainingLibrary.slice(0, 2).map(c => c.instanceId);
     const seen = spell(t, 'Draw two cards, then discard a card.', d => (d.title?.includes('Discard') ? [top2[1]] : first(d)));
     const dis = seen.find(d => d.title?.includes('Discard'));
     check('looting: the discard choice includes the cards about to be drawn', !!dis && top2.every(id => dis.options.some(o => o.id === id)) && t.P(0).deck.graveyard.some(c => c.instanceId === top2[1]) && t.P(0).deck.hand.some(c => c.instanceId === top2[0]));
   }
   {
-    const t = setup(); t.give(1, 'Forest'); const h1 = t.P(1).deck.hand.length;
+    const t = setup(); t.give(0, 'Opt'); t.give(0, 'Island'); t.give(1, 'Forest'); const h1 = t.P(1).deck.hand.length;
     const seen = spell(t, 'Each player draws a card, then discards a card.');
     check('Geier Reach: each player draws, then each chooses their own discard', seen.filter(d => d.title?.includes('Discard')).map(d => d.playerId).sort().join() === [t.P(0).playerId, t.P(1).playerId].sort().join() && t.P(1).deck.hand.length === h1 && t.P(1).deck.graveyard.length === 1);
   }
@@ -1150,7 +1150,7 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
   {
     const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield');
     t.bf(0, 'Grizzly Bears').counters = { '+1/+1': 1 };
-    const hand = t.P(0).deck.hand.length;
+    t.give(0, 'Opt'); const hand = t.P(0).deck.hand.length - 1;
     spell(t, 'Draw a card for each creature you control with a +1/+1 counter on it. Those creatures gain indestructible until end of turn.');
     check('Inspiring Call: draws for each creature with a counter; those gain indestructible', t.P(0).deck.hand.length === hand + 1 && has(t, t.bf(0, 'Grizzly Bears'), 'Indestructible') && !has(t, t.bf(0, 'Llanowar Elves'), 'Indestructible'), `${hand}→${t.P(0).deck.hand.length}`);
   }
@@ -1261,7 +1261,56 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
     answerAll(t, first);
     const back = t.bf(0, 'Llanowar Elves');
     check('Reassembling Skeleton: returns from the graveyard to the battlefield tapped', !!ab?.legal && !!back && back.tapped);
+  }  for (const [text, color, want, label] of [['{T}: Add three mana of any one color.', 'R', 3, 'Gilded Lotus: three mana of one color'], ["{T}: Add X mana of any one color, where X is this creature's power.", 'U', 2, "Kami of Whispered Hopes: X = its power"], ['{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color.', 'G', 3, 'Nykthos: mana equal to devotion']]) {
+    const t = setup(); const c = t.give(0, 'Grizzly Bears', 'battlefield'); c.enteredTurn = -1; c.controlSinceTurn = -1;
+    asText(t, c, text, { typeLine: /power/.test(text) ? 'Creature — Bear' : 'Legendary Land', manaCost: '{G}{G}{G}' });
+    t.P(0).mana.available.C = /devotion/.test(text) ? 2 : 0;
+    const ab = t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).abilities.find(a => /Add/.test(a.text));
+    const before = t.P(0).mana.available[color];
+    const r = t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: ab.id, color }, t.as(0));
+    answerAll(t, d => d.options?.find(o => o.id === color)?.id ?? first(d));
+    check(label, r.ok && t.P(0).mana.available[color] - before === want, JSON.stringify([before, t.P(0).mana.available]));
   }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves'); t.give(0, 'Grizzly Bears', 'battlefield');
+    asText(t, t.hand(0, 'Llanowar Elves'), 'At the beginning of your upkeep, you may pay {4}. If you do, untap target creature you control.');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Llanowar Elves').instanceId }, t.as(0)); answerAll(t, first);
+    t.autoPass = true; t.end(0); answerAll(t, first); t.end(1);
+    const bear = t.bf(0, 'Grizzly Bears'); bear.tapped = true; t.P(0).mana.available.C = 4;
+    const seen = answerAll(t, d => (d.key.includes('may-pay') ? 'pay' : first(d)));
+    const asked = seen.find(d => d.key.includes('may-pay'));
+    check('Mana Vault: "you may pay {4}. If you do, …" asks, takes the mana and does it', !!asked && t.P(0).mana.available.C === 0 && !bear.tapped, JSON.stringify([!!asked, t.P(0).mana.available.C, bear.tapped]));
+  }  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); const bear = t.bf(0, 'Grizzly Bears'); bear.enteredTurn = -1; bear.controlSinceTurn = -1;
+    spell(t, 'Prevent all combat damage that would be dealt this turn.');
+    t.autoPass = true; t.do(0, { type: 'next-phase' }); t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+    for (let g = 0; g < 8 && t.game.phase !== 'postcombat-main'; g++) { if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] }); else t.do(0, { type: 'next-phase' }); }
+    check('Fog: no combat damage this turn', t.P(1).life === 40, String(t.P(1).life));
+  }
+  {
+    const t = setup(); spell(t, 'Your opponents can’t cast spells this turn.'.replace('’', "'"));
+    t.give(1, 'Opt'); const v = t.view(1).players[1].hand.find(c => c.id === t.hand(1, 'Opt').instanceId);
+    check("Silence: opponents can't cast spells this turn", !v.playable && /stops you casting spells/.test(v.reason), v.reason);
+  }
+  {
+    const t = setup(); spell(t, 'You have no maximum hand size for the rest of the game.');
+    for (let i = 0; i < 9; i++) t.give(0, i % 2 ? 'Island' : 'Forest');
+    t.autoPass = true; t.end(0);
+    check('Sea Gate Restoration: no discard down to seven', t.P(0).deck.hand.length >= 9 && t.game.activePlayerId === t.P(1).playerId);
+  }
+  {
+    const t = setup(); spell(t, 'You may cast spells this turn as though they had flash.');
+    t.give(0, 'Grizzly Bears'); t.ctl.dispatch({ type: 'next-phase' }, t.as(0));
+    const v = t.view(0).players[0].hand.find(c => c.id === t.hand(0, 'Grizzly Bears').instanceId);
+    check('Borne Upon a Wind: a creature can be cast outside the main phase', v.playable, `${t.game.phase} ${v.reason}`);
+  }
+  {
+    const t = setup(); const cmd = t.P(0).deck.commandZone[0];
+    spell(t, 'Put your commander into your hand from the command zone.');
+    check('Command Beacon: the commander goes to your hand', !!cmd && t.P(0).deck.hand.some(c => c.instanceId === cmd.instanceId));
+  }
+
+
 
 }
 done();

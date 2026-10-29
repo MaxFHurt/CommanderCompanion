@@ -260,6 +260,9 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     if (mode.discard && !(player.deck?.hand || []).length) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a card in hand to discard.']; }
     if (mode.discardLand && !(player.deck?.hand || []).some(c => isLand(defOf(game, c)))) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a land card in hand to discard.']; }
     if (mode.faceDown) result.reasons = result.reasons.filter(r => !/color identity/i.test(r));
+    // Silence, Ranger-Captain of Eos: "Your opponents can't cast (noncreature) spells this turn."
+    const lock = (game.castLocks || []).find(l => l.turn === game.turnNumber && l.playerIds.includes(player.playerId) && !(l.noncreature && /\bCreature\b/i.test(def?.typeLine || '')));
+    if (lock) { result.legal = false; result.reasons = [`${lock.source || 'An effect'} stops you casting ${lock.noncreature ? 'noncreature ' : ''}spells this turn.`, ...(result.reasons || [])]; }
     const extra = mode.faceDown ? null : additionalCost(def);
     if (extra?.kind === 'sacrifice' && !(player.deck?.battlefield || []).some(c => extra.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))) { result.legal = false; result.reasons = [...(result.reasons || []), `You need a ${extra.filters.join(' or ')} to sacrifice.`]; }
     if (extra?.kind === 'discard' && (player.deck?.hand || []).length < 2) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need another card in hand to discard.']; }

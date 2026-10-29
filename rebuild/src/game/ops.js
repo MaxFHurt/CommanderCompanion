@@ -527,7 +527,7 @@ function runActivate(game, op, ask) {
     if (!options.length) throw new GameError('This ability cannot make any mana right now.');
     let color = op.args.color && options.includes(op.args.color) ? op.args.color : null;
     if (!color) color = options.length === 1 ? options[0] : ask('mana', () => ({ ...base, kind: 'choose-one', title: `${def.name} — mana`, prompt: 'Choose the mana to add.', options: options.map(c => ({ id: c, label: COLOR_NAMES[c], mana: c })) }));
-    const amount = manaAmountForAbility(ability);
+    const amount = manaAmountForAbility(ability, { game, player, card, color });
     commit(game, { ...common, type: 'activate-ability', manaColor: color, manaAmount: amount, label: `${player.displayName} taps ${def.name} for ${amount > 1 ? `${amount} ` : ''}${COLOR_NAMES[color].toLowerCase()} mana.` });
     return;
   }
@@ -750,6 +750,21 @@ function runResolve(game, op, ask) {
     if (pay === 'pay' && plan.ok) {
       if (cost !== '{0}') commit(game, { type: 'pay-mana', playerId: payer.playerId, payment: plan.chosen, label: `${payer.displayName} pays ${cost}.` });
       bindings.unlessPaid = true;
+    }
+  }
+
+  // "You may pay {4}. If you do, …": the controller chooses, and pays now.
+  const mayPay = (top.effects || []).find(e => e.kind === 'may-pay');
+  if (mayPay) {
+    const life = Number(mayPay.lifeCost || 0);
+    const plan = planMana(playerManaAvailability(player, game), mayPay.cost, 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
+    const can = plan.ok && Number(player.life || 0) >= life;
+    const what = `${mayPay.cost}${life ? ` and ${life} life` : ''}`;
+    const pay = ask('may-pay', () => ({ ...base, kind: 'choose-one', title: `${name} — pay ${what}?`, prompt: `${top.text || name}`,
+      options: [{ id: 'pay', label: `Pay ${what}`, disabled: !can, sub: can ? '' : 'You cannot pay this now.' }, { id: 'no', label: 'Don\u2019t pay' }] }));
+    if (pay === 'pay' && can) {
+      commit(game, { type: 'pay-mana', playerId: player.playerId, payment: plan.chosen, lifeCost: life, label: `${player.displayName} pays ${what}.` });
+      bindings.mayPaid = true;
     }
   }
 

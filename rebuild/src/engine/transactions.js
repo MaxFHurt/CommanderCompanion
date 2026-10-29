@@ -303,6 +303,11 @@ function putSpellOnStack(game, player, action, deck) {
   const castDef = defFor(game, card);
   player.counters.castThisTurn = [...(player.counters.castThisTurn || []), { typeLine: castDef?.typeLine || '', colors: castDef?.colors || [], manaValue: Number(castDef?.manaValue ?? castDef?.cmc ?? 0) }];
   game.spellsCastThisTurn = Number(game.spellsCastThisTurn || 0) + 1;
+  // Mistrise Village ("the next spell you cast this turn can't be countered"), Veil of Summer.
+  const perms = player.temporaryPermissions || [];
+  const next = perms.findIndex(x => x?.kind === 'next-uncounterable');
+  if (next >= 0 || perms.some(x => x?.kind === 'uncounterable-turn')) stackObject.cantBeCountered = true;
+  if (next >= 0) perms.splice(next, 1);
   game.stack.push(stackObject);
   emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
@@ -860,6 +865,10 @@ export function createTransactionEngine(game) {
       else if (action.type === 'pay-mana') {
         // Another player pays a cost for an effect ("unless that player pays {1}").
         payMana(game, player, action.payment);
+        if (action.lifeCost) {
+          player.life = Math.max(0, player.life - Number(action.lifeCost));
+          emit(game, { type: 'life-lost', playerId: player.playerId, amount: Number(action.lifeCost), controllerId: player.playerId });
+        }
       }
       else if (action.type === 'life') {
         const before = player.life;

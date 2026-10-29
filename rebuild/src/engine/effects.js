@@ -535,6 +535,11 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'their-search') continue;   // done by ops.js as the spell resolves (it asks that player)
     // "… unless that player pays {1}": ops.js asked them before resolving; if they paid, skip what follows.
+    if (effect.kind === 'may-pay') {
+      // Paid (or not) as the stack object resolved, in ops.js.
+      if (!bindings.mayPaid) { bindings.skipEffects = effect.skip || 0; notes.push('Nothing was paid.'); }
+      continue;
+    }
     if (effect.kind === 'unless-pays') {
       // Kept on the bindings: the stack resolves its effects one call at a time.
       if (bindings.unlessPaid) { notes.push(`${game.players.find(p => p.playerId === bindings[effect.payerBind])?.displayName || 'The player'} paid ${effect.cost}.`); bindings.skipEffects = effect.skip || 0; }
@@ -553,6 +558,40 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     const amount = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings));
+    if (effect.kind === 'prevent-combat') {
+      game.combatPrevention = (game.combatPrevention || []).filter(x => x.turn === game.turnNumber);
+      const id = effect.scope === 'card' ? resolveBoundId(effect, bindings) : null;
+      game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id });
+      notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : 'Combat damage to and from that creature is prevented this turn.');
+      continue;
+    }
+    if (effect.kind === 'no-max-hand-size') { controller.noMaxHandSize = true; notes.push(`${controller.displayName} has no maximum hand size.`); continue; }
+    if (effect.kind === 'cast-lock') {
+      game.castLocks = (game.castLocks || []).filter(x => x.turn === game.turnNumber);
+      game.castLocks.push({ turn: game.turnNumber, playerIds: game.players.filter(p => p.playerId !== controllerId).map(p => p.playerId), noncreature: !!effect.noncreature, source: cardName(game, locateCardInGame(game, bindings.sourceId)?.card) });
+      notes.push(`Opponents can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
+      continue;
+    }
+    if (effect.kind === 'flash-permission') {
+      controller.temporaryPermissions = controller.temporaryPermissions || [];
+      controller.temporaryPermissions.push({ kind: 'flash', expires: 'cleanup' });
+      notes.push(`${controller.displayName} may cast spells as though they had flash this turn.`);
+      continue;
+    }
+    if (effect.kind === 'next-uncounterable' || effect.kind === 'uncounterable-turn') {
+      controller.temporaryPermissions = controller.temporaryPermissions || [];
+      controller.temporaryPermissions.push({ kind: effect.kind, expires: 'cleanup' });
+      notes.push(effect.kind === 'next-uncounterable' ? 'The next spell cast this turn can\u2019t be countered.' : 'Spells you control can\u2019t be countered this turn.');
+      continue;
+    }
+    if (effect.kind === 'commander-to-hand') {
+      const cmd = controller.deck.commandZone || [];
+      if (!cmd.length) { notes.push('Your commander is not in the command zone.'); continue; }
+      const c = cmd.length === 1 ? cmd[0] : cmd[0];
+      moveCard(game, c.instanceId, 'hand', { onEvent: e => emit(bindings, e) });
+      notes.push(`${cardName(game, c)} is put into ${controller.displayName}'s hand.`);
+      continue;
+    }
     if (effect.kind === 'set-x') { bindings.X = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings)); continue; }
     if (effect.kind === 'goad-each') {
       let n = 0;
@@ -1310,7 +1349,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const i = (game.stack || []).findIndex(x => x.id === stackId);
       if (i < 0)
         throw new Error('The targeted spell is no longer on the stack.');
-      if (game.stack[i].kind === 'spell' && /This spell can'?t be countered/i.test(definitionFor(game, game.stack[i].card)?.oracleText || '')) {
+      if (game.stack[i].kind === 'spell' && (game.stack[i].cantBeCountered || /This spell can'?t be countered/i.test(definitionFor(game, game.stack[i].card)?.oracleText || ''))) {
         notes.push(`${game.stack[i].label || cardName(game, game.stack[i].card)} can't be countered.`);
         continue;
       }
@@ -1378,6 +1417,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
     const n = (me.deck?.battlefield || []).filter(c => subjectMatches(game, row, { ...subject, controller: null }, c, definitionFor(game, c), controllerId)).length;
     return effect.none ? n === 0 : n >= (effect.min || 1);
   }
+  if (effect.test === 'chosen') return bindings[effect.bind] === true;
   if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
   if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
@@ -2368,6 +2408,16 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
     return true;
   }
+  // Turn-long rules changes.
+  if (/^Prevent all combat damage that would be dealt this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'all' }); return true; }
+  if (/^Prevent all combat damage that would be dealt to you this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'you' }); return true; }
+  if (/^Prevent all combat damage that would be dealt to and dealt by (?:it|that creature) this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'card', bind: 'lastTarget' }); return true; }
+  if (/^You have no maximum hand size(?: for the rest of the game)?\.?$/i.test(c)) { effects.push({ kind: 'no-max-hand-size' }); return true; }
+  if ((m = c.match(/^Your opponents can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock', scope: 'opponents', noncreature: !!m[1] }); return true; }
+  if (/^You may cast spells this turn as though they had flash\.?$/i.test(c)) { effects.push({ kind: 'flash-permission' }); return true; }
+  if (/^The next spell you cast this turn can'?t be countered\.?$/i.test(c)) { effects.push({ kind: 'next-uncounterable' }); return true; }
+  if (/^Spells you control can'?t be countered this turn\.?$/i.test(c)) { effects.push({ kind: 'uncounterable-turn' }); return true; }
+  if (/^Put your commander into your hand from the command zone\.?$/i.test(c)) { effects.push({ kind: 'commander-to-hand' }); return true; }
   // Event creature: "it gains haste until end of turn" in a trigger about another creature (Dragon Tempest).
   if ((m = c.match(/^(?:It|That creature) gains? ([a-z ,]+?) until end of turn\.?$/i))) {
     for (const keyword of KEYWORD_LIST(m[1])) effects.push({ kind: 'grant-keyword', bind: 'eventCard', keyword, enabled: true, expires: 'cleanup' });
@@ -2499,6 +2549,30 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
       const c = compileSingleClause(clause.replace(/\bthat much\b/gi, 'X'), { sourceName });
       if (!c.unsupported.length && c.effects.length) {
         parts.push({ ...c, effects: c.effects.map(e => (String(e.amount).toUpperCase() === 'X' ? { ...e, amount: { kind: 'binding', bind: 'eventAmount' } } : e)), requirements: c.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')) });
+        continue;
+      }
+    }
+    // "You may pay {4}. If you do, untap this artifact." (Mana Vault, Mentor of the Meek): the controller is asked to pay
+    // as it resolves (ops.js); "You may sacrifice another creature. If you do, …": a yes/no choice, then both or neither.
+    const nextDo = clauses[clauses.indexOf(clause) + 1]?.match(/^If you do,?\s*(.+)$/i);
+    const selfPay = nextDo && clause.match(/^(?:Then )?you may pay ((?:\{[^}]+\})+)(?: and (\d+|one|two|three|four) life)?\.?$/i);
+    if (selfPay) {
+      const inner = compileEffectText(nextDo[1], { sourceName });
+      if (inner.supported) {
+        parts.push({ effects: [{ kind: 'may-pay', cost: selfPay[1], lifeCost: numberFromText(selfPay[2] || '0') || 0, skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] });
+        skipNextClause = true;
+        continue;
+      }
+    }
+    const mayDo = nextDo && !selfPay && clause.match(/^(?:Then )?you may (.+)$/i);
+    if (mayDo) {
+      const first = compileEffectText(mayDo[1].charAt(0).toUpperCase() + mayDo[1].slice(1), { sourceName });
+      const then = compileEffectText(nextDo[1], { sourceName });
+      if (first.supported && then.supported) {
+        const bind = `mayDo${parts.length}`;
+        const req = [{ kind: 'yes-no', bind, label: `${mayDo[1].replace(/\.$/, '')}?` }];
+        parts.push({ effects: [{ kind: 'condition', test: 'chosen', bind, skip: first.effects.length + then.effects.length }, ...first.effects, ...then.effects], requirements: [...req, ...first.requirements, ...then.requirements], unsupported: [] });
+        skipNextClause = true;
         continue;
       }
     }
@@ -2686,6 +2760,9 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
   const merged = mergeCompiled(parts);
+  // "Sacrifice it", "… dealt to and dealt by that creature": the last thing targeted.
+  const lastTarget = [...merged.requirements].reverse().find(r => r.kind === 'target');
+  if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
   // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
   // carried out, so the choice also shows the cards about to be drawn (the top of the library).
   const drawn = {};

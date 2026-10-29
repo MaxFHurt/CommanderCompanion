@@ -179,7 +179,8 @@ function applyQueue(game, queue, events, onEvent) {
     const { sourcePlayer, source, sourceDef } = hit;
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
     const boosted = damageAmount(game, { sourceControllerId: sourcePlayer.playerId, colors: sourceDef?.colors || [], targetPlayerId: hit.kind === 'player' ? targetId : null, targetControllerId: hit.kind === 'player' ? null : (hit.target.controllerId || null) }, Number(hit.amount || 0));
-    const original = boosted, amount = combatDamageAfterPrevention(game, targetId, original), prevented = original - amount;
+    const fog = (game.combatPrevention || []).some(x => x.turn === game.turnNumber && game.unpreventableTurn !== game.turnNumber && (x.scope === 'all' || (x.scope === 'you' && hit.kind === 'player' && x.playerId === targetId) || (x.scope === 'card' && (x.cardId === targetId || x.cardId === source?.instanceId))));
+    const original = boosted, amount = fog ? 0 : combatDamageAfterPrevention(game, targetId, original), prevented = original - amount;
     if (hit.kind === 'player') {
       const target = hit.targetPlayer;
       if (amount > 0 && isInfect(source, sourceDef, game)) {

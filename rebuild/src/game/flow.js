@@ -182,7 +182,7 @@ function autoAdvance(game) {
       return false;
     case 'end-step': setPhase(game, 'cleanup'); return true;
     case 'cleanup': {
-      const extra = p.deck.hand.length - 7;
+      const extra = p.noMaxHandSize ? 0 : p.deck.hand.length - 7;
       if (extra > 0 && game.mode !== 'freeplay') {
         if (!f.discard) f.discard = { playerId: p.playerId, need: extra };
         else f.discard.need = extra;

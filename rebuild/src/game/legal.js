@@ -8,6 +8,7 @@ import {
 import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponentsOf, playerById, alivePlayers, attackablePermanents } from './helpers.js';
 import { candidatesFor } from './requirements.js';
 import { castOptions, keywordCost } from './casting.js';
+import { effectivePower } from '../engine/combat.js';
 
 const HAND_MANA_COST = /^Exile\s+(?:this card|[^:]+?)\s+from your hand$/i;
 
@@ -181,8 +182,22 @@ export function manaOptionsForAbility(game, player, card, ability) {
   return [...new Set(options)];
 }
 
-export function manaAmountForAbility(ability) {
+export function manaAmountForAbility(ability, { game = null, player = null, card = null, color = null } = {}) {
   const effect = String(ability?.effect || ability?.text || '');
+  // Amounts counted as the ability is used: Kami of Whispered Hopes, Sanctum Weaver, Nykthos, Three Tree City.
+  if (game && player && /\bAdd (?:X mana|an amount of mana)\b/i.test(effect)) {
+    const mine = (player.deck?.battlefield || []);
+    const typeOf = c => String(defOf(game, c)?.typeLine || '');
+    let m;
+    if (/X is (?:this creature|~)'?s power|equal to (?:this creature|~)'?s power/i.test(effect) && card) return Math.max(0, Number(effectivePower(card, defOf(game, card), game) || 0));
+    if (/greatest power among creatures you control/i.test(effect)) return Math.max(0, ...mine.filter(c => /Creature/i.test(typeOf(c))).map(c => Number(effectivePower(c, defOf(game, c), game) || 0)));
+    if (/devotion to that color/i.test(effect) && color) return mine.reduce((n, c) => n + (String(defOf(game, c)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(sym => sym.includes(color)).length, 0);
+    if (/creatures you control of the chosen type/i.test(effect) && card?.chosenCreatureType) return mine.filter(c => /Creature/i.test(typeOf(c)) && new RegExp(`\\b${card.chosenCreatureType}`, 'i').test(typeOf(c))).length;
+    if ((m = effect.match(/the number of (artifacts|enchantments|creatures|lands|Elves|Elf|[A-Z][a-z]+s?) you control/i))) {
+      const word = m[1].replace(/s$/i, '').replace(/^Elve$/i, 'Elf');
+      return mine.filter(c => new RegExp(`\\b${word}`, 'i').test(typeOf(c))).length;
+    }
+  }
   const symbols = [...effect.matchAll(/\{([WUBRGC])\}/g)].map(x => x[1]);
   if (symbols.length && !/\bor\b/i.test(effect)) return Math.max(1, symbols.length);
   const words = { one: 1, two: 2, three: 3, four: 4, five: 5 };
