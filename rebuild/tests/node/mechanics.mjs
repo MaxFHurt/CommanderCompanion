@@ -65,6 +65,14 @@ section('hand-resolved cards still choose targets');
 // Helpers for the casting tests
 
 /** Answer every open decision: `picks` maps a key fragment to a value (or a function of the decision). */
+/** Resolve whatever triggered, including effects resolved by hand (press Done). */
+function finishTriggers(t) {
+  for (let guard = 0; guard < 10 && ((t.game.stack || []).length || t.game.flow.priority || t.decision()); guard++) {
+    settleWith(t);
+    if (t.game.flow.guided) { const top = t.game.stack[t.game.stack.length - 1]; t.ctl.dispatch({ type: 'guided-done' }, { playerId: top.controllerId, isHost: false }); }
+    t.passAll();
+  }
+}
 function settleWith(t, picks = {}) {
   for (let guard = 0; guard < 25 && t.decision(); guard++) {
     const d = t.decision();
@@ -221,6 +229,7 @@ section('cost changes: affinity, eminence, Thalia, convoke, delve');
 {
   const t = labGame();
   t.give(0, 'Kappa Cannoneer', 'battlefield'); t.give(0, 'Frogmite', 'hand');
+  finishTriggers(t);   // Kappa Cannoneer is an artifact: it sees itself enter (rule 603.6a)
   lands(t, 0, 'Island', 3);
   const check1 = t.view(0).players[0].hand.find(c => c.name === 'Frogmite');
   check('affinity for artifacts: Frogmite costs {3} with one artifact', check1.playable, JSON.stringify(check1));
@@ -361,6 +370,7 @@ section('replacement effects and ward');
 {
   const t = labGame('lab');
   t.give(1, 'Kappa Cannoneer', 'battlefield');
+  finishTriggers(t);   // its own "an artifact you control enters" trigger
   lands(t, 0, 'Mountain', 1);
   t.give(0, 'Burst Lightning');
   t.try(0, { type: 'play', instanceId: t.hand(0, 'Burst Lightning').instanceId });

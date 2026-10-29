@@ -664,4 +664,62 @@ section('counters: the player chooses which creature gets them');
   t.passAll();
   check('the chosen creature gets it', elf.counters?.['+1/+1'] === 1 && !bear.counters?.['+1/+1'] && !maw.counters?.['+1/+1'], JSON.stringify([elf.counters, bear.counters]));
 }
+section('trigger wordings: plural verbs, short names, "you control enters", draw step');
+{
+  const setText = (t, card, text, name) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...(name ? { name, typeLine: 'Legendary Creature — Bear' } : {}) }; };
+  // "Whenever an opponent casts a spell" (Rhystic Study wording)
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'Whenever an opponent casts a spell, you gain 1 life.');
+    t.end(0);
+    t.give(1, 'Forest', 'battlefield'); t.give(1, 'Llanowar Elves');
+    t.do(1, { type: 'play', instanceId: t.hand(1, 'Llanowar Elves').instanceId });
+    t.passAll();
+    check('"an opponent casts a spell" fires when the opponent casts', t.P(0).life === 41, String(t.P(0).life));
+  }
+  // "Whenever a land you control enters" (Lotus Cobra / landfall, newer wording)
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'Whenever a land you control enters, you gain 1 life.');
+    t.give(0, 'Forest');
+    t.do(0, { type: 'play', instanceId: t.hand(0, 'Forest').instanceId });
+    t.passAll();
+    check('"a land you control enters" fires on a land drop', t.P(0).life === 41, String(t.P(0).life));
+    t.end(0);
+    t.give(1, 'Forest');
+    t.do(1, { type: 'play', instanceId: t.hand(1, 'Forest').instanceId });
+    t.passAll();
+    check('…and not for the opponent\'s land', t.P(0).life === 41, String(t.P(0).life));
+  }
+  // A legendary creature named by its short name ("Whenever Gorm attacks")
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    const bear = t.bf(0, 'Grizzly Bears');
+    setText(t, bear, 'Whenever Gorm attacks, you gain 2 life.', 'Gorm, the Great Bear');
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+    if (t.game.flow.blocks) t.do(1, { type: 'block', assignments: [] });
+    t.passAll();
+    check('a card that names itself by its short name triggers', t.P(0).life === 42, String(t.P(0).life));
+  }
+  // "At the beginning of your draw step" and "Whenever an opponent draws a card"
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'At the beginning of your draw step, you gain 1 life.');
+    setText(t, t.bf(0, 'Llanowar Elves'), 'Whenever an opponent draws a card, you gain 3 life.');
+    t.end(0);
+    check('"an opponent draws a card" fires on the opponent\'s draw', t.P(0).life === 43, String(t.P(0).life));
+    t.end(1);
+    check('"at the beginning of your draw step" fires on your turn', t.P(0).life === 44, String(t.P(0).life));
+  }
+}
 done();

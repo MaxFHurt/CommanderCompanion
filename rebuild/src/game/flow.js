@@ -268,7 +268,7 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
   game.combatState = { attackers, defenders, blocks: {}, damage: [], waitingFor: null, resolved: false };
   game.phase = 'declare-attackers';
   for (const a of attackers) queueTriggers(game, { type: 'attacks', sourceId: a.instanceId, controllerId: p.playerId, defenderId: a.defenderId, targetId: a.targetId });
-  queueTriggers(game, { type: 'attackers-declared', controllerId: p.playerId, attackers: attackers.map(a => a.instanceId), defenders });
+  queueTriggers(game, { type: 'attackers-declared', controllerId: p.playerId, attackers: attackers.map(a => a.instanceId), defenders, attacks: attackers.map(a => ({ id: a.instanceId, defenderId: a.defenderId, targetId: a.targetId })) });
   f.queue = COMBAT_QUEUE();
 }
 

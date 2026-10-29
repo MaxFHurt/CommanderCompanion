@@ -6,13 +6,16 @@
 // the kind of gap, most common first, so the next rules work goes where real decks need it.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { scryfallToDefinition } from '../src/data/card-api.js';
 import { analyzeDefinitionSupport } from '../src/engine/abilities.js';
 import { MECHANICS } from '../src/data/mechanics.js';
 
 const [input, output] = process.argv.slice(2);
 if (!input) { console.error('usage: node tools/rules-audit.mjs cards.json [report.json]'); process.exit(1); }
-const cards = JSON.parse(readFileSync(input, 'utf8'));
+const raw = readFileSync(input);
+const parsed = JSON.parse(input.endsWith('.gz') ? gunzipSync(raw) : raw);
+const cards = Array.isArray(parsed) ? parsed : parsed.cards;   // a Scryfall list, or tests/fixtures/top-commander-cards.json.gz
 
 // Static lines are not run through one checker in the game (keywords, anthems and restrictions are
 // each handled in their own place), so they are judged here: an instant's or sorcery's text is the

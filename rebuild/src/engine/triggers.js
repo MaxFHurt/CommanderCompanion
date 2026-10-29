@@ -3,6 +3,7 @@
 import { compileEffectText, applyEffects } from './effects.js';
 import { keywordTriggers, designationTriggers } from './keyword-triggers.js';
 import { recordStat } from '../game/stats.js';
+import { parseSubject, subjectMatches, refersToSelf, findAnyCard } from './trigger-subject.js';
 function defFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function escRe(s) { return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
@@ -61,7 +62,7 @@ export function parseTriggeredAbilities(definition) {
   }
   if (current)
     out.push(current);
-  return out.map((line, index) => { const comma = line.indexOf(','); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
+  return out.map((line, index) => { const comma = line.indexOf(','); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
   const ledger = card?.triggerModeChoices || {};
@@ -84,10 +85,6 @@ export function recordModalTriggerModeChoice(card, trigger, turnNumber, index) {
   used.add(choice);
   ledger[key] = [...used];
   return true;
-}
-function refersToSelf(trigger, definition) {
-  const name = String(definition?.name || '').split(' // ')[0];
-  return /\bthis (?:creature|permanent|artifact|enchantment|land|planeswalker|card)\b/i.test(trigger) || (name && new RegExp(`\\b${escRe(name)}\\b`, 'i').test(trigger));
 }
 function typeMatches(typeLine, word) { return new RegExp(`\\b${escRe(word)}\\b`, 'i').test(typeLine || ''); }
 function eventSpellDef(game, event) { return game.cardDefinitions?.[event?.definitionId] || null; }
@@ -115,10 +112,156 @@ function attackedWithCommander(game, row, event) {
   const commanderDefIds = new Set((row.player.commanders || []).map(c => c.cardId).filter(Boolean));
   return (row.player.deck?.battlefield || []).some(c => ids.has(c.instanceId) && commanderDefIds.has(c.definitionId));
 }
+// ── General reading: "<who/what> <verb>", with the subject read by trigger-subject.js ─────────────
+const PLAYER_WORDS = /^(you|an opponent|a player|each opponent|another player|each player|one or more opponents|target opponent|that player)$/i;
+function whoMatches(who, playerId, row) {
+  const w = String(who || '').toLowerCase();
+  if (w === 'you') return playerId === row.player.playerId;
+  if (/opponent|another player/.test(w)) return playerId !== row.player.playerId;
+  return true;
+}
+const ORDINAL = { first: 1, second: 2, third: 3 };
+// The card an event is about, with its definition and controller.
+function eventCard(game, event, id = event.sourceId) {
+  const hit = findAnyCard(game, id);
+  const card = hit?.card || { instanceId: id, definitionId: event.definitionId, counters: {} };
+  const def = defFor(game, card) || game.cardDefinitions?.[event.definitionId] || null;
+  const controllerId = id === event.sourceId ? (event.controllerId ?? card.controllerId ?? hit?.player?.playerId) : (card.controllerId ?? hit?.player?.playerId);
+  return { card, def, controllerId };
+}
+function subjectEvent(game, row, phrase, event, id) {
+  const subject = parseSubject(phrase, row.definition);
+  if (!subject || subject.types.some(x => x.startsWith('player:'))) return undefined;
+  const { card, def, controllerId } = eventCard(game, event, id);
+  return subjectMatches(game, row, subject, card, def, controllerId);
+}
+function spellFits(filter, spell) {
+  let f = String(filter || '').trim().replace(/^(?:a|an)(?:\s+|$)/i, '').toLowerCase();
+  const type = String(spell?.typeLine || '').toLowerCase(), colors = spell?.colors || [];
+  let m;
+  if ((m = f.match(/^(.*?)\s*with mana value (\d+) or (greater|less)$/))) {
+    const v = Number(spell?.manaValue || 0), n = Number(m[2]);
+    if (m[3] === 'greater' ? v < n : v > n) return false;
+    f = m[1].trim();
+  }
+  if (!f) return true;
+  return f.split(/\s+or\s+/).some(part => part.split(/\s+/).every(w => {
+    if (w === 'multicolored') return colors.length > 1;
+    if (w === 'colorless') return colors.length === 0;
+    if (w === 'monocolored') return colors.length === 1;
+    const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w];
+    if (color) return colors.includes(color);
+    if (w === 'historic') return /artifact|legendary|saga/.test(type);
+    if (w.startsWith('non')) return !type.includes(w.slice(3));
+    return new RegExp(`\\b${escRe(w.replace(/s$/, ''))}`).test(type);
+  }));
+}
+const STEP_EVENTS = { upkeep: 'upkeep', 'draw step': 'draw-step', 'precombat main phase': 'precombat-main-start', 'first main phase': 'precombat-main-start', combat: 'begin-combat', 'combat on your turn': 'begin-combat', 'end step': 'end-step', 'end of combat': 'end-combat' };
+/** true / false when the trigger's wording is understood for this event; undefined to fall back to the older readers below. */
+function generalMatch(game, row, t, event) {
+  let m;
+  switch (event.type) {
+    case 'enters-battlefield':
+      if ((m = t.match(/^Whenever (you|an opponent|a player|another player) plays? a land/i))) return !!event.played && whoMatches(m[1], event.controllerId, row);
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:enters|enter)\b(?: the battlefield)?(?: (under your control|under an opponent'?s control))?/i)))
+        return subjectEvent(game, row, m[1] + (m[2] ? (/your/i.test(m[2]) ? ' you control' : ' an opponent controls') : ''), event);
+      return undefined;
+    case 'dies':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:dies|die)\b/i))) return subjectEvent(game, row, m[1], event);
+      return undefined;
+    case 'leaves-battlefield':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:leaves|leave) the battlefield/i))) return subjectEvent(game, row, m[1], event);
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:enters or )?(?:is|are) put into (?:a|your|an opponent'?s|its owner'?s) graveyard from the battlefield/i)))
+        return event.destination === 'graveyard' ? subjectEvent(game, row, m[1].replace(/^.+? dies or /i, ''), event) : false;
+      if ((m = t.match(/^(?:When|Whenever) (.+?) dies or is put into exile/i)))
+        return event.destination === 'exile' ? subjectEvent(game, row, m[1], event) : undefined;
+      return undefined;
+    case 'attacks':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:enters or )?attacks\b(?! you)/i)) && !PLAYER_WORDS.test(m[1])) return subjectEvent(game, row, m[1], event);
+      return undefined;
+    case 'attackers-declared': {
+      if ((m = t.match(/^Whenever enchanted player is attacked/i))) return (event.defenders || []).includes(row.card.attachedTo);
+      if ((m = t.match(/^Whenever (an opponent|a player|another player) attacks (you )?with (one or more|two or more|three or more)? ?creatures?/i))) {
+        if (!whoMatches(m[1], event.controllerId, row)) return false;
+        const at = (event.attacks || []).filter(a => !m[2] || a.defenderId === row.player.playerId).length || (m[2] ? 0 : (event.attackers || []).length);
+        return at >= ({ 'two or more': 2, 'three or more': 3 }[String(m[3] || '').toLowerCase()] || 1);
+      }
+      return undefined;
+    }
+    case 'combat-damage-player':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) deals? (?:combat )?damage to (?:a player|an opponent|one or more players|a player or (?:a )?(?:planeswalker|battle))/i))) {
+        if (/to an opponent/i.test(t) && event.playerId === eventCard(game, event).controllerId) return false;
+        return subjectEvent(game, row, m[1], event);
+      }
+      return undefined;
+    case 'damage-player':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) deals damage to (?:a player|an opponent)/i))) {
+        if (/to an opponent/i.test(t) && event.playerId === eventCard(game, event).controllerId) return false;
+        return subjectEvent(game, row, m[1], event);
+      }
+      return undefined;
+    case 'damage-permanent': case 'combat-damage-creature':
+      if ((m = t.match(/^(?:When|Whenever) (.+?) (?:is|are) dealt damage/i))) return subjectEvent(game, row, m[1], event, event.targetId);
+      return undefined;
+    case 'spell-cast': {
+      m = t.match(/^Whenever (you|an opponent|a player|each opponent|another player|one or more opponents) (?:casts? or cop(?:y|ies)|casts?) (?:(?:their|your|his or her) (first|second|third) )?(?:(.+?) )?spells?( each turn)?( (?:during|from) .+)?$/i);
+      if (!m) return undefined;
+      if (!whoMatches(m[1], event.controllerId, row)) return false;
+      const spell = { typeLine: event.typeLine || eventSpellDef(game, event)?.typeLine || '', colors: eventSpellDef(game, event)?.colors || [], manaValue: Number(event.manaValue ?? eventSpellDef(game, event)?.manaValue ?? 0) };
+      const filter = String(m[3] || '').replace(/\s+spell$/i, '');
+      if (!spellFits(filter, spell)) return false;
+      const tail = String(m[5] || '').toLowerCase();
+      if (/during your turn/.test(tail) && game.activePlayerId !== row.player.playerId) return false;
+      if (/during (?:an|each) opponent'?s turn/.test(tail) && game.activePlayerId === row.player.playerId) return false;
+      if (/from (?:your )?graveyard/.test(tail) && event.fromZone !== 'graveyard') return false;
+      if (/from exile/.test(tail) && event.fromZone !== 'exile') return false;
+      if (/from (?:your )?hand/.test(tail) && event.fromZone !== 'hand') return false;
+      if (m[2]) {
+        const caster = (game.players || []).find(p => p.playerId === event.controllerId);
+        const list = caster?.counters?.castThisTurn || [];
+        if (list.filter(x => spellFits(filter, x)).length !== ORDINAL[m[2].toLowerCase()]) return false;
+      }
+      return true;
+    }
+    case 'library-searched':
+      if ((m = t.match(/^Whenever (you|an opponent|a player|another player) searches? (?:their|your|a|his or her) library/i))) return whoMatches(m[1], event.playerId, row);
+      return undefined;
+    case 'draw': {
+      m = t.match(/^Whenever (you|an opponent|a player|each opponent|another player) draws? (?:a card|one or more cards|(?:their|your) (first|second|third) card each turn)/i);
+      if (!m) return undefined;
+      if (!whoMatches(m[1], event.playerId, row)) return false;
+      if (/except the first one (?:they|you) draw in each of (?:their|your) draw steps/i.test(t) && event.isFirstNormalDrawStepDraw) return false;
+      if (m[2] && Number(event.drawNumberThisTurn || 0) !== ORDINAL[m[2].toLowerCase()]) return false;
+      return true;
+    }
+    case 'counter-added': {
+      if (/(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) [^,]*counter/i.test(t)) return undefined;
+      m = t.match(/^Whenever (?:you put )?(?:one or more|a|an) (\S+?) counters? (?:is |are )?(?:put )?on (.+)$/i);
+      if (!m) return undefined;
+      if (!/^any$/i.test(m[1]) && String(event.counter || '').toLowerCase() !== m[1].toLowerCase()) return false;
+      if (/^Whenever you put/i.test(t) && event.sourceControllerId && event.sourceControllerId !== row.player.playerId) return false;
+      return subjectEvent(game, row, m[2], event, event.targetId);
+    }
+    case 'upkeep': case 'draw-step': case 'precombat-main-start': case 'begin-combat': case 'end-step': case 'end-combat': {
+      m = t.match(/^At (?:the beginning of )?(?:(your|each|each player's|each opponent's|an opponent's|the|each other player's|that player's) )?(next )?(upkeep|draw step|precombat main phase|first main phase|combat on your turn|combat|end step|end of combat)\b/i);
+      if (!m) return undefined;
+      if (m[2]) return undefined;   // "your next upkeep": a delayed trigger, made by the spell itself
+      if (STEP_EVENTS[m[3].toLowerCase()] !== event.type) return false;
+      const whose = String(m[1] || '').toLowerCase();
+      if (whose === 'your' || /on your turn/i.test(m[3])) return event.playerId === row.player.playerId;
+      if (/opponent|other player/.test(whose)) return event.playerId !== row.player.playerId;
+      return true;
+    }
+  }
+  return undefined;
+}
 function triggerMatches(game, row, ability, event) {
   const t = String(ability.trigger || ''), d = row.definition;
   if (!event || !selfZoneConditionMatches(row, ability))
     return false;
+  const general = generalMatch(game, row, t, event);
+  if (general !== undefined)
+    return general;
   const self = refersToSelf(t, d), your = isYourEvent(row, event), typeLine = event.typeLine || eventSpellDef(game, event)?.typeLine || '';
   if (event.type === 'enters-battlefield') {
     if (!/^(?:When|Whenever)\b/i.test(t) || !/(?:enters|enter)(?: the battlefield)?\b/i.test(t))
@@ -437,19 +580,25 @@ export function resolveTrigger(game, trigger, bindings = {}) {
  * card, by another of its controller's cards and by an opponent, with each common card type. A
  * trigger nothing matches is one players must remember and resolve by hand.
  */
-const PROBE_EVENTS = ['attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
-const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem'];
+const PROBE_EVENTS = ['library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
+const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem', 'Creature — Elemental Dragon', 'Artifact — Equipment'];
 export function triggerCanFire(definition, ability) {
   const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
-  const cardDefinitions = Object.fromEntries(PROBE_TYPES.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3 }]));
+  // Probe cards: every common type; the Elemental Dragon is big, black and flying, for "with power 4 or greater" and similar.
+  const cardDefinitions = Object.fromEntries(PROBE_TYPES.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };
-  for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) {
-    const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {} }, definition, player: me, zone };
+  for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
+    // attached: this card is an Aura or Equipment on the probe card ("equipped creature", "enchanted land").
+    const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {}, chosenCreatureType: 'Dragon' }, definition, player: me, zone };
     for (const type of PROBE_EVENTS) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < PROBE_TYPES.length; i++) {
+      row.card.attachedTo = attached ? sourceId : null;
+      for (const p of [me, opp]) p.counters = { castThisTurn: Array.from({ length: castCount }, () => ({ typeLine: PROBE_TYPES[i], colors: [], manaValue: 3 })) };
+      me.deck.battlefield = sourceId === 'mine' ? [{ instanceId: 'mine', definitionId: `probe-${i}`, controllerId: 'me', counters: {} }] : [];
+      opp.deck.battlefield = sourceId === 'theirs' ? [{ instanceId: 'theirs', definitionId: `probe-${i}`, controllerId: 'opp', counters: {} }] : [];
       const event = { type, sourceId, controllerId: who.playerId, playerId: who.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
         typeLine: sourceId === 'self' ? definition.typeLine : PROBE_TYPES[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId], defenders: ['opp'], defenderId: who === me ? 'opp' : 'me',
-        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe' };
+        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12 };
       try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
     }
   }

@@ -267,6 +267,9 @@ function putSpellOnStack(game, player, action, deck) {
   };
   player.counters = player.counters || {};
   player.counters.spellsCastThisTurn = Number(player.counters.spellsCastThisTurn || 0) + 1;
+  // What this player cast this turn, for "their first noncreature spell each turn" and similar.
+  const castDef = defFor(game, card);
+  player.counters.castThisTurn = [...(player.counters.castThisTurn || []), { typeLine: castDef?.typeLine || '', colors: castDef?.colors || [], manaValue: Number(castDef?.manaValue ?? castDef?.cmc ?? 0) }];
   game.spellsCastThisTurn = Number(game.spellsCastThisTurn || 0) + 1;
   game.stack.push(stackObject);
   emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
@@ -359,6 +362,7 @@ function applySearchResult(game, player, obj) {
   const search = obj.searchResult;
   if (!search)
     return;
+  emit(game, { type: 'library-searched', playerId: player.playerId, controllerId: player.playerId });
   if (!search.instanceId) {
     if (search.shuffle)
       shuffleArray(deck.remainingLibrary);
@@ -692,7 +696,7 @@ export function createTransactionEngine(game) {
           player.counters.landsPlayedThisTurn = Number(player.counters.landsPlayedThisTurn || 0) + 1;
         if (action.basicManaColor)
           card.manaCapacityColor = action.basicManaColor;
-        emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
+        emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0), played: !action.doesNotCountAsLandPlay });
       }
       else if (action.type === 'cast-card') {
         // Legacy immediate-resolution path retained for older callers/tests. New UI routes spells through cast-spell + priority.
@@ -903,6 +907,8 @@ export function createTransactionEngine(game) {
         configurePhaseGates(game, action.phase);
         if (action.phase === 'upkeep')
           emit(game, { type: 'upkeep', playerId: game.activePlayerId });
+        if (action.phase === 'draw')
+          emit(game, { type: 'draw-step', playerId: game.activePlayerId });
         if (action.phase === 'precombat-main')
           emit(game, { type: 'precombat-main-start', playerId: game.activePlayerId, controllerId: game.activePlayerId });
         if (action.phase === 'end-step')

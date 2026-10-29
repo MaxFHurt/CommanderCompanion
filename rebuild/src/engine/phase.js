@@ -111,8 +111,10 @@ export function advanceTurn(game) {
   game.turnNumber++;
   game.spellsCastThisTurn = 0;
   for (const p of game.players)
-    if (p.counters)
+    if (p.counters) {
       p.counters.spellsCastThisTurn = 0;
+      p.counters.castThisTurn = [];
+    }
   game.activePlayerId = next.playerId;
   // "Until your next turn" effects (goad, some dungeon rooms) end as that player's turn begins.
   for (const p of game.players || [])

@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.32, 2026-10-29)
+# Commander Companion — handoff (build 1.0.0-rebuild.33, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.31** (online games). Build 32 is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v32`).
+- Live build: **1.0.0-rebuild.32**. Build 33 (trigger wordings) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v33`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -94,6 +94,17 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - **Counter choices (build 32):** "put … counters on a/another creature you control" asks which creature as it
   resolves (no hexproof check, no question with one choice); "another target creature" leaves out the source;
   "up to one target creature" may choose none.
+- **Trigger reading (build 33):** `src/engine/trigger-subject.js` reads the subject of any trigger ("a land you
+  control", "another nontoken creature you control with power 4 or greater", "Omnath or another Elemental you
+  control", "equipped creature", a legendary card's short name) and `generalMatch` in `src/engine/triggers.js` uses it
+  for every event, plus plural verbs ("an opponent casts / draws"), "their second spell each turn" (per-player
+  `counters.castThisTurn`), steps ("draw step", "first main phase", "each upkeep"; new `draw-step` event), "plays a
+  land" (`played` on the land's enters event), "searches their library" (`library-searched`), "is dealt damage",
+  "cast or copy". Anything it does not understand falls back to the older readers below it.
+  **Forge answer key:** `node tests/node/forge-triggers.mjs [--list]` builds a small game for each Forge trigger of
+  the top 1,000 cards (`tests/fixtures/forge-top-commander.json.gz`, GPL-3.0, tests only — the app never loads it;
+  Scryfall cards in `tests/fixtures/top-commander-cards.json.gz`): 99.0% fire when they should, 100% stay quiet
+  for the wrong player. Run it after any trigger change.
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -184,9 +195,10 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 164 rules/coach/judge/undo/challenge checks
+    node tests/node/game.mjs          # 170 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
+    node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites — stop it after
     python3 tests/tracker_test.py     # 40
@@ -236,10 +248,15 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 9. Roadmap
 
-**Waiting on the owner's OK (29 Oct):** fix the triggers the game never fires (RULES_AUDIT.md, 126 triggers on
-120 of the top 1,000 cards): plural verbs ("casts", "draws"), short self-names ("Etali", "Urza"), the newer
-"… you control enters" wording, draw step / "first main phase" / "each upkeep", equipped/enchanted creature
-triggers, tapping for mana, other "dies" wordings. Then the 152 spells and 115 activated abilities resolved by hand.
+**Next rules work (owner said 29 Oct: fix them, use Forge as much as needed):**
+1. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):
+   needs the mana counter and the auto-payer (`playerManaAvailability`, `planMana`) to know a source can give more
+   than one mana — not only manual tapping.
+2. Rare trigger wordings left (RULES_AUDIT.md): Class levels, "put into a graveyard from anywhere" (Gitrog,
+   Bloodchief Ascension), "each with power greater than its base power" (Kutzil), three-event triggers (Trouble in
+   Pairs).
+3. The 152 spells and 115 activated abilities resolved by hand (RULES_AUDIT.md), most-played first; Forge's
+   `A:`/`SVar` lines are the answer key for what each one does.
 
 **Next (after the weekly usage reset, when the owner says go)**
 1. QR pairing for local multiplayer (two-step scan: host offer → joiner answer), working over a
