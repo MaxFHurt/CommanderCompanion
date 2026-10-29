@@ -1,3 +1,4 @@
+import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { newGame, check, section, done } from './harness.mjs';
 
 const mana = (t, i) => t.view(i).players[i].mana;
@@ -721,5 +722,196 @@ section('trigger wordings: plural verbs, short names, "you control enters", draw
     t.end(1);
     check('"at the beginning of your draw step" fires on your turn', t.P(0).life === 44, String(t.P(0).life));
   }
+}
+section('popular spells: Beast Within, Path to Exile, Village Rites, Toxic Deluge, Heroic Intervention, Negate, free with a commander');
+{
+  // Borrow a simic instant/sorcery and give it the real card's text.
+  const asCard = (t, name, text, cost) => { const c = t.hand(0, name); t.game.cardDefinitions[c.definitionId] = { ...t.game.cardDefinitions[c.definitionId], oracleText: text, ...(cost !== undefined ? { manaCost: cost } : {}) }; return c; };
+  const settle = (t, picks = {}) => {
+    for (let guard = 0; guard < 20 && t.decision(); guard++) {
+      const d = t.decision(), key = Object.keys(picks).find(k => d.key.includes(k));
+      let v = key !== undefined ? picks[key] : undefined;
+      if (typeof v === 'function') v = v(d);
+      if (v === undefined) { const open = (d.options || []).filter(o => !o.disabled); v = d.kind === 'choose-many' ? open.slice(0, Math.max(d.min || 0, 1)).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : open[0]?.id; }
+      const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: v }, { playerId: d.playerId, isHost: false });
+      if (!r.ok) throw new Error(`answer ${d.key}: ${r.error}`);
+    }
+    t.passAll();
+  };
+  const setup = () => {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    for (let i = 0; i < 4; i++) t.give(0, 'Forest', 'battlefield');
+    for (let i = 0; i < 2; i++) t.give(0, 'Island', 'battlefield');
+    t.give(1, 'Grizzly Bears', 'battlefield');
+    return t;
+  };
+  const cast = (t, card, picks) => { t.autoPass = false; const r = t.ctl.dispatch({ type: 'play', instanceId: card.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error); settle(t, picks); };
+  {
+    const t = setup(); t.give(0, 'Naturalize');
+    const spell = asCard(t, 'Naturalize', 'Destroy target permanent. Its controller creates a 3/3 green Beast creature token.');
+    const bear = t.bf(1, 'Grizzly Bears');
+    cast(t, spell, { target: bear.instanceId });
+    check('Beast Within: the permanent is destroyed and its controller gets a 3/3 Beast', !t.bf(1, 'Grizzly Bears') && t.P(1).deck.battlefield.some(c => c.token && /Beast/.test(t.game.cardDefinitions[c.definitionId]?.name || '')), JSON.stringify(t.P(1).deck.battlefield.map(c => t.game.cardDefinitions[c.definitionId]?.name)));
+  }
+  {
+    const t = setup(); t.give(0, 'Giant Growth');
+    const spell = asCard(t, 'Giant Growth', 'Exile target creature. Its controller may search their library for a basic land card, put that card onto the battlefield tapped, then shuffle.');
+    const bear = t.bf(1, 'Grizzly Bears');
+    let asked = null;
+    cast(t, spell, { target: bear.instanceId, 'their-search': d => { asked = d; return d.options.slice(0, 1).map(o => o.id); } });
+    const land = t.P(1).deck.battlefield.find(c => /Land/.test(t.game.cardDefinitions[c.definitionId]?.typeLine || ''));
+    check('Path to Exile: the opponent (not the caster) chooses the basic land', asked?.playerId === t.P(1).playerId, JSON.stringify(asked && asked.playerId));
+    check('…the creature is exiled and the land enters tapped', t.P(1).deck.exile.some(c => c.instanceId === bear.instanceId) && land?.tapped === true);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield'); t.give(0, 'Opt');
+    const spell = asCard(t, 'Opt', 'As an additional cost to cast this spell, sacrifice a creature.\nDraw two cards.');
+    const before = t.P(0).deck.hand.length;
+    cast(t, spell, { 'cost:sacrifice': t.bf(0, 'Llanowar Elves').instanceId });
+    check('Village Rites: a creature is sacrificed as it is cast, then two cards are drawn', !t.bf(0, 'Llanowar Elves') && t.P(0).deck.hand.length === before - 1 + 2, `${before} → ${t.P(0).deck.hand.length}`);
+  }
+  {
+    const t = setup(); t.give(0, 'Divination');
+    const spell = asCard(t, 'Divination', 'As an additional cost to cast this spell, pay X life.\nAll creatures get -X/-X until end of turn.');
+    cast(t, spell, { 'cost:life-x': 2 });
+    check('Toxic Deluge: pay 2 life and every creature gets -2/-2', t.P(0).life === 38 && !t.bf(1, 'Grizzly Bears'), `${t.P(0).life}`);
+  }
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Giant Growth');
+    const spell = asCard(t, 'Giant Growth', 'Permanents you control gain hexproof and indestructible until end of turn.');
+    cast(t, spell, {});
+    const kws = (t.bf(0, 'Grizzly Bears').temporaryEffects || []).filter(e => e.kind === 'keyword').map(e => e.keyword.toLowerCase());
+    check('Heroic Intervention: hexproof and indestructible, as two separate keywords', kws.includes('hexproof') && kws.includes('indestructible'), JSON.stringify(kws));
+  }
+  {
+    const t = setup(); t.give(0, 'Counterspell'); t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield'); t.give(1, 'Llanowar Elves');
+    t.end(0);
+    t.autoPass = false;
+    const neg = asCard(t, 'Counterspell', 'Counter target noncreature spell.');
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Llanowar Elves').instanceId }, t.as(1)); settle(t);
+    const r = t.ctl.dispatch({ type: 'play', instanceId: neg.instanceId }, t.as(0));
+    check('Negate cannot target a creature spell', !r.ok || !(t.decision()?.options || []).length, JSON.stringify(r));
+  }
+  {
+    const t = setup(); t.give(0, 'Giant Growth');
+    t.give(0, 'Tatyova, Benthic Druid', 'battlefield');
+    const spell = asCard(t, 'Giant Growth', 'If you control a commander, you may cast this spell without paying its mana cost.\nDraw a card.', '{9}');
+    for (const c of t.P(0).deck.battlefield) c.tapped = true;   // no mana at all
+    const before = t.P(0).deck.hand.length;
+    cast(t, spell, { castMode: 'commander-free' });
+    check('Fierce Guardianship: free while you control your commander', t.P(0).deck.hand.length === before, `${before} → ${t.P(0).deck.hand.length}`);
+  }
+}
+section('trigger effects: unless that player pays, that much life, that player, bounce lands');
+{
+  const setText = (t, card, text) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text }; };
+  const settle = (t, picks = {}, seen = []) => {
+    for (let guard = 0; guard < 30; guard++) {
+      t.passAll();
+      const d = t.decision();
+      if (!d) break;
+      seen.push(d);
+      const key = Object.keys(picks).find(k => d.key.includes(k));
+      let v = key !== undefined ? picks[key] : undefined;
+      if (typeof v === 'function') v = v(d);
+      if (v === undefined) { const open = (d.options || []).filter(o => !o.disabled); v = d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : open[0]?.id; }
+      const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: v }, { playerId: d.playerId, isHost: false });
+      if (!r.ok) throw new Error(`answer ${d.key}: ${r.error}`);
+    }
+    return seen;
+  };
+  // Rhystic Study: P2 casts a spell; P2 is asked to pay {1}.
+  for (const answer of ['pay', 'no']) {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll(); t.autoPass = false;
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.');
+    t.end(0);
+    t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield'); t.give(1, 'Llanowar Elves');
+    const hand = t.P(0).deck.hand.length;
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Llanowar Elves').instanceId }, t.as(1));
+    const seen = settle(t, { 'unless-pays': answer });
+    const asked = seen.find(d => d.key.includes('unless-pays'));
+    check(`Rhystic Study asks the opponent to pay {1} (${answer})`, asked?.playerId === t.P(1).playerId, JSON.stringify(asked && asked.playerId));
+    const forests = t.P(1).deck.battlefield.filter(c => t.game.cardDefinitions[c.definitionId]?.name === 'Forest');
+    if (answer === 'pay') check('…paying stops the draw and taps a land for it', t.P(0).deck.hand.length === hand && forests.every(c => c.tapped), `${hand} → ${t.P(0).deck.hand.length}`);
+    else check('…not paying lets you draw', t.P(0).deck.hand.length === hand + 1, `${hand} → ${t.P(0).deck.hand.length}`);
+  }
+  // Smothering Tithe: P2 draws for the turn and does not pay {2}: P1 gets a Treasure.
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'Whenever an opponent draws a card, that player may pay {2}. If the player doesn\'t, you create a Treasure token.');
+    t.autoPass = false;
+    t.do(0, { type: 'end-turn' });
+    settle(t, { 'unless-pays': 'no' });
+    check('Smothering Tithe: no payment, you create a Treasure', t.P(0).deck.battlefield.some(c => c.token && /Treasure/.test(t.game.cardDefinitions[c.definitionId]?.name || '')));
+  }
+  // Sanguine Bond: you gain 3 life, target opponent loses that much.
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Grizzly Bears'), 'Whenever you gain life, target opponent loses that much life.');
+    t.give(0, 'Island', 'battlefield'); t.give(0, 'Opt');
+    const opt = t.hand(0, 'Opt');
+    t.game.cardDefinitions[opt.definitionId] = { ...t.game.cardDefinitions[opt.definitionId], oracleText: 'You gain 3 life.' };
+    t.autoPass = false;
+    t.ctl.dispatch({ type: 'play', instanceId: opt.instanceId }, t.as(0));
+    settle(t);
+    check('Sanguine Bond: the opponent loses as much as you gained', t.P(1).life === 37, String(t.P(1).life));
+  }
+  // Massacre Wurm: a creature an opponent controls dies, that player loses 2 life.
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Colossal Dreadmaw', 'battlefield'); t.give(1, 'Grizzly Bears', 'battlefield');
+    setText(t, t.bf(0, 'Colossal Dreadmaw'), 'Whenever a creature an opponent controls dies, that player loses 2 life.');
+    t.edit({ kind: 'move', instanceId: t.bf(1, 'Grizzly Bears').instanceId, to: 'graveyard' });
+    settle(t);
+    check('Massacre Wurm: "that player" is the dying creature’s controller', t.P(1).life === 38 && t.P(0).life === 40, `${t.P(0).life} ${t.P(1).life}`);
+  }
+  // Bounce land: return a land you control to its owner's hand (you choose which).
+  {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Forest', 'battlefield'); t.give(0, 'Island', 'battlefield'); t.give(0, 'Forest');
+    const land = t.hand(0, 'Forest');
+    t.game.cardDefinitions[land.definitionId] = { ...t.game.cardDefinitions[land.definitionId] };
+    const island = t.bf(0, 'Island');
+    t.give(0, 'Llanowar Elves', 'battlefield');
+    setText(t, t.bf(0, 'Llanowar Elves'), 'Whenever a land you control enters, return a land you control to its owner’s hand.');
+    t.autoPass = false;
+    t.ctl.dispatch({ type: 'play', instanceId: land.instanceId }, t.as(0));
+    let asked = null;
+    settle(t, { resolve: d => { asked = d; return island.instanceId; } });
+    check('bounce lands ask which land to return', asked && t.P(0).deck.hand.some(c => c.instanceId === island.instanceId), JSON.stringify(asked && asked.title));
+  }
+}
+section("activated abilities: Rogue's Passage, cycling reminder text");
+{
+  const t = newGame(['simic', 'simic']);
+  t.keepAll();
+  for (let i = 0; i < 5; i++) t.give(0, 'Forest', 'battlefield');
+  t.give(0, 'Island', 'battlefield'); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Llanowar Elves', 'battlefield');
+  const passage = t.bf(0, 'Island');
+  t.game.cardDefinitions[passage.definitionId] = { ...t.game.cardDefinitions[passage.definitionId], name: "Rogue's Passage", typeLine: 'Land', oracleText: "{T}: Add {C}.\n{4}, {T}: Target creature can't be blocked this turn." };
+  t.end(0); t.end(1);
+  const ability = t.view(0).players[0].battlefield.find(c => c.id === passage.instanceId).abilities.find(a => /blocked/.test(a.text || a.effect || ''));
+  check("Rogue's Passage offers its ability", !!ability, JSON.stringify(t.view(0).players[0].battlefield.find(c => c.id === passage.instanceId).abilities));
+  if (ability) {
+    t.autoPass = false;
+    const r = t.ctl.dispatch({ type: 'activate', instanceId: passage.instanceId, abilityId: ability.id }, t.as(0));
+    for (let g = 0; g < 10 && t.decision(); g++) { const d = t.decision(); t.ctl.dispatch({ type: 'answer', key: d.key, value: d.kind === 'choose-one' ? t.bf(0, 'Grizzly Bears').instanceId : true }, { playerId: d.playerId, isHost: false }); }
+    t.passAll();
+    t.do(0, { type: 'next-phase' });
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId }] });
+    const rows = t.game.flow.blocks ? t.view(1).prompt.rows || [] : [];
+    check("…the creature it targets can't be blocked", r.ok && rows.every(row => !(row.blockers || []).length), JSON.stringify(rows));
+  }
+  const triome = { name: 'Ketria Triome', typeLine: 'Land — Forest Island Mountain', oracleText: '({T}: Add {G}, {U}, or {R}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)' };
+  check('a cycling land has no extra "Draw a card" ability on the battlefield', parseActivatedAbilities(triome).length === 1, JSON.stringify(parseActivatedAbilities(triome).map(a => a.text)));
 }
 done();

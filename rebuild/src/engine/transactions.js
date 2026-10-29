@@ -228,6 +228,30 @@ function putSpellOnStack(game, player, action, deck) {
     gone.zone = 'exile';
     deck.exile.push(gone);
   }
+  // "As an additional cost to cast this spell, sacrifice … / pay X life."
+  if (action.sacrificeForCost) {
+    const mv = locate(deck, action.sacrificeForCost);
+    if (!mv || mv.z !== 'battlefield')
+      throw new Error('The permanent chosen to sacrifice is gone.');
+    const def = defFor(game, mv.card), fromController = mv.card.controllerId || player.playerId, wasTapped = !!mv.card.tapped;
+    const [paid] = mv.a.splice(mv.i, 1);
+    const last = leaveBattlefield(paid);
+    paid.zone = 'graveyard';
+    paid.tapped = false;
+    const owner = ownerFor(game, paid, player);
+    if (!paid.token)
+      owner.deck.graveyard.push(paid);
+    emit(game, { type: 'sacrificed', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, cost: true });
+    emit(game, { type: 'leaves-battlefield', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, destination: 'graveyard', typeLine: def?.typeLine || '', wasTapped });
+    if (/Creature/i.test(def?.typeLine || ''))
+      emit(game, { type: 'dies', sourceId: paid.instanceId, definitionId: paid.definitionId, controllerId: fromController, ownerId: paid.ownerId, typeLine: def?.typeLine || '', token: !!paid.token, last });
+  }
+  if (action.lifeForCost) {
+    if (player.life < action.lifeForCost)
+      throw new Error('Not enough life to pay this cost.');
+    player.life -= action.lifeForCost;
+    emit(game, { type: 'life-lost', playerId: player.playerId, amount: action.lifeForCost, controllerId: player.playerId, sourceId: card.instanceId });
+  }
   if (action.discardForCost) {
     const i = deck.hand.findIndex(c => c.instanceId === action.discardForCost);
     if (i < 0)
@@ -817,6 +841,10 @@ export function createTransactionEngine(game) {
         game.guidedRules = game.guidedRules || [];
         game.guidedRules.push({ text: action.note || 'Guided Oracle effect', sourceId: action.sourceId || null, playerId: player.playerId, expires: action.expires || null, turn: game.turnNumber });
         action.label = action.label || `Guided effect tracked: ${action.note || 'Oracle effect'}`;
+      }
+      else if (action.type === 'pay-mana') {
+        // Another player pays a cost for an effect ("unless that player pays {1}").
+        payMana(game, player, action.payment);
       }
       else if (action.type === 'life') {
         const before = player.life;

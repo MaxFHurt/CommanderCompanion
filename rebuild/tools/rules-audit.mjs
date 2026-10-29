@@ -10,6 +10,7 @@ import { gunzipSync } from 'node:zlib';
 import { scryfallToDefinition } from '../src/data/card-api.js';
 import { analyzeDefinitionSupport } from '../src/engine/abilities.js';
 import { MECHANICS } from '../src/data/mechanics.js';
+import { castText, effectRunsByItself } from '../src/game/ops.js';
 
 const [input, output] = process.argv.slice(2);
 if (!input) { console.error('usage: node tools/rules-audit.mjs cards.json [report.json]'); process.exit(1); }
@@ -82,11 +83,17 @@ function gapKind(line) {
 const rows = [];
 for (const [rank, card] of cards.entries()) {
   if (!card.oracle_text && !card.card_faces) continue;
-  const def = scryfallToDefinition(card);
+  const printed = scryfallToDefinition(card);
+  // Spells are checked as the game casts them: castText drops keyword lines (Overload {6}{U}, Flashback …),
+  // casting permissions and additional costs, which are handled when casting, not on resolution.
+  const def = /Instant|Sorcery/i.test(printed.typeLine || '') ? { ...printed, oracleText: castText(printed.oracleText) } : printed;
   let report;
   try { report = analyzeDefinitionSupport(def); } catch (error) { report = { unsupported: [`Other: audit failed (${error.message})`] }; }
   const gaps = [], unverified = [];
-  for (const u of report.unsupported) {
+  // Triggered and activated effects: the game's own fallbacks decide (see effectRunsByItself).
+  const runs = new Set([...(report.triggers || []).filter(t => t.fires !== false && effectRunsByItself(t.effect, def.name)).map(t => `Trigger: ${t.text}`),
+    ...(report.activated || []).filter(a => effectRunsByItself(a.ability?.effect, def.name)).map(a => `Activated: ${a.ability.text}`)]);
+  for (const u of report.unsupported.filter(x => !runs.has(x))) {
     if (u.startsWith('Static: ')) {
       const v = staticVerdict(u, def);
       if (v === 'spell-text' || v === 'auto') continue;

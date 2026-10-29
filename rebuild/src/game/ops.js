@@ -22,8 +22,9 @@ import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
-import { adjustGeneric, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
+import { adjustGeneric, additionalCost, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
 import { castTriggers } from '../engine/keyword-triggers.js';
+import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
 
 /** Source qualities targeting checks need (protection, hexproof from a color). */
@@ -59,6 +60,18 @@ function compileFor(text, sourceName) {
   const inner = optionalInner(text);
   const compiled = compileEffectText(inner || text, { sourceName });
   return { compiled, optional: !!inner };
+}
+
+/**
+ * Would the game carry out this triggered or activated effect by itself, with the same fallbacks the game
+ * uses (optional "you may", library searches, special actions)? Used by tools/rules-audit.mjs.
+ */
+export function effectRunsByItself(text, sourceName = 'Card') {
+  const t = String(text || '').trim();
+  if (!t) return true;
+  if (specialFromText(t)) return true;
+  if (compileFor(t, sourceName).compiled.supported) return true;
+  return /^(?:you may )?search your library/i.test(t) && !!librarySearchSpec(t);
 }
 
 function guidedSpec(title, oracleText, unsupported) {
@@ -114,6 +127,9 @@ function zoneKeyOf(card) {
 export function castText(text, { kicked = false, overload = false } = {}) {
   let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
+  // Casting permissions and costs, not things the spell does as it resolves.
+  t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
+  t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
   t = t.replace(/\s*If (?:this spell|it) was kicked, ([^.]+)\./gi, (all, clause) => {
     if (!kicked) return '';
     const dmg = clause.match(/^it deals (\w+) damage instead$/i);
@@ -221,6 +237,23 @@ function runPlay(game, op, ask) {
     if (buy === 'buy') { extraCost += extras.buyback; buyback = true; }
   }
 
+  // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
+  const addCost = faceDown ? null : additionalCost(def);
+  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null;
+  if (addCost?.kind === 'sacrifice') {
+    const rows = player.deck.battlefield.filter(c => addCost.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError(`You need a ${addCost.filters.join(' or ')} to sacrifice.`);
+    if (rows.length) sacrificeForCost = ask('cost:sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: `${addCost.label} to cast it.`, options: rows }));
+  } else if (addCost?.kind === 'discard') {
+    const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId)
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError('You need another card in hand to discard.');
+    if (rows.length) addDiscard = ask('cost:extra-discard', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: 'Discard a card to cast it.', options: rows }));
+  } else if (addCost?.kind === 'life-x') {
+    lifeForCost = ask('cost:life-x', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — pay X life`, prompt: 'Choose X: you pay that much life.', min: 0, max: Math.max(0, Number(player.life || 0)) }));
+  }
+
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
   const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload' }) };
   const permanent = !isInstantOrSorcery(castDef);
@@ -254,7 +287,7 @@ function runPlay(game, op, ask) {
     }
   }
 
-  const bindings = {};
+  const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
   const printed = parseManaCost(def.manaCost || '');
   let xExtra = 0;
   if (printed.X && !faceDown && !free && ['normal', 'adventure', 'foretell'].includes(mode.id)) {
@@ -350,7 +383,7 @@ function runPlay(game, op, ask) {
     effectBindings: { ...bindings, sourceId: card.instanceId }, asEntersChoices: asEnters, guidedResolution: guided,
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
-    exileFromGraveyard, discardForCost, exileOnLeave: !!mode.exileAfter, adventure,
+    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileOnLeave: !!mode.exileAfter, adventure,
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
   if (commander) commit(game, { ...action, type: 'cast-commander', commanderId: commander.id });
@@ -587,7 +620,9 @@ function runTrigger(game, op, ask) {
     if (result.compiled.supported) { compiled = result.compiled; optional = result.optional; }
   }
 
-  const bindings = { sourceId: trigger.sourceId };
+  // Who caused this trigger and by how much: "that player", "that much life".
+  const ev = trigger.event || {};
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0) };
   let resolve = [], guided = null, search = null;
   if (!compiled?.supported && /^(?:you may )?search your library/i.test(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''))) {
     search = librarySearchSpec(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''));
@@ -668,8 +703,40 @@ function runResolve(game, op, ask) {
       }));
     }
   }
+  // "Its controller may search their library for a basic land card …": that player chooses (before the target leaves).
+  const theirSearch = (top.effects || []).find(e => e.kind === 'their-search');
+  let theirPick = null, searcher = null;
+  if (theirSearch) {
+    const targetId = (top.effectBindings || {})[theirSearch.bind];
+    const hit = (game.players || []).map(p => ({ p, c: (p.deck.battlefield || []).find(c => c.instanceId === targetId) })).find(x => x.c);
+    searcher = hit ? playerById(game, hit.c.controllerId || hit.p.playerId) : null;
+    if (searcher) {
+      const rows = searcher.deck.remainingLibrary.filter(c => /\bbasic\b/i.test(defOf(game, c)?.typeLine || '') && /\bland\b/i.test(defOf(game, c)?.typeLine || ''))
+        .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Land', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+      theirPick = ask('their-search', () => ({ playerId: searcher.playerId, cancellable: false, private: true, kind: 'choose-many', source: name, title: `${name} — search your library`,
+        prompt: rows.length ? `You may put a basic land card onto the battlefield${theirSearch.tapped ? ' tapped' : ''}. Your library is shuffled after.` : 'Your library has no basic land card. It is shuffled.', options: rows, min: 0, max: Math.min(1, rows.length), searchable: true }))[0] || null;
+    }
+  }
   const bindings = { ...(top.effectBindings || {}) };
   gatherRequirements(game, { player, sourceName: name, cancellable: false }, top.resolveReqs || [], bindings, ask, 'resolve');
+  // "… unless that player pays {1}": ask them; if they pay, the effect does not happen.
+  const unless = (top.effects || []).find(e => e.kind === 'unless-pays');
+  const payer = unless ? playerById(game, bindings[unless.payerBind]) : null;
+  if (unless && payer && !payer.eliminated) {
+    let cost = unless.cost;
+    if (unless.xFromPower) {
+      const src = (game.players || []).flatMap(p => p.deck.battlefield || []).find(c => c.instanceId === bindings.sourceId);
+      cost = `{${Math.max(0, Number(src ? effectivePower(src, defOf(game, src), game) : 0))}}`;
+    }
+    const plan = planMana(playerManaAvailability(payer, game), cost, 0, { lifeAvailable: 0 });
+    const pay = cost === '{0}' ? 'pay' : ask('unless-pays', () => ({ playerId: payer.playerId, cancellable: false, kind: 'choose-one', source: name, title: `${name} — pay ${cost}?`,
+      prompt: `${top.text || name}\n\nPay ${cost} to stop it?`,
+      options: [{ id: 'pay', label: `Pay ${cost}`, disabled: !plan.ok }, { id: 'no', label: 'Don\u2019t pay' }] }));
+    if (pay === 'pay' && plan.ok) {
+      if (cost !== '{0}') commit(game, { type: 'pay-mana', playerId: payer.playerId, payment: plan.chosen, label: `${payer.displayName} pays ${cost}.` });
+      bindings.unlessPaid = true;
+    }
+  }
 
   // Everything is answered: apply.
   if (top.search) {
@@ -692,6 +759,20 @@ function runResolve(game, op, ask) {
       still.guidedResolution = guidedSpec(`${name} — resolve by hand`, still.text || '', [error?.message || 'This effect could not be applied automatically.']);
     }
     return;
+  }
+
+  if (searcher) {
+    const lib = searcher.deck.remainingLibrary;
+    const i = theirPick ? lib.findIndex(c => c.instanceId === theirPick) : -1;
+    if (i >= 0) {
+      const [land] = lib.splice(i, 1);
+      Object.assign(land, { zone: 'battlefield', tapped: !!theirSearch.tapped, controllerId: searcher.playerId, enteredTurn: game.turnNumber, controlSinceTurn: game.turnNumber });
+      searcher.deck.battlefield.push(land);
+      log(game, `${searcher.displayName} puts ${defOf(game, land)?.name || 'a basic land'} onto the battlefield${theirSearch.tapped ? ' tapped' : ''}.`);
+      queueTriggers(game, { type: 'enters-battlefield', sourceId: land.instanceId, definitionId: land.definitionId, controllerId: searcher.playerId, ownerId: land.ownerId, typeLine: defOf(game, land)?.typeLine || '' });
+    } else log(game, `${searcher.displayName} finds no basic land.`);
+    for (let j = lib.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [lib[j], lib[k]] = [lib[k], lib[j]]; }
+    queueTriggers(game, { type: 'library-searched', playerId: searcher.playerId, controllerId: searcher.playerId });
   }
 
   // Extra searched cards (for example Cultivate's second land goes to hand).

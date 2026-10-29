@@ -7,7 +7,7 @@
 
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
-import { cardHasKeyword } from '../engine/combat.js';
+import { cardHasKeyword, effectivePower } from '../engine/combat.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -124,6 +124,8 @@ function matchesPermanentScope(game, card, scope) {
   if (/\bbattle\b/.test(scope) && !/Battle/i.test(t)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   if (/with a counter on it/.test(scope) && !Object.values(card.counters || {}).some(v => Number(v) > 0)) return false;
+  const pw = scope.match(/with power (\d+) or (less|greater)/);
+  if (pw) { const p = Number(effectivePower(card, defOf(game, card), game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
   return true;
 }
 
@@ -148,8 +150,15 @@ export function candidatesFor(game, req, player, source = null) {
     return out;
   }
   if (req.kind === 'stack-target') {
+    // "target noncreature spell", "target instant or sorcery spell": spellFilter is "noncreature" or "instant|sorcery".
+    const fits = x => {
+      if (!req.spellFilter) return true;
+      const type = String(defOf(game, x.card)?.typeLine || '').toLowerCase();
+      return req.spellFilter.split('|').some(w => w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
+    };
     return (game.stack || [])
       .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
+      .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }
   if (req.kind === 'target' || req.kind === 'choose-permanent') {

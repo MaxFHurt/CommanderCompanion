@@ -150,8 +150,28 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
 };
+
+/** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
+export function controlsACommander(game, player) {
+  const ids = new Set((game.players || []).flatMap(p => (p.commanders || []).map(c => c.cardId)));
+  return (player.deck?.battlefield || []).some(c => ids.has(c.definitionId) && !c.token);
+}
+
+/**
+ * "As an additional cost to cast this spell, …": { kind: 'sacrifice', filter, label } | { kind: 'discard' } |
+ * { kind: 'life-x' }, or null.
+ */
+export function additionalCost(def) {
+  const text = strip(def?.oracleText || '');
+  let m;
+  if ((m = text.match(/As an additional cost to cast this spell, sacrifice (?:a|an) ([a-z ]+?)(?: or (?:a|an)? ?([a-z ]+?))?\./i)))
+    return { kind: 'sacrifice', filters: [m[1], m[2]].filter(Boolean).map(x => x.trim().toLowerCase()), label: `Sacrifice a ${[m[1], m[2]].filter(Boolean).join(' or ')}` };
+  if (/As an additional cost to cast this spell, discard a card\./i.test(text)) return { kind: 'discard', label: 'Discard a card' };
+  if (/As an additional cost to cast this spell, pay X life\./i.test(text)) return { kind: 'life-x', label: 'Pay X life' };
+  return null;
+}
 
 /** Ways this card could be cast from its current zone (before checking mana and timing). */
 export function castModes(game, player, card, def, base = null) {
@@ -174,6 +194,8 @@ export function castModes(game, player, card, def, base = null) {
       if (up) { modes.push({ id, cost: '{3}', faceDown: id === 'megamorph' ? 'morph' : id, turnUpCost: up, megamorph: id === 'megamorph' }); break; }
     }
   }
+  if ((zone === 'hand' || zone === 'command') && /If you control a commander, you may cast this spell without paying its mana cost/i.test(text) && controlsACommander(game, player))
+    modes.push({ id: 'commander-free', cost: '' });
   if (zone === 'graveyard') {
     const fb = keywordCost(text, 'Flashback');
     if (fb) modes.push({ id: 'flashback', cost: fb, exileAfter: true });
@@ -231,6 +253,9 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     if (mode.discard && !(player.deck?.hand || []).length) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a card in hand to discard.']; }
     if (mode.discardLand && !(player.deck?.hand || []).some(c => isLand(defOf(game, c)))) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a land card in hand to discard.']; }
     if (mode.faceDown) result.reasons = result.reasons.filter(r => !/color identity/i.test(r));
+    const extra = mode.faceDown ? null : additionalCost(def);
+    if (extra?.kind === 'sacrifice' && !(player.deck?.battlefield || []).some(c => extra.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))) { result.legal = false; result.reasons = [...(result.reasons || []), `You need a ${extra.filters.join(' or ')} to sacrifice.`]; }
+    if (extra?.kind === 'discard' && (player.deck?.hand || []).length < 2) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need another card in hand to discard.']; }
     return { ...mode, ...result, legal: mode.faceDown ? result.reasons.length === 0 : result.legal, fullCost: priced.cost, notes: priced.notes };
   });
 }

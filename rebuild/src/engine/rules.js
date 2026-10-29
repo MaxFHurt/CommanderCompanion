@@ -466,7 +466,7 @@ export function validateBlock({ blocker, definition, attackerDefinition, attacke
   const bt = String(definition?.oracleText || ''), at = String(attackerDefinition?.oracleText || '');
   if (/can'?t block/i.test(bt))
     reasons.push('This creature cannot block.');
-  if (/can'?t be blocked/i.test(at))
+  if (/can'?t be blocked/i.test(at) || combatRestriction(attacker, 'cant-be-blocked'))
     reasons.push('This attacker cannot be blocked.');
   const flying = instanceKeyword(attacker, attackerDefinition, 'Flying'), reach = instanceKeyword(blocker, definition, 'Reach'), blockerFlying = instanceKeyword(blocker, definition, 'Flying');
   if (flying && !reach && !blockerFlying)
@@ -636,7 +636,10 @@ export function parseActivatedAbilities(definition) {
   const raw = String(definition?.oracleText || '').replace(/\r/g, '');
   // Equip is an activated ability written as a keyword: treat "Equip {2}" as "{2}: Attach …".
   const lines = raw.split('\n').map(x => x.trim()).filter(Boolean)
-    .map(x => x.replace(/^Equip\s*((?:\{[^}]+\})+).*$/i, '$1: Attach this Equipment to target creature you control. Activate only as a sorcery.'));
+    .map(x => x.replace(/^Equip\s*((?:\{[^}]+\})+).*$/i, '$1: Attach this Equipment to target creature you control. Activate only as a sorcery.'))
+    // A keyword line's reminder text ("Cycling {3} ({3}, Discard this card: Draw a card.)") explains the keyword; it is
+    // not a second ability. A line that is only reminder text ("({T}: Add {G}, {U}, or {R}.)") is kept: it is the mana.
+    .map(x => (/^\(/.test(x) ? x : x.replace(/\s*\([^()]*\)/g, '').trim())).filter(Boolean);
   const abilities = [];
   let current = null;
   for (const line of lines) {

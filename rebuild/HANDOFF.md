@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.33, 2026-10-29)
+# Commander Companion — handoff (build 1.0.0-rebuild.34, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.32**. Build 33 (trigger wordings) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v33`).
+- Live build: **1.0.0-rebuild.33**. Build 34 (spells and effects) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v34`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -105,6 +105,17 @@ what each part does, the owner's rules, open notes, and the roadmap.
   the top 1,000 cards (`tests/fixtures/forge-top-commander.json.gz`, GPL-3.0, tests only — the app never loads it;
   Scryfall cards in `tests/fixtures/top-commander-cards.json.gz`): 99.0% fire when they should, 100% stay quiet
   for the wrong player. Run it after any trigger change.
+- **Spells and effects (build 34):** "Its controller creates / draws …" (`remember-controller` + `forPlayerBind`:
+  done for the target's controller — Beast Within, Swan Song, An Offer You Can't Refuse); "Its controller may search
+  … for a basic land" (`their-search`, ops.js asks that player — Path to Exile, Assassin's Trophy); "Counter target
+  noncreature / instant or sorcery … spell" (`spellFilter` on stack targets); "unless that player pays {N}" and
+  "that player may pay {N}. If the player doesn't, …" (`unless-pays`, ops.js asks the payer; `pay-mana`
+  transaction — Rhystic Study, Smothering Tithe, Esper Sentinel, Mystic Remora); triggers remember `eventPlayer` and
+  `eventAmount` ("that player", "that much life"); several keywords at once ("gain hexproof and indestructible");
+  "All creatures get -X/-X"; "Destroy all creatures with mana value 3 or less"; "can't be blocked this turn";
+  "return a land you control to its owner's hand" (bounce lands); casting: free with a commander
+  (`commander-free` mode), additional costs (`additionalCost`: sacrifice, discard, pay X life). Keyword lines'
+  reminder text is no longer read as an ability (the cycling lands' fake "Draw a card.)").
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -195,11 +206,13 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 170 rules/coach/judge/undo/challenge checks
+    node tests/node/game.mjs          # 189 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
+                                      # (now and then 1 "refused block … requires at least 2 blockers": the random bot
+                                      #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
     python3 -m http.server 4180 --bind 127.0.0.1 &   # needed by the Playwright suites — stop it after
     python3 tests/tracker_test.py     # 40
     python3 tests/game_ui.py          # 28
@@ -248,15 +261,12 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 9. Roadmap
 
-**Next rules work (owner said 29 Oct: fix them, use Forge as much as needed):**
-1. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):
-   needs the mana counter and the auto-payer (`playerManaAvailability`, `planMana`) to know a source can give more
-   than one mana — not only manual tapping.
-2. Rare trigger wordings left (RULES_AUDIT.md): Class levels, "put into a graveyard from anywhere" (Gitrog,
-   Bloodchief Ascension), "each with power greater than its base power" (Kutzil), three-event triggers (Trouble in
-   Pairs).
-3. The 152 spells and 115 activated abilities resolved by hand (RULES_AUDIT.md), most-played first; Forge's
-   `A:`/`SVar` lines are the answer key for what each one does.
+**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (654 of 1,000 automatic).
+1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
+   (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
+2. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):
+   the mana counter and auto-payer (`playerManaAvailability`, `planMana`) must know a source can give more.
+3. Rare trigger wordings (Class levels, "from anywhere", Kutzil, Trouble in Pairs).
 
 **Next (after the weekly usage reset, when the owner says go)**
 1. QR pairing for local multiplayer (two-step scan: host offer → joiner answer), working over a
