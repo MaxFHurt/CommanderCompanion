@@ -1,4 +1,4 @@
-# Commander Companion — handoff (build 1.0.0-rebuild.34, 2026-10-29)
+# Commander Companion — handoff (build 1.0.0-rebuild.35, 2026-10-29)
 
 Read this before changing anything. It records what the app is, how it is built and shipped,
 what each part does, the owner's rules, open notes, and the roadmap.
@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.33**. Build 34 (spells and effects) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v34`).
+- Live build: **1.0.0-rebuild.34**. Build 35 (more effects) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v35`).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -116,6 +116,13 @@ what each part does, the owner's rules, open notes, and the roadmap.
   "return a land you control to its owner's hand" (bounce lands); casting: free with a commander
   (`commander-free` mode), additional costs (`additionalCost`: sacrifice, discard, pay X life). Keyword lines'
   reminder text is no longer read as an ability (the cycling lands' fake "Draw a card.)").
+- **More effects (build 35):** conditions checked as they resolve (`condition`: "if you control three or more
+  artifacts", "if this artifact is tapped", "if it's not your turn"; the subject is read by trigger-subject.js);
+  "up to one target …" for any instruction (`optionalTarget`); wheels (`wheel`), flicker (`flicker`), Chaos Warp
+  (`chaos-warp`), devotion (`{ kind: 'devotion' }`), "life equal to the life lost this way" (`lifeLostThisWay`),
+  "untap up to N lands" (`upTo` on card-selection), "can't be countered" (respected by counter-spell), several
+  keywords on one target, "Non-Human creatures you control get …", "return all attacking creatures …",
+  "it deals N damage to you" (`toController`).
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -206,8 +213,8 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 189 rules/coach/judge/undo/challenge checks
-    node tests/node/mechanics.mjs     # 60 terms key, targeting, every automated mechanic, awards
+    node tests/node/game.mjs          # 197 rules/coach/judge/undo/challenge checks
+    node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
@@ -261,7 +268,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 9. Roadmap
 
-**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (654 of 1,000 automatic).
+**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (681 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
 2. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):

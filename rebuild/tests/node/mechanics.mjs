@@ -49,9 +49,12 @@ section('hand-resolved cards still choose targets');
   t.give(1, 'Serra Angel', 'battlefield');
   lands(t, 0, 'Mountain', 3);
   t.give(0, 'Chaos Warp');
+  // A card the game still resolves by hand (Chaos Warp itself is automatic since build 35).
+  const warp = t.hand(0, 'Chaos Warp');
+  t.game.cardDefinitions[warp.definitionId] = { ...t.game.cardDefinitions[warp.definitionId], oracleText: 'The owner of target permanent shuffles it into their library, then rolls a six-sided die.' };
   t.try(0, { type: 'play', instanceId: t.hand(0, 'Chaos Warp').instanceId });
   const d = t.decision();
-  check('Chaos Warp asks for its target permanent when cast', d?.targeting && d.options.some(o => o.label === 'Serra Angel'), JSON.stringify(d && d.title));
+  check('a hand-resolved card asks for its target permanent when cast', d?.targeting && d.options.some(o => o.label === 'Serra Angel'), JSON.stringify(d && d.title));
   const angel = d.options.find(o => o.label === 'Serra Angel').id;
   t.ctl.dispatch({ type: 'answer', key: d.key, value: angel }, t.as(0));
   answerAll(t);
@@ -59,6 +62,20 @@ section('hand-resolved cards still choose targets');
   const v = t.view(0);
   check('the resolution screen names the target', v.prompt.kind === 'guided' && v.prompt.targets[0]?.name === 'Serra Angel', JSON.stringify(v.prompt.targets));
   check('the resolution screen offers the right actions', v.prompt.actions.includes('shuffle'), JSON.stringify(v.prompt.actions));
+}
+{
+  const t = newGame(['lab', 'white']);
+  t.keepAll();
+  t.give(1, 'Serra Angel', 'battlefield');
+  lands(t, 0, 'Mountain', 3);
+  t.give(0, 'Chaos Warp');
+  t.try(0, { type: 'play', instanceId: t.hand(0, 'Chaos Warp').instanceId });
+  const d = t.decision();
+  t.ctl.dispatch({ type: 'answer', key: d.key, value: d.options.find(o => o.label === 'Serra Angel').id }, t.as(0));
+  answerAll(t);
+  t.passAll();
+  check('Chaos Warp resolves by itself: the Angel is shuffled away and the top card is revealed', !t.bf(1, 'Serra Angel') || t.game.log.some(e => /reveals Serra Angel/.test(e.text)), t.game.log.slice(0, 3).map(e => e.text).join(' / '));
+  check('…and nothing is left to resolve by hand', t.view(0).prompt.kind !== 'guided');
 }
 
 // ---------------------------------------------------------------------------------------------

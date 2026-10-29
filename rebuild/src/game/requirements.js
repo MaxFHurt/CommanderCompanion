@@ -273,12 +273,12 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
         const rows = battlefieldRows(game, q, req.filter);
         const need = Math.min(amount, rows.length);
         // The affected player chooses what they sacrifice, on their own device.
-        chosen[q.playerId] = need === 0 ? [] : need === rows.length ? rows.map(r => r.id)
+        chosen[q.playerId] = need === 0 ? [] : need === rows.length && !req.upTo ? rows.map(r => r.id)
           : ask(`${key}:${q.playerId}`, () => ({
             ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many',
             title: `${sourceName} — ${q.displayName}`,
-            prompt: `${q.displayName}: choose ${plural(need, req.filter || 'permanent')} (${req.label || 'required by the effect'}).`,
-            options: rows, min: need, max: need
+            prompt: req.upTo ? `${q.displayName}: choose up to ${plural(need, req.filter || 'permanent')} (${req.label || 'chosen for the effect'}).` : `${q.displayName}: choose ${plural(need, req.filter || 'permanent')} (${req.label || 'required by the effect'}).`,
+            options: rows, min: req.upTo ? 0 : need, max: need
           }));
       }
       bindings[req.bind] = targets.length === 1 && !['each-opponent', 'each-player'].includes(req.scope) ? (chosen[targets[0].playerId] || []) : chosen;

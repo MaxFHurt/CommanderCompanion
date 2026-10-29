@@ -914,4 +914,81 @@ section("activated abilities: Rogue's Passage, cycling reminder text");
   const triome = { name: 'Ketria Triome', typeLine: 'Land — Forest Island Mountain', oracleText: '({T}: Add {G}, {U}, or {R}.)\nThis land enters tapped.\nCycling {3} ({3}, Discard this card: Draw a card.)' };
   check('a cycling land has no extra "Draw a card" ability on the battlefield', parseActivatedAbilities(triome).length === 1, JSON.stringify(parseActivatedAbilities(triome).map(a => a.text)));
 }
+section('more effects: conditions, up to one target, wheels, devotion, flicker, untap lands, attackers home');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const settle = (t, picks = {}) => {
+    for (let guard = 0; guard < 30; guard++) {
+      t.passAll();
+      const d = t.decision();
+      if (!d) break;
+      const key = Object.keys(picks).find(k => d.key.includes(k));
+      let v = key !== undefined ? picks[key] : undefined;
+      if (typeof v === 'function') v = v(d);
+      if (v === undefined) { const open = (d.options || []).filter(o => !o.disabled); v = d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : open[0]?.id; }
+      const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: v }, { playerId: d.playerId, isHost: false });
+      if (!r.ok) throw new Error(`answer ${d.key}: ${r.error}`);
+    }
+  };
+  const setup = () => { const t = newGame(['simic', 'simic']); t.keepAll(); for (let i = 0; i < 4; i++) t.give(0, 'Forest', 'battlefield'); for (let i = 0; i < 3; i++) t.give(0, 'Island', 'battlefield'); t.autoPass = false; return t; };
+  const cast = (t, name, text, picks = {}, extra = {}) => { t.give(0, name); const c = asText(t, t.hand(0, name), text, extra); const r = t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error); settle(t, picks); };
+  // Condition: "If you control a creature with power 4 or greater, draw a card."
+  for (const big of [true, false]) {
+    const t = setup();
+    t.give(0, big ? 'Colossal Dreadmaw' : 'Grizzly Bears', 'battlefield');
+    const before = t.P(0).deck.hand.length;
+    cast(t, 'Opt', 'If you control a creature with power 4 or greater, draw a card.');
+    check(`a condition is checked as it resolves (${big ? 'met' : 'not met'})`, t.P(0).deck.hand.length === before + (big ? 1 : 0) - 0, `${before} → ${t.P(0).deck.hand.length}`);
+  }
+  // Up to one target: choose none, nothing happens; choose one, it is destroyed.
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield');
+    cast(t, 'Naturalize', 'Destroy up to one target creature.', { cast: d => (d.allowNone ? null : d.options[0].id) });
+    check('"up to one target": choosing none is allowed and does nothing', !!t.bf(1, 'Grizzly Bears'));
+  }
+  // Wheel of Fortune
+  {
+    const t = setup(); t.give(1, 'Forest');
+    cast(t, 'Divination', 'Each player discards their hand, then draws seven cards.');
+    check('Wheel of Fortune: everyone discards their hand and draws seven', t.P(0).deck.hand.length === 7 && t.P(1).deck.hand.length === 7, `${t.P(0).deck.hand.length} ${t.P(1).deck.hand.length}`);
+  }
+  // Gray Merchant: devotion to black (here: two Grizzly Bears made black {B}{B}), opponents lose that much, you gain it.
+  {
+    const t = setup();
+    t.give(0, 'Grizzly Bears', 'battlefield');
+    const bear = t.bf(0, 'Grizzly Bears');
+    t.game.cardDefinitions[bear.definitionId] = { ...t.game.cardDefinitions[bear.definitionId], manaCost: '{B}{B}' };
+    cast(t, 'Opt', 'Each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way.');
+    check('Gray Merchant: devotion counts the black symbols; you gain what they lost', t.P(1).life === 38 && t.P(0).life === 42, `${t.P(0).life} ${t.P(1).life}`);
+  }
+  // Ephemerate (without rebound): the creature leaves and comes back, a new object.
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears', 'battlefield');
+    const bear = t.bf(0, 'Grizzly Bears'); bear.counters = { '+1/+1': 2 };
+    cast(t, 'Giant Growth', 'Exile target creature you control, then return it to the battlefield under its owner\'s control.', { cast: bear.instanceId });
+    check('flicker: the creature comes back without its counters', !!t.bf(0, 'Grizzly Bears') && !t.bf(0, 'Grizzly Bears').counters?.['+1/+1']);
+  }
+  // Frantic Search: untap up to three lands.
+  {
+    const t = setup();
+    for (const c of t.P(0).deck.battlefield) c.tapped = true;
+    t.P(0).deck.battlefield.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Island').tapped = false;
+    cast(t, 'Opt', 'Untap up to three lands.', { resolve: d => d.options.slice(0, 3).map(o => o.id) }, { manaCost: '{U}' });
+    check('Frantic Search: three lands untap (you choose up to three)', t.P(0).deck.battlefield.filter(c => !c.tapped).length === 3, String(t.P(0).deck.battlefield.filter(c => !c.tapped).length));
+  }
+  // Aetherize: attacking creatures go back to their owners' hands.
+  {
+    const t = newGame(['simic', 'simic']); t.keepAll();
+    t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Island', 'battlefield'); t.give(1, 'Island', 'battlefield'); t.give(1, 'Island', 'battlefield'); t.give(1, 'Island', 'battlefield'); t.give(1, 'Opt');
+    asText(t, t.hand(1, 'Opt'), 'Return all attacking creatures to their owner\'s hand.');
+    t.end(0); t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.autoPass = false;
+    t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId }] });
+    for (let g = 0; g < 5 && t.game.flow.priority?.holderId !== t.P(1).playerId; g++) t.ctl.dispatch({ type: 'pass' }, { playerId: t.game.flow.priority.holderId, isHost: false });
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Opt').instanceId }, t.as(1));
+    settle(t);
+    check('Aetherize: the attacking creature returns to its owner’s hand', !t.bf(0, 'Grizzly Bears') && t.P(0).deck.hand.some(c => t.game.cardDefinitions[c.definitionId]?.name === 'Grizzly Bears'));
+  }
+}
 done();

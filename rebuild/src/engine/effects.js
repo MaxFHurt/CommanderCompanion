@@ -1,6 +1,7 @@
 // Commander Companion V0.7.27 shared Oracle-effect resolver.
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
+import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness } from './combat.js';
 const WORD_NUMBERS = Object.freeze({
   zero: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
@@ -185,7 +186,13 @@ function cardMatchesFilter(game, card, filter) {
     const [base, ...conds] = f.split('|');
     if (!cardMatchesFilter(game, card, base)) return false;
     const mv = Number(d?.manaValue ?? d?.cmc ?? 0);
-    return conds.every(c => { const m = c.match(/^mv(<=|>=)(\d+)$/); return !m || (m[1] === '<=' ? mv <= Number(m[2]) : mv >= Number(m[2])); });
+    return conds.every(c => {
+      if (c === 'attacking') return (game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId);
+      if (c.startsWith('type:')) return type.includes(c.slice(5));
+      if (c.startsWith('non:')) return !type.includes(c.slice(4));
+      const m = c.match(/^mv(<=|>=)(\d+)$/);
+      return !m || (m[1] === '<=' ? mv <= Number(m[2]) : mv >= Number(m[2]));
+    });
   }
   if (f.startsWith('type:'))
     return type.includes(f.slice(5));
@@ -254,6 +261,11 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
   }
   if (amount.kind === 'binding')
     return Math.max(0, Number(bindings[amount.bind] || 0));
+  if (amount.kind === 'devotion') {
+    // Mana symbols of that color among the mana costs of permanents you control (hybrid counts once).
+    const p = game.players.find(x => x.playerId === controllerId);
+    return (p?.deck?.battlefield || []).reduce((n, c) => n + (String(definitionFor(game, c)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(sym => sym.includes(amount.color)).length, 0);
+  }
   if (amount.kind === 'sum')
     return (amount.parts || []).reduce((n, x) => n + resolveAmount(game, controllerId, x, bindings), 0);
   if (amount.kind === 'half') {
@@ -422,6 +434,43 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
   const notes = [];
   for (let effect of effects || []) {
     // "Its controller creates …": remember who controlled the target before it moves, then do it for them.
+    if (effect.optionalTarget && effect.bind && !bindings[effect.bind]) { notes.push('No target was chosen.'); continue; }
+    // "If you control three or more artifacts, …": checked as it resolves; if not, the effects that follow do nothing.
+    if (effect.kind === 'condition') {
+      if (bindings.skipEffects > 0) { bindings.skipEffects--; continue; }
+      if (!conditionHolds(game, controllerId, effect, bindings)) { bindings.skipEffects = effect.skip || 0; notes.push(effect.failNote || 'The condition is not met.'); }
+      continue;
+    }
+    if (effect.kind === 'flicker') {
+      const id = resolveBoundId(effect, bindings), hit = locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The creature is no longer there.'); continue; }
+      const name = cardName(game, hit.card), owner = hit.card.ownerId, token = !!hit.card.token;
+      moveCard(game, id, 'exile', { onEvent: e => emit(bindings, e) });
+      if (token) { notes.push(`${name} is exiled and the token ceases to exist.`); continue; }
+      moveCard(game, id, 'battlefield', { controllerId: effect.yours ? controllerId : owner, onEvent: e => emit(bindings, e) });
+      notes.push(`${name} is exiled and returns to the battlefield.`);
+      continue;
+    }
+    if (effect.kind === 'wheel') {
+      const players = game.players.filter(p => !p.eliminated);
+      let greatest = 0;
+      for (const p of players) { greatest = Math.max(greatest, p.deck.hand.length); notes.push(...applyEffectsUnsafe(game, p.playerId, [{ kind: 'discard-hand', scope: 'you', countBind: 'wheelCount' }], bindings)); }
+      const n = effect.amount === 'greatest' ? greatest : Number(effect.amount || 0);
+      for (const p of players) notes.push(...applyEffectsUnsafe(game, p.playerId, [{ kind: 'draw', scope: 'you', amount: n }], bindings));
+      continue;
+    }
+    if (effect.kind === 'chaos-warp') {
+      const id = resolveBoundId(effect, bindings), hit = locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The permanent is no longer there.'); continue; }
+      const owner = game.players.find(p => p.playerId === hit.card.ownerId) || hit.player, name = cardName(game, hit.card);
+      moveCard(game, id, 'library', { position: 'top', onEvent: e => emit(bindings, e) });
+      const lib = owner.deck.remainingLibrary;
+      for (let j = lib.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [lib[j], lib[k]] = [lib[k], lib[j]]; }
+      const top = lib[0], td = top && definitionFor(game, top);
+      notes.push(`${owner.displayName} shuffles ${name} into their library and reveals ${td?.name || 'nothing'}.`);
+      if (top && isPermanent(td)) { moveCard(game, top.instanceId, 'battlefield', { controllerId: owner.playerId, onEvent: e => emit(bindings, e) }); notes.push(`${td.name} is put onto the battlefield.`); }
+      continue;
+    }
     if (effect.kind === 'their-search') continue;   // done by ops.js as the spell resolves (it asks that player)
     // "… unless that player pays {1}": ops.js asked them before resolving; if they paid, skip what follows.
     if (effect.kind === 'unless-pays') {
@@ -532,6 +581,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         p.life = Math.max(0, before + delta);
         const actual = p.life - before;
         notes.push(`${p.displayName} ${actual >= 0 ? 'gains' : 'loses'} ${Math.abs(actual)} life.`);
+        if (actual < 0) bindings.lifeLostThisWay = Number(bindings.lifeLostThisWay || 0) - actual;   // "life equal to the life lost this way"
         emit(bindings, { type: actual >= 0 ? 'life-gained' : 'life-lost', playerId: p.playerId, amount: Math.abs(actual), sourceId: bindings.sourceId || null, controllerId });
       }
       continue;
@@ -548,7 +598,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'damage') {
-      const targetId = resolveBoundId(effect, bindings);
+      const targetId = effect.toController ? controllerId : resolveBoundId(effect, bindings);
       if (!targetId)
         throw new Error('A damage target was not chosen.');
       const victimCard = locateCardInGame(game, targetId);
@@ -714,6 +764,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         moved++;
       }
       notes.push(`${moved} ${effect.filter || 'permanent'}${moved === 1 ? '' : 's'} ${effect.to === 'graveyard' ? 'move to graveyards' : effect.to === 'exile' ? 'are exiled' : 'move zones'}.`);
+      continue;
+    }
+    if (effect.kind === 'untap-selection') {
+      const ids = [].concat(bindings[effect.bind] || []);
+      for (const id of ids) { const hit = locateCardInGame(game, id); if (hit) hit.card.tapped = false; }
+      notes.push(`${ids.length} land${ids.length === 1 ? '' : 's'} untapped.`);
       continue;
     }
     if (effect.kind === 'grant-keyword-each') {
@@ -1125,6 +1181,10 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const i = (game.stack || []).findIndex(x => x.id === stackId);
       if (i < 0)
         throw new Error('The targeted spell is no longer on the stack.');
+      if (game.stack[i].kind === 'spell' && /This spell can'?t be countered/i.test(definitionFor(game, game.stack[i].card)?.oracleText || '')) {
+        notes.push(`${game.stack[i].label || cardName(game, game.stack[i].card)} can't be countered.`);
+        continue;
+      }
       const [obj] = game.stack.splice(i, 1);
       if (obj.kind !== 'spell')
         throw new Error('The chosen stack object is not a spell.');
@@ -1176,6 +1236,21 @@ export function restoreGameSnapshot(game, snapshot) {
     delete game[key];
   Object.assign(game, structuredClone(snapshot));
   game.cardDefinitions = definitions;
+}
+/** "if you control a creature with power 4 or greater", "if this artifact is tapped", "if it's not your turn". */
+function conditionHolds(game, controllerId, effect, bindings) {
+  const me = game.players.find(p => p.playerId === controllerId);
+  if (effect.test === 'control') {
+    const subject = parseSubject(effect.subject, null);
+    if (!subject || !me) return false;
+    const row = { card: { instanceId: bindings.sourceId || 'none' }, player: me };
+    const n = (me.deck?.battlefield || []).filter(c => subjectMatches(game, row, { ...subject, controller: null }, c, definitionFor(game, c), controllerId)).length;
+    return n >= (effect.min || 1);
+  }
+  if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
+  if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
+  if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
+  return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {
   const snapshot = snapshotGame(game);
@@ -1593,9 +1668,10 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'pump-each', scope: 'you', filter: 'creature', power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(Target creature[^.]*) gains? ([A-Za-z][A-Za-z -]+) until end of turn\.?$/i))) {
+  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)[^.]*?) gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
-    effects.push({ kind: 'grant-keyword', bind, keyword: m[2].trim(), enabled: true, expires: 'cleanup' });
+    for (const keyword of m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean))
+      effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^(Creatures|Permanents|Artifacts|Each creature|Each permanent) you control gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
@@ -1603,6 +1679,41 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     const filter = /permanent/i.test(m[1]) ? 'permanent' : /artifact/i.test(m[1]) ? 'artifact' : 'creature';
     for (const keyword of m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean))
       effects.push({ kind: 'grant-keyword-each', scope: 'you', filter, keyword, expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  if (/^This spell can'?t be countered\.?$/i.test(c)) return { effects, requirements, unsupported };
+  // "It deals 1 damage to you." (City of Brass, Mana Vault)
+  if ((m = c.match(new RegExp(`^(?:This (?:artifact|creature|land|enchantment|permanent)|It|~|${String(sourceName || '~').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}) deals (one|two|three|\\d+) damage to you\\.?$`, 'i')))) {
+    effects.push({ kind: 'damage', amount: numberFromText(m[1]), toController: true, sourceName });
+    return { effects, requirements, unsupported };
+  }   // checked when something tries to counter it
+  if ((m = c.match(/^Non-([A-Z][a-z]+) creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    effects.push({ kind: 'pump-each', scope: 'you', filter: `creature|non:${m[1].toLowerCase()}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Return all attacking creatures to their owners?'?s? hands?\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: 'creature|attacking', to: 'hand' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Untap up to (one|two|three|four|five|\d+) lands\.?$/i))) {
+    const bind = cardSelectionRequirement(requirements, { scope: 'you', filter: 'land', amount: numberFromText(m[1]), label: 'lands to untap' });
+    requirements[requirements.length - 1].upTo = true;
+    effects.push({ kind: 'untap-selection', bind });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(Each opponent|Target opponent|Target player) loses X life, where X is your devotion to (white|blue|black|red|green)\.?$/i))) {
+    const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()];
+    const e = { kind: 'life', scope: /each/i.test(m[1]) ? 'each-opponent' : 'you', amount: { kind: 'devotion', color }, deltaSign: -1 };
+    if (!/each/i.test(m[1])) { e.bind = `player${requirements.length}`; requirements.push({ kind: 'player', bind: e.bind, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }); }
+    effects.push(e);
+    return { effects, requirements, unsupported };
+  }
+  if (/^You gain life equal to the life lost this way\.?$/i.test(c)) {
+    effects.push({ kind: 'life', scope: 'you', amount: { kind: 'binding', bind: 'lifeLostThisWay' }, deltaSign: 1 });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Put (a|an|one|two|\d+) (\+1\/\+1|[A-Za-z]+) counters? on each ([A-Z][a-z]+) creature you control\.?$/i))) {
+    effects.push({ kind: 'counter-each', scope: 'you', filter: `creature|type:${m[3].toLowerCase()}`, counter: m[2], amount: numberFromText(m[1]) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^All creatures get ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i))) {
@@ -1919,6 +2030,48 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     }
     // "Its controller may search their library for a basic land card, put it onto the battlefield tapped, then
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
+    // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
+    // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
+    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is tapped|it'?s not your turn|it'?s your turn),\s*(.+)$/i);
+    if (cond && !/^If you do\b/i.test(clause)) {
+      const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
+      const innerAlt = inner.unsupported.length ? compileEffectText(cond[4], { sourceName }) : inner;
+      const counts = { a: 1, an: 1, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7 };
+      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()] } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
+      if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
+        if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/s$/, '');
+        if (!innerAlt.unsupported.length && innerAlt.effects.length) {
+          parts.push({ effects: [{ kind: 'condition', ...test, skip: innerAlt.effects.length }, ...innerAlt.effects], requirements: innerAlt.requirements, unsupported: [] });
+          continue;
+        }
+      }
+    }
+    // Wheels: "Each player discards their hand, then draws seven cards." / "… draws cards equal to the greatest number …"
+    const wheel = clause.match(/^Each player discards their hand,? then draws (seven|\d+) cards\.?$/i) || clause.match(/^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i);
+    if (wheel) { parts.push({ effects: [{ kind: 'wheel', amount: wheel[1] ? numberFromText(wheel[1]) : 'greatest' }], requirements: [], unsupported: [] }); continue; }
+    // Flicker: "Exile target creature you control, then return it to the battlefield under its owner's control."
+    const flick = clause.match(/^Exile (another target|target|up to one target|up to one other target) (.+?),? then return (?:it|that card) to the battlefield under (its owner'?s|your) control\.?$/i);
+    if (flick) {
+      const bind = `target${parts.reduce((n, p) => n + (p.requirements || []).length, 0) + 50}`;
+      parts.push({ effects: [{ kind: 'flicker', bind, yours: /your/i.test(flick[3]), optionalTarget: /up to/i.test(flick[1]) }], requirements: [{ kind: 'target', bind, scope: `target ${flick[2].toLowerCase()}`, label: `${flick[1]} ${flick[2]}`.toLowerCase(), optional: /up to/i.test(flick[1]), notSource: /another|other/i.test(flick[1]) }], unsupported: [] });
+      continue;
+    }
+    // Chaos Warp
+    const warp = clause.match(/^The owner of (target permanent) shuffles it into their library,? then reveals the top card of their library\.?$/i);
+    if (warp && /^If it'?s a permanent card, they put it onto the battlefield\.?$/i.test(clauses[clauses.indexOf(clause) + 1] || '')) {
+      parts.push({ effects: [{ kind: 'chaos-warp', bind: 'target70' }], requirements: [{ kind: 'target', bind: 'target70', scope: 'target permanent', label: 'target permanent' }], unsupported: [] });
+      skipNextClause = true;
+      continue;
+    }
+    // "up to one target …": the same instruction, and choosing nothing is allowed.
+    if (/\bup to one target\b/i.test(clause) && !/counters? on up to one/i.test(clause)) {
+      const c = compileSingleClause(clause.replace(/\bup to one target\b/i, 'target'), { sourceName });
+      if (!c.unsupported.length && c.effects.length) {
+        const binds = new Set(c.requirements.filter(r => r.kind === 'target').map(r => r.bind));
+        parts.push({ effects: c.effects.map(e => (binds.has(e.bind) ? { ...e, optionalTarget: true } : e)), requirements: c.requirements.map(r => (binds.has(r.bind) ? { ...r, optional: true } : r)), unsupported: [] });
+        continue;
+      }
+    }
     // "draw a card unless that player pays {1}" (Rhystic Study), "… pays {X}, where X is this creature's power" (Esper Sentinel)
     const unless = clause.match(/^(.+?),? unless (?:that player|its controller|they) pays? \{(\d+|X)\}(?:, where X is (?:this creature'?s|~'?s|its) power)?\.?$/i);
     if (unless) {
