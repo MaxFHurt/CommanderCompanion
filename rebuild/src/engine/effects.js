@@ -2644,6 +2644,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       lastToken.tempKeywords = [...(lastToken.tempKeywords || []), ...KEYWORD_LIST(tokenKw[1])];
       continue;
     }
+    // "Create a 0/1 Eldrazi Spawn token. It has "Sacrifice this token: Add {C}."" — the token gets that ability.
+    const quoted = clause.match(/^(?:It|They|That token|Those tokens|The token|The tokens) (?:has|have) "(.+)"\.?$/i);
+    const madeToken = quoted && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
+    if (madeToken) { madeToken.oracleText = [madeToken.oracleText, quoted[1].replace(/"$/, '')].filter(Boolean).join('\n'); continue; }
     // Tragic Slip: "Morbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
     const instead = clause.match(/^(?:[A-Z][a-z]+ — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);
     const prevPump = instead && parts[parts.length - 1]?.effects?.find(e => e.kind === 'pump');

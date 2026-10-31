@@ -545,10 +545,10 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const ch = next(1).match(/^Choose (one|a card) of them\.?$/i);
     if (ch) { choose = true; k = 2; }
     const s = next(k);
-    const p = s.match(/^(?:Until (end of turn|the end of your next turn|your next end step),? )?you may (play|cast) (that card|those cards|them|it|the exiled cards?|cards exiled this way|that spell)(?: this turn| until (end of turn|the end of your next turn))?( without paying (?:its|their) mana costs?)?\.?$/i)
+    const p = s.match(/^(?:Until (end of turn|the end of your next turn|your next end step),? )?you may (play|cast) (that card|those cards|them|it|the exiled cards?|cards exiled this way|that spell)(?: this turn| until (end of turn|the end of your next turn)| for as long as (?:it|they|that card|those cards) remains? exiled)?( without paying (?:its|their) mana costs?)?\.?$/i)
       || s.match(/^(?:Until (end of turn|the end of your next turn),? )?you may (play|cast) (lands and cast spells|spells) from among (?:them|those cards|the exiled cards)(?: this turn| until (end of turn|the end of your next turn))?( without paying (?:its|their) mana costs?)?\.?$/i);
     if (!p) return null;
-    const until = /next turn/i.test(p[1] || p[4] || '') ? 'next-turn' : 'turn';
+    const until = /as long as/i.test(s) ? 'forever' : /next turn/i.test(p[1] || p[4] || '') ? 'next-turn' : 'turn';
     const bind = choose ? `impulse${i}` : null;
     const requirements = choose ? [{ kind: 'dig', bind, amount, offset: drawnBefore, picks: [{ min: 1, max: 1, filter: '', to: 'exile-play' }], rest: { to: 'exile' }, label: `the top ${amount} cards`, chooseOnly: true }] : [];
     return { part: { effects: [{ kind: 'impulse', amount, until, castOnly: /cast/i.test(p[2]) && !/lands/i.test(p[3]), free: !!p[5], chooseBind: bind }], requirements, unsupported: [] }, consumed: k + 1 };
