@@ -7,7 +7,8 @@ const KEYWORDS = ['flying', 'first strike', 'double strike', 'deathtouch', 'hast
 
 /** What an attached Aura/Equipment gives to the permanent it is attached to. */
 export function attachmentGrants(def) {
-  const text = String(def?.oracleText || '');
+  // Static lines only: "{1}: Enchanted creature gets +3/+3 until end of turn." is an activated ability, not a bonus.
+  const text = String(def?.oracleText || '').split('\n').filter(line => !/until end of turn|^[^"]*?:\s/i.test(line)).join('\n');
   const out = { power: 0, toughness: 0, keywords: [] };
   const pt = text.match(/(?:Equipped|Enchanted) (?:creature|permanent) gets ([+-]\d+)\/([+-]\d+)/i);
   if (pt) { out.power = Number(pt[1]); out.toughness = Number(pt[2]); }

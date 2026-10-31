@@ -7,6 +7,7 @@ import { defOf, log, turnOrderFrom } from './helpers.js';
 
 const turnOrderAfter = (game, playerId) => turnOrderFrom(game, playerId).filter(q => q.playerId !== playerId);
 import { commit } from './ops.js';
+import { regenerates } from '../engine/effects-catalog.js';
 import { sagaFinalChapter } from '../engine/keyword-triggers.js';
 
 export function stateBasedActions(game) {
@@ -22,7 +23,11 @@ export function stateBasedActions(game) {
         if (/\bCreature\b/i.test(type)) {
           const t = effectiveToughness(c, d, game);
           if (t <= 0) reason = 'has 0 toughness';
-          else if ((Number(c.damageMarked || 0) >= t || c.deathtouchDamage) && !cardHasKeyword(c, d, 'Indestructible', game)) reason = 'has lethal damage';
+          else if ((Number(c.damageMarked || 0) >= t || c.deathtouchDamage) && !cardHasKeyword(c, d, 'Indestructible', game)) {
+            const notes = [];
+            if (regenerates(game, c, notes)) { log(game, notes.join(' ')); acted = changed = true; continue; }
+            reason = 'has lethal damage';
+          }
         }
         if (!reason && /\bPlaneswalker\b/i.test(type) && Number(c.counters?.loyalty || 0) <= 0 && c.loyaltyInitialised !== false && c.enteredTurn !== undefined && Number(d.loyalty || 0) > 0 && c.counters && 'loyalty' in c.counters) reason = 'has no loyalty';
         if (!reason && /\bBattle\b/i.test(type)) {

@@ -1,5 +1,6 @@
 // Commander Companion V0.7.27 shared Oracle-effect resolver.
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
+import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates } from './effects-catalog.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness } from './combat.js';
@@ -334,7 +335,7 @@ function checkLethal(game, targetId, notes, bindings) {
   const lethal = toughness <= 0 || Number(hit.card.damageMarked || 0) >= toughness || !!hit.card.deathtouchDamage;
   if (!lethal)
     return;
-  if (toughness > 0 && isIndestructible(hit.card, d))
+  if (toughness > 0 && (isIndestructible(hit.card, d) || regenerates(game, hit.card, notes)))
     return;
   const name = d?.name || 'Creature';
   moveCard(game, targetId, 'graveyard', { onEvent: e => emit(bindings, e) });
@@ -456,7 +457,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     throw new Error('Effect controller is unavailable.');
   const notes = [];
   if (!bindings.eventCard && bindings.sourceId) bindings.eventCard = bindings.sourceId;
+  prepareBindings(game, bindings);
   for (let effect of effects || []) {
+    if (effect.soft && effect.bind && !effect.targetId) { const id = bindings[effect.bind]; const h = id && locateCardInGame(game, id); if (!h || h.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); continue; } }
     // "Its controller creates …": remember who controlled the target before it moves, then do it for them.
     if (effect.optionalTarget && effect.bind && !bindings[effect.bind]) { notes.push('No target was chosen.'); continue; }
     // "If you control three or more artifacts, …": checked as it resolves; if not, the effects that follow do nothing.
@@ -465,6 +468,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!conditionHolds(game, controllerId, effect, bindings)) { bindings.skipEffects = effect.skip || 0; notes.push(effect.failNote || 'The condition is not met.'); }
       continue;
     }
+    if (!(bindings.skipEffects > 0) && applyCatalogEffect(game, controllerId, effect, bindings, notes)) continue;
     if (effect.kind === 'flicker') {
       const id = resolveBoundId(effect, bindings), hit = locateCardInGame(game, id);
       if (!hit || hit.zone !== 'battlefield') { notes.push('The creature is no longer there.'); continue; }
@@ -525,11 +529,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const owner = effect.effects.find(e => e.forPlayerBind) ? bindings[effect.effects.find(e => e.forPlayerBind).forPlayerBind] : controllerId;
       const fixed = effect.effects.map(e => {
         const out = { ...e, forPlayerBind: null };
+        if (e.bind && typeof bindings[e.bind] === 'string' && !e.targetId) out.targetId = bindings[e.bind];
         if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'binding' && bindings[e.amount.bind] !== undefined) out.amount = Number(bindings[e.amount.bind] || 0);
         return out;
       });
       const src = locateCardInGame(game, bindings.sourceId)?.card || (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId)?.card;
-      game.delayedTriggers = [...(game.delayedTriggers || []), { id: `delayed:${Date.now()}:${Math.random()}`, controllerId: owner || controllerId, ownerId: controllerId, when: { ...effect.when, afterTurn: game.turnNumber }, effects: fixed, requirements: effect.requirements || [], sourceId: bindings.sourceId || null, sourceDefinitionId: src?.definitionId || null, sourceName: (src && cardName(game, src)) || 'Delayed effect' }];
+      game.delayedTriggers = [...(game.delayedTriggers || []), { id: `delayed:${Date.now()}:${Math.random()}`, controllerId: owner || controllerId, ownerId: controllerId, when: { ...effect.when, afterTurn: effect.when.sameTurn || effect.when.event === 'end-combat' ? game.turnNumber - 1 : game.turnNumber }, effects: fixed, requirements: effect.requirements || [], sourceId: bindings.sourceId || null, sourceDefinitionId: src?.definitionId || null, sourceName: (src && cardName(game, src)) || 'Delayed effect' }];
       notes.push(`${cardName(game, src) || 'It'} will do the rest ${effect.when.event === 'upkeep' ? "at the next turn's upkeep" : effect.when.event === 'end-step' ? 'at the next end step' : 'at the next main phase'}.`);
       continue;
     }
@@ -654,6 +659,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         if (!hit || hit.zone !== 'battlefield') continue;
         const d = definitionFor(game, hit.card), n = cardName(game, hit.card);
         if (effect.kind === 'destroy-many' && isIndestructible(hit.card, d)) { notes.push(`${n} is indestructible.`); continue; }
+        if (effect.kind === 'destroy-many' && regenerates(game, hit.card, notes)) continue;
         moveCard(game, id, effect.kind === 'exile-many' ? 'exile' : 'graveyard', { onEvent: e => emit(bindings, e) });
         notes.push(`${n} ${effect.kind === 'exile-many' ? 'is exiled' : 'is destroyed'}.`);
       }
@@ -927,7 +933,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         if (!hit || hit.zone !== 'battlefield')
           continue;
         const d = definitionFor(game, hit.card);
-        if (effect.to === 'graveyard' && effect.destroy && isIndestructible(hit.card, d))
+        if (effect.to === 'graveyard' && effect.destroy && (isIndestructible(hit.card, d) || regenerates(game, hit.card, notes)))
           continue;
         moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e) });
         moved++;
@@ -1002,6 +1008,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           notes.push(`${d?.name || 'Permanent'} is indestructible and is not destroyed.`);
           continue;
         }
+        if (regenerates(game, hit.card, notes)) continue;
         moveCard(game, id, 'graveyard', { onEvent: e => emit(bindings, e) });
         moved++;
       }
@@ -1021,6 +1028,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         continue;
       }
       const to = effect.kind === 'exile' ? 'exile' : effect.kind === 'bounce' ? 'hand' : 'graveyard';
+      if (effect.kind === 'destroy' && regenerates(game, hit.card, notes)) continue;
       if (effect.kind === 'destroy' && Number(hit.card?.counters?.shield || 0) > 0) {
         hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);
         notes.push(`${name}'s shield counter prevents the destruction.`);
@@ -2144,6 +2152,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   }
   const more = compileMoreClauses(c, { sourceName, selfAny, effects, requirements });
   if (more) return { effects, requirements, unsupported };
+  if (compileCatalogClause(c, { sourceName, selfAny, effects, requirements })) return { effects, requirements, unsupported };
   unsupported.push(c);
   return { effects, requirements, unsupported };
 }
@@ -2829,3 +2838,6 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
   return { supported: merged.unsupported.length === 0 && merged.effects.length > 0, effects: merged.effects, requirements: merged.requirements, unsupported: merged.unsupported, raw, guidedFallbackAvailable: merged.unsupported.length > 0 };
 }
 export function supportForEffectText(text) { const c = compileEffectText(text); return { supported: c.supported, unsupported: c.unsupported, effectKinds: [...new Set(c.effects.map(e => e.kind))], requirements: c.requirements, guidedFallbackAvailable: c.guidedFallbackAvailable }; }
+
+// Helpers for effects-catalog.js (read when its functions run, never at load time).
+export const catalogHelpers = { compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };

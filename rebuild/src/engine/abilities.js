@@ -71,7 +71,7 @@ export function spellSupport(definition) {
   // automated. Detect them before generic compilation so Commander Companion never
   // silently treats a partial parse as a complete rules implementation. These spells
   // remain castable through the Guided Oracle resolver without risking a stuck stack.
-  const alternate = text.match(/(?:^|\n)\s*(Overload|Cycling|Kicker|Multikicker|Buyback|Flashback|Escape|Foretell|Dash|Evoke|Spectacle|Blitz|Cleave|Mutate)\b[^\n]*/im);
+  const alternate = text.match(/(?:^|\n)\s*(Overload|Kicker|Multikicker|Buyback|Flashback|Escape|Foretell|Dash|Evoke|Spectacle|Blitz|Cleave|Mutate)\b[^\n]*/im);
   if (alternate)
     return { supported: false, kind: 'alternate-cost', compiled: null, reasons: [`${alternate[1]} is not fully automated; use Guided Oracle resolution.`], guidedFallback: true };
   const modal = modalSpellSpec(definition);

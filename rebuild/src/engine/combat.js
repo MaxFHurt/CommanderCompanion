@@ -1,5 +1,6 @@
 import { evaluateLosses } from './rules.js';
 import { clearCastState } from './effects.js';
+import { regenerates } from './effects-catalog.js';
 import { damageAmount, lifeGainAmount, graveyardDestination } from './replacements.js';
 const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Number(m[0]) : 0; };
 function tempEffects(card, kind) { return (card?.temporaryEffects || []).filter(e => e?.kind === kind && e?.enabled !== false); }
@@ -271,7 +272,7 @@ function stateBasedDeaths(game, events, onEvent) {
         const t = effectiveToughness(c, d, game), lethal = t <= 0 || Number(c.damageMarked || 0) >= t || !!c.deathtouchDamage;
         if (!lethal)
           continue;
-        if (t > 0 && isIndestructible(c, d, game))
+        if (t > 0 && (isIndestructible(c, d, game) || regenerates(game, c)))
           continue;
         bf.splice(i, 1);
         const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null };

@@ -5,6 +5,7 @@
 // if the answer is not recorded yet, `ask` throws a Need and the controller shows the decision.
 // When the answer arrives the operation is simply run again from the top.
 
+import { gatherCatalogRequirement } from '../engine/effects-catalog.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
@@ -232,6 +233,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     const key = `${prefix}:${index}:${req.kind}`;
     const title = `${sourceName} — ${req.label || 'Choose'}`;
 
+    if (gatherCatalogRequirement(game, ctx, req, bindings, ask, key, title, base, { defOf, cardOption, candidatesFor, opponentsOf, alivePlayers, playerById, plural })) return;
     if (req.kind === 'number') {
       const min = Number(req.min || 0), max = Number(req.max ?? 99);
       bindings[req.bind] = ask(key, () => ({ ...base, kind: 'number', title, prompt: req.label || 'Choose a number', min, max }));
