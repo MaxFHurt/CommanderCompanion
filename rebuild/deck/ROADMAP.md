@@ -222,6 +222,15 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.24 (build 169, 31 October 2026; owner: "yes" to requiring reanimation engines in reanimator decks)
+
+- A generated deck aimed at the graveyard or reanimation (graveyard, edh:reanimator, edh:graveyard) always gets its
+  UP.planCore (2) best reanimation engines by card value (isReanimEngine: every-turn or all-at-once reanimation), under the
+  staples' rules (legal, colours, filters, owned when building from the collection, not ruled out). Teval Apex now has
+  The Soul Stone and Living Death (with Entomb, Reanimate, Sol Ring, Arcane Signet). `?engine=old`: planCore 0.
+- Checks: accept 39/39 both; genstrong typicality 0.412 (same as 0.9.23), score 92.8 (92.7), core coverage 0.71 (0.72);
+  tourney match 60% (60%), core 59% (58%); quick check 12/12; savecheck 9/9.
+
 ## Version 0.9.23 (build 168, 31 October 2026; owner: "We need to shut down deck companions old build from saving over commander companions new build ... Every swap should trigger a save and all upgrades should be regenerated ... we can't miss critical things like a soul stone being excluded from a graveyard/reanimate deck")
 
 - **Lost swaps, causes found:** (1) the old Deck Companion (maxfhurt.github.io/Deck-Companion) and the Deck Builder share one site,
