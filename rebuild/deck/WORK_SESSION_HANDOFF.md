@@ -1,7 +1,7 @@
 # Work session handoff
 
 Read this first in a new Claude Code session. It replaces digging through old chats.
-Last updated: 26 October 2026. Live: Version 0.9.21 (build 166; deck power below Budget is a curve that is 0 only for an empty deck; 0.9.20 moved Path to Apex, meter and game plan to Upgrades). Owner (25 Oct): keep the Mid/Budget polish step (the strongest option); UP.tierPolish 1, UP.polishSlot 0.
+Last updated: 31 October 2026. Version 0.9.23 (build 168, on the work branch): decks saved as cc.deckProfile with an IndexedDB copy, the old Deck Companion forwards here, every swap saves and re-works the list, the search measures the strongest cards on every row (ROADMAP). Before: 0.9.21 (build 166; deck power below Budget is a curve that is 0 only for an empty deck; 0.9.20 moved Path to Apex, meter and game plan to Upgrades). Owner (25 Oct): keep the Mid/Budget polish step (the strongest option); UP.tierPolish 1, UP.polishSlot 0.
 **Next: the engine redesign** (plan: https://claude.ai/code/artifact/d9cbe86d-e5af-49e5-ad89-e76e8ada72be). Owner, 20 Oct: "all the
 engine rework stays here until we're sure we are doing better choices. I still want all the options available that were
 available before... I don't want to change our app. Just the way choices are made behind the scenes." Decisions: the rules

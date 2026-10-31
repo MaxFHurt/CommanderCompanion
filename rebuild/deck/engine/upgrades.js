@@ -1576,8 +1576,8 @@ function* scoreCheckG(d, R, o) {
 // Whole-pool search (owner, 18 Oct; UP.pool2): after the list is checked, every legal card that does the same job as a row's pick
 // (the alternatives' rule) is measured as well, a few at a time while the app is idle, so a row's Highest score is the best of
 // the whole pool, not only of the shortlist. poolQueue lists the work; poolStep does some of it and says which rows changed.
-function poolQueue(d, R) {
-  if (!R || !R.dOf || d.format !== 'commander') return null;
+// The cards the search may offer: legal, in colours, not in the deck or ruled out, priced, under the list's cap; most played first.
+function poolU(d, R) {
   const ctx = ctxOf(d),
     dis = new Set((d.dismissed || []).map(norm));
   const inDeck = new Set(d.cards.map(e => norm(e.n)).concat([norm(d.commander)], d.partner ? [norm(d.partner)] : [])),
@@ -1610,7 +1610,57 @@ function poolQueue(d, R) {
     })
     .sort((a, b) => b.g - a.g)
     .map(y => y.c);
-  const rows = [];
+  return {ctx, U, used};
+}
+// Scouting for the strongest cards whatever their job (UP.poolX): a swap's gain is close to "the card in" minus "the card out",
+// so each likely card (the UP.poolXs most played and the UP.poolXb best by card value) is measured once against one slot (the
+// list's first row), and the UP.poolX best of them are then measured on every row by the search. Returns the swaps to measure.
+function poolScout(d, R) {
+  if (!UP.poolX || !R || !R.dOf || d.format !== 'commander') return null;
+  const ref = R.paths.find(L => {
+    const c = find(L.cut);
+    return c && !L.spare && !tags(c).land && (L.opts.apex || L.opts.mid || L.opts.budget);
+  });
+  if (!ref) return null;
+  const {U} = poolU(d, R),
+    seen = new Set(),
+    out = [];
+  const put = x => {
+    if (!seen.has(x._n)) {
+      seen.add(x._n);
+      out.push(x.n);
+    }
+  };
+  U.slice(0, UP.poolXs || 0).forEach(put);
+  if (UP.poolXb && R.valOf)
+    U.slice(0, UP.poolXw || 3000)
+      .map(x => ({x, v: R.valOf(x)}))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, UP.poolXb)
+      .forEach(y => put(y.x));
+  return {cut: ref.cut, names: out, keys: out.map(n => [ref.cut, n, 1])};
+}
+// The scouting results (one value per name, in order): the UP.poolX best, for poolQueue.
+function poolScoutApply(R, S0, vals) {
+  R.scout = S0.names
+    .map((n, i) => ({n, v: vals[i]}))
+    .filter(y => y.v != null)
+    .sort((a, b) => b.v - a.v)
+    .slice(0, UP.poolX)
+    .map(y => y.n);
+}
+function poolQueue(d, R) {
+  if (!R || !R.dOf || d.format !== 'commander') return null;
+  const {ctx, U, used} = poolU(d, R);
+  // The strongest cards for this deck, whatever their job (owner, 31 Oct: "the apex deck should be the strongest deck possible
+  // for that commander"), from the scouting above: they are measured on every row too, so a card the job rule files elsewhere
+  // (The Soul Stone as ramp, Animate Dead as an aura, Entomb as a tutor) still wins the slot it improves most.
+  const G = (R.scout || []).map(n => find(n)).filter(x => x && !tags(x).land);
+  const rows = [],
+    withG = (A, mine) => {
+      const have = new Set(A.map(x => x._n));
+      return A.concat(G.filter(x => !have.has(x._n) && (!used.has(x._n) || mine.has(x._n))));
+    };
   R.paths.forEach((L, i) => {
     const p = L.opts.apex || L.opts.mid || L.opts.budget,
       rc = p && find(p.add),
@@ -1627,11 +1677,29 @@ function poolQueue(d, R) {
       i,
       q: p.q || 1,
       mine,
-      pool: U.filter(x => (!used.has(x._n) || mine.has(x._n)) && same(x)).slice(0, UP.poolN),
+      pool: withG(U.filter(x => (!used.has(x._n) || mine.has(x._n)) && same(x)).slice(0, UP.poolN), mine),
       k: 0
     });
   });
-  return {rows, r: 0, done: 0, total: rows.reduce((a, x) => a + x.pool.length, 0), dOf: R.dOf, edh: ctx.edh};
+  // More rows (UP.poolRows): the deck's weakest spells that have no row yet are measured against the same strongest cards, so
+  // a weak card is not kept only because no card of its own job beat it. A new row is shown only if a card raises the score.
+  if (UP.poolRows && G.length && R.valOf) {
+    const cutSet = new Set(R.paths.map(L => norm(L.cut))),
+      lead = new Set([norm(d.commander), d.partner ? norm(d.partner) : ''].filter(Boolean));
+    d.cards
+      .map(e => ({e, c: find(e.n)}))
+      .filter(
+        ({e, c}) => c && !e.l && !isBasic(c.n) && !tags(c).land && !cutSet.has(c._n) && !lead.has(c._n) && !c.gc && !isFinisher(c)
+      )
+      .map(y => Object.assign(y, {v: R.valOf(y.c)}))
+      .sort((a, b) => a.v - b.v)
+      .slice(0, UP.poolRows)
+      .forEach(({e}) => {
+        const L = {cut: e.n, opts: {}, gain: 0, extra: true, ranked: true}; // joins the list in poolPromote, once it has a pick
+        rows.push({L, i: -1, q: 1, mine: new Set(), pool: withG([], new Set()), k: 0});
+      });
+  }
+  return {rows, r: 0, done: 0, total: rows.reduce((a, x) => a + x.pool.length, 0), dOf: R.dOf, edh: ctx.edh, R};
 }
 function poolStep(Q, ms) {
   const t0 = Date.now(),
@@ -1690,7 +1758,10 @@ function poolKeep(L, c, v) {
   if (A.some(y => y.n === c.n)) return;
   A.push({n: c.n, dScore: v});
   A.sort((a, b) => b.dScore - a.dScore);
-  if (A.length > 6) A.length = 6;
+  // with the strongest cards measured on every row, every row's best few are the same cards: keep enough that a row still has
+  // its own best once other rows have taken those
+  const keep = UP.poolX ? UP.poolKeep || 30 : 6;
+  if (A.length > keep) A.length = keep;
 }
 function poolPromote(Q, d) {
   if (!Q) return [];
@@ -1733,7 +1804,7 @@ function poolPromote(Q, d) {
       k = norm(y.n),
       c = find(y.n),
       base = O.apex || O.mid || O.budget;
-    if (done.has(L) || !c || !base) continue;
+    if (done.has(L) || !c || (!base && !L.extra)) continue;
     const b = best(O);
     if (b && norm(b.add) === k) {
       done.add(L);
@@ -1744,7 +1815,7 @@ function poolPromote(Q, d) {
       done.add(L);
       continue;
     } // nothing left beats the row's own best
-    const np = Object.assign({}, base, {
+    const np = Object.assign({}, base || {cut: L.cut, q: y.x.q || 1, smart: true, cutWhy: ['One of the weakest cards in this deck by the deck score']}, {
       add: c.n,
       dScore: y.v,
       held: false,
@@ -1753,7 +1824,7 @@ function poolPromote(Q, d) {
       pc: false,
       gcPick: false,
       why: ['Highest score of every card checked'],
-      alt: base.add
+      alt: base ? base.add : undefined
     });
     const left = T3.map(t => O[t])
         .filter(p => p && p.dScore != null)
@@ -1832,6 +1903,16 @@ function poolPromote(Q, d) {
       );
     if (L.top && used.has(norm(L.top.n)) && !mine.has(norm(L.top.n))) L.top = null;
   });
+  // the new rows for weak cards that found a card raising the score join the list, biggest gain first
+  if (Q.R)
+    Q.rows
+      .filter(x => x.L.extra && x.L.opts.apex && !Q.R.paths.includes(x.L))
+      .sort((a, b) => b.L.opts.apex.dScore - a.L.opts.apex.dScore)
+      .forEach(x => {
+        x.L.gain = x.L.opts.apex.dScore;
+        Q.R.paths.push(x.L);
+      });
+  if (Q.R && Q.R.count) recount(Q.R);
   return freed;
 } // the held picks that lost their place: their holds are released
 const RANK_THEME = 0.1;
@@ -1871,6 +1952,11 @@ function stickTheme(d, R) {
     })
     .filter(x => x.list.length)
     .sort((a, b) => b.list[0].v - a.list[0].v);
+  // the rows the strongest-card search added for weak cards (poolRows) stay only with an on-theme card to offer
+  {
+    const keepX = new Set(rows.map(x => x.L));
+    R.paths = R.paths.filter(L => !L.extra || keepX.has(L));
+  }
   for (const {L, list} of rows) {
     const O = L.opts,
       base = O.apex || O.mid || O.budget;
@@ -2045,6 +2131,11 @@ const UP = {
   altCut: 2,
   pool2: 1,
   poolN: 250,
+  poolX: 40, // the strongest cards whatever their job, measured on every row (poolScout); 0: off
+  poolXs: 300, // scouted: the most played ...
+  poolXb: 100, // ... and the best by card value
+  poolRows: 10, // rows for the deck's weakest spells that have none
+  aimText: 1, // a plan's core pieces fit its EDHREC theme by their text (matchAim, AIM_TEXT)
   bs: 1,
   bsF: 0.5,
   bsP: 9,

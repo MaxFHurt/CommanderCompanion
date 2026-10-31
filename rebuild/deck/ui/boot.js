@@ -31,6 +31,7 @@ restoreSpot();
   if (bn) bn.textContent = (window.VERSION || '') + ' (build ' + window.BUILD + ')';
 }
 render();
+loadDurable();
 loadSavedLibrary();
 initBackup();
 checkShareLink();

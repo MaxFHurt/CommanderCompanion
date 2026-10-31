@@ -148,13 +148,13 @@ async def deck_builder(browser):
     white = FIX['decks']['white']
     await page.evaluate("""(w) => {
       localStorage.setItem('ccv07-decks', JSON.stringify([{ id: 'old1', name: 'Mono White', commander1: w.commander, commander2: '', deckList: w.list }]));
-      localStorage.removeItem('dc.profile'); localStorage.removeItem('cc.decksMoved');
+      localStorage.removeItem('dc.profile'); localStorage.removeItem('cc.deckProfile'); localStorage.removeItem('cc.decksMoved');
     }""", white)
     await page.reload(); await page.wait_for_function('window.__ccReady === true', timeout=15000)
-    moved = await page.evaluate("JSON.parse(localStorage.getItem('dc.profile') || 'null')")
+    moved = await page.evaluate("JSON.parse(localStorage.getItem('cc.deckProfile') || 'null')")
     check('old editor deck moved into the Deck Builder', bool(moved) and any(d['id'] == 'cc-old1' and d['commander'] == white['commander'] for d in moved['decks']), str(moved)[:200])
     await page.reload(); await page.wait_for_function('window.__ccReady === true', timeout=15000)
-    count = await page.evaluate("JSON.parse(localStorage.getItem('dc.profile')).decks.filter(d => d.id === 'cc-old1').length")
+    count = await page.evaluate("JSON.parse(localStorage.getItem('cc.deckProfile')).decks.filter(d => d.id === 'cc-old1').length")
     check('a deck moves only once', count == 1, str(count))
     await page.click('[data-act="start"]'); await page.click('[data-mode="fully-tracked"]'); await page.click('[data-play="local"]')
     await page.click('[data-seat-act="saved"]'); await page.locator('.modal [data-deck]').first.click()

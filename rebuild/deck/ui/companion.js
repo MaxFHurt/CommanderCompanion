@@ -2,7 +2,8 @@
 // The Deck Builder is part of Commander Companion (the game side, one folder up). Both pages share one origin, so
 // they share storage:
 // - One profile: the player's name, avatar, games and achievements live in the game side's profile (ccv07-profile).
-//   The name is shown here read-only; decks, collection, buy lists and tablemates stay here (dc.profile).
+//   The name is shown here read-only; decks, collection, buy lists and tablemates stay here (cc.deckProfile;
+//   dc.profile before 0.9.23).
 // - Home goes back to Commander Companion, which reopens the screen that opened the Deck Builder.
 const CC = {profileKey: 'ccv07-profile', returnKey: 'cc.return', url: '../'};
 function ccProfile() {

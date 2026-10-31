@@ -714,7 +714,8 @@ function handleAct(act, v, n, pArg) {
         S.draft = null;
         S.open = false;
         S.deckId = (S.profile.decks[0] || {}).id || null;
-        lsSet('dc.draft', null);
+        PROF.dirty = true;
+        persist();
         toast('Discarded ' + nm + '.');
       }
       changed = false;
@@ -728,6 +729,7 @@ function handleAct(act, v, n, pArg) {
         changed = false;
         break;
       }
+      PROF.gone.add(v);
       S.profile.decks = S.profile.decks.filter(x => x.id !== v);
       if (S.deckId === v) {
         S.deckId = (S.profile.decks[0] || {}).id || null;
@@ -2563,6 +2565,7 @@ document.addEventListener(
   },
   true
 );
+// leaving or hiding the page saves what is still waiting; a window with nothing changed writes nothing (persist)
 addEventListener('pagehide', () => {
   saveSpot();
   clearTimeout(saveT);

@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.36**. Build 37 (one-off spells: Brainstorm, Ponder, Arcane Denial, Mana Drain, Force of Will, Farewell, Growth Spiral …) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v37`).
+- Live build: **1.0.0-rebuild.37**. Build 38 (on the work branch, not live): the Deck Builder saves decks as `cc.deckProfile` (was `dc.profile`, which the old Deck Companion page kept writing over) with an IndexedDB copy, saves every swap at once and re-works the upgrade list after it, and its search measures the strongest cards on every row (deck/ROADMAP.md, 0.9.23). `src/data/deck-builder.js` reads the new name (the old one only when nothing is saved under the new one).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is

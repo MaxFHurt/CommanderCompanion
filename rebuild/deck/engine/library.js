@@ -322,11 +322,22 @@ function tags(c) {
   }
   return (c._t = {land, th, roles});
 }
+// The core pieces of a plan fit its EDHREC theme whatever share of the theme's decks run them (owner, 31 Oct: "we can't miss
+// critical things like a soul stone being excluded from a graveyard/reanimate deck"): the theme pages only list what many of
+// its players run, and a strong card few of them own (The Soul Stone, in 7% of Teval decks) never reached them. UP.aimText.
+const REANIM_PLAN =
+    /return (target|up to one target|a|all|each)[^.]*creature cards? from (your|a|all|their) graveyards? (to|onto) the battlefield|put (target|a|up to one target|all)[^.]*creature cards? from (a|your|all) graveyards? onto the battlefield|return enchanted creature card to the battlefield/i,
+  ENTOMB_PLAN = /search your library for (a|an|up to \w+) [^.]*?cards?[^.]*put (it|them|that card|those cards) into your graveyard/i;
+const AIM_TEXT = {
+  reanimator: c => isReanimEngine(c) || REANIM_PLAN.test(c.o || '') || ENTOMB_PLAN.test(c.o || ''),
+  graveyard: c => isReanimEngine(c) || REANIM_PLAN.test(c.o || '') || ENTOMB_PLAN.test(c.o || '')
+};
 function matchAim(c, key, tribe) {
   if (isEdhAim(key)) {
     const m = EDH.tmap && EDH.tmap[key.slice(4)],
       x = m && edhOf(m, c),
       all = EDH.map && edhOf(EDH.map, c);
+    if (UP.aimText && m && AIM_TEXT[key.slice(4)] && AIM_TEXT[key.slice(4)](c)) return 1;
     if (!x || x.inc < 0.2) return 0;
     // A card that is a core piece of the theme (in UP.dom of its decks or more) fits it even when it is just as common across
     // all of this commander's decks (Zombie lords for Gisa, whose players mostly build Zombies anyway).

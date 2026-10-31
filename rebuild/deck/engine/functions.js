@@ -5,7 +5,7 @@
 // finisher, stax, combat. fnOf(c) caches the result on the card as c._fn; tags(c) passes its 0.9.3 roles as oldRoles.
 
 // The engine settings that make every choice the way 0.9.3 did ("?engine=old", ui/boot.js; the benchmark's baseline)
-const ENGINE_OLD = {v2: 0, v2r: null, syn: 0, v2sim: 0, newTh: [], xPlan: 0};
+const ENGINE_OLD = {v2: 0, v2r: null, syn: 0, v2sim: 0, newTh: [], xPlan: 0, poolX: 0, poolRows: 0, aimText: 0};
 
 // every ability of a reading with its effects (a modal ability's modes count as its effects), front and back faces
 function fnAbilities(r) {

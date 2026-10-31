@@ -1,12 +1,16 @@
 // The link between the game side (this app) and the Deck Builder (deck/, formerly Deck Companion).
-// The Deck Builder owns every deck (localStorage 'dc.profile'). This side reads them, as plain-text
+// The Deck Builder owns every deck (localStorage 'cc.deckProfile'; 'dc.profile' before deck build 168). This side reads them, as plain-text
 // lists for player setup, and writes to them only once: moving decks saved before the merge.
 // The game side owns the player's name, avatar, games, achievements and history ('ccv07-profile').
 // Both pages are on one origin, so they share storage.
 
 const DECK_BUILDER_URL = 'deck/';
 const RETURN_KEY = 'cc.return';            // sessionStorage: the screen to reopen when coming back
-const BUILDER_PROFILE_KEY = 'dc.profile';  // the Deck Builder's saved profile (its decks live here)
+const BUILDER_PROFILE_KEY = 'cc.deckProfile';  // the Deck Builder's saved profile (its decks live here)
+// The old Deck Companion's name for it. The old app (its own site, same origin) still writes there, so it is only read when
+// nothing has been saved under the new name yet, and never written.
+const LEGACY_PROFILE_KEY = 'dc.profile';
+const BUILDER_REV_KEY = 'cc.deckRev';      // the number of the latest save; an open Deck Builder takes a newer one
 const MOVED_KEY = 'cc.decksMoved';         // ids of game-side decks already moved into the Deck Builder
 const DEFAULT_BUILDER_NAMES = ['', 'me', 'planeswalker'];
 
@@ -34,14 +38,21 @@ function read(storage, key, fallback) {
 
 /** The Deck Builder's whole saved profile, as stored; null when there is none. */
 export function readBuilderProfile(storage = globalThis.localStorage) {
-  const profile = read(storage, BUILDER_PROFILE_KEY, null);
+  const profile = read(storage, BUILDER_PROFILE_KEY, null) || read(storage, LEGACY_PROFILE_KEY, null);
   return profile && Array.isArray(profile.decks) ? profile : null;
+}
+
+// Save the Deck Builder's profile as the newest copy, so the Deck Builder's own device copy (IndexedDB) does not win over it.
+function saveBuilder(profile, storage) {
+  const rev = Math.max(Date.now(), Number(read(storage, BUILDER_REV_KEY, {})?.rev || 0) + 1);
+  storage.setItem(BUILDER_PROFILE_KEY, JSON.stringify({ ...profile, saveRev: rev }));
+  storage.setItem(BUILDER_REV_KEY, JSON.stringify({ rev }));
 }
 
 /** Put back the Deck Builder's saved profile from a profile backup. */
 export function writeBuilderProfile(profile, storage = globalThis.localStorage) {
   if (!profile || !Array.isArray(profile.decks)) return false;
-  try { storage.setItem(BUILDER_PROFILE_KEY, JSON.stringify(profile)); return true; } catch { return false; }
+  try { saveBuilder(profile, storage); return true; } catch { return false; }
 }
 
 // A deck moved from the old editor keeps its old id on this side, so Table Defaults and deck stats still find it.
@@ -139,7 +150,7 @@ export function moveGameDecks(gameDecks, storage = globalThis.localStorage, { ag
   }
   profile.updatedAt = Date.now();
   try {
-    storage.setItem(BUILDER_PROFILE_KEY, JSON.stringify(profile));
+    saveBuilder(profile, storage);
     storage.setItem(MOVED_KEY, JSON.stringify([...moved]));
   } catch {
     return 0;   // storage full or blocked: try again next start

@@ -1,13 +1,137 @@
 // ---------- storage ----------
+// Saving (0.9.23). The decks are saved under Commander Companion's own names (cc.deckProfile, cc.deckDraft), not the old
+// Deck Companion's (dc.profile, dc.draft): both apps sit on one site and share its storage, and an old Deck Companion page
+// left open saved its stale copy over the new one whenever it was hidden. The old names are read once, to move decks
+// saved before this build, and never written again.
+// - Every save carries a number (saveRev, from the clock) and is also kept in this app's own IndexedDB, which survives
+//   Safari clearing local storage and has room when local storage is full. Loading takes the newer copy.
+// - A window saves only what it changed, and never over a newer save from another window: it takes the other window's
+//   decks first, keeping its own newer ones.
+// - If local storage is full, the app's caches (saved upgrade lists) are cleared to make room; a save that fails
+//   everywhere says so on screen instead of failing silently.
 let saveT = 0;
+const PROF = {
+  key: 'cc.deckProfile',
+  draftKey: 'cc.deckDraft',
+  revKey: 'cc.deckRev',
+  legacy: 'dc.profile',
+  legacyDraft: 'dc.draft',
+  db: 'cc-deck-builder',
+  rev: 0,
+  dirty: false,
+  warned: 0,
+  gone: new Set() // decks deleted in this window, so a merge with another window's save does not bring them back
+};
+const nextRev = () => Math.max(Date.now(), (PROF.rev || 0) + 1);
 function loadLocal() {
-  try {
-    const p = JSON.parse(localStorage.getItem('dc.profile') || 'null');
-    if (p && Array.isArray(p.decks)) S.profile = p;
-  } catch (e) {}
-  const dr = lsGet('dc.draft');
+  let p = lsGet(PROF.key),
+    moved = false;
+  if (!(p && Array.isArray(p.decks))) {
+    p = lsGet(PROF.legacy);
+    moved = !!(p && Array.isArray(p.decks));
+  }
+  if (p && Array.isArray(p.decks)) {
+    S.profile = p;
+    PROF.rev = p.saveRev || 0;
+  }
+  let dr = lsGet(PROF.draftKey);
+  if (!dr && moved) dr = lsGet(PROF.legacyDraft);
   if (dr && Array.isArray(dr.cards)) S.draft = dr;
+  if (moved && !S.profile.example) {
+    PROF.dirty = true;
+    persist();
+  }
 }
+// The IndexedDB copy, after the first screen is drawn: when it is newer (local storage was cleared, or was full), it wins.
+async function loadDurable() {
+  let rec = null;
+  try {
+    rec = await profDb('readonly', st => st.get('profile'));
+  } catch (e) {
+    return;
+  }
+  if (!rec || !rec.profile || !Array.isArray(rec.profile.decks) || (rec.rev || 0) <= (PROF.rev || 0)) {
+    if (!S.profile.example && (!rec || (rec.rev || 0) < (PROF.rev || 0))) durableSave(); // the copy is missing or older
+    return;
+  }
+  adoptProfile(rec.profile, rec.draft);
+  toast('Your decks were brought back from this device’s saved copy.');
+}
+function profDb(mode, fn) {
+  return new Promise((res, rej) => {
+    let rq;
+    try {
+      rq = indexedDB.open(PROF.db, 1);
+    } catch (e) {
+      return rej(e);
+    }
+    rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+    rq.onerror = () => rej(rq.error);
+    rq.onsuccess = () => {
+      const db = rq.result,
+        tx = db.transaction('kv', mode),
+        r = fn(tx.objectStore('kv'));
+      tx.oncomplete = () => {
+        db.close();
+        res(r && r.result);
+      };
+      tx.onerror = () => {
+        db.close();
+        rej(tx.error);
+      };
+    };
+  });
+}
+function durableSave() {
+  const rec = {rev: PROF.rev, at: Date.now(), profile: S.profile, draft: S.draft || null};
+  return profDb('readwrite', st => st.put(JSON.parse(JSON.stringify(rec)), 'profile')).then(
+    () => true,
+    () => false
+  );
+}
+// Take a profile saved elsewhere (another window, the IndexedDB copy) as this window's own.
+function adoptProfile(p, draft) {
+  S.profile = p;
+  PROF.rev = p.saveRev || 0;
+  PROF.dirty = false;
+  if (draft !== undefined) S.draft = draft && Array.isArray(draft.cards) ? draft : null;
+  VLAST.clear();
+  UNDO.base = null;
+  undoMark();
+  versionMark();
+  recsFor.k = null;
+  if (S.deckId && !S.profile.decks.some(x => x.id === S.deckId) && !(S.draft && S.draft.id === S.deckId)) {
+    S.deckId = (S.profile.decks[0] || {}).id || null;
+    if (!S.deckId) S.open = false;
+  }
+  render();
+}
+// Another window saved first: its decks, with this window's newer ones (and the ones it just made) on top.
+function mergeProfile(theirs) {
+  const mine = new Map(S.profile.decks.map(d => [d.id, d])),
+    seen = new Set(),
+    out = [];
+  (theirs.decks || []).forEach(t => {
+    if (!t || PROF.gone.has(t.id)) return;
+    const m = mine.get(t.id);
+    seen.add(t.id);
+    out.push(m && (m.updatedAt || 0) >= (t.updatedAt || 0) ? m : t);
+  });
+  S.profile.decks.forEach((d, i) => {
+    if (!seen.has(d.id)) out.splice(Math.min(i, out.length), 0, d);
+  });
+  S.profile.decks = out;
+  VLAST.clear();
+  versionMark();
+}
+// Other windows of this app: take their saves as they happen (when this one has nothing waiting to be saved).
+addEventListener('storage', ev => {
+  if (ev.key !== PROF.revKey || !ev.newValue) return;
+  const r = (JSON.parse(ev.newValue) || {}).rev || 0;
+  if (r <= PROF.rev || PROF.dirty) return;
+  const p = lsGet(PROF.key);
+  if (p && Array.isArray(p.decks) && (p.saveRev || 0) === r) adoptProfile(p, lsGet(PROF.draftKey));
+});
 // Undo (main screen): every change to your decks, buy lists or library is recorded when it is saved, one step per action, so
 // the Undo button puts back the state before the last action, whatever it was. Kept for this visit only (the last 30 steps).
 const UNDO = {stack: [], base: null, seq: 0, at: -1, label: ''};
@@ -42,8 +166,7 @@ function undoLast() {
   recsFor.k = null;
   clearTimeout(saveT);
   saveT = setTimeout(persist, 300);
-  if (S.draft) lsSet('dc.draft', S.draft);
-  else localStorage.removeItem('dc.draft');
+  PROF.dirty = true;
   $('#modal').hidden = true;
   render();
   toast('Undid: ' + (u.label || 'last change') + '.');
@@ -133,15 +256,60 @@ function touch() {
   versionMark();
   S.profile.updatedAt = Date.now();
   S.profile.example = false;
+  const d = cur();
+  if (d) d.updatedAt = Date.now();
+  PROF.dirty = true;
   clearTimeout(saveT);
-  saveT = setTimeout(persist, 700);
+  // a swap is saved at once (owner, 31 Oct: "every swap should trigger a save"); other edits a moment later, together
+  if (S.saveNow) {
+    S.saveNow = false;
+    persist();
+  } else saveT = setTimeout(persist, 700);
+}
+// Local storage is full: clear what can be worked out again (saved upgrade lists, the search index, the old app's copy).
+function freeRoom() {
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (/^dc\.(rec\.|recIdx$|upx\.|ph$|profile$|draft$)/.test(k)) localStorage.removeItem(k);
+    }
+  } catch (e) {}
+}
+function lsPut(k, text) {
+  try {
+    localStorage.setItem(k, text);
+    return true;
+  } catch (e) {}
+  freeRoom();
+  try {
+    localStorage.setItem(k, text);
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 async function persist() {
-  const json = JSON.stringify(S.profile);
-  try {
-    localStorage.setItem('dc.profile', json);
-  } catch (e) {}
-  lsSet('dc.draft', S.draft || null);
+  clearTimeout(saveT);
+  if (!PROF.dirty) return; // nothing changed here: never write this window's copy over a newer one
+  const there = lsGet(PROF.revKey);
+  if (there && (there.rev || 0) > PROF.rev) {
+    const p = lsGet(PROF.key);
+    if (p && Array.isArray(p.decks) && (p.saveRev || 0) === there.rev) mergeProfile(p);
+    PROF.rev = Math.max(PROF.rev, there.rev || 0);
+  }
+  PROF.rev = nextRev();
+  S.profile.saveRev = PROF.rev;
+  PROF.dirty = false;
+  const ok =
+    lsPut(PROF.key, JSON.stringify(S.profile)) &&
+    lsPut(PROF.draftKey, JSON.stringify(S.draft || null)) &&
+    lsPut(PROF.revKey, JSON.stringify({rev: PROF.rev}));
+  const kept = await durableSave();
+  if (!ok && !kept && Date.now() - PROF.warned > 15000) {
+    PROF.warned = Date.now();
+    PROF.dirty = true;
+    toast('Not saved: this browser is out of room or is blocking storage. Save a backup from Profile now.');
+  }
   if (S.autoBackup) writeLinked();
 }
 function idb(mode, fn) {
@@ -1024,6 +1192,7 @@ async function autoUpdate(sig, reason) {
         rec = {at: Date.now(), n, data: DBINFO.when || '', why: reason || 'Automatic update', sig: lsGet('dc.relSig')};
       P.cardData = rec;
       P.cardLog = [{at: rec.at, n, why: rec.why}].concat(P.cardLog || []).slice(0, 12);
+      PROF.dirty = true;
       persist();
     } catch (e) {}
   } else toast('Scryfall refused the card download. Open Profile for details.');
@@ -1254,6 +1423,13 @@ function gcBlockMsg() {
   return '';
 }
 function doSwap(d, p, step) {
+  // a swap is saved at once, and a deck being upgraded is kept: a draft becomes one of your decks with its first swap
+  S.saveNow = true;
+  if (S.draft && S.draft === d) {
+    S.profile.decks.unshift(d);
+    S.draft = null;
+    S.deckId = d.id;
+  }
   delete d.regenUndo; // once you start upgrading, the rebuild can no longer be undone as a whole (each swap has its own Undo)
   const old = d.cards.find(x => x.n === p.cut),
     keep = step ? Math.max(step, (old && old.step) || 0) : (old && old.step) || 0;
