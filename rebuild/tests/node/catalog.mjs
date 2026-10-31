@@ -333,4 +333,59 @@ section('round 4: Auras that enchant players and graveyard cards');
   check('…when the Aura leaves, the creature is sacrificed', !t.bf(0, 'Colossal Dreadmaw') && t.names(1, 'graveyard').includes('Colossal Dreadmaw'), JSON.stringify(t.names(1, 'graveyard')));
 }
 
+section('round 5: triggers that used to never fire');
+{
+  const t = setup();
+  t.give(0, 'Divination'); const cyc = asText(t, t.hand(0, 'Divination'), 'Draw two cards.\nCycling {1}\nWhen you cycle this card, you gain 3 life.');
+  const life = t.P(0).life;
+  const row = t.view(0).players[0].hand.find(c => c.id === cyc.instanceId).abilities.find(a => /Cycling/.test(a.text));
+  t.ctl.dispatch({ type: 'activate', instanceId: cyc.instanceId, abilityId: row.id }, t.as(0)); settle(t);
+  check('"When you cycle this card" fires (from the graveyard) after cycling', t.P(0).life === life + 3, `${life} → ${t.P(0).life}`);
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you scry, you gain 1 life.');
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Scry 1. Draw a card.');
+  check('"Whenever you scry" fires', t.P(0).life === life + 1);
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you commit a crime, you gain 2 life.');
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'This spell deals 1 damage to target opponent.', [[d => d.targeting, d => d.options.find(o => o.playerId === t.P(1).playerId).id]]);
+  check('"Whenever you commit a crime" fires when you target an opponent', t.P(0).life === life + 2);
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', 'Whenever this creature becomes the target of a spell or ability an opponent controls, you gain 4 life.', {}, 1);
+  const life = t.P(1).life;
+  cast(t, 'Opt', 'Tap target creature.', [[d => d.targeting, d => bear.instanceId]]);
+  check('"becomes the target of a spell or ability an opponent controls" fires', t.P(1).life === life + 4, `${life} → ${t.P(1).life}`);
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'At the beginning of your second main phase, you gain 1 life.');
+  const life = t.P(0).life;
+  t.autoPass = true; t.do(0, { type: 'next-phase' }); settle(t);
+  if (t.game.phase !== 'postcombat-main') { t.do(0, { type: 'next-phase' }); settle(t); }
+  check('"At the beginning of your second main phase" fires', t.P(0).life === life + 1, `${t.game.phase} ${life} → ${t.P(0).life}`);
+}
+{
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Forest', 'battlefield');
+  t.end(0); t.end(1);
+  const bear = t.bf(0, 'Grizzly Bears');
+  t.game.extraCombats = 1;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  bear.tapped = false;
+  const life1 = t.P(1).life;
+  t.do(0, { type: 'next-phase' });
+  const second = t.game.phase === 'combat' || t.game.phase === 'begin-combat';
+  if (second) { t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] }); settle(t); }
+  check('an additional combat phase lets creatures attack again', second && t.P(1).life === life1 - 2, `${t.game.phase} ${life1} → ${t.P(1).life}`);
+}
+
 done();

@@ -982,6 +982,8 @@ export function createTransactionEngine(game) {
           emit(game, { type: 'draw-step', playerId: game.activePlayerId });
         if (action.phase === 'precombat-main')
           emit(game, { type: 'precombat-main-start', playerId: game.activePlayerId, controllerId: game.activePlayerId });
+        if (action.phase === 'postcombat-main')
+          emit(game, { type: 'postcombat-main-start', playerId: game.activePlayerId, controllerId: game.activePlayerId });
         if (action.phase === 'end-step')
           emit(game, { type: 'end-step', playerId: game.activePlayerId });
         if (action.phase === 'begin-combat' || action.phase === 'combat')

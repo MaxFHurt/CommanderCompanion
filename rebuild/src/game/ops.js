@@ -75,6 +75,31 @@ export function effectRunsByItself(text, sourceName = 'Card') {
   return /^(?:you may )?search your library/i.test(t) && !!librarySearchSpec(t);
 }
 
+/**
+ * After a spell, ability or trigger is put on the stack with its targets: "becomes the target of a spell or ability"
+ * triggers, and "Whenever you commit a crime" (targeting an opponent, their permanents, cards or spells).
+ */
+function announceTargets(game, player, reqs, bindings, sourceId, kind) {
+  const ids = [];
+  for (const r of reqs || []) if (['target', 'player', 'multi-target', 'graveyard-target', 'stack-target'].includes(r.kind)) ids.push(...[].concat(bindings[r.bind] || []));
+  let crime = false;
+  for (const id of new Set(ids.filter(x => typeof x === 'string'))) {
+    const q = (game.players || []).find(p => p.playerId === id);
+    if (q) { if (q.playerId !== player.playerId) crime = true; continue; }
+    const owner = (game.players || []).find(p => ['battlefield', 'graveyard', 'exile', 'hand'].some(z => (p.deck?.[z] || []).some(c => c.instanceId === id)));
+    const onField = owner && (owner.deck.battlefield || []).find(c => c.instanceId === id);
+    const spell = (game.stack || []).find(x => x.id === id);
+    if (onField) {
+      const firstThisTurn = onField.lastTargetedTurn !== game.turnNumber;
+      onField.lastTargetedTurn = game.turnNumber;
+      queueTriggers(game, { type: 'becomes-target', firstThisTurn, sourceId: id, definitionId: onField.definitionId, controllerId: onField.controllerId || owner.playerId, byPlayerId: player.playerId, bySourceId: sourceId, byKind: kind });
+      if ((onField.controllerId || owner.playerId) !== player.playerId) crime = true;
+    } else if (owner && owner.playerId !== player.playerId) crime = true;
+    if (spell && spell.controllerId !== player.playerId) crime = true;
+  }
+  if (crime) queueTriggers(game, { type: 'crime', playerId: player.playerId, controllerId: player.playerId, sourceId });
+}
+
 function guidedSpec(title, oracleText, unsupported) {
   return { title, oracleText, unsupported: (unsupported || []).filter(Boolean) };
 }
@@ -432,6 +457,8 @@ function runPlay(game, op, ask) {
     top.entersTapped = permanent && !faceDown && /enters(?: the battlefield)? tapped/i.test(def.oracleText || '')
       ? entersBattlefieldTapped({ definition: def, battlefield: player.deck.battlefield, definitions: game.cardDefinitions }) : false;
   }
+  announceTargets(game, player, cast, bindings, card.instanceId, 'spell');
+  if (attachTo && !reanimate) announceTargets(game, player, [{ kind: 'target', bind: '__aura' }], { __aura: attachTo }, card.instanceId, 'spell');
   // Cast triggers of the spell itself (cascade, storm).
   if (!faceDown) for (const t of castTriggers(game, player, card, def)) queueSpecialTrigger(game, player, card, def, t, stackId);
 }
@@ -572,6 +599,7 @@ function runActivate(game, op, ask) {
   }
   const stackId = newId('stack');
   commit(game, { ...common, type: 'activate-ability-stack', stackId, effects: compiled.effects, effectBindings: bindings, guidedResolution: guided, label: `${player.displayName} activates ${def.name}: ${short}` });
+  announceTargets(game, player, cast, bindings, card.instanceId, 'ability');
   const live = findInPlayer(player, card.instanceId);
   if (ability.loyaltyDelta !== null && live?.zone === 'battlefield') {
     live.card.counters = live.card.counters || {};
@@ -715,6 +743,7 @@ function runTrigger(game, op, ask) {
   });
   const top = (game.stack || []).find(x => x.id === stackId);
   if (top) { top.name = name; top.label = `${name} trigger`; top.text = text; top.resolveReqs = resolve; top.optional = optional; top.search = search; }
+  if (compiled?.supported) announceTargets(game, player, splitRequirements(compiled.requirements || []).cast, bindings, trigger.sourceId, 'trigger');
 }
 
 // ---------------------------------------------------------------------------------------------

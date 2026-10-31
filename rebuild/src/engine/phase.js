@@ -111,6 +111,7 @@ export function advanceTurn(game) {
       game.roundNumber++;
   }
   game.turnNumber++;
+  game.extraCombats = 0;
   // Werewolves: "if no spells were cast last turn" / "if a player cast two or more spells last turn".
   game.lastTurnSpells = { total: Number(game.spellsCastThisTurn || 0), most: Math.max(0, ...(game.players || []).map(p => Number(p.counters?.spellsCastThisTurn || 0))) };
   game.spellsCastThisTurn = 0;

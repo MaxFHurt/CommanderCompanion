@@ -1,4 +1,5 @@
 import { withOverlay } from './overlay.js';
+import { catalogTriggerMatch, PROBE_EXTRA_EVENTS } from './triggers-catalog.js';
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
 import { compileEffectText, applyEffects } from './effects.js';
@@ -152,6 +153,7 @@ function spellFits(filter, spell) {
   if (!f) return true;
   return f.split(/,\s*(?:or\s+)?|\s+or\s+/).filter(Boolean).some(part => part.split(/\s+/).every(w => {
     if (w === 'multicolored') return colors.length > 1;
+    if (w === 'kicked') return !!spell?.kicked;
     if (w === 'colorless') return colors.length === 0;
     if (w === 'monocolored') return colors.length === 1;
     const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w];
@@ -165,6 +167,8 @@ const STEP_EVENTS = { upkeep: 'upkeep', 'draw step': 'draw-step', 'precombat mai
 /** true / false when the trigger's wording is understood for this event; undefined to fall back to the older readers below. */
 function generalMatch(game, row, t, event) {
   let m;
+  const extra = catalogTriggerMatch(game, row, t, event, { subjectEvent, whoMatches, eventCard, selfName: r => escRe(String(r.definition?.name || '').split(',')[0]) });
+  if (extra !== undefined) return extra;
   switch (event.type) {
     case 'enters-battlefield':
       if ((m = t.match(/^Whenever (you|an opponent|a player|another player) plays? a land/i))) return !!event.played && whoMatches(m[1], event.controllerId, row);
@@ -209,10 +213,10 @@ function generalMatch(game, row, t, event) {
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:is|are) dealt damage/i))) return subjectEvent(game, row, m[1], event, event.targetId);
       return undefined;
     case 'spell-cast': {
-      m = t.match(/^Whenever (you|an opponent|a player|each opponent|another player|one or more opponents) (?:casts? or cop(?:y|ies)|casts?) (?:(?:their|your|his or her) (first|second|third) )?(?:(.+?) )?spells?( each turn)?( (?:during|from) .+)?$/i);
+      m = t.match(/^When(?:ever)? (you|an opponent|a player|each opponent|another player|one or more opponents) (?:casts? or cop(?:y|ies)|casts?) (?:(?:their|your|his or her) (first|second|third) )?(?:(.+?) )?spells?( each turn)?( (?:during|from) .+)?$/i);
       if (!m) return undefined;
       if (!whoMatches(m[1], event.controllerId, row)) return false;
-      const spell = { typeLine: event.typeLine || eventSpellDef(game, event)?.typeLine || '', colors: eventSpellDef(game, event)?.colors || [], manaValue: Number(event.manaValue ?? eventSpellDef(game, event)?.manaValue ?? 0) };
+      const spell = { typeLine: event.typeLine || eventSpellDef(game, event)?.typeLine || '', colors: event.colors || eventSpellDef(game, event)?.colors || [], manaValue: Number(event.manaValue ?? eventSpellDef(game, event)?.manaValue ?? 0), kicked: !!event.kicked };
       const filter = String(m[3] || '').replace(/\s+spell$/i, '');
       if (!spellFits(filter, spell)) return false;
       const tail = String(m[5] || '').toLowerCase();
@@ -603,22 +607,38 @@ export function resolveTrigger(game, trigger, bindings = {}) {
 const PROBE_EVENTS = ['library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
 const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem', 'Creature — Elemental Dragon', 'Artifact — Equipment'];
 export function triggerCanFire(definition, ability) {
+  return probeTrigger(definition, ability, PROBE_TYPES, PROBE_EVENTS, [{}]) || probeTrigger(definition, ability, wideProbeTypes(ability), [...PROBE_EVENTS, ...PROBE_EXTRA_EVENTS], WIDE_VARIANTS);
+}
+// The wider probe: card types named in the trigger (Zombie, Forest, legendary, a big mana value …) and event details
+// the first probe leaves out (the other player dealt damage, the opponent's turn, a kicked or multicolored spell …).
+const WIDE_VARIANTS = [
+  { victim: true }, { oppTurn: true }, { event: { manaValue: 7, colors: ['W', 'U'], kicked: true, fromZone: 'hand', byKind: 'spell', firstThisTurn: true, to: 'graveyard', combat: false } },
+  { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
+];
+function wideProbeTypes(ability) {
+  const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w)))].join(' ');
+  return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
+}
+function probeTrigger(definition, ability, types, events, variants) {
   const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
   // Probe cards: every common type; the Elemental Dragon is big, black and flying, for "with power 4 or greater" and similar.
-  const cardDefinitions = Object.fromEntries(PROBE_TYPES.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
+  const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };
-  for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
+  for (const variant of variants) for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
+    game.activePlayerId = variant.oppTurn ? 'opp' : 'me';
     // attached: this card is an Aura or Equipment on the probe card ("equipped creature", "enchanted land").
     const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {}, chosenCreatureType: 'Dragon' }, definition, player: me, zone };
-    for (const type of PROBE_EVENTS) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < PROBE_TYPES.length; i++) {
+    for (const type of events) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < types.length; i++) {
       row.card.attachedTo = attached ? sourceId : null;
-      for (const p of [me, opp]) p.counters = { castThisTurn: Array.from({ length: castCount }, () => ({ typeLine: PROBE_TYPES[i], colors: [], manaValue: 3 })) };
-      me.deck.battlefield = sourceId === 'mine' ? [{ instanceId: 'mine', definitionId: `probe-${i}`, controllerId: 'me', counters: {} }] : [];
-      opp.deck.battlefield = sourceId === 'theirs' ? [{ instanceId: 'theirs', definitionId: `probe-${i}`, controllerId: 'opp', counters: {} }] : [];
-      const event = { type, sourceId, controllerId: who.playerId, playerId: who.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
-        typeLine: sourceId === 'self' ? definition.typeLine : PROBE_TYPES[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId], defenders: ['opp'], defenderId: who === me ? 'opp' : 'me',
-        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12 };
+      for (const p of [me, opp]) p.counters = { castThisTurn: Array.from({ length: castCount }, () => ({ typeLine: types[i], colors: [], manaValue: 3 })) };
+      me.deck.battlefield = sourceId === 'mine' ? [{ instanceId: 'mine', definitionId: `probe-${i}`, controllerId: 'me', counters: { '+1/+1': 1 } }] : [];
+      opp.deck.battlefield = sourceId === 'theirs' ? [{ instanceId: 'theirs', definitionId: `probe-${i}`, controllerId: 'opp', counters: { '+1/+1': 1 } }] : [];
+      const victim = variant.victim ? (who === me ? opp : me) : who;
+      const event = { type, sourceId, controllerId: who.playerId, playerId: victim.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
+        typeLine: sourceId === 'self' ? definition.typeLine : types[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId, 'x1', 'x2', 'x3'], defenders: [victim === who ? (who === me ? 'opp' : 'me') : victim.playerId], defenderId: who === me ? 'opp' : 'me',
+        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', ...(variant.event || {}) };
+      if (event.to === 'graveyard' && type !== 'zone-change') event.to = ['creature', 'player'];
       try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
     }
   }

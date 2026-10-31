@@ -134,6 +134,7 @@ function untapStep(game) {
     if ((c.temporaryEffects || []).some(e => e?.kind === 'skip-next-untap')) { c.temporaryEffects = c.temporaryEffects.filter(e => e?.kind !== 'skip-next-untap'); continue; }
     c.tapped = false;
     count += 1;
+    queueTriggers(game, { type: 'untapped', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, untapStep: true });
   }
   log(game, `Turn ${game.turnNumber} — ${p.displayName}. ${count ? `${plural(count, 'permanent')} untapped.` : 'Nothing to untap.'}`, { type: 'turn', playerId: p.playerId });
   setPhase(game, 'upkeep');
@@ -222,7 +223,16 @@ export function nextPhase(game, playerId, { override = false, endTurn: toEnd = f
       log(game, `${p.displayName} does not attack.`);
       return setPhase(game, 'postcombat-main', { noAttackCombat: true });
     }
-    case 'postcombat-main': return toEndStep();
+    case 'postcombat-main':
+      // "After this phase, there is an additional combat phase" (Aurelia, Relentless Assault).
+      if (Number(game.extraCombats || 0) > 0) {
+        game.extraCombats -= 1;
+        p.confirmations = { ...(p.confirmations || {}), attackers: false };
+        game.combatState = { attackers: [], defenders: [], blocks: {}, damage: [], waitingFor: null, resolved: false };
+        log(game, `${p.displayName} begins an additional combat phase.`);
+        return setPhase(game, 'combat');
+      }
+      return toEndStep();
     default: throw new GameError('This step moves on by itself.');
   }
 }
@@ -262,6 +272,7 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
       commit(game, { type: 'tap-card', playerId: p.playerId, instanceId: r.card.instanceId, tapped: true, silent: true });
     }
     attackers.push({ playerId: p.playerId, instanceId: r.card.instanceId, defenderId: r.defender.playerId, targetId: r.target?.card.instanceId || null, blocksConfirmed: false });
+    r.card.attackedTurn = game.turnNumber;
     const what = r.target ? `${defOf(game, r.target.card)?.name || 'a permanent'} (${r.target.kind === 'battle' ? `the battle ${r.defender.displayName} protects` : `${r.defender.displayName}'s planeswalker`})` : r.defender.displayName;
     log(game, `${p.displayName} attacks ${what} with ${r.def?.name || 'a creature'}.`, { type: 'combat' });
   }

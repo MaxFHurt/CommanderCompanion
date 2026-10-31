@@ -199,6 +199,7 @@ export function cardMatchesFilter(game, card, filter) {
       if (c === 'attacking') return (game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId);
       if (c === 'blocking') return Object.values(game.combatState?.blocks || {}).some(b => (b?.assignments || []).some(a => a.blockerId === card.instanceId));
       if (c === 'tapped') return !!card.tapped;
+      if (c === 'attacked') return card.attackedTurn === game.turnNumber;
       if (c === 'untapped') return !card.tapped;
       if (c.startsWith('keyword:')) return hasKeyword(card, d, c.slice(8));
       if (c.startsWith('nokeyword:')) return !hasKeyword(card, d, c.slice(10));
@@ -395,6 +396,7 @@ function applyScry(game, player, effect, bindings, notes) {
   player.deck.remainingLibrary.unshift(...topIds.map(id => byId.get(id)));
   player.deck.remainingLibrary.push(...bottomIds.map(id => byId.get(id)));
   notes.push(`${player.displayName} scries ${amount}.`);
+  emit(bindings, { type: 'scry', playerId: player.playerId, controllerId: player.playerId, amount });
 }
 function applySurveil(game, player, effect, bindings, notes) {
   const amount = Math.max(0, resolveAmount(game, player.playerId, effect.amount, bindings));
@@ -415,6 +417,7 @@ function applySurveil(game, player, effect, bindings, notes) {
     emit(bindings, { type: 'mill', playerId: player.playerId, sourceId: c.instanceId, definitionId: c.definitionId, amount: 1 });
   }
   notes.push(`${player.displayName} surveils ${amount}.`);
+  emit(bindings, { type: 'surveil', playerId: player.playerId, controllerId: player.playerId, amount });
 }
 function applyProliferate(game, controller, effect, bindings, notes) {
   const selections = bindings[effect.bind] || effect.selections || [];
