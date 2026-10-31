@@ -99,6 +99,8 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
     throw new Error('Effect target is no longer in a movable tracked zone.');
   if (to === 'graveyard')
     to = graveyardDestination(game, hit.card);
+  // Unearth: "If it would leave the battlefield, exile it instead of putting it anywhere else."
+  if (hit.zone === 'battlefield' && to !== 'battlefield' && (hit.card.temporaryEffects || []).some(e => e?.kind === 'exile-if-leaves')) to = 'exile';
   const from = hit.zone;
   const fromController = hit.card.controllerId || hit.player?.playerId;
   const wasTapped = !!hit.card.tapped;

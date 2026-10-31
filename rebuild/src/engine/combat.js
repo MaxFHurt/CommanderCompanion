@@ -276,6 +276,7 @@ function stateBasedDeaths(game, events, onEvent) {
         if (t > 0 && (isIndestructible(c, d, game) || regenerates(game, c)))
           continue;
         bf.splice(i, 1);
+        const exiledInstead = graveyardDestination(game, c) === 'exile';   // before its temporary effects are cleared (Unearth, Suplex)
         const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null };
         c.zone = 'graveyard';
         c.tapped = false;
@@ -285,7 +286,7 @@ function stateBasedDeaths(game, events, onEvent) {
         c.temporaryEffects = [];
         clearCastState(c, 'graveyard');
         const owner = game.players.find(x => x.playerId === c.ownerId) || p;
-        const exiled = graveyardDestination(game, c) === 'exile';
+        const exiled = exiledInstead || graveyardDestination(game, c) === 'exile';
         if (exiled)
           c.zone = 'exile';
         if (!c.token)

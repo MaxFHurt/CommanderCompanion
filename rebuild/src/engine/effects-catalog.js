@@ -896,6 +896,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'unearth-mark': {
+      const hit = permanentAt(game, bindings.sourceId);
+      if (!hit) return true;
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-leaves' }];
+      H.applyEffectsUnsafe(game, controllerId, [{ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'exile-ids', ids: [hit.card.instanceId] }], requirements: [] }], bindings);
+      return true;
+    }
     case 'extra-combat': game.extraCombats = Number(game.extraCombats || 0) + 1; notes.push('There is an additional combat phase this turn.'); return true;
     case 'copy-of': {
       const id = H.resolveBoundId(effect, bindings);

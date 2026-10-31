@@ -468,6 +468,12 @@ function resolveStackTop(game) {
         card.chosenPlayerId = obj.asEntersChoices.playerId;
       if (obj.asEntersChoices?.protectorId)
         card.protectorId = obj.asEntersChoices.protectorId;
+      if (obj.asEntersChoices?.plusCounters) {
+        card.counters = card.counters || {};
+        card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);
+      }
+      if (obj.asEntersChoices?.haste)
+        card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }];
       if (obj.manaCapacityColor)
         card.manaCapacityColor = obj.manaCapacityColor;
     }
@@ -586,6 +592,19 @@ export function createTransactionEngine(game) {
           deck.graveyard.push(card);
           emit(game, { type: 'discard', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, cost: true });
           emit(game, { type: 'cycled', playerId: player.playerId, controllerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId });
+        }
+        else if (action.kind === 'scavenge') {
+          // Cost: exile this card from the graveyard.
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'graveyard')
+            throw new Error('Scavenge: the card is no longer in the graveyard.');
+          hit.a.splice(hit.i, 1);
+          card.zone = 'exile';
+          deck.exile.push(card);
+        }
+        else if (action.kind === 'unearth') {
+          if (locate(deck, card.instanceId)?.z !== 'graveyard')
+            throw new Error('Unearth: the card is no longer in the graveyard.');
         }
         else if (action.kind === 'crew') {
           for (const id of action.crewIds || []) {

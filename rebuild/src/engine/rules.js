@@ -480,6 +480,11 @@ export function validateBlock({ blocker, definition, attackerDefinition, attacke
     reasons.push('Fear: only artifact or black creatures can block it.');
   if (instanceKeyword(attacker, attackerDefinition, 'Intimidate') && !blockerArtifact && !blockerColors.some(c => (attackerDefinition?.colors || []).includes(c)))
     reasons.push('Intimidate: only artifact creatures or creatures sharing a color can block it.');
+  // Skulk: can't be blocked by creatures with greater power. Unleash: a creature with a +1/+1 counter can't block.
+  if (instanceKeyword(attacker, attackerDefinition, 'Skulk') && Number(definition?.power || 0) + Number(blocker?.counters?.['+1/+1'] || 0) - Number(blocker?.counters?.['-1/-1'] || 0) > Number(attackerDefinition?.power || 0) + Number(attacker?.counters?.['+1/+1'] || 0) - Number(attacker?.counters?.['-1/-1'] || 0))
+    reasons.push('Skulk: creatures with greater power can\u2019t block it.');
+  if (/(?:^|\n)\s*Unleash\b/i.test(String(definition?.oracleText || '')) && Number(blocker?.counters?.['+1/+1'] || 0) > 0)
+    reasons.push('Unleash: it has a +1/+1 counter, so it can\u2019t block.');
   if (instanceKeyword(attacker, attackerDefinition, 'Horsemanship') && !instanceKeyword(blocker, definition, 'Horsemanship'))
     reasons.push('Horsemanship: only creatures with horsemanship can block it.');
   return { legal: !reasons.length, reasons };

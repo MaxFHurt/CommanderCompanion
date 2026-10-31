@@ -61,6 +61,9 @@ export function keywordTriggers(game, row, event) {
     if (last.castMode === 'blitz') add('blitz-draw', 'Blitz — when it dies, draw a card.', 'Draw a card.');
     if (!event.token && hasKeyword(d, 'Undying') && !Number(last.counters?.['+1/+1'] || 0))
       add('undying', 'Undying — it returns with a +1/+1 counter.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'return-self', counter: '+1/+1' }] } });
+    // Afterlife N: when it dies, create N 1/1 white and black Spirit creature tokens with flying.
+    const after = strip(d.oracleText).match(/(?:^|\n|,\s*)\s*Afterlife (\d+)/i);
+    if (after) add('afterlife', `Afterlife ${after[1]} — create ${after[1]} 1/1 white and black Spirit tokens with flying.`, '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'create-token', amount: Number(after[1]), power: 1, toughness: 1, name: 'Spirit', typeLine: 'Token Creature — Spirit', colors: ['W', 'B'], keywords: ['Flying'] }] } });
     if (!event.token && hasKeyword(d, 'Persist') && !Number(last.counters?.['-1/-1'] || 0))
       add('persist', 'Persist — it returns with a -1/-1 counter.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'return-self', counter: '-1/-1' }] } });
   }

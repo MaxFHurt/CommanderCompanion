@@ -172,7 +172,7 @@ m('Set in motion', 'action', 'Move a scheme off the top of your scheme deck and 
 m('Absorb', 'keyword', 'Absorb N: if a source would deal damage to this creature, prevent N of that damage.', { auto: 'manual', actions: ['damage'] });
 m('Affinity', 'keyword', 'Affinity for [type]: this spell costs {1} less for each [type] you control.', { auto: 'auto' });
 m('Afflict', 'keyword', 'Afflict N: whenever this becomes blocked, defending player loses N life.', { auto: 'manual', actions: ['life-loss'] });
-m('Afterlife', 'keyword', 'Afterlife N: when this dies, create N 1/1 white and black Spirit tokens with flying.', { auto: 'manual', actions: ['token'] });
+m('Afterlife', 'keyword', 'Afterlife N: when this dies, create N 1/1 white and black Spirit tokens with flying.', { auto: 'auto', actions: ['token'] });
 m('Aftermath', 'keyword', 'Cast the second half of this split card only from your graveyard; then exile it.', { auto: 'manual' });
 m('Amplify', 'keyword', 'Amplify N: as this enters, reveal any number of cards of its creature type from your hand; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['counter+'] });
 m('Annihilator', 'keyword', 'Annihilator N: whenever this attacks, defending player sacrifices N permanents.', { auto: 'manual', steps: 'The defending player sacrifices N permanents of their choice.', actions: ['sacrifice'] });
@@ -212,7 +212,7 @@ m('Decayed', 'keyword', 'Can\'t block; when it attacks, sacrifice it at end of c
 m('Delve', 'keyword', 'Each card you exile from your graveyard while casting this pays for {1}.', { auto: 'auto' });
 m('Demonstrate', 'keyword', 'When you cast this, you may copy it; if you do, an opponent also copies it.', { auto: 'manual' });
 m('Dethrone', 'keyword', 'Whenever this attacks the player with the most life (or tied), put a +1/+1 counter on it.', { auto: 'manual', actions: ['counter+'] });
-m('Devoid', 'keyword', 'This card has no color.', { auto: 'partial' });
+m('Devoid', 'keyword', 'This card has no color.', { auto: 'auto' });
 m('Devour', 'keyword', 'Devour N: as this enters, you may sacrifice any number of creatures; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['sacrifice', 'counter+'] });
 m('Disguise', 'keyword', 'Cast face down for {3} as a 2/2 with ward {2}; turn face up any time for the disguise cost.', { auto: 'auto' });
 m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the disturb cost; if it would leave the battlefield later, exile it.', { auto: 'manual', actions: ['transform', 'exile'] });
@@ -298,12 +298,12 @@ m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on ta
 m('Renown', 'keyword', 'When this deals combat damage to a player, if it isn\'t renowned, put N +1/+1 counters on it; it becomes renowned.', { auto: 'manual', actions: ['counter+'] });
 m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the spell that many times.', { auto: 'manual' });
 m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'auto', actions: ['discard'] });
-m('Riot', 'keyword', 'Enters with your choice of a +1/+1 counter or haste.', { auto: 'manual', actions: ['counter+'] });
+m('Riot', 'keyword', 'Enters with your choice of a +1/+1 counter or haste.', { auto: 'auto', actions: ['counter+'] });
 m('Ripple', 'keyword', 'When you cast this, reveal the top N cards; you may cast cards with the same name free; the rest go to the bottom.', { auto: 'manual' });
 m('Saddle', 'keyword', 'Tap creatures with total power N or more: this Mount becomes saddled until end of turn. Sorcery speed.', { auto: 'manual', actions: ['tap', 'status'] });
-m('Scavenge', 'keyword', 'Exile this card from your graveyard and pay: put +1/+1 counters equal to its power on target creature. Sorcery speed.', { auto: 'manual', actions: ['exile', 'counter+'] });
+m('Scavenge', 'keyword', 'Exile this card from your graveyard and pay: put +1/+1 counters equal to its power on target creature. Sorcery speed.', { auto: 'auto', actions: ['exile', 'counter+'] });
 m('Shadow', 'keyword', 'Can block or be blocked only by creatures with shadow.', { auto: 'auto' });
-m('Skulk', 'keyword', 'Can\'t be blocked by creatures with greater power.', { auto: 'manual' });
+m('Skulk', 'keyword', 'Can\'t be blocked by creatures with greater power.', { auto: 'auto' });
 m('Soulbond', 'keyword', 'Pair this with another unpaired creature when either enters; both get the listed bonus while paired.', { auto: 'manual', actions: ['status'] });
 m('Soulshift', 'keyword', 'Soulshift N: when this dies, return target Spirit card with mana value N or less from your graveyard to your hand.', { auto: 'manual', actions: ['return-hand'] });
 m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'manual' });
@@ -323,8 +323,8 @@ m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on
 m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'manual', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
 m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'auto' });
 m('Undying', 'keyword', 'When this dies, if it had no +1/+1 counters on it, return it with a +1/+1 counter.', { auto: 'auto' });
-m('Unearth', 'keyword', 'Return this from your graveyard with haste; exile it at the next end step or if it would leave the battlefield. Sorcery speed.', { auto: 'manual', actions: ['return-battlefield', 'exile'] });
-m('Unleash', 'keyword', 'You may have this enter with a +1/+1 counter; it can\'t block while it has one.', { auto: 'manual', actions: ['counter+'] });
+m('Unearth', 'keyword', 'Return this from your graveyard with haste; exile it at the next end step or if it would leave the battlefield. Sorcery speed.', { auto: 'auto', actions: ['return-battlefield', 'exile'] });
+m('Unleash', 'keyword', 'You may have this enter with a +1/+1 counter; it can\'t block while it has one.', { auto: 'auto', actions: ['counter+'] });
 m('Vanishing', 'keyword', 'Enters with N time counters; remove one at your upkeep; when the last is removed, sacrifice it.', { auto: 'manual', actions: ['counter-other', 'sacrifice'] });
 m('Wither', 'keyword', 'Deals damage to creatures in the form of -1/-1 counters.', { auto: 'auto' });
 

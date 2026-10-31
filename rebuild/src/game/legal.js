@@ -138,6 +138,14 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
     row('crew', `Crew ${need}`, '', [block, power < need && `Untapped creatures with total power ${need} or more are needed.`]);
   }
+  // Unearth / Scavenge: activated from the graveyard, only as a sorcery.
+  if (card.zone === 'graveyard') {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    const un = keywordCost(text, 'Unearth');
+    if (un) row('unearth', 'Unearth', un, [block, !sorcery && 'Only as a sorcery.', !payable(un) && 'Not enough mana.']);
+    const sc = keywordCost(text, 'Scavenge');
+    if (sc) row('scavenge', 'Scavenge', sc, [block, !sorcery && 'Only as a sorcery.', !payable(sc) && 'Not enough mana.']);
+  }
   if (card.zone === 'battlefield' && card.realDefinitionId && card.castFlags?.turnUpCost) {
     row('turn-face-up', 'Turn face up', card.castFlags.turnUpCost, [block, !payable(card.castFlags.turnUpCost) && 'Not enough mana.']);
   }
@@ -208,7 +216,7 @@ export function abilityRows(game, player, card) {
   const inHand = card.zone === 'hand';
   const zone = card.zone === 'hand' || card.zone === 'graveyard' ? card.zone : 'battlefield';
   const payable = cost => planMana(playerManaAvailability(player, game), (String(cost || '').match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), 0, { lifeAvailable: Number(player.life || 0) }).ok;
-  return [...(zone === 'graveyard' ? [] : specialRows(game, player, card)), ...parseActivatedAbilities(def)
+  return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
     .filter(ability => (inHand && ability.manaAbility ? HAND_MANA_COST.test(String(ability.cost || '').trim()) : abilityZone(ability) === zone))
     .map(ability => {
       const fromZone = zone !== 'battlefield' && !ability.manaAbility;

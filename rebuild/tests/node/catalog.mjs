@@ -388,4 +388,40 @@ section('round 5: triggers that used to never fire');
   check('an additional combat phase lets creatures attack again', second && t.P(1).life === life1 - 2, `${t.game.phase} ${life1} → ${t.P(1).life}`);
 }
 
+section('round 5: keyword mechanics — riot, unleash, afterlife, unearth, scavenge');
+{
+  const t = setup();
+  cast(t, 'Grizzly Bears', 'Riot', [['riot', 'haste']]);
+  check('Riot: the player chose haste', has(t, t.bf(0, 'Grizzly Bears'), 'Haste'));
+  cast(t, 'Llanowar Elves', 'Riot', [['riot', 'counter']]);
+  check('Riot: …or a +1/+1 counter', Number(t.bf(0, 'Llanowar Elves').counters?.['+1/+1'] || 0) === 1);
+}
+{
+  const t = setup();
+  const g = onField(t, 'Grizzly Bears', 'Afterlife 2');
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, d => g.instanceId]]);
+  const spirits = t.P(0).deck.battlefield.filter(c => c.token && /Spirit/.test(def(t, c).typeLine));
+  check('Afterlife 2: two 1/1 flying Spirits when it dies', spirits.length === 2 && has(t, spirits[0], 'Flying'));
+}
+{
+  const t = setup();
+  const g = t.give(0, 'Colossal Dreadmaw', 'graveyard'); asText(t, g, 'Trample\nUnearth {1}');
+  const row = t.view(0).players[0].graveyard.find(c => c.id === g.instanceId)?.abilities?.find(a => /Unearth/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: g.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no unearth row' };
+  settle(t);
+  const maw = t.bf(0, 'Colossal Dreadmaw');
+  check('Unearth: back on the battlefield with haste', r.ok && !!maw && has(t, maw, 'Haste'), r.error);
+  t.autoPass = true; t.end(0);
+  check('…exiled at the next end step', !t.bf(0, 'Colossal Dreadmaw') && t.names(0, 'exile').includes('Colossal Dreadmaw'));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const g = t.give(0, 'Colossal Dreadmaw', 'graveyard'); asText(t, g, 'Scavenge {1}');
+  const row = t.view(0).players[0].graveyard.find(c => c.id === g.instanceId)?.abilities?.find(a => /Scavenge/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: g.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no scavenge row' };
+  settle(t, [['scavenge', bear.instanceId]]);
+  check('Scavenge: exiled from the graveyard, six +1/+1 counters on the chosen creature', r.ok && Number(t.bf(0, 'Grizzly Bears').counters?.['+1/+1'] || 0) === 6 && t.names(0, 'exile').includes('Colossal Dreadmaw'), r.error);
+}
+
 done();

@@ -117,6 +117,16 @@ function askAsEnters(game, player, def, ask, source) {
     return { protectorId: ask('enters:protector', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — as it enters`, kind: 'choose-one', prompt: 'Choose the opponent who protects this battle. You and the other players can attack it; they defend it.', options: opponents.map(q => ({ id: q.playerId, label: q.displayName, playerId: q.playerId })) })) };
   }
   const spec = asEntersChoiceSpec(def);
+  const kwText = String(def?.oracleText || '').replace(/\([^()]*\)/g, '');
+  // Riot: a +1/+1 counter or haste. Unleash: you may have it enter with a +1/+1 counter (then it can't block).
+  if (!spec && /(?:^|\n)\s*Riot\b/i.test(kwText)) {
+    const pick = ask('enters:riot', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — riot`, kind: 'choose-one', prompt: 'It enters with your choice of a +1/+1 counter or haste.', options: [{ id: 'counter', label: 'A +1/+1 counter' }, { id: 'haste', label: 'Haste' }] }));
+    return pick === 'haste' ? { haste: true } : { plusCounters: 1 };
+  }
+  if (!spec && /(?:^|\n)\s*Unleash\b/i.test(kwText)) {
+    const pick = ask('enters:unleash', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — unleash`, kind: 'choose-one', prompt: 'You may have it enter with a +1/+1 counter. It can\u2019t block as long as it has one.', options: [{ id: 'counter', label: 'Enter with a +1/+1 counter' }, { id: 'no', label: 'No counter' }] }));
+    return pick === 'counter' ? { plusCounters: 1 } : null;
+  }
   if (!spec) return null;
   const base = { playerId: player.playerId, cancellable: true, source, title: `${def.name} — as it enters` };
   if (spec.kind === 'color') {
@@ -633,6 +643,25 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     commit(game, { type: 'special-action', kind: 'cycle', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} cycles ${def.name}.` });
     const top = (game.stack || []).find(x => x.id === stack.id);
     if (top) { top.name = def.name; top.text = stack.text; top.search = stack.search || null; top.resolveReqs = []; }
+    return;
+  }
+  if (kind === 'unearth') {
+    const stack = { id: newId('stack'), label: `${def.name} — unearth`, text: 'Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield.',
+      effects: [{ kind: 'return-self-graveyard' }, { kind: 'grant-keyword', bind: 'sourceId', keyword: 'Haste', enabled: true, expires: null }, { kind: 'unearth-mark' }] };
+    commit(game, { type: 'special-action', kind: 'unearth', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} unearths ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
+  if (kind === 'scavenge') {
+    const n = Math.max(0, Number(String(def.power || '0').replace(/[^0-9-]/g, '') || 0));
+    const rows = candidatesFor(game, { kind: 'target', scope: 'target creature' }, player);
+    if (!rows.length && !force) throw new GameError('There is no creature to put the counters on.');
+    const target = ask('scavenge', () => ({ ...base, kind: 'choose-one', targeting: true, title: `${def.name} — scavenge`, prompt: `Put ${n} +1/+1 counter${n === 1 ? '' : 's'} on target creature.`, options: rows }));
+    const stack = { id: newId('stack'), label: `${def.name} — scavenge`, text: `Put ${n} +1/+1 counters on target creature.`, effects: [{ kind: 'counter', targetId: target, counter: '+1/+1', amount: n }] };
+    commit(game, { type: 'special-action', kind: 'scavenge', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} scavenges ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
   }
   if (kind === 'crew') {
