@@ -154,6 +154,7 @@ function payMana(game, player, payment) {
       if (produced >= remaining)
         break;
       src.tapped = true;
+      emit(game, { type: 'tapped-for-mana', sourceId: src.instanceId, definitionId: src.definitionId, controllerId: player.playerId, playerId: player.playerId, color, land: /\bLand\b/.test(defFor(game, src)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, src)?.typeLine || ''), typeLine: defFor(game, src)?.typeLine || '' });
       const b = Math.max(1, Number(src.manaCapacityAmount || 1));
       baseUsed += b;
       produced += effectiveManaAmount(game, src, color, b);   // Mana Reflection, Crypt Ghast … (extra mana)
@@ -861,6 +862,7 @@ export function createTransactionEngine(game) {
             throw new Error('Ability source is already tapped');
           setTappedWithCapacity(game, player, card, true);
           emit(game, { type: 'tapped', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId });
+          if (action.manaColor) emit(game, { type: 'tapped-for-mana', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, playerId: player.playerId, color: action.manaColor, land: /\bLand\b/.test(defFor(game, card)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, card)?.typeLine || ''), typeLine: defFor(game, card)?.typeLine || '' });
         }
         if (action.requiresUntap) {
           if (!card.tapped)

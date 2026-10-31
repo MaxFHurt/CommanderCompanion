@@ -573,4 +573,21 @@ section('round 8: extra mana (Mana Reflection, Crypt Ghast, Wild Growth)');
   check('Wild Growth on a Forest: the mana counter shows one more green', before.fixed.G === 5, JSON.stringify(before.fixed));
 }
 
+section('round 9: more trigger wordings');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you cast a spell with mana value 5 or greater, you gain 3 life.', { typeLine: 'Enchantment' });
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Draw a card.');
+  cast(t, 'Colossal Dreadmaw', 'Trample', [], { manaCost: '{3}{G}{G}' });
+  check('"Whenever you cast a spell with mana value 5 or greater" fires only for the big spell', t.P(0).life === life + 3, `${life} → ${t.P(0).life}`);
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever a player taps a land for mana, this enchantment deals 1 damage to that player.', { typeLine: 'Enchantment' });
+  const life = t.P(0).life;
+  cast(t, 'Grizzly Bears', '', [], { manaCost: '{1}{G}' });
+  check('Manabarbs: tapping lands to pay deals 1 damage per land', t.P(0).life === life - 2, `${life} → ${t.P(0).life}`);
+}
+
 done();

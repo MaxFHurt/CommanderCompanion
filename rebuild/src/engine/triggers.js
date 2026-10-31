@@ -214,8 +214,9 @@ function generalMatch(game, row, t, event) {
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:is|are) dealt damage/i))) return subjectEvent(game, row, m[1], event, event.targetId);
       return undefined;
     case 'spell-cast': {
-      m = t.match(/^When(?:ever)? (you|an opponent|a player|each opponent|another player|one or more opponents) (?:casts? or cop(?:y|ies)|casts?) (?:(?:their|your|his or her) (first|second|third) )?(?:(.+?) )?spells?( each turn)?( (?:during|from) .+)?$/i);
+      m = t.match(/^When(?:ever)? (you|an opponent|a player|each opponent|another player|one or more opponents) (?:casts? or cop(?:y|ies)|casts?) (?:(?:their|your|his or her) (first|second|third) )?(?:(.+?) )?spells?( with mana value \d+ or (?:greater|less))?( each turn)?( (?:during|from) .+)?$/i);
       if (!m) return undefined;
+      if (m[4] && / with mana value/.test(m[4])) { m[3] = `${m[3] || ''}${m[4]}`.trim(); m.splice(4, 1); }
       if (!whoMatches(m[1], event.controllerId, row)) return false;
       const spell = { typeLine: event.typeLine || eventSpellDef(game, event)?.typeLine || '', colors: event.colors || eventSpellDef(game, event)?.colors || [], manaValue: Number(event.manaValue ?? eventSpellDef(game, event)?.manaValue ?? 0), kicked: !!event.kicked };
       const filter = String(m[3] || '').replace(/\s+spell$/i, '');
@@ -645,6 +646,7 @@ export function triggerCanFire(definition, ability) {
 // the first probe leaves out (the other player dealt damage, the opponent's turn, a kicked or multicolored spell …).
 const WIDE_VARIANTS = [
   { victim: true }, { oppTurn: true }, { event: { manaValue: 7, colors: ['W', 'U'], kicked: true, fromZone: 'hand', byKind: 'spell', firstThisTurn: true, to: 'graveyard', combat: false } },
+  { event: { manaValue: 9, colors: ['B', 'R', 'G'], crewIds: ['self'], land: true, creature: true, typeLine: 'Land — Swamp Forest Island Mountain Plains' } },
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 function wideProbeTypes(ability) {
