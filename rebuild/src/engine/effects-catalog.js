@@ -8,7 +8,8 @@ import {
   numberFromText, locateCardInGame, moveCard, definitionFor, cardMatchesFilter, resolveAmount, whereXExpr,
   catalogHelpers as H
 } from './effects.js';
-import { effectiveToughness } from './combat.js';
+import { effectiveToughness, effectivePower } from './combat.js';
+const effectivePowerOf = (game, card) => effectivePower(card, definitionFor(game, card), game);
 import { librarySearchSpec, searchFilter } from '../game/library-search.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
@@ -531,6 +532,7 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   let m;
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);
 
+  if (/^Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield\.?$/i.test(c0)) return { part: { effects: [{ kind: 'living-death' }], requirements: [], unsupported: [] }, consumed: 1 };
   // Timetwister family (one sentence with "then", read before the "then" splitter).
   if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
     return { part: { effects: [{ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 }], requirements: [], unsupported: [] }, consumed: 1 };
@@ -610,7 +612,11 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const s = next(k);
     const p = s.match(/^(?:Until (end of turn|the end of your next turn|your next end step),? )?you may (play|cast) (that card|those cards|them|it|the exiled cards?|cards exiled this way|that spell)(?: this turn| until (end of turn|the end of your next turn)| for as long as (?:it|they|that card|those cards) remains? exiled)?( without paying (?:its|their) mana costs?)?\.?$/i)
       || s.match(/^(?:Until (end of turn|the end of your next turn),? )?you may (play|cast) (lands and cast spells|spells) from among (?:them|those cards|the exiled cards)(?: this turn| until (end of turn|the end of your next turn))?( without paying (?:its|their) mana costs?)?\.?$/i);
-    if (!p) return null;
+    if (!p) {
+      // Just exiled (Necropotence, Mystic Forge): no permission to play it.
+      if (choose || libPlayer) return null;
+      return { part: { effects: [{ kind: 'impulse', amount, until: 'none', noPermission: true }], requirements: [], unsupported: [] }, consumed: 1 };
+    }
     const until = /as long as/i.test(s) ? 'forever' : /next turn/i.test(p[1] || p[4] || '') ? 'next-turn' : 'turn';
     const bind = choose ? `impulse${i}` : null;
     const requirements = choose ? [{ kind: 'dig', bind, amount, offset: drawnBefore, picks: [{ min: 1, max: 1, filter: '', to: 'exile-play' }], rest: { to: 'exile' }, label: `the top ${amount} cards`, chooseOnly: true }] : [];
@@ -703,13 +709,14 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
     const chosen = effect.chooseBind ? new Set((bindings[effect.chooseBind]?.groups || [])[0] || []) : null;
     for (const id of ids) {
       const moved = moveCard(game, id, 'exile', { onEvent: emit });
-      if (!chosen || chosen.has(id)) moved.card.playPermission = { playerId: controllerId, until: effect.until, grantedTurn: game.turnNumber, castOnly: !!effect.castOnly, free: !!effect.free };
+      if (!effect.noPermission && (!chosen || chosen.has(id))) moved.card.playPermission = { playerId: controllerId, until: effect.until, grantedTurn: game.turnNumber, castOnly: !!effect.castOnly, free: !!effect.free };
       // Another player's card: kept with your exiled cards so you can cast it (it still belongs to its owner).
       if (libOwner.playerId !== controllerId) {
         const at = libOwner.deck.exile.indexOf(moved.card);
         if (at >= 0) { libOwner.deck.exile.splice(at, 1); controller.deck.exile.push(moved.card); }
       }
     }
+    bindings.lastMoved = ids; bindings.lastCreated = [];
     notes.push(`${controller.displayName} exiles ${ids.map(nameOf).join(', ') || 'nothing'}${ids.length ? ` and may ${effect.castOnly ? 'cast' : 'play'} ${chosen ? 'the chosen card' : ids.length === 1 ? 'it' : 'them'} ${effect.until === 'next-turn' ? 'until the end of their next turn' : 'this turn'}` : ''}.`);
     return true;
   }
@@ -1172,6 +1179,40 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'remove-from-combat', bind, untap: /untap it/i.test(c) });
     return true;
   }
+  // Redirect: "Change the target of target spell or ability with a single target." / "You may choose new targets for target spell."
+  if ((m = c.match(/^(Change the target of|You may choose new targets for) target (spell or ability|spell|instant or sorcery spell|activated or triggered ability)( with a single target)?\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: /^spell$|sorcery spell$/i.test(m[2]) ? 'spell' : /ability$/i.test(m[2]) && !/spell/i.test(m[2]) ? 'ability' : 'any', label: `target ${m[2]}` });
+    const pick = `retarget${requirements.length}`;
+    requirements.push({ kind: 'retarget-stack', bind: pick, stackBind: bind, single: !!m[3] || /^Change/i.test(m[1]), mustChange: /^Change/i.test(m[1]) });
+    effects.push({ kind: 'retarget-stack', stackBind: bind, bind: pick });
+    return true;
+  }
+  // Rishkar's Expertise: "You may cast a spell with mana value 5 or less from your hand without paying its mana cost."
+  if ((m = c.match(/^You may cast (?:a|an) ([a-z ]*?)(?:spell|card)( with mana value (\d+|X) or less)? from your hand without paying its mana cost\.?$/i))) {
+    const bind = `handCard${requirements.length}`;
+    requirements.push({ kind: 'hand-card', bind, filter: '', fitsWords: `${m[1].trim() || 'nonland'}${m[2] || ''}`, label: `a ${m[1]}spell${m[2] || ''} to cast free` });
+    effects.push({ kind: 'free-cast-hand', bind, optionalTarget: true });
+    return true;
+  }
+  // Second Harvest: "For each token you control, create a token that's a copy of that permanent."
+  if ((m = c.match(/^For each (creature token|artifact token|token|nontoken creature) you control, create a token that'?s a copy of that (?:permanent|creature|token|artifact)\.?$/i))) { effects.push({ kind: 'copy-each', filter: m[1].toLowerCase() === 'creature token' ? 'creature|token' : m[1].toLowerCase() === 'artifact token' ? 'artifact|token' : m[1].toLowerCase() === 'nontoken creature' ? 'creature|nontoken' : 'permanent|token' }); return true; }
+  // Chandra's Ignition: "Target creature you control deals damage equal to its power to each other creature and each opponent."
+  if ((m = c.match(/^Target creature you control deals damage equal to its power to each other creature(?: and each opponent)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, 'target creature you control', 'creature you control');
+    effects.push({ kind: 'damage-each-from', sourceBind: bind, otherCreatures: true, opponents: /each opponent/i.test(c) });
+    return true;
+  }
+  // Rakdos Charm: "Each creature deals 1 damage to its controller."
+  if ((m = c.match(new RegExp(`^Each creature deals ${N} damage to its controller\\.?$`, 'i')))) { effects.push({ kind: 'each-creature-damages-controller', amount: num(m[1]) }); return true; }
+  // Living Death.
+  if (/^Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield\.?$/i.test(c)) { effects.push({ kind: 'living-death' }); return true; }
+  // Necropotence: "Put that card into your hand at the beginning of your next end step."
+  if (/^Put (?:that card|it|those cards|them) into your hand at the beginning of (?:your|the) next end step\.?$/i.test(c)) { effects.push({ kind: 'delay', when: { event: 'end-step', whose: 'owner', sameTurn: true }, effects: [{ kind: 'to-hand-ids', fromBind: '__recent' }], requirements: [] }); return true; }
+  // Manifest: "manifest the top card of your library", "Its controller manifests the top card of their library", "manifest dread".
+  if (/^(?:you )?manifest the top card of your library\.?$/i.test(c)) { effects.push({ kind: 'manifest', whose: 'you' }); return true; }
+  if (/^Its controller manifests the top card of their library\.?$/i.test(c)) { effects.push({ kind: 'manifest', whose: 'lastController' }); return true; }
+  if (/^(?:you )?manifest dread\.?$/i.test(c)) { const bind = `dread${requirements.length}`; requirements.push({ kind: 'manifest-dread', bind }); effects.push({ kind: 'manifest', whose: 'you', dreadBind: bind }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1207,6 +1248,76 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'retarget-stack': {
+      const obj = (game.stack || []).find(x => x.id === bindings[effect.stackBind]);
+      const upd = bindings[effect.bind];
+      if (!obj || !upd || !Object.keys(upd).length) { notes.push('The targets stay the same.'); return true; }
+      obj.effectBindings = { ...(obj.effectBindings || {}), ...upd };
+      notes.push(`${obj.label || 'The spell'} has new targets.`);
+      return true;
+    }
+    case 'free-cast-hand': {
+      const id = bindings[effect.bind];
+      if (!id || !controller.deck.hand.some(c => c.instanceId === id)) { notes.push('No spell was cast.'); return true; }
+      game.flow = game.flow || {};
+      game.flow.freeCast = { playerId: controllerId, instanceId: id };
+      notes.push(`${controller.displayName} casts ${name(locateCardInGame(game, id)?.card)} without paying its mana cost.`);
+      return true;
+    }
+    case 'copy-each': {
+      const ids = (controller.deck.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter)).map(c => c.instanceId);
+      for (const id of ids) H.applyEffectsUnsafe(game, controllerId, [{ kind: 'copy-of', targetId: id, amount: 1 }], bindings);
+      return true;
+    }
+    case 'damage-each-from': {
+      const src = permanentAt(game, bindings[effect.sourceBind]);
+      if (!src) { notes.push('The creature is gone.'); return true; }
+      const n = Math.max(0, effectivePowerOf(game, src.card));
+      const others = (game.players || []).flatMap(p => p.deck.battlefield.filter(c => c.instanceId !== src.card.instanceId && cardMatchesFilter(game, c, 'creature')).map(c => c.instanceId));
+      const fx = others.map(id => ({ kind: 'damage', targetId: id, amount: n, sourceName: name(src.card) }));
+      if (effect.opponents) for (const p of game.players.filter(q => !q.eliminated && q.playerId !== controllerId)) fx.push({ kind: 'damage', targetId: p.playerId, amount: n, sourceName: name(src.card) });
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, fx, { ...bindings, sourceId: src.card.instanceId }));
+      return true;
+    }
+    case 'each-creature-damages-controller': {
+      const n = resolveAmount(game, controllerId, effect.amount, bindings);
+      for (const p of (game.players || []).filter(q => !q.eliminated)) {
+        const k = p.deck.battlefield.filter(c => cardMatchesFilter(game, c, 'creature')).length;
+        if (k) notes.push(...H.applyEffectsUnsafe(game, controllerId, Array.from({ length: k }, () => ({ kind: 'damage', targetId: p.playerId, amount: n, sourceName: 'A creature' })), bindings));
+      }
+      return true;
+    }
+    case 'living-death': {
+      const exiled = {};
+      for (const p of game.players.filter(q => !q.eliminated)) { exiled[p.playerId] = p.deck.graveyard.filter(c => cardMatchesFilter(game, c, 'creature')).map(c => c.instanceId); for (const id of exiled[p.playerId]) moveCard(game, id, 'exile', { onEvent: emit }); }
+      for (const p of game.players.filter(q => !q.eliminated)) for (const c of [...p.deck.battlefield].filter(c => cardMatchesFilter(game, c, 'creature'))) moveCard(game, c.instanceId, 'graveyard', { moveReason: 'sacrifice', onEvent: emit });
+      for (const [pid, ids] of Object.entries(exiled)) for (const id of ids) if (locateCardInGame(game, id)?.zone === 'exile') moveCard(game, id, 'battlefield', { controllerId: pid, onEvent: emit });
+      notes.push('Living Death: graveyard creatures and battlefield creatures trade places.');
+      return true;
+    }
+    case 'to-hand-ids': {
+      for (const id of effect.ids || []) { const hit = locateCardInGame(game, id); if (hit && hit.zone === 'exile') { moveCard(game, id, 'hand', { onEvent: emit }); notes.push(`${controller.displayName} puts a card into their hand.`); } }
+      return true;
+    }
+    case 'manifest': {
+      const who = effect.whose === 'lastController' ? playerById(game, bindings.__lastController) : controller;
+      if (!who) return true;
+      const lib = who.deck.remainingLibrary;
+      const dread = effect.dreadBind ? bindings[effect.dreadBind] : null;
+      const top2 = lib.slice(0, effect.dreadBind ? 2 : 1);
+      const pick = dread?.manifest && top2.some(c => c.instanceId === dread.manifest) ? top2.find(c => c.instanceId === dread.manifest) : top2[0];
+      if (!pick) { notes.push('The library is empty.'); return true; }
+      for (const c of top2) if (c !== pick) moveCard(game, c.instanceId, 'graveyard', { onEvent: emit });
+      const real = locateCardInGame(game, pick.instanceId)?.card;
+      const d = definitionFor(game, real);
+      moveCard(game, pick.instanceId, 'battlefield', { controllerId: who.playerId, onEvent: emit });
+      game.cardDefinitions['face-down-2-2'] = game.cardDefinitions['face-down-2-2'] || H.faceDown();
+      real.realDefinitionId = real.definitionId; real.definitionId = 'face-down-2-2'; real.faceDownKind = 'manifest';
+      // A manifested creature card can be turned face up for its mana cost.
+      real.castFlags = { turnUpCost: /\bCreature\b/.test(d?.typeLine || '') ? d?.manaCost || null : null };
+      notes.push(`${who.displayName} manifests the top card of their library.`);
+      return true;
+    }
     case 'for-each-player': {
       for (const p of (game.players || []).filter(q => !q.eliminated && (!effect.opponents || q.playerId !== controllerId))) notes.push(...H.applyEffectsUnsafe(game, p.playerId, effect.effects, bindings));
       return true;
@@ -1460,6 +1571,22 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
       out[q.playerId] = n === hand.length ? hand.map(c => c.instanceId) : ask(`${key}:${q.playerId}`, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — discard`, prompt: `${q.displayName}: you have nothing to sacrifice, so discard ${util.plural(n, 'card')}.`, options: hand.map(c => util.cardOption(game, c, q, 'Your hand')), min: n, max: n }));
     }
     bindings[req.bind] = out;
+    return true;
+  }
+  if (req.kind === 'retarget-stack') {
+    // The spell's or ability's targets, chosen again by the player redirecting it.
+    const obj = (game.stack || []).find(x => x.id === bindings[req.stackBind]);
+    const reqs = (obj?.castReqs || []).filter(r => ['target', 'player', 'graveyard-target', 'stack-target', 'multi-target'].includes(r.kind));
+    if (!obj || !reqs.length || (req.single && reqs.length !== 1)) { bindings[req.bind] = {}; return true; }
+    const fresh = {};
+    if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
+    util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
+    bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'manifest-dread') {
+    const top2 = (player.deck.remainingLibrary || []).slice(0, 2);
+    bindings[req.bind] = { manifest: top2.length < 2 ? top2[0]?.instanceId : ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', private: true, title: `${ctx.sourceName} — manifest dread`, prompt: 'Look at the top two cards. Choose one to manifest; the other goes to your graveyard.', options: top2.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) };
     return true;
   }
   if (req.kind === 'graveyard-multi') {

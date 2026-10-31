@@ -718,4 +718,56 @@ section('round 12: changeling');
   check('Changeling counts as an Elf for a lord and for "another Elf enters"', power(t, bear) === 3 && t.P(0).life === life + 2, `${power(t, bear)} ${life} → ${t.P(0).life}`);
 }
 
+section('round 12: redirect, free casts from hand, Second Harvest, Living Death, Necropotence, manifest');
+{
+  // P2 bolts P1's bear; P1 changes the target to P2's elf.
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', ''), elf = onField(t, 'Llanowar Elves', '', {}, 1);
+  t.give(1, 'Forest', 'battlefield'); t.give(1, 'Opt'); asText(t, t.hand(1, 'Opt'), 'This spell deals 2 damage to target creature.', { manaCost: '{G}', typeLine: 'Instant' });
+  t.give(0, 'Divination'); asText(t, t.hand(0, 'Divination'), 'Change the target of target spell or ability with a single target.', { typeLine: 'Instant', manaCost: '{1}' });
+  t.autoPass = true; t.end(0); t.autoPass = false;
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Opt').instanceId }, t.as(1));
+  const q = t.decision(); t.ctl.dispatch({ type: 'answer', key: q.key, value: bear.instanceId }, t.as(1));
+  if (t.game.flow.priority?.holderId === t.P(0).playerId) {
+    t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Divination').instanceId }, t.as(0));
+    settle(t, [[d => d.key.includes(':t') && d.targeting, () => elf.instanceId]]);
+  }
+  check('Bolt Bend: the spell hits the new target instead', !!t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'graveyard')]));
+}
+{
+  const t = setup();
+  t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), '', { manaCost: '{5}{G}' });
+  cast(t, 'Opt', 'You may cast a spell with mana value 6 or less from your hand without paying its mana cost.', [['hand', d => d.options.find(o => o.label === 'Colossal Dreadmaw')?.id]]);
+  check('Rishkar\'s Expertise: the chosen spell is cast free from hand', !!t.bf(0, 'Colossal Dreadmaw'));
+}
+{
+  const t = setup();
+  cast(t, 'Opt', 'Create two 1/1 white Soldier creature tokens.');
+  cast(t, 'Divination', 'For each token you control, create a token that\'s a copy of that permanent.');
+  check('Second Harvest: each token is copied', t.P(0).deck.battlefield.filter(c => c.token).length === 4);
+}
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '');
+  t.give(1, 'Colossal Dreadmaw', 'graveyard');
+  cast(t, 'Opt', 'Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield.');
+  check('Living Death: graveyard creatures return, battlefield creatures go to the graveyard', !!t.bf(1, 'Colossal Dreadmaw') && t.names(0, 'graveyard').includes('Grizzly Bears'));
+}
+{
+  const t = setup();
+  const necro = onField(t, 'Fog Bank', 'Pay 1 life: Exile the top card of your library face down. Put that card into your hand at the beginning of your next end step.', { typeLine: 'Enchantment' });
+  const top = t.P(0).deck.remainingLibrary[0];
+  activate(t, necro);
+  check('Necropotence: the card is exiled now…', t.P(0).deck.exile.some(c => c.instanceId === top.instanceId));
+  t.autoPass = true; t.end(0);
+  check('…and put into the hand at the end step', t.P(1).deck && t.P(0).deck.hand.some(c => c.instanceId === top.instanceId));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Exile target nonland permanent. Its controller manifests the top card of their library.', [[d => d.targeting, () => bear.instanceId]]);
+  const fd = t.P(1).deck.battlefield.find(c => c.faceDownKind === 'manifest');
+  check('Reality Shift: the controller gets a face-down 2/2', !!fd && t.view(1).players[1].battlefield.find(c => c.id === fd.instanceId)?.power === 2);
+}
+
 done();

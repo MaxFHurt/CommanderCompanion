@@ -1,6 +1,7 @@
 // Commander Companion V0.7.27 shared Oracle-effect resolver.
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
 import { withOverlay } from './overlay.js';
+import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
@@ -3023,4 +3024,4 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
 export function supportForEffectText(text) { const c = compileEffectText(text); return { supported: c.supported, unsupported: c.unsupported, effectKinds: [...new Set(c.effects.map(e => e.kind))], requirements: c.requirements, guidedFallbackAvailable: c.guidedFallbackAvailable }; }
 
 // Helpers for effects-catalog.js (read when its functions run, never at load time).
-export const catalogHelpers = { compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
+export const catalogHelpers = { faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };

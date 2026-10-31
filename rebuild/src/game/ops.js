@@ -638,7 +638,7 @@ function runActivate(game, op, ask) {
     live.card.loyaltyUsedTurn = game.turnNumber;
   }
   const top = (game.stack || []).find(x => x.id === stackId);
-  if (top) { top.name = def.name; top.label = `${def.name} ability`; top.text = ability.text; top.resolveReqs = resolve; top.search = search; top.optional = optional; }
+  if (top) { top.name = def.name; top.label = `${def.name} ability`; top.text = ability.text; top.resolveReqs = resolve; top.castReqs = cast; top.search = search; top.optional = optional; }
 }
 
 /** Cycling, typecycling, foretell, ninjutsu, turn face up. */
@@ -805,7 +805,7 @@ function runTrigger(game, op, ask) {
     label: `${name} triggers.`
   });
   const top = (game.stack || []).find(x => x.id === stackId);
-  if (top) { top.name = name; top.label = `${name} trigger`; top.text = text; top.resolveReqs = resolve; top.optional = optional; top.search = search; }
+  if (top) { top.name = name; top.label = `${name} trigger`; top.text = text; top.resolveReqs = resolve; top.castReqs = compiled?.supported ? splitRequirements(compiled.requirements || []).cast : []; top.optional = optional; top.search = search; }
   if (compiled?.supported) announceTargets(game, player, splitRequirements(compiled.requirements || []).cast, bindings, trigger.sourceId, 'trigger');
 }
 

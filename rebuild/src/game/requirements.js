@@ -5,7 +5,7 @@
 // if the answer is not recorded yet, `ask` throws a Need and the controller shows the decision.
 // When the answer arrives the operation is simply run again from the top.
 
-import { gatherCatalogRequirement } from '../engine/effects-catalog.js';
+import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catalog.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
@@ -239,7 +239,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     const key = `${prefix}:${index}:${req.kind}`;
     const title = `${sourceName} — ${req.label || 'Choose'}`;
 
-    if (gatherCatalogRequirement(game, ctx, req, bindings, ask, key, title, base, { defOf, cardOption, candidatesFor, opponentsOf, alivePlayers, playerById, plural })) return;
+    if (gatherCatalogRequirement(game, ctx, req, bindings, ask, key, title, base, { defOf, cardOption, candidatesFor, opponentsOf, alivePlayers, playerById, plural, gather: gatherRequirements })) return;
     if (req.kind === 'number') {
       const min = Number(req.min || 0), max = Number(req.max ?? 99);
       bindings[req.bind] = ask(key, () => ({ ...base, kind: 'number', title, prompt: req.label || 'Choose a number', min, max }));
@@ -351,7 +351,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
     if (req.kind === 'hand-card') {
       // A card from hand, chosen as it resolves; cards about to be drawn by this effect are offered too.
-      const fits = c => !req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter);
+      const fits = c => (!req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter)) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0))));
       const rows = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && fits(c)).map(c => cardOption(game, c, player, 'In your hand')),
         ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || 0).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
       if (!rows.length) { bindings[req.bind] = null; return; }
