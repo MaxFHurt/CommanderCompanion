@@ -424,9 +424,9 @@ export function settle(game) {
     }
     if (f.freeCast) {
       // Cascade / discover: cast the hit card without paying its mana cost.
-      const { playerId, instanceId } = f.freeCast;
+      const { playerId, instanceId, cost } = f.freeCast;
       f.freeCast = null;
-      startOp(game, 'play', playerId, { instanceId, free: true }, { system: true });
+      startOp(game, 'play', playerId, typeof cost === 'string' ? { instanceId, madnessCost: cost } : { instanceId, free: true }, { system: true });
       continue;
     }
     if ((game.pendingTriggers || []).length) {

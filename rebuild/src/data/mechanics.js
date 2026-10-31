@@ -263,7 +263,7 @@ m('Landwalk', 'keyword', '[Type]walk: can\'t be blocked as long as the defending
 m('Level up', 'keyword', 'Pay the level up cost: put a level counter on this (sorcery speed); its abilities change at each level band.', { auto: 'auto', actions: ['counter-other'] });
 m('Living metal', 'keyword', 'As long as it\'s your turn, this Vehicle is also an artifact creature.', { auto: 'manual' });
 m('Living weapon', 'keyword', 'When this Equipment enters, create a 0/0 black Phyrexian Germ token and attach this to it.', { auto: 'manual', actions: ['token', 'attach'] });
-m('Madness', 'keyword', 'If you discard this card, you may exile it instead and cast it for its madness cost.', { auto: 'manual', actions: ['exile'] });
+m('Madness', 'keyword', 'If you discard this card, you may exile it instead and cast it for its madness cost.', { auto: 'auto', actions: ['exile'] });
 m('Melee', 'keyword', 'Whenever this attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.', { auto: 'manual', actions: ['pt'] });
 m('Mentor', 'keyword', 'Whenever this attacks, put a +1/+1 counter on target attacking creature with lesser power.', { auto: 'manual', actions: ['counter+'] });
 m('Miracle', 'keyword', 'If this is the first card you drew this turn, you may reveal it and cast it for its miracle cost.', { auto: 'manual' });

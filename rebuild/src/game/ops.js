@@ -198,7 +198,11 @@ function runPlay(game, op, ask) {
     }));
   }
   const check = playCheck(game, player, card, faceIndex);
-  if (free) {
+  const madness = typeof op.args.madnessCost === 'string' ? op.args.madnessCost : null;
+  if (madness !== null) {
+    // Madness: cast now from exile for its madness cost; timing is waived (it is cast while its trigger resolves).
+    if (check.kind === 'land') throw new GameError('A land cannot be cast.');
+  } else if (free) {
     // Cast without paying its mana cost (cascade, discover): only timing is waived, not targets.
     if (check.kind === 'land') throw new GameError('A land cannot be cast.');
   } else if (!check.legal && !force) throw new GameError(check.reasons[0] || 'That play is not legal right now.', check.reasons);
@@ -233,7 +237,7 @@ function runPlay(game, op, ask) {
   }
 
   // How is it cast? (normal, flashback, evoke, face down …)
-  const modes = free ? [{ id: 'normal', label: 'Cast', cost: '', legal: true }] : (check.options || []).filter(o => o.legal || force);
+  const modes = madness !== null ? [{ id: 'madness', label: 'Madness', cost: madness, legal: true }] : free ? [{ id: 'normal', label: 'Cast', cost: '', legal: true }] : (check.options || []).filter(o => o.legal || force);
   let mode = modes[0] || { id: 'normal', label: 'Cast', cost: def.manaCost || '' };
   if (modes.length > 1) {
     const pick = ask('castMode', () => ({
@@ -1011,7 +1015,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { madness: 'Madness', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1068,7 +1072,7 @@ function stackSpecial(game, player, trigger, spec) {
   if (top) Object.assign(top, {
     name, label: `${name} — ${SPECIAL_LABEL[spec.special]}`, text: trigger.abilityText || SPECIAL_LABEL[spec.special],
     special: spec.special, amount: spec.amount ?? trigger.amount ?? null, spellStackId: trigger.spellStackId || null,
-    manaValue: trigger.manaValue ?? null, stormCount: trigger.stormCount ?? null, resolveReqs: []
+    manaValue: trigger.manaValue ?? null, stormCount: trigger.stormCount ?? null, madnessCost: trigger.madnessCost ?? null, resolveReqs: []
   });
 }
 
@@ -1151,6 +1155,18 @@ function runSpecial(game, top, player, ask) {
         game.stack.push(copy);
       }
       log(game, original ? `Storm copies ${original.name} ${plural(copies.length, 'time')}.` : 'Storm does nothing: the spell has left the stack.');
+    };
+  } else if (special === 'madness') {
+    // Madness: the discarded card waits in exile; its owner may cast it now for its madness cost, or it goes to the graveyard.
+    const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId && c.madness);
+    const cost = top.madnessCost || '';
+    const choice = card ? ask('madness', () => ({ ...base, kind: 'choose-one', title: `${top.name} — madness`, definitionId: card.definitionId,
+      prompt: `Cast ${top.name} for its madness cost ${cost}?`, options: [{ id: 'cast', label: `Cast it for ${cost}` }, { id: 'no', label: 'Put it into my graveyard' }] })) : 'none';
+    after = () => {
+      if (!card) return;
+      if (choice === 'cast') { game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId, cost }; return; }
+      const i = player.deck.exile.indexOf(card);
+      if (i >= 0) { player.deck.exile.splice(i, 1); delete card.madness; card.zone = 'graveyard'; player.deck.graveyard.push(card); log(game, `${top.name} goes to the graveyard.`); }
     };
   } else if (special === 'venture' || special === 'initiative' || special === 'initiative-venture') {
     const room = ventureChoice(game, player, ask, { undercity: special !== 'venture' });

@@ -554,7 +554,7 @@ export function collectTriggers(game, event) {
       if (ability.oncePerTurn)
         row.card.triggerFireLedger[turnKey] = true;
       const compiled = ability.compiled || (ability.modes?.length ? { supported: true, effects: [], requirements: [], unsupported: [] } : compileEffectText(ability.effect, { sourceName: row.definition?.name || 'Triggered ability' }));
-      out.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: row.player.playerId, sourceId: row.card.instanceId, sourceDefinitionId: row.card.definitionId, sourceName: row.definition?.name || 'Card', abilityId: ability.id, abilityText: ability.text, effectText: ability.effect, modal: ability.modes?.length ? { modes: ability.modes, uniquePerTurn: !!ability.uniquePerTurn } : null, compiled, event: structuredClone(event), createdAt: new Date().toISOString() });
+      out.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: row.player.playerId, sourceId: row.card.instanceId, sourceDefinitionId: row.card.definitionId, sourceName: row.definition?.name || 'Card', abilityId: ability.id, abilityText: ability.text, effectText: ability.effect, modal: ability.modes?.length ? { modes: ability.modes, uniquePerTurn: !!ability.uniquePerTurn } : null, compiled, event: structuredClone(event), createdAt: new Date().toISOString(), ...(ability.special ? { special: ability.special, madnessCost: ability.madnessCost || null } : {}) });
     }
   out.push(...designationTriggers(game, event));
   return out;
@@ -582,6 +582,16 @@ function dueDelayedTriggers(game, event) {
 }
 export function queueTriggers(game, event) {
   recordStat(game, event);
+  // Madness: a discarded card with madness is exiled instead, and its madness trigger goes on the stack.
+  if (event?.type === 'discard' && event.sourceId) {
+    for (const p of game.players || []) {
+      const i = (p.deck?.graveyard || []).findIndex(c => c.instanceId === event.sourceId);
+      if (i < 0) continue;
+      const c = p.deck.graveyard[i], text = String(defFor(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '');
+      const mad = text.match(/(?:^|\n)\s*Madness ((?:\{[^}]+\})+)/i);
+      if (mad) { p.deck.graveyard.splice(i, 1); c.zone = 'exile'; c.madness = mad[1]; p.deck.exile.push(c); }
+    }
+  }
   const collected = [...dueDelayedTriggers(game, event), ...collectTriggers(game, event)];
   if (!collected.length)
     return collected;

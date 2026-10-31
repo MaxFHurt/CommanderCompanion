@@ -455,4 +455,14 @@ section('round 6: "When you cast this spell"');
   check('a creature spell\'s own cast trigger resolves (before the creature)', t.P(0).deck.hand.length === hand + 2 && !!t.bf(0, 'Colossal Dreadmaw'), `${hand} → ${t.P(0).deck.hand.length}`);
 }
 
+section('round 6: madness');
+{
+  for (const castIt of [true, false]) {
+    const t = setup();
+    t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Madness {1}');
+    cast(t, 'Opt', 'Draw a card, then discard a card.', [['discard', d => [d.options.find(o => o.label === 'Colossal Dreadmaw').id]], ['madness', castIt ? 'cast' : 'no']]);
+    check(`madness: discarded, then ${castIt ? 'cast for its madness cost' : 'declined: it goes to the graveyard'}`, castIt ? !!t.bf(0, 'Colossal Dreadmaw') : t.names(0, 'graveyard').includes('Colossal Dreadmaw') && !t.names(0, 'exile').includes('Colossal Dreadmaw'), JSON.stringify([t.names(0, 'exile'), t.names(0, 'graveyard')]));
+  }
+}
+
 done();
