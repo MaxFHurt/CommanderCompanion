@@ -60,6 +60,7 @@ export function canTarget(game, card, player, source = null) {
 
 /** Players with "You have hexproof/shroud" (Leyline of Sanctity, True Believer) can't be targeted by opponents / anyone. */
 export function canTargetPlayer(game, target, player) {
+  if (target.protectionFromEverything) return false;
   for (const c of target.deck?.battlefield || []) {
     const t = String(defOf(game, c)?.oracleText || '');
     if (/\bYou have shroud\b/i.test(t)) return false;

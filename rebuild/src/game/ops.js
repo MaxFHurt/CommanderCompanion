@@ -9,7 +9,7 @@ import {
   basicLandManaColor, isBasicLand, tapManaAbilities, entersBattlefieldTapped
 } from '../engine/rules.js';
 import { asEntersChoiceSpec, entersWithCountersSpec, modalSpellSpec, spellSupport } from '../engine/abilities.js';
-import { compileEffectText } from '../engine/effects.js';
+import { compileEffectText, parseCondition, checkCondition } from '../engine/effects.js';
 import { availableModalTriggerModes, recordModalTriggerModeChoice, queueTriggers } from '../engine/triggers.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import {
@@ -73,6 +73,8 @@ export function effectRunsByItself(text, sourceName = 'Card') {
   if (/Activate (?:this ability )?only (?:if|during|once)/i.test(t) && !activationRules(t)) return false;
   if (specialFromText(t)) return true;
   if (compileFor(t, sourceName).compiled.supported) return true;
+  const iff = t.match(/^if (.+?), ((?:you may )?search your library.+)$/i);
+  if (iff && parseCondition(iff[1])) return !!librarySearchSpec(iff[2]);
   return /^(?:you may )?search your library/i.test(t) && !!librarySearchSpec(t);
 }
 
@@ -760,6 +762,12 @@ function runTrigger(game, op, ask) {
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;
   bindings.thatCard = other || (/damage/.test(ev.type || '') && ev.targetId && ev.targetId !== trigger.sourceId ? ev.targetId : null) || bindings.eventCard;
   let resolve = [], guided = null, search = null;
+  // "if an opponent controls more lands than you, you may search your library …" (Land Tax): checked now; if it fails, nothing happens.
+  const iffSearch = !compiled?.supported && String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, '').match(/^if (.+?), ((?:you may )?search your library.+)$/i);
+  if (iffSearch && parseCondition(iffSearch[1])) {
+    if (!checkCondition(game, player.playerId, iffSearch[1], { sourceId: trigger.sourceId })) { log(game, `${name} triggers, but its condition is not met.`); return drop(); }
+    text = iffSearch[2];
+  }
   if (!compiled?.supported && /^(?:you may )?search your library/i.test(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''))) {
     search = librarySearchSpec(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''));
     if (search) compiled = { supported: true, effects: [], requirements: [], unsupported: [] };

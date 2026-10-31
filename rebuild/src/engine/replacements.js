@@ -61,6 +61,9 @@ export function lifeGainAmount(game, playerId, amount) {
 /** Damage actually dealt by a source (controlled by `sourceControllerId`, with `colors`) to a target. */
 export function damageAmount(game, { sourceControllerId, colors = [], targetPlayerId = null, targetControllerId = null }, amount) {
   if (amount <= 0) return amount;
+  // "You gain protection from everything" (The One Ring, Teferi's Protection): damage to that player is prevented.
+  const protectedPlayer = targetPlayerId && (game.players || []).find(p => p.playerId === targetPlayerId);
+  if (protectedPlayer?.protectionFromEverything) return 0;
   let n = amount;
   const victim = targetPlayerId || targetControllerId;
   for (const { p, text } of permanents(game)) {

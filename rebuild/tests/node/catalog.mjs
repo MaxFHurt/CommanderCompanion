@@ -616,4 +616,52 @@ section('round 9: rebound, Greater Good, Plaguecrafter');
   check('Plaguecrafter: the player with no creature discards instead', t.names(1, 'graveyard').includes('Counterspell') && t.names(0, 'graveyard').includes('Grizzly Bears'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'graveyard')]));
 }
 
+section('round 10: conditions with "instead" / "Otherwise", and other most-played cards');
+{
+  for (const many of [false, true]) {
+    const t = setup();
+    if (!many) for (const c of t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine)).slice(3)) t.edit({ kind: 'move', instanceId: c.instanceId, to: 'graveyard' });
+    const swarm = onField(t, 'Grizzly Bears', 'Landfall — Whenever a land you control enters, create a 1/1 green Insect creature token. If you control six or more lands, create a token that\'s a copy of this creature instead.', { name: 'Grizzly Bears' });
+    t.give(0, 'Forest'); t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Forest').instanceId }, t.as(0)); settle(t);
+    const tokens = t.P(0).deck.battlefield.filter(c => c.token);
+    check(`Scute Swarm with ${many ? 'six or more lands: a copy instead' : 'fewer lands: an Insect'}`, tokens.length === 1 && (many ? def(t, tokens[0]).name === 'Grizzly Bears' : /Insect/.test(def(t, tokens[0]).typeLine)), JSON.stringify(tokens.map(c => def(t, c).name)));
+  }
+}
+{
+  for (const threshold of [false, true]) {
+    const t = setup();
+    if (threshold) for (const n of ['Mulldrifter', 'Colossal Dreadmaw', 'Air Elemental', 'Fog Bank', 'Counterspell', 'Giant Growth', 'Divination']) t.give(0, n, 'graveyard');
+    cast(t, 'Opt', 'Add {B}{B}{B}.\nThreshold — Add {B}{B}{B}{B}{B} instead if there are seven or more cards in your graveyard.');
+    const b = Number(t.P(0).mana.floating?.B || 0);
+    check(`Cabal Ritual: ${threshold ? 'five' : 'three'} black mana`, b === (threshold ? 5 : 3), String(b));
+  }
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever a creature you control enters, draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it.', { typeLine: 'Enchantment' });
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Grizzly Bears', '');
+  check('Tribute to the World Tree: a small creature gets two +1/+1 counters', Number(t.bf(0, 'Grizzly Bears').counters?.['+1/+1'] || 0) === 2 && t.P(0).deck.hand.length === hand, JSON.stringify(t.bf(0, 'Grizzly Bears').counters));
+  cast(t, 'Colossal Dreadmaw', '', [], { manaCost: '{1}' });
+  check('…a big creature draws a card instead', t.P(0).deck.hand.length === hand + 1 - 0 && !t.bf(0, 'Colossal Dreadmaw').counters?.['+1/+1'], `${hand} → ${t.P(0).deck.hand.length}`);
+}
+{
+  const t = setup();
+  const rag = onField(t, 'Grizzly Bears', 'Whenever this creature deals combat damage to a player, create a Treasure token and exile the top card of that player\'s library. Until end of turn, you may cast that card.');
+  t.end(0); t.autoPass = true; t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  const exiled = t.P(0).deck.exile.find(c => c.ownerId === t.P(1).playerId);
+  check('Ragavan: a Treasure, and the opponent\'s top card exiled where its new player may cast it', !!exiled?.playPermission && exiled.ownerId === t.P(1).playerId && t.P(0).deck.battlefield.some(c => c.token && /Treasure/.test(def(t, c).name)), JSON.stringify([!!exiled, t.names(1, 'exile')]));
+}
+{
+  const t = setup();
+  cast(t, 'Fog Bank', 'When this artifact enters, if you cast it, you gain protection from everything until your next turn.', [], { typeLine: 'Legendary Artifact', manaCost: '{4}' });
+  const life = t.P(0).life;
+  t.give(1, 'Opt'); asText(t, t.hand(1, 'Opt'), 'This spell deals 3 damage to any target.');
+  const targets = (() => { t.autoPass = true; t.end(0); t.autoPass = false; const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Opt').instanceId }, t.as(1)); const d = t.decision(); const ids = (d?.options || []).map(o => o.playerId).filter(Boolean); if (d) t.ctl.dispatch({ type: 'cancel' }, t.as(1)); return ids; })();
+  check('The One Ring: protection from everything — opponents can\'t target you', !targets.includes(t.P(0).playerId) && t.P(0).protectionFromEverything === true, JSON.stringify(targets));
+}
+
 done();

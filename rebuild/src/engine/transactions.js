@@ -288,6 +288,7 @@ function putSpellOnStack(game, player, action, deck) {
   delete card.foretoldTurn;
   if (action.castMode && action.castMode !== 'normal')
     card.castMode = action.castMode;
+  card.wasCast = true;   // "if you cast it" (The One Ring); forgotten when it changes zones again
   if (action.kicked) {
     card.kicked = true;
     card.kickCount = Number(action.kickCount || 1);

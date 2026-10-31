@@ -57,6 +57,19 @@ export function compileCatalogClause(c0, ctx0) {
 }
 function compileCatalogClauseInner(c, ctx) {
   const { sourceName, selfAny, effects, requirements } = ctx;
+  let mt;
+  // "Then amass Orcs 1." — a sentence that begins with "Then".
+  if ((mt = c.match(/^Then,? (.+)$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(mt[1].charAt(0).toUpperCase() + mt[1].slice(1)), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) { effects.push(...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
+  if (/^you gain protection from everything until your next turn\.?$/i.test(c)) { effects.push({ kind: 'player-protection' }); return true; }
+  // Dice: "roll a d20." then "… equal to the result".
+  if ((mt = c.match(/^(?:you )?roll a d(\d+)\.?$/i))) { effects.push({ kind: 'roll-die', sides: Number(mt[1]) }); return true; }
+  if (/equal to the result\.?$/i.test(c)) {
+    const inner = H.compileSingleClause(ctx.restore(c.replace(/^You create a number of (.+?) tokens? equal to the result\.?$/i, 'Create X $1 tokens.').replace(/ equal to the result/i, ' X')), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) { effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: 'dieResult' } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X'))); return true; }
+  }
   // "another target creature": the same instruction, and this permanent can't be chosen.
   if (/\banother target\b/i.test(c) && !requirements.length) {
     const inner = H.compileSingleClause(ctx.restore(c.replace(/\banother target\b/i, 'target')), { sourceName });
@@ -538,9 +551,24 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     return { part: { effects: [{ kind: 'dig', bind, amount, amountExpr, picks, rest: req.rest, playerBind: ofPlayer }], requirements: [...(playerReq ? [playerReq] : []), req], unsupported: [] }, consumed: k };
   }
 
+  // "create a Treasure token and exile the top card of that player's library." (Ragavan): the first instruction, then the impulse.
+  const lead = c0.match(/^(.+?) and (exile the top card of (?:your|that player's|target opponent's|defending player's) library(?: face down)?\.?)$/i);
+  if (lead) {
+    const first = H.compileSingleClause(`${cap(lead[1])}.`, { sourceName });
+    const rest = !first.unsupported.length && first.effects.length ? compileCatalogSequence([cap(lead[2]), ...clauses.slice(i + 1)], 0, { sourceName, parts }) : null;
+    if (rest) return { part: { effects: [...first.effects, ...rest.part.effects], requirements: [...first.requirements, ...rest.part.requirements], unsupported: [] }, consumed: rest.consumed };
+  }
+  // Six: "mill three cards. You may put a land card from among them into your hand."
+  if ((m = c0.match(/^(?:You )?mill (a|one|two|three|four|five|six|seven|\d+) cards?\.?$/i)) && (m.next = next(1).match(/^(?:Then )?(you may )?(?:return|put) (?:a|an|up to one|one) ([a-z ,/'-]*?)cards? from among (?:them|the milled cards|those cards|cards milled this way) (?:into|to) your hand\.?$/i))) {
+    const amount = num(m[1]), bind = `dig${i}`, picks = [{ min: m.next[1] ? 0 : 1, max: 1, filter: m.next[2].trim(), to: 'hand' }], rest = { to: 'graveyard', mill: true };
+    return { part: { effects: [{ kind: 'dig', bind, amount, picks, rest }], requirements: [{ kind: 'dig', bind, amount, offset: drawnBefore, reveal: true, picks, rest, label: `the ${amount} cards you mill` }], unsupported: [] }, consumed: 2 };
+  }
   // Impulse draw: "Exile the top card of your library. You may play that card this turn."
-  if ((m = c0.match(/^Exile the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of your library(?: face down)?\.?$/i))) {
+  if ((m = c0.match(/^Exile the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|that player's|target opponent's|defending player's) library(?: face down)?\.?$/i))) {
     const amount = /^card$/i.test(m[1]) ? 1 : num(m[1]);
+    const whose = m[2].toLowerCase();
+    const libPlayerReq = /target/.test(whose) ? { kind: 'player', bind: `impulsePlayer${i}`, scope: 'opponent', label: 'target opponent' } : null;
+    const libPlayer = libPlayerReq ? libPlayerReq.bind : /that player/.test(whose) ? 'eventPlayer' : /defending/.test(whose) ? 'defendingPlayer' : null;
     let k = 1, choose = null;
     const ch = next(1).match(/^Choose (one|a card) of them\.?$/i);
     if (ch) { choose = true; k = 2; }
@@ -551,7 +579,8 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const until = /as long as/i.test(s) ? 'forever' : /next turn/i.test(p[1] || p[4] || '') ? 'next-turn' : 'turn';
     const bind = choose ? `impulse${i}` : null;
     const requirements = choose ? [{ kind: 'dig', bind, amount, offset: drawnBefore, picks: [{ min: 1, max: 1, filter: '', to: 'exile-play' }], rest: { to: 'exile' }, label: `the top ${amount} cards`, chooseOnly: true }] : [];
-    return { part: { effects: [{ kind: 'impulse', amount, until, castOnly: /cast/i.test(p[2]) && !/lands/i.test(p[3]), free: !!p[5], chooseBind: bind }], requirements, unsupported: [] }, consumed: k + 1 };
+    if (libPlayer && choose) return null;
+    return { part: { effects: [{ kind: 'impulse', amount, until, castOnly: /cast/i.test(p[2]) && !/lands/i.test(p[3]), free: !!p[5], chooseBind: bind, libPlayer }], requirements: [...(libPlayerReq ? [libPlayerReq] : []), ...requirements], unsupported: [] }, consumed: k + 1 };
   }
 
   // Hand disruption: "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card."
@@ -625,7 +654,7 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
       // Back on top in the chosen order (first = top).
       for (const id of [...rest].reverse()) moveTo(game, id, { to: 'top' }, emit, controllerId);
     } else {
-      for (const id of rest) moveTo(game, id, r, emit, controllerId);
+      for (const id of rest) { moveTo(game, id, r, emit, controllerId); if (r.mill) emit({ type: 'mill', playerId: owner.playerId, sourceId: id, amount: 1 }); }
       if (rest.length) notes.push(`${rest.length} other card${rest.length === 1 ? '' : 's'} ${r.to === 'graveyard' ? 'go to the graveyard' : r.to === 'hand' ? 'go to the hand' : r.to === 'exile' ? 'are exiled' : 'go on the bottom of the library'}.`);
     }
     emit({ type: 'library-looked', playerId: controllerId });
@@ -633,11 +662,18 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
   }
   if (effect.kind === 'impulse') {
     const n = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings));
-    const ids = controller.deck.remainingLibrary.slice(0, n).map(c => c.instanceId);
+    const libOwner = effect.libPlayer ? playerById(game, bindings[effect.libPlayer]) : controller;
+    if (!libOwner) { notes.push('There is no library to exile from.'); return true; }
+    const ids = libOwner.deck.remainingLibrary.slice(0, n).map(c => c.instanceId);
     const chosen = effect.chooseBind ? new Set((bindings[effect.chooseBind]?.groups || [])[0] || []) : null;
     for (const id of ids) {
       const moved = moveCard(game, id, 'exile', { onEvent: emit });
       if (!chosen || chosen.has(id)) moved.card.playPermission = { playerId: controllerId, until: effect.until, grantedTurn: game.turnNumber, castOnly: !!effect.castOnly, free: !!effect.free };
+      // Another player's card: kept with your exiled cards so you can cast it (it still belongs to its owner).
+      if (libOwner.playerId !== controllerId) {
+        const at = libOwner.deck.exile.indexOf(moved.card);
+        if (at >= 0) { libOwner.deck.exile.splice(at, 1); controller.deck.exile.push(moved.card); }
+      }
     }
     notes.push(`${controller.displayName} exiles ${ids.map(nameOf).join(', ') || 'nothing'}${ids.length ? ` and may ${effect.castOnly ? 'cast' : 'play'} ${chosen ? 'the chosen card' : ids.length === 1 ? 'it' : 'them'} ${effect.until === 'next-turn' ? 'until the end of their next turn' : 'this turn'}` : ''}.`);
     return true;
@@ -1097,6 +1133,8 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'player-protection': controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
+    case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
     case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;
     case 'untap-those': {

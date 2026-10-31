@@ -121,6 +121,8 @@ export function advanceTurn(game) {
       p.counters.castThisTurn = [];
     }
   game.activePlayerId = next.playerId;
+  // "you gain protection from everything until your next turn" ends as that player's turn begins.
+  if (next.protectionFromEverything) delete next.protectionFromEverything;
   // "Until your next turn" effects (goad, some dungeon rooms) end as that player's turn begins.
   for (const p of game.players || [])
     for (const c of p.deck?.battlefield || [])

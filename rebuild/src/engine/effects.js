@@ -85,7 +85,7 @@ export function clearCastState(card, to) {
     delete card.realDefinitionId;
     delete card.faceDownKind;
   }
-  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags'])
+  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast'])
     delete card[key];
   delete card.playPermission;
   if (to !== 'exile') {
@@ -492,7 +492,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     // "If you control three or more artifacts, …": checked as it resolves; if not, the effects that follow do nothing.
     if (effect.kind === 'condition') {
       if (bindings.skipEffects > 0) { bindings.skipEffects--; continue; }
-      if (!conditionHolds(game, controllerId, effect, bindings)) { bindings.skipEffects = effect.skip || 0; notes.push(effect.failNote || 'The condition is not met.'); }
+      const holds = conditionHolds(game, controllerId, effect, bindings);
+      if (effect.negate ? holds : !holds) { bindings.skipEffects = effect.skip || 0; if (!effect.negate) notes.push(effect.failNote || 'The condition is not met.'); }
       continue;
     }
     if (!(bindings.skipEffects > 0) && applyCatalogEffect(game, controllerId, effect, bindings, notes)) continue;
@@ -1473,8 +1474,35 @@ export function restoreGameSnapshot(game, snapshot) {
   game.cardDefinitions = definitions;
 }
 /** "if you control a creature with power 4 or greater", "if this artifact is tapped", "if it's not your turn". */
+/** "you control six or more lands", "there are seven or more cards in your graveyard", "an opponent controls more lands
+ * than you", "its power is 3 or greater", "you cast it" …: a condition test, or null if the wording is not understood. */
+export function parseCondition(text) {
+  const t = String(text || '').trim().replace(/\.$/, '');
+  const counts = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, thirteen: 13, twenty: 20 };
+  let m;
+  if ((m = t.match(/^you control (\w+) or more lands with different names$/i))) return { test: 'distinct-lands', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
+  if ((m = t.match(/^you control (a|an|no|(\w+) or more) (.+)$/i)) && parseSubject(m[3].replace(/s$/, ''), null)) return { test: 'control', subject: m[3].replace(/s$/, ''), min: m[2] ? (counts[m[2].toLowerCase()] ?? Number(m[2])) : 1, ...(/^no$/i.test(m[1]) ? { none: true } : {}) };
+  if ((m = t.match(/^there are (\w+) or more cards in your graveyard$/i))) return { test: 'graveyard-count', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
+  if (/^an opponent controls more lands than you$/i.test(t)) return { test: 'opponent-more-lands' };
+  if (/^an opponent has more life than you$/i.test(t)) return { test: 'opponent-more-life' };
+  if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
+  if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
+  if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
+  if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
+  if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
+  return null;
+}
+export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
+  if (effect.test === 'distinct-lands') return new Set((me?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => definitionFor(game, c)?.name)).size >= (effect.min || 1);
+  if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
+  if (effect.test === 'opponent-more-lands') { const n = p => (p.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return game.players.some(p => !p.eliminated && p.playerId !== controllerId && n(p) > n(me)); }
+  if (effect.test === 'opponent-more-life') return game.players.some(p => !p.eliminated && p.playerId !== controllerId && Number(p.life || 0) > Number(me?.life || 0));
+  if (effect.test === 'event-power') { const h = locateCardInGame(game, bindings.eventCard || bindings.sourceId); return !!h && effectivePower(h.card, definitionFor(game, h.card), game) >= (effect.min || 0); }
+  if (effect.test === 'life') return Number(me?.life || 0) >= (effect.min || 0);
+  if (effect.test === 'source-cast') { const h = locateCardInGame(game, bindings.sourceId); return !!h?.card?.castMode || !!h?.card?.wasCast; }
   if (effect.test === 'control') {
     const subject = parseSubject(effect.subject, null);
     if (!subject || !me) return false;
@@ -1856,7 +1884,8 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   const selfAny = `(?:${selfName}|${shortName}|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker))`;
   const selfCounterRe = rx(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfAny}|it)\\.?$`, 'i');
   if ((m = c.match(selfCounterRe))) {
-    effects.push({ kind: 'counter', bind: 'sourceId', counter: m[2].trim(), amount: numberFromText(m[1]) });
+    // "on it" in a trigger is the event's creature (the one that entered); for its own abilities that is the source.
+    effects.push({ kind: 'counter', bind: / on it\.?$/i.test(c) ? 'eventCard' : 'sourceId', counter: m[2].trim(), amount: numberFromText(m[1]) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Put (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|\+1\/\+1|-1\/-1|[A-Za-z][A-Za-z -]+) counters? on (target .+?)\.?$/i))) {
@@ -2629,6 +2658,33 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
         continue;
       }
     }
+    // "If you control six or more lands, create a token that's a copy of this creature instead." (Scute Swarm) /
+    // "Add {B}{B}{B}{B}{B} instead if there are seven or more cards in your graveyard." (Cabal Ritual): the earlier
+    // instruction happens only when the condition fails, this one only when it holds.
+    const insteadM = clause.match(/^(?:[A-Z][a-z]+ — )?If (.+?), (.+?) instead\.?$/i) || (m0 => m0 && [m0[0], m0[2], m0[1]])(clause.match(/^(?:[A-Z][a-z]+ — )?(.+?) instead if (.+?)\.?$/i));
+    const insteadCond = insteadM && !/^(?:that creature|it|they|that permanent) /i.test(insteadM[2]) && parseCondition(insteadM[1]);
+    const prevPart = parts[parts.length - 1];
+    if (insteadCond && prevPart && !prevPart.unsupported.length && prevPart.effects.length) {
+      const alt = compileEffectText(insteadM[2].charAt(0).toUpperCase() + insteadM[2].slice(1), { sourceName });
+      if (alt.supported) {
+        prevPart.effects.unshift({ kind: 'condition', ...insteadCond, negate: true, skip: prevPart.effects.length });
+        parts.push({ effects: [{ kind: 'condition', ...insteadCond, skip: alt.effects.length, failNote: ' ' }, ...alt.effects], requirements: alt.requirements, unsupported: [] });
+        continue;
+      }
+    }
+    // "Draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it." (Tribute to the World Tree)
+    const trailingIf = clause.match(/^(.+?) if (.+?)\.?$/i);
+    const trailingCond = trailingIf && !/\bwould\b/i.test(clause) && parseCondition(trailingIf[2]);
+    if (trailingCond) {
+      const body = compileEffectText(`${trailingIf[1].charAt(0).toUpperCase()}${trailingIf[1].slice(1)}.`, { sourceName });
+      if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...trailingCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: trailingCond }); continue; }
+    }
+    const otherwise = clause.match(/^Otherwise,? (.+)$/i);
+    const condBefore = otherwise && [...parts].reverse().find(p => p.cond)?.cond;
+    if (condBefore) {
+      const body = compileEffectText(otherwise[1].charAt(0).toUpperCase() + otherwise[1].slice(1), { sourceName });
+      if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...condBefore, negate: true, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [] }); continue; }
+    }
     // "Those creatures gain indestructible until end of turn." (Inspiring Call, Elspeth): the creatures the sentence before counted or changed.
     const those = clause.match(/^Those creatures gain ([a-z ,]+?) until (end of turn|your next turn)\.?$/i);
     const before = those && [...parts].reverse().flatMap(p => [...p.effects].reverse()).find(e => e.kind === 'counter-each' || e.kind === 'pump-each' || (e.kind === 'draw' && e.amount?.kind === 'count'));
@@ -2733,6 +2789,13 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
     const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
+    const genericIf = !/^If you do\b/i.test(clause) && clause.match(/^(?:[A-Z][a-z]+ — )?if (.+?), (.+)$/i);
+    const genericCond0 = genericIf && !/\bwould\b|\binstead\b/i.test(clause) && parseCondition(genericIf[1]);
+    const genericCond = genericCond0 && (!cond || genericCond0.test !== 'control') ? genericCond0 : null;
+    if (genericCond) {
+      const body = compileEffectText(genericIf[2].charAt(0).toUpperCase() + genericIf[2].slice(1), { sourceName });
+      if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...genericCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: genericCond }); continue; }
+    }
     if (cond && !/^If you do\b/i.test(clause)) {
       const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
       const innerAlt = !inner.unsupported.length ? inner : bridgePronoun(`${cond[4].charAt(0).toUpperCase()}${cond[4].slice(1)}`, parts, sourceName) || compileEffectText(cond[4], { sourceName });
