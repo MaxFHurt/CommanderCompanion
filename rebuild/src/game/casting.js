@@ -5,6 +5,7 @@
 // convoke (tap creatures) and delve (exile graveyard cards). Kicker, multikicker and buyback
 // are extra costs asked for after the way to cast is chosen.
 
+import { exilePlayPermission } from '../engine/effects-catalog.js';
 import { parseManaCost, validatePlay } from '../engine/rules.js';
 import { defOf, definitionsMap, isLand, opponentsOf } from './helpers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from '../engine/face-down.js';
@@ -150,7 +151,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -212,6 +213,9 @@ export function castModes(game, player, card, def, base = null) {
     const esc = escapeCost(text);
     if (esc && delveCards(player, card).length >= esc.exile) modes.push({ id: 'escape', cost: esc.cost, escapeExile: esc.exile, exileAfter: /Instant|Sorcery/i.test(def?.typeLine || '') });
   }
+  // Impulse draw: "You may play that card this turn." (and "… without paying its mana cost").
+  const permit = zone === 'exile' ? exilePlayPermission(game, player, card) : null;
+  if (permit && !(permit.castOnly && isLand(def)) && (def?.manaCost || isLand(def) || permit.free)) modes.push({ id: permit.free ? 'free-exile' : 'normal', cost: permit.free ? '' : (def.manaCost || '') });
   if (zone === 'exile' && card.ownerId === player.playerId) {
     if (card.foretold && card.foretoldTurn !== game.turnNumber) {
       const cost = keywordCost(base?.oracleText || text, 'Foretell');

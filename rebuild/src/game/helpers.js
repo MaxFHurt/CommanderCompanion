@@ -1,5 +1,6 @@
 // Small shared helpers for the game layer. No DOM access anywhere under src/game.
 
+import { withOverlay } from '../engine/overlay.js';
 export const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
 export const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', C: 'Colorless' };
 export const ZONE_KEYS = ['hand', 'battlefield', 'graveyard', 'exile', 'commandZone', 'remainingLibrary'];
@@ -40,7 +41,7 @@ export function defOf(game, card) {
   const base = game?.cardDefinitions?.[card.definitionId] || null;
   if (!base) return null;
   const index = Number.isInteger(card.activeFaceIndex) ? card.activeFaceIndex : null;
-  return index === null ? base : faceDefinition(base, index) || base;
+  return withOverlay(card, index === null ? base : faceDefinition(base, index) || base);
 }
 
 export function faceDefinition(base, index) {

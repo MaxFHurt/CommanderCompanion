@@ -1,6 +1,7 @@
 // Commander Companion V0.7.27 shared Oracle-effect resolver.
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
-import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates } from './effects-catalog.js';
+import { withOverlay } from './overlay.js';
+import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness } from './combat.js';
@@ -37,7 +38,8 @@ export function locateCardInGame(game, id) {
     return { player: game.players.find(p => p.playerId === stack.controllerId) || null, zone: 'stack', array: game.stack, index: game.stack.indexOf(stack), card: stack.card, stackObject: stack };
   return null;
 }
-export function definitionFor(game, card) { if (!card)
+export function definitionFor(game, card) { return withOverlay(card, plainDefinitionFor(game, card)); }
+function plainDefinitionFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function ownerFor(game, card, fallback) { return game.players.find(p => p.playerId === card?.ownerId) || fallback || null; }
 function currentController(game, card, fallback) { return game.players.find(p => p.playerId === card?.controllerId) || fallback || ownerFor(game, card, fallback); }
@@ -74,6 +76,7 @@ export function clearCastState(card, to) {
   }
   for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags'])
     delete card[key];
+  delete card.playPermission;
   if (to !== 'exile') {
     delete card.onAdventure;
     delete card.foretold;
@@ -2528,9 +2531,15 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
   // compiled as usual, then its effects are wrapped in a delayed trigger (marks are closed when the next clause starts).
   const delays = [];
   const closeDelay = () => { const d = delays[delays.length - 1]; if (d && d.to === undefined) d.to = parts.length; };
+  let skipMore = 0, clauseIndex = -1;
   for (let clause of clauses) {
+    clauseIndex++;
     closeDelay();
     if (skipNextClause) { skipNextClause = false; continue; }
+    if (skipMore > 0) { skipMore--; continue; }
+    // Several sentences that are one instruction ("Look at the top four cards … Put the rest …").
+    const seq = compileCatalogSequence(clauses, clauseIndex, { sourceName, parts });
+    if (seq) { parts.push(seq.part); skipMore = seq.consumed - 1; continue; }
     let dm = clause.match(/^(.+?),? at the beginning of the next turn'?s upkeep\.?$/i);
     if (dm) { delays.push({ from: parts.length, when: { event: 'upkeep', whose: 'any' } }); clause = `${dm[1]}.`; }
     else if ((dm = clause.match(/^At the beginning of (your|the) next (upkeep|main phase|precombat main phase|end step),\s*(.+)$/i))) {

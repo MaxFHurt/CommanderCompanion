@@ -39,7 +39,7 @@ function cast(t, name, text, picks = [], extra = {}) {
   if (!r.ok) throw new Error(`${name}: ${r.error}`);
   return settle(t, picks);
 }
-function onField(t, name, text, extra = {}, i = 0) { const c = t.give(i, name, 'battlefield'); asText(t, c, text, extra); c.summoningSick = false; c.enteredTurn = 0; return c; }
+function onField(t, name, text, extra = {}, i = 0) { const g = t.give(i, name, 'battlefield'); const c = t.P(i).deck.battlefield.find(x => x.instanceId === g.instanceId) || g; asText(t, c, text, extra); c.enteredTurn = 0; c.controlSinceTurn = 0; return c; }
 function activate(t, card, index = 0, picks = []) {
   const ab = parseActivatedAbilities(def(t, card)).filter(a => !a.manaAbility)[index];
   const r = t.ctl.dispatch({ type: 'activate', instanceId: card.instanceId, abilityId: ab.id }, t.as(0));
@@ -147,6 +147,88 @@ section('round 1: spells that exile or return themselves, keyword actions');
   check('amass 2 creates a 0/0 Army with two counters', army && power(t, army) === 2, army && def(t, army).typeLine);
   cast(t, 'Divination', 'Each opponent gets two poison counters.');
   check('poison counters for each opponent', Number(t.P(1).poison || 0) === 2);
+}
+
+section('round 2: look at the top cards, impulse draw, hand disruption');
+{
+  const t = setup();
+  const top4 = t.P(0).deck.remainingLibrary.slice(0, 4).map(c => c.instanceId);
+  let q = null;
+  cast(t, 'Opt', 'Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.', [['dig', d => { if (d.kind === 'choose-many') { q = d; return [d.options[2].id]; } return { top: d.cards.map(c => c.id).reverse(), other: [] }; }]]);
+  const lib = t.P(0).deck.remainingLibrary;
+  check('dig: the player picks one of the top four for their hand', q && q.options.length === 4 && t.P(0).deck.hand.some(c => c.instanceId === top4[2]), JSON.stringify(q && q.options.map(o => o.label)));
+  check('…the other three go to the bottom in the order the player chose', lib.slice(-3).map(c => c.instanceId).join() === [top4[3], top4[1], top4[0]].join(), JSON.stringify(lib.slice(-3).map(c => c.instanceId)));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  t.give(0, 'Fog Bank');
+  const creature = lib.find(c => /Creature/.test(def(t, c).typeLine)); lib.splice(lib.indexOf(creature), 1); lib.splice(1, 0, creature);
+  let q = null;
+  cast(t, 'Fog Bank', 'When this creature enters, look at the top five cards of your library. You may reveal a creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.', [['dig', d => { q = d; return d.kind === 'choose-many' ? d.options.filter(o => !o.disabled).slice(0, 1).map(o => o.id) : undefined; }]]);
+  check('dig with a filter: only creature cards can be chosen', q && q.options.filter(o => !o.disabled).every(o => /Creature/.test(o.sub)) && q.min === 0, JSON.stringify(q?.options.map(o => [o.label, o.disabled])));
+  check('…the chosen creature card is put into the hand', t.P(0).deck.hand.some(c => c.instanceId === creature.instanceId));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const land = lib.find(c => /Land/.test(def(t, c).typeLine)); lib.splice(lib.indexOf(land), 1); lib.unshift(land);
+  cast(t, 'Opt', 'Reveal the top card of your library. If it\'s a land card, put it onto the battlefield. Otherwise, put that card into your hand.');
+  check('Coiling Oracle: a revealed land goes onto the battlefield', t.P(0).deck.battlefield.some(c => c.instanceId === land.instanceId));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const bear = t.give(0, 'Grizzly Bears', 'library'); lib.splice(lib.indexOf(bear), 1); lib.unshift(bear);
+  cast(t, 'Opt', 'Exile the top card of your library. You may play that card this turn.');
+  check('impulse: the top card is exiled with permission to play it', t.P(0).deck.exile.some(c => c.instanceId === bear.instanceId && c.playPermission));
+  const r = t.ctl.dispatch({ type: 'play', instanceId: bear.instanceId }, t.as(0)); settle(t);
+  check('…and it can be cast from exile this turn', r.ok && !!t.bf(0, 'Grizzly Bears'), r.error);
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const elf = t.give(0, 'Llanowar Elves', 'library'); lib.splice(lib.indexOf(elf), 1); lib.unshift(elf);
+  cast(t, 'Opt', 'Exile the top card of your library. You may play that card this turn.');
+  t.autoPass = true; t.end(0); t.end(1); t.autoPass = false;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: elf.instanceId }, t.as(0));
+  check('impulse: "this turn" ends — not castable on a later turn', !r.ok && !t.P(0).deck.exile.find(c => c.instanceId === elf.instanceId)?.playPermission, r.error);
+}
+{
+  const t = setup();
+  t.give(1, 'Counterspell'); t.give(1, 'Forest');
+  let q = null;
+  cast(t, 'Opt', 'Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.', [['hand-pick', d => { q = d; return [d.options.find(o => !o.disabled).id]; }]]);
+  check('Duress-style: the caster sees the hand, lands cannot be chosen', q && q.playerId === t.P(0).playerId && q.options.find(o => o.label === 'Forest')?.disabled === true, JSON.stringify(q?.options));
+  check('…and the opponent discards the chosen card', t.names(1, 'graveyard').includes('Counterspell') && t.names(1, 'hand').includes('Forest'));
+}
+
+section('round 2: creature lands and Vehicles');
+{
+  const t = setup();
+  const land = t.bf(0, 'Island'); asText(t, land, '{T}: Add {U}.\n{1}: Until end of turn, this land becomes a 2/2 Eldrazi Cleric creature with flying. It\'s still a land.', { typeLine: 'Land' });
+  const others = t.P(0).deck.battlefield.filter(c => c !== land && /Land/.test(def(t, c).typeLine));
+  activate(t, land);
+  const d = t.view(0).players[0].battlefield.find(c => c.id === land.instanceId);
+  check('creature land: becomes a 2/2 flying land creature until end of turn', /Land Creature — .*Eldrazi Cleric/.test(d.type) && d.power === 2 && has(t, land, 'Flying'), JSON.stringify([d.type, d.power]));
+  t.autoPass = true; t.end(0); t.autoPass = false;
+  check('…and is only a land again after the turn', !/Creature/.test(t.view(0).players[0].battlefield.find(c => c.id === land.instanceId).type));
+  check('(the other lands were never creatures)', others.every(c => !/Creature/.test(t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).type)));
+}
+{
+  const t = setup();
+  const vehicle = onField(t, 'Air Elemental', 'Flying\nCrew 3', { typeLine: 'Artifact — Vehicle', power: '4', toughness: '4' });
+  const bear = onField(t, 'Grizzly Bears', ''), elf = onField(t, 'Llanowar Elves', '');
+  const row = t.view(0).players[0].battlefield.find(c => c.id === vehicle.instanceId).abilities.find(a => /Crew/.test(a.text));
+  check('Crew is offered on the Vehicle', !!row && row.legal, JSON.stringify(t.view(0).players[0].battlefield.find(c => c.id === vehicle.instanceId).abilities));
+  const bad = t.ctl.dispatch({ type: 'activate', instanceId: vehicle.instanceId, abilityId: row.id }, t.as(0));
+  const q = t.decision();
+  const wrong = t.ctl.dispatch({ type: 'answer', key: q.key, value: [elf.instanceId] }, t.as(0));
+  check('crew refuses creatures with too little total power', bad.ok && !wrong.ok, wrong.error);
+  t.ctl.dispatch({ type: 'activate', instanceId: vehicle.instanceId, abilityId: row.id }, t.as(0));
+  const seenCrew = settle(t, [['crew', [bear.instanceId, elf.instanceId]]]);
+  const v = t.view(0).players[0].battlefield.find(c => c.id === vehicle.instanceId);
+  check('crewed: the crew is tapped and the Vehicle is a 4/4 artifact creature', t.bf(0, 'Grizzly Bears').tapped && t.bf(0, 'Llanowar Elves').tapped && /Artifact Creature/.test(v.type) && v.power === 4, JSON.stringify([v.type, v.power]));
 }
 
 done();

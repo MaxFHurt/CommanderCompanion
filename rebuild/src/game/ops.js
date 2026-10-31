@@ -590,6 +590,19 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.search = stack.search || null; top.resolveReqs = []; }
     return;
   }
+  if (kind === 'crew') {
+    const need = Number((row.ability.text.match(/Crew (\d+)/i) || [])[1] || 0);
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || ''))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: `power ${effectivePower(c, defOf(game, c), game)}`, instanceId: c.instanceId, definitionId: c.definitionId }));
+    const picked = ask('crew', () => ({ ...base, kind: 'choose-many', title: `${def.name} — crew ${need}`, prompt: `Tap untapped creatures you control with total power ${need} or more.`, options: rows, min: 1, max: rows.length }));
+    const total = picked.reduce((n, id) => { const c = player.deck.battlefield.find(x => x.instanceId === id); return n + (c ? Math.max(0, effectivePower(c, defOf(game, c), game)) : 0); }, 0);
+    if (total < need && !force) throw new GameError(`Those creatures have total power ${total}; crew ${need} needs ${need}.`);
+    const stack = { id: newId('stack'), label: `${def.name} — crew`, text: `${def.name} becomes an artifact creature until end of turn.`, effects: [{ kind: 'animate', bind: 'sourceId', addTypes: ['Artifact', 'Creature'], subtypes: [], keywords: [], colors: null, power: null, toughness: null, expires: 'cleanup' }] };
+    commit(game, { type: 'special-action', kind: 'crew', playerId: player.playerId, instanceId: card.instanceId, crewIds: picked, payment: null, stack, label: `${player.displayName} crews ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'foretell') {
     commit(game, { type: 'special-action', kind: 'foretell', playerId: player.playerId, instanceId: card.instanceId, payment, label: `${player.displayName} foretells a card.` });
     return;

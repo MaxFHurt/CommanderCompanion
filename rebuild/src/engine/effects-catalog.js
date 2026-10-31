@@ -98,6 +98,25 @@ export function compileCatalogClause(c, ctx) {
   if (new RegExp(`^Shuffle (?:this card|${selfAny}) into its owner'?s library\\.?$`, 'i').test(c) || new RegExp(`^(?:This card's|${selfAny}'s) owner shuffles it into their library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-shuffle-into-library' }); return true; }
   if (new RegExp(`^Put (?:${selfAny}|it) on top of its owner'?s library\\.?$`, 'i').test(c)) { effects.push({ kind: 'source-to-library-top' }); return true; }
 
+  // --- "becomes a 3/3 Elemental creature with haste until end of turn. It's still a land." (creature lands, animation).
+  if (/^(?:It'?s|It is|That's|They're|They are) still (?:a|an)? ?(?:land|artifact|enchantment|planeswalker)s?\.?$/i.test(c)) return true;
+  if ((m = c.match(/^Until (end of turn|your next turn), (.+? becomes? .+?)\.?$/i)) && !/ until /i.test(m[2])) return compileCatalogClause(`${cap(m[2])} until ${m[1]}.`, ctx);
+  {
+    const SUBJ2 = `(${selfAny}|Target (?:[a-z ]+ )?(?:land|artifact|creature|permanent|enchantment|Vehicle|noncreature artifact)(?: you control)?|It|Enchanted land|Enchanted permanent|Each land you control|All lands you control|Up to one target (?:[a-z ]+ )?(?:land|artifact|creature|permanent)(?: you control)?)`;
+    const am = c.match(new RegExp(`^${SUBJ2} becomes? (?:a|an) (?:(\\d+|X)\\/(\\d+|X) )?([A-Za-z ,-]*?)\\bcreatures?(?: with ([^."]+?))?(?: (?:that's|that is) still (?:a|an) [a-z]+| in addition to its other types)?( until end of turn| until your next turn)?\\.?$`, 'i'));
+    if (am && !/"/.test(c)) {
+      const words = am[4].trim().split(/[\s,]+/).filter(w => w && !/^(?:and|a|an)$/i.test(w));
+      const colors = words.filter(w => /^(white|blue|black|red|green|colorless)$/i.test(w)).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null })[w.toLowerCase()]).filter(x => x !== undefined);
+      const addTypes = ['Creature', ...words.filter(w => /^(artifact|enchantment|legendary)$/i.test(w)).map(cap)];
+      const subtypes = words.filter(w => /^[A-Z]/.test(w) && !/^(White|Blue|Black|Red|Green|Colorless|Artifact|Enchantment|Legendary)$/.test(w));
+      const e = { kind: 'animate', power: am[2] ?? null, toughness: am[3] ?? null, addTypes, subtypes, keywords: H.KEYWORD_LIST(am[5] || '').map(cap), colors: words.some(w => /^colorless$/i.test(w)) ? [] : colors.filter(Boolean).length ? colors.filter(Boolean) : null, expires: am[6] ? until(am[6]) : null };
+      if (/^(?:each|all) lands? you control$/i.test(am[1])) { effects.push({ ...e, kind: 'animate-each', scope: 'you', filter: 'land' }); return true; }
+      const bind = /^(?:target|up to one target)/i.test(am[1]) ? H.targetRequirement(requirements, am[1].toLowerCase().replace(/^up to one /, ''), am[1], /^up to/i.test(am[1]) ? { optional: true } : {}) : subjectBind(am[1]);
+      effects.push({ ...e, bind, optionalTarget: /^up to/i.test(am[1]) || undefined });
+      return true;
+    }
+  }
+
   // --- Keyword actions.
   if ((m = c.match(new RegExp(`^Monstrosity ${N}\\.?$`, 'i')))) { effects.push({ kind: 'monstrosity', amount: num(m[1]) }); return true; }
   if ((m = c.match(new RegExp(`^Adapt ${N}\\.?$`, 'i')))) { effects.push({ kind: 'adapt', amount: num(m[1]) }); return true; }
@@ -221,6 +240,21 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       notes.push(`${name(hit.card)} is put into its owner's library${effect.kind === 'self-shuffle-into-library' ? ' and shuffled' : ' on top'}.`);
       return true;
     }
+    case 'animate':
+    case 'animate-each': {
+      const ids = effect.kind === 'animate-each' ? (controller.deck.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'land')).map(c => c.instanceId) : [H.resolveBoundId(effect, bindings)];
+      const n = resolveAmount(game, controllerId, 'X', bindings);
+      for (const id of ids) {
+        const hit = permanentAt(game, id);
+        if (!hit) { notes.push('It is no longer on the battlefield.'); continue; }
+        hit.card.temporaryEffects = hit.card.temporaryEffects || [];
+        const fx = { kind: 'animate', addTypes: effect.addTypes, subtypes: effect.subtypes, keywords: effect.keywords, colors: effect.colors, power: effect.power === 'X' ? n : effect.power, toughness: effect.toughness === 'X' ? n : effect.toughness };
+        if (effect.expires) fx.expires = effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : effect.expires;
+        hit.card.temporaryEffects.push(fx);
+        notes.push(`${name(hit.card)} becomes ${fx.power != null ? `a ${fx.power}/${fx.toughness} ` : 'a '}creature${effect.expires ? ' until end of turn' : ''}.`);
+      }
+      return true;
+    }
     case 'monstrosity': {
       const hit = permanentAt(game, bindings.sourceId);
       if (!hit) return true;
@@ -307,7 +341,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return false;
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -323,6 +357,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
       : ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: `Bolster: choose one of your creatures with the least toughness (${least}).`, options: rows.map(c => util.cardOption(game, c, player)) }));
     return true;
   }
+  if (gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'explore') {
     // The top card is known now; nothing earlier in the same ability changes the library.
     const top = (player.deck.remainingLibrary || [])[0];
@@ -334,3 +369,274 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   return false;
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Round 2: instructions that span several sentences (look at the top cards, impulse draw, hand disruption).
+
+/** Does a card's type line fit "creature", "nonland", "instant or sorcery", "noncreature, nonland", "Elf", "permanent" …? */
+export function cardFitsWords(def, words) {
+  const w = String(words || '').toLowerCase().replace(/\bcards?\b/g, '').replace(/\s+/g, ' ').trim();
+  if (!w || w === 'a' || w === 'any') return true;
+  const t = String(def?.typeLine || '').toLowerCase();
+  const mv = Number(def?.manaValue ?? def?.cmc ?? 0);
+  return w.split(/\s+or\s+|,\s*or\s+|\s*\/\s*/).some(alt => {
+    let a = alt.trim(), ok = true, m;
+    if ((m = a.match(/\s*with mana value (\d+) or (less|greater)/))) { ok = m[2] === 'less' ? mv <= Number(m[1]) : mv >= Number(m[1]); a = a.replace(m[0], ''); }
+    if ((m = a.match(/\s*with mana value (\d+)/))) { ok = ok && mv === Number(m[1]); a = a.replace(m[0], ''); }
+    for (const part of a.split(/[ ,]+/).filter(Boolean)) {
+      if (part.startsWith('non')) { if (new RegExp(`\\b${part.slice(3).replace(/-/g, '')}\\b`).test(t)) ok = false; continue; }
+      if (part === 'permanent') { if (/\binstant\b|\bsorcery\b/.test(t)) ok = false; continue; }
+      if (part === 'historic') { if (!/legendary|artifact|saga/.test(t)) ok = false; continue; }
+      if (!new RegExp(`\\b${esc(part.replace(/s$/, ''))}s?\\b`).test(t)) ok = false;
+    }
+    return ok;
+  });
+}
+
+const DEST = s => {
+  const x = String(s || '').toLowerCase();
+  if (/hand/.test(x)) return { to: 'hand' };
+  if (/onto the battlefield/.test(x)) return { to: 'battlefield', tapped: /tapped/.test(x) };
+  if (/graveyard/.test(x)) return { to: 'graveyard' };
+  if (/bottom/.test(x)) return { to: 'bottom', order: /random/.test(x) ? 'random' : 'any' };
+  if (/on top|back/.test(x)) return { to: 'top', order: 'any' };
+  if (/exile/.test(x)) return { to: 'exile' };
+  return null;
+};
+const DEST_RE = '(into your hand|onto the battlefield(?: tapped)?(?: under your control)?|on top of your library(?: in any order)?|into your graveyard|on the bottom of your library(?: in (?:any|a random) order)?|into exile)';
+const AMONG = '(?:of them|from among (?:them|those cards|the revealed cards|the cards revealed this way|the exiled cards))';
+const COUNT = '(up to (?:one|two|three|four|five|\\d+|X)|any number of|all|one|two|three|four|five|\\d+|a|an)';
+
+function parsePick(s) {
+  let m = s.match(new RegExp(`^(?:Then )?(you may )?(?:reveal |put |choose )?${COUNT} (?:([a-z ,/'-]+?) )?(?:cards? )?${AMONG}(?: and put (?:it|them|that card|those cards))? ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others|remaining cards?) (.+?))?\\.?$`, 'i'));
+  if (!m) m = s.match(new RegExp(`^(?:Then )?(you may )?put ${COUNT} (?:([a-z ,/'-]+?) )?cards? revealed this way ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others) (.+?))?\\.?$`, 'i'));
+  if (!m) return null;
+  const may = !!m[1], c = m[2].toLowerCase(), filter = (m[3] || '').trim();
+  const dest = DEST(m[4]);
+  if (!dest) return null;
+  let min = 0, max = 1, all = false;
+  if (c === 'all') all = true;
+  else if (c === 'any number of') { min = 0; max = 99; }
+  else if (c.startsWith('up to')) { min = 0; max = num(c.replace('up to ', '')); }
+  else { max = num(c) ?? 1; min = may ? 0 : max; }
+  const rest = m[5] ? DEST(m[5]) : null;
+  if (m[5] && !rest) return null;
+  return { pick: { min, max, filter, all, ...dest }, rest };
+}
+function parseRest(s) {
+  const m = s.match(/^(?:Then )?put (?:the rest|all other cards revealed this way|the other cards?|the others|the remaining cards?|those cards|them)(?: back)? (.+?)\.?$/i) || s.match(/^(?:Then )?put the rest back in any order\.?$/i);
+  if (!m) return null;
+  if (!m[1]) return { to: 'top', order: 'any' };
+  return DEST(m[1]);
+}
+
+/**
+ * Several sentences read as one instruction. Returns { part, consumed } or null.
+ * `parts` are the instructions already compiled for this ability (for cards drawn before looking).
+ */
+export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
+  const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
+  const next = k => String(clauses[i + k] || '').replace(/\([^()]*\)/g, '').trim();
+  let m;
+  const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);
+
+  // Look at / reveal the top N cards, then distribute them.
+  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of your library\.?$/i))) {
+    const amount = /^card$/i.test(m[2]) ? 1 : num(m[2]);
+    const reveal = /reveal/i.test(m[1]);
+    const picks = [];
+    let rest = null, k = 1;
+    for (; k <= 3 && i + k < clauses.length; k++) {
+      const s = next(k);
+      const p = parsePick(s);
+      if (p) { picks.push(p.pick); if (p.rest) { rest = p.rest; k++; break; } continue; }
+      // One card: "If it's a creature card, you may reveal it and put it into your hand." / "If it's a land card, put it onto the battlefield."
+      const one = amount === 1 && s.match(new RegExp(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
+      if (one) { const d = DEST(one[3]); if (!d) break; picks.push({ min: one[2] ? 0 : 1, max: 1, filter: one[1], ...d }); continue; }
+      const otherwise = picks.length && s.match(new RegExp(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
+      if (otherwise) { rest = DEST(otherwise[1]); k++; break; }
+      const r = picks.length || amount > 1 ? parseRest(s) : null;
+      if (r) { rest = r; k++; break; }
+      break;
+    }
+    if (!picks.length && !rest) return null;
+    const bind = `dig${i}`;
+    const req = { kind: 'dig', bind, amount, offset: drawnBefore, reveal, picks, rest: rest || { to: 'top', order: amount > 1 ? 'any' : 'keep' }, label: `the top ${amount === 1 ? 'card' : `${amount} cards`}` };
+    return { part: { effects: [{ kind: 'dig', bind, amount, picks, rest: req.rest }], requirements: [req], unsupported: [] }, consumed: k };
+  }
+
+  // Impulse draw: "Exile the top card of your library. You may play that card this turn."
+  if ((m = c0.match(/^Exile the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of your library(?: face down)?\.?$/i))) {
+    const amount = /^card$/i.test(m[1]) ? 1 : num(m[1]);
+    let k = 1, choose = null;
+    const ch = next(1).match(/^Choose (one|a card) of them\.?$/i);
+    if (ch) { choose = true; k = 2; }
+    const s = next(k);
+    const p = s.match(/^(?:Until (end of turn|the end of your next turn|your next end step),? )?you may (play|cast) (that card|those cards|them|it|the exiled cards?|cards exiled this way|that spell)(?: this turn| until (end of turn|the end of your next turn))?( without paying (?:its|their) mana costs?)?\.?$/i)
+      || s.match(/^(?:Until (end of turn|the end of your next turn),? )?you may (play|cast) (lands and cast spells|spells) from among (?:them|those cards|the exiled cards)(?: this turn| until (end of turn|the end of your next turn))?( without paying (?:its|their) mana costs?)?\.?$/i);
+    if (!p) return null;
+    const until = /next turn/i.test(p[1] || p[4] || '') ? 'next-turn' : 'turn';
+    const bind = choose ? `impulse${i}` : null;
+    const requirements = choose ? [{ kind: 'dig', bind, amount, offset: drawnBefore, picks: [{ min: 1, max: 1, filter: '', to: 'exile-play' }], rest: { to: 'exile' }, label: `the top ${amount} cards`, chooseOnly: true }] : [];
+    return { part: { effects: [{ kind: 'impulse', amount, until, castOnly: /cast/i.test(p[2]) && !/lands/i.test(p[3]), free: !!p[5], chooseBind: bind }], requirements, unsupported: [] }, consumed: k + 1 };
+  }
+
+  // Hand disruption: "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card."
+  if ((m = c0.match(/^(Target opponent|Target player|Each opponent) reveals (?:their|his or her) hand\.?$/i))) {
+    const ch = next(1).match(/^You (?:may )?choose (a|an|up to (?:one|two|three|\d+)|one|two|three|any number of) ([a-z ,/'-]+? )?cards? from (?:it|their hand|among them|those cards)(?: with mana value (\d+) or (less|greater))?\.?$/i);
+    const fin = next(2).match(/^(?:That player|They|Its owner) (discards? (?:that card|those cards|the chosen cards?|it)|exiles? (?:that card|it)|puts? (?:that card|it) on the bottom of their library)\.?$/i)
+      || next(2).match(/^Exile (?:that card|it|those cards)\.?$/i);
+    const bindPlayer = `player${i}`;
+    const requirements = /^each/i.test(m[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }];
+    if (!ch || !fin || /^each/i.test(m[1])) {
+      if (ch) return null;
+      return { part: { effects: [{ kind: 'reveal-hand', playerBind: /^each/i.test(m[1]) ? null : bindPlayer, scope: /^each/i.test(m[1]) ? 'each-opponent' : null }], requirements, unsupported: [] }, consumed: 1 };
+    }
+    const count = ch[1].toLowerCase();
+    const max = count === 'any number of' ? 99 : num(count.replace('up to ', '')) ?? 1, min = /up to|any number|may/i.test(count) || /may/i.test(next(1)) ? 0 : max;
+    const filter = `${(ch[2] || '').trim()}${ch[3] ? ` with mana value ${ch[3]} or ${ch[4]}` : ''}`;
+    const pick = `handPick${i}`;
+    requirements.push({ kind: 'hand-pick', bind: pick, playerBind: bindPlayer, filter, min, max, label: `${count} ${filter || ''} card from their hand`.replace(/\s+/g, ' ') });
+    const to = /exile/i.test(fin[0]) ? 'exile' : /bottom/i.test(fin[0]) ? 'bottom' : 'graveyard';
+    return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to }], requirements, unsupported: [] }, consumed: 3 };
+  }
+  return null;
+}
+
+function moveTo(game, id, dest, emit, controllerId) {
+  if (dest.to === 'hand') return moveCard(game, id, 'hand', { onEvent: emit });
+  if (dest.to === 'battlefield') return moveCard(game, id, 'battlefield', { controllerId, tapped: !!dest.tapped, onEvent: emit });
+  if (dest.to === 'graveyard') return moveCard(game, id, 'graveyard', { onEvent: emit });
+  if (dest.to === 'exile' || dest.to === 'exile-play') return moveCard(game, id, 'exile', { onEvent: emit });
+  if (dest.to === 'bottom') return moveCard(game, id, 'library', { position: 'bottom', onEvent: emit });
+  if (dest.to === 'top') return moveCard(game, id, 'library', { position: 'top', onEvent: emit });
+  return null;
+}
+
+export function applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) {
+  const controller = playerById(game, controllerId);
+  const emit = e => H.emit(bindings, e);
+  const nameOf = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
+  if (effect.kind === 'dig') {
+    const answer = bindings[effect.bind] || { groups: [], rest: [] };
+    const lib = controller.deck.remainingLibrary;
+    const top = new Set(lib.slice(0, Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings))).map(c => c.instanceId));
+    (answer.groups || []).forEach((ids, g) => {
+      for (const id of ids || []) {
+        if (!lib.some(c => c.instanceId === id)) continue;
+        top.delete(id);
+        const d = effect.picks[g];
+        moveTo(game, id, d, emit, controllerId);
+        notes.push(`${controller.displayName} puts ${nameOf(id)} ${d.to === 'hand' ? 'into their hand' : d.to === 'battlefield' ? 'onto the battlefield' : d.to === 'graveyard' ? 'into their graveyard' : d.to === 'bottom' ? 'on the bottom of their library' : 'on top of their library'}.`);
+      }
+    });
+    let rest = (answer.rest && answer.rest.length ? answer.rest : [...top]).filter(id => top.has(id));
+    for (const id of top) if (!rest.includes(id)) rest.push(id);
+    const r = effect.rest || { to: 'top' };
+    if (r.order === 'random') H.shuffle(rest);
+    if (r.to === 'top' || r.to === 'keep') {
+      // Back on top in the chosen order (first = top).
+      for (const id of [...rest].reverse()) moveTo(game, id, { to: 'top' }, emit, controllerId);
+    } else {
+      for (const id of rest) moveTo(game, id, r, emit, controllerId);
+      if (rest.length) notes.push(`${rest.length} other card${rest.length === 1 ? '' : 's'} ${r.to === 'graveyard' ? 'go to the graveyard' : r.to === 'hand' ? 'go to the hand' : r.to === 'exile' ? 'are exiled' : 'go on the bottom of the library'}.`);
+    }
+    emit({ type: 'library-looked', playerId: controllerId });
+    return true;
+  }
+  if (effect.kind === 'impulse') {
+    const n = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings));
+    const ids = controller.deck.remainingLibrary.slice(0, n).map(c => c.instanceId);
+    const chosen = effect.chooseBind ? new Set((bindings[effect.chooseBind]?.groups || [])[0] || []) : null;
+    for (const id of ids) {
+      const moved = moveCard(game, id, 'exile', { onEvent: emit });
+      if (!chosen || chosen.has(id)) moved.card.playPermission = { playerId: controllerId, until: effect.until, grantedTurn: game.turnNumber, castOnly: !!effect.castOnly, free: !!effect.free };
+    }
+    notes.push(`${controller.displayName} exiles ${ids.map(nameOf).join(', ') || 'nothing'}${ids.length ? ` and may ${effect.castOnly ? 'cast' : 'play'} ${chosen ? 'the chosen card' : ids.length === 1 ? 'it' : 'them'} ${effect.until === 'next-turn' ? 'until the end of their next turn' : 'this turn'}` : ''}.`);
+    return true;
+  }
+  if (effect.kind === 'reveal-hand') {
+    const players = effect.playerBind ? [playerById(game, bindings[effect.playerBind])].filter(Boolean) : H.targetPlayers(game, controllerId, effect.scope || 'each-opponent', null);
+    for (const p of players) notes.push(`${p.displayName} reveals their hand: ${(p.deck.hand || []).map(c => definitionFor(game, c)?.name).join(', ') || 'no cards'}.`);
+    return true;
+  }
+  if (effect.kind === 'hand-pick-move') {
+    const p = playerById(game, bindings[effect.playerBind]);
+    const ids = [].concat(bindings[effect.cardsBind] || []);
+    if (!p) return true;
+    for (const id of ids) {
+      if (!p.deck.hand.some(c => c.instanceId === id)) continue;
+      const name = nameOf(id);
+      if (effect.to === 'graveyard') {
+        const i = p.deck.hand.findIndex(c => c.instanceId === id);
+        const [c] = p.deck.hand.splice(i, 1);
+        c.zone = 'graveyard'; p.deck.graveyard.push(c);
+        emit({ type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
+        notes.push(`${p.displayName} discards ${name}.`);
+      } else { moveTo(game, id, { to: effect.to }, emit, controllerId); notes.push(`${name} is ${effect.to === 'exile' ? 'exiled' : 'put on the bottom of its owner’s library'}.`); }
+    }
+    if (!ids.length) notes.push(`${p.displayName} reveals their hand; nothing is chosen.`);
+    return true;
+  }
+  return false;
+}
+
+/** Resolve-time choices for the sequences above. */
+export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, key, title, base, util) {
+  const { player } = ctx;
+  if (req.kind === 'dig') {
+    const amount = String(req.amount).toUpperCase() === 'X' ? Number(bindings.X || 0) : Number(req.amount || 0);
+    const cards = (player.deck.remainingLibrary || []).slice(Number(req.offset || 0), Number(req.offset || 0) + amount);
+    const left = [...cards], groups = [];
+    req.picks.forEach((p, g) => {
+      const fits = left.filter(c => cardFitsWords(util.defOf(game, c), p.filter));
+      if (p.all) { groups.push(fits.map(c => c.instanceId)); for (const c of fits) left.splice(left.indexOf(c), 1); return; }
+      const max = Math.min(p.max === 'X' ? Number(bindings.X || 0) : p.max, fits.length), min = Math.min(p.min === 'X' ? Number(bindings.X || 0) : p.min, max);
+      if (max === 0) { groups.push([]); return; }
+      const where = p.to === 'hand' ? 'into your hand' : p.to === 'battlefield' ? `onto the battlefield${p.tapped ? ' tapped' : ''}` : p.to === 'graveyard' ? 'into your graveyard' : p.to === 'exile-play' ? 'to play' : p.to === 'bottom' ? 'on the bottom' : 'on top';
+      const picked = ask(`${key}:${g}`, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — ${req.label}`,
+        prompt: `${req.reveal ? 'You reveal' : 'You look at'} ${util.plural(cards.length, 'card')}. Choose ${min === max ? max : min ? `${min} to ${max}` : `up to ${max}`}${p.filter ? ` ${p.filter}` : ''} card${max === 1 ? '' : 's'} to put ${where}.`,
+        options: left.map(c => ({ ...util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || ''), disabled: !fits.includes(c) })), min, max }));
+      const ids = [].concat(picked || []).filter(id => fits.some(c => c.instanceId === id)).slice(0, max);
+      groups.push(ids);
+      for (const id of ids) left.splice(left.findIndex(c => c.instanceId === id), 1);
+    });
+    let rest = left.map(c => c.instanceId);
+    const r = req.rest || {};
+    if (left.length > 1 && r.order === 'any' && (r.to === 'top' || r.to === 'bottom')) {
+      const answer = ask(`${key}:order`, () => ({ ...base, cancellable: false, kind: 'arrange', private: true, title: `${ctx.sourceName} — order`, prompt: `Put the other cards ${r.to === 'top' ? 'back on top' : 'on the bottom'} in any order (first listed goes ${r.to === 'top' ? 'on top' : 'first'}).`, cards: left.map(c => util.cardOption(game, c, player, 'Library')), otherLabel: null }));
+      if (answer?.top?.length) rest = answer.top;
+    }
+    bindings[req.bind] = { groups, rest };
+    return true;
+  }
+  if (req.kind === 'hand-pick') {
+    const q = util.playerById(game, bindings[req.playerBind]);
+    if (!q) { bindings[req.bind] = []; return true; }
+    const hand = q.deck.hand || [];
+    const fits = hand.filter(c => cardFitsWords(util.defOf(game, c), req.filter));
+    const max = Math.min(req.max, fits.length), min = Math.min(req.min, max);
+    if (!max) { bindings[req.bind] = []; return true; }
+    bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — ${q.displayName}'s hand`,
+      prompt: `${q.displayName} reveals their hand. Choose ${min === max ? max : `up to ${max}`}${req.filter ? ` ${req.filter}` : ''} card${max === 1 ? '' : 's'}.`,
+      options: hand.map(c => ({ ...util.cardOption(game, c, q, util.defOf(game, c)?.typeLine || ''), disabled: !fits.includes(c) })), min, max }));
+    return true;
+  }
+  return false;
+}
+
+/** Can this player play this exiled card now because an effect allowed it (impulse draw)? */
+export function exilePlayPermission(game, player, card) {
+  const p = card?.playPermission;
+  if (!p || card.zone !== 'exile' || p.playerId !== player.playerId) return null;
+  return p;
+}
+
+/** At the end of each turn: permissions that last "this turn" end; "until the end of your next turn" ends after that turn. */
+export function expirePlayPermissions(game) {
+  for (const q of game.players || []) for (const c of q.deck?.exile || []) {
+    const p = c.playPermission;
+    if (!p) continue;
+    if (p.until === 'turn' || (p.until === 'next-turn' && game.activePlayerId === p.playerId && Number(game.turnNumber) > Number(p.grantedTurn))) delete c.playPermission;
+  }
+}

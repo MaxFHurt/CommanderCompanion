@@ -1,3 +1,4 @@
+import { expirePlayPermissions } from './effects-catalog.js';
 export const TURN_STEPS = ['untap', 'upkeep', 'draw', 'precombat-main', 'combat', 'postcombat-main', 'end-step', 'cleanup'];
 const LABELS = {
   untap: 'Untap', upkeep: 'Upkeep', draw: 'Draw', 'precombat-main': 'Main 1', combat: 'Combat', 'postcombat-main': 'Main 2', 'end-step': 'End Step', cleanup: 'Cleanup',
@@ -89,6 +90,7 @@ export function cleanupEndCombatEffects(game) { for (const p of game.players || 
     c.temporaryEffects = (c.temporaryEffects || []).filter(e => e?.expires !== 'end-combat'); }
 export function advanceTurn(game) {
   cleanupTemporaryEffects(game);
+  expirePlayPermissions(game);
   const i = game.players.findIndex(p => p.playerId === game.activePlayerId);
   let step = 1, next = null;
   game.extraTurnQueue = game.extraTurnQueue || [];

@@ -1,3 +1,4 @@
+import { withOverlay } from './overlay.js';
 import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules.js';
 import { sync } from './deck.js';
 import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js';
@@ -14,7 +15,8 @@ function locate(deck, id) { for (const z of ZONES) {
     return { z, a, i, card: a[i] };
 } return null; }
 function zoneKey(zone) { return zone === 'library' ? 'remainingLibrary' : zone === 'command' ? 'commandZone' : zone; }
-function defFor(game, card) { if (!card)
+function defFor(game, card) { return withOverlay(card, plainDefFor(game, card)); }
+function plainDefFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function shuffleArray(a) { for (let i = a.length - 1; i > 0; i--) {
   const j = Math.floor(Math.random() * (i + 1));
@@ -584,6 +586,16 @@ export function createTransactionEngine(game) {
           deck.graveyard.push(card);
           emit(game, { type: 'discard', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, cost: true });
           emit(game, { type: 'cycled', playerId: player.playerId, controllerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId });
+        }
+        else if (action.kind === 'crew') {
+          for (const id of action.crewIds || []) {
+            const c = locate(deck, id)?.card;
+            if (!c || c.tapped)
+              throw new Error('A crewing creature is no longer untapped.');
+            c.tapped = true;
+            emit(game, { type: 'tapped', sourceId: c.instanceId, controllerId: player.playerId, forCrew: true });
+          }
+          emit(game, { type: 'crewed', sourceId: card.instanceId, controllerId: player.playerId, crewIds: action.crewIds || [] });
         }
         else if (action.kind === 'foretell') {
           const hit = locate(deck, card.instanceId);

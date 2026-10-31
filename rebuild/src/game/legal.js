@@ -131,6 +131,13 @@ export function specialRows(game, player, card, { running = false } = {}) {
       row('ninjutsu', 'Ninjutsu', ninja, [block, !unblocked && 'Only after blockers, with an unblocked attacker.', !payable(ninja) && 'Not enough mana.']);
     }
   }
+  // Crew N (Vehicles): tap other untapped creatures with total power N or more; it becomes an artifact creature this turn.
+  const crew = card.zone === 'battlefield' && String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Crew (\d+)/i);
+  if (crew) {
+    const need = Number(crew[1]);
+    const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
+    row('crew', `Crew ${need}`, '', [block, power < need && `Untapped creatures with total power ${need} or more are needed.`]);
+  }
   if (card.zone === 'battlefield' && card.realDefinitionId && card.castFlags?.turnUpCost) {
     row('turn-face-up', 'Turn face up', card.castFlags.turnUpCost, [block, !payable(card.castFlags.turnUpCost) && 'Not enough mana.']);
   }

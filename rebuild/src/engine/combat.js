@@ -1,3 +1,4 @@
+import { withOverlay } from './overlay.js';
 import { evaluateLosses } from './rules.js';
 import { clearCastState } from './effects.js';
 import { regenerates } from './effects-catalog.js';
@@ -6,7 +7,7 @@ const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Numb
 function tempEffects(card, kind) { return (card?.temporaryEffects || []).filter(e => e?.kind === kind && e?.enabled !== false); }
 function temporaryPt(card, key) { return tempEffects(card, 'pt').reduce((n, e) => n + Number(e?.[key] || 0), 0); }
 function controllerOf(game, card) { return game?.players?.find(p => p.playerId === card?.controllerId) || game?.players?.find(p => (p.deck?.battlefield || []).some(c => c.instanceId === card?.instanceId)) || null; }
-function definition(game, card) { return card && game?.cardDefinitions?.[card.definitionId]; }
+function definition(game, card) { if (!card) return undefined; const base = game?.cardDefinitions?.[card.definitionId]; const i = Number.isInteger(card.activeFaceIndex) ? card.activeFaceIndex : null; const face = i === null ? null : base?.cardFaces?.[i]; return withOverlay(card, face ? { ...base, ...face } : base); }
 function typeHas(def, word) { return new RegExp(`\\b${String(word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(def?.typeLine || ''); }
 function subtypeMatch(def, phrase) {
   const s = String(phrase || '').trim();
