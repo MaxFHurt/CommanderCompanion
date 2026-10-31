@@ -1561,7 +1561,7 @@ function normalizeClause(clause) { return String(clause || '').replace(/^•\s*/
 function splitSentences(raw) {
   // Keep modal bullets as independent clauses; avoid splitting decimal-like content.
   // "When you do, …" (a reflexive trigger after "you may pay …") works like "If you do, …".
-  return cleanOracle(raw).split(/\n+|(?<=\.)\s+(?=[A-Z])/).map(normalizeClause).filter(Boolean).map(c => c.replace(/^When you do,/i, 'If you do,'));
+  return cleanOracle(raw).split(/\n+|(?<=\.)\s+(?=[A-Z])|(?<=\.")\s+(?=[A-Z])/).map(normalizeClause).filter(Boolean).map(c => c.replace(/^When you do,/i, 'If you do,'));
 }
 function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)/g, '').replace(/\s+/g, ' ').trim(); }
 function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {

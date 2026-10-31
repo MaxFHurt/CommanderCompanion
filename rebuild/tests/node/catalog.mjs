@@ -309,4 +309,28 @@ section('round 4: copying spells');
   check('copy a spell you control and choose a new target for the copy: both creatures are hit', r.ok && t.names(1, 'graveyard').includes('Grizzly Bears') && t.names(1, 'graveyard').includes('Llanowar Elves'), JSON.stringify([r.error, t.names(1, 'graveyard')]));
 }
 
+section('round 4: Auras that enchant players and graveyard cards');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const curse = asText(t, t.hand(0, 'Opt'), 'Enchant player\nAt the beginning of enchanted player\'s upkeep, that player loses 1 life.', { typeLine: 'Enchantment — Aura Curse', manaCost: '{1}' });
+  t.ctl.dispatch({ type: 'play', instanceId: curse.instanceId }, t.as(0));
+  settle(t, [['enchant', d => d.options.find(o => o.playerId === t.P(1).playerId).id]]);
+  const on = t.P(0).deck.battlefield.find(c => c.instanceId === curse.instanceId);
+  check('Curse: enchants the chosen player and stays on the battlefield', on?.attachedTo === t.P(1).playerId);
+  const life = t.P(1).life;
+  t.autoPass = true; t.end(0); settle(t);
+  check('…and triggers at that player\'s upkeep', t.P(1).life === life - 1, `${life} → ${t.P(1).life}`);
+}
+{
+  const t = setup();
+  t.give(1, 'Colossal Dreadmaw', 'graveyard');
+  t.give(0, 'Opt'); const ad = asText(t, t.hand(0, 'Opt'), 'Enchant creature card in a graveyard\nWhen this Aura enters, if it\'s on the battlefield, it loses "enchant creature card in a graveyard" and gains "enchant creature put onto the battlefield with this Aura." Return enchanted creature card to the battlefield under your control and attach this Aura to it. When this Aura leaves the battlefield, that creature\'s controller sacrifices it.\nEnchanted creature gets -1/-0.', { typeLine: 'Enchantment — Aura', manaCost: '{1}{U}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: ad.instanceId }, t.as(0));
+  settle(t, [['enchant', d => d.options.find(o => o.label === 'Colossal Dreadmaw')?.id]]);
+  const maw = t.bf(0, 'Colossal Dreadmaw');
+  check('Animate Dead: returns the creature from an opponent\'s graveyard under your control, -1/-0', r.ok && !!maw && power(t, maw) === 5, JSON.stringify([r.error, maw && power(t, maw)]));
+  cast(t, 'Divination', 'Destroy target enchantment.', [[d => d.targeting, d => d.options.find(o => o.id === ad.instanceId)?.id]]);
+  check('…when the Aura leaves, the creature is sacrificed', !t.bf(0, 'Colossal Dreadmaw') && t.names(1, 'graveyard').includes('Colossal Dreadmaw'), JSON.stringify(t.names(1, 'graveyard')));
+}
+
 done();

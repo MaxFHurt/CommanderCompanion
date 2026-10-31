@@ -850,6 +850,10 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'condition', test: 'last-turn-spells', none: /^no/i.test(m[1]), atLeast: m[2] ? num(m[2]) : 0, skip: 1 }, { kind: 'transform', bind: 'sourceId' });
     return true;
   }
+  // Animate Dead / Necromancy: the creature card already returned as the Aura resolved (ops.js), so these do nothing more.
+  if (/^(?:if it'?s on the battlefield, )?it loses "enchant creature card in (?:a|your) graveyard" and gains "enchant creature put onto the battlefield with this Aura\.?"\.?$/i.test(c)) { effects.push({ kind: 'note', text: 'It now enchants the returned creature.' }); return true; }
+  if (/^Return enchanted creature card to the battlefield under your control and attach this Aura to it\.?$/i.test(c)) { effects.push({ kind: 'note', text: 'The creature returned to the battlefield with this Aura attached.' }); return true; }
+  if (/^(?:that creature's|enchanted creature's) controller sacrifices (?:it|that creature)\.?$/i.test(c)) { effects.push({ kind: 'sacrifice', bind: '__attached', soft: true }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -884,6 +888,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const name = card => definitionFor(game, card)?.name || 'Permanent';
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
+    case 'note': notes.push(effect.text || ''); return true;
     case 'copy-of': {
       const id = H.resolveBoundId(effect, bindings);
       const hit = locateCardInGame(game, id);

@@ -326,7 +326,19 @@ function runPlay(game, op, ask) {
   // Auras choose what they enchant as they are cast.
   let attachTo = null;
   const enchant = permanent && !faceDown ? enchantTarget(def) : null;
-  if (enchant && enchant !== 'player') {
+  let reanimate = false;
+  if (enchant && /^(?:player|opponent)$/.test(enchant)) {
+    // Curses and other player Auras: enchant a player (an opponent for "Enchant opponent").
+    const rows = (game.players || []).filter(q => !q.eliminated && (enchant === 'player' || q.playerId !== player.playerId)).map(q => ({ id: q.playerId, label: q.displayName, playerId: q.playerId }));
+    if (!rows.length && !force) throw new GameError(`There is no ${enchant} to enchant.`);
+    if (rows.length) attachTo = ask('enchant', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — enchant ${enchant}`, prompt: `Choose the ${enchant} to enchant.`, options: rows }));
+  } else if (enchant && /card in (?:a|your|an opponent'?s) graveyard/.test(enchant)) {
+    // Animate Dead, Necromancy: enchant a creature card in a graveyard; it returns to the battlefield as the Aura enters.
+    const rows = candidatesFor(game, { kind: 'graveyard-target', scope: `target ${enchant.replace(/ in (?:a|an opponent'?s) graveyard/, '')}${/your/.test(enchant) ? '' : ''}` }, player)
+      .filter(r => /your/.test(enchant) ? (player.deck.graveyard || []).some(c => c.instanceId === r.id) : true);
+    if (!rows.length && !force) throw new GameError(`There is no ${enchant} to enchant.`);
+    if (rows.length) { attachTo = ask('enchant', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — enchant ${enchant}`, prompt: `Choose the ${enchant} to enchant.`, options: rows })); reanimate = true; }
+  } else if (enchant) {
     const rows = candidatesFor(game, { kind: 'target', scope: `target ${enchant}` }, player);
     if (!rows.length && !force) throw new GameError(`There is no ${enchant} to enchant.`);
     if (rows.length) attachTo = ask('enchant', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — enchant ${enchant}`, prompt: `Choose the ${enchant} to enchant.`, options: rows }));
@@ -416,6 +428,7 @@ function runPlay(game, op, ask) {
     top.search = search;
     top.optional = optional;
     top.attachTo = attachTo;
+    top.reanimate = reanimate;
     top.entersTapped = permanent && !faceDown && /enters(?: the battlefield)? tapped/i.test(def.oracleText || '')
       ? entersBattlefieldTapped({ definition: def, battlefield: player.deck.battlefield, definitions: game.cardDefinitions }) : false;
   }
@@ -852,7 +865,14 @@ function runResolve(game, op, ask) {
   else if (top.search) log(game, `${player.displayName} searches with ${name} and finds nothing.`);
 
   if (card && cardDef && card.zone === 'battlefield') {
-    if (top.attachTo) attach(game, card.instanceId, top.attachTo);
+    if (top.attachTo && top.reanimate) {
+      // The enchanted creature card returns to the battlefield under this Aura's controller, and the Aura is attached to it.
+      const hit = (game.players || []).map(q => ({ q, c: (q.deck.graveyard || []).find(x => x.instanceId === top.attachTo) })).find(x => x.c);
+      if (hit) {
+        commit(game, { type: 'move-card', playerId: hit.q.playerId, instanceId: top.attachTo, to: 'battlefield', controllerId: player.playerId, label: `${defOf(game, hit.c)?.name} returns to the battlefield under ${player.displayName}'s control.` });
+        attach(game, card.instanceId, top.attachTo);
+      } else attach(game, card.instanceId, null);
+    } else if (top.attachTo) attach(game, card.instanceId, top.attachTo);
     const text = String(cardDef.oracleText || '');
     card.counters = card.counters || {};
     if (['dash', 'blitz'].includes(top.castMode)) {

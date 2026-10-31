@@ -110,7 +110,7 @@ function isCombatParticipant(game, instanceId) {
 }
 
 /** The card-type words of a target phrase: all of them ("artifact creature"), or any one with "or" ("artifact, enchantment, or nonbasic land"). */
-const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle', 'equipment', 'instant', 'sorcery'];
+const TYPE_WORDS = ['creature', 'artifact', 'enchantment', 'planeswalker', 'land', 'battle', 'equipment', 'vehicle', 'instant', 'sorcery', 'forest', 'island', 'swamp', 'mountain', 'plains'];
 function typesFit(typeLine, scope) {
   const t = String(typeLine || '').toLowerCase();
   const words = TYPE_WORDS.filter(w => new RegExp(`(?:^|[^a-z])${w}s?\\b`).test(scope.replace(/\bnon\w+/g, '')));
@@ -120,6 +120,7 @@ function typesFit(typeLine, scope) {
   }
   for (const m of scope.matchAll(/\bnon(creature|artifact|enchantment|land|basic|legendary|token)\b/g)) if (m[1] !== 'token' && t.includes(m[1])) return false;
   if (/\blegendary\b/.test(scope) && !t.includes('legendary')) return false;
+  if (/(?:^|[^n])\bbasic\b/.test(scope) && !/\bbasic\b/.test(t)) return false;
   if (/\bpermanent card\b/.test(scope) && /instant|sorcery/.test(t)) return false;
   return true;
 }

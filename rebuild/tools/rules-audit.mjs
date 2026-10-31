@@ -11,6 +11,7 @@ import { scryfallToDefinition } from '../src/data/card-api.js';
 import { analyzeDefinitionSupport } from '../src/engine/abilities.js';
 import { MECHANICS } from '../src/data/mechanics.js';
 import { castText, effectRunsByItself } from '../src/game/ops.js';
+import { enchantSupported } from '../src/game/attachments.js';
 
 const [input, output] = process.argv.slice(2);
 if (!input) { console.error('usage: node tools/rules-audit.mjs cards.json [report.json]'); process.exit(1); }
@@ -26,6 +27,9 @@ const KEYWORDS = MECHANICS.filter(x => x.kind !== 'concept').sort((a, b) => b.na
 function staticVerdict(line, def) {
   const text = line.replace(/^Static: /, '').trim();
   if (/Instant|Sorcery/i.test(def.typeLine || '')) return 'spell-text';
+  // Auras: the game asks what it enchants and keeps it attached (creature, land, permanent, player, a graveyard card …).
+  const enchant = text.match(/^Enchant ([^(\n]+?)\s*(?:\(|$)/i);
+  if (enchant && enchantSupported(enchant[1])) return 'auto';
   const words = text.split(/\s*,\s*/);
   const terms = words.map(w => KEYWORDS.find(k => new RegExp(`^${k.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(w)));
   if (terms.every(Boolean)) {

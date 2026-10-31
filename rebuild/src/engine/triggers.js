@@ -43,7 +43,8 @@ function sourceRows(game, event) {
 }
 export function parseTriggeredAbilities(definition) {
   const text = String(definition?.oracleText || '').replace(/\r/g, '');
-  const lines = text.split('\n').map(x => x.trim()).filter(Boolean);
+  // Animate Dead: "When this Aura enters, … When this Aura leaves the battlefield, …" — two triggers on one line.
+  const lines = text.split('\n').flatMap(x => x.split(/(?<=\.|\.")\s+(?=When this (?:Aura|creature|enchantment|artifact|permanent) leaves the battlefield,)/)).map(x => x.trim()).filter(Boolean);
   const out = [];
   let current = null;
   const triggeredLine = line => { const m = String(line).match(/(?:^|[—-]\s*)((?:When|Whenever|At)\b.*)$/i); return m?.[1] || null; };
@@ -247,11 +248,14 @@ function generalMatch(game, row, t, event) {
       return subjectEvent(game, row, m[2], event, event.targetId);
     }
     case 'upkeep': case 'draw-step': case 'precombat-main-start': case 'begin-combat': case 'end-step': case 'end-combat': {
-      m = t.match(/^At (?:the beginning of )?(?:(your|each|each player's|each opponent's|an opponent's|the|each other player's|that player's) )?(next )?(upkeep|draw step|precombat main phase|first main phase|combat on your turn|combat|end step|end of combat)\b/i);
+      m = t.match(/^At (?:the beginning of )?(?:(your|each|each player's|each opponent's|an opponent's|the|each other player's|that player's|enchanted player's|enchanted creature's controller's|equipped creature's controller's|chosen player's) )?(next )?(upkeep|draw step|precombat main phase|first main phase|combat on your turn|combat|end step|end of combat)\b/i);
       if (!m) return undefined;
       if (m[2]) return undefined;   // "your next upkeep": a delayed trigger, made by the spell itself
       if (STEP_EVENTS[m[3].toLowerCase()] !== event.type) return false;
       const whose = String(m[1] || '').toLowerCase();
+      if (whose === "enchanted player's") return event.playerId === row.card.attachedTo;
+      if (whose === "chosen player's") return event.playerId === row.card.chosenPlayerId;
+      if (/creature's controller's/.test(whose)) { const host = (game.players || []).flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === row.card.attachedTo); return !!host && event.playerId === host.controllerId; }
       if (whose === 'your' || /on your turn/i.test(m[3])) return event.playerId === row.player.playerId;
       if (/opponent|other player/.test(whose)) return event.playerId !== row.player.playerId;
       return true;

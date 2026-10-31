@@ -21,6 +21,14 @@ export function attachmentGrants(def) {
   return out;
 }
 
+/** Can the game choose and keep track of what this Aura enchants ("Enchant creature you control", "Enchant player" …)? */
+export function enchantSupported(phrase) {
+  const s = String(phrase || '').toLowerCase().trim();
+  if (/^(?:player|opponent|creature card in (?:a|your) graveyard)$/.test(s)) return true;
+  const one = '(?:basic |legendary |nonland |noncreature |nonbasic )?(?:creature|land|artifact|enchantment|planeswalker|permanent|vehicle|equipment|battle|forest|island|swamp|mountain|plains)';
+  return new RegExp(`^${one}(?:(?:, | or |, or )${one})*(?: you control| an opponent controls| you don't control)?$`).test(s);
+}
+
 export function enchantTarget(def) {
   if (!/\bAura\b/i.test(def?.typeLine || '')) return null;
   const m = String(def?.oracleText || '').match(/^Enchant ([a-z ]+?)(?:\s*\(|$)/im);
@@ -38,6 +46,9 @@ export function syncAttachments(game) {
   }
   for (const { card, player } of [...onField.values()]) {
     if (!card.attachedTo) continue;
+    // Attached to a player (Curses): stays while that player is in the game.
+    const enchantedPlayer = game.players.find(q => q.playerId === card.attachedTo);
+    if (enchantedPlayer && !enchantedPlayer.eliminated) continue;
     const host = onField.get(card.attachedTo);
     const def = defOf(game, card);
     if (!host) {
