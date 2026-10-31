@@ -8,7 +8,7 @@ const cards = zlib.gunzipSync(fs.readFileSync(SNAP + '/cards.json.gz')).toString
 // FAST=1: skip the heaviest tests nothing later depends on (while working; the full run, without FAST, goes live).
 // SHARD=k/N with SHARDPLAN=<file> (ui-par.mjs): run only this group's tests; the two tests that make the decks the others use
 // run in every group, reported by group 0 only. Every test is wrapped in `if (RUN('<id>')) { ... }` (one id per test).
-const FAST = !!process.env.FAST, SKIPPED = [], FASTSKIP = new Set(['UI-B135-01', 'UI-B144-02', 'UI-B138-01', 'UI-B134-01', 'UI-FIX-01', 'UI-B144-01', 'UI-B81-02']);
+const FAST = !!process.env.FAST, SKIPPED = [], FASTSKIP = new Set(['UI-B135-01', 'UI-B135-01b', 'UI-B144-02', 'UI-B138-01', 'UI-B134-01', 'UI-FIX-01', 'UI-B144-01', 'UI-B81-02']);
 const SHARD = process.env.SHARD ? process.env.SHARD.split('/').map(Number) : null, PLAN = SHARD ? JSON.parse(require('fs').readFileSync(process.env.SHARDPLAN, 'utf8')) : null;
 const ALWAYS = new Set(['UI-ID-01', 'UI-AIM-01']); let QUIET = false;
 const RUN = id => { QUIET = false; if (FAST && FASTSKIP.has(id)){ SKIPPED.push(id); return false; } if (!SHARD) return true; if (ALWAYS.has(id)){ QUIET = SHARD[0] !== 0; return true; } return PLAN[SHARD[0]].includes(id); };
@@ -1132,19 +1132,31 @@ const b134 = await page.evaluate(async () => { const out = {found:false}; S.sync
   if (fresh) S.profile.decks = S.profile.decks.filter(x => x !== fresh); render(); return out; });
 T('UI-B134-01', 'Unpopular pick shows only for a big gap (much higher score, far fewer players), never for a small edge; its pop-up gives the play rates of both cards', b134.found && b134.both && !b81c.unpopBad, JSON.stringify(b134).slice(0, 400) + ' quietSmallEdges=' + (b81c.unpopQuiet || 0));
 } catch (e) { QUIET = false; T('UI-B134-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+// Split in two (owner, 31 Oct: the longest test, about 55 s): each half checks every other deck, so the side-by-side groups
+// finish more evenly; the second half also checks that a held swap is never left out.
 if (RUN('UI-B135-01')) { try { if (SHARD) await RESET();
 // 84. Build 135: swaps players mostly disagree with are left out (Tramplesaurus fix A): no row left is one the rule removes, held
 // swaps are never removed, the tier counts match the rows that remain, and the list says how many were left out.
 const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, bad:0, countOk:true, note:null, heldKept:null}; S.syncRecs = true; S.upView = 'list';
-  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander))){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex'; recsFor.k = null; render(); const R = await recsReady(d); out.decks++;
+  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander)).filter((x, i) => i % 2 === 0)){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex'; recsFor.k = null; render(); const R = await recsReady(d); out.decks++;
+    const tr = R.scored && R.scored.trimmed || 0; out.trimmed += tr; if (R.trimOf) out.bad += R.paths.filter(L => R.trimOf(L)).length;
+        render(); const R2 = recsFor(d); const nt = document.querySelector('#upscroll .trimnote'); { const t2 = R2.scored && R2.scored.trimmed || 0; if (t2 !== tr){ out.trimmed += t2 - tr; } } const trN = R2.scored && R2.scored.trimmed || 0, okN = trN ? !!nt && new RegExp('^' + trN + ' weaker swap').test(nt.textContent.trim()) : !nt; if (!okN){ out.note = false; out.noteFail = {name:d.name, tr, has:!!nt, txt:nt ? nt.textContent.slice(0, 60) : '', view:S.upView, tab:S.tab, any:!!document.querySelector('.trimnote')}; } else if (out.note == null && trN) out.note = true; }
+  recsFor.k = null; render(); return out; });
+T('UI-B135-01', 'Swaps that players mostly disagree with are left out of the upgrade list ; the list says how many were left out (every other deck)', b135.decks > 0 && !b135.bad && b135.note !== false, JSON.stringify(b135));
+} catch (e) { QUIET = false; T('UI-B135-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B135-01b')) { try { if (SHARD) await RESET();
+// 84. Build 135: swaps players mostly disagree with are left out (Tramplesaurus fix A): no row left is one the rule removes, held
+// swaps are never removed, the tier counts match the rows that remain, and the list says how many were left out.
+const b135 = await page.evaluate(async () => { const out = {decks:0, trimmed:0, bad:0, countOk:true, note:null, heldKept:null}; S.syncRecs = true; S.upView = 'list';
+  for (const d of S.profile.decks.filter(x => x.format === 'commander' && find(x.commander)).filter((x, i) => i % 2 === 1)){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; d.tier = 'apex'; recsFor.k = null; render(); const R = await recsReady(d); out.decks++;
     const tr = R.scored && R.scored.trimmed || 0; out.trimmed += tr; if (R.trimOf) out.bad += R.paths.filter(L => R.trimOf(L)).length;
         render(); const R2 = recsFor(d); const nt = document.querySelector('#upscroll .trimnote'); { const t2 = R2.scored && R2.scored.trimmed || 0; if (t2 !== tr){ out.trimmed += t2 - tr; } } const trN = R2.scored && R2.scored.trimmed || 0, okN = trN ? !!nt && new RegExp('^' + trN + ' weaker swap').test(nt.textContent.trim()) : !nt; if (!okN){ out.note = false; out.noteFail = {name:d.name, tr, has:!!nt, txt:nt ? nt.textContent.slice(0, 60) : '', view:S.upView, tab:S.tab, any:!!document.querySelector('.trimnote')}; } else if (out.note == null && trN) out.note = true; }
   // a held swap the rule would remove stays: hold the first row's pick on a deck, mark the rule to remove everything, re-check
   const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; recsFor.k = null; render(); const R = await recsReady(d);
   if (R.trimOf && R.paths[0] && R.paths[0].opts.apex){ const L = R.paths[0]; L.opts.apex.held = true; const keep = R.trimOf(L); out.heldKept = keep === false; L.opts.apex.held = false; } else out.heldKept = true;
   recsFor.k = null; render(); return out; });
-T('UI-B135-01', 'Swaps that players mostly disagree with are left out of the upgrade list (never a held swap); the list says how many were left out', b135.decks > 0 && !b135.bad && b135.note !== false && b135.heldKept, JSON.stringify(b135));
-} catch (e) { QUIET = false; T('UI-B135-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+T('UI-B135-01b', 'Swaps that players mostly disagree with are left out of the upgrade list (never a held swap); the list says how many were left out (the other decks)', b135.decks > 0 && !b135.bad && b135.note !== false && b135.heldKept, JSON.stringify(b135));
+} catch (e) { QUIET = false; T('UI-B135-01b', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B136-01')) { try { if (SHARD) await RESET();
 // 85. Build 136: visible practice games on the Build stats tab: the 100-game summary (lands, colours, flood, mulligan, commander
 // turn), one game's opening hand and its first 8 turns; Deal another game shows the next game; the same game number always

@@ -19,9 +19,13 @@ generated Budget decks is built (Generate → Budget → Total budget, "I alread
 ## 0. Open questions for the owner (ask these first, numbered)
 
 **Owner's rule (18 Oct): do not push anything without the owner's confirmation.**
-**REMINDER (owner, 19 Oct): "We need to stop and talk about why the full suite takes so long to run. Remember this and remind
-me when you're done working but don't act on it till I say so."** Raise it at the end of every report; change nothing about the
-suite's speed until the owner says so.
+**Suite speed (owner, 31 Oct, after talking it through):** chose 2 (remember deck scores between tests) and 5 (split the
+longest test). 5 is done (UI-B135-01 and UI-B135-01b, every other deck each). 2 was built and measured, then removed: deck
+scoring is not where the time goes (repeated upgrade lists already take about 0.2 s; a reloaded precon is a new deck, so no
+score repeats; the first load's ~19 s is reading every card once). `ui-par.mjs` now times each test; `SAVETIMES=1` writes
+them to `ui-times.json` for balancing (the old times were from 20 Oct and far off). Result: 464 s -> 435 s, groups 385 / 434 /
+401 s. With 3 browsers on 4 cores that is close to the floor; a real cut needs less work per test (fewer practice games in
+tests, a smaller card library for screen-only tests).
 
 1. **Engine redesign decisions (owner, 20 Oct):** offline AI reading is done in work sessions (no API key, no job). The
    rework lives on the branch `engine-v2` (never served to players; `main` stays the live app). Entered budget: owned cards
