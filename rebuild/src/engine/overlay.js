@@ -5,9 +5,9 @@
 
 const CARD_TYPES = ['Kindred', 'Tribal', 'Artifact', 'Enchantment', 'Land', 'Creature', 'Planeswalker', 'Battle'];
 
-function addTypes(typeLine, add = [], subtypes = [], { replaceSubtypes = false } = {}) {
+function addTypes(typeLine, add = [], subtypes = [], { replaceSubtypes = false, remove = [] } = {}) {
   const [left, right = ''] = String(typeLine || '').split(/\s+—\s+/);
-  const words = left.split(/\s+/).filter(Boolean);
+  const words = left.split(/\s+/).filter(Boolean).filter(w => !remove.includes(w));
   for (const t of add) if (!words.includes(t)) {
     // Card types after supertypes, in the usual order (Artifact Creature, Land Creature …).
     words.push(t);
@@ -64,7 +64,7 @@ export function withOverlay(card, def) {
   if (!def || !fx.length) return def;
   const out = { ...def };
   for (const e of fx) {
-    out.typeLine = addTypes(out.typeLine, e.addTypes || [], e.subtypes || [], { replaceSubtypes: !!e.replaceSubtypes });
+    out.typeLine = addTypes(out.typeLine, e.addTypes || [], e.subtypes || [], { replaceSubtypes: !!e.replaceSubtypes || (e.removeTypes || []).includes('Creature'), remove: e.removeTypes || [] });
     if (e.power !== undefined && e.power !== null) out.power = String(e.power);
     if (e.toughness !== undefined && e.toughness !== null) out.toughness = String(e.toughness);
     if (e.keywords?.length) out.keywords = [...new Set([...(out.keywords || []), ...e.keywords])];

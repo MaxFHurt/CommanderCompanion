@@ -59,7 +59,7 @@ export function parseTriggeredAbilities(definition) {
         out.push(current);
       current = start;
     }
-    else if (current && (/^[•—-]/.test(line) || (/^if\b/i.test(line) && !/\bwould\b/i.test(line)) || /^you may\b/i.test(line) || /^this ability triggers only once each turn\.?$/i.test(line))) {
+    else if (current && (/^[•—-]/.test(line) || (/^if\b/i.test(line) && !/\bwould\b|triggers? an additional time|causes? a triggered ability/i.test(line)) || /^you may\b/i.test(line) || /^this ability triggers only once each turn\.?$/i.test(line))) {
       current += `\n${line}`;
     }
     else if (current) {
@@ -649,6 +649,7 @@ export function triggerCanFire(definition, ability) {
 const WIDE_VARIANTS = [
   { victim: true }, { oppTurn: true }, { event: { manaValue: 7, colors: ['W', 'U'], kicked: true, fromZone: 'hand', byKind: 'spell', firstThisTurn: true, to: 'graveyard', combat: false } },
   { event: { manaValue: 9, colors: ['B', 'R', 'G'], crewIds: ['self'], land: true, creature: true, typeLine: 'Land — Swamp Forest Island Mountain Plains' } },
+  { token: true, event: { token: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 function wideProbeTypes(ability) {
@@ -668,7 +669,8 @@ function probeTrigger(definition, ability, types, events, variants) {
     for (const type of events) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < types.length; i++) {
       row.card.attachedTo = attached ? sourceId : null;
       for (const p of [me, opp]) p.counters = { castThisTurn: Array.from({ length: castCount }, () => ({ typeLine: types[i], colors: [], manaValue: 3 })) };
-      me.deck.battlefield = sourceId === 'mine' ? [{ instanceId: 'mine', definitionId: `probe-${i}`, controllerId: 'me', counters: { '+1/+1': 1 } }] : [];
+      me.deck.battlefield = sourceId === 'mine' ? [{ instanceId: 'mine', definitionId: `probe-${i}`, controllerId: 'me', counters: { '+1/+1': 1 }, token: !!variant.token }] : [];
+      if (variant.attachedPlayer) row.card.attachedTo = variant.attachedPlayer;
       opp.deck.battlefield = sourceId === 'theirs' ? [{ instanceId: 'theirs', definitionId: `probe-${i}`, controllerId: 'opp', counters: { '+1/+1': 1 } }] : [];
       const victim = variant.victim ? (who === me ? opp : me) : who;
       const event = { type, sourceId, controllerId: who.playerId, playerId: victim.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,

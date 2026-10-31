@@ -30,6 +30,8 @@ function setup(decks = ['simic', 'simic']) {
   const t = newGame(decks); t.keepAll();
   for (let i = 0; i < 4; i++) t.give(0, 'Forest', 'battlefield');
   for (let i = 0; i < 4; i++) t.give(0, 'Island', 'battlefield');
+  // Start from an empty hand, so random draws can't hold a card a test pulls from the library.
+  for (const p of t.game.players) for (const c of p.deck.hand.splice(0)) { c.zone = 'library'; p.deck.remainingLibrary.push(c); }
   t.autoPass = false;
   return t;
 }
@@ -641,11 +643,12 @@ section('round 10: conditions with "instead" / "Otherwise", and other most-playe
 {
   const t = setup();
   onField(t, 'Fog Bank', 'Whenever a creature you control enters, draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it.', { typeLine: 'Enchantment' });
-  const hand = t.P(0).deck.hand.length;
+  t.give(0, 'Grizzly Bears'); t.give(0, 'Colossal Dreadmaw');
+  const hand = t.P(0).deck.hand.length - 1;
   cast(t, 'Grizzly Bears', '');
   check('Tribute to the World Tree: a small creature gets two +1/+1 counters', Number(t.bf(0, 'Grizzly Bears').counters?.['+1/+1'] || 0) === 2 && t.P(0).deck.hand.length === hand, JSON.stringify(t.bf(0, 'Grizzly Bears').counters));
   cast(t, 'Colossal Dreadmaw', '', [], { manaCost: '{1}' });
-  check('…a big creature draws a card instead', t.P(0).deck.hand.length === hand + 1 - 0 && !t.bf(0, 'Colossal Dreadmaw').counters?.['+1/+1'], `${hand} → ${t.P(0).deck.hand.length}`);
+  check('…a big creature draws a card instead', t.P(0).deck.hand.length === hand - 1 + 1 && !t.bf(0, 'Colossal Dreadmaw').counters?.['+1/+1'], `${hand} → ${t.P(0).deck.hand.length}`);
 }
 {
   const t = setup();

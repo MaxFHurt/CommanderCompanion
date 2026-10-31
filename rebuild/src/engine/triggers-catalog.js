@@ -72,6 +72,13 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       return true;
     }
     case 'attackers-declared':
+      // Trouble in Pairs, Mangara: an opponent attacks you (and/or your planeswalkers) with two or more creatures.
+      if ((m = t.match(/^Whenever an opponent attacks (?:you )?with (?:two or more )?creatures(?:, if two or more of those creatures are attacking you(?: and\/or planeswalkers you control)?)?/i)) && /two or more/i.test(t)) {
+        if (event.controllerId === me) return false;
+        const mine = new Set((game.players || []).find(p => p.playerId === me)?.deck?.battlefield?.map(c => c.instanceId) || []);
+        const at = (event.attacks || []).filter(a => a.defenderId === me || (/planeswalkers you control/i.test(t) && a.targetId && mine.has(a.targetId))).length;
+        return at >= 2;
+      }
       if ((m = t.match(/^Whenever (.+?) and at least (one|two|three|four) other creatures attack/i))) {
         const n = { one: 1, two: 2, three: 3, four: 4 }[m[2].toLowerCase()];
         return (event.attackers || []).includes(self) && (event.attackers || []).length >= n + 1;
@@ -91,6 +98,7 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       if ((m = t.match(/^Whenever (.+?) becomes crewed/i))) return H.subjectEvent(game, row, m[1], event);
       return undefined;
     case 'tapped-for-mana':
+      if (/^Whenever you tap (?:this land|this creature|this artifact|~) for mana/i.test(t)) return event.sourceId === self;
       if ((m = t.match(/^Whenever (a player|you|an opponent) taps? (a land|a [A-Z][a-z]+|a creature|a permanent|an untapped creature) for mana/i))) {
         if (!H.whoMatches(m[1], event.controllerId, row)) return false;
         const what = m[2].toLowerCase().replace(/^an? /, '');

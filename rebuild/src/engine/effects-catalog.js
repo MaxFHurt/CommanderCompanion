@@ -59,6 +59,34 @@ export function compileCatalogClause(c0, ctx0) {
 function compileCatalogClauseInner(c, ctx) {
   const { sourceName, selfAny, effects, requirements } = ctx;
   let mt;
+  // "you may return target creature card …", "you may destroy target artifact": choosing no target declines.
+  if ((mt = c.match(/^you may ((?:destroy|exile|return|tap|untap|put|attach|gain control of|counter|sacrifice) .*\btarget\b.+)$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(cap(mt[1])), { sourceName });
+    const binds = new Set(inner.requirements.filter(r => ['target', 'graveyard-target', 'stack-target'].includes(r.kind)).map(r => r.bind));
+    if (!inner.unsupported.length && inner.effects.length && binds.size) {
+      // The target is chosen as usual; "you may" is asked as it resolves.
+      const bind = `mayDo${requirements.length}`;
+      requirements.push({ kind: 'yes-no', bind, label: `${cap(mt[1]).replace(/\.$/, '')}?` }, ...inner.requirements);
+      effects.push({ kind: 'condition', test: 'chosen', bind, skip: inner.effects.length }, ...inner.effects);
+      return true;
+    }
+  }
+  // "target opponent creates a 1/1 Spirit token" (Forbidden Orchard): the token is that player's.
+  if ((mt = c.match(/^(target opponent|target player|each opponent|each player) (creates?|draws?|gains?) (.+)$/i))) {
+    const verb = mt[2].toLowerCase().replace(/s$/, '');
+    const inner = H.compileSingleClause(ctx.restore(`${cap(verb)} ${mt[3]}`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) {
+      if (/^target/i.test(mt[1])) {
+        const pb = H.playerRequirement(requirements, /opponent/i.test(mt[1]) ? 'opponent' : 'player', mt[1]);
+        requirements.push(...inner.requirements);
+        effects.push(...inner.effects.map(e => ({ ...e, forPlayerBind: pb })));
+      } else {
+        requirements.push(...inner.requirements);
+        effects.push({ kind: 'for-each-player', opponents: /opponent/i.test(mt[1]), effects: inner.effects });
+      }
+      return true;
+    }
+  }
   // "Then amass Orcs 1." — a sentence that begins with "Then".
   if ((mt = c.match(/^Then,? (.+)$/i))) {
     const inner = H.compileSingleClause(ctx.restore(mt[1].charAt(0).toUpperCase() + mt[1].slice(1)), { sourceName });
@@ -1128,6 +1156,22 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'graveyard-to-hand-many', bind });
     return true;
   }
+  // The Enduring cycle: "return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)"
+  if (/^if it was a creature, return it to the battlefield under its owner'?s control\.?$/i.test(c)) { effects.push({ kind: 'return-self-graveyard', tapped: false }); return true; }
+  if (/^It'?s an enchantment\.?$/i.test(c)) { effects.push({ kind: 'not-a-creature' }); return true; }
+  // Ojer Taq: "return it to the battlefield tapped and transformed under its owner's control."
+  if ((m = c.match(/^return (?:it|this card|SELFNAME) to the battlefield( tapped)? (?:and )?transformed under (?:its owner'?s|your) control\.?$/i))) { effects.push({ kind: 'return-self-graveyard', tapped: !!m[1], transformed: true }); return true; }
+  // Cyberdrive Awakener: "each noncreature artifact you control becomes a 4/4 artifact creature until end of turn"
+  if ((m = c.match(/^each (noncreature artifact|artifact|land|noncreature permanent) you control becomes an? (\d+)\/(\d+) ([a-z ]*?)creature(?: with ([a-z ,]+?))? until end of turn\.?$/i))) {
+    effects.push({ kind: 'animate-each', scope: 'you', filter: m[1].toLowerCase() === 'noncreature artifact' ? 'artifact|non:creature' : m[1].toLowerCase() === 'noncreature permanent' ? 'permanent|non:creature' : m[1].toLowerCase(), power: m[2], toughness: m[3], addTypes: ['Creature', ...(/artifact/i.test(m[4]) ? ['Artifact'] : [])], subtypes: [], keywords: H.KEYWORD_LIST(m[5] || '').map(cap), colors: null, expires: 'cleanup' });
+    return true;
+  }
+  // Reconnaissance: "Remove target attacking creature you control from combat and untap it."
+  if ((m = c.match(/^Remove (target [^.]*?creature[^.]*?) from combat(?: and untap it)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'remove-from-combat', bind, untap: /untap it/i.test(c) });
+    return true;
+  }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1163,6 +1207,24 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'for-each-player': {
+      for (const p of (game.players || []).filter(q => !q.eliminated && (!effect.opponents || q.playerId !== controllerId))) notes.push(...H.applyEffectsUnsafe(game, p.playerId, effect.effects, bindings));
+      return true;
+    }
+    case 'not-a-creature': {
+      const hit = permanentAt(game, bindings.sourceId);
+      if (hit) { hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'animate', removeTypes: ['Creature'], addTypes: [], subtypes: [], keywords: [] }]; notes.push(`${name(hit.card)} is an enchantment, not a creature.`); }
+      return true;
+    }
+    case 'remove-from-combat': {
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      if (!hit) return true;
+      const cs = game.combatState;
+      if (cs) { cs.attackers = (cs.attackers || []).filter(a => a.instanceId !== hit.card.instanceId); for (const b of Object.values(cs.blocks || {})) if (b?.assignments) b.assignments = b.assignments.filter(a => a.blockerId !== hit.card.instanceId && a.attackerId !== hit.card.instanceId); }
+      if (effect.untap) hit.card.tapped = false;
+      notes.push(`${name(hit.card)} is removed from combat${effect.untap ? ' and untaps' : ''}.`);
+      return true;
+    }
     case 'player-protection': controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;

@@ -668,8 +668,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'return-self-graveyard') {
       const hit = locateCardInGame(game, bindings.sourceId);
       if (!hit || hit.zone !== 'graveyard') { notes.push('The card is no longer in the graveyard.'); continue; }
+      if (effect.transformed && (game.cardDefinitions?.[hit.card.definitionId]?.cardFaces || []).length > 1) hit.card.activeFaceIndex = 1;
       moveCard(game, hit.card.instanceId, 'battlefield', { controllerId: hit.card.ownerId, tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
-      notes.push(`${cardName(game, hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}.`);
+      notes.push(`${cardName(game, hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}${effect.transformed ? ' transformed' : ''}.`);
       continue;
     }
     if (effect.kind === 'counter-many') {
@@ -1482,9 +1483,11 @@ export function parseCondition(text) {
   const counts = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, thirteen: 13, twenty: 20 };
   let m;
   if ((m = t.match(/^you control (\w+) or more lands with different names$/i))) return { test: 'distinct-lands', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
-  if ((m = t.match(/^you control (a|an|no|(\w+) or more) (.+)$/i)) && parseSubject(m[3].replace(/s$/, ''), null)) return { test: 'control', subject: m[3].replace(/s$/, ''), min: m[2] ? (counts[m[2].toLowerCase()] ?? Number(m[2])) : 1, ...(/^no$/i.test(m[1]) ? { none: true } : {}) };
+  const sing = w => /plains$/i.test(w) ? w : w.replace(/s$/, '');
+  if ((m = t.match(/^you control (a|an|no|(\w+) or more) (.+)$/i)) && parseSubject(sing(m[3]), null)) return { test: 'control', subject: sing(m[3]), min: m[2] ? (counts[m[2].toLowerCase()] ?? Number(m[2])) : 1, ...(/^no$/i.test(m[1]) ? { none: true } : {}) };
   if ((m = t.match(/^there are (\w+) or more cards in your graveyard$/i))) return { test: 'graveyard-count', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if (/^an opponent controls more lands than you$/i.test(t)) return { test: 'opponent-more-lands' };
+  if (/^two or more of those creatures are attacking you/i.test(t)) return { test: 'always' };   // the trigger already checked it (Mangara)
   if (/^an opponent has more life than you$/i.test(t)) return { test: 'opponent-more-life' };
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
@@ -2733,9 +2736,17 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       }
     }
     // "Each player draws a card, then discards a card." — the second instruction keeps the first one's subject.
-    const carried = clause.match(/^(Each player|Each opponent|You) (draws?|discards?|mills?) ([^,]+?),? then (draws?|discards?|mills?|loses?|gains?) (.+)$/i);
+    const carried = clause.match(/^(Each player|Each opponent|You|Target player|Target opponent) (draws?|discards?|mills?) ([^,]+?),? then (draws?|discards?|mills?|loses?|gains?) (.+)$/i);
     if (carried) {
-      const a = compileSingleClause(`${carried[1]} ${carried[2]} ${carried[3]}.`, { sourceName }), b = compileSingleClause(`${carried[1]} ${carried[4]} ${carried[5]}`, { sourceName });
+      const a = compileSingleClause(`${carried[1]} ${carried[2]} ${carried[3]}.`, { sourceName }), b0 = compileSingleClause(`${carried[1]} ${carried[4]} ${carried[5]}`, { sourceName });
+      // "Target player draws three cards, then discards three cards": the same player both times.
+      const pa = a.requirements.find(r => r.kind === 'player'), pb = b0.requirements.find(r => r.kind === 'player');
+      let b = b0;
+      if (pa && pb) {
+        let json = JSON.stringify(b0).split(`"${pb.bind}"`).join(`"${pa.bind}"`);
+        for (const r of b0.requirements) if (r !== pb) json = json.split(`"${r.bind}"`).join(`"${r.bind}_b"`);
+        b = JSON.parse(json); b.requirements = b.requirements.filter(r => !(r.kind === 'player' && r.bind === pa.bind));
+      }
       if (!a.unsupported.length && !b.unsupported.length && a.effects.length && b.effects.length) { parts.push(mergeCompiled([a, b])); continue; }
     }
     // "that much": the amount from the event that triggered this (life gained, damage dealt).
@@ -2803,7 +2814,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7, 'eight or more': 8, 'nine or more': 9, 'ten or more': 10, 'twenty or more': 20, 'thirteen or more': 13 };
       const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /untapped/i.test(cond[1]) ? { test: 'source-untapped' } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /commander/i.test(cond[1]) ? { test: 'control-commander' } : /died/i.test(cond[1]) ? { test: 'creature-died' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
-        if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/s$/, '');
+        if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/(?<!plain)s$/i, '');
         if (!innerAlt.unsupported.length && innerAlt.effects.length) {
           parts.push({ effects: [{ kind: 'condition', ...test, skip: innerAlt.effects.length }, ...innerAlt.effects], requirements: innerAlt.requirements, unsupported: [] });
           continue;
@@ -2993,10 +3004,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       const req = after && merged.requirements.find(r => r.bind === after.cardsBind);
       if (req) req.plusDrawBind = xFrom;
     }
-    if (e.kind === 'draw' && typeof e.amount === 'number' && !e.bind) drawn[e.scope || 'you'] = (drawn[e.scope || 'you'] || 0) + e.amount;
-    if (e.kind === 'discard' && e.cardsBind && drawn[e.scope || 'you']) {
+    if (e.kind === 'draw' && typeof e.amount === 'number') { const k = e.bind ? `bind:${e.bind}` : (e.scope || 'you'); drawn[k] = (drawn[k] || 0) + e.amount; }
+    const dk = e.bind ? `bind:${e.bind}` : (e.scope || 'you');
+    if (e.kind === 'discard' && e.cardsBind && drawn[dk]) {
       const req = merged.requirements.find(r => r.bind === e.cardsBind);
-      if (req) req.plusDraw = drawn[e.scope || 'you'];
+      if (req) req.plusDraw = drawn[dk];
     }
   }
   // X must be chosen unless a caller already binds it from an X cost.

@@ -179,8 +179,10 @@ function payMana(game, player, payment) {
       continue;
     }
     const card = (player.deck?.battlefield || []).find(c => c.instanceId === a.instanceId);
-    if (card && !card.tapped)
+    if (card && !card.tapped) {
       card.tapped = true;
+      emit(game, { type: 'tapped-for-mana', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, playerId: player.playerId, color: a.color || null, land: /\bLand\b/.test(defFor(game, card)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, card)?.typeLine || ''), typeLine: defFor(game, card)?.typeLine || '' });
+    }
   }
   if (lifePayment) {
     player.life = Math.max(0, Number(player.life || 0) - lifePayment);
