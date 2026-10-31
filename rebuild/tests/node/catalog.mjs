@@ -465,4 +465,38 @@ section('round 6: madness');
   }
 }
 
+section('round 7: more library wordings');
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary, top = lib[0], mv = Number(def(t, top).manaValue ?? def(t, top).cmc ?? 0), life = t.P(0).life;
+  onField(t, 'Fog Bank', 'At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.');
+  t.autoPass = true; t.end(0); t.end(1); settle(t);
+  check('Dark Confidant: the top card goes to hand and you lose life equal to its mana value', t.P(0).deck.hand.some(c => c.instanceId === top.instanceId) && t.P(0).life === life - mv, `${life} → ${t.P(0).life} (mv ${mv})`);
+}
+{
+  const t = setup();
+  const five = t.P(0).deck.remainingLibrary.slice(0, 5).map(c => c.instanceId);
+  let sep = null;
+  cast(t, 'Opt', 'Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard.', [['separate', d => { sep = d; return five.slice(0, 2); }], [':pile', 2]]);
+  check('Fact or Fiction: the opponent separates the piles', sep?.playerId === t.P(1).playerId && sep.options.length === 5);
+  check('…the caster takes the pile they choose; the other goes to the graveyard', five.slice(2).every(id => t.P(0).deck.hand.some(c => c.instanceId === id)) && five.slice(0, 2).every(id => t.P(0).deck.graveyard.some(c => c.instanceId === id)));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const bear = t.give(0, 'Grizzly Bears', 'library'); lib.splice(lib.indexOf(bear), 1); lib.unshift(bear);
+  cast(t, 'Opt', 'Look at the top three cards of your library. You may cast a spell from among them without paying its mana cost. Put the rest on the bottom of your library in a random order.', [['dig', d => d.kind === 'choose-many' ? [bear.instanceId] : undefined]]);
+  check('cast a revealed spell without paying its mana cost (Aetherworks Marvel)', !!t.bf(0, 'Grizzly Bears'));
+}
+{
+  for (const big of [true, false]) {
+    const t = setup();
+    t.give(0, 'Opt');
+    if (big) t.P(0).deck.remainingLibrary.splice(2);
+    asText(t, t.bf(0, 'Island'), '({T}: Add {U}.)', { manaCost: '{U}' });   // every Island counts {U} toward devotion
+    cast(t, 'Opt', 'When this creature enters, look at the top X cards of your library, where X is your devotion to blue. Put up to one of them on top of your library and the rest on the bottom of your library in a random order. If X is greater than or equal to the number of cards in your library, you win the game.', [], { typeLine: 'Creature — Merfolk Wizard', manaCost: '{U}{U}', power: '1', toughness: '3' });
+    check(`Thassa's Oracle: ${big ? 'devotion ≥ library size wins' : 'otherwise nothing'}`, big ? t.game.status === 'complete' && t.game.winner === t.P(0).playerId : t.game.status !== 'complete', `${t.game.status} ${t.P(0).deck.remainingLibrary.length}`);
+  }
+}
+
 done();

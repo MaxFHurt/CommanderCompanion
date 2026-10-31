@@ -41,6 +41,8 @@ export function evaluateLosses(game) {
       reason = 'commander damage';
     else if (Number(p.counters?.failedDraws || 0) > 0)
       reason = 'drew from an empty library';
+    else if (p.counters?.lostGame)
+      reason = String(p.counters.lostGame);
     if (reason) {
       p.eliminated = true;
       p.eliminationReason = reason;

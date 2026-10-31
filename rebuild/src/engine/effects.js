@@ -1483,6 +1483,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
   if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
+  if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
   return true;
 }
@@ -1524,6 +1525,16 @@ function countExprFromPhrase(phrase) {
   else if (/permanent/.test(s))
     filter = 'permanent';
   return { kind: 'count', zone, filter };
+}
+/** "where X is …": the amount, counted as it resolves. */
+export function whereXExpr(phrase) {
+  const p = String(phrase || '').trim();
+  return /devotion/i.test(p) ? { kind: 'devotion', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[p.split(' ').pop().toLowerCase()] }
+    : /'?s power$/i.test(p) ? { kind: 'source-power' }
+    : /^the number of (.+?) on the battlefield$/i.test(p) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(p.replace(/^the number of /i, '')) || 'creature', all: true }
+    : /^the number of /i.test(p) && filterFromNoun(p.replace(/^the number of /i, '')) && !/graveyard|hand|library/i.test(p) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(p.replace(/^the number of /i, '')) }
+    : /^that spell'?s mana value$/i.test(p) ? { kind: 'binding', bind: 'eventManaValue' }
+    : amountExpr(p);
 }
 function amountExpr(text) {
   const s = String(text || '').trim();
@@ -2605,11 +2616,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // "…, where X is the number of creatures you control." — X is counted as it resolves.
     const whereX = clause.match(/^(.+?),? where X is (the number of .+?|the greatest power among .+?|your devotion to (?:white|blue|black|red|green)|.+?'?s power)\.?$/i);
     if (whereX) {
-      const expr = /devotion/i.test(whereX[2]) ? { kind: 'devotion', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[whereX[2].split(' ').pop().toLowerCase()] }
-        : /'?s power$/i.test(whereX[2]) ? { kind: 'source-power' }
-        : /^the number of (.+?) on the battlefield$/i.test(whereX[2]) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(whereX[2].replace(/^the number of /i, '')) || 'creature', all: true }
-        : /^the number of /i.test(whereX[2]) && filterFromNoun(whereX[2].replace(/^the number of /i, '')) && !/graveyard|hand|library/i.test(whereX[2]) ? { kind: 'count', zone: 'battlefield', filter: filterFromNoun(whereX[2].replace(/^the number of /i, '')) }
-        : amountExpr(whereX[2]);
+      const expr = whereXExpr(whereX[2]);
       const inner = expr != null ? compileEffectText(`${whereX[1]}.`, { sourceName }) : null;
       if (inner && inner.supported) {
         parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });

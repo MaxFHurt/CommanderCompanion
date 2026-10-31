@@ -5,7 +5,7 @@
 // compileCatalogClause(c, ctx) is tried after the older readers in effects.js; applyCatalogEffect runs the effect
 // kinds it creates. Both use helpers from effects.js (the two modules import each other; nothing runs at load time).
 import {
-  numberFromText, locateCardInGame, moveCard, definitionFor, cardMatchesFilter, resolveAmount,
+  numberFromText, locateCardInGame, moveCard, definitionFor, cardMatchesFilter, resolveAmount, whereXExpr,
   catalogHelpers as H
 } from './effects.js';
 import { effectiveToughness } from './combat.js';
@@ -434,11 +434,14 @@ const DEST = s => {
   return null;
 };
 const DEST_RE = '(into your hand|onto the battlefield(?: tapped)?(?: under your control)?|on top of your library(?: in any order)?|into your graveyard|on the bottom of your library(?: in (?:any|a random) order)?|into exile)';
-const AMONG = '(?:of them|from among (?:them|those cards|the revealed cards|the cards revealed this way|the exiled cards))';
+const AMONG = '(?:of them|of those cards|from among (?:them|those cards|the revealed cards|the cards revealed this way|the exiled cards))';
 const COUNT = '(up to (?:one|two|three|four|five|\\d+|X)|any number of|all|one|two|three|four|five|\\d+|a|an)';
 
 function parsePick(s) {
-  let m = s.match(rx(`^(?:Then )?(you may )?(?:reveal |put |choose )?${COUNT} (?:([a-z ,/'-]+?) )?(?:cards? )?${AMONG}(?: and put (?:it|them|that card|those cards))? ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others|remaining cards?) (.+?))?\\.?$`, 'i'));
+  // "You may cast a spell with mana value X or less from among them without paying its mana cost." (Aetherworks Marvel)
+  const free = s.match(rx(`^(?:Then )?you may cast (?:a|an|one) ([a-z ,/'-]*?)(?:spell|card)( with mana value (?:X|\\d+) or less)? from among (?:them|those cards|the revealed cards|the cards revealed this way|cards revealed this way) without paying (?:its|their) mana cost\\.?$`, 'i'));
+  if (free) return { pick: { min: 0, max: 1, filter: `${free[1].trim() || 'nonland'}${free[2] || ''}`.trim(), to: 'cast-free' }, rest: null };
+  let m = s.match(rx(`^(?:Then )?(you may )?(?:reveal |put |choose )?${COUNT} (?:([a-z ,/'-]+?) )?(?:cards? )?${AMONG}(?: and put (?:it|them|that card|those cards|the revealed cards))? ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others|remaining cards?) (.+?)|(, then shuffle))?\\.?$`, 'i'));
   if (!m) m = s.match(rx(`^(?:Then )?(you may )?put ${COUNT} (?:([a-z ,/'-]+?) )?cards? revealed this way ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others) (.+?))?\\.?$`, 'i'));
   if (!m) return null;
   const may = !!m[1], c = m[2].toLowerCase(), filter = (m[3] || '').trim();
@@ -449,7 +452,7 @@ function parsePick(s) {
   else if (c === 'any number of') { min = 0; max = 99; }
   else if (c.startsWith('up to')) { min = 0; max = num(c.replace('up to ', '')); }
   else { max = num(c) ?? 1; min = may ? 0 : max; }
-  const rest = m[5] ? DEST(m[5]) : null;
+  const rest = m[6] ? { to: 'shuffle' } : m[5] ? DEST(m[5]) : null;
   if (m[5] && !rest) return null;
   return { pick: { min, max, filter, all, ...dest }, rest };
 }
@@ -471,9 +474,21 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);
 
   // Look at / reveal the top N cards, then distribute them.
-  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of your library\.?$/i))) {
+  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?\.?$/i))) {
     const amount = /^card$/i.test(m[2]) ? 1 : num(m[2]);
     const reveal = /reveal/i.test(m[1]);
+    const amountExpr = m[4] ? whereXExpr(m[4]) : null;
+    if (m[4] && !amountExpr) return null;
+    const whose = m[3].toLowerCase();
+    if (/each player/.test(whose)) return null;
+    // "reveal the top card of your library and put that card into your hand" (Dark Confidant)
+    if (m[5]) {
+      if (whose !== 'your') return null;
+      const bind = `dig${i}`, picks = [{ min: 0, max: 99, all: true, filter: '', to: 'hand' }];
+      return { part: { effects: [{ kind: 'dig', bind, amount, amountExpr, picks, rest: { to: 'top' } }], requirements: [{ kind: 'dig', bind, amount, amountExpr, offset: drawnBefore, reveal, picks, rest: { to: 'top' }, label: 'the top card' }], unsupported: [] }, consumed: 1 };
+    }
+    const playerReq = /target/.test(whose) ? { kind: 'player', bind: `digPlayer${i}`, scope: /opponent/.test(whose) ? 'opponent' : 'player', label: whose.replace(/'s$/, '') } : null;
+    const ofPlayer = playerReq ? playerReq.bind : /that player/.test(whose) ? 'eventPlayer' : null;
     const picks = [];
     let rest = null, k = 1;
     for (; k <= 3 && i + k < clauses.length; k++) {
@@ -483,16 +498,29 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
       // One card: "If it's a creature card, you may reveal it and put it into your hand." / "If it's a land card, put it onto the battlefield."
       const one = amount === 1 && s.match(rx(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
       if (one) { const d = DEST(one[3]); if (!d) break; picks.push({ min: one[2] ? 0 : 1, max: 1, filter: one[1], ...d }); continue; }
+      const jace = amount === 1 && !picks.length && s.match(/^You may put (?:that card|it) on the bottom of (?:that player's|your|its owner's) library\.?$/i);
+      if (jace) { picks.push({ min: 0, max: 1, filter: '', to: 'bottom' }); continue; }
       const otherwise = picks.length && s.match(rx(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
       if (otherwise) { rest = DEST(otherwise[1]); k++; break; }
       const r = picks.length || amount > 1 ? parseRest(s) : null;
       if (r) { rest = r; k++; break; }
       break;
     }
-    if (!picks.length && !rest) return null;
+    // Fact or Fiction: "An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."
+    if (!picks.length && whose === 'your' && /^An opponent separates (?:those|the revealed) cards into two piles\.?$/i.test(next(1)) && /^Put one pile into your hand and the other into your graveyard\.?$/i.test(next(2))) {
+      const bind = `piles${i}`;
+      return { part: { effects: [{ kind: 'dig', bind, amount, amountExpr, picks: [{ min: 0, max: 99, filter: '', to: 'hand' }], rest: { to: 'graveyard' } }], requirements: [{ kind: 'piles', bind, amount, amountExpr, offset: drawnBefore, label: `the top ${amount} cards` }], unsupported: [] }, consumed: 3 };
+    }
+    // Just looking (Mishra's Bauble, "look at the top card of target player's library") — shown privately.
+    if (!picks.length && !rest) {
+      if (!ofPlayer && whose !== 'your') return null;
+      const bind = `dig${i}`, look = { kind: 'dig', bind, amount, amountExpr, offset: ofPlayer ? 0 : drawnBefore, reveal, picks: [], rest: { to: 'top', order: 'keep' }, peek: true, playerBind: ofPlayer, label: `the top ${amount === 1 ? 'card' : `${amount} cards`}` };
+      return { part: { effects: [{ kind: 'dig', bind, amount, amountExpr, picks: [], rest: look.rest, playerBind: ofPlayer }], requirements: [...(playerReq ? [playerReq] : []), look], unsupported: [] }, consumed: 1 };
+    }
+    if (ofPlayer && picks.some(p => p.to !== 'bottom' && p.to !== 'top' && p.to !== 'graveyard')) return null;
     const bind = `dig${i}`;
-    const req = { kind: 'dig', bind, amount, offset: drawnBefore, reveal, picks, rest: rest || { to: 'top', order: amount > 1 ? 'any' : 'keep' }, label: `the top ${amount === 1 ? 'card' : `${amount} cards`}` };
-    return { part: { effects: [{ kind: 'dig', bind, amount, picks, rest: req.rest }], requirements: [req], unsupported: [] }, consumed: k };
+    const req = { kind: 'dig', bind, amount, amountExpr, offset: ofPlayer ? 0 : drawnBefore, reveal, picks, rest: rest || { to: 'top', order: amount > 1 ? 'any' : 'keep' }, playerBind: ofPlayer, label: `the top ${amount === 1 ? 'card' : `${amount} cards`}` };
+    return { part: { effects: [{ kind: 'dig', bind, amount, amountExpr, picks, rest: req.rest, playerBind: ofPlayer }], requirements: [...(playerReq ? [playerReq] : []), req], unsupported: [] }, consumed: k };
   }
 
   // Impulse draw: "Exile the top card of your library. You may play that card this turn."
@@ -549,13 +577,26 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
   const nameOf = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
   if (effect.kind === 'dig') {
     const answer = bindings[effect.bind] || { groups: [], rest: [] };
-    const lib = controller.deck.remainingLibrary;
-    const top = new Set(lib.slice(0, Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings))).map(c => c.instanceId));
+    const owner = effect.playerBind ? playerById(game, bindings[effect.playerBind]) || controller : controller;
+    const lib = owner.deck.remainingLibrary;
+    const n = effect.amountExpr ? resolveAmount(game, controllerId, effect.amountExpr, bindings) : resolveAmount(game, controllerId, effect.amount, bindings);
+    if (effect.amountExpr) bindings.X = n;
+    const top = new Set(lib.slice(0, Math.max(0, n)).map(c => c.instanceId));
     (answer.groups || []).forEach((ids, g) => {
       for (const id of ids || []) {
         if (!lib.some(c => c.instanceId === id)) continue;
         top.delete(id);
         const d = effect.picks[g];
+        const pd = definitionFor(game, locateCardInGame(game, id)?.card);
+        bindings.__lastManaValue = Number(pd?.manaValue ?? pd?.cmc ?? 0);
+        if (d.to === 'cast-free') {
+          // Cast it now without paying its mana cost (the player chose it); it waits in exile while it is cast.
+          moveCard(game, id, 'exile', { onEvent: emit });
+          game.flow = game.flow || {};
+          game.flow.freeCast = { playerId: controllerId, instanceId: id };
+          notes.push(`${controller.displayName} casts ${nameOf(id)} without paying its mana cost.`);
+          continue;
+        }
         moveTo(game, id, d, emit, controllerId);
         notes.push(`${controller.displayName} puts ${nameOf(id)} ${d.to === 'hand' ? 'into their hand' : d.to === 'battlefield' ? 'onto the battlefield' : d.to === 'graveyard' ? 'into their graveyard' : d.to === 'bottom' ? 'on the bottom of their library' : 'on top of their library'}.`);
       }
@@ -563,6 +604,7 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
     let rest = (answer.rest && answer.rest.length ? answer.rest : [...top]).filter(id => top.has(id));
     for (const id of top) if (!rest.includes(id)) rest.push(id);
     const r = effect.rest || { to: 'top' };
+    if (r.to === 'shuffle') { H.shuffle(lib); notes.push(`${owner.displayName} shuffles their library.`); emit({ type: 'library-looked', playerId: controllerId }); return true; }
     if (r.order === 'random') H.shuffle(rest);
     if (r.to === 'top' || r.to === 'keep') {
       // Back on top in the chosen order (first = top).
@@ -614,16 +656,37 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
 /** Resolve-time choices for the sequences above. */
 export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
-  if (req.kind === 'dig') {
-    const amount = String(req.amount).toUpperCase() === 'X' ? Number(bindings.X || 0) : Number(req.amount || 0);
+  if (req.kind === 'piles') {
+    // Fact or Fiction: an opponent (you choose which) separates the cards into two piles; you choose one.
+    const amount = req.amountExpr ? resolveAmount(game, player.playerId, req.amountExpr, bindings) : Number(req.amount || 0);
     const cards = (player.deck.remainingLibrary || []).slice(Number(req.offset || 0), Number(req.offset || 0) + amount);
+    const opps = (game.players || []).filter(q => !q.eliminated && q.playerId !== player.playerId);
+    if (!cards.length || !opps.length) { bindings[req.bind] = { groups: [cards.map(c => c.instanceId)], rest: [] }; return true; }
+    const sep = opps.length === 1 ? opps[0].playerId : ask(`${key}:opponent`, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose the opponent who separates the cards into two piles.', options: opps.map(q => ({ id: q.playerId, label: q.displayName, playerId: q.playerId })) }));
+    const pile1 = ask(`${key}:separate`, () => ({ ...base, playerId: sep, cancellable: false, kind: 'choose-many', title: `${ctx.sourceName} — separate into two piles`, prompt: `${player.displayName} reveals these cards. Choose the cards for pile 1; the rest are pile 2.`, options: cards.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max: cards.length }));
+    const one = new Set([].concat(pile1 || [])), p1 = cards.filter(c => one.has(c.instanceId)).map(c => c.instanceId), p2 = cards.filter(c => !one.has(c.instanceId)).map(c => c.instanceId);
+    const names = ids => ids.map(id => util.defOf(game, cards.find(c => c.instanceId === id))?.name).join(', ') || 'no cards';
+    const pick = ask(`${key}:pile`, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Put one pile into your hand and the other into your graveyard.', options: [{ id: 1, label: `Pile 1: ${names(p1)}` }, { id: 2, label: `Pile 2: ${names(p2)}` }] }));
+    bindings[req.bind] = { groups: [pick === 2 ? p2 : p1], rest: pick === 2 ? p1 : p2 };
+    return true;
+  }
+  if (req.kind === 'dig') {
+    const owner = req.playerBind ? util.playerById(game, bindings[req.playerBind]) || player : player;
+    const amount = req.amountExpr ? resolveAmount(game, player.playerId, req.amountExpr, bindings) : String(req.amount).toUpperCase() === 'X' ? Number(bindings.X || 0) : Number(req.amount || 0);
+    if (req.amountExpr) bindings.X = amount;
+    const cards = (owner.deck.remainingLibrary || []).slice(Number(req.offset || 0), Number(req.offset || 0) + amount);
+    if (req.peek) {
+      if (cards.length) ask(`${key}:peek`, () => ({ ...base, cancellable: false, kind: 'choose-one', private: true, title: `${ctx.sourceName} — ${owner.playerId === player.playerId ? 'your' : `${owner.displayName}'s`} library`, prompt: `The top of ${owner.playerId === player.playerId ? 'your' : `${owner.displayName}'s`} library: ${cards.map(c => util.defOf(game, c)?.name).join(', ')}.`, options: [{ id: 'ok', label: 'OK' }] }));
+      bindings[req.bind] = { groups: [], rest: cards.map(c => c.instanceId) };
+      return true;
+    }
     const left = [...cards], groups = [];
     req.picks.forEach((p, g) => {
-      const fits = left.filter(c => cardFitsWords(util.defOf(game, c), p.filter));
+      const fits = left.filter(c => cardFitsWords(util.defOf(game, c), String(p.filter || '').replace(/\bX\b/, String(bindings.X ?? 0))) && (p.to !== 'cast-free' || !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '')));
       if (p.all) { groups.push(fits.map(c => c.instanceId)); for (const c of fits) left.splice(left.indexOf(c), 1); return; }
       const max = Math.min(p.max === 'X' ? Number(bindings.X || 0) : p.max, fits.length), min = Math.min(p.min === 'X' ? Number(bindings.X || 0) : p.min, max);
       if (max === 0) { groups.push([]); return; }
-      const where = p.to === 'hand' ? 'into your hand' : p.to === 'battlefield' ? `onto the battlefield${p.tapped ? ' tapped' : ''}` : p.to === 'graveyard' ? 'into your graveyard' : p.to === 'exile-play' ? 'to play' : p.to === 'bottom' ? 'on the bottom' : 'on top';
+      const where = p.to === 'cast-free' ? 'to cast without paying its mana cost' : p.to === 'hand' ? 'into your hand' : p.to === 'battlefield' ? `onto the battlefield${p.tapped ? ' tapped' : ''}` : p.to === 'graveyard' ? 'into your graveyard' : p.to === 'exile-play' ? 'to play' : p.to === 'bottom' ? 'on the bottom' : 'on top';
       const picked = ask(`${key}:${g}`, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — ${req.label}`,
         prompt: `${req.reveal ? 'You reveal' : 'You look at'} ${util.plural(cards.length, 'card')}. Choose ${min === max ? max : min ? `${min} to ${max}` : `up to ${max}`}${p.filter ? ` ${p.filter}` : ''} card${max === 1 ? '' : 's'} to put ${where}.`,
         options: left.map(c => ({ ...util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || ''), disabled: !fits.includes(c) })), min, max }));
@@ -888,6 +951,16 @@ function compileRound3(c, ctx, subjectBind) {
     if (/additional combat/i.test(c)) effects.push({ kind: 'extra-combat' });
     return true;
   }
+  // Thassa's Oracle; "you win the game" / "you lose the game".
+  if (/^If X is greater than or equal to the number of cards in your library, you win the game\.?$/i.test(c)) { effects.push({ kind: 'condition', test: 'x-ge-library', skip: 1 }, { kind: 'game-result', win: true }); return true; }
+  if ((m = c.match(/^(?:you )?(win|lose) the game\.?$/i))) { effects.push({ kind: 'game-result', win: /win/i.test(m[1]) }); return true; }
+  if ((m = c.match(/^(Each opponent|Each player|Target opponent|Target player) loses life equal to (?:that card's|its|the revealed card's|the exiled card's) mana value\.?$/i))) {
+    const scope = H.scopeFromSubject(m[1]);
+    const e = { kind: 'life', scope: scope.startsWith('target-') ? 'you' : scope, amount: { kind: 'binding', bind: '__lastManaValue' }, deltaSign: -1 };
+    if (scope.startsWith('target-')) e.bind = H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]);
+    effects.push(e);
+    return true;
+  }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -923,6 +996,14 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'game-result': {
+      for (const p of game.players || []) {
+        if (p.eliminated) continue;
+        if (effect.win ? p.playerId !== controllerId : p.playerId === controllerId) { p.counters = p.counters || {}; p.counters.lostGame = effect.win ? `${controller.displayName} won the game` : 'lost the game'; }
+      }
+      notes.push(effect.win ? `${controller.displayName} wins the game.` : `${controller.displayName} loses the game.`);
+      return true;
+    }
     case 'class-level': {
       const hit = permanentAt(game, bindings.sourceId);
       if (!hit) return true;
