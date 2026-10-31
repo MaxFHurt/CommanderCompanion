@@ -1856,9 +1856,10 @@ function handleAct(act, v, n, pArg) {
     }
     case 'h-fix': {
       const H0 = Object.keys(FIX_OF);
-      if (v === '*') {
+      if (String(v).startsWith('*')) {
+        // the alerts the button names ("*Ramp|Curve|Mana", Path to Apex), else the ones listed under Health; never the good ones
         const st = $('.hfix');
-        const ks = st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => x !== '*') : H0;
+        const ks = v.length > 1 ? v.slice(1).split('|') : st ? [...st.querySelectorAll('[data-act="h-fix"]')].map(b => b.dataset.v).filter(x => !String(x).startsWith('*')) : H0;
         openFixSoon(ks);
       } else openFixSoon([v]);
       return;
@@ -1901,7 +1902,7 @@ function handleAct(act, v, n, pArg) {
           Wipes: [A.roles.wipe, A.T.wipe]
         }[v],
         n = tg ? Math.max(1, Math.abs(tg[1] - tg[0])) : 1;
-      const k = fixApply(d, g.L.filter(p => p.dScore == null || p.dScore >= 0).slice(0, n));
+      const k = fixApply(d, (g.S || g.L.filter(p => p.dScore == null || p.dScore >= 0)).slice(0, n));
       toast('Made ' + k + ' swap' + (k === 1 ? '' : 's') + ' for ' + v + '.');
       touch();
       render();

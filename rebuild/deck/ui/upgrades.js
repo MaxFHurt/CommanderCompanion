@@ -2342,24 +2342,6 @@ function statDelta(v, ref, unit) {
 function refOrder(T) {
   return T && {budget: T.budget, mid: Math.max(T.mid, T.budget), apex: Math.max(T.apex, T.mid, T.budget)};
 }
-// Deck power (owner, 25 Oct: "Budget being 87 and Apex being 91 is too tight"): the deck score placed on this deck's own builds,
-// Budget build 70, Mid 85, Apex 100, in between by the score. Below Budget the scale curves down to 0 at a score of 0 (owner,
-// 26 Oct: "When 1 card enters the deck's power should be above 0"): 70 x (score / Budget's)^(Budget's / 25), as steep near
-// Budget as the old straight line that ran out at 25 points under it, so a precon still lands around 55; any deck with a
-// score is at least 1. Above the Apex build each score point adds 3. The deck score itself (what upgrades are chosen by) is
-// unchanged.
-const POWER_MARKS = {budget: 70, mid: 85, apex: 100},
-  POWER_FLOOR = 25;
-function powerOf(x, T) {
-  const b = T.budget,
-    m = T.mid,
-    a = T.apex;
-  if (x >= a) return 100 + 3 * (x - a);
-  if (x >= m) return 85 + (15 * (x - m)) / Math.max(0.01, a - m);
-  if (x >= b) return 70 + (15 * (x - b)) / Math.max(0.01, m - b);
-  if (!(x > 0) || !(b > 0)) return 0;
-  return Math.max(1, 70 * Math.pow(x / b, b / POWER_FLOOR));
-}
 // What keeps a deck below the next level (owner's choice B): each part of its score against that level's build, the biggest
 // weighted gaps first, with the part's own explanation (which jobs are short, how many finishers).
 const SCORE_PART = {synergy: 'Synergy', balance: 'Balance', quality: 'Card quality', routes: 'Win routes', mana: 'Mana'},
@@ -2579,9 +2561,13 @@ function statsHtml(d, A, R, mode) {
   const T0r = (apexFor(d) || {}).tot,
     T0 = refOrder(T0r),
     pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
-    pwr = pw != null ? powerOf(e.exact, T0) : null, // deck power: Budget build 70, Mid 85, Apex 100 (owner, 25 Oct)
+    // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
+    // the apex deck's power"; "appear to make progress, not be a belittling or demeaning stat", and no false information).
+    // The Budget and Mid builds are marked the same way. (Before: Budget 70, Mid 85, Apex 100 with a steep curve below Budget.)
+    pwr = pw,
+    pctOf = v => (T0 && T0.apex > 0 ? (100 * v) / T0.apex : null),
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
-  const mk = pw != null ? {budget: POWER_MARKS.budget, mid: POWER_MARKS.mid} : q.marks,
+  const mk = pw != null ? {budget: pctOf(T0.budget), mid: pctOf(T0.mid)} : q.marks,
     qp = pw != null ? pc(pwr) : q.vsApex;
   // the level compares unrounded scores (0.9.3 fix: 95.6% of Apex and a Budget mark at 95.74% both rounded to 96 read as Budget)
   const lvl =
@@ -2617,7 +2603,7 @@ function statsHtml(d, A, R, mode) {
           qp,
           mk,
           lvl,
-          pw != null ? {you: Math.round(pwr), budget: POWER_MARKS.budget, mid: POWER_MARKS.mid, apex: POWER_MARKS.apex} : null,
+          pw != null ? {you: Math.round(pwr), budget: Math.round(pctOf(T0.budget)), mid: Math.round(pctOf(T0.mid)), apex: 100} : null,
           pw != null
         ) +
         (pw != null
@@ -2627,15 +2613,17 @@ function statsHtml(d, A, R, mode) {
             (lvl === 'Starter' ? ' (below the best Budget build)' : '') +
             ': power <b>' +
             Math.round(pwr) +
-            '</b>, on this deck’s own builds: the best all-under-$3 build is 70, all-under-$12 85, Apex 100 (deck score ' +
+            '</b>, that is ' +
+            Math.round(pwr) +
+            '% of this deck’s Apex build (deck score ' +
             e.total +
-            '; the builds score ' +
-            Math.round(T0.budget) +
-            ', ' +
-            Math.round(T0.mid) +
-            ' and ' +
+            ' of ' +
             Math.round(T0.apex) +
-            ').</p>' +
+            '). The best all-under-$3 build reaches ' +
+            Math.round(pctOf(T0.budget)) +
+            ', all-under-$12 ' +
+            Math.round(pctOf(T0.mid)) +
+            '.</p>' +
             gapHtml(e, T0r, lvl)
           : '<p class="note" style="margin:0">Your cards are at <b>' +
             lvl +
@@ -2653,7 +2641,7 @@ function statsHtml(d, A, R, mode) {
       ? 'Power <b>' +
         Math.round(pwr) +
         '</b>' +
-        (prev && prev.score != null ? statDelta(Math.round(pwr), Math.round(powerOf(prev.score, T0))) : '')
+        (prev && prev.score != null ? statDelta(Math.round(pwr), Math.round(pctOf(prev.score))) : '')
       : '<b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '')) +
     '</span>' +
     (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') +
@@ -2851,7 +2839,7 @@ function apexTips(d, A, R, e, HA, lvl) {
       h: '<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.',
       b:
         '<button class="btn sm" data-act="h-fix" data-v="' +
-        (hb.length === 1 ? esc(hb[0].k) : '*') +
+        (hb.length === 1 ? esc(hb[0].k) : '*' + esc(hb.map(x => x.k).join('|'))) +
         '">' +
         (hb.length === 1 ? 'Show' : 'Show all') +
         '</button>'
@@ -3131,11 +3119,24 @@ function fixDraw(d, keys, G) {
     '<div class="panel" role="dialog" aria-label="Fix deck health"><div class="ph"><h2>' +
     (keys.length > 1 ? 'Fix all alerts' : 'Fix: ' + esc(keys[0])) +
     '</h2><button class="ico" data-act="close" aria-label="Close">×</button></div><div class="mscroll">' +
-    '<p class="note" style="margin:0">Direct swaps that fix each alert, best for the deck score first. Each swap takes out a card the deck can best spare (never one you hold, and never one doing a job the deck is short of). Every swap can be undone.</p>';
+    '<p class="note" style="margin:0">The best swaps for each alert. Each cuts a card the deck can spare; no card appears twice, and every swap can be undone.</p>';
   if (!G.length) h += '<p class="note">Nothing to fix: every alert here is ignored.</p>';
+  // Owner (30 Oct: "extremely repetitive"): one card is offered once in the whole window (the first alert it fixes keeps it),
+  // only swaps that don't lower the deck score, and two or three per alert.
+  const usedCut = new Set(),
+    usedAdd = new Set();
   G.forEach(g => {
     const n = need(g.k),
-      good = g.busy ? [] : g.L.filter(p => p.dScore == null || p.dScore >= 0),
+      cap = Math.min(3, Math.max(2, n)),
+      shown = g.L.map((p, i) => ({p, i}))
+        .filter(x => (x.p.dScore == null || x.p.dScore >= 0) && !usedCut.has(norm(x.p.cut)) && !usedAdd.has(norm(x.p.add)))
+        .slice(0, cap);
+    shown.forEach(x => {
+      usedCut.add(norm(x.p.cut));
+      usedAdd.add(norm(x.p.add));
+    });
+    g.S = shown.map(x => x.p);
+    const good = g.busy ? [] : g.S,
       wait = g.busy
         ? '<p class="note think" role="status">Checking land ' +
           Math.min(g.busy.i + 1, g.busy.adds.length) +
@@ -3157,10 +3158,12 @@ function fixDraw(d, keys, G) {
             ? 'The deck runs more lands than it needs, so some can go for cards that do a job the deck is short of. Each swap was tested in fresh practice games and raises the deck score.'
             : FIX_WHY[FIX_OF[g.k]] || ''
       ) +
-      (tgt[g.k] ? ' ' + n + (over(g.k) ? ' fewer' : ' more') + ' would reach the target.' : '') +
+      (tgt[g.k] && (over(g.k) || tgt[g.k][0] < tgt[g.k][1]) ? ' ' + n + (over(g.k) ? ' fewer' : ' more') + ' would reach the target.' : '') +
       '</p>' +
-      (g.L.length
-        ? '<div class="paths">' + g.L.map((p, i) => sw(g, p, i)).join('') + '</div>' + wait
+      (shown.length
+        ? '<div class="paths">' + shown.map(x => sw(g, x.p, x.i)).join('') + '</div>' + wait
+        : g.L.some(p => p.dScore == null || p.dScore >= 0) && !wait
+          ? '<p class="note" style="margin:0">The swaps for this alert are already offered above.</p>'
         : wait
           ? wait
           : FIX_OF[g.k] === 'mana'
@@ -3201,20 +3204,18 @@ function manaWhy(d) {
   if (!m) return FIX_WHY.mana;
   const st = Math.round(m.colourStuck * 100),
     sh = Math.round(m.screwT5 * 100);
+  const A = analyze(d),
+    lands = A.lands > A.T.lands;
+  // One short line (owner, 30 Oct: health advice "extremely repetitive and needs to be simplified").
   return (
-    'In practice games the deck is stuck without a colour it needs in ' +
+    'Stuck without a colour in ' +
     st +
-    '% of games and runs out of lands by turn 5 in ' +
+    '% of practice games, out of lands by turn 5 in ' +
     sh +
-    '%' +
-    (analyze(d).lands > analyze(d).T.lands
-      ? ' (with ' + analyze(d).lands + ' lands that is just bad luck, so no lands are added)'
-      : '') +
-    '. ' +
-    (m.screwT5 >= m.colourStuck && analyze(d).lands <= analyze(d).T.lands
-      ? 'Missing lands is the bigger problem, so swaps that add a land for the spell the deck can best spare come first when they help most.'
-      : 'Colours are the bigger problem, so lands that make more of your colours and enter untapped come first when they help most.') +
-    ' Every swap below raises the deck score.'
+    '%. ' +
+    (m.screwT5 >= m.colourStuck && !lands
+      ? 'Missing lands is the bigger problem: a land for a spare spell comes first.'
+      : 'Colours are the bigger problem: lands that make more of your colours come first.')
   );
 }
 function manaNone(d) {

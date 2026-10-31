@@ -129,7 +129,7 @@ function viewDecks() {
     if (!narrow && tab === 'build') tab = 'list';
     const hasPlan = od.plan && od.plan.length,
       R = isAimed(od) && !hasPlan ? recsFor(od) : null,
-      nUp = hasPlan ? od.plan.length : R ? upCardCount(R) : 0;
+      nUp = hasPlan ? od.plan.length : R ? upCardCount(R, od) : 0;
     const build = aimPanel(od, A.ctx)
       .replace('<section class="panel aimp">', '<section class="panel aimp"><div class="scroll" id="bscroll" data-keep>')
       .replace(/<\/section>$/, '</div>' + buildFoot(od) + '</section>');
@@ -172,7 +172,7 @@ function viewDecks() {
           (nUp
             ? ' <em title="' +
               nUp +
-              (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? ' has' : 's have') + ' an upgrade') +
+              (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? '' : 's') + ' recommended to swap out at this deck’s price level') +
               '">' +
               nUp +
               (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) +
@@ -1255,14 +1255,25 @@ function hasCard(d, n) {
     }) || [d.commander, d.partner].some(x => x && (keyOf(x) === k || keyOf(x) === k2))
   );
 }
-function upCardCount(R) {
-  const s = new Set();
+// The Upgrades tab's number: how many cards are recommended to swap out at this deck's own price level (owner, 30 Oct), each
+// copy counted, so it matches that level's "Upgrades left" chip; plus any fixes or cards to drop that aren't already counted.
+function upCardCount(R, d) {
+  const t = d && TIERS[d.tier] ? d.tier : 'apex',
+    seen = new Set();
+  let n = 0;
   R.paths.forEach(L => {
-    if (['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])) s.add(keyOf(L.cut));
+    const p = tierPick(L, t);
+    if (!p || (d && !entryOf(d, p.cut)) || seen.has(keyOf(p.cut))) return;
+    seen.add(keyOf(p.cut));
+    n += p.q || 1;
   });
-  (R.fixes || []).forEach(p => s.add(keyOf(p.cut)));
-  (R.drops || []).forEach(p => s.add(keyOf(p.n)));
-  return s.size;
+  (R.fixes || []).forEach(p => {
+    if (!seen.has(keyOf(p.cut))) (seen.add(keyOf(p.cut)), n++);
+  });
+  (R.drops || []).forEach(p => {
+    if (!seen.has(keyOf(p.n))) (seen.add(keyOf(p.n)), n++);
+  });
+  return n;
 }
 function listPanel(d, A) {
   return (

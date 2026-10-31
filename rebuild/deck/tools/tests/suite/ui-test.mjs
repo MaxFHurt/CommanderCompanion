@@ -596,10 +596,13 @@ T('UI-B87-01', 'Deck history: a card change keeps the earlier version; History s
 if (RUN('UI-B88-01')) { try { if (SHARD) await RESET();
 // 39. Build 88: the Upgrades tab counts cards that have an upgrade (each once), not upgrade options, and says "cards".
 const b88 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); const R = await recsReady(d); render();
-  const cuts = new Set(R.paths.filter(L => ['apex', 'mid', 'budget', 'free'].some(t => L.opts[t])).map(L => keyOf(L.cut)).concat(R.fixes.map(p => keyOf(p.cut)), R.drops.map(p => keyOf(p.n))));
+  // owner, 30 Oct: the cards recommended to swap out at the deck's own price level (each copy counted), the same number as that
+  // level's Upgrades left chip, not the number of upgrade options
+  const lvl = tierSum(d, R, TIERS[d.tier] ? d.tier : 'apex').n, extra = new Set(R.fixes.map(p => keyOf(p.cut)).concat(R.drops.map(p => keyOf(p.n)))).size;
   const opts = R.paths.reduce((a, L) => a + Object.keys(L.opts).length, 0), t = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '';
-  return {tab:t, cards:cuts.size, options:opts, ok:t === cuts.size + ' card' + (cuts.size === 1 ? '' : 's')}; });
-T('UI-B88-01', 'The Upgrades tab shows how many cards have an upgrade (each card once, e.g. “7 cards”), not the number of upgrade options', b88.ok, JSON.stringify(b88));
+  const n = upCardCount(R, d);
+  return {tab:t, cards:n, level:lvl, extra, options:opts, ok:t === n + ' card' + (n === 1 ? '' : 's') && n >= lvl && n <= lvl + extra}; });
+T('UI-B88-01', 'The Upgrades tab shows how many cards are recommended to swap out at the deck’s price level (its Upgrades left number), not the number of upgrade options', b88.ok, JSON.stringify(b88));
 } catch (e) { QUIET = false; T('UI-B88-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B89-01')) { try { if (SHARD) await RESET();
 // 40. Build 89: a card's "Put this card in" window: best swap first (card coming out on the left, this card on the right),
@@ -649,7 +652,7 @@ const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLi
   await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
   openFix(['Mana']); for (let i = 0; i < 300 && ((S.fixG || []).find(x => x.k === 'Mana') || {}).busy; i++) await new Promise(r => setTimeout(r, 50));   /* Version 0.9.2: the Mana list fills in land by land */ const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
   out.allLands = g.L.every(p => tags(find(p.add)).land); out.kinds = g.L.map(p => (tags(find(p.cut)).land ? 'land' : 'spell') + '>' + p.add + ' ' + p.dScore); out.noneLower = g.L.every(p => p.dScore != null && p.dScore >= SCORE_MIN); out.scored = g.L.every(p => p.dScore != null);
-  out.why = /stuck without a colour it needs in \d+% of games and runs out of lands by turn 5 in \d+%/.test(m.textContent);
+  out.why = /without a colour in \d+% of practice games, out of lands by turn 5 in \d+%/.test(m.textContent);
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
 T('UI-B93-01', 'Mana alert: Fix this says which problem it is (colour or missing lands) and offers swaps that each add a land (better land, or a land for a spare spell), measured with fresh practice games, every one raising the score', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.why && b93.noUpkindBtn, JSON.stringify(b93));
 } catch (e) { QUIET = false; T('UI-B93-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1515,19 +1518,19 @@ const b162 = await page.evaluate(async () => { const out = {};
 T('UI-B162-01', 'Version 0.9.17: a card shown in a printing that carries another name is named by that printing, then its real name, on the upgrade sheet and in the card window', b162.sheetOk && b162.cardOk, JSON.stringify(b162));
 } catch (e) { QUIET = false; T('UI-B162-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
-// Version 0.9.19 (owner, 25 Oct: "Budget being 87 and Apex being 91 is too tight"): deck power on the deck's own builds (Budget
-// build 70, Mid 85, Apex 100) on the strip and the meter, and what keeps the deck below the next level, part by part.
+// Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
+// way, on the strip and the meter, and what keeps the deck below the next level, part by part.
 const b164 = await page.evaluate(async () => { const out = {};
   await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
   for (let i = 0; i < 200 && !(apexFor(d) && apexFor(d).tot && apexFor(d).tot.parts); i++) { await new Promise(r => setTimeout(r, 100)); if (i % 10 === 0) render(); }
   S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300)); render();   /* the meter and gaps are on Upgrades since 0.9.20 */
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
-  out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.marks = /Budget\s*70/.test(leg) && /Mid\s*85/.test(leg) && /Apex\s*100/.test(leg);
-  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round(powerOf(e.exact, T)); out.floor = powerOf(0, T) === 0 && powerOf(5, T) >= 1 && powerOf(T.budget - 1, T) > 60;   /* 0.9.21: only an empty deck is 0 */
+  out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.leg = leg; out.marks = /Apex\s*100/.test(leg);
+  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);   /* 30 Oct: power is the share of the Apex build's score */
   out.gaps = [...document.querySelectorAll('.gapbox li')].map(x => x.textContent.slice(0, 40)); out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
   S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
-T('UI-B164-01', 'Version 0.9.19: the strip and meter show deck power on this deck’s own builds (Budget 70, Mid 85, Apex 100); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.floor && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
+T('UI-B164-01', 'The strip and meter show deck power as a share of this deck’s Apex build (Budget and Mid builds marked the same way); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.floor && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
 } catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 // Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
