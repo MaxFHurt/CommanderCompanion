@@ -2132,6 +2132,7 @@ const UP = {
   poolXs: 300, // scouted: the most played ...
   poolXb: 100, // ... and the best by card value
   poolRows: 10, // rows for the deck's weakest spells that have none
+  planCore: 2, // a reanimator deck's best reanimation engines always in a generated deck (buildPlanG)
   staples: 1, // Sol Ring and Arcane Signet in every generated Commander deck (buildPlanG, STAPLES)
   aimText: 1, // a plan's core pieces fit its EDHREC theme by their text (matchAim, AIM_TEXT)
   bs: 1,
