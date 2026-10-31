@@ -499,4 +499,31 @@ section('round 7: more library wordings');
   }
 }
 
+section('round 7: Oblivion Ring family');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  t.give(0, 'Opt'); const ring = asText(t, t.hand(0, 'Opt'), 'When this enchantment enters, exile target nonland permanent an opponent controls until this enchantment leaves the battlefield.', { typeLine: 'Enchantment', manaCost: '{1}' });
+  t.ctl.dispatch({ type: 'play', instanceId: ring.instanceId }, t.as(0)); settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  check('Banishing Light: the creature is exiled', t.names(1, 'exile').includes('Grizzly Bears'));
+  cast(t, 'Divination', 'Destroy target enchantment.', [[d => d.targeting, () => ring.instanceId]]);
+  check('…and returns when the enchantment leaves', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  t.give(0, 'Opt'); const ring = asText(t, t.hand(0, 'Opt'), 'When this enchantment enters, exile another target nonland permanent.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner\'s control.', { typeLine: 'Enchantment', manaCost: '{1}' });
+  t.ctl.dispatch({ type: 'play', instanceId: ring.instanceId }, t.as(0)); settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  cast(t, 'Divination', 'Destroy target enchantment.', [[d => d.targeting, () => ring.instanceId]]);
+  check('Oblivion Ring (two triggers): the exiled card returns under its owner\'s control', !!t.bf(1, 'Grizzly Bears'));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Exile another target permanent. Return that card to the battlefield under its owner\'s control at the beginning of the next end step.', [[d => d.targeting, () => bear.instanceId]]);
+  check('Flickerwisp: exiled now…', t.names(1, 'exile').includes('Grizzly Bears'));
+  t.autoPass = true; t.end(0);
+  check('…returns at the beginning of the next end step', !!t.bf(1, 'Grizzly Bears'));
+}
+
 done();

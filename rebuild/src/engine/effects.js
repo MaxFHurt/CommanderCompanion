@@ -1067,6 +1067,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         continue;
       }
       rememberLast(game, bindings, hit, d);
+      // Remember what a permanent exiled ("return the exiled card", "until this leaves the battlefield").
+      const linker = effect.kind === 'exile' && targetId !== bindings.sourceId ? locateCardInGame(game, bindings.sourceId) : null;
+      if (linker && linker.zone === 'battlefield') {
+        linker.card.linkedExile = [...(linker.card.linkedExile || []), targetId];
+        if (effect.untilLeaves) linker.card.untilLeavesExile = [...(linker.card.untilLeavesExile || []), targetId];
+      }
       moveCard(game, targetId, to, { moveReason: effect.kind === 'sacrifice' ? 'sacrifice' : null, onEvent: e => emit(bindings, e) });
       notes.push(`${name} ${effect.kind === 'bounce' ? 'returns to its owner’s hand' : effect.kind === 'exile' ? 'is exiled' : effect.kind === 'sacrifice' ? 'is sacrificed' : 'is destroyed'}.`);
       continue;
@@ -1783,7 +1789,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'destroy', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Exile (target .+?)\.?$/i))) {
+  if ((m = c.match(/^Exile (target .+?)\.?$/i)) && !/ until .+ leaves the battlefield/i.test(c)) {
     const scope = m[1].toLowerCase();
     if (/card .*graveyard/.test(scope)) {
       const bind = `grave${requirements.length}`;

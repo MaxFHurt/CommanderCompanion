@@ -2,7 +2,7 @@ import { withOverlay } from './overlay.js';
 import { catalogTriggerMatch, PROBE_EXTRA_EVENTS } from './triggers-catalog.js';
 // Commander Companion V0.7.27 triggered-ability event bridge.
 // Trigger detection is event driven; resolution uses the same shared effect engine as spells/activated abilities.
-import { compileEffectText, applyEffects } from './effects.js';
+import { compileEffectText, applyEffects, moveCard } from './effects.js';
 import { keywordTriggers, designationTriggers } from './keyword-triggers.js';
 import { recordStat } from '../game/stats.js';
 import { parseSubject, subjectMatches, refersToSelf, findAnyCard } from './trigger-subject.js';
@@ -582,6 +582,19 @@ function dueDelayedTriggers(game, event) {
 }
 export function queueTriggers(game, event) {
   recordStat(game, event);
+  // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
+  if (event?.type === 'leaves-battlefield' && event.sourceId) {
+    const gone = (game.players || []).flatMap(p => ['graveyard', 'exile', 'hand', 'commandZone', 'remainingLibrary'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
+    const back = gone?.untilLeavesExile || [];
+    if (back.length) {
+      gone.untilLeavesExile = [];
+      gone.linkedExile = (gone.linkedExile || []).filter(id => !back.includes(id));
+      for (const id of back) {
+        const owner = (game.players || []).find(p => (p.deck?.exile || []).some(c => c.instanceId === id));
+        if (owner) moveCard(game, id, 'battlefield', { controllerId: owner.playerId, onEvent: e => queueTriggers(game, e) });
+      }
+    }
+  }
   // Madness: a discarded card with madness is exiled instead, and its madness trigger goes on the stack.
   if (event?.type === 'discard' && event.sourceId) {
     for (const p of game.players || []) {

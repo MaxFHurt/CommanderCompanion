@@ -57,6 +57,16 @@ export function compileCatalogClause(c0, ctx0) {
 }
 function compileCatalogClauseInner(c, ctx) {
   const { sourceName, selfAny, effects, requirements } = ctx;
+  // "another target creature": the same instruction, and this permanent can't be chosen.
+  if (/\banother target\b/i.test(c) && !requirements.length) {
+    const inner = H.compileSingleClause(ctx.restore(c.replace(/\banother target\b/i, 'target')), { sourceName });
+    const first = inner.requirements.find(r => r.kind === 'target');
+    if (!inner.unsupported.length && inner.effects.length && first) {
+      first.notSource = true;
+      effects.push(...inner.effects); requirements.push(...inner.requirements);
+      return true;
+    }
+  }
   let m;
   const subjectBind = s => rx(`^${selfAny}$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : /^(?:enchanted|equipped|fortified) /i.test(s) ? '__attached' : 'thatCard';
   const SUBJ = `(${selfAny}|It|That creature|That permanent|Enchanted creature|Equipped creature|Enchanted permanent|Enchanted land)`;
@@ -961,6 +971,22 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push(e);
     return true;
   }
+  // Oblivion Ring / Banishing Light / Fiend Hunter / Flickerwisp.
+  if ((m = c.match(rx(`^(?:you may )?exile (another target|target|up to one target) ([^.]+?) until ${selfAny} leaves the battlefield\\.?$`, 'i')))) {
+    const bind = H.targetRequirement(requirements, `target ${m[2].toLowerCase()}`, `${m[1]} ${m[2]}`, { notSource: /another/i.test(m[1]), optional: /up to/i.test(m[1]) });
+    effects.push({ kind: 'exile', bind, untilLeaves: true, ...(/up to/i.test(m[1]) ? { optionalTarget: true } : {}) });
+    return true;
+  }
+  if ((m = c.match(/^return (?:the exiled card|the exiled cards|all cards exiled with (?:this|SELFNAME)[a-z ]*?|the exiled permanent) to (the battlefield under (?:its owner's|their owners') control|(?:its|their) owner's hands?)\.?$/i))) {
+    effects.push({ kind: 'return-linked', to: /hand/i.test(m[1]) ? 'hand' : 'battlefield' });
+    return true;
+  }
+  if ((m = c.match(/^return (that card|it|the exiled card|them|those cards|that creature) to the battlefield (?:tapped )?under (its owner's|your|their owners'|its owner'?s?) control(?: at the beginning of the next end step| at the beginning of your next upkeep)?\.?$/i))) {
+    const ret = { kind: 'return-ids', fromBind: '__recent', yours: /your/i.test(m[2]), tapped: /tapped/i.test(c) };
+    if (/end step|upkeep/i.test(c)) effects.push({ kind: 'delay', when: /upkeep/i.test(c) ? { event: 'upkeep', whose: 'owner' } : { event: 'end-step', whose: 'any', sameTurn: true }, effects: [ret], requirements: [] });
+    else effects.push(ret);
+    return true;
+  }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1035,6 +1061,28 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
         if (token && effect.haste) { token.temporaryEffects = [...(token.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }]; }
       }
       notes.push(`${controller.displayName} creates ${n === 1 ? 'a token copy' : `${n} token copies`} of ${d.name}.`);
+      return true;
+    }
+    case 'return-linked': {
+      const src = locateCardInGame(game, bindings.sourceId)?.card;
+      const list = [...(src?.linkedExile || [])];
+      if (src) src.linkedExile = [];
+      for (const id of list) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'exile') continue;
+        moveCard(game, id, effect.to === 'hand' ? 'hand' : 'battlefield', { controllerId: hit.card.ownerId, onEvent: emit });
+        notes.push(`${name(hit.card)} returns ${effect.to === 'hand' ? "to its owner's hand" : 'to the battlefield'}.`);
+      }
+      return true;
+    }
+    case 'return-ids': {
+      const list = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : bindings.lastCreated || []);
+      for (const id of list) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || !['exile', 'graveyard'].includes(hit.zone)) continue;
+        moveCard(game, id, 'battlefield', { controllerId: effect.yours ? controllerId : hit.card.ownerId, tapped: !!effect.tapped, onEvent: emit });
+        notes.push(`${name(hit.card)} returns to the battlefield.`);
+      }
       return true;
     }
     case 'sacrifice-ids':
