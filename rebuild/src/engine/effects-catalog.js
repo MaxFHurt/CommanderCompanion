@@ -524,8 +524,8 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
       const p = parsePick(s);
       if (p) { picks.push(p.pick); if (p.rest) { rest = p.rest; k++; break; } continue; }
       // One card: "If it's a creature card, you may reveal it and put it into your hand." / "If it's a land card, put it onto the battlefield."
-      const one = amount === 1 && s.match(rx(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
-      if (one) { const d = DEST(one[3]); if (!d) break; picks.push({ min: one[2] ? 0 : 1, max: 1, filter: one[1], ...d }); continue; }
+      const one = amount === 1 && s.match(rx(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card( of the chosen type)?(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
+      if (one) { const d = DEST(one[4]); if (!d) break; picks.push({ min: one[3] ? 0 : 1, max: 1, filter: `${one[1]}${one[2] || ''}`, ...d }); continue; }
       const jace = amount === 1 && !picks.length && s.match(/^You may put (?:that card|it) on the bottom of (?:that player's|your|its owner's) library\.?$/i);
       if (jace) { picks.push({ min: 0, max: 1, filter: '', to: 'bottom' }); continue; }
       const otherwise = picks.length && s.match(rx(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));

@@ -25,7 +25,8 @@ A clean rewrite of Commander Companion. Static site, no build step: host the fol
     src/app/              router, session (local / host / client), setup-to-game steps
     src/ui/               screens, popups, shared widgets; src/ui/game/ = in-game popups
     src/game/             game logic, no DOM: controller, flow, ops, edits, view, coach, tracker
-    src/engine/           rules engine carried over from the old app, bugs fixed
+    src/engine/           rules engine carried over from the old app, bugs fixed; effects-catalog.js,
+                          triggers-catalog.js, overlay.js, mana-extras.js = the catalog work of build 43
     src/net/              room hosting/joining (PeerJS, with a same-browser fallback)
     src/data/             profile, decks, playmats, achievements, card lookup + cache, judge text
     tests/                node tests (tests/node) and Playwright tests (tests/*.py)

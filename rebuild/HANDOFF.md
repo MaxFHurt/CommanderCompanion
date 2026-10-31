@@ -146,6 +146,46 @@ what each part does, the owner's rules, open notes, and the roadmap.
   "return this card from your graveyard" abilities (`abilityZone` in legal.js), "Activate only if/during/once"
   (`activationRules`, unknown ones count as by hand in the audit), morbid (`game.creatureDiedTurn`). Looting fixed: a
   discard after a draw in the same spell can choose the cards about to be drawn (`plusDraw`).
+- **Whole-catalog card work (build 43, branch `claude/card-effects`, not shipped yet):** from the owner's card-by-card handoff
+  (every Oracle card), the most common wordings still resolved by hand were automated, measured over all 31,776
+  Commander-legal cards (Scryfall oracle-cards 2026-10-31; see RULES_AUDIT.md, "Whole catalog"). New modules:
+  - `src/engine/effects-catalog.js` — more instructions, tried after the older readers in effects.js: self / enchanted /
+    equipped / "that creature" wordings ("it" = the event's card, "that creature" = the other creature in a block or the one
+    dealt damage, bound in ops.js `runTrigger`), "another target …", regeneration (shields, used by every destroy path,
+    SBA and combat), keyword actions (monstrosity, adapt, bolster, explore, connive, amass, incubate, support, the Ring),
+    energy / experience / poison / rad counters, Classes ("Level N", one level at a time, sorcery speed), creature lands and
+    "becomes a creature" (`animate`), token copies of "that creature", end-step clean-up of what was just made or moved
+    (`lastCreated` / `lastMoved` bindings), "doesn't untap during its next untap step" (`skip-next-untap`), "exile it
+    instead if it would die" (`exile-if-dies`), Oblivion Ring family (`linkedExile` / `untilLeavesExile`, returned in
+    triggers.js `queueTriggers`), Flickerwisp returns, copying spells (copies controlled by the copier, "choose new targets"
+    asked as the copy resolves), extra combat phases (`game.extraCombats`, flow.js `nextPhase`), Birgi's kept mana, Timetwister
+    family, Snapcaster flashback (`grantedFlashback`), dice, win/lose the game (`counters.lostGame`, read by `evaluateLosses`),
+    player protection from everything. Multi-sentence instructions (`compileCatalogSequence`): look at / reveal the top N
+    cards and distribute them (`dig` requirement: the player picks, "any order" asks for the order), Fact or Fiction piles,
+    casting a revealed card free (`game.flow.freeCast`), impulse draw (`card.playPermission`, read by casting.js `castModes`,
+    expired in phase.js), hand disruption (Duress: the caster sees the hand, `hand-pick`), Timetwisters.
+  - Conditions (effects.js `parseCondition` / `checkCondition`): "instead" upgrades (Scute Swarm, Cabal Ritual), trailing "if"
+    with "Otherwise", intervening "if" before library searches (Land Tax), lands with different names, "if you cast it".
+  - `src/engine/triggers-catalog.js` — trigger wordings read before the older ones (turned face up, cycling, monstrous,
+    untapping, second main phase, scry/surveil, crime, becomes the target, damage wordings, tapping for mana, transforms,
+    crewing, Class levels). New events: `scry`, `surveil`, `crime`, `becomes-target` (ops.js `announceTargets`),
+    `postcombat-main-start`, `untapped` in the untap step, `tapped-for-mana`, `class-level`, `crewed`, `die-rolled`,
+    `special-request` (venture / initiative / rebound asked as their own step). The audit probe has a second, wider pass
+    (`probeTrigger`) so triggers the game does fire are not reported as never firing.
+  - `src/engine/overlay.js` — `withOverlay(card, def)` used by every definition lookup (helpers `defOf`, effects
+    `definitionFor`, triggers/transactions `defFor`, combat `definition`): temporary type/P/T changes (creature lands, Crew,
+    "base power and toughness"), Class levels and level-up blocks (only the reached levels' text is seen).
+  - `src/engine/mana-extras.js` — extra mana when tapping (Mana Reflection, Nyxbloom, Crypt Ghast, Caged Sun, Gauntlet of
+    Power, Mirari's Wake, Zendikar Resurgent, Wild Growth-style Auras): counted by `playerManaAvailability` and `payMana`
+    (surplus stays in the pool). Only extra mana of the source's own type is counted.
+  - Keywords: Crew (special action), Riot, Unleash, Skulk, Afterlife, Unearth, Scavenge (graveyard special rows), Level up,
+    Madness (discard → exile → its owner may cast it for the madness cost), Rebound, "When you cast this spell" triggers,
+    Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
+  - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
+    regular expressions are built once.
+  - Tests: `node tests/node/catalog.mjs` (102 in-game checks, every new family; choices answered by the player who makes them).
+  - The handoff's ledgers were filled from the before/after audits (CONFIRMATION-LEDGER.csv / ABILITY-LEDGER.csv; delivered
+    with the session, not in the repo): engine confirmation is the audit, not a card-by-card review of rulings.
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -240,6 +280,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
+    node tests/node/catalog.mjs       # 102 catalog-effect checks (build 43)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
@@ -291,7 +332,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   Tracker now use the larger of the two at both ends (37px above and below on the home screen). Choose Game Mode is left as
   is: its art carries its own frame (moving it showed two frames). Test with the safe areas set by hand (Chromium has none).
 - Ward works for spells only, not activated abilities.
-- Still resolved by hand: mutate, madness, suspend, spectacle, and anything the terms key marks
+- Still resolved by hand: mutate, suspend, spectacle, phasing, fuse, splice, cipher, attractions/stickers, and anything the terms key marks
   'manual' or 'partial' (e.g. split/fuse, flip cards, Room, Class, attractions).
 - The legend rule is not automated.
 - Cross-device rooms (games and Table Tracker), the precon catalog (MTGJSON) and the camera scan
@@ -308,8 +349,8 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 **Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (785 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
-2. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):
-   the mana counter and auto-payer (`playerManaAvailability`, `planMana`) must know a source can give more.
+2. Extra mana when tapping: done in build 43 for extra mana of the source's own type (mana-extras.js). Still open: extra mana
+   of a different type (Wild Growth on a non-Forest, Utopia Sprawl's chosen colour ≠ green, Fertile Ground's any colour).
 3. Rare trigger wordings (Class levels, "from anywhere", Kutzil, Trouble in Pairs).
 
 **Next (after the weekly usage reset, when the owner says go)**
@@ -325,7 +366,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   connection candidates over a hotspot.
 
 **Rules engine, when wanted**
-- Ward on activated abilities; legend rule; mutate, madness, suspend, spectacle; more effect wordings
+- Ward on activated abilities; legend rule; mutate, suspend, spectacle, phasing; more effect wordings
   (measure which cards real decks resolve by hand most and automate those first).
 
 **Later / bigger**
