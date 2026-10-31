@@ -89,7 +89,9 @@ export function spellSupport(definition) {
 function staticLines(definition) {
   const triggered = new Set(parseTriggeredAbilities(definition).map(x => x.text));
   const activated = new Set(parseActivatedAbilities(definition).map(x => x.text));
-  return oracle(definition).split('\n').map(x => x.trim()).filter(Boolean).filter(line => !triggered.has(line) && !activated.has(line) && !/^\([^)]*\)$/.test(line));
+  // A triggered line may carry an ability word ("Landfall — Whenever …"): the trigger itself is checked as a trigger.
+  const isTriggered = line => triggered.has(line) || [...triggered].some(t => line.endsWith(t) || t.startsWith(line.replace(/^[A-Z][A-Za-z ']+ — /, '')));
+  return oracle(definition).split('\n').map(x => x.trim()).filter(Boolean).filter(line => !isTriggered(line) && !activated.has(line) && !/^\([^)]*\)$/.test(line));
 }
 export function staticAbilitySupport(definition) {
   const rows = [];

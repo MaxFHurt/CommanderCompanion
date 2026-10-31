@@ -194,7 +194,7 @@ m('Buyback', 'keyword', 'You may pay the buyback cost as you cast this; if you d
 m('Cascade', 'keyword', 'When you cast this, exile from the top until a nonland card that costs less; you may cast it free. The rest go to the bottom in a random order.', { auto: 'auto', tricky: ['Cascade triggers on cast, so it resolves before the cascading spell.', 'Split cards check the total mana value of both halves.'] });
 m('Casualty', 'keyword', 'Casualty N: as you cast this, you may sacrifice a creature with power N or greater; if you do, copy this spell.', { auto: 'manual', actions: ['sacrifice'] });
 m('Champion', 'keyword', 'When this enters, sacrifice it unless you exile another [quality] you control; when this leaves, return the exiled card.', { auto: 'manual', actions: ['exile', 'sacrifice'] });
-m('Changeling', 'keyword', 'This is every creature type (in every zone).', { auto: 'partial' });
+m('Changeling', 'keyword', 'This is every creature type (in every zone).', { auto: 'auto' });
 m('Cipher', 'keyword', 'After this resolves, you may exile it encoded on a creature you control; whenever that creature deals combat damage to a player, you may cast a copy free.', { auto: 'manual' });
 m('Cleave', 'keyword', 'Cast for the cleave cost and remove the words in square brackets.', { auto: 'manual' });
 m('Companion', 'keyword', 'If your deck meets the condition, you may start with this outside the game; once per game pay {3} to put it in your hand.', { auto: 'manual' });

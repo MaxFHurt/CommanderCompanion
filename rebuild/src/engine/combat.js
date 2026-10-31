@@ -20,6 +20,7 @@ function subtypeMatch(def, phrase) {
   if (/^creatures?$/i.test(s))
     return typeHas(def, 'Creature');
   const clean = s.replace(/^(?:other\s+)?/i, '').replace(/\s+creatures?$/i, '').trim();
+  if (clean && /^[A-Z]/.test(clean) && typeHas(def, 'Creature') && (/\bChangeling\b/.test(String(def?.oracleText || '')) || (def?.keywords || []).some(k => /^changeling$/i.test(k)))) return true;   // Changeling
   return typeHas(def, 'Creature') && (!clean || new RegExp(`\\b${clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(def?.typeLine || ''));
 }
 function continuousPtBonus(game, card) {

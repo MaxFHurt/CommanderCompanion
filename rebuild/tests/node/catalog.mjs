@@ -708,4 +708,14 @@ section('round 11: abilities granted in quotes');
   check('Cryptolith Rite: creatures tap for any colour; the auto-payer uses them', r.ok && !!t.bf(0, 'Colossal Dreadmaw'), r.error);
 }
 
+section('round 12: changeling');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Other Elf creatures you control get +1/+1.\nWhenever another Elf you control enters, you gain 2 life.', { typeLine: 'Creature — Elf', power: '0', toughness: '2' });
+  const life = t.P(0).life;
+  cast(t, 'Grizzly Bears', 'Changeling (This card is every creature type.)', [], { typeLine: 'Creature — Shapeshifter' });
+  const bear = t.bf(0, 'Grizzly Bears');
+  check('Changeling counts as an Elf for a lord and for "another Elf enters"', power(t, bear) === 3 && t.P(0).life === life + 2, `${power(t, bear)} ${life} → ${t.P(0).life}`);
+}
+
 done();

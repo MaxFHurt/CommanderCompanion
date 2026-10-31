@@ -101,8 +101,11 @@ export function subjectMatches(game, row, subject, card, def, controllerId) {
   if (subject.token !== null && !!card.token !== subject.token) return false;
   const typeLine = String(def?.typeLine || '');
   const types = subject.types.filter(t => !t.startsWith('player:'));
-  if (types.length && !types.some(t => typeWord(typeLine, t))) return false;
-  if (subject.allTypes.some(t => !typeWord(typeLine, t))) return false;
+  // Changeling: every creature type (a capitalised subtype word that isn't a card type).
+  const changeling = /\bChangeling\b/.test(String(def?.oracleText || '')) || (def?.keywords || []).some(k => /^changeling$/i.test(k));
+  const has = t => typeWord(typeLine, t) || (changeling && /^[A-Z]/.test(t) && !/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle|Legendary|Basic|Snow|Kindred|Tribal|Token)$/.test(t) && /\b(?:Creature|Kindred|Tribal)\b/.test(typeLine));
+  if (types.length && !types.some(t => has(t))) return false;
+  if (subject.allTypes.some(t => !has(t))) return false;
   if (subject.nonTypes.some(t => typeWord(typeLine, t))) return false;
   if (subject.colors.length && !subject.colors.some(c => (def?.colors || []).includes(c))) return false;
   if (subject.power) {
