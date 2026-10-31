@@ -8,7 +8,12 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.40** (31 Oct): build 39 plus Deck Builder 0.9.25 (build 170), generated graveyard and reanimator decks always get their best reanimation engines (deck/ROADMAP.md). Build 39 (31 Oct). Build 38 (another session): the Deck Builder saves decks as `cc.deckProfile` (was `dc.profile`) with an IndexedDB copy, saves every swap and re-works the upgrade list, and its search measures the strongest cards on every row (deck/ROADMAP.md, 0.9.23); `src/data/deck-builder.js` reads the new name. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md) and Deck Builder 0.9.24 (power as a share of the Apex build, Upgrades tab counts cards to swap out, simpler health fixes).
+- Live build: **1.0.0-rebuild.41** (31 Oct): on iPhone the screens fill the frame (section 8). Build 40 (another session):
+  Deck Builder 0.9.25. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md), Deck Builder power as a
+  share of the Apex build. The old standalone Deck Companion (MaxFHurt/Deck-Companion) only forwards to the Deck Builder; the
+  owner chose (31 Oct) to keep that repo as it is: its card-data branch (combo list, refreshed weekly by its workflow) and
+  test-data branch are still used. Old copies can't overwrite decks: the Deck Builder saves under cc.* names and reads
+  dc.profile only when nothing is saved under the new name.
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
