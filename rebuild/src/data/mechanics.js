@@ -260,7 +260,7 @@ m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatu
 m('Jump-start', 'keyword', 'Cast this from your graveyard by discarding a card in addition to its cost; then exile it.', { auto: 'auto', actions: ['discard', 'exile'] });
 m('Kicker', 'keyword', 'You may pay an additional kicker cost as you cast this for an extra effect ("if this spell was kicked").', { auto: 'auto', tricky: ['Multikicker can be paid any number of times.', 'A copy of a kicked spell is also kicked.'] });
 m('Landwalk', 'keyword', '[Type]walk: can\'t be blocked as long as the defending player controls a land of that type.', { auto: 'manual', detect: '\\b(?:Plains|Island|Swamp|Mountain|Forest|Desert|Legendary land|Nonbasic land)walk\\b' });
-m('Level up', 'keyword', 'Pay the level up cost: put a level counter on this (sorcery speed); its abilities change at each level band.', { auto: 'manual', actions: ['counter-other'] });
+m('Level up', 'keyword', 'Pay the level up cost: put a level counter on this (sorcery speed); its abilities change at each level band.', { auto: 'auto', actions: ['counter-other'] });
 m('Living metal', 'keyword', 'As long as it\'s your turn, this Vehicle is also an artifact creature.', { auto: 'manual' });
 m('Living weapon', 'keyword', 'When this Equipment enters, create a 0/0 black Phyrexian Germ token and attach this to it.', { auto: 'manual', actions: ['token', 'attach'] });
 m('Madness', 'keyword', 'If you discard this card, you may exile it instead and cast it for its madness cost.', { auto: 'manual', actions: ['exile'] });
@@ -429,7 +429,7 @@ m('Modal double-faced card', 'layout', 'Choose a face to play from your hand; th
 m('Transforming double-faced card', 'layout', 'Enters front face up; transforms back and forth when an effect says so.', { auto: 'partial', detect: null });
 m('Flip card', 'layout', 'A Kamigawa card that turns upside down when it flips; same object.', { auto: 'manual', detect: null, actions: ['transform'] });
 m('Room', 'type', 'An enchantment with two doors; cast one door; unlock the other later by paying its cost.', { auto: 'manual', detect: '\\bunlock\\b', actions: ['status'] });
-m('Class', 'type', 'An enchantment with levels gained by paying level costs at sorcery speed.', { auto: 'manual', detect: '\\bClass\\b', actions: ['counter-other'] });
+m('Class', 'type', 'An enchantment with levels gained by paying level costs at sorcery speed.', { auto: 'auto', detect: '\\bClass\\b', actions: ['counter-other'] });
 m('Case', 'type', 'An enchantment that becomes solved at the end step when its condition is met, turning on its "solved" ability.', { auto: 'manual', detect: '\\bTo solve\\b', actions: ['status'] });
 m('Battle', 'type', 'A permanent that enters with defense counters and is attacked; when defeated, its protector\'s opponent gets the reward.', { auto: 'manual', detect: '\\bBattle\\b', actions: ['damage', 'counter-other'] });
 m('Vehicle', 'type', 'An artifact that becomes a creature when crewed.', { auto: 'auto', detect: '\\bVehicle\\b', actions: ['tap'] });

@@ -424,4 +424,27 @@ section('round 5: keyword mechanics — riot, unleash, afterlife, unearth, scave
   check('Scavenge: exiled from the graveyard, six +1/+1 counters on the chosen creature', r.ok && Number(t.bf(0, 'Grizzly Bears').counters?.['+1/+1'] || 0) === 6 && t.names(0, 'exile').includes('Colossal Dreadmaw'), r.error);
 }
 
+section('round 6: Classes and level up');
+{
+  const t = setup();
+  const cls = onField(t, 'Fog Bank', '(Gain the next level as a sorcery to add its ability.)\nYou have no maximum hand size.\n{1}: Level 2\nWhen this Class becomes level 2, draw two cards.\n{1}: Level 3\nCreatures you control get +1/+1.', { typeLine: 'Enchantment — Class' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  const lv = () => parseActivatedAbilities(def(t, cls)).filter(a => /Level/.test(a.effect));
+  const view = () => t.view(0).players[0].battlefield.find(c => c.id === cls.instanceId).abilities;
+  check('Class: level 3 cannot be gained before level 2', view().find(a => /Level 3/.test(a.text))?.legal === false, JSON.stringify(view()));
+  check('…and the level 3 ability does nothing yet', power(t, bear) === 2);
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'activate', instanceId: cls.instanceId, abilityId: view().find(a => /Level 2/.test(a.text)).id }, t.as(0)); settle(t);
+  check('Level 2: "When this Class becomes level 2, draw two cards"', cls.classLevel === 2 && t.P(0).deck.hand.length === hand + 2, `${cls.classLevel} ${hand} → ${t.P(0).deck.hand.length}`);
+  t.ctl.dispatch({ type: 'activate', instanceId: cls.instanceId, abilityId: view().find(a => /Level 3/.test(a.text)).id }, t.as(0)); settle(t);
+  check('Level 3: its static ability now applies (+1/+1)', cls.classLevel === 3 && power(t, bear) === 3, String(power(t, bear)));
+}
+{
+  const t = setup();
+  const tree = onField(t, 'Llanowar Elves', 'Level up {1}\nLEVEL 1-4\n1/2\n{T}: Add {G}{G}.\nLEVEL 5+\n1/4', { power: '1', toughness: '1' });
+  const row = () => t.view(0).players[0].battlefield.find(c => c.id === tree.instanceId).abilities.find(a => /Level up/.test(a.text));
+  t.ctl.dispatch({ type: 'activate', instanceId: tree.instanceId, abilityId: row().id }, t.as(0)); settle(t);
+  check('Level up: a level counter; LEVEL 1-4 gives 1/2', Number(t.bf(0, 'Llanowar Elves').counters?.level || 0) === 1 && t.view(0).players[0].battlefield.find(c => c.id === tree.instanceId).toughness === 2, JSON.stringify(t.bf(0, 'Llanowar Elves').counters));
+}
+
 done();

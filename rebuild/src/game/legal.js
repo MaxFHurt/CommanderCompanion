@@ -138,6 +138,12 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
     row('crew', `Crew ${need}`, '', [block, power < need && `Untapped creatures with total power ${need} or more are needed.`]);
   }
+  // Level up {cost}: a level counter, only as a sorcery.
+  const lvl = card.zone === 'battlefield' && String(text).match(/^Level up ((?:\{[^}]+\})+)/m);
+  if (lvl) {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    row('level-up', 'Level up', lvl[1], [block, !sorcery && 'Only as a sorcery.', !payable(lvl[1]) && 'Not enough mana.']);
+  }
   // Unearth / Scavenge: activated from the graveyard, only as a sorcery.
   if (card.zone === 'graveyard') {
     const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;

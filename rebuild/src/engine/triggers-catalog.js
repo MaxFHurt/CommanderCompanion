@@ -4,6 +4,9 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   let m;
   const me = row.player.playerId, self = row.card.instanceId;
   switch (event.type) {
+    case 'class-level':
+      if ((m = t.match(/^When this Class becomes level (\d+)/i))) return event.sourceId === self && Number(event.level ?? event.to) === Number(m[1]);
+      return undefined;
     case 'turned-face-up':
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:is|are) turned face up/i))) return H.subjectEvent(game, row, m[1], event);
       return undefined;
@@ -104,4 +107,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];

@@ -645,6 +645,13 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.search = stack.search || null; top.resolveReqs = []; }
     return;
   }
+  if (kind === 'level-up') {
+    const stack = { id: newId('stack'), label: `${def.name} — level up`, text: 'Put a level counter on this.', effects: [{ kind: 'counter', bind: 'sourceId', counter: 'level', amount: 1 }] };
+    commit(game, { type: 'special-action', kind: 'level-up', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} levels up ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'unearth') {
     const stack = { id: newId('stack'), label: `${def.name} — unearth`, text: 'Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield.',
       effects: [{ kind: 'return-self-graveyard' }, { kind: 'grant-keyword', bind: 'sourceId', keyword: 'Haste', enabled: true, expires: null }, { kind: 'unearth-mark' }] };

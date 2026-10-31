@@ -142,6 +142,8 @@ function compileCatalogClauseInner(c, ctx) {
     }
   }
 
+  // --- Classes: "{2}{U}: Level 2" (one level at a time, as a sorcery — checked in legal.js).
+  if ((m = c.match(/^Level (\d+)\.?$/i))) { effects.push({ kind: 'class-level', level: Number(m[1]) }); return true; }
   // --- Keyword actions.
   if ((m = c.match(rx(`^Monstrosity ${N}\\.?$`, 'i')))) { effects.push({ kind: 'monstrosity', amount: num(m[1]) }); return true; }
   if ((m = c.match(rx(`^Adapt ${N}\\.?$`, 'i')))) { effects.push({ kind: 'adapt', amount: num(m[1]) }); return true; }
@@ -921,6 +923,15 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'class-level': {
+      const hit = permanentAt(game, bindings.sourceId);
+      if (!hit) return true;
+      if (Number(hit.card.classLevel || 1) !== effect.level - 1) { notes.push(`It is not level ${effect.level - 1}, so nothing happens.`); return true; }
+      hit.card.classLevel = effect.level;
+      emit({ type: 'class-level', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId, to: effect.level, level: effect.level });
+      notes.push(`${name(hit.card)} becomes level ${effect.level}.`);
+      return true;
+    }
     case 'unearth-mark': {
       const hit = permanentAt(game, bindings.sourceId);
       if (!hit) return true;

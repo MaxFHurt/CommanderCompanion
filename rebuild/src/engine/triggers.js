@@ -637,7 +637,7 @@ function probeTrigger(definition, ability, types, events, variants) {
       const victim = variant.victim ? (who === me ? opp : me) : who;
       const event = { type, sourceId, controllerId: who.playerId, playerId: victim.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
         typeLine: sourceId === 'self' ? definition.typeLine : types[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId, 'x1', 'x2', 'x3'], defenders: [victim === who ? (who === me ? 'opp' : 'me') : victim.playerId], defenderId: who === me ? 'opp' : 'me',
-        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', ...(variant.event || {}) };
+        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', level: Number((String(ability?.trigger || '').match(/level (\\d+)/i) || [])[1] || 2), ...(variant.event || {}) };
       if (event.to === 'graveyard' && type !== 'zone-change') event.to = ['creature', 'player'];
       try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
     }

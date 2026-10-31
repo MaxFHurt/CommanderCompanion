@@ -747,6 +747,13 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
   }
   if (ability?.lifeCost && player && Number(player.life || 0) < Number(ability.lifeCost))
     reasons.push('Not enough life to pay this activation cost.');
+  // Classes gain one level at a time, as a sorcery; level up (counters) is also sorcery speed.
+  const level = String(ability?.effect || '').match(/^Level (\d+)\.?$/i);
+  if (level || /^Level up\b/i.test(String(ability?.text || ''))) {
+    if (level && Number(instance?.classLevel || 1) !== Number(level[1]) - 1) reasons.push(`Gain level ${Number(level[1]) - 1} first.`);
+    const sorcery = game && game.activePlayerId === player?.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    if (game && !sorcery) reasons.push('Only as a sorcery: your main phase, with an empty stack.');
+  }
   if (ability?.energyCost && player && Number(player.counters?.energy || 0) < Number(ability.energyCost))
     reasons.push('Not enough Energy to pay this activation cost.');
   if (Number(ability?.loyaltyDelta) < 0 && Number(instance?.counters?.loyalty || 0) < Math.abs(Number(ability.loyaltyDelta)))
