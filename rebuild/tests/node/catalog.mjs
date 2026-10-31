@@ -555,4 +555,22 @@ section('round 8: kept mana, untap those, twisters, Snapcaster, venture inside a
   check('Snapcaster Mage: the sorcery can be cast from the graveyard and is exiled after', r.ok && t.names(0, 'exile').includes('Divination'), JSON.stringify([r.error, opts?.playable]));
 }
 
+section('round 8: extra mana (Mana Reflection, Crypt Ghast, Wild Growth)');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'If you tap a permanent for mana, it produces twice as much of that mana instead.', { typeLine: 'Enchantment' });
+  const r = (() => { t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Trample', { manaCost: '{G}{G}{G}{G}{G}{G}' }); return t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Colossal Dreadmaw').instanceId }, t.as(0)); })();
+  settle(t);
+  const tappedForests = t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Forest' && c.tapped).length;
+  check('Mana Reflection: six green from three Forests — the auto-payer taps only three', r.ok && !!t.bf(0, 'Colossal Dreadmaw') && tappedForests === 3, JSON.stringify([r.error, tappedForests]));
+}
+{
+  const t = setup();
+  const forest = t.bf(0, 'Forest');
+  const aura = onField(t, 'Fog Bank', 'Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.', { typeLine: 'Enchantment — Aura' });
+  aura.attachedTo = forest.instanceId;
+  const before = t.view(0).players[0].mana;
+  check('Wild Growth on a Forest: the mana counter shows one more green', before.fixed.G === 5, JSON.stringify(before.fixed));
+}
+
 done();

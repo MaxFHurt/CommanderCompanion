@@ -2,6 +2,7 @@
 // resolve the top of the stack. An op asks for the choices it needs (see requirements.js) and
 // only changes the game once every answer is in, so cancelling half-way never leaves a mess.
 
+import { effectiveManaAmount } from '../engine/mana-extras.js';
 import { createTransactionEngine } from '../engine/transactions.js';
 import {
   parseManaCost, planMana, playerManaAvailability, parseActivatedAbilities, validateActivatedAbilityFull,
@@ -594,7 +595,8 @@ function runActivate(game, op, ask) {
     if (!options.length) throw new GameError('This ability cannot make any mana right now.');
     let color = op.args.color && options.includes(op.args.color) ? op.args.color : null;
     if (!color) color = options.length === 1 ? options[0] : ask('mana', () => ({ ...base, kind: 'choose-one', title: `${def.name} — mana`, prompt: 'Choose the mana to add.', options: options.map(c => ({ id: c, label: COLOR_NAMES[c], mana: c })) }));
-    const amount = manaAmountForAbility(ability, { game, player, card, color });
+    const baseAmount = manaAmountForAbility(ability, { game, player, card, color });
+    const amount = ability.requiresTap ? effectiveManaAmount(game, card, color, baseAmount) : baseAmount;   // Mana Reflection, Wild Growth …
     commit(game, { ...common, type: 'activate-ability', manaColor: color, manaAmount: amount, label: `${player.displayName} taps ${def.name} for ${amount > 1 ? `${amount} ` : ''}${COLOR_NAMES[color].toLowerCase()} mana.` });
     return;
   }

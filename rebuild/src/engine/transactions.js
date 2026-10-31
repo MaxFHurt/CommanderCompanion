@@ -1,3 +1,4 @@
+import { effectiveManaAmount } from './mana-extras.js';
 import { withOverlay } from './overlay.js';
 import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules.js';
 import { sync } from './deck.js';
@@ -148,14 +149,22 @@ function payMana(game, player, payment) {
     const available = Math.max(0, Number(player.mana.available[color] || 0)), floating = Math.max(0, Number(player.mana.floating?.[color] || 0));
     const fromFloating = Math.min(floating, amount), remaining = amount - fromFloating;
     player.mana.floating[color] = floating - fromFloating;
-    let produced = 0;
+    let produced = 0, baseUsed = 0;
     for (const src of sources) {
       if (produced >= remaining)
         break;
       src.tapped = true;
-      produced += Math.max(1, Number(src.manaCapacityAmount || 1));
+      const b = Math.max(1, Number(src.manaCapacityAmount || 1));
+      baseUsed += b;
+      produced += effectiveManaAmount(game, src, color, b);   // Mana Reflection, Crypt Ghast … (extra mana)
     }
-    player.mana.available[color] = Math.max(0, available - amount);
+    if (baseUsed && produced >= remaining) {
+      // Mana made beyond what this payment needed stays in the pool.
+      const excess = produced - remaining;
+      player.mana.available[color] = Math.max(0, available - fromFloating - baseUsed + excess);
+      player.mana.floating[color] = Number(player.mana.floating[color] || 0) + excess;
+    } else
+      player.mana.available[color] = Math.max(0, available - amount);
   }
   for (const a of assignments) {
     if (a.zoneManaAbility || a.zone === 'hand') {
