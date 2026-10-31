@@ -152,6 +152,7 @@ section('round 1: spells that exile or return themselves, keyword actions');
 section('round 2: look at the top cards, impulse draw, hand disruption');
 {
   const t = setup();
+  t.give(0, 'Opt');
   const top4 = t.P(0).deck.remainingLibrary.slice(0, 4).map(c => c.instanceId);
   let q = null;
   cast(t, 'Opt', 'Look at the top four cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.', [['dig', d => { if (d.kind === 'choose-many') { q = d; return [d.options[2].id]; } return { top: d.cards.map(c => c.id).reverse(), other: [] }; }]]);
@@ -468,13 +469,14 @@ section('round 6: madness');
 section('round 7: more library wordings');
 {
   const t = setup();
-  const lib = t.P(0).deck.remainingLibrary, top = lib[0], mv = Number(def(t, top).manaValue ?? def(t, top).cmc ?? 0), life = t.P(0).life;
   onField(t, 'Fog Bank', 'At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.');
+  const lib = t.P(0).deck.remainingLibrary, top = lib[0], mv = Number(def(t, top).manaValue ?? def(t, top).cmc ?? 0), life = t.P(0).life;
   t.autoPass = true; t.end(0); t.end(1); settle(t);
   check('Dark Confidant: the top card goes to hand and you lose life equal to its mana value', t.P(0).deck.hand.some(c => c.instanceId === top.instanceId) && t.P(0).life === life - mv, `${life} → ${t.P(0).life} (mv ${mv})`);
 }
 {
   const t = setup();
+  t.give(0, 'Opt');
   const five = t.P(0).deck.remainingLibrary.slice(0, 5).map(c => c.instanceId);
   let sep = null;
   cast(t, 'Opt', 'Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard.', [['separate', d => { sep = d; return five.slice(0, 2); }], [':pile', 2]]);
