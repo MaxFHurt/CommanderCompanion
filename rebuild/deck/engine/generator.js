@@ -429,6 +429,29 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
       addCard(tmp, c.n, 1);
     });
   }
+  // Reanimation engines in a reanimator deck (owner, 31 Oct: "yes" to requiring them): a deck aimed at the graveyard or at
+  // reanimation always gets its UP.planCore best engines (cards that bring creatures back every turn or all at once: The
+  // Soul Stone, Living Death), by its value for this deck, under the same rules as the staples. Mid and Budget builds
+  // take cheaper cards for those slots from the Apex plan as usual.
+  if (UP.planCore && d.format === 'commander' && (d.aims || []).some(a => /^(graveyard|edh:(reanimator|graveyard))$/.test(a))) {
+    const dis = new Set((d.dismissed || []).map(norm)),
+      ctxR = ctxOf(tmp),
+      have = new Set(tmp.cards.map(x => norm(x.n)));
+    LIB.filter(
+      c =>
+        isReanimEngine(c) &&
+        !have.has(c._n) &&
+        !dis.has(c._n) &&
+        legalIn(c, d.format) &&
+        okC(c) &&
+        mustOk(c, d) &&
+        !(ownOnly && ownOnly.size && !ownOnly.has(c._n))
+    )
+      .map(c => ({c, v: baseScore(c, tmp, ctxR).s}))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, UP.planCore)
+      .forEach(x => addCard(tmp, x.c.n, 1));
+  }
   const seedSet = new Set(tmp.cards.map(x => norm(x.n)));
   if (ownOnly && ownOnly.size) {
     recommend.own = ownOnly;
