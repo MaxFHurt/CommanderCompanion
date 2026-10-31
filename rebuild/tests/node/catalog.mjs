@@ -590,4 +590,30 @@ section('round 9: more trigger wordings');
   check('Manabarbs: tapping lands to pay deals 1 damage per land', t.P(0).life === life - 2, `${life} → ${t.P(0).life}`);
 }
 
+section('round 9: rebound, Greater Good, Plaguecrafter');
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '');
+  const hand = () => t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.\nRebound');
+  check('Rebound: cast from hand, exiled as it resolves', t.names(0, 'exile').includes('Opt') && !t.names(0, 'graveyard').includes('Opt'));
+  const before = hand();
+  t.autoPass = true; t.end(0); t.end(1); settle(t, [['rebound', 'cast']]);
+  check('…at the next upkeep it is cast free from exile (draws again) and then goes to the graveyard', t.names(0, 'graveyard').includes('Opt'), JSON.stringify([t.names(0, 'exile'), t.names(0, 'graveyard'), before, hand()]));
+}
+{
+  const t = setup();
+  onField(t, 'Colossal Dreadmaw', '');
+  const gg = onField(t, 'Fog Bank', 'Sacrifice a creature: Draw cards equal to the sacrificed creature\'s power, then discard three cards.', { typeLine: 'Enchantment' });
+  const hand = t.P(0).deck.hand.length;
+  activate(t, gg, 0, [['cost:sacrifice', d => d.options.find(o => o.label === 'Colossal Dreadmaw').id]]);
+  check('Greater Good: draws six (the sacrificed creature\'s power), then discards three', t.P(0).deck.hand.length === hand + 3 && t.names(0, 'graveyard').includes('Colossal Dreadmaw'), `${hand} → ${t.P(0).deck.hand.length}`);
+}
+{
+  const t = setup();
+  t.give(1, 'Counterspell');
+  cast(t, 'Grizzly Bears', 'When this creature enters, each player sacrifices a creature or planeswalker of their choice. Each player who can\'t discards a card.');
+  check('Plaguecrafter: the player with no creature discards instead', t.names(1, 'graveyard').includes('Counterspell') && t.names(0, 'graveyard').includes('Grizzly Bears'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'graveyard')]));
+}
+
 done();

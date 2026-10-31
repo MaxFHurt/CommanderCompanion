@@ -162,7 +162,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -443,6 +443,9 @@ function runPlay(game, op, ask) {
   let to = permanent ? 'battlefield' : 'graveyard';
   if (!permanent && (mode.exileAfter || adventure)) to = 'exile';
   if (!permanent && buyback) to = 'hand';
+  // Rebound: cast from hand, it is exiled as it resolves; at your next upkeep you may cast it free from exile.
+  const rebound = !permanent && card.zone === 'hand' && /(?:^|\n)\s*Rebound\b/i.test(String(def.oracleText || '')) && to === 'graveyard';
+  if (rebound) to = 'exile';
   const fixed = permanent && !faceDown ? [...new Set(tapManaAbilities(def).flatMap(a => a.options))] : [];
   const stackId = newId('stack');
   const where = commander ? ' from the command zone' : card.zone === 'graveyard' ? ' from the graveyard' : card.zone === 'exile' ? ' from exile' : '';
@@ -473,6 +476,7 @@ function runPlay(game, op, ask) {
       ? entersBattlefieldTapped({ definition: def, battlefield: player.deck.battlefield, definitions: game.cardDefinitions }) : false;
   }
   announceTargets(game, player, cast, bindings, card.instanceId, 'spell');
+  if (rebound) game.delayedTriggers = [...(game.delayedTriggers || []), { id: newId('delayed'), controllerId: player.playerId, ownerId: player.playerId, when: { event: 'upkeep', whose: 'owner', afterTurn: game.turnNumber }, effects: [{ kind: 'request-special', special: 'rebound' }], requirements: [], sourceId: card.instanceId, sourceDefinitionId: card.definitionId, sourceName: def.name }];
   if (attachTo && !reanimate) announceTargets(game, player, [{ kind: 'target', bind: '__aura' }], { __aura: attachTo }, card.instanceId, 'spell');
   // Cast triggers of the spell itself (cascade, storm).
   if (!faceDown) for (const t of castTriggers(game, player, card, def)) queueSpecialTrigger(game, player, card, def, t, stackId);
@@ -573,7 +577,11 @@ function runActivate(game, op, ask) {
     const type = ability.sacrificeRequirement;
     const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${type === 'permanent' ? '' : type}`, 'i').test(defOf(game, c)?.typeLine || ''));
     if (!rows.length) throw new GameError(`You have no ${type.toLowerCase()} to sacrifice.`);
-    costMoveIds.push(ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) })));
+    const sacrificedId = ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+    // "the sacrificed creature's power" (Greater Good, Altar of Dementia, Ayli): remembered before it leaves.
+    const sac = rows.find(c => c.instanceId === sacrificedId);
+    if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
+    costMoveIds.push(sacrificedId);
   }
   if (ability.discardCount && fromZone !== 'hand') {
     const rows = player.deck.hand;
@@ -1008,7 +1016,7 @@ export function addLore(game, card, amount = 1) {
 
 /** Trigger text that names one of these actions. */
 export function specialFromText(text) {
-  const t = String(text || '').trim();
+  const t = String(text || '').replace(/\([^()]*\)/g, '').replace(/\s+/g, ' ').trim();
   let m;
   if (/^venture into the dungeon\.?$/i.test(t)) return { special: 'venture' };
   if (/^you take the initiative\.?$/i.test(t)) return { special: 'initiative' };
@@ -1017,7 +1025,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { madness: 'Madness', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1158,6 +1166,10 @@ function runSpecial(game, top, player, ask) {
       }
       log(game, original ? `Storm copies ${original.name} ${plural(copies.length, 'time')}.` : 'Storm does nothing: the spell has left the stack.');
     };
+  } else if (special === 'rebound') {
+    const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId);
+    const choice = card ? ask('rebound', () => ({ ...base, kind: 'choose-one', title: `${top.name} — rebound`, definitionId: card.definitionId, prompt: `Cast ${top.name} from exile without paying its mana cost?`, options: [{ id: 'cast', label: 'Cast it free' }, { id: 'no', label: 'Leave it in exile' }] })) : 'none';
+    after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; };
   } else if (special === 'madness') {
     // Madness: the discarded card waits in exile; its owner may cast it now for its madness cost, or it goes to the graveyard.
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId && c.madness);

@@ -2732,11 +2732,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
-    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
+    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
     if (cond && !/^If you do\b/i.test(clause)) {
       const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
       const innerAlt = !inner.unsupported.length ? inner : bridgePronoun(`${cond[4].charAt(0).toUpperCase()}${cond[4].slice(1)}`, parts, sourceName) || compileEffectText(cond[4], { sourceName });
-      const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7 };
+      const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7, 'eight or more': 8, 'nine or more': 9, 'ten or more': 10, 'twenty or more': 20, 'thirteen or more': 13 };
       const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /untapped/i.test(cond[1]) ? { test: 'source-untapped' } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /commander/i.test(cond[1]) ? { test: 'control-commander' } : /died/i.test(cond[1]) ? { test: 'creature-died' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
         if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/s$/, '');
@@ -2920,7 +2920,15 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
   // carried out, so the choice also shows the cards about to be drawn (the top of the library).
   const drawn = {};
+  let xFrom = null;
   for (const e of merged.effects) {
+    if (e.kind === 'set-x' && e.amount?.kind === 'binding') xFrom = e.amount.bind;
+    // "Draw cards equal to the sacrificed creature's power, then discard three cards": the count is known before resolving.
+    if (e.kind === 'draw' && e.amount === 'X' && xFrom && !e.bind) {
+      const after = merged.effects.slice(merged.effects.indexOf(e) + 1).find(x => x.kind === 'discard' && x.cardsBind);
+      const req = after && merged.requirements.find(r => r.bind === after.cardsBind);
+      if (req) req.plusDrawBind = xFrom;
+    }
     if (e.kind === 'draw' && typeof e.amount === 'number' && !e.bind) drawn[e.scope || 'you'] = (drawn[e.scope || 'you'] || 0) + e.amount;
     if (e.kind === 'discard' && e.cardsBind && drawn[e.scope || 'you']) {
       const req = merged.requirements.find(r => r.bind === e.cardsBind);
@@ -2928,7 +2936,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     }
   }
   // X must be chosen unless a caller already binds it from an X cost.
-  if (merged.effects.some(e => JSON.stringify(e).includes('"X"')) && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
+  if (merged.effects.some(e => JSON.stringify(e).includes('"X"')) && !merged.effects.some(e => e.kind === 'set-x') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
     merged.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });
   if (allowGuidedFallback && merged.unsupported.length) {
     for (const u of merged.unsupported)

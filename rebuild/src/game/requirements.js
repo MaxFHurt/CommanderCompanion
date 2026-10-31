@@ -318,7 +318,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       const chosen = {};
       for (const q of targets) {
         // Cards drawn earlier in the same spell ("draw two cards, then discard a card") can be discarded too.
-        const coming = (q.deck.remainingLibrary || []).slice(0, Number(req.plusDraw || 0));
+        const coming = (q.deck.remainingLibrary || []).slice(0, Number(req.plusDraw || 0) + Number(req.plusDrawBind ? bindings[req.plusDrawBind] || 0 : 0));
         const hand = [...(q.deck.hand || []), ...coming];
         const need = Math.min(amount, hand.length);
         chosen[q.playerId] = need === 0 ? [] : need === hand.length ? hand.map(c => c.instanceId)

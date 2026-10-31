@@ -291,7 +291,7 @@ m('Prowl', 'keyword', 'You may cast this for its prowl cost if you dealt combat 
 m('Rampage', 'keyword', 'Rampage N: whenever this becomes blocked, it gets +N/+N for each creature blocking it beyond the first.', { auto: 'manual', actions: ['pt'] });
 m('Ravenous', 'keyword', 'Enters with X +1/+1 counters; if X is 5 or more, draw a card when it enters.', { auto: 'manual', actions: ['counter+', 'draw'] });
 m('Read ahead', 'keyword', 'As this Saga enters, choose a chapter to start on.', { auto: 'manual' });
-m('Rebound', 'keyword', 'If cast from your hand, exile it as it resolves; at your next upkeep you may cast it from exile free.', { auto: 'manual', actions: ['exile'] });
+m('Rebound', 'keyword', 'If cast from your hand, exile it as it resolves; at your next upkeep you may cast it from exile free.', { auto: 'auto', actions: ['exile'] });
 m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unattach it. While attached it isn\'t a creature. Sorcery speed.', { auto: 'manual', actions: ['attach'] });
 m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay the recover cost to return this card to your hand; otherwise exile it.', { auto: 'manual', actions: ['return-hand', 'exile'] });
 m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'manual', actions: ['counter+', 'discard'] });

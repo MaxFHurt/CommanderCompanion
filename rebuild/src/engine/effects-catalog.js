@@ -697,7 +697,9 @@ export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, 
     }
     const left = [...cards], groups = [];
     req.picks.forEach((p, g) => {
-      const fits = left.filter(c => cardFitsWords(util.defOf(game, c), String(p.filter || '').replace(/\bX\b/, String(bindings.X ?? 0))) && (p.to !== 'cast-free' || !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '')));
+      const chosenType = locateCardInGame(game, bindings.sourceId)?.card?.chosenCreatureType || '';
+      const words = String(p.filter || '').replace(/\bX\b/, String(bindings.X ?? 0)).replace(/\bof the chosen type\b/i, chosenType ? `${chosenType}` : 'NO-CHOSEN-TYPE');
+      const fits = left.filter(c => cardFitsWords(util.defOf(game, c), words) && (p.to !== 'cast-free' || !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '')));
       if (p.all) { groups.push(fits.map(c => c.instanceId)); for (const c of fits) left.splice(left.indexOf(c), 1); return; }
       const max = Math.min(p.max === 'X' ? Number(bindings.X || 0) : p.max, fits.length), min = Math.min(p.min === 'X' ? Number(bindings.X || 0) : p.min, max);
       if (max === 0) { groups.push([]); return; }
@@ -1035,6 +1037,31 @@ function compileRound3(c, ctx, subjectBind) {
   // "venture into the dungeon" inside a longer ability: the venture choice is asked as its own step.
   if (/^(?:you )?venture into the dungeon\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'venture' }); return true; }
   if (/^(?:you )?take the initiative\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'initiative' }); return true; }
+  // "the sacrificed creature's power" (a sacrifice cost): Greater Good, Altar of Dementia.
+  if (/the sacrificed (?:creature|permanent|artifact)'s (power|toughness|mana value)/i.test(c)) {
+    const stat = /power/i.test(c) ? 'sacrificedPower' : /toughness/i.test(c) ? 'sacrificedToughness' : 'sacrificedManaValue';
+    const inner = H.compileSingleClause(ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life')), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) {
+      effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: stat } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')));
+      return true;
+    }
+  }
+  // Sword of Feast and Famine, Hellkite Tyrant, Plaguecrafter, Whip of Erebos.
+  if ((m = c.match(/^that player discards (a|one|two|three) cards?\.?$/i))) {
+    const cardsBind = `discardCards${requirements.length}`, amount = num(m[1]);
+    requirements.push({ kind: 'discard-cards', bind: cardsBind, playerBind: 'eventPlayer', scope: 'target', amount });
+    effects.push({ kind: 'discard', scope: 'you', bind: 'eventPlayer', amount, cardsBind });
+    return true;
+  }
+  if ((m = c.match(/^gain control of all (artifacts|creatures|permanents|lands) that player controls\.?$/i))) { effects.push({ kind: 'gain-control-each', filter: m[1].toLowerCase().replace(/s$/, ''), playerBind: 'eventPlayer', permanent: true }); return true; }
+  if ((m = c.match(/^Each player who can'?t discards (a|one|two) cards?\.?$/i))) {
+    const sac = [...effects].reverse().find(e => e.kind === 'sacrifice-many');
+    const bind = `lacking${requirements.length}`;
+    requirements.push({ kind: 'discard-lacking', bind, filter: sac?.filter || 'creature', amount: num(m[1]) });
+    effects.push({ kind: 'discard-lacking', bind });
+    return true;
+  }
+  if (/^If (?:it|that creature|that card) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i.test(c)) { effects.push({ kind: 'mark-exile-if-leaves' }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1078,10 +1105,22 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${ids.length} untap.`);
       return true;
     }
+    case 'mark-exile-if-leaves': {
+      for (const id of bindings.lastMoved || []) { const hit = permanentAt(game, id); if (hit) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-leaves' }]; }
+      return true;
+    }
+    case 'discard-lacking': {
+      const chosen = bindings[effect.bind] || {};
+      for (const [pid, ids] of Object.entries(chosen)) {
+        const p = playerById(game, pid);
+        for (const id of ids || []) { const i = p?.deck.hand.findIndex(c => c.instanceId === id); if (i >= 0) { const [c] = p.deck.hand.splice(i, 1); c.zone = 'graveyard'; p.deck.graveyard.push(c); emit({ type: 'discard', playerId: pid, sourceId: c.instanceId, definitionId: c.definitionId }); notes.push(`${p.displayName} discards ${name(c)}.`); } }
+      }
+      return true;
+    }
     case 'gain-control-each': {
       const from = effect.playerBind ? [playerById(game, bindings[effect.playerBind])].filter(Boolean) : (game.players || []).filter(p => !p.eliminated && (!effect.opponents || p.playerId !== controllerId));
       const ids = from.flatMap(p => (p.deck.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature')).map(c => c.instanceId));
-      for (const id of ids) H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', targetId: id, untilEndOfTurn: true }], bindings);
+      for (const id of ids) H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', targetId: id, untilEndOfTurn: !effect.permanent }], bindings);
       bindings.lastMoved = ids; bindings.lastCreated = [];
       return true;
     }
@@ -1267,6 +1306,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
 /** Round 3 resolve-time choices. */
 export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
+  if (req.kind === 'discard-lacking') {
+    // Plaguecrafter: each player who has nothing to sacrifice discards instead (they choose, on their own device).
+    const out = {};
+    for (const q of (game.players || []).filter(p => !p.eliminated)) {
+      if ((q.deck.battlefield || []).some(c => cardMatchesFilter(game, c, req.filter))) continue;
+      const hand = q.deck.hand || [];
+      const n = Math.min(Number(req.amount || 1), hand.length);
+      if (!n) continue;
+      out[q.playerId] = n === hand.length ? hand.map(c => c.instanceId) : ask(`${key}:${q.playerId}`, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — discard`, prompt: `${q.displayName}: you have nothing to sacrifice, so discard ${util.plural(n, 'card')}.`, options: hand.map(c => util.cardOption(game, c, q, 'Your hand')), min: n, max: n }));
+    }
+    bindings[req.bind] = out;
+    return true;
+  }
   if (req.kind === 'graveyard-multi') {
     const rows = (player.deck.graveyard || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
