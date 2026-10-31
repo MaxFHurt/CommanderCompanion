@@ -168,6 +168,12 @@ function compileCatalogClauseInner(c, ctx) {
 
   // --- Classes: "{2}{U}: Level 2" (one level at a time, as a sorcery — checked in legal.js).
   if ((m = c.match(/^Level (\d+)\.?$/i))) { effects.push({ kind: 'class-level', level: Number(m[1]) }); return true; }
+  // "transform Ashling" (short name), "transform her" / "him".
+  if (rx(`^transform (?:${selfAny}|him|her|it|this creature)\\.?$`, 'i').test(c)) { effects.push({ kind: 'transform', bind: 'sourceId' }); return true; }
+  if ((m = c.match(/^proliferate (twice|three times)\.?$/i))) {
+    for (let k = 0; k < (/twice/i.test(m[1]) ? 2 : 3); k++) { const bind = `proliferate${requirements.length}`; requirements.push({ kind: 'proliferate', bind, label: 'Choose permanents and/or players with counters' }); effects.push({ kind: 'proliferate', bind }); }
+    return true;
+  }
   // --- Keyword actions.
   if ((m = c.match(rx(`^Monstrosity ${N}\\.?$`, 'i')))) { effects.push({ kind: 'monstrosity', amount: num(m[1]) }); return true; }
   if ((m = c.match(rx(`^Adapt ${N}\\.?$`, 'i')))) { effects.push({ kind: 'adapt', amount: num(m[1]) }); return true; }
@@ -207,7 +213,7 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push(e);
     return true;
   }
-  if ((m = c.match(rx(`^Amass (?:([A-Z][a-z]+) )?${N}\\.?$`)))) { effects.push({ kind: 'amass', type: m[1] || 'Army', amount: num(m[2]) }); return true; }
+  if ((m = c.match(rx(`^[Aa]mass (?:([A-Z][a-z]+) )?${N}\\.?$`)))) { effects.push({ kind: 'amass', type: m[1] || 'Army', amount: num(m[2]) }); return true; }
   if ((m = c.match(rx(`^Incubate ${N}\\.?$`, 'i')))) { effects.push({ kind: 'incubate', amount: num(m[1]) }); return true; }
   if (/^(?:the )?Ring tempts you\.?$/i.test(c)) { effects.push({ kind: 'ring-tempts' }); return true; }
   if ((m = c.match(rx(`^Support ${N}\\.?$`, 'i')))) {

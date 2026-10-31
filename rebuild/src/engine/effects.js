@@ -456,6 +456,7 @@ function applyProliferate(game, controller, effect, bindings, notes) {
     }
   }
   notes.push(`${controller.displayName} proliferates.`);
+  emit(bindings, { type: 'proliferated', playerId: controller.playerId, controllerId: controller.playerId });
 }
 function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const hit = locateCardInGame(game, targetId); if (left > 0 && hit?.zone === 'battlefield' && Number(hit.card?.counters?.shield || 0) > 0) {
   hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);

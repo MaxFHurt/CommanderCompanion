@@ -37,6 +37,13 @@ export function catalogTriggerMatch(game, row, t, event, H) {
         return whose === 'your' ? event.playerId === me : /opponent/.test(whose) ? event.playerId !== me : true;
       }
       return undefined;
+    case 'proliferated':
+      if (/^Whenever you proliferate/i.test(t)) return event.playerId === me;
+      return undefined;
+    case 'die-rolled':
+      if (/^Whenever you roll (?:one or more dice|a die)/i.test(t)) return event.playerId === me;
+      if ((m = t.match(/^Whenever you roll (?:a|an) (\d+)/i))) return event.playerId === me && Number(event.result) === Number(m[1]);
+      return undefined;
     case 'scry':
       if (/^Whenever you scry(?: or surveil)?\b/i.test(t)) return event.playerId === me;
       return undefined;
@@ -125,4 +132,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
