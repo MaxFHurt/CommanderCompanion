@@ -526,4 +526,33 @@ section('round 7: Oblivion Ring family');
   check('…returns at the beginning of the next end step', !!t.bf(1, 'Grizzly Bears'));
 }
 
+section('round 8: kept mana, untap those, twisters, Snapcaster, venture inside abilities');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you cast a spell, add {R}. Until end of turn, you don\'t lose this mana as steps and phases end.');
+  cast(t, 'Opt', 'Draw a card.');
+  t.autoPass = true; t.do(0, { type: 'next-phase' }); settle(t);
+  check('Birgi: the red mana is still there in the next phase', Number(t.P(0).mana.floating?.R || 0) === 1 && Number(t.P(0).mana.available?.R || 0) >= 1, JSON.stringify([t.game.phase, t.P(0).mana.floating]));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', ''); bear.tapped = true;
+  cast(t, 'Opt', 'Creatures you control get +1/+1 until end of turn. Untap those creatures.');
+  check('Jeskai Ascendancy: pumped creatures untap', !t.bf(0, 'Grizzly Bears').tapped && power(t, t.bf(0, 'Grizzly Bears')) === 3);
+}
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); t.give(0, 'Colossal Dreadmaw', 'graveyard'); t.give(1, 'Counterspell');
+  cast(t, 'Opt', 'Each player shuffles their hand and graveyard into their library, then draws seven cards.');
+  check('Echo of Eons: each player has seven cards and the graveyards are shuffled in', t.P(0).deck.hand.length === 7 && t.P(1).deck.hand.length === 7 && !t.names(0, 'graveyard').filter(n => n !== 'Opt').length, JSON.stringify([t.P(0).deck.hand.length, t.P(1).deck.hand.length, t.names(0, 'graveyard')]));
+}
+{
+  const t = setup();
+  const g = t.give(0, 'Divination', 'graveyard');
+  cast(t, 'Grizzly Bears', 'Flash\nWhen this creature enters, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.', [[d => d.key.includes('grave') || d.options?.some(o => o.id === g.instanceId), () => g.instanceId]]);
+  const opts = t.view(0).players[0].graveyard.find(c => c.id === g.instanceId);
+  const r = t.ctl.dispatch({ type: 'play', instanceId: g.instanceId }, t.as(0)); settle(t);
+  check('Snapcaster Mage: the sorcery can be cast from the graveyard and is exiled after', r.ok && t.names(0, 'exile').includes('Divination'), JSON.stringify([r.error, opts?.playable]));
+}
+
 done();

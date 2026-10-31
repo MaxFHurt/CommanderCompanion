@@ -420,6 +420,9 @@ export function validateDeckColorIdentity(definitions, commanders) {
 }
 function instanceKeyword(instance, definition, name) {
   const n = String(name || '').toLowerCase();
+  // "loses defender" / "can attack as though it didn't have defender" wins over every source of the keyword.
+  if ((instance?.temporaryEffects || []).some(e => e?.kind === 'keyword' && e?.enabled === false && String(e.keyword || '').toLowerCase() === n))
+    return false;
   if (new RegExp(`\\b${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(definition?.oracleText || '')))
     return true;
   if ((definition?.keywords || []).some(x => String(x).toLowerCase() === n))

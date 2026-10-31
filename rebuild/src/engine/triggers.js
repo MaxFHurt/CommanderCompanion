@@ -582,6 +582,14 @@ function dueDelayedTriggers(game, event) {
 }
 export function queueTriggers(game, event) {
   recordStat(game, event);
+  // "venture into the dungeon" in the middle of an ability: its own step with the room choice (ops.js runSpecial).
+  if (event?.type === 'special-request') {
+    const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
+    game.pendingTriggers = game.pendingTriggers || [];
+    game.pendingTriggers.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: event.playerId, sourceId: event.sourceId || null, sourceDefinitionId: src?.definitionId || null, sourceName: defFor(game, src)?.name || 'Ability',
+      abilityId: `special-${event.special}`, abilityText: event.special === 'venture' ? 'Venture into the dungeon.' : 'You take the initiative.', effectText: '', special: event.special, modal: null, compiled: { supported: true, effects: [], requirements: [], unsupported: [] }, event: null, createdAt: new Date().toISOString() });
+    return [];
+  }
   // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
   if (event?.type === 'leaves-battlefield' && event.sourceId) {
     const gone = (game.players || []).flatMap(p => ['graveyard', 'exile', 'hand', 'commandZone', 'remainingLibrary'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);

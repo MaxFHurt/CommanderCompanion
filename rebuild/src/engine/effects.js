@@ -2893,6 +2893,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
   const merged = mergeCompiled(parts);
+  // "Untap those creatures." after "Creatures you control get +1/+1 …" (Jeskai Ascendancy): untap that same group.
+  for (const x of merged.effects.filter(e => e.kind === 'untap-those')) {
+    const before = merged.effects.slice(0, merged.effects.indexOf(x)).reverse().find(e => ['pump-each', 'counter-each', 'grant-keyword-each'].includes(e.kind));
+    if (before) Object.assign(x, { kind: 'untap-each', scope: before.scope || 'you', filter: before.filter || 'creature' });
+  }
   // "You may choose new targets for the copy.": the copy asks its controller as it resolves.
   for (const x of [...merged.effects].filter(e => e.kind === 'retarget-flag')) {
     const at = merged.effects.indexOf(x);

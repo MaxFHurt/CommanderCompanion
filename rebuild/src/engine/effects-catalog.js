@@ -483,6 +483,11 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   let m;
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);
 
+  // Timetwister family (one sentence with "then", read before the "then" splitter).
+  if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
+    return { part: { effects: [{ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 }], requirements: [], unsupported: [] }, consumed: 1 };
+  if ((m = c0.match(/^Each player discards all the cards in their hand, then draws that many cards( minus one)?\.?$/i)))
+    return { part: { effects: [{ kind: 'twister', discard: true, draw: 'that-many', minus: m[1] ? 1 : 0 }], requirements: [], unsupported: [] }, consumed: 1 };
   // Look at / reveal the top N cards, then distribute them.
   if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?\.?$/i))) {
     const amount = /^card$/i.test(m[2]) ? 1 : num(m[2]);
@@ -987,6 +992,49 @@ function compileRound3(c, ctx, subjectBind) {
     else effects.push(ret);
     return true;
   }
+  // Mana kept through the turn (Birgi, Savage Ventmaw).
+  if (/^Until end of turn, you don'?t lose this mana as steps and phases end\.?$/i.test(c)) { effects.push({ kind: 'keep-mana' }); return true; }
+  // "Untap those creatures." / "Untap them." — the creatures the instruction before changed.
+  if (/^Untap (?:those creatures|them|those permanents)\.?$/i.test(c)) { effects.push({ kind: 'untap-those' }); return true; }
+  if ((m = c.match(/^Gain control of all (creatures|artifacts|permanents)( target player controls| your opponents control)? until end of turn\.?$/i))) {
+    const playerBind = /target player/i.test(m[2] || '') ? H.playerRequirement(requirements, 'player', 'target player') : null;
+    effects.push({ kind: 'gain-control-each', filter: m[1].toLowerCase().replace(/s$/, ''), playerBind, opponents: /opponents/i.test(m[2] || '') });
+    return true;
+  }
+  // Timetwister family.
+  if ((m = c.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i))) {
+    effects.push({ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 });
+    return true;
+  }
+  if ((m = c.match(/^Each player discards all the cards in their hand, then draws that many cards( minus one)?\.?$/i))) { effects.push({ kind: 'twister', discard: true, draw: 'that-many', minus: m[1] ? 1 : 0 }); return true; }
+  // Snapcaster Mage: "target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost."
+  if ((m = c.match(/^(?:up to one )?target (instant or sorcery|instant|sorcery|instant and\/or sorcery) card in your graveyard gains flashback until end of turn\.?$/i))) {
+    const bind = `grave${requirements.length}`;
+    requirements.push({ kind: 'graveyard-target', bind, scope: `target ${m[1].replace('and/or', 'or')} card in your graveyard`, label: `${m[1]} card in your graveyard`, optional: /up to one/i.test(c) });
+    effects.push({ kind: 'grant-flashback', bind, ...(/up to one/i.test(c) ? { optionalTarget: true } : {}) });
+    return true;
+  }
+  if (/^The flashback cost is equal to its mana cost\.?$/i.test(c)) return true;
+  // "Target creature blocks this creature this turn if able."
+  if ((m = c.match(rx(`^(Target creature(?: [^.]*?)?) blocks ${selfAny} this turn if able\\.?$`, 'i')))) {
+    const blockerBind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'force-block', blockerBind, attackerBind: 'sourceId', expires: 'cleanup' });
+    return true;
+  }
+  if (rx(`^${selfAny} can attack this turn as though it didn'?t have defender\\.?$`, 'i').test(c)) { effects.push({ kind: 'grant-keyword', bind: 'sourceId', keyword: 'Defender', enabled: false, expires: 'cleanup' }); return true; }
+  if ((m = c.match(rx(`^Prevent all damage that would be dealt to (${selfAny}|him|her|it|them) this turn\\.?$`, 'i')))) { effects.push({ kind: 'prevent-damage', bind: 'sourceId', amount: 999, expires: 'cleanup' }); return true; }
+  if ((m = c.match(rx(`^${selfAny} deals ${N} damage to (any target|target creature|target player or planeswalker|target creature or player) and ${N} damage to you\\.?$`, 'i')))) {
+    const bind = H.targetRequirement(requirements, m[2].toLowerCase(), m[2]);
+    effects.push({ kind: 'damage', amount: num(m[1]), bind, sourceName }, { kind: 'damage', amount: num(m[3]), toController: true, sourceName });
+    return true;
+  }
+  if ((m = c.match(rx(`^${selfAny} gets ([+-]\\d+)\\/([+-]\\d+) until end of turn and can'?t be blocked this turn\\.?$`, 'i')))) {
+    effects.push({ kind: 'pump', bind: 'sourceId', power: Number(m[1]), toughness: Number(m[2]), expires: 'cleanup' }, { kind: 'combat-restriction', bind: 'sourceId', restriction: 'cant-be-blocked', expires: 'cleanup' });
+    return true;
+  }
+  // "venture into the dungeon" inside a longer ability: the venture choice is asked as its own step.
+  if (/^(?:you )?venture into the dungeon\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'venture' }); return true; }
+  if (/^(?:you )?take the initiative\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'initiative' }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1022,6 +1070,45 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
+    case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;
+    case 'untap-those': {
+      const ids = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : []);
+      for (const id of ids) { const hit = permanentAt(game, id); if (hit && hit.card.tapped) { hit.card.tapped = false; emit({ type: 'untapped', sourceId: id, controllerId: hit.card.controllerId }); } }
+      notes.push(`${ids.length} untap.`);
+      return true;
+    }
+    case 'gain-control-each': {
+      const from = effect.playerBind ? [playerById(game, bindings[effect.playerBind])].filter(Boolean) : (game.players || []).filter(p => !p.eliminated && (!effect.opponents || p.playerId !== controllerId));
+      const ids = from.flatMap(p => (p.deck.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature')).map(c => c.instanceId));
+      for (const id of ids) H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', targetId: id, untilEndOfTurn: true }], bindings);
+      bindings.lastMoved = ids; bindings.lastCreated = [];
+      return true;
+    }
+    case 'twister': {
+      const players = (game.players || []).filter(p => !p.eliminated);
+      const counts = {};
+      for (const p of players) {
+        counts[p.playerId] = p.deck.hand.length;
+        if (effect.discard) { for (const c of [...p.deck.hand]) { p.deck.hand.splice(p.deck.hand.indexOf(c), 1); c.zone = 'graveyard'; p.deck.graveyard.push(c); emit({ type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId }); } continue; }
+        for (const zone of ['hand', ...(effect.graveyard ? ['graveyard'] : [])]) for (const c of [...p.deck[zone]]) { p.deck[zone].splice(p.deck[zone].indexOf(c), 1); c.zone = 'library'; p.deck.remainingLibrary.push(c); }
+        H.shuffle(p.deck.remainingLibrary);
+      }
+      for (const p of players) {
+        const n = effect.draw === 'that-many' ? Math.max(0, counts[p.playerId] - (effect.minus || 0)) : effect.draw;
+        H.applyEffectsUnsafe(game, p.playerId, [{ kind: 'draw', scope: 'you', amount: n }], bindings);
+      }
+      notes.push(effect.discard ? 'Each player discards their hand and draws that many cards.' : `Each player shuffles their hand${effect.graveyard ? ' and graveyard' : ''} into their library and draws ${effect.draw === 'that-many' ? 'that many cards' : 'seven cards'}.`);
+      return true;
+    }
+    case 'grant-flashback': {
+      const id = bindings[effect.bind];
+      const hit = id && locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'graveyard') { notes.push('That card is no longer in the graveyard.'); return true; }
+      hit.card.grantedFlashback = { turn: game.turnNumber, playerId: controllerId };
+      notes.push(`${name(hit.card)} gains flashback until end of turn.`);
+      return true;
+    }
     case 'game-result': {
       for (const p of game.players || []) {
         if (p.eliminated) continue;

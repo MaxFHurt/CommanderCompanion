@@ -205,6 +205,8 @@ export function castModes(game, player, card, def, base = null) {
       modes.push({ id: 'force-exile', cost: '', exileColor: color, lifeCost: Number(forceCost[2] || 0) });
   }
   if (zone === 'graveyard') {
+    // Snapcaster Mage: flashback until end of turn, for its mana cost.
+    if (card.grantedFlashback?.turn === game.turnNumber && card.grantedFlashback.playerId === player.playerId && def?.manaCost && !keywordCost(text, 'Flashback')) modes.push({ id: 'flashback', cost: def.manaCost, exileAfter: true });
     const fb = keywordCost(text, 'Flashback');
     if (fb) modes.push({ id: 'flashback', cost: fb, exileAfter: true });
     const js = keywordCost(text, 'Jump-start') !== null || /(?:^|\n)\s*Jump-start\b/i.test(strip(text));

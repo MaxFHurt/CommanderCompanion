@@ -551,8 +551,9 @@ function rebuildAvailableFromSources(game, player) {
     const manual = Math.max(0, Number(player.mana?.total?.[color] || 0) - registered[color]);
     fixed[color] += manual;
   }
+  if (player.keepManaTurn === game.turnNumber) for (const c of Object.keys(fixed)) fixed[c] += Math.max(0, Number(player.mana.floating?.[c] || 0));
   player.mana.available = fixed;
-  player.mana.floating = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  if (!(player.keepManaTurn === game.turnNumber)) player.mana.floating = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };   // Birgi: kept until end of turn
 }
 function resetManaAtBoundary(game) { for (const p of game.players || [])
   rebuildAvailableFromSources(game, p); }
