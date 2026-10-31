@@ -470,7 +470,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
   if (!bindings.eventCard && bindings.sourceId) bindings.eventCard = bindings.sourceId;
   prepareBindings(game, bindings);
   for (let effect of effects || []) {
-    if (effect.soft && effect.bind && !effect.targetId) { const id = bindings[effect.bind]; const h = id && locateCardInGame(game, id); if (!h || h.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); continue; } }
+    if (effect.soft && effect.bind && !effect.targetId && effect.kind !== 'copy-stack') { const id = bindings[effect.bind]; const h = id && locateCardInGame(game, id); if (!h || h.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); continue; } }
     // "Its controller creates …": remember who controlled the target before it moves, then do it for them.
     if (effect.optionalTarget && effect.bind && !bindings[effect.bind]) { notes.push('No target was chosen.'); continue; }
     // "If you control three or more artifacts, …": checked as it resolves; if not, the effects that follow do nothing.
@@ -1330,15 +1330,23 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'copy-stack') {
       const id = effect.stackId || bindings[effect.bind], obj = (game.stack || []).find(x => x.id === id);
-      if (!obj || obj.kind !== 'spell')
+      if (!obj || !['spell', 'spell-copy', 'ability', 'trigger'].includes(obj.kind)) {
+        if (effect.soft) { notes.push('That spell is no longer on the stack.'); continue; }
         throw new Error('The targeted spell is no longer on the stack.');
-      const copy = structuredClone(obj);
-      copy.id = `stack-copy:${Date.now()}:${Math.random()}`;
-      copy.kind = 'spell-copy';
-      copy.isCopy = true;
-      copy.card = { ...copy.card, instanceId: `copy:${copy.card.instanceId}:${Date.now()}`, token: true, zone: 'stack' };
-      game.stack.push(copy);
-      notes.push(`${obj.label || 'Spell'} is copied.`);
+      }
+      // The copy is controlled by whoever copied it (Reverberate, Dualcaster Mage); "copy it twice" makes several.
+      const times = Math.max(1, resolveAmount(game, controllerId, effect.times ?? 1, bindings));
+      for (let n = 0; n < times; n++) {
+        const copy = structuredClone(obj);
+        copy.id = `stack-copy:${Date.now()}:${Math.random()}`;
+        copy.kind = obj.kind === 'spell' || obj.kind === 'spell-copy' ? 'spell-copy' : obj.kind;
+        copy.isCopy = true;
+        copy.controllerId = controllerId;
+        copy.retarget = !!effect.retarget;
+        if (copy.card) copy.card = { ...copy.card, instanceId: `copy:${copy.card.instanceId}:${Date.now()}:${n}`, token: true, zone: 'stack' };
+        game.stack.push(copy);
+      }
+      notes.push(`${obj.label || 'Spell'} is copied${times > 1 ? ` ${times} times` : ''}.`);
       continue;
     }
     if (effect.kind === 'gain-control') {
@@ -2843,6 +2851,12 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
   const merged = mergeCompiled(parts);
+  // "You may choose new targets for the copy.": the copy asks its controller as it resolves.
+  for (const x of [...merged.effects].filter(e => e.kind === 'retarget-flag')) {
+    const at = merged.effects.indexOf(x);
+    for (const e of merged.effects.slice(0, at)) if (e.kind === 'copy-stack') e.retarget = true;
+    merged.effects.splice(at, 1);
+  }
   // "If that creature would die this turn, exile it instead": it must be in place before the damage is dealt.
   for (const x of [...merged.effects].filter(e => e.kind === 'exile-if-dies')) {
     const at = merged.effects.indexOf(x);

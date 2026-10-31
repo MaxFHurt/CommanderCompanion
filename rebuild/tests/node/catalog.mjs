@@ -298,4 +298,15 @@ section('round 3: copies, end-step clean-up, untap locks, die-to-exile, upkeep c
   check('…and is sacrificed at the end step', !t.bf(0, 'Colossal Dreadmaw') && t.names(0, 'graveyard').includes('Colossal Dreadmaw'));
 }
 
+section('round 4: copying spells');
+{
+  const t = setup();
+  const b1 = onField(t, 'Grizzly Bears', '', {}, 1), b2 = onField(t, 'Llanowar Elves', '', {}, 1);
+  onField(t, 'Fog Bank', 'Whenever you cast an instant or sorcery spell, copy it. You may choose new targets for the copy.', { typeLine: 'Enchantment' });
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), 'This spell deals 2 damage to any target.');
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  const seenCopy = settle(t, [[d => d.key.startsWith('cast') && d.targeting, () => b1.instanceId], [d => d.key.startsWith('retarget') && d.targeting, () => b2.instanceId], [d => d.key.includes('retarget') && d.kind === 'confirm', true]]);
+  check('copy a spell you control and choose a new target for the copy: both creatures are hit', r.ok && t.names(1, 'graveyard').includes('Grizzly Bears') && t.names(1, 'graveyard').includes('Llanowar Elves'), JSON.stringify([r.error, t.names(1, 'graveyard')]));
+}
+
 done();

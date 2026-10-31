@@ -174,6 +174,9 @@ export function candidatesFor(game, req, player, source = null) {
     };
     return (game.stack || [])
       .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
+      .filter(x => req.scope !== 'ability' || x.kind === 'ability' || x.kind === 'trigger')
+      .filter(x => !req.yours || x.controllerId === player.playerId)
+      .filter(x => !req.notYours || x.controllerId !== player.playerId)
       .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }

@@ -658,7 +658,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventStackId: ev.stackId || null };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;
@@ -714,6 +714,16 @@ function runResolve(game, op, ask) {
   const name = top.name || top.label || 'Stack object';
   const base = { playerId: player.playerId, cancellable: false, source: name };
   if (top.special) return runSpecial(game, top, player, ask);
+  // A copy "you may choose new targets for": its controller decides now, then chooses them.
+  if (top.retarget && (top.castReqs || []).length) {
+    const again = ask('retarget', () => ({ ...base, kind: 'confirm', title: `${name} — copy`, prompt: 'Choose new targets for the copy?', yesLabel: 'New targets', noLabel: 'Keep the targets' }));
+    if (again) {
+      const fresh = { ...(top.effectBindings || {}) };
+      gatherRequirements(game, { player, sourceName: name, cancellable: false }, top.castReqs, fresh, ask, 'retarget');
+      top.effectBindings = fresh;
+    }
+    top.retarget = false;
+  }
   if (top.wardCountered) {
     game.stack = game.stack.filter(x => x.id !== top.id);
     sendCounteredSpell(game, top);

@@ -850,6 +850,24 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'condition', test: 'last-turn-spells', none: /^no/i.test(m[1]), atLeast: m[2] ? num(m[2]) : 0, skip: 1 }, { kind: 'transform', bind: 'sourceId' });
     return true;
   }
+  // Copying spells and abilities.
+  if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target ${(m[1] || '').trim()} spell${m[2] || ''}`.replace(/\s+/g, ' '), spellFilter: m[1] ? m[1].trim().replace(/ or /g, '|') : null, yours: /you control/i.test(m[2] || ''), notYours: /opponent|don't/i.test(m[2] || '') });
+    effects.push({ kind: 'copy-stack', bind, retarget: /new targets/i.test(c) });
+    return true;
+  }
+  if ((m = c.match(/^Copy target (activated or triggered|activated|triggered) ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'ability', label: `target ${m[1]} ability${m[2] || ''}`, yours: !!m[2] });
+    effects.push({ kind: 'copy-stack', bind, retarget: /new targets/i.test(c) });
+    return true;
+  }
+  if ((m = c.match(/^(?:you may )?copy (it|that spell|that ability|the spell)(?: (twice|three times|X times|that many times))?\.?$/i))) {
+    effects.push({ kind: 'copy-stack', bind: 'eventStackId', soft: true, times: !m[2] ? 1 : /twice/i.test(m[2]) ? 2 : /three/i.test(m[2]) ? 3 : /that many/i.test(m[2]) ? { kind: 'binding', bind: 'eventAmount' } : 'X' });
+    return true;
+  }
+  if (/^You may choose new targets for (?:the copy|the copies|them|it|each copy)\.?$/i.test(c)) { effects.push({ kind: 'retarget-flag' }); return true; }
   // "Look at target opponent's hand." / "Target player reveals their hand."
   if ((m = c.match(/^(?:you may )?look at (target opponent|target player|each opponent)'?s? hands?\.?$/i))) {
     const playerBind = /^each/i.test(m[1]) ? null : H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]);
