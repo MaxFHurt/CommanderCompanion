@@ -406,7 +406,7 @@ async function loadSavedLibrary() {
       hadRows = true;
       complete =
         !!v.ts && v.rows.some(r => r.sc) && v.rows.some(r => r.rar) && v.rows.some(r => 'gc' in r) && v.rows.some(r => 'cn' in r);
-      useFull(v.rows, v.when, complete);
+      useFull(v.rows, v.when, complete, v.ts);
       render();
     }
   } catch (e) {}
@@ -427,7 +427,67 @@ async function loadSavedLibrary() {
     autoUpdate(null, hadRows ? 'Saved card data was from an older version of the app' : 'No card data was saved in this browser');
   else checkReleases();
   loadCombos();
+  loadPrices();
   bracketTags();
+}
+// Prices: every day at 4:00 a.m. New York time the card-data job saves each card's cheapest TCGplayer price
+// (prices.json.gz on the Deck-Companion card-data branch; see tools/fetch-card-data.mjs there). The app downloads that one
+// small file once a day, keeps it in this browser and puts its prices on the cards, so prices are at most a day old
+// without downloading the whole card list again. Card data downloaded later than the file keeps its own (newer) prices.
+const PRICE_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/prices.json.gz';
+let PX = null; // {at: ISO time the prices were taken, source: 'tcgplayer.com', p: {card name: US dollars}}
+function applyPrices() {
+  DBINFO.px = '';
+  if (!PX || !PX.p || !LIB.length || DBINFO.source !== 'full') return false;
+  if (DBINFO.ts && Date.parse(PX.at) < DBINFO.ts) return false;
+  for (const c of LIB) {
+    if (c.src !== 'full') continue;
+    const v = PX.p[c.n];
+    if (typeof v === 'number') c.p = v;
+  }
+  DBINFO.px = PX.at;
+  return true;
+}
+async function loadPrices() {
+  try {
+    if (!PX) {
+      const v = await idb('readonly', s => s.get('prices'));
+      if (v && v.p && v.at) {
+        PX = v;
+        if (applyPrices()) render();
+      }
+    }
+    // A new file is published once a day; look for it when ours is over a day old, at most once an hour.
+    if (PX && Date.now() - Date.parse(PX.at) < 24 * 3600e3) return;
+    if (Date.now() - (lsGet('dc.pxCheck') || 0) < 3600e3 || typeof DecompressionStream === 'undefined') return;
+    lsSet('dc.pxCheck', Date.now());
+    const r = await fetch(PRICE_URL, {cache: 'no-cache'});
+    if (!r.ok) throw new Error('status ' + r.status);
+    const j = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();
+    if (!j || !j.p || !j.at || (PX && Date.parse(j.at) <= Date.parse(PX.at))) return;
+    PX = j;
+    try {
+      await idb('readwrite', s => s.put(PX, 'prices'));
+    } catch (e) {}
+    if (applyPrices()) {
+      if (DBINFO.complete) recordPrices(PX.at);
+      render();
+    }
+  } catch (e) {}
+}
+// Where and when the prices shown were taken: "at tcgplayer.com at 04:00 EST", with the date when it was not today
+// (New York time). Prices from a card download made after the daily file carry that download's time.
+function priceStamp() {
+  if (DBINFO.source !== 'full') return '';
+  const at = DBINFO.px ? Date.parse(DBINFO.px) : DBINFO.ts;
+  if (!at) return '';
+  const src = (DBINFO.px && PX && PX.source) || 'tcgplayer.com',
+    tz = 'America/New_York',
+    d = new Date(at),
+    day = x => x.toLocaleDateString('en-US', {timeZone: tz}),
+    time = d.toLocaleTimeString('en-US', {timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short'}),
+    date = day(d) === day(new Date()) ? '' : ' on ' + d.toLocaleDateString('en-US', {timeZone: tz, month: 'short', day: 'numeric'});
+  return 'at ' + src + date + ' at ' + time;
 }
 // Bracket card lists from Scryfall's card tags: mass land denial and extra turns. Kept for a week, then refreshed, so
 // new cards join the lists without an app update. (Game Changers come with the card data itself.)
@@ -460,16 +520,33 @@ async function bracketTags() {
     }
   } catch (e) {}
 }
-function useFull(rows, when, complete) {
+function useFull(rows, when, complete, ts) {
   buildIndex(mergeLibrary(STARTER, rows));
-  DBINFO = {source: 'full', count: LIB.length, when, complete: !!complete};
+  DBINFO = {source: 'full', count: LIB.length, when, complete: !!complete, ts: ts || 0};
   ART.clear();
+  warmTags();
+  const px = applyPrices();
   if (complete) {
-    recordPrices(when);
+    recordPrices(px ? PX.at : when);
     clearTimeout(wkWarm.t);
     wkWarm.done = false;
     wkWarm.t = setTimeout(wkWarm, 5000);
   }
+}
+// Reading every card's text for its jobs and themes (tags, kept on each card) takes a few seconds the first time; the first
+// deck opened after loading used to wait for it. It is done here in small slices while the app is idle, so the screen never
+// stalls. Same results as reading on first use: the engine settings are fixed before card data loads.
+function warmTags() {
+  const gen = (warmTags.gen = (warmTags.gen || 0) + 1),
+    list = LIB;
+  let i = 0;
+  const step = () => {
+    if (warmTags.gen !== gen) return;
+    const end = performance.now() + 12;
+    while (i < list.length && performance.now() < end) tags(list[i++]);
+    if (i < list.length) setTimeout(step, 4);
+  };
+  setTimeout(step, 400);
 }
 // Price history: each time complete card data arrives, the prices of the cards you care about (your decks, library, buy
 // lists and cards you have opened) are kept by the data's date, so history starts when this shipped and grows over time.
@@ -548,7 +625,7 @@ function phHtml(c) {
       esc(f[0]) +
       ' (' +
       fmt(f[1]) +
-      '). The history grows each time new card data downloads.</span></dd>'
+      '). The history grows each day as the morning prices arrive.</span></dd>'
     );
   const lo = Math.min(...L.map(x => x[1])),
     hi = Math.max(...L.map(x => x[1])),
@@ -717,7 +794,7 @@ function wkState() {
       for (const k in c) if (k[0] !== '_') x[k] = c[k];
       return x;
     };
-  const lib = [DBINFO.source, DBINFO.count, DBINFO.when, LIB.length].join('|');
+  const lib = [DBINFO.source, DBINFO.count, DBINFO.when, DBINFO.px || '', LIB.length].join('|');
   if (s.lib !== lib) {
     m.lib = {sig: lib, rows: LIB.map(clean)};
     s.lib = lib;
@@ -809,6 +886,7 @@ function genKey(j) {
     DBINFO.source,
     DBINFO.count,
     DBINFO.when,
+    DBINFO.px || '',
     LIB.length,
     EDH.key,
     EDH.state,
@@ -966,7 +1044,7 @@ async function finalize(rows, when, ts) {
     if (!o || (o.p == null && c.p != null)) best.set(k, c);
   }
   const list = [...best.values()];
-  useFull(list, when, !!ts);
+  useFull(list, when, !!ts, ts);
   if (COMBO_RAW) useCombos(COMBO_RAW.j);
   try {
     await idb('readwrite', s =>
