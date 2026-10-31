@@ -1362,7 +1362,12 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
     background-size: 100% 100%;
   }
   /* Page headers sit just under the frame's top edge instead of on it. */
-  .page { padding-top: max(var(--safe-t), 14px); padding-bottom: max(var(--safe-b), 10px); }
+  /* Equal space above and below, so each screen sits in the middle of the frame (owner, 31 Oct). In landscape iOS reports
+     a bottom safe area (about 21pt) and none at the top, so both ends use the larger of the two. */
+  .page { padding-top: max(var(--safe-t), var(--safe-b), 14px); padding-bottom: max(var(--safe-t), var(--safe-b), 14px); }
+  .landing { padding-top: calc(1rem + max(var(--safe-t), var(--safe-b))); padding-bottom: calc(1rem + max(var(--safe-t), var(--safe-b))); }
+  .game { padding-top: calc(0.3rem + max(var(--safe-t), var(--safe-b))); padding-bottom: calc(0.3rem + max(var(--safe-t), var(--safe-b))); }
+  .tracker { padding-top: calc(0.7rem + max(var(--safe-t), var(--safe-b))); padding-bottom: calc(0.7rem + max(var(--safe-t), var(--safe-b))); }
   /* Installed on the home screen, iOS can report the page shorter than the screen: the frame above is sized from the
      screen, so the app gets the same box (owner, 31 Oct: "everything else sits too high … center all screens vertically
      within these borders"). In Safari the two heights are the same, so nothing moves there. */

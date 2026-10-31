@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.41** (31 Oct): on iPhone the screens fill the frame (section 8). Build 40 (another session):
+- Live build: **1.0.0-rebuild.41** (31 Oct): on iPhone the screens fill the frame (section 8). Build 42 (centered on iPhone) committed, not pushed. Build 40 (another session):
   Deck Builder 0.9.25. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md), Deck Builder power as a
   share of the Apex build. The old standalone Deck Companion (MaxFHurt/Deck-Companion) only forwards to the Deck Builder; the
   owner chose (31 Oct) to keep that repo as it is: its card-data branch (combo list, refreshed weekly by its workflow) and
@@ -286,6 +286,10 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   backdrop was already sized from the screen (`--cc-screen-h`), so on phones (`max-height: 699px`) `#app` and the pop-up layer
   get the same box (5px in, `max(100dvh, --cc-screen-h) - 10px`), and `.page` keeps 10px clear of the frame's bottom edge.
   iPad unchanged (owner to check at home).
+  Build 42 (owner, 31 Oct: "still spaced wrong on iPhone"): the content sat high because the bottom padding added
+  iOS's bottom safe area (about 21pt in landscape) and the top had none. On phones the home screen, pages, game and Table
+  Tracker now use the larger of the two at both ends (37px above and below on the home screen). Choose Game Mode is left as
+  is: its art carries its own frame (moving it showed two frames). Test with the safe areas set by hand (Chromium has none).
 - Ward works for spells only, not activated abilities.
 - Still resolved by hand: mutate, madness, suspend, spectacle, and anything the terms key marks
   'manual' or 'partial' (e.g. split/fuse, flip cards, Room, Class, attractions).
