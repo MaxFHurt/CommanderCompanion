@@ -32,7 +32,9 @@ export function modalSpellSpec(definition) {
   const text = oracle(definition).trim();
   // "Choose one —", "Choose one or more —" (Farewell), "Choose one. If you control a commander as you cast this
   // spell, you may choose both instead." (Jeska's Will, Akroma's Will).
-  const m = text.match(/^Choose\s+(one or more|one|two|three|four|five|\d+)\s*(?:[—-]|\.\s*(If you control a commander as you cast this spell, you may choose both instead\.))\s*([\s\S]+)$/i);
+  // "Choose three. You may choose the same mode more than once." (the Confluences)
+  const repeat = /^Choose\s+\w+\.\s*You may choose the same mode more than once\./i.test(text);
+  const m = repeat ? text.match(/^Choose\s+(one|two|three|four|five)\.\s*You may choose the same mode more than once\.()\s*([\s\S]+)$/i) : text.match(/^Choose\s+(one or more|one|two|three|four|five|\d+)\s*(?:[—-]|\.\s*(If you control a commander as you cast this spell, you may choose both instead\.))\s*([\s\S]+)$/i);
   if (!m)
     return null;
   const words = { one: 1, two: 2, three: 3, four: 4, five: 5 };
@@ -44,7 +46,7 @@ export function modalSpellSpec(definition) {
     const tail = m[2].split(/\s*[;•]\s*/).map(x => x.trim()).filter(Boolean);
     modes.push(...tail);
   }
-  return { count, oneOrMore, commanderBoth: !!m[2] && !oneOrMore && /choose both/i.test(text), modes, compiledModes: modes.map(mode => compileEffectText(mode, { sourceName: definition?.name || 'Modal spell' })) };
+  return { count, oneOrMore, repeat, commanderBoth: !!m[2] && !oneOrMore && /choose both/i.test(text), modes, compiledModes: modes.map(mode => compileEffectText(mode, { sourceName: definition?.name || 'Modal spell' })) };
 }
 export function activatedAbilitySupport(definition, ability) {
   if (!ability)

@@ -130,6 +130,8 @@ function untapStep(game) {
     if (!c.tapped) continue;
     if (/doesn['’]t untap during your untap step/i.test(defOf(game, c)?.oracleText || '')) continue;
     if ((c.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e?.restriction === 'no-untap')) continue;
+    // "… doesn't untap during its controller's next untap step": this is that step; it stays tapped once.
+    if ((c.temporaryEffects || []).some(e => e?.kind === 'skip-next-untap')) { c.temporaryEffects = c.temporaryEffects.filter(e => e?.kind !== 'skip-next-untap'); continue; }
     c.tapped = false;
     count += 1;
   }

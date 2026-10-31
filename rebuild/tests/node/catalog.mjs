@@ -122,7 +122,7 @@ section('round 1: spells that exile or return themselves, keyword actions');
   const t = setup();
   // Explore with a nonland on top: the player chooses whether it goes to the graveyard.
   const lib = t.P(0).deck.remainingLibrary;
-  const nonland = lib.find(c => !/Land/.test(def(t, c).typeLine)); lib.splice(lib.indexOf(nonland), 1); lib.unshift(nonland);
+  const nonland = lib.find(c => !/Land/.test(def(t, c).typeLine) && !['Llanowar Elves', 'Grizzly Bears'].includes(def(t, c).name)); lib.splice(lib.indexOf(nonland), 1); lib.unshift(nonland);
   let asked = null;
   cast(t, 'Grizzly Bears', 'When this creature enters, it explores.', [['explore', d => { asked = d; return true; }]]);
   const bear = t.bf(0, 'Grizzly Bears');
@@ -165,7 +165,7 @@ section('round 2: look at the top cards, impulse draw, hand disruption');
   t.give(0, 'Fog Bank');
   const creature = lib.find(c => /Creature/.test(def(t, c).typeLine)); lib.splice(lib.indexOf(creature), 1); lib.splice(1, 0, creature);
   let q = null;
-  cast(t, 'Fog Bank', 'When this creature enters, look at the top five cards of your library. You may reveal a creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.', [['dig', d => { q = d; return d.kind === 'choose-many' ? d.options.filter(o => !o.disabled).slice(0, 1).map(o => o.id) : undefined; }]]);
+  cast(t, 'Fog Bank', 'When this creature enters, look at the top five cards of your library. You may reveal a creature card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.', [['dig', d => { q = d; return d.kind === 'choose-many' ? [creature.instanceId] : undefined; }]]);
   check('dig with a filter: only creature cards can be chosen', q && q.options.filter(o => !o.disabled).every(o => /Creature/.test(o.sub)) && q.min === 0, JSON.stringify(q?.options.map(o => [o.label, o.disabled])));
   check('…the chosen creature card is put into the hand', t.P(0).deck.hand.some(c => c.instanceId === creature.instanceId));
 }
@@ -229,6 +229,73 @@ section('round 2: creature lands and Vehicles');
   const seenCrew = settle(t, [['crew', [bear.instanceId, elf.instanceId]]]);
   const v = t.view(0).players[0].battlefield.find(c => c.id === vehicle.instanceId);
   check('crewed: the crew is tapped and the Vehicle is a 4/4 artifact creature', t.bf(0, 'Grizzly Bears').tapped && t.bf(0, 'Llanowar Elves').tapped && /Artifact Creature/.test(v.type) && v.power === 4, JSON.stringify([v.type, v.power]));
+}
+
+section('round 3: copies, end-step clean-up, untap locks, die-to-exile, upkeep costs, werewolves, confluences');
+{
+  const t = setup();
+  const elf = onField(t, 'Llanowar Elves', '{1}: Create a token that\'s a copy of this creature, except it has haste. Sacrifice it at the beginning of the next end step.');
+  activate(t, elf);
+  const copies = () => t.P(0).deck.battlefield.filter(c => c.token && def(t, c).name === 'Llanowar Elves');
+  check('a token copy of "this creature" with haste', copies().length === 1 && has(t, copies()[0], 'Haste'), String(copies().length));
+  t.autoPass = true; t.end(0); t.autoPass = false;
+  check('…sacrificed at the beginning of the next end step', copies().length === 0);
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  bear.tapped = true;
+  cast(t, 'Opt', 'Tap target creature. It doesn\'t untap during its controller\'s next untap step.', [[d => d.targeting, d => d.options.find(o => o.id === bear.instanceId).id]]);
+  t.autoPass = true; t.end(0);
+  check('"doesn\'t untap during its controller\'s next untap step": still tapped on their turn', t.bf(1, 'Grizzly Bears').tapped && t.game.activePlayerId === t.P(1).playerId);
+  t.end(1); t.end(0);
+  check('…and untaps normally the turn after', !t.bf(1, 'Grizzly Bears').tapped);
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'This spell deals 3 damage to target creature. If that creature would die this turn, exile it instead.', [[d => d.targeting, d => d.options.find(o => o.id === bear.instanceId).id]]);
+  check('Suplex: the creature that would die is exiled instead', t.names(1, 'exile').includes('Grizzly Bears') && !t.names(1, 'graveyard').includes('Grizzly Bears'), JSON.stringify([t.names(1, 'exile'), t.names(1, 'graveyard')]));
+}
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', {}, 1); onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', 'This spell deals 3 damage to each creature. If a creature dealt damage this way would die this turn, exile it instead.');
+  check('Anger of the Gods: every creature it kills is exiled', t.names(1, 'exile').includes('Grizzly Bears') && t.names(1, 'exile').includes('Llanowar Elves') && !t.names(1, 'graveyard').length);
+}
+{
+  for (const pay of [true, false]) {
+    const t = setup();
+    const c = onField(t, 'Colossal Dreadmaw', 'At the beginning of your upkeep, sacrifice this creature unless you pay {1}.');
+    t.autoPass = true; t.end(0); t.end(1); t.autoPass = false;
+    settle(t, [['may-pay', pay ? 'pay' : 'no']]);
+    check(`upkeep cost "sacrifice this creature unless you pay {1}" (${pay ? 'paid: stays' : 'not paid: sacrificed'})`, !!t.bf(0, 'Colossal Dreadmaw') === pay, JSON.stringify(t.names(0, 'graveyard')));
+  }
+}
+{
+  const t = setup();
+  const wolf = onField(t, 'Grizzly Bears', 'At the beginning of each upkeep, if no spells were cast last turn, transform this creature.');
+  let transformed = false;
+  t.game.cardDefinitions[wolf.definitionId] = { ...def(t, wolf), cardFaces: [{ name: 'Day Bear', typeLine: 'Creature', oracleText: def(t, wolf).oracleText, power: '2', toughness: '2' }, { name: 'Night Bear', typeLine: 'Creature — Werewolf', oracleText: '', power: '4', toughness: '4' }] };
+  wolf.activeFaceIndex = 0;
+  t.autoPass = true; t.end(0); settle(t);
+  transformed = wolf.activeFaceIndex === 1 || t.bf(0, 'Night Bear');
+  check('werewolf: transforms at upkeep after a turn with no spells', !!transformed, String(wolf.activeFaceIndex));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  const seen = cast(t, 'Opt', 'Choose three. You may choose the same mode more than once.\n• Target player draws a card.\n• Return target creature to its owner\'s hand.', [['modes:0', 0], ['modes:1', 0], ['modes:2', 1], [d => d.targeting && d.options.some(o => o.id === bear.instanceId), d => bear.instanceId], [d => d.kind === 'choose-one' && d.options.some(o => o.playerId), d => t.P(0).playerId]]);
+  check('Confluence: the same mode can be chosen twice (two draws) plus a third mode', t.names(1, 'hand').includes('Grizzly Bears') && seen.filter(d => /modes:/.test(d.key)).length === 3, JSON.stringify(seen.map(d => d.key)));
+}
+{
+  const t = setup();
+  t.give(0, 'Colossal Dreadmaw');
+  cast(t, 'Opt', 'You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice it at the beginning of the next end step.', [['hand', d => d.options.find(o => o.label === 'Colossal Dreadmaw').id]]);
+  const maw = t.bf(0, 'Colossal Dreadmaw');
+  check('Sneak Attack: the chosen creature enters with haste', !!maw && has(t, maw, 'Haste'));
+  t.autoPass = true; t.end(0);
+  check('…and is sacrificed at the end step', !t.bf(0, 'Colossal Dreadmaw') && t.names(0, 'graveyard').includes('Colossal Dreadmaw'));
 }
 
 done();

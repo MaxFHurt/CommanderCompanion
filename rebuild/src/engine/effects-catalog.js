@@ -165,6 +165,7 @@ export function compileCatalogClause(c, ctx) {
     effects.push({ kind: 'counter-many', bind, counter: '+1/+1', amount: 1 });
     return true;
   }
+  if (compileRound3(c, ctx, subjectBind)) return true;
   if ((m = c.match(/^Create a tapped Powerstone token\.?$/i))) {
     effects.push({ kind: 'create-token', amount: 1, name: 'Powerstone', typeLine: 'Token Artifact — Powerstone', oracleText: '{T}: Add {C}. This mana can\'t be spent to cast a nonartifact spell.', tapped: true });
     return true;
@@ -181,6 +182,7 @@ function attachedOf(game, bindings) {
 export function prepareBindings(game, bindings) {
   if (bindings.__attached === undefined && bindings.sourceId) bindings.__attached = attachedOf(game, bindings);
   if (!bindings.thatCard) bindings.thatCard = bindings.eventCard || bindings.sourceId || null;
+  if (bindings.__thatController === undefined) { const h = bindings.thatCard && locateCardInGame(game, bindings.thatCard); bindings.__thatController = h ? (h.card.controllerId || h.player?.playerId) : null; }
 }
 
 /** A regeneration shield is used up instead of the creature being destroyed: tap it, remove damage, remove it from combat. */
@@ -341,7 +343,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes);
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -358,6 +360,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
     return true;
   }
   if (gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'explore') {
     // The top card is known now; nothing earlier in the same ability changes the library.
     const top = (player.deck.remainingLibrary || [])[0];
@@ -639,4 +642,346 @@ export function expirePlayPermissions(game) {
     if (!p) continue;
     if (p.until === 'turn' || (p.until === 'next-turn' && game.activePlayerId === p.playerId && Number(game.turnNumber) > Number(p.grantedTurn))) delete c.playPermission;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Round 3: copies of "that creature", things done to recent tokens at the end step, untap locks, die-to-exile,
+// multi-target forms, more token kinds, werewolves, sacrifice-unless-you-pay …
+
+export const TOKEN_TEXT = {
+  Treasure: '{T}, Sacrifice this artifact: Add one mana of any color.',
+  Food: '{2}, {T}, Sacrifice this artifact: You gain 3 life.',
+  Clue: '{2}, Sacrifice this artifact: Draw a card.',
+  Blood: '{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.',
+  Map: '{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery.',
+  Gold: 'Sacrifice this artifact: Add one mana of any color.',
+  Powerstone: "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.",
+  Lander: '{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.',
+  Mutagen: '{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature. Activate only as a sorcery.',
+  Junk: '{T}, Sacrifice this artifact: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.',
+  Shard: '{2}, Sacrifice this enchantment: Scry 1, then draw a card.'
+};
+const COLOR_OF = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+
+function compileRound3(c, ctx, subjectBind) {
+  const { sourceName, selfAny, effects, requirements } = ctx;
+  let m;
+  const PRON = '(it|that creature|that artifact|that card|that permanent|that token|this creature|the exiled card|the creature|' + selfAny + ')';
+  const pronBind = s => new RegExp(`^${selfAny}$|^this creature$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : 'thatCard';
+
+  // Copies: "create a token that's a copy of that creature", "… except it has haste", "a tapped token …".
+  if ((m = c.match(new RegExp(`^(?:You may )?create (a|two|three|X) (tapped )?tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of ${PRON}(?:, except (it has haste|it isn't legendary|it's not legendary|it has haste and it isn't legendary|it isn't legendary and it has haste))?\\.?$`, 'i')))) {
+    effects.push({ kind: 'copy-of', bind: pronBind(m[3]), amount: num(m[1]) ?? 1, tapped: !!m[2], haste: /haste/i.test(m[4] || ''), nonlegendary: /legendary/i.test(m[4] || '') });
+    return true;
+  }
+  if ((m = c.match(/^Populate\.?$/i))) {
+    const bind = `choice${requirements.length}`;
+    requirements.push({ kind: 'choose-permanent', bind, scope: 'creature token you control', label: 'creature token to copy' });
+    effects.push({ kind: 'copy-of', bind, amount: 1 });
+    return true;
+  }
+  // The tokens or cards just made/moved: "Sacrifice it at the beginning of the next end step." "Exile them at end of combat."
+  if ((m = c.match(/^(Sacrifice|Exile|Return) (it|them|that token|those tokens|the token|the tokens|that creature|those creatures)(?: to (?:its|their) owners?'? hands?)? (?:at the beginning of the next end step|at the beginning of your next end step|at end of combat|at the beginning of the end step)\.?$/i))) {
+    const kind = m[1].toLowerCase() === 'sacrifice' ? 'sacrifice-ids' : m[1].toLowerCase() === 'exile' ? 'exile-ids' : 'bounce-ids';
+    effects.push({ kind: 'delay', when: { event: /end of combat/i.test(c) ? 'end-combat' : 'end-step', whose: /your next/i.test(c) ? 'owner' : 'any', sameTurn: true }, effects: [{ kind, fromBind: '__recent' }], requirements: [] });
+    return true;
+  }
+  if ((m = c.match(/^(?:It|They|That token|Those tokens|That creature) gains? (haste|flying|trample|vigilance|lifelink)(?: and (haste|flying|trample|vigilance|lifelink))?\.?$/i))) {
+    for (const k of [m[1], m[2]].filter(Boolean)) effects.push({ kind: 'grant-keyword-recent', keyword: cap(k.toLowerCase()), expires: null });
+    return true;
+  }
+  if ((m = c.match(/^(?:They|Those creatures|Those tokens) gain (haste|flying|trample)(?: and (haste|flying|trample))? until end of turn\.?$/i))) {
+    for (const k of [m[1], m[2]].filter(Boolean)) effects.push({ kind: 'grant-keyword-recent', keyword: cap(k.toLowerCase()), expires: 'cleanup' });
+    return true;
+  }
+  // "That creature doesn't untap during its controller's next untap step."
+  if ((m = c.match(new RegExp(`^(${selfAny}|It|That creature|That permanent|Target creature|Those creatures|Enchanted creature) (?:doesn'?t|don'?t) untap during (?:its|their) controller'?s? next untap step\\.?$`, 'i')))) {
+    if (/^those/i.test(m[1])) { effects.push({ kind: 'skip-untap-recent' }); return true; }
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : /^enchanted/i.test(m[1]) ? '__attached' : m[1].match(new RegExp(`^${selfAny}$`, 'i')) ? 'sourceId' : 'lastTarget';
+    effects.push({ kind: 'skip-untap', bind });
+    return true;
+  }
+  if ((m = c.match(/^Tap (target [^.]+?)\. It doesn'?t untap during its controller'?s next untap step\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'tap', bind }, { kind: 'skip-untap', bind });
+    return true;
+  }
+  // "If that creature would die this turn, exile it instead." / "If a creature dealt damage this way would die this turn, exile it instead."
+  if (/^If (?:that creature|it|a creature dealt damage this way|a creature dealt damage this turn by [^,]+|that permanent) would die this turn, exile it instead\.?$/i.test(c)) {
+    effects.push({ kind: 'exile-if-dies', bind: /dealt damage/i.test(c) ? '__damaged' : 'lastTarget' });
+    return true;
+  }
+  // Damage to the player or creature the trigger is about.
+  if ((m = c.match(new RegExp(`^(?:${selfAny}|It|This enchantment|This artifact) deals ${N} damage to (that player|that creature|that permanent|that player or planeswalker|defending player|each opponent and each creature they control)\\.?$`, 'i')))) {
+    if (/each opponent/i.test(m[2])) return false;
+    effects.push({ kind: 'damage', amount: num(m[1]), bind: /player/i.test(m[2]) ? (/defending/i.test(m[2]) ? 'defendingPlayer' : 'eventPlayer') : 'thatCard', sourceName });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^(that player|its controller|defending player|that creature's controller) (loses|gains) ${N} life\\.?$`, 'i')))) {
+    const forPlayerBind = /defending/i.test(m[1]) ? 'defendingPlayer' : /controller/i.test(m[1]) ? '__thatController' : 'eventPlayer';
+    effects.push({ kind: 'life', scope: 'you', amount: num(m[3]), deltaSign: /gain/i.test(m[2]) ? 1 : -1, forPlayerBind });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^defending player loses ${N} life and you gain ${N} life\\.?$`, 'i')))) {
+    effects.push({ kind: 'life', scope: 'you', amount: num(m[1]), deltaSign: -1, forPlayerBind: 'defendingPlayer' }, { kind: 'life', scope: 'you', amount: num(m[2]), deltaSign: 1 });
+    return true;
+  }
+  // Mill / draw small forms.
+  if ((m = c.match(/^(?:You )?mills? (?:a|one) card\.?$/i))) { effects.push({ kind: 'mill', scope: 'you', amount: 1 }); return true; }
+  if ((m = c.match(/^(?:You )?(?:take|takes) an extra turn after this one\.?$/i))) { effects.push({ kind: 'extra-turn', playerBind: null }); return true; }
+  // Counters from the event / on the source.
+  if ((m = c.match(new RegExp(`^put that many ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (${selfAny}|it|target creature you control|target creature)\\.?$`, 'i')))) {
+    const bind = /^target/i.test(m[2]) ? H.targetRequirement(requirements, m[2].toLowerCase(), m[2]) : subjectBind(m[2]);
+    effects.push({ kind: 'counter', bind, counter: m[1], amount: { kind: 'binding', bind: 'eventAmount' } });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^Remove (?:a|an|one|${N}) ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters? from (${selfAny}|it)\\.?$`, 'i')))) {
+    effects.push({ kind: 'remove-counter', bind: subjectBind(m[3]), counter: m[2], amount: num(m[1]) ?? 1 });
+    return true;
+  }
+  // Equipment: "attach this Equipment to it" (Hero's Blade, Cryptic Coat).
+  if ((m = c.match(/^(?:you may )?attach (?:this Equipment|it|this Aura) to (it|that creature|target creature you control)\.?$/i))) {
+    const creatureBind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : pronBind(m[1]);
+    effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
+    return true;
+  }
+  // Graveyard and library moves.
+  if ((m = c.match(/^Return up to (one|two|three|four|five|\d+|X) target ([a-z ,]*?)cards? from your graveyard to your hand\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[2].trim(), max: num(m[1]), label: `up to ${m[1]} ${m[2]}card${num(m[1]) === 1 ? '' : 's'} in your graveyard` });
+    effects.push({ kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
+  if ((m = c.match(/^Put (target card|target [a-z ]+ card) from (a|your|an opponent's) graveyard on the bottom of (?:its owner'?s|your) library\.?$/i))) {
+    const bind = `grave${requirements.length}`;
+    requirements.push({ kind: 'graveyard-target', bind, scope: `${m[1].toLowerCase()}${/your/i.test(m[2]) ? ' in your graveyard' : ''}`, label: `${m[1]} in ${m[2]} graveyard` });
+    effects.push({ kind: 'move-zone', bind, to: 'library', position: 'bottom' });
+    return true;
+  }
+  if ((m = c.match(/^Put (target [^.]+?) on (top|the bottom) of its owner'?s library\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'to-library', bind, position: /top/i.test(m[2]) ? 'top' : 'bottom' });
+    return true;
+  }
+  if ((m = c.match(/^(?:shuffle it into its owner'?s library|its owner shuffles it into their library)\.?$/i))) { effects.push({ kind: 'to-library', bind: 'eventCard', position: 'shuffle', soft: true }); return true; }
+  // Hand to battlefield: "You may put a creature card from your hand onto the battlefield." (Sneak Attack, Arboreal Grazer)
+  if ((m = c.match(/^(?:You may )?put (?:a|an) ([a-z ]+?) card from your hand onto the battlefield( tapped)?\.?$/i))) {
+    const bind = `handCard${requirements.length}`;
+    requirements.push({ kind: 'hand-card', bind, filter: m[1].toLowerCase().replace(/^(?:permanent|nonland permanent)$/, ''), label: `a ${m[1]} card to put onto the battlefield` });
+    effects.push({ kind: 'hand-to-battlefield-any', bind, tapped: !!m[2], optionalTarget: true });
+    return true;
+  }
+  // Sacrifice as an optional effect inside "you may … If you do": "Sacrifice another creature." "Sacrifice a creature or artifact."
+  if ((m = c.match(/^Sacrifice (another|a|an) (creature|artifact|enchantment|land|permanent|nonland permanent|token|creature or artifact|artifact or creature)\.?$/i))) {
+    const bind = `cards${requirements.length}`;
+    requirements.push({ kind: 'card-selection', bind, scope: 'you', filter: m[2].toLowerCase().replace(/^token$/, 'permanent|token'), amount: 1, label: `${m[1]} ${m[2]} to sacrifice`, notSource: /another/i.test(m[1]) });
+    effects.push({ kind: 'sacrifice-many', scope: 'you', amount: 1, filter: m[2].toLowerCase(), bind });
+    return true;
+  }
+  // "Sacrifice this creature unless you pay {1}{G}." (upkeep costs)
+  if ((m = c.match(new RegExp(`^sacrifice (${selfAny}|it) unless you (pay ((?:\\{[^}]+\\})+)|pay (\\d+|one|two|three|four|five) life)\\.?$`, 'i')))) {
+    effects.push({ kind: 'may-pay', cost: m[3] || '{0}', lifeCost: m[4] ? num(m[4]) : 0, skip: 1, invert: true }, { kind: 'sacrifice', bind: 'sourceId' });
+    return true;
+  }
+  // Multi-target forms.
+  if ((m = c.match(/^Up to (two|three|four|five|\d+|X) target creatures? (?:each )?gets? ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    const bind = `multi${requirements.length}`, max = num(m[1]);
+    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: 0, max, label: `Choose up to ${m[1]} creatures` });
+    effects.push({ kind: 'pump-many', bind, power: Number(m[2]), toughness: Number(m[3]) });
+    return true;
+  }
+  if ((m = c.match(/^Up to (two|three|four|five|\d+|X) target creatures? can'?t block this turn\.?$/i))) {
+    const bind = `multi${requirements.length}`, max = num(m[1]);
+    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: 0, max, label: `Choose up to ${m[1]} creatures` });
+    effects.push({ kind: 'restrict-many', bind, restriction: 'cant-block' });
+    return true;
+  }
+  if ((m = c.match(/^Return up to (two|three|four|five|\d+|X) target (creatures|nonland permanents|permanents|artifacts|creatures and\/or [a-z]+) to their owners'? hands\.?$/i))) {
+    const bind = `multi${requirements.length}`, max = num(m[1]);
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[2].replace(/s$/, '')}`, min: 0, max, label: `Choose up to ${m[1]} ${m[2]}` });
+    effects.push({ kind: 'bounce-many', bind });
+    return true;
+  }
+  if ((m = c.match(/^(Attacking creatures|Blocking creatures|Other creatures you control|Attacking creatures you control|Tapped creatures|Untapped creatures you control|Creatures you control with flying|Creatures without flying) get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    const w = m[1].toLowerCase();
+    const filter = ['creature', /attacking/.test(w) && 'attacking', /blocking/.test(w) && 'blocking', /^tapped/.test(w) && 'tapped', /untapped/.test(w) && 'untapped', /with flying/.test(w) && 'keyword:flying', /without flying/.test(w) && 'nokeyword:flying'].filter(Boolean).join('|');
+    effects.push({ kind: 'pump-each', scope: /you control/.test(w) ? 'you' : 'all', filter, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup', exceptSource: /^other/.test(w) });
+    return true;
+  }
+  if ((m = c.match(/^Creatures (without|with) flying can'?t block this turn\.?$/i))) {
+    effects.push({ kind: 'restrict-each', filter: `creature|${m[1] === 'without' ? 'nokeyword' : 'keyword'}:flying`, restriction: 'cant-block' });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^(?:This spell|${selfAny}|[A-Z][^.]*?) deals ${N} damage to each creature (without|with) flying\\.?$`, 'i')))) {
+    effects.push({ kind: 'damage-each', amount: num(m[1]), filter: `creature|${m[2] === 'without' ? 'nokeyword' : 'keyword'}:flying`, creatures: 'all', players: null, sourceName });
+    return true;
+  }
+  // "Target creature you control deals damage equal to its power to target creature you don't control." (Ram Through, Bite Down)
+  if ((m = c.match(/^Target creature you control deals damage equal to its power to (target creature or planeswalker you don'?t control|target creature you don'?t control|target creature an opponent controls|target creature or planeswalker an opponent controls|another target creature)\.?$/i))) {
+    const sourceBind = H.targetRequirement(requirements, 'target creature you control', 'Creature you control');
+    const targetBind = H.targetRequirement(requirements, m[1].toLowerCase().replace(/^another /, ''), m[1], { excludeBind: sourceBind });
+    effects.push({ kind: 'damage-from-selected-creature', sourceBind, targetBind, amount: { kind: 'source-power' } });
+    return true;
+  }
+  if ((m = c.match(/^(Target (?:attacking|blocking|attacking or blocking|tapped|untapped|nonblack|white|blue|black|red|green|artifact|legendary|token) creature[^.]*?) gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    return true;
+  }
+  if ((m = c.match(/^(Target creature[^.]*?) has base power and toughness (\d+)\/(\d+) until end of turn\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'animate', bind, power: m[2], toughness: m[3], addTypes: [], subtypes: [], keywords: [], colors: null, expires: 'cleanup' });
+    return true;
+  }
+  // Tokens: predefined artifact tokens (tapped or not), creature tokens with a quoted ability.
+  if ((m = c.match(new RegExp(`^(?:you )?create ${N} (tapped )?(Treasure|Food|Clue|Blood|Map|Gold|Powerstone|Lander|Mutagen|Junk|Shard) tokens?\\.?$`, 'i')))) {
+    const name = cap(m[3].toLowerCase());
+    effects.push({ kind: 'create-token', amount: num(m[1]), name, typeLine: `Token ${name === 'Shard' ? 'Enchantment' : 'Artifact'} — ${name}`, oracleText: TOKEN_TEXT[name], tapped: !!m[2] });
+    return true;
+  }
+  if ((m = c.match(new RegExp(`^(?:you )?create ${N} (tapped )?(\\d+)\\/(\\d+) ([a-z ]*?)((?:[A-Z][a-z'-]+ )+)(?:artifact )?creature tokens?(?: with ([a-z ,]+?))?(?: and)?(?: with)? "([^"]+)"\\.?$`)))) {
+    const colors = m[5].split(/\s+/).map(w => COLOR_OF[w]).filter(Boolean);
+    const subtype = m[6].trim();
+    effects.push({ kind: 'create-token', amount: num(m[1]), tapped: !!m[2], power: Number(m[3]), toughness: Number(m[4]), name: subtype, typeLine: `Token ${/artifact/i.test(c) ? 'Artifact ' : ''}Creature — ${subtype}`, colors, keywords: H.KEYWORD_LIST(m[7] || '').map(cap), oracleText: m[8] });
+    return true;
+  }
+  // Werewolves: "if no spells were cast last turn, transform this creature." / "if a player cast two or more spells last turn, …"
+  if ((m = c.match(new RegExp(`^if (no spells were cast last turn|a player cast (two|three) or more spells last turn), transform (?:${selfAny}|this creature|it)\\.?$`, 'i')))) {
+    effects.push({ kind: 'condition', test: 'last-turn-spells', none: /^no/i.test(m[1]), atLeast: m[2] ? num(m[2]) : 0, skip: 1 }, { kind: 'transform', bind: 'sourceId' });
+    return true;
+  }
+  // "Look at target opponent's hand." / "Target player reveals their hand."
+  if ((m = c.match(/^(?:you may )?look at (target opponent|target player|each opponent)'?s? hands?\.?$/i))) {
+    const playerBind = /^each/i.test(m[1]) ? null : H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]);
+    effects.push({ kind: 'reveal-hand', playerBind, scope: playerBind ? null : 'each-opponent' });
+    return true;
+  }
+  return false;
+}
+
+/** Round 3 effect kinds. */
+export function applyRound3(game, controllerId, effect, bindings, notes) {
+  const controller = playerById(game, controllerId);
+  const emit = e => H.emit(bindings, e);
+  const name = card => definitionFor(game, card)?.name || 'Permanent';
+  const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
+  switch (effect.kind) {
+    case 'copy-of': {
+      const id = H.resolveBoundId(effect, bindings);
+      const hit = locateCardInGame(game, id);
+      const d = hit ? definitionFor(game, hit.card) : null;
+      if (!d) { notes.push('There is nothing to copy.'); return true; }
+      const n = Math.max(0, resolveAmount(game, controllerId, effect.amount ?? 1, bindings));
+      const typeLine = effect.nonlegendary ? String(d.typeLine || '').replace(/\bLegendary\s+/i, '') : d.typeLine;
+      for (let i = 0; i < n; i++) {
+        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: d.name, typeLine: /^Token\b/.test(typeLine) ? typeLine : `Token ${typeLine}`, oracleText: d.oracleText || '', power: d.power, toughness: d.toughness, keywords: d.keywords || [], colors: d.colors || [], tapped: !!effect.tapped }], bindings);
+        const made = (bindings.lastCreated || []).slice(-1)[0];
+        const token = made && locateCardInGame(game, made)?.card;
+        if (token && effect.haste) { token.temporaryEffects = [...(token.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }]; }
+      }
+      notes.push(`${controller.displayName} creates ${n === 1 ? 'a token copy' : `${n} token copies`} of ${d.name}.`);
+      return true;
+    }
+    case 'sacrifice-ids':
+    case 'exile-ids':
+    case 'bounce-ids': {
+      for (const id of ids()) {
+        const hit = permanentAt(game, id);
+        if (!hit) continue;
+        const to = effect.kind === 'exile-ids' ? 'exile' : effect.kind === 'bounce-ids' ? 'hand' : 'graveyard';
+        moveCard(game, id, to, { moveReason: effect.kind === 'sacrifice-ids' ? 'sacrifice' : null, onEvent: emit });
+        notes.push(`${name(hit.card)} is ${to === 'exile' ? 'exiled' : to === 'hand' ? "returned to its owner's hand" : 'sacrificed'}.`);
+      }
+      return true;
+    }
+    case 'grant-keyword-recent': {
+      const list = bindings.lastCreated?.length ? bindings.lastCreated : bindings.lastMoved?.length ? bindings.lastMoved : [bindings.eventCard].filter(Boolean);
+      for (const id of list) {
+        const hit = permanentAt(game, id);
+        if (!hit) continue;
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'keyword', keyword: effect.keyword, enabled: true, ...(effect.expires ? { expires: effect.expires } : {}) }];
+        notes.push(`${name(hit.card)} gains ${effect.keyword.toLowerCase()}${effect.expires ? ' until end of turn' : ''}.`);
+      }
+      return true;
+    }
+    case 'skip-untap':
+    case 'skip-untap-recent': {
+      const list = effect.kind === 'skip-untap-recent' ? [...new Set([...(bindings.lastMoved || []), ...[].concat(bindings[effect.bind] || [])])] : ids();
+      for (const id of list) {
+        const hit = permanentAt(game, id);
+        if (!hit) continue;
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'skip-next-untap' }];
+        notes.push(`${name(hit.card)} doesn't untap during its controller's next untap step.`);
+      }
+      return true;
+    }
+    case 'exile-if-dies': {
+      const list = effect.bind === '__damaged' ? (bindings.damagedThisWay || []) : ids();
+      for (const id of list) {
+        const hit = permanentAt(game, id);
+        if (hit) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-dies', expires: 'cleanup' }];
+      }
+      return true;
+    }
+    case 'to-library': {
+      for (const id of ids()) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || !['battlefield', 'graveyard', 'hand', 'exile'].includes(hit.zone)) continue;
+        const owner = playerById(game, hit.card.ownerId);
+        moveCard(game, id, 'library', { position: effect.position === 'top' ? 'top' : 'bottom', onEvent: emit });
+        if (effect.position === 'shuffle' && owner) H.shuffle(owner.deck.remainingLibrary);
+        notes.push(`${name(hit.card)} is put ${effect.position === 'top' ? 'on top of' : effect.position === 'shuffle' ? 'into' : 'on the bottom of'} its owner's library${effect.position === 'shuffle' ? ', which is shuffled' : ''}.`);
+      }
+      return true;
+    }
+    case 'graveyard-to-hand-many': {
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        moveCard(game, id, 'hand', { onEvent: emit });
+        notes.push(`${name(hit.card)} returns to ${controller.displayName}'s hand.`);
+      }
+      return true;
+    }
+    case 'hand-to-battlefield-any': {
+      const id = bindings[effect.bind];
+      if (!id || !controller.deck.hand.some(c => c.instanceId === id)) { notes.push('Nothing was put onto the battlefield.'); return true; }
+      moveCard(game, id, 'battlefield', { controllerId, tapped: !!effect.tapped, onEvent: emit });
+      bindings.lastMoved = [id];
+      notes.push(`${controller.displayName} puts ${name(locateCardInGame(game, id)?.card)} onto the battlefield.`);
+      return true;
+    }
+    case 'pump-many':
+    case 'restrict-many':
+    case 'bounce-many': {
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        const hit = permanentAt(game, id);
+        if (!hit) continue;
+        if (effect.kind === 'bounce-many') { moveCard(game, id, 'hand', { onEvent: emit }); notes.push(`${name(hit.card)} returns to its owner's hand.`); continue; }
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), effect.kind === 'pump-many' ? { kind: 'pt', power: effect.power, toughness: effect.toughness, expires: 'cleanup' } : { kind: 'combat-restriction', restriction: effect.restriction, expires: 'cleanup' }];
+        notes.push(`${name(hit.card)} ${effect.kind === 'pump-many' ? `gets ${effect.power >= 0 ? '+' : ''}${effect.power}/${effect.toughness >= 0 ? '+' : ''}${effect.toughness}` : "can't block"} this turn.`);
+      }
+      return true;
+    }
+    case 'restrict-each': {
+      let n = 0;
+      for (const p of game.players) for (const c of p.deck.battlefield || []) if (cardMatchesFilter(game, c, effect.filter)) { c.temporaryEffects = [...(c.temporaryEffects || []), { kind: 'combat-restriction', restriction: effect.restriction, expires: 'cleanup' }]; n++; }
+      notes.push(`${n} creature${n === 1 ? '' : 's'} can't block this turn.`);
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+/** Round 3 resolve-time choices. */
+export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, util) {
+  const { player } = ctx;
+  if (req.kind === 'graveyard-multi') {
+    const rows = (player.deck.graveyard || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
+    const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
+    bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max })) : [];
+    return true;
+  }
+  return false;
 }

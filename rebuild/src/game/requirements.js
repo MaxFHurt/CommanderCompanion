@@ -139,6 +139,7 @@ function matchesPermanentScope(game, card, scope) {
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/with a counter on it/.test(scope) && !Object.values(card.counters || {}).some(v => Number(v) > 0)) return false;
   if (/\bnontoken\b/.test(scope) && card.token) return false;
+  if (/\btoken\b/.test(scope.replace(/\bnontoken\b/g, '')) && !card.token) return false;
   if (!manaValueFits(def, scope)) return false;
   const pw = scope.match(/with power (\d+) or (less|greater)/);
   if (pw) { const p = Number(effectivePower(card, def, game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
@@ -291,7 +292,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
         : [player];
       const chosen = {};
       for (const q of targets) {
-        const rows = battlefieldRows(game, q, req.filter);
+        const rows = battlefieldRows(game, q, req.filter).filter(r => !(req.notSource && r.id === bindings.sourceId));
         const need = Math.min(amount, rows.length), noun = String(req.filter || 'permanent').split('|')[0];
         // The affected player chooses what they sacrifice, on their own device.
         chosen[q.playerId] = need === 0 ? [] : need === rows.length && !req.upTo ? rows.map(r => r.id)

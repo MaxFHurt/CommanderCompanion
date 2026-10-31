@@ -274,16 +274,20 @@ function runPlay(game, op, ask) {
     const title = `${def.name}${tag ? ` (${tag})` : ''} — resolve by hand`;
     const support = spellSupport(castDef);
     if (support.kind === 'modal' && support.modal) {
-      const modal = support.modal, count = Math.min(modal.count, modal.modes.length);
+      const modal = support.modal, count = modal.repeat ? modal.count : Math.min(modal.count, modal.modes.length);
       // "one or more" (Farewell): any number; "choose both" with a commander (Jeska's Will, Akroma's Will).
       const both = modal.commanderBoth && controlsACommander(game, player);
       const min = count, max = modal.oneOrMore ? modal.modes.length : both ? Math.min(2, modal.modes.length) : count;
-      const picked = ask('modes', () => ({
+      const picked = modal.repeat ? Array.from({ length: count }, (_, i) => ask(`modes:${i}`, () => ({
+        playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — mode ${i + 1} of ${count}`,
+        prompt: 'Choose a mode. You may choose the same mode more than once.', options: modal.modes.map((text, j) => ({ id: j, label: text }))
+      }))) : ask('modes', () => ({
         playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — choose ${max > min ? `${min} or more` : count}`,
         prompt: modal.oneOrMore ? 'Choose one or more modes.' : both ? 'You control a commander: choose one mode, or both.' : `Choose ${plural(count, 'mode')}.`, min, max,
         options: modal.modes.map((text, i) => ({ id: i, label: text }))
       }));
-      const chosen = picked.map(i => modal.compiledModes[i]);
+      // The same mode twice gets its own targets each time.
+      const chosen = picked.map((i, n) => { const c = modal.compiledModes[i]; if (!modal.repeat || !c) return c; let json = JSON.stringify(c); for (const r of c.requirements || []) json = json.split(`"${r.bind}"`).join(`"${r.bind}_m${n}"`); return JSON.parse(json); });
       if (chosen.some(x => !x?.supported)) guided = guidedSpec(title, picked.map(i => modal.modes[i]).join('\n'), chosen.flatMap(x => x?.unsupported || []));
       else compiled = { effects: chosen.flatMap(x => x.effects), requirements: chosen.flatMap(x => x.requirements) };
     } else if (support.kind === 'search-spell') {
@@ -657,6 +661,7 @@ function runTrigger(game, op, ask) {
   const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
+  bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;
   bindings.thatCard = other || (/damage/.test(ev.type || '') && ev.targetId && ev.targetId !== trigger.sourceId ? ev.targetId : null) || bindings.eventCard;
   let resolve = [], guided = null, search = null;
   if (!compiled?.supported && /^(?:you may )?search your library/i.test(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''))) {
