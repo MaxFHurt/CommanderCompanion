@@ -57,6 +57,9 @@ function leveled(card, def) {
 /** The definition with every animate effect on this card applied (or the definition itself when there is none). */
 export function withOverlay(card, def) {
   if (def && /Class|Level up/.test(`${def.typeLine}${String(def.oracleText || '').slice(0, 12)}`)) def = leveled(card, def);
+  // Abilities granted in quotes by an Aura, Equipment or anthem ('Equipped creature has "{T}: …"'), kept on the card by
+  // attachments.js syncAttachments.
+  if (def && card?.grantedText?.length) def = { ...def, oracleText: [def.oracleText, ...card.grantedText].filter(Boolean).join('\n') };
   const fx = (card?.temporaryEffects || []).filter(e => e?.kind === 'animate');
   if (!def || !fx.length) return def;
   const out = { ...def };

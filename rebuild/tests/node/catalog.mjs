@@ -680,4 +680,29 @@ section('round 10: library search inside a mode, exact target counts');
   check('"Return two target creatures": both return', t.names(1, 'hand').includes('Grizzly Bears') && t.names(1, 'hand').includes('Llanowar Elves'));
 }
 
+section('round 11: abilities granted in quotes');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  const elf = onField(t, 'Llanowar Elves', '');
+  const bow = onField(t, 'Fog Bank', 'Equipped creature has "{T}: This creature deals 1 damage to any target."\nEquip {1}', { typeLine: 'Artifact — Equipment' });
+  activate(t, bow, 0, [[d => d.targeting, () => elf.instanceId]]);
+  const elfRows = t.view(0).players[0].battlefield.find(c => c.id === elf.instanceId).abilities;
+  const bowRows = t.view(0).players[0].battlefield.find(c => c.id === bow.instanceId).abilities;
+  check('Equipment: the equipped creature has the quoted ability, the Equipment does not', elfRows.some(a => /deals 1 damage/.test(a.text)) && !bowRows.some(a => /deals 1 damage/.test(a.text)), JSON.stringify([elfRows.map(a => a.text), bowRows.map(a => a.text)]));
+  const row = elfRows.find(a => /deals 1 damage/.test(a.text));
+  const ra = t.ctl.dispatch({ type: 'activate', instanceId: elf.instanceId, abilityId: row.id }, t.as(0)); const sn = settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  check('…and using it deals the damage (from the creature)', Number(t.bf(1, 'Grizzly Bears')?.damageMarked || 0) === 1 && t.bf(0, 'Llanowar Elves').tapped);
+}
+{
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Fog Bank', 'battlefield'); t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Air Elemental', 'battlefield');
+  asText(t, t.bf(0, 'Fog Bank'), 'Creatures you control have "{T}: Add one mana of any color."', { typeLine: 'Enchantment' });
+  t.end(0); t.end(1);
+  t.autoPass = false;
+  t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), '', { manaCost: '{R}{B}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Colossal Dreadmaw').instanceId }, t.as(0)); settle(t);
+  check('Cryptolith Rite: creatures tap for any colour; the auto-payer uses them', r.ok && !!t.bf(0, 'Colossal Dreadmaw'), r.error);
+}
+
 done();

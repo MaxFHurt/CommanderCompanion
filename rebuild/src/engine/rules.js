@@ -1,4 +1,5 @@
 import { effectiveManaAmount } from './mana-extras.js';
+import { withOverlay } from './overlay.js';
 import { isCardDefinitionComplete } from './schema.js';
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
 export const DEFAULT_COMMANDER_RULES = Object.freeze({
@@ -273,9 +274,12 @@ export function playerManaAvailability(player, game = null) {
   for (const card of player?.deck?.battlefield || []) {
     if (card?.tapped || !manaCapacitySourceUsable(game, card))
       continue;
-    const def = game?.cardDefinitions?.[card?.definitionId];
+    const def = withOverlay(card, game?.cardDefinitions?.[card?.definitionId]);
     const options = effectiveManaOptionsForSource({ game, player, card, definition: def });
     if (options.length > 1)
+      flex.push({ instanceId: card.instanceId, options, zone: 'battlefield' });
+    // A mana ability granted by another permanent (Cryptolith Rite, Paradise Mantle) is not a registered source: offer it here.
+    else if (options.length === 1 && card.grantedText?.length && !card.manaCapacityRegistered && card.grantedText.some(t => /^\{T\}: Add/i.test(t)))
       flex.push({ instanceId: card.instanceId, options, zone: 'battlefield' });
   }
   // Zone-aware mana abilities explicitly permitted from hand (Spirit Guides and similar cards).
@@ -661,7 +665,9 @@ export function parseActivatedAbilities(definition) {
   const abilities = [];
   let current = null;
   for (const line of lines) {
-    const looksActivated = line.includes(':') && !/^[•—-]/.test(line) && !/^(When|Whenever|At)\b/i.test(line) && !/(?:^|[—-]\s*)(When|Whenever|At)\b/i.test(line);
+    // A colon inside quotes is an ability granted to something else ('Equipped creature has "{T}: …"').
+    const quoteAt = line.indexOf('"');
+    const looksActivated = line.includes(':') && !(quoteAt >= 0 && quoteAt < line.indexOf(':')) && !/^[•—-]/.test(line) && !/^(When|Whenever|At)\b/i.test(line) && !/(?:^|[—-]\s*)(When|Whenever|At)\b/i.test(line);
     if (looksActivated) {
       if (current)
         abilities.push(current);
@@ -784,6 +790,10 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     let targetFound = false;
     if (/target (?:player|opponent)/i.test(effect))
       targetFound = (game?.players || []).some(q => !/opponent/i.test(effect) || q.playerId !== player?.playerId);
+    // "any target" can always be a player (Prodigal Pyromancer); other wordings the checks below don't know are allowed
+    // here and checked when the targets are chosen.
+    if (/\bany (?:other )?target\b/i.test(effect) || !/target (?:player|opponent|creature|permanent|artifact|enchantment|planeswalker|land|card)/i.test(effect))
+      targetFound = true;
     if (/target (?:creature|permanent|artifact|enchantment|planeswalker|land)/i.test(effect)) {
       const players = /you control/i.test(effect) ? [player] : (game?.players || []);
       for (const q of players.filter(Boolean))

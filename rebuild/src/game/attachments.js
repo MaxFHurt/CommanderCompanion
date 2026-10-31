@@ -40,6 +40,25 @@ export function syncAttachments(game) {
   const onField = new Map();
   for (const p of game.players) for (const c of p.deck.battlefield) onField.set(c.instanceId, { card: c, player: p });
   let changed = false;
+  // Quoted abilities granted by anthems: 'Creatures you control have "{T}: Add one mana of any color."' (Cryptolith Rite).
+  for (const { card } of onField.values()) card.grantedText = [];
+  for (const { card: src, player } of onField.values()) {
+    const text = String(defOf(game, { ...src, grantedText: [] })?.oracleText || '');
+    for (const line of text.split('\n')) {
+      const m = line.match(/^(Other )?((?:[A-Za-z-]+ )*?)(creatures?|lands?|artifacts?|permanents?|tokens?) you control (?:have|gain) ((?:"[^"]+"(?:,? and |, )?)+)\.?$/i);
+      if (!m) continue;
+      const quotes = [...m[4].matchAll(/"([^"]+)"/g)].map(x => x[1]);
+      for (const { card, player: owner } of onField.values()) {
+        if (owner.playerId !== player.playerId || (m[1] && card.instanceId === src.instanceId)) continue;
+        const d = defOf(game, { ...card, grantedText: [] }), t = String(d?.typeLine || '');
+        const noun = m[3].toLowerCase().replace(/s$/, '');
+        if (noun !== 'permanent' && noun !== 'token' && !new RegExp(`\\b${noun}\\b`, 'i').test(t)) continue;
+        if (noun === 'token' && !card.token) continue;
+        const ok = m[2].trim().split(/\s+/).filter(Boolean).every(w => /^nontoken$/i.test(w) ? !card.token : /^token$/i.test(w) ? card.token : /^(white|blue|black|red|green)$/i.test(w) ? (d?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w.toLowerCase()]) : new RegExp(`\\b${w}\\b`, 'i').test(t));
+        if (ok) card.grantedText.push(...quotes);
+      }
+    }
+  }
   for (const { card } of onField.values()) {
     card.attachments = [];
     if ((card.temporaryEffects || []).some(e => e?.source === 'attachment')) card.temporaryEffects = card.temporaryEffects.filter(e => e?.source !== 'attachment');
@@ -69,6 +88,11 @@ export function syncAttachments(game) {
       continue;
     }
     host.card.attachments.push(card.instanceId);
+    // 'Equipped creature has "{T}: This creature deals 1 damage to any target."' — the creature gets that ability.
+    for (const line of String(def?.oracleText || '').split('\n')) {
+      const g = line.match(/^(?:Equipped|Enchanted|Fortified) (?:creature|permanent|land|artifact|planeswalker) (?:has|gains|gets [+-]\d+\/[+-]\d+ and has) ((?:"[^"]+"(?:,? and |, )?)+)/i);
+      if (g) host.card.grantedText = [...(host.card.grantedText || []), ...[...g[1].matchAll(/"([^"]+)"/g)].map(x => x[1])];
+    }
     const grants = attachmentGrants(def);
     host.card.temporaryEffects = host.card.temporaryEffects || [];
     if (grants.power || grants.toughness) host.card.temporaryEffects.push({ kind: 'pt', power: grants.power, toughness: grants.toughness, source: 'attachment' });
