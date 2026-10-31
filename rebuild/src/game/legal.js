@@ -9,6 +9,7 @@ import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponent
 import { candidatesFor } from './requirements.js';
 import { castOptions, keywordCost } from './casting.js';
 import { effectivePower } from '../engine/combat.js';
+import { parseSubject, subjectMatches } from '../engine/trigger-subject.js';
 
 const HAND_MANA_COST = /^Exile\s+(?:this card|[^:]+?)\s+from your hand$/i;
 
@@ -136,6 +137,56 @@ export function specialRows(game, player, card, { running = false } = {}) {
   return rows;
 }
 
+const COUNT_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+/**
+ * "Activate only if …", "Activate only during your turn", "Activate only once each turn": the rules an ability's text
+ * puts on when it can be used, read into checks. Returns null if a restriction is not understood (the audit then
+ * counts the ability as by hand).
+ */
+export function activationRules(text) {
+  const rules = [];
+  for (const m of String(text || '').matchAll(/Activate (?:this ability )?only ([^.]+)\./gi)) {
+    const r = m[1].trim();
+    let x;
+    if (/^as a sorcery$/i.test(r)) continue;   // checked with the timing rules
+    if (/^once each turn$/i.test(r)) rules.push({ kind: 'once' });
+    else if (/^as a sorcery and only once each turn$/i.test(r)) rules.push({ kind: 'once' });
+    else if (/^during your turn$/i.test(r)) rules.push({ kind: 'your-turn' });
+    else if (/^during combat$/i.test(r)) rules.push({ kind: 'combat' });
+    else if (/^during your upkeep$/i.test(r)) rules.push({ kind: 'upkeep' });
+    else if ((x = r.match(/^if there are (one|two|three|four|five|six|seven|eight|\d+) or more cards in your graveyard$/i))) rules.push({ kind: 'graveyard', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
+    else if ((x = r.match(/^if there are (four|five|\d+) or more card types among cards in your graveyard$/i))) rules.push({ kind: 'delirium', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
+    else if ((x = r.match(/^if you control (a|an|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+)$/i))) {
+      if (!parseSubject(x[2].replace(/s$/, ''), null)) return null;
+      rules.push({ kind: 'control', n: COUNT_WORDS[x[1].toLowerCase().split(' ')[0]] || 1, subject: x[2].replace(/s$/, '') });
+    }
+    else return null;
+  }
+  return rules;
+}
+/** Why the ability cannot be used right now because of its "Activate only …" text, or null. */
+export function activationBlock(game, player, card, ability) {
+  const rules = activationRules(ability?.text) || [];
+  for (const r of rules) {
+    if (r.kind === 'once' && card?.activatedTurn?.[ability.id] === game.turnNumber) return 'Only once each turn.';
+    if (r.kind === 'your-turn' && game.activePlayerId !== player.playerId) return 'Only during your turn.';
+    if (r.kind === 'combat' && !/combat|attackers|blockers|damage/.test(String(game.phase || ''))) return 'Only during combat.';
+    if (r.kind === 'upkeep' && !(game.activePlayerId === player.playerId && game.phase === 'upkeep')) return 'Only during your upkeep.';
+    if (r.kind === 'graveyard' && (player.deck?.graveyard || []).length < r.n) return `Only with ${r.n} or more cards in your graveyard.`;
+    if (r.kind === 'delirium') {
+      const types = new Set((player.deck?.graveyard || []).flatMap(c => (String(defOf(game, c)?.typeLine || '').split('—')[0].match(/Artifact|Battle|Creature|Enchantment|Instant|Kindred|Land|Planeswalker|Sorcery/g) || [])));
+      if (types.size < r.n) return `Only with ${r.n} or more card types in your graveyard.`;
+    }
+    if (r.kind === 'control') {
+      const subject = parseSubject(r.subject, null);
+      const row = { card: { instanceId: card?.instanceId || 'none' }, player };
+      const n = (player.deck?.battlefield || []).filter(c => subjectMatches(game, row, { ...subject, controller: null }, c, defOf(game, c), player.playerId)).length;
+      if (n < r.n) return `Only if you control ${r.n > 1 ? `${r.n} or more ` : 'a '}${r.subject}.`;
+    }
+  }
+  return null;
+}
+
 /** Where an activated ability works from: 'hand' (Channel — "Discard this card"), 'graveyard' ("Return this card from your graveyard …"), or the battlefield. */
 export function abilityZone(ability) {
   if (/\bDiscard this card\b/i.test(ability?.cost || '')) return 'hand';
@@ -165,6 +216,8 @@ export function abilityRows(game, player, card) {
         }
         if (ability.loyaltyDelta !== null && card.loyaltyUsedTurn === game.turnNumber) return { ability, legal: false, reasons: ['One loyalty ability each turn.'], fromHand: inHand };
       }
+      const restricted = activationBlock(game, player, card, ability);
+      if (restricted && check.legal) return { ability, legal: false, reasons: [restricted], fromHand: inHand };
       return { ability, legal: check.legal, reasons: check.reasons, fromHand: inHand };
     })];
 }

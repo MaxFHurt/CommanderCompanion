@@ -565,6 +565,13 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : 'Combat damage to and from that creature is prevented this turn.');
       continue;
     }
+    if (effect.kind === 'return-self-hand') {
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'graveyard') { notes.push('The card is no longer in the graveyard.'); continue; }
+      moveCard(game, hit.card.instanceId, 'hand', { onEvent: e => emit(bindings, e) });
+      notes.push(`${cardName(game, hit.card)} returns to its owner's hand.`);
+      continue;
+    }
     if (effect.kind === 'no-max-hand-size') { controller.noMaxHandSize = true; notes.push(`${controller.displayName} has no maximum hand size.`); continue; }
     if (effect.kind === 'cast-lock') {
       game.castLocks = (game.castLocks || []).filter(x => x.turn === game.turnNumber);
@@ -1149,8 +1156,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'pump') {
       const targetId = resolveBoundId(effect, bindings);
       const hit = locateCardInGame(game, targetId);
-      if (!hit || hit.zone !== 'battlefield')
-        throw new Error('The pump target is no longer legal.');
+      // An earlier part of the same effect may already have killed it (Tragic Slip): nothing more happens to it.
+      if (!hit || hit.zone !== 'battlefield') { notes.push('That creature is no longer on the battlefield.'); continue; }
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
       const sizedPt = v => /X/i.test(String(v)) ? (String(v).startsWith('-') ? -1 : 1) * Math.max(0, resolveAmount(game, controllerId, 'X', bindings)) : Number(v || 0);
       effect = { ...effect, power: sizedPt(effect.power), toughness: sizedPt(effect.toughness) };
@@ -1418,6 +1425,9 @@ function conditionHolds(game, controllerId, effect, bindings) {
     return effect.none ? n === 0 : n >= (effect.min || 1);
   }
   if (effect.test === 'chosen') return bindings[effect.bind] === true;
+  if (effect.test === 'source-untapped') { const c = locateCardInGame(game, bindings.sourceId)?.card; return !!c && !c.tapped; }
+  if (effect.test === 'control-commander') return (me?.deck?.battlefield || []).some(c => !c.token && (me.commanders || []).some(k => k.cardId === c.definitionId));
+  if (effect.test === 'creature-died') return game.creatureDiedTurn === game.turnNumber;
   if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
   if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
@@ -2408,6 +2418,15 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
     return true;
   }
+  // Rancor: "return it to its owner's hand" from the graveyard.
+  if (new RegExp(`^Return (?:it|this card|${selfAny}) to its owner'?s hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
+  if (/^(?:You )?draws? an additional card\.?$/i.test(c)) { effects.push({ kind: 'draw', scope: 'you', amount: 1 }); return true; }
+  if (new RegExp(`^(?:It|${selfAny}) can'?t be blocked this turn\\.?$`, 'i').test(c)) { effects.push({ kind: 'combat-restriction', bind: 'sourceId', restriction: 'cant-be-blocked', expires: 'cleanup' }); return true; }
+  if ((m = c.match(/^Create X (Treasure|Food|Clue) tokens\.?$/i))) {
+    const name = m[1], text = name === 'Treasure' ? '{T}, Sacrifice this artifact: Add one mana of any color.' : name === 'Clue' ? '{2}, Sacrifice this artifact: Draw a card.' : '{2}, {T}, Sacrifice this artifact: You gain 3 life.';
+    effects.push({ kind: 'create-token', amount: 'X', name, typeLine: 'Token Artifact', oracleText: text });
+    return true;
+  }
   // Turn-long rules changes.
   if (/^Prevent all combat damage that would be dealt this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'all' }); return true; }
   if (/^Prevent all combat damage that would be dealt to you this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'you' }); return true; }
@@ -2538,6 +2557,33 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
       lastToken.tempKeywords = [...(lastToken.tempKeywords || []), ...KEYWORD_LIST(tokenKw[1])];
       continue;
     }
+    // Tragic Slip: "Morbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
+    const instead = clause.match(/^(?:[A-Z][a-z]+ — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);
+    const prevPump = instead && parts[parts.length - 1]?.effects?.find(e => e.kind === 'pump');
+    if (prevPump) {
+      parts.push({ effects: [{ kind: 'condition', test: 'creature-died', skip: 1 }, { kind: 'pump', bind: prevPump.bind, power: Number(instead[1]) - Number(prevPump.power || 0), toughness: Number(instead[2]) - Number(prevPump.toughness || 0), expires: 'cleanup' }], requirements: [], unsupported: [] });
+      continue;
+    }
+    // Archon of Cruelty: "target opponent sacrifices a creature …, discards a card, and loses 3 life." — one subject, several instructions.
+    const list = clause.match(/^(Target opponent|Target player|Each opponent|Each player) ([a-z]+s .+?), ([a-z]+s .+?),? and ([a-z]+s .+)$/i);
+    if (list) {
+      const pieces = [list[2], list[3], list[4]].map(x => compileSingleClause(`${list[1]} ${x.replace(/\.$/, '')}.`, { sourceName }));
+      if (pieces.every(x => !x.unsupported.length && x.effects.length)) {
+        const out = { effects: [], requirements: [], unsupported: [] };
+        let shared = null;
+        pieces.forEach((x, i) => {
+          const json = JSON.stringify(x).replace(/"(target|grave|player|discardCards|cards|number|color)(\d+)"/g, (_, k, n) => `"${k}${Number(n) + 20 * (i + 1)}"`);
+          const y = JSON.parse(json);
+          const preq = y.requirements.find(r => r.kind === 'player');
+          if (preq && !shared) shared = preq.bind;
+          const swap = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, preq && v === preq.bind ? shared : v]));
+          out.effects.push(...y.effects.map(swap));
+          out.requirements.push(...y.requirements.filter(r => !(preq && r === preq && preq.bind !== shared)).map(swap));
+        });
+        parts.push(out);
+        continue;
+      }
+    }
     // "Each player draws a card, then discards a card." — the second instruction keeps the first one's subject.
     const carried = clause.match(/^(Each player|Each opponent|You) (draws?|discards?|mills?) ([^,]+?),? then (draws?|discards?|mills?|loses?|gains?) (.+)$/i);
     if (carried) {
@@ -2595,12 +2641,12 @@ export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFall
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
-    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is tapped|it'?s not your turn|it'?s your turn),\s*(.+)$/i);
+    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
     if (cond && !/^If you do\b/i.test(clause)) {
       const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
       const innerAlt = !inner.unsupported.length ? inner : bridgePronoun(`${cond[4].charAt(0).toUpperCase()}${cond[4].slice(1)}`, parts, sourceName) || compileEffectText(cond[4], { sourceName });
       const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7 };
-      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
+      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /untapped/i.test(cond[1]) ? { test: 'source-untapped' } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /commander/i.test(cond[1]) ? { test: 'control-commander' } : /died/i.test(cond[1]) ? { test: 'creature-died' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
         if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/s$/, '');
         if (!innerAlt.unsupported.length && innerAlt.effects.length) {

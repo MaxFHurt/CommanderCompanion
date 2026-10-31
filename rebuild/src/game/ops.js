@@ -17,7 +17,7 @@ import {
 } from './helpers.js';
 import { gatherRequirements, splitRequirements, NoLegalChoice } from './requirements.js';
 import { librarySearchSpec, searchFilter } from './library-search.js';
-import { abilityZone, commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
+import { abilityZone, activationBlock, activationRules, commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
 import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
@@ -69,6 +69,7 @@ function compileFor(text, sourceName) {
 export function effectRunsByItself(text, sourceName = 'Card') {
   const t = String(text || '').trim();
   if (!t) return true;
+  if (/Activate (?:this ability )?only (?:if|during|once)/i.test(t) && !activationRules(t)) return false;
   if (specialFromText(t)) return true;
   if (compileFor(t, sourceName).compiled.supported) return true;
   return /^(?:you may )?search your library/i.test(t) && !!librarySearchSpec(t);
@@ -483,6 +484,9 @@ function runActivate(game, op, ask) {
     if (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length) throw new GameError('Loyalty abilities can be used only during your main phase while the stack is empty.');
   }
 
+  const restricted = activationBlock(game, player, card, ability);
+  if (restricted && !force) throw new GameError(restricted);
+  if (/Activate only once each turn|only once each turn/i.test(ability.text)) card.activatedTurn = { ...(card.activatedTurn || {}), [ability.id]: game.turnNumber };
   if (/Activate only as a sorcery/i.test(ability.text) && !force
     && (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length)) {
     throw new GameError('This ability can be used only during your main phase while the stack is empty.');

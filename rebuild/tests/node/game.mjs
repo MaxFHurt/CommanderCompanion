@@ -938,7 +938,7 @@ section('more effects: conditions, up to one target, wheels, devotion, flicker, 
   for (const big of [true, false]) {
     const t = setup();
     t.give(0, big ? 'Colossal Dreadmaw' : 'Grizzly Bears', 'battlefield');
-    const before = t.P(0).deck.hand.length;
+    t.give(0, 'Opt'); const before = t.P(0).deck.hand.length - 1;
     cast(t, 'Opt', 'If you control a creature with power 4 or greater, draw a card.');
     check(`a condition is checked as it resolves (${big ? 'met' : 'not met'})`, t.P(0).deck.hand.length === before + (big ? 1 : 0) - 0, `${before} → ${t.P(0).deck.hand.length}`);
   }
@@ -1308,7 +1308,46 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
     const t = setup(); const cmd = t.P(0).deck.commandZone[0];
     spell(t, 'Put your commander into your hand from the command zone.');
     check('Command Beacon: the commander goes to your hand', !!cmd && t.P(0).deck.hand.some(c => c.instanceId === cmd.instanceId));
+  }  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield');
+    spell(t, 'Target creature gets -1/-1 until end of turn.\nMorbid — That creature gets -13/-13 until end of turn instead if a creature died this turn.', d => (d.options?.find(o => o.label === 'Grizzly Bears')?.id ?? first(d)));
+    const bear = t.bf(1, 'Grizzly Bears');
+    check('Tragic Slip without a death: only -1/-1', !!bear && power(t, bear) === 1);
+    const optBack = () => { const o = t.P(0).deck.graveyard.find(x => t.game.cardDefinitions[x.definitionId].name === 'Opt'); t.edit({ kind: 'move', instanceId: o.instanceId, to: 'hand' }); };
+    optBack(); t.give(0, 'Llanowar Elves', 'battlefield'); spell(t, 'Destroy target creature.', d => (d.options?.find(o => o.label === 'Llanowar Elves')?.id ?? first(d)));
+    optBack();
+    spell(t, 'Target creature gets -1/-1 until end of turn.\nMorbid — That creature gets -13/-13 until end of turn instead if a creature died this turn.', d => (d.options?.find(o => o.label === 'Grizzly Bears')?.id ?? first(d)));
+    check('…and -13/-13 after a creature died this turn', !t.bf(1, 'Grizzly Bears'));
   }
+  {
+    const t = setup(); t.give(1, 'Grizzly Bears', 'battlefield'); t.give(1, 'Forest');
+    spell(t, 'Target opponent sacrifices a creature or planeswalker of their choice, discards a card, and loses 3 life.');
+    check('Archon of Cruelty: one opponent sacrifices, discards and loses 3 life', !t.bf(1, 'Grizzly Bears') && t.P(1).deck.graveyard.length === 2 && t.P(1).life === 37, `${t.P(1).deck.graveyard.length} ${t.P(1).life}`);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield');
+    const c = asText(t, t.bf(0, 'Llanowar Elves'), '{T}: Draw a card. Activate only if there are seven or more cards in your graveyard.');
+    c.enteredTurn = -1; c.controlSinceTurn = -1;
+    const ab = () => t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).abilities.find(a => /Draw/.test(a.text));
+    const before = ab();
+    for (let i = 0; i < 7; i++) t.give(0, i % 2 ? 'Island' : 'Forest', 'graveyard');
+    check('threshold: "Activate only if there are seven or more cards in your graveyard"', !before.legal && /seven|7/.test(before.reason) && ab().legal, before.reason);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield');
+    const c = asText(t, t.bf(0, 'Llanowar Elves'), '{1}: Put a +1/+1 counter on this creature. Activate only once each turn.');
+    const ab = () => t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).abilities.find(a => /counter/.test(a.text));
+    t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: ab().id }, t.as(0)); answerAll(t, first);
+    check('"Activate only once each turn"', c.counters?.['+1/+1'] === 1 && !ab().legal && !t.try(0, { type: 'activate', instanceId: c.instanceId, abilityId: ab().id }).ok);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield'); t.give(0, 'Grizzly Bears');
+    const aura = asText(t, t.hand(0, 'Grizzly Bears'), "When this Aura is put into a graveyard from the battlefield, return it to its owner's hand.");
+    t.edit({ kind: 'move', instanceId: aura.instanceId, to: 'battlefield' }); t.edit({ kind: 'move', instanceId: aura.instanceId, to: 'graveyard' });
+    answerAll(t, first);
+    check("Rancor: returns to its owner's hand", t.P(0).deck.hand.some(x => x.instanceId === aura.instanceId));
+  }
+
 
 
 

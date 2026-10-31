@@ -92,6 +92,7 @@ function unregisterManaSource(player, card, { wasTapped = null } = {}) {
   card.manaCapacityAmount = 1;
 }
 function emit(game, event) {
+  if (event?.type === 'dies') game.creatureDiedTurn = Number(game.turnNumber || 0);   // morbid
   if (event?.type === 'tapped') {
     const hit = locateCardInGame(game, event.sourceId);
     if (hit?.card) {
