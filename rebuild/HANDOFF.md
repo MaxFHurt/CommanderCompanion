@@ -276,6 +276,11 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   kept in `assets/img/ui/orig/background.webp`). On phones (`max-height: 699px`) the backdrop is inset 12px / 5px
   so the frame's rounded corners stay inside the screen's, and `.page` gets a 14px top margin so headers sit under
   the frame. On iPad the art still covers the screen (sides cropped as before, now with top and bottom lines).
+- **Content inside the frame on iPhone (build 41, owner 31 Oct: "everything else sits too high now; center all screens
+  vertically within these borders"):** installed on the home screen, iOS reports the page shorter than the screen; the
+  backdrop was already sized from the screen (`--cc-screen-h`), so on phones (`max-height: 699px`) `#app` and the pop-up layer
+  get the same box (5px in, `max(100dvh, --cc-screen-h) - 10px`), and `.page` keeps 10px clear of the frame's bottom edge.
+  iPad unchanged (owner to check at home).
 - Ward works for spells only, not activated abilities.
 - Still resolved by hand: mutate, madness, suspend, spectacle, and anything the terms key marks
   'manual' or 'partial' (e.g. split/fuse, flip cards, Room, Class, attractions).

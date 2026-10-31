@@ -1362,7 +1362,11 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
     background-size: 100% 100%;
   }
   /* Page headers sit just under the frame's top edge instead of on it. */
-  .page { padding-top: max(var(--safe-t), 14px); }
+  .page { padding-top: max(var(--safe-t), 14px); padding-bottom: max(var(--safe-b), 10px); }
+  /* Installed on the home screen, iOS can report the page shorter than the screen: the frame above is sized from the
+     screen, so the app gets the same box (owner, 31 Oct: "everything else sits too high … center all screens vertically
+     within these borders"). In Safari the two heights are the same, so nothing moves there. */
+  #app, .modal-layer { top: 5px; bottom: auto; height: calc(max(100dvh, var(--cc-screen-h, 0px)) - 10px); }
 }
 
 /* ── 25. Host screens: Table / Judge switch, Judge mode, legality marks ───────── */

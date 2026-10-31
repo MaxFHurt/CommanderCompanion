@@ -159,6 +159,15 @@ async def flow(browser, device, tag):
       s.controller.dispatch({ type: 'edit', edit: { kind: 'note', text: 'Test board ready' } }, { playerId: null, isHost: true });
       g.deviceMode = deviceMode; s.actAs(s.actingAs());
     }""")
+    # The cards put on the board can set off a trigger the other player answers first: the app then shows "Pass the device
+    # to …" over the board, as it should. Pass priority back round like players would, then wait for the board to draw.
+    await page.wait_for_timeout(300)
+    await pass_all(page)
+    await tap_curtain(page)
+    try:
+        await page.wait_for_function("document.querySelectorAll('.zone--lands .card').length >= 4 && document.querySelectorAll('.zone--battle .card').length >= 5", timeout=10000)
+    except Exception:
+        pass
     await page.wait_for_timeout(300)
     await page.screenshot(path=f'{OUT}{tag}-game-board.png')
     check('battlefield shows permanents', await page.locator('.zone--battle .card').count() >= 5)
