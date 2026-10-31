@@ -664,4 +664,18 @@ section('round 10: conditions with "instead" / "Otherwise", and other most-playe
   check('The One Ring: protection from everything — opponents can\'t target you', !targets.includes(t.P(0).playerId) && t.P(0).protectionFromEverything === true, JSON.stringify(targets));
 }
 
+section('round 10: library search inside a mode, exact target counts');
+{
+  const t = setup();
+  const before = t.P(0).deck.battlefield.length;
+  cast(t, 'Opt', 'Choose three. You may choose the same mode more than once.\n• Put two +1/+1 counters on target creature.\n• Return target permanent card from your graveyard to your hand.\n• Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.', [['modes:', 2], [d => d.key.includes('library-search'), d => d.options.slice(0, 1).map(o => o.id)]]);
+  check('Verdant Confluence: the search mode three times puts three basic lands onto the battlefield tapped', t.P(0).deck.battlefield.length === before + 3 && t.P(0).deck.battlefield.slice(-3).every(c => c.tapped), `${before} → ${t.P(0).deck.battlefield.length}`);
+}
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', {}, 1); onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', 'Return two target creatures to their owners\' hands.', [[d => d.kind === 'choose-many', d => d.options.slice(0, 2).map(o => o.id)]]);
+  check('"Return two target creatures": both return', t.names(1, 'hand').includes('Grizzly Bears') && t.names(1, 'hand').includes('Llanowar Elves'));
+}
+
 done();

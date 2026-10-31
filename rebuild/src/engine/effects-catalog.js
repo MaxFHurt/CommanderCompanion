@@ -9,6 +9,7 @@ import {
   catalogHelpers as H
 } from './effects.js';
 import { effectiveToughness } from './combat.js';
+import { librarySearchSpec, searchFilter } from '../game/library-search.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -1098,6 +1099,29 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   if (/^If (?:it|that creature|that card) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i.test(c)) { effects.push({ kind: 'mark-exile-if-leaves' }); return true; }
+  // A library search inside a longer instruction or a mode (Verdant Confluence): the player chooses as it resolves.
+  if ((m = c.match(/^(?:you may )?search your library for .+$/i)) && !/ and \/or |each player|target player|that player/i.test(c)) {
+    const spec = librarySearchSpec(ctx.restore(c));
+    if (spec && spec.filterKey !== 'any' || /for (?:a|up to one) card\b/i.test(c)) {
+      const bind = `search${requirements.length}`;
+      requirements.push({ kind: 'library-search', bind, text: ctx.restore(c), label: spec.label });
+      effects.push({ kind: 'library-search', bind, text: ctx.restore(c) });
+      return true;
+    }
+  }
+  // Exact counts: "Return two target creatures to their owners' hands." "Destroy two target artifacts."
+  if ((m = c.match(/^(Return|Destroy|Exile|Tap|Untap) (two|three|four) target ([a-z ]+?)( to their owners'? hands?)?\.?$/i)) && (m[1].toLowerCase() !== 'return' || m[4])) {
+    const n = num(m[2]), bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[3].replace(/s$/, '')}`, min: n, max: n, label: `Choose ${m[2]} ${m[3]}` });
+    effects.push({ kind: m[1].toLowerCase() === 'return' ? 'bounce-many' : `${m[1].toLowerCase()}-many`, bind });
+    return true;
+  }
+  if ((m = c.match(/^Return (one or two|up to two|one, two, or three) target ([a-z ,]*?)cards? from your graveyard to your hand\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[2].trim(), max: /three/i.test(m[1]) ? 3 : 2, min: /^one/i.test(m[1]) ? 1 : 0, label: `${m[1]} ${m[2]}cards in your graveyard` });
+    effects.push({ kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1301,6 +1325,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'library-search': {
+      const spec = librarySearchSpec(effect.text);
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        if (!controller.deck.remainingLibrary.some(c => c.instanceId === id)) continue;
+        if (spec.destination === 'battlefield') moveCard(game, id, 'battlefield', { controllerId, tapped: !!spec.entersTapped, onEvent: emit });
+        else if (spec.destination === 'library') moveCard(game, id, 'library', { position: 'top', onEvent: emit });
+        else moveCard(game, id, 'hand', { onEvent: emit });
+        notes.push(`${controller.displayName} finds ${name(locateCardInGame(game, id)?.card)}.`);
+      }
+      if (spec.shuffle) { const lib = controller.deck.remainingLibrary, top = spec.destination === 'library' ? lib.shift() : null; H.shuffle(lib); if (top) lib.unshift(top); }
+      emit({ type: 'library-searched', playerId: controllerId, controllerId });
+      return true;
+    }
     case 'graveyard-to-hand-many': {
       for (const id of [].concat(bindings[effect.bind] || [])) {
         const hit = locateCardInGame(game, id);
@@ -1360,7 +1397,17 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
   if (req.kind === 'graveyard-multi') {
     const rows = (player.deck.graveyard || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
-    bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max })) : [];
+    bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(Number(req.min || 0), max), max })) : [];
+    return true;
+  }
+  if (req.kind === 'library-search') {
+    const spec = librarySearchSpec(req.text), fits = searchFilter(spec);
+    const m = String(req.text).match(/search your library for up to (\w+)/i);
+    const count = m ? (num(m[1]) || 1) : 1;
+    // Several searches in one resolution (the same mode chosen twice) can't find the same card twice.
+    const taken = new Set(Object.entries(bindings).filter(([k]) => k.startsWith('search') && k !== req.bind).flatMap(([, v]) => [].concat(v || [])));
+    const rows = (player.deck.remainingLibrary || []).filter(c => fits(util.defOf(game, c)) && !taken.has(c.instanceId));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — search your library`, prompt: `Choose ${count > 1 ? `up to ${count} ${spec.label}s` : `a ${spec.label}`}${spec.optional || count > 1 ? ' (you may choose none)' : ''}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: spec.optional || count > 1 ? 0 : 1, max: Math.min(count, rows.length), searchable: true })) : [];
     return true;
   }
   return false;

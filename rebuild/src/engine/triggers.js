@@ -46,7 +46,9 @@ function sourceRows(game, event) {
 export function parseTriggeredAbilities(definition) {
   const text = String(definition?.oracleText || '').replace(/\r/g, '');
   // Animate Dead: "When this Aura enters, … When this Aura leaves the battlefield, …" — two triggers on one line.
-  const lines = text.split('\n').flatMap(x => x.split(/(?<=\.|\.")\s+(?=When this (?:Aura|creature|enchantment|artifact|permanent) leaves the battlefield,)/)).map(x => x.trim()).filter(Boolean);
+  // (never inside reminder text: Champion's "(… When this creature leaves the battlefield, that card returns …)")
+  const splitLtb = line => { const parts = line.split(/(?<=\.|\.")\s+(?=When this (?:Aura|creature|enchantment|artifact|permanent) leaves the battlefield,)/); const out = [parts[0]]; for (const p of parts.slice(1)) { const prev = out.join(' '); if ((prev.match(/\(/g) || []).length > (prev.match(/\)/g) || []).length) out[out.length - 1] += ` ${p}`; else out.push(p); } return out; };
+  const lines = text.split('\n').flatMap(splitLtb).map(x => x.trim()).filter(Boolean);
   const out = [];
   let current = null;
   const triggeredLine = line => { const m = String(line).match(/(?:^|[—-]\s*)((?:When|Whenever|At)\b.*)$/i); return m?.[1] || null; };
