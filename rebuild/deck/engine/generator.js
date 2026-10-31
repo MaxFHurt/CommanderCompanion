@@ -400,6 +400,11 @@ function manaBase(d, n, keep) {
 function buildPlan(d, seeds, ownOnly, ownAll) {
   return runSync(buildPlanG(d, seeds, ownOnly, ownAll));
 }
+// [name, needs a colour] (Arcane Signet makes nothing for a colourless commander)
+const STAPLES = [
+  ['Sol Ring', false],
+  ['Arcane Signet', true]
+];
 function* buildPlanG(d, seeds, ownOnly, ownAll) {
   const tmp = JSON.parse(JSON.stringify(d));
   tmp.tier = 'apex';
@@ -411,6 +416,19 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
   (seeds || []).forEach(c => {
     if (c.n !== d.commander && c.n !== d.partner && okC(c)) addCard(tmp, c.n, 1);
   });
+  // Staples (owner, 31 Oct: "you dont include sol ring or arcane signet. This are in like every deck"): they go in every
+  // generated Commander deck like the player's own seeds, as long as the deck's rules allow them (legal, colours, set and
+  // other filters, owned when building from the collection, not ruled out). Before, only play data put them in, so a
+  // commander without an EDHREC page (or a failed download) got neither. UP.staples (0: off).
+  if (UP.staples && d.format === 'commander') {
+    const dis = new Set((d.dismissed || []).map(norm));
+    STAPLES.forEach(([n, needsColor]) => {
+      const c = find(n);
+      if (!c || (needsColor && !id0.length) || dis.has(c._n) || tmp.cards.some(x => norm(x.n) === c._n)) return;
+      if (!legalIn(c, d.format) || !okC(c) || !mustOk(c, d) || (ownOnly && ownOnly.size && !ownOnly.has(c._n))) return;
+      addCard(tmp, c.n, 1);
+    });
+  }
   const seedSet = new Set(tmp.cards.map(x => norm(x.n)));
   if (ownOnly && ownOnly.size) {
     recommend.own = ownOnly;

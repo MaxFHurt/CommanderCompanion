@@ -222,6 +222,47 @@ no more leaving room for better."
 - **Tests:** UI suite 106/106 (new UI-B142-01 rules audit, UI-B142-02 polished Budget build with the thinking line). Tools:
   `genroom.js` (room left in a generated deck; TIER=mid|budget, NOEDH=1), `scheck.js` takes UP, `confdbg.js`.
 
+## Version 0.9.23 (build 168, 31 October 2026; owner: "We need to shut down deck companions old build from saving over commander companions new build ... Every swap should trigger a save and all upgrades should be regenerated ... we can't miss critical things like a soul stone being excluded from a graveyard/reanimate deck")
+
+- **Lost swaps, causes found:** (1) the old Deck Companion (maxfhurt.github.io/Deck-Companion) and the Deck Builder share one site,
+  so one storage, and both saved decks as `dc.profile`. An old Deck Companion page left open (a tab, a backgrounded app) saved
+  its stale copy whenever it was hidden or closed, over the Deck Builder's newer decks. The Deck Builder did the same between
+  two of its own windows. (2) Saves that failed (local storage full: playmat images, saved upgrade lists and deck history
+  share about 5 MB on Safari) failed silently. (3) A swap on a deck not yet saved (a generated or loaded draft) was lost when
+  another draft replaced it.
+- **Saving now:** decks are kept as `cc.deckProfile` / `cc.deckDraft` (moved once from `dc.profile`, which is never read again
+  once moved and never written). Every save carries a number (`saveRev`, from the clock; `cc.deckRev`) and a copy goes to this
+  app's own IndexedDB (`cc-deck-builder`), which brings decks back when local storage was cleared or was full. A window saves
+  only what it changed; if another window saved since, it takes that save's decks first and keeps its own newer ones
+  (`updatedAt` per deck; a deck deleted here stays deleted), and an idle window takes other windows' saves as they happen.
+  When local storage is full the caches (saved upgrade lists, search index, old copies) are cleared and the save retried; a
+  save that fails everywhere says so on screen. A swap saves at once, and a swap on a draft makes it one of your decks.
+  The game side reads and restores the decks under the new name (`src/data/deck-builder.js`). `savecheck.mjs`: 9 checks.
+- **Old app shut down:** Deck-Companion's page is now a forwarding page that saves nothing, and its version.json says build
+  1000, so every old copy updates itself onto it at its next check.
+- **After a swap the whole upgrade list is worked out again** (replaces 24 Oct's "only its own slot": keepRecs no longer
+  carries the list). UI-B156-01 now checks that.
+- **Apex picks, missed cards:** the whole-card search only measured cards doing the same job as a row's pick, so The Soul
+  Stone (filed as ramp), Animate Dead (an aura) and Entomb (a tutor) never competed for the slots they improve most; in the
+  Teval precon at Apex The Soul Stone raises the score +1.9 against Steward of the Harvest, where Demonic Tutor was offered at
+  +1.6. Now (UP.poolX 40): about 400 likely cards (the 300 most played, the 100 best by card value) are scouted against one
+  slot (a swap's gain is close to "card in" minus "card out"), and the 40 best are measured on every row; rows keep their
+  30 best finds (was 6) so each still has its own best after other rows take the stars. UP.poolRows 10: the deck's 10
+  weakest spells without a row are measured against the same 40 and get a row when a card raises the score (dropped with
+  Stick to the theme unless an on-theme card does). Whole-search Apex lists (rows, total gain): Teval 22, 18.8 -> 31, 25.3
+  (The Soul Stone offered); Turtle Power 10, 9.9 -> 20, 18.0; Wakanda 13, 15.3 -> 22, 22.3; about 20% more swaps measured.
+- **Reanimator themes read card text** (UP.aimText): an EDHREC theme only counted cards in 20% of its decks, so The Soul Stone
+  (7% of Teval decks) never fitted "reanimator". Reanimation engines, reanimation spells and Entomb-style tutors now fit the
+  reanimator and graveyard themes; a generated Teval Apex deck now has Entomb and Buried Alive.
+- **Sol Ring and Arcane Signet in every generated Commander deck** (UP.staples; owner, 31 Oct): only play data put them in,
+  so a commander without an EDHREC page (or a failed download) got neither (Teval, Turtle Power with no data). They go in like
+  the player's seeds when the deck's rules allow (legal, colours, set filters, owned when building from the collection, not
+  ruled out; Arcane Signet needs a colour). `staples2.js` / `staples3.js` (NOEDH=1) check all tiers.
+- A swap the player makes on a draft saves the draft as a deck; the app's own swaps while generating leave it a draft
+  (UI-SET-01). Stick to the theme drops a weak-card row whose pick is not on theme (UI-B158-01).
+- `?engine=old` keeps 0.9.3's choices (poolX, poolRows, aimText, staples 0). The benchmark runs without the whole search (POOL=1 adds
+  it), so its numbers do not see poolX/poolRows.
+
 ## Version 0.9.21 (build 166, 26 October 2026; owner: "How can a deck's score be 0? ... When 1 card enters the deck's power should be above 0")
 
 - Deck power below the Budget build was a straight line that reached 0 at 25 score points under it, so a half-built deck

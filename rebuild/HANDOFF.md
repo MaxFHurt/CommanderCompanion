@@ -8,7 +8,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.36**. Build 37 (one-off spells: Brainstorm, Ponder, Arcane Denial, Mana Drain, Force of Will, Farewell, Growth Spiral …) is committed, not pushed (`src/version.js`, `build.json`, `sw.js` cache `commander-companion-v37`).
+- Live build: **1.0.0-rebuild.39** (31 Oct). Build 38 (another session): the Deck Builder saves decks as `cc.deckProfile` (was `dc.profile`) with an IndexedDB copy, saves every swap and re-works the upgrade list, and its search measures the strongest cards on every row (deck/ROADMAP.md, 0.9.23); `src/data/deck-builder.js` reads the new name. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md) and Deck Builder 0.9.24 (power as a share of the Apex build, Upgrades tab counts cards to swap out, simpler health fixes).
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.
 - Primary devices: iPad landscape (home-screen icon) and iPhone landscape. Design master is
@@ -132,6 +132,15 @@ what each part does, the owner's rules, open notes, and the roadmap.
   alternative cost (cast mode 'force-exile', `exileFromHandForCost`); Growth Spiral (`hand-to-battlefield` +
   'hand-card' gather). An instant or sorcery now goes to the graveyard after its effects (608.2n), so Farewell's
   "Exile all graveyards" no longer takes the spell itself.
+- **More wordings (build 39, `compileMoreClauses` in effects.js):** mass pumps and keywords with filters
+  (`filterFromNoun`: "creatures you control with power 4 or greater", "nontoken", colours), "where X is …" (`set-x`),
+  "it / that creature" pointing back at the last target (`bridgePronoun`), "Those creatures gain …", sacrifices "of their
+  choice", "You may pay {N}. If you do, …" (`may-pay`, asked in ops.js) and "You may X. If you do, Y" (yes/no),
+  Fog/Maze of Ith (`game.combatPrevention`), Silence (`game.castLocks`), flash and "can't be countered" permissions, no
+  maximum hand size, multi-mana sources (`manaAmountForAbility` with game context), Channel abilities from the hand and
+  "return this card from your graveyard" abilities (`abilityZone` in legal.js), "Activate only if/during/once"
+  (`activationRules`, unknown ones count as by hand in the audit), morbid (`game.creatureDiedTurn`). Looting fixed: a
+  discard after a draw in the same spell can choose the cards about to be drawn (`plusDraw`).
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
   1,000 most-played Commander cards: `RULES_AUDIT.md`. `auditTriggers` now also checks that a trigger ever fires
   (`triggerCanFire` probes every game event).
@@ -282,7 +291,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 9. Roadmap
 
-**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (693 of 1,000 automatic).
+**Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (785 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
 2. Extra mana when tapping (Wild Growth, Utopia Sprawl, Crypt Ghast, Mirari's Wake, Caged Sun, Forsaken Monument):

@@ -1422,7 +1422,7 @@ T('UI-B148-01', 'A card’s “Undo · bring back” undoes only that card’s s
 } catch (e) { QUIET = false; T('UI-B148-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B156-01')) { try { if (SHARD) await RESET();
 // Version 0.9.11 (owner, 24 Oct): no held picks; Mid never scores below Budget on a row; tier buttons say what the new cards cost
-// to buy; one swap keeps the rest of the checked list (no new search); the buy list's suggestions are kept with the deck, with
+// to buy; after one swap the whole list is worked out again (0.9.23; it was: keeps the rest); the buy list's suggestions are kept with the deck, with
 // Bought marks; picking a commander in Generate asks first; building keeps a window up until the deck opens.
 const b156 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = true;
   await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander); await loadThemes(d.commander, d.aims);
@@ -1432,14 +1432,14 @@ const b156 = await page.evaluate(async () => { const out = {}; const sy = S.sync
   out.order = R.paths.every((L, i) => { const c = rowCols(d, R, L, i), s = t => c[t] && c[t].p ? c[t].p.dScore : null; return s('budget') == null || s('mid') == null || s('budget') <= s('mid'); });
   out.btn = [...document.querySelectorAll('.tierbtn span')].map(x => x.textContent).every(x => /^(\d+ cards? · \$\d+ to buy|No worthwhile upgrades)$/.test(x));
   const b = document.querySelector('.paths [data-act="swap"]'); out.swapped = !!b; if (b) { b.click(); await new Promise(r => setTimeout(r, 300)); }
-  const R2 = recsFor(d); out.kept = R2 === R && !R2.pending && R2.paths.length === out.rows - 1;
+  const R2 = recsFor(d); out.kept = R2 !== R; // 0.9.23 (owner, 31 Oct): after a swap the whole list is worked out again
   S.tab = 'buy'; render(); out.snap = !!(d.buySnap && d.buySnap.groups.length); const g = document.querySelector('[data-act="buy-got"]'); if (g) { const n = g.dataset.n; g.click(); await new Promise(r => setTimeout(r, 200)); out.got = (d.bought || []).includes(n); }
   out.refresh = !!document.querySelector('[data-act="buy-refresh"]');
   S.gen = {cmd:'', partner:'', sets:[], setsMust:false}; openGenerate(); handleAct('gen-pick', '', 'Heroes in a Half Shell'); out.confirm = !!document.querySelector('#modal .gconfirm [data-act="gen-pick-ok"]');
   handleAct('gen-pick-back', '', ''); out.back = !!document.querySelector('#gen-q');
   genBuilding(find('Heroes in a Half Shell')); setStatus('Thinking… test'); out.building = /Thinking… test/.test((document.querySelector('#genbuild-msg') || {}).textContent || ''); setStatus(''); $('#modal').hidden = true;
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
-T('UI-B156-01', 'Version 0.9.11: no held picks; Budget never scores above Mid on a row; tier buttons say what the new cards cost; one swap keeps the rest of the list; buy suggestions kept with Bought marks and Refresh; Generate asks before using a commander and keeps a Building window up', b156.rows > 0 && !b156.holds && b156.order && b156.btn && b156.swapped && b156.kept && b156.snap && b156.got && b156.refresh && b156.confirm && b156.back && b156.building, JSON.stringify(b156));
+T('UI-B156-01', 'Version 0.9.11: no held picks; Budget never scores above Mid on a row; tier buttons say what the new cards cost; one swap works the whole list out again; buy suggestions kept with Bought marks and Refresh; Generate asks before using a commander and keeps a Building window up', b156.rows > 0 && !b156.holds && b156.order && b156.btn && b156.swapped && b156.kept && b156.snap && b156.got && b156.refresh && b156.confirm && b156.back && b156.building, JSON.stringify(b156));
 } catch (e) { QUIET = false; T('UI-B156-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B157-01')) { try { if (SHARD) await RESET();
 // Version 0.9.12 (owner, 24 Oct): every row has an Apex card (the slot's best card, even a cheap one: it is not shown as Budget),

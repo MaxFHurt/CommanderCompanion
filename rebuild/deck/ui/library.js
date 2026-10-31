@@ -629,7 +629,9 @@ const RECS_SKIP = new Set([
   'versions',
   'budget',
   'buySnap',
-  'bought'
+  'bought',
+  'updatedAt',
+  'saveRev'
 ]);
 function recsKey(d) {
   return JSON.stringify([
@@ -651,12 +653,12 @@ function recsKey(d) {
 function dropHolds(d) {
   for (const k in d.recP || {}) if (!d.recP[k] || !d.recP[k].chosen) delete d.recP[k];
 }
-// A swap made from the upgrade list re-thinks only its own slot (owner, 24 Oct: "no need to regenerate the entire deck every
-// time"): the checked list is kept, the swapped row leaves it, and the card that went in is no longer offered on other rows.
-// Everything else (a card added by hand, Undo, Regenerate, new data) still works the list out again.
+// After a swap the whole upgrade list is worked out again (owner, 31 Oct: "every swap should trigger a save and all upgrades
+// should be regenerated"; it replaces 24 Oct's "only its own slot"): one card changes what every other slot needs (curve,
+// roles, the commander's plan, combos), so the old list is not kept. carryRecs stays for a list carried on purpose.
 function keepRecs(d, p) {
-  const R = recsFor.v;
-  recsFor.carry = R && !R.pending && (!R.pool || R.poolDone) ? {id: d.id, R, cut: p.cut, add: p.add} : null;
+  recsFor.carry = null;
+  recDrop(d);
 }
 function carryRecs(d, key) {
   const cy = recsFor.carry;
@@ -824,13 +826,70 @@ recsFor.done = d => {
 // a few milliseconds at a time. Each row's Highest score says the app is thinking until the search is done, then all of them
 // appear at once (owner: wait rather than shift). It stops when the list changes (another deck, a swap, a new list).
 function poolRun(d, R, k) {
+  // first the scouting for the strongest cards whatever their job (poolScout, UP.poolX), on the background cores when there are any
+  let S0 = null;
+  try {
+    S0 = poolScout(d, R);
+  } catch (e) {}
+  if (!S0 || !S0.keys.length) return poolGo(d, R, k);
+  R.pool = {rows: [], r: 0, done: 0, total: S0.keys.length * 15, scout: true}; // the list waits for the search (about 1/15 of it)
+  const done = vals => {
+    if (recsFor.v !== R) return;
+    try {
+      poolScoutApply(R, S0, vals);
+    } catch (e) {}
+    poolGo(d, R, k);
+  };
+  if (wkGet() && R.base) {
+    const p = wkSend(
+      {kind: 'measure', b: {kind: 'swap', d: JSON.parse(JSON.stringify(d)), base: R.base, apex: R.apexR || null, keys: S0.keys}},
+      600000
+    );
+    poolRun.job = p.id;
+    p.then(r => {
+      if (r && r.vals && r.vals.length === S0.keys.length) done(r.vals.map(x => (x && x[0] != null ? x[0] : null)));
+      else poolScoutSlices(S0, R, done);
+    });
+    return;
+  }
+  poolScoutSlices(S0, R, done);
+}
+// the scouting on this page, a few milliseconds at a time (no background cores)
+function poolScoutSlices(S0, R, done) {
+  const vals = [];
+  const tick = () => {
+    if (recsFor.v !== R) return;
+    const t0 = Date.now();
+    while (vals.length < S0.keys.length && Date.now() - t0 < 12) {
+      const [c, a, q] = S0.keys[vals.length];
+      let v = null;
+      try {
+        v = R.dOf(c, a, q);
+      } catch (e) {}
+      vals.push(v);
+    }
+    if (R.pool && R.pool.scout) R.pool.done = vals.length;
+    if (vals.length < S0.keys.length) setTimeout(tick, 8);
+    else done(vals);
+  };
+  setTimeout(tick, 0);
+}
+function poolGo(d, R, k) {
   let Q = null;
   try {
     Q = poolQueue(d, R);
   } catch (e) {
     return;
   }
-  if (!Q || !Q.total) return;
+  if (!Q || !Q.total) {
+    if (R.pool) {
+      // only the scouting ran: the list is final as it is
+      R.poolDone = true;
+      recSave(d, R);
+      render();
+    }
+    return;
+  }
   R.pool = Q;
   // Build 146 (owner: wait until it's done, on the extra cores): the whole search goes to the background cores as one batch, and
   // the list appears once it is back. Without them (or if they fail), the page searches in slices as before.

@@ -714,7 +714,8 @@ function handleAct(act, v, n, pArg) {
         S.draft = null;
         S.open = false;
         S.deckId = (S.profile.decks[0] || {}).id || null;
-        lsSet('dc.draft', null);
+        PROF.dirty = true;
+        persist();
         toast('Discarded ' + nm + '.');
       }
       changed = false;
@@ -728,6 +729,7 @@ function handleAct(act, v, n, pArg) {
         changed = false;
         break;
       }
+      PROF.gone.add(v);
       S.profile.decks = S.profile.decks.filter(x => x.id !== v);
       if (S.deckId === v) {
         S.deckId = (S.profile.decks[0] || {}).id || null;
@@ -2295,6 +2297,13 @@ function handleAct(act, v, n, pArg) {
     default:
       return;
   }
+  // a deck the player upgrades is kept: a swap on a draft (a generated or loaded deck not saved yet) makes it one of your decks
+  if (changed && S.draft && S.draft === cur() && /^(swap|swap-cap|swap-all|swap-top|swap-a3|fix-swap|undo-card)$/.test(act)) {
+    const dr = S.draft;
+    S.profile.decks.unshift(dr);
+    S.draft = null;
+    S.deckId = dr.id;
+  }
   if (changed) touch();
   render();
   if (S.uaOpen && !$('#modal').hidden && /^dset/.test(act)) openUpgradeAsk();
@@ -2564,6 +2573,7 @@ document.addEventListener(
   },
   true
 );
+// leaving or hiding the page saves what is still waiting; a window with nothing changed writes nothing (persist)
 addEventListener('pagehide', () => {
   saveSpot();
   clearTimeout(saveT);
