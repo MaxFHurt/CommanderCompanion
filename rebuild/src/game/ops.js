@@ -500,6 +500,11 @@ function modeAffordable(game, player, card, def, mode, { tax = 0, extra = '' } =
 /** A keyword trigger that the game resolves with choices (cascade, storm, discover …). */
 export function queueSpecialTrigger(game, player, card, def, t, stackId = null) {
   game.pendingTriggers = game.pendingTriggers || [];
+  if (!t.special && t.effect) {
+    game.pendingTriggers.push({ id: newId('trigger'), controllerId: player.playerId, sourceId: card?.instanceId || null, sourceDefinitionId: card?.definitionId || null, sourceName: def?.name || 'Spell',
+      abilityId: 'cast-trigger', abilityText: t.text, effectText: t.effect, special: null, modal: null, compiled: compileEffectText(t.effect, { sourceName: def?.name || 'Spell' }), event: { type: 'spell-cast', stackId, controllerId: player.playerId, playerId: player.playerId, sourceId: card?.instanceId }, createdAt: new Date().toISOString() });
+    return;
+  }
   game.pendingTriggers.push({
     id: newId('trigger'), controllerId: player.playerId, sourceId: card?.instanceId || null, sourceDefinitionId: card?.definitionId || null,
     sourceName: def?.name || t.label, abilityId: `special-${t.special}`, abilityText: t.text, effectText: t.text, special: t.special, amount: t.amount ?? null,

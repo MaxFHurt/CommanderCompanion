@@ -447,4 +447,12 @@ section('round 6: Classes and level up');
   check('Level up: a level counter; LEVEL 1-4 gives 1/2', Number(t.bf(0, 'Llanowar Elves').counters?.level || 0) === 1 && t.view(0).players[0].battlefield.find(c => c.id === tree.instanceId).toughness === 2, JSON.stringify(t.bf(0, 'Llanowar Elves').counters));
 }
 
+section('round 6: "When you cast this spell"');
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Colossal Dreadmaw', 'When you cast this spell, draw two cards.\nTrample', [], { manaCost: '{1}' });
+  check('a creature spell\'s own cast trigger resolves (before the creature)', t.P(0).deck.hand.length === hand + 2 && !!t.bf(0, 'Colossal Dreadmaw'), `${hand} → ${t.P(0).deck.hand.length}`);
+}
+
 done();

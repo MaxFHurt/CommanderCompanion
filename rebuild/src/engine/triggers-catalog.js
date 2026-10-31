@@ -3,6 +3,8 @@
 export function catalogTriggerMatch(game, row, t, event, H) {
   let m;
   const me = row.player.playerId, self = row.card.instanceId;
+  // The spell's own cast trigger is put on the stack by ops.js as the spell is cast (castTriggers); never from here.
+  if (/^When you cast this spell\b/i.test(t)) return event.type === 'spell-cast' && event.sourceId === self && row.zone === 'stack';
   switch (event.type) {
     case 'class-level':
       if ((m = t.match(/^When this Class becomes level (\d+)/i))) return event.sourceId === self && Number(event.level ?? event.to) === Number(m[1]);

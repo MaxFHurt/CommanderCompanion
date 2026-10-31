@@ -86,6 +86,8 @@ export function castTriggers(game, player, card, def) {
   const disc = text.match(/When you cast this spell, discover (\d+)/i);
   if (disc) out.push({ special: 'discover', amount: Number(disc[1]), label: `Discover ${disc[1]}`, text: `Discover ${disc[1]} — exile cards from the top of your library until you exile a nonland card with mana value ${disc[1]} or less. Cast it free or put it into your hand.` });
   if (/(?:^|\n)\s*Storm\b/i.test(text)) out.push({ special: 'storm', label: 'Storm', text: 'Storm — copy this spell for each spell cast before it this turn.' });
+  // "When you cast this spell, draw four cards." (Kozilek, Ulamog, Emrakul …): an ordinary trigger of the spell.
+  for (const m of text.matchAll(/(?:^|\n)\s*When you cast this spell, (?!discover)([^\n]+)/gi)) out.push({ special: null, label: 'Cast trigger', text: `When you cast this spell, ${m[1].trim()}`, effect: m[1].trim() });
   return out;
 }
 
