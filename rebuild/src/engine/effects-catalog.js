@@ -10,6 +10,17 @@ import {
 } from './effects.js';
 import { effectiveToughness } from './combat.js';
 
+// Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
+const RX_CACHE = new Map();
+function rx(source, flags = '') {
+  const key = `${flags}/${source}`;
+  let r = RX_CACHE.get(key);
+  if (!r) { if (RX_CACHE.size > 20000) RX_CACHE.clear(); r = new RegExp(source, flags); RX_CACHE.set(key, r); }
+  r.lastIndex = 0;
+  return r;
+}
+
+
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
@@ -17,7 +28,7 @@ const esc = s => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Rebind the single target requirement an instruction asked for to a fixed binding (the source, the enchanted creature …). */
 function rebound(text, bind, ctx) {
-  const inner = H.compileSingleClause(text, { sourceName: ctx.sourceName });
+  const inner = H.compileSingleClause(ctx.restore ? ctx.restore(text) : text, { sourceName: ctx.sourceName });
   const own = inner.requirements.filter(r => r.kind === 'target');
   if (inner.unsupported.length || !inner.effects.length || own.length !== 1 || inner.requirements.length !== 1) return false;
   const swap = e => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, v === own[0].bind ? bind : v]));
@@ -30,28 +41,42 @@ function rebound(text, bind, ctx) {
 const PRONOUN_OBJECT = /\b(it|that creature|that permanent|that land|that artifact|that token|that card)\b/i;
 
 /** Pushes onto ctx.effects / ctx.requirements and returns true when the sentence is understood. */
-export function compileCatalogClause(c, ctx) {
+// The card's own name is replaced by SELFNAME before matching, so the patterns below are the same for every card
+// and are built once (building a regular expression per card name made compiling the whole catalog slow).
+const SELF_STATIC = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker|card))';
+function selfNameRegex(sourceName) {
+  const full = String(sourceName || '').trim(), short = full.split(',')[0].trim();
+  const names = [...new Set([full, short].filter(n => n.length > 1))].sort((a, b) => b.length - a.length).map(esc);
+  return names.length ? rx(`\\b(?:${names.join('|')})(?![\\w'])`, 'g') : null;
+}
+export function compileCatalogClause(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  const c = re ? c0.replace(re, 'SELFNAME') : c0;
+  const ctx = { ...ctx0, selfAny: SELF_STATIC, restore: s => String(s).replace(/SELFNAME/g, ctx0.sourceName) };
+  return compileCatalogClauseInner(c, ctx);
+}
+function compileCatalogClauseInner(c, ctx) {
   const { sourceName, selfAny, effects, requirements } = ctx;
   let m;
-  const subjectBind = s => new RegExp(`^${selfAny}$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : /^(?:enchanted|equipped|fortified) /i.test(s) ? '__attached' : 'thatCard';
+  const subjectBind = s => rx(`^${selfAny}$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : /^(?:enchanted|equipped|fortified) /i.test(s) ? '__attached' : 'thatCard';
   const SUBJ = `(${selfAny}|It|That creature|That permanent|Enchanted creature|Equipped creature|Enchanted permanent|Enchanted land)`;
   const PT = '([+-](?:\\d+|X))\\/([+-](?:\\d+|X))';
   const until = s => /your next turn/i.test(s || '') ? 'your-next-turn' : 'cleanup';
 
   // --- Power/toughness and keywords for the source, the enchanted/equipped creature, or the trigger's creature.
-  if ((m = c.match(new RegExp(`^${SUBJ} gets? ${PT}(?: and gains? ([a-z ,]+?))? until (end of turn|your next turn)\\.?"?$`, 'i')))) {
+  if ((m = c.match(rx(`^${SUBJ} gets? ${PT}(?: and gains? ([a-z ,]+?))? until (end of turn|your next turn)\\.?"?$`, 'i')))) {
     const bind = subjectBind(m[1]);
     effects.push({ kind: 'pump', bind, power: m[2], toughness: m[3], expires: until(m[5]) });
     for (const keyword of H.KEYWORD_LIST(m[4])) effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: until(m[5]) });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(?:Until end of turn, )?${SUBJ} gains? ([a-z ,]+?)(?: and gets? ${PT})?(?: until (end of turn|your next turn))?\\.?"?$`, 'i'))) && (m[5] || /^Until end of turn/i.test(c))) {
+  if ((m = c.match(rx(`^(?:Until end of turn, )?${SUBJ} gains? ([a-z ,]+?)(?: and gets? ${PT})?(?: until (end of turn|your next turn))?\\.?"?$`, 'i'))) && (m[5] || /^Until end of turn/i.test(c))) {
     const bind = subjectBind(m[1]);
     for (const keyword of H.KEYWORD_LIST(m[2])) effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: until(m[5]) });
     if (m[3]) effects.push({ kind: 'pump', bind, power: m[3], toughness: m[4], expires: until(m[5]) });
     return true;
   }
-  if ((m = c.match(new RegExp(`^${SUBJ} (?:gets|gains) (?:${PT}|[a-z ,]+?) until end of turn for each (.+?)\\.?$`, 'i'))) && m[2]) {
+  if ((m = c.match(rx(`^${SUBJ} (?:gets|gains) (?:${PT}|[a-z ,]+?) until end of turn for each (.+?)\\.?$`, 'i'))) && m[2]) {
     const f = H.filterFromNoun(m[4]);
     const of = f ? { kind: 'count', zone: 'battlefield', filter: f } : H.countExprFromPhrase(m[4]);
     if (!of) return false;
@@ -62,7 +87,7 @@ export function compileCatalogClause(c, ctx) {
   }
 
   // --- Regeneration.
-  if ((m = c.match(new RegExp(`^Regenerate (${selfAny}|it|that creature|enchanted creature|equipped creature|enchanted permanent|target [^.]+?|each creature you control|each [^.]+? you control)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Regenerate (${selfAny}|it|that creature|enchanted creature|equipped creature|enchanted permanent|target [^.]+?|each creature you control|each [^.]+? you control)\\.?$`, 'i')))) {
     if (/^each /i.test(m[1])) {
       const filter = H.filterFromNoun(m[1].replace(/^each /i, '')) || 'creature';
       effects.push({ kind: 'regenerate-each', scope: 'you', filter });
@@ -92,18 +117,18 @@ export function compileCatalogClause(c, ctx) {
   }
 
   // --- The spell or permanent exiles itself / returns itself.
-  if (new RegExp(`^Exile ${selfAny}\\.?$`, 'i').test(c) || /^Exile this spell\.?$/i.test(c)) { effects.push({ kind: 'exile-self' }); return true; }
-  if (new RegExp(`^Return (?:this card|${selfAny}) from your graveyard to your hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
-  if (new RegExp(`^Put (?:this card|${selfAny}) from your graveyard on top of your library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-graveyard-to-library' }); return true; }
-  if (new RegExp(`^Shuffle (?:this card|${selfAny}) into its owner'?s library\\.?$`, 'i').test(c) || new RegExp(`^(?:This card's|${selfAny}'s) owner shuffles it into their library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-shuffle-into-library' }); return true; }
-  if (new RegExp(`^Put (?:${selfAny}|it) on top of its owner'?s library\\.?$`, 'i').test(c)) { effects.push({ kind: 'source-to-library-top' }); return true; }
+  if (rx(`^Exile ${selfAny}\\.?$`, 'i').test(c) || /^Exile this spell\.?$/i.test(c)) { effects.push({ kind: 'exile-self' }); return true; }
+  if (rx(`^Return (?:this card|${selfAny}) from your graveyard to your hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
+  if (rx(`^Put (?:this card|${selfAny}) from your graveyard on top of your library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-graveyard-to-library' }); return true; }
+  if (rx(`^Shuffle (?:this card|${selfAny}) into its owner'?s library\\.?$`, 'i').test(c) || rx(`^(?:This card's|${selfAny}'s) owner shuffles it into their library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-shuffle-into-library' }); return true; }
+  if (rx(`^Put (?:${selfAny}|it) on top of its owner'?s library\\.?$`, 'i').test(c)) { effects.push({ kind: 'source-to-library-top' }); return true; }
 
   // --- "becomes a 3/3 Elemental creature with haste until end of turn. It's still a land." (creature lands, animation).
   if (/^(?:It'?s|It is|That's|They're|They are) still (?:a|an)? ?(?:land|artifact|enchantment|planeswalker)s?\.?$/i.test(c)) return true;
-  if ((m = c.match(/^Until (end of turn|your next turn), (.+? becomes? .+?)\.?$/i)) && !/ until /i.test(m[2])) return compileCatalogClause(`${cap(m[2])} until ${m[1]}.`, ctx);
+  if ((m = c.match(/^Until (end of turn|your next turn), (.+? becomes? .+?)\.?$/i)) && !/ until /i.test(m[2])) return compileCatalogClauseInner(`${cap(m[2])} until ${m[1]}.`, ctx);
   {
     const SUBJ2 = `(${selfAny}|Target (?:[a-z ]+ )?(?:land|artifact|creature|permanent|enchantment|Vehicle|noncreature artifact)(?: you control)?|It|Enchanted land|Enchanted permanent|Each land you control|All lands you control|Up to one target (?:[a-z ]+ )?(?:land|artifact|creature|permanent)(?: you control)?)`;
-    const am = c.match(new RegExp(`^${SUBJ2} becomes? (?:a|an) (?:(\\d+|X)\\/(\\d+|X) )?([A-Za-z ,-]*?)\\bcreatures?(?: with ([^."]+?))?(?: (?:that's|that is) still (?:a|an) [a-z]+| in addition to its other types)?( until end of turn| until your next turn)?\\.?$`, 'i'));
+    const am = c.match(rx(`^${SUBJ2} becomes? (?:a|an) (?:(\\d+|X)\\/(\\d+|X) )?([A-Za-z ,-]*?)\\bcreatures?(?: with ([^."]+?))?(?: (?:that's|that is) still (?:a|an) [a-z]+| in addition to its other types)?( until end of turn| until your next turn)?\\.?$`, 'i'));
     if (am && !/"/.test(c)) {
       const words = am[4].trim().split(/[\s,]+/).filter(w => w && !/^(?:and|a|an)$/i.test(w));
       const colors = words.filter(w => /^(white|blue|black|red|green|colorless)$/i.test(w)).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null })[w.toLowerCase()]).filter(x => x !== undefined);
@@ -118,48 +143,48 @@ export function compileCatalogClause(c, ctx) {
   }
 
   // --- Keyword actions.
-  if ((m = c.match(new RegExp(`^Monstrosity ${N}\\.?$`, 'i')))) { effects.push({ kind: 'monstrosity', amount: num(m[1]) }); return true; }
-  if ((m = c.match(new RegExp(`^Adapt ${N}\\.?$`, 'i')))) { effects.push({ kind: 'adapt', amount: num(m[1]) }); return true; }
-  if ((m = c.match(new RegExp(`^Bolster ${N}\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Monstrosity ${N}\\.?$`, 'i')))) { effects.push({ kind: 'monstrosity', amount: num(m[1]) }); return true; }
+  if ((m = c.match(rx(`^Adapt ${N}\\.?$`, 'i')))) { effects.push({ kind: 'adapt', amount: num(m[1]) }); return true; }
+  if ((m = c.match(rx(`^Bolster ${N}\\.?$`, 'i')))) {
     const bind = `bolster${requirements.length}`;
     requirements.push({ kind: 'bolster', bind, label: 'creature to bolster' });
     effects.push({ kind: 'counter', bind, counter: '+1/+1', amount: num(m[1]), optional: true });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(${selfAny}|It|Target creature you control|That creature) explores\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(${selfAny}|It|Target creature you control|That creature) explores\\.?$`, 'i')))) {
     const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : subjectBind(m[1]);
     const choice = `explore${requirements.length}`;
     requirements.push({ kind: 'explore', bind: choice, label: 'explore' });
     effects.push({ kind: 'explore', bind, choiceBind: choice });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(${selfAny}|It|Target creature you control|That creature) connives(?: ${N})?\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(${selfAny}|It|Target creature you control|That creature) connives(?: ${N})?\\.?$`, 'i')))) {
     const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : subjectBind(m[1]);
     const n = m[2] ? num(m[2]) : 1, cardsBind = `discardCards${requirements.length}`;
     requirements.push({ kind: 'discard-cards', bind: cardsBind, scope: 'you', amount: n, plusDraw: typeof n === 'number' ? n : 0 });
     effects.push({ kind: 'draw', scope: 'you', amount: n }, { kind: 'discard', scope: 'you', amount: n, cardsBind }, { kind: 'connive-counters', bind, cardsBind });
     return true;
   }
-  if ((m = c.match(/^(?:you )?get ((?:\{E\})+)(?: \([^)]*\))?\s*\.?$/i)) || (m = c.match(new RegExp(`^(?:you )?get ${N} \\{E\\}\\.?$`, 'i')))) {
+  if ((m = c.match(/^(?:you )?get ((?:\{E\})+)(?: \([^)]*\))?\s*\.?$/i)) || (m = c.match(rx(`^(?:you )?get ${N} \\{E\\}\\.?$`, 'i')))) {
     const amount = /\{E\}/i.test(m[1]) ? (m[1].match(/\{E\}/gi) || []).length : num(m[1]);
     effects.push({ kind: 'player-counter', counter: 'energy', amount });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(?:you )?get (?:an?|${N}) (experience|rad|poison|ticket) counters?\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:you )?get (?:an?|${N}) (experience|rad|poison|ticket) counters?\\.?$`, 'i')))) {
     effects.push({ kind: 'player-counter', counter: m[2].toLowerCase(), amount: m[1] ? num(m[1]) : 1 });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(Each opponent|Target opponent|Target player|Each player) gets? (?:an?|${N}) (poison|rad) counters?\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(Each opponent|Target opponent|Target player|Each player) gets? (?:an?|${N}) (poison|rad) counters?\\.?$`, 'i')))) {
     const scope = H.scopeFromSubject(m[1]);
     const e = { kind: 'player-counter', counter: m[3].toLowerCase(), amount: m[2] ? num(m[2]) : 1, scope: scope.startsWith('target-') ? 'you' : scope };
     if (scope.startsWith('target-')) e.playerBind = H.playerRequirement(requirements, scope === 'target-opponent' ? 'opponent' : 'player', m[1]);
     effects.push(e);
     return true;
   }
-  if ((m = c.match(new RegExp(`^Amass (?:([A-Z][a-z]+) )?${N}\\.?$`)))) { effects.push({ kind: 'amass', type: m[1] || 'Army', amount: num(m[2]) }); return true; }
-  if ((m = c.match(new RegExp(`^Incubate ${N}\\.?$`, 'i')))) { effects.push({ kind: 'incubate', amount: num(m[1]) }); return true; }
+  if ((m = c.match(rx(`^Amass (?:([A-Z][a-z]+) )?${N}\\.?$`)))) { effects.push({ kind: 'amass', type: m[1] || 'Army', amount: num(m[2]) }); return true; }
+  if ((m = c.match(rx(`^Incubate ${N}\\.?$`, 'i')))) { effects.push({ kind: 'incubate', amount: num(m[1]) }); return true; }
   if (/^(?:the )?Ring tempts you\.?$/i.test(c)) { effects.push({ kind: 'ring-tempts' }); return true; }
-  if ((m = c.match(new RegExp(`^Support ${N}\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Support ${N}\\.?$`, 'i')))) {
     const bind = `multi${requirements.length}`, max = num(m[1]);
     requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: 0, max, label: `Choose up to ${max} other creatures`, notSource: true });
     effects.push({ kind: 'counter-many', bind, counter: '+1/+1', amount: 1 });
@@ -387,10 +412,10 @@ export function cardFitsWords(def, words) {
     if ((m = a.match(/\s*with mana value (\d+) or (less|greater)/))) { ok = m[2] === 'less' ? mv <= Number(m[1]) : mv >= Number(m[1]); a = a.replace(m[0], ''); }
     if ((m = a.match(/\s*with mana value (\d+)/))) { ok = ok && mv === Number(m[1]); a = a.replace(m[0], ''); }
     for (const part of a.split(/[ ,]+/).filter(Boolean)) {
-      if (part.startsWith('non')) { if (new RegExp(`\\b${part.slice(3).replace(/-/g, '')}\\b`).test(t)) ok = false; continue; }
+      if (part.startsWith('non')) { if (rx(`\\b${part.slice(3).replace(/-/g, '')}\\b`).test(t)) ok = false; continue; }
       if (part === 'permanent') { if (/\binstant\b|\bsorcery\b/.test(t)) ok = false; continue; }
       if (part === 'historic') { if (!/legendary|artifact|saga/.test(t)) ok = false; continue; }
-      if (!new RegExp(`\\b${esc(part.replace(/s$/, ''))}s?\\b`).test(t)) ok = false;
+      if (!rx(`\\b${esc(part.replace(/s$/, ''))}s?\\b`).test(t)) ok = false;
     }
     return ok;
   });
@@ -411,8 +436,8 @@ const AMONG = '(?:of them|from among (?:them|those cards|the revealed cards|the 
 const COUNT = '(up to (?:one|two|three|four|five|\\d+|X)|any number of|all|one|two|three|four|five|\\d+|a|an)';
 
 function parsePick(s) {
-  let m = s.match(new RegExp(`^(?:Then )?(you may )?(?:reveal |put |choose )?${COUNT} (?:([a-z ,/'-]+?) )?(?:cards? )?${AMONG}(?: and put (?:it|them|that card|those cards))? ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others|remaining cards?) (.+?))?\\.?$`, 'i'));
-  if (!m) m = s.match(new RegExp(`^(?:Then )?(you may )?put ${COUNT} (?:([a-z ,/'-]+?) )?cards? revealed this way ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others) (.+?))?\\.?$`, 'i'));
+  let m = s.match(rx(`^(?:Then )?(you may )?(?:reveal |put |choose )?${COUNT} (?:([a-z ,/'-]+?) )?(?:cards? )?${AMONG}(?: and put (?:it|them|that card|those cards))? ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others|remaining cards?) (.+?))?\\.?$`, 'i'));
+  if (!m) m = s.match(rx(`^(?:Then )?(you may )?put ${COUNT} (?:([a-z ,/'-]+?) )?cards? revealed this way ${DEST_RE}(?:,? and (?:put )?the (?:rest|other|others) (.+?))?\\.?$`, 'i'));
   if (!m) return null;
   const may = !!m[1], c = m[2].toLowerCase(), filter = (m[3] || '').trim();
   const dest = DEST(m[4]);
@@ -454,9 +479,9 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
       const p = parsePick(s);
       if (p) { picks.push(p.pick); if (p.rest) { rest = p.rest; k++; break; } continue; }
       // One card: "If it's a creature card, you may reveal it and put it into your hand." / "If it's a land card, put it onto the battlefield."
-      const one = amount === 1 && s.match(new RegExp(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
+      const one = amount === 1 && s.match(rx(`^If (?:it'?s|that card is) (?:a|an) ([a-z ,/'-]+?) card(?: with [^,]+)?, (you may )?(?:reveal it and )?(?:put|return) (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
       if (one) { const d = DEST(one[3]); if (!d) break; picks.push({ min: one[2] ? 0 : 1, max: 1, filter: one[1], ...d }); continue; }
-      const otherwise = picks.length && s.match(new RegExp(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
+      const otherwise = picks.length && s.match(rx(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
       if (otherwise) { rest = DEST(otherwise[1]); k++; break; }
       const r = picks.length || amount > 1 ? parseRest(s) : null;
       if (r) { rest = r; k++; break; }
@@ -667,10 +692,10 @@ function compileRound3(c, ctx, subjectBind) {
   const { sourceName, selfAny, effects, requirements } = ctx;
   let m;
   const PRON = '(it|that creature|that artifact|that card|that permanent|that token|this creature|the exiled card|the creature|' + selfAny + ')';
-  const pronBind = s => new RegExp(`^${selfAny}$|^this creature$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : 'thatCard';
+  const pronBind = s => rx(`^${selfAny}$|^this creature$`, 'i').test(s) ? 'sourceId' : /^it$/i.test(s) ? 'eventCard' : 'thatCard';
 
   // Copies: "create a token that's a copy of that creature", "… except it has haste", "a tapped token …".
-  if ((m = c.match(new RegExp(`^(?:You may )?create (a|two|three|X) (tapped )?tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of ${PRON}(?:, except (it has haste|it isn't legendary|it's not legendary|it has haste and it isn't legendary|it isn't legendary and it has haste))?\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:You may )?create (a|two|three|X) (tapped )?tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of ${PRON}(?:, except (it has haste|it isn't legendary|it's not legendary|it has haste and it isn't legendary|it isn't legendary and it has haste))?\\.?$`, 'i')))) {
     effects.push({ kind: 'copy-of', bind: pronBind(m[3]), amount: num(m[1]) ?? 1, tapped: !!m[2], haste: /haste/i.test(m[4] || ''), nonlegendary: /legendary/i.test(m[4] || '') });
     return true;
   }
@@ -695,9 +720,9 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   // "That creature doesn't untap during its controller's next untap step."
-  if ((m = c.match(new RegExp(`^(${selfAny}|It|That creature|That permanent|Target creature|Those creatures|Enchanted creature) (?:doesn'?t|don'?t) untap during (?:its|their) controller'?s? next untap step\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(${selfAny}|It|That creature|That permanent|Target creature|Those creatures|Enchanted creature) (?:doesn'?t|don'?t) untap during (?:its|their) controller'?s? next untap step\\.?$`, 'i')))) {
     if (/^those/i.test(m[1])) { effects.push({ kind: 'skip-untap-recent' }); return true; }
-    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : /^enchanted/i.test(m[1]) ? '__attached' : m[1].match(new RegExp(`^${selfAny}$`, 'i')) ? 'sourceId' : 'lastTarget';
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : /^enchanted/i.test(m[1]) ? '__attached' : m[1].match(rx(`^${selfAny}$`, 'i')) ? 'sourceId' : 'lastTarget';
     effects.push({ kind: 'skip-untap', bind });
     return true;
   }
@@ -712,17 +737,17 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   // Damage to the player or creature the trigger is about.
-  if ((m = c.match(new RegExp(`^(?:${selfAny}|It|This enchantment|This artifact) deals ${N} damage to (that player|that creature|that permanent|that player or planeswalker|defending player|each opponent and each creature they control)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:${selfAny}|It|This enchantment|This artifact) deals ${N} damage to (that player|that creature|that permanent|that player or planeswalker|defending player|each opponent and each creature they control)\\.?$`, 'i')))) {
     if (/each opponent/i.test(m[2])) return false;
     effects.push({ kind: 'damage', amount: num(m[1]), bind: /player/i.test(m[2]) ? (/defending/i.test(m[2]) ? 'defendingPlayer' : 'eventPlayer') : 'thatCard', sourceName });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(that player|its controller|defending player|that creature's controller) (loses|gains) ${N} life\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(that player|its controller|defending player|that creature's controller) (loses|gains) ${N} life\\.?$`, 'i')))) {
     const forPlayerBind = /defending/i.test(m[1]) ? 'defendingPlayer' : /controller/i.test(m[1]) ? '__thatController' : 'eventPlayer';
     effects.push({ kind: 'life', scope: 'you', amount: num(m[3]), deltaSign: /gain/i.test(m[2]) ? 1 : -1, forPlayerBind });
     return true;
   }
-  if ((m = c.match(new RegExp(`^defending player loses ${N} life and you gain ${N} life\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^defending player loses ${N} life and you gain ${N} life\\.?$`, 'i')))) {
     effects.push({ kind: 'life', scope: 'you', amount: num(m[1]), deltaSign: -1, forPlayerBind: 'defendingPlayer' }, { kind: 'life', scope: 'you', amount: num(m[2]), deltaSign: 1 });
     return true;
   }
@@ -730,12 +755,12 @@ function compileRound3(c, ctx, subjectBind) {
   if ((m = c.match(/^(?:You )?mills? (?:a|one) card\.?$/i))) { effects.push({ kind: 'mill', scope: 'you', amount: 1 }); return true; }
   if ((m = c.match(/^(?:You )?(?:take|takes) an extra turn after this one\.?$/i))) { effects.push({ kind: 'extra-turn', playerBind: null }); return true; }
   // Counters from the event / on the source.
-  if ((m = c.match(new RegExp(`^put that many ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (${selfAny}|it|target creature you control|target creature)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^put that many ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (${selfAny}|it|target creature you control|target creature)\\.?$`, 'i')))) {
     const bind = /^target/i.test(m[2]) ? H.targetRequirement(requirements, m[2].toLowerCase(), m[2]) : subjectBind(m[2]);
     effects.push({ kind: 'counter', bind, counter: m[1], amount: { kind: 'binding', bind: 'eventAmount' } });
     return true;
   }
-  if ((m = c.match(new RegExp(`^Remove (?:a|an|one|${N}) ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters? from (${selfAny}|it)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Remove (?:a|an|one|${N}) ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters? from (${selfAny}|it)\\.?$`, 'i')))) {
     effects.push({ kind: 'remove-counter', bind: subjectBind(m[3]), counter: m[2], amount: num(m[1]) ?? 1 });
     return true;
   }
@@ -779,7 +804,7 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   // "Sacrifice this creature unless you pay {1}{G}." (upkeep costs)
-  if ((m = c.match(new RegExp(`^sacrifice (${selfAny}|it) unless you (pay ((?:\\{[^}]+\\})+)|pay (\\d+|one|two|three|four|five) life)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^sacrifice (${selfAny}|it) unless you (pay ((?:\\{[^}]+\\})+)|pay (\\d+|one|two|three|four|five) life)\\.?$`, 'i')))) {
     effects.push({ kind: 'may-pay', cost: m[3] || '{0}', lifeCost: m[4] ? num(m[4]) : 0, skip: 1, invert: true }, { kind: 'sacrifice', bind: 'sourceId' });
     return true;
   }
@@ -812,7 +837,7 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'restrict-each', filter: `creature|${m[1] === 'without' ? 'nokeyword' : 'keyword'}:flying`, restriction: 'cant-block' });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(?:This spell|${selfAny}|[A-Z][^.]*?) deals ${N} damage to each creature (without|with) flying\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This spell|${selfAny}|[A-Z][^.]*?) deals ${N} damage to each creature (without|with) flying\\.?$`, 'i')))) {
     effects.push({ kind: 'damage-each', amount: num(m[1]), filter: `creature|${m[2] === 'without' ? 'nokeyword' : 'keyword'}:flying`, creatures: 'all', players: null, sourceName });
     return true;
   }
@@ -834,19 +859,19 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   // Tokens: predefined artifact tokens (tapped or not), creature tokens with a quoted ability.
-  if ((m = c.match(new RegExp(`^(?:you )?create ${N} (tapped )?(Treasure|Food|Clue|Blood|Map|Gold|Powerstone|Lander|Mutagen|Junk|Shard) tokens?\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:you )?create ${N} (tapped )?(Treasure|Food|Clue|Blood|Map|Gold|Powerstone|Lander|Mutagen|Junk|Shard) tokens?\\.?$`, 'i')))) {
     const name = cap(m[3].toLowerCase());
     effects.push({ kind: 'create-token', amount: num(m[1]), name, typeLine: `Token ${name === 'Shard' ? 'Enchantment' : 'Artifact'} — ${name}`, oracleText: TOKEN_TEXT[name], tapped: !!m[2] });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(?:you )?create ${N} (tapped )?(\\d+)\\/(\\d+) ([a-z ]*?)((?:[A-Z][a-z'-]+ )+)(?:artifact )?creature tokens?(?: with ([a-z ,]+?))?(?: and)?(?: with)? "([^"]+)"\\.?$`)))) {
+  if ((m = c.match(rx(`^(?:you )?create ${N} (tapped )?(\\d+)\\/(\\d+) ([a-z ]*?)((?:[A-Z][a-z'-]+ )+)(?:artifact )?creature tokens?(?: with ([a-z ,]+?))?(?: and)?(?: with)? "([^"]+)"\\.?$`)))) {
     const colors = m[5].split(/\s+/).map(w => COLOR_OF[w]).filter(Boolean);
     const subtype = m[6].trim();
     effects.push({ kind: 'create-token', amount: num(m[1]), tapped: !!m[2], power: Number(m[3]), toughness: Number(m[4]), name: subtype, typeLine: `Token ${/artifact/i.test(c) ? 'Artifact ' : ''}Creature — ${subtype}`, colors, keywords: H.KEYWORD_LIST(m[7] || '').map(cap), oracleText: m[8] });
     return true;
   }
   // Werewolves: "if no spells were cast last turn, transform this creature." / "if a player cast two or more spells last turn, …"
-  if ((m = c.match(new RegExp(`^if (no spells were cast last turn|a player cast (two|three) or more spells last turn), transform (?:${selfAny}|this creature|it)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^if (no spells were cast last turn|a player cast (two|three) or more spells last turn), transform (?:${selfAny}|this creature|it)\\.?$`, 'i')))) {
     effects.push({ kind: 'condition', test: 'last-turn-spells', none: /^no/i.test(m[1]), atLeast: m[2] ? num(m[2]) : 0, skip: 1 }, { kind: 'transform', bind: 'sourceId' });
     return true;
   }

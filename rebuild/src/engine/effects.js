@@ -5,6 +5,17 @@ import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates,
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness } from './combat.js';
+
+// Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
+const RX_CACHE = new Map();
+function rx(source, flags = '') {
+  const key = `${flags}/${source}`;
+  let r = RX_CACHE.get(key);
+  if (!r) { if (RX_CACHE.size > 20000) RX_CACHE.clear(); r = new RegExp(source, flags); RX_CACHE.set(key, r); }
+  r.lastIndex = 0;
+  return r;
+}
+
 const WORD_NUMBERS = Object.freeze({
   zero: 0, a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
   eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20
@@ -60,7 +71,7 @@ function hasKeyword(card, def, name) {
   const k = String(name || '').toLowerCase();
   if ((def?.keywords || []).some(x => String(x).toLowerCase() === k))
     return true;
-  if (new RegExp(`\\b${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '')))
+  if (rx(`\\b${String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '')))
     return true;
   return (card?.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled !== false && String(e.keyword || '').toLowerCase() === k);
 }
@@ -205,7 +216,7 @@ export function cardMatchesFilter(game, card, filter) {
       if (c === 'untapped') return !card.tapped;
       if (c.startsWith('keyword:')) return hasKeyword(card, d, c.slice(8));
       if (c.startsWith('nokeyword:')) return !hasKeyword(card, d, c.slice(10));
-      if (c.startsWith('subtype:')) return new RegExp(`\\b${c.slice(8)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text);
+      if (c.startsWith('subtype:')) return rx(`\\b${c.slice(8)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text);
       if (c.startsWith('not-id:')) return card.instanceId !== c.slice(7);
       if (c.startsWith('type:')) return type.includes(c.slice(5));
       if (c.startsWith('non:')) return !type.includes(c.slice(4));
@@ -1826,7 +1837,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   // Every way a card's text names itself: full name, the short name before a comma ("Mondrak"), "this artifact" …
   const shortName = String(sourceName || '').split(',')[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const selfAny = `(?:${selfName}|${shortName}|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker))`;
-  const selfCounterRe = new RegExp(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfAny}|it)\\.?$`, 'i');
+  const selfCounterRe = rx(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfAny}|it)\\.?$`, 'i');
   if ((m = c.match(selfCounterRe))) {
     effects.push({ kind: 'counter', bind: 'sourceId', counter: m[2].trim(), amount: numberFromText(m[1]) });
     return { effects, requirements, unsupported };
@@ -1924,7 +1935,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // "It deals 1 damage to you." (City of Brass, Mana Vault)
-  if ((m = c.match(new RegExp(`^(?:This (?:artifact|creature|land|enchantment|permanent)|It|~|${String(sourceName || '~').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}) deals (one|two|three|\\d+) damage to you\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This (?:artifact|creature|land|enchantment|permanent)|It|~|${String(sourceName || '~').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}) deals (one|two|three|\\d+) damage to you\\.?$`, 'i')))) {
     effects.push({ kind: 'damage', amount: numberFromText(m[1]), toController: true, sourceName });
     return { effects, requirements, unsupported };
   }   // checked when something tries to counter it
@@ -2123,15 +2134,15 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   }
   // Self references used by keyword reminder text (prowess, evoke, dash …).
   const selfRef = selfAny;
-  if ((m = c.match(new RegExp(`^${selfRef} gets ([+-]\\d+)\\/([+-]\\d+) until end of turn\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^${selfRef} gets ([+-]\\d+)\\/([+-]\\d+) until end of turn\\.?$`, 'i')))) {
     effects.push({ kind: 'pump', bind: 'sourceId', power: Number(m[1]), toughness: Number(m[2]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if (new RegExp(`^Sacrifice ${selfRef}\\.?$`, 'i').test(c)) {
+  if (rx(`^Sacrifice ${selfRef}\\.?$`, 'i').test(c)) {
     effects.push({ kind: 'sacrifice', bind: 'sourceId' });
     return { effects, requirements, unsupported };
   }
-  if (new RegExp(`^Return ${selfRef} to (?:its|their) owner'?s hand\\.?$`, 'i').test(c)) {
+  if (rx(`^Return ${selfRef} to (?:its|their) owner'?s hand\\.?$`, 'i').test(c)) {
     effects.push({ kind: 'bounce', bind: 'sourceId' });
     return { effects, requirements, unsupported };
   }
@@ -2168,7 +2179,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'combat-restriction', bind, restriction: 'cant-attack', expires: 'your-next-turn' });
     return { effects, requirements, unsupported };
   }
-  if (new RegExp(`^Transform (?:${selfName}|this creature|this permanent|this artifact|this land|this enchantment|it)\\.?$`, 'i').test(c)) {
+  if (rx(`^Transform (?:${selfName}|this creature|this permanent|this artifact|this land|this enchantment|it)\\.?$`, 'i').test(c)) {
     effects.push({ kind: 'transform', bind: 'sourceId' });
     return { effects, requirements, unsupported };
   }
@@ -2239,11 +2250,11 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
   }
   // Life.
-  if ((m = c.match(new RegExp(`^(?:You )?(gain|lose)s? ${N} life\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:You )?(gain|lose)s? ${N} life\\.?$`, 'i')))) {
     effects.push({ kind: 'life', scope: 'you', amount: numberFromText(m[2]) ?? m[2].toUpperCase(), deltaSign: /gain/i.test(m[1]) ? 1 : -1 });
     return true;
   }
-  if ((m = c.match(new RegExp(`^(You|Each opponent|Each player) (gains?|loses?) ${N} life for each (.+?)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(You|Each opponent|Each player) (gains?|loses?) ${N} life for each (.+?)\\.?$`, 'i')))) {
     const per = numberFromText(m[3]) ?? 1, what = m[4];
     let of;
     if (/^spell you'?ve cast this turn$/i.test(what)) of = { kind: 'spells-cast-this-turn' };
@@ -2293,14 +2304,14 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Self: untap, fight, double counters, return from the graveyard.
-  if (new RegExp(`^Untap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'untap', bind: 'sourceId' }); return true; }
-  if (new RegExp(`^Tap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'tap', bind: 'sourceId' }); return true; }
-  if ((m = c.match(new RegExp(`^${selfAny} fights (another target creature|target creature(?: you don'?t control)?)\\.?$`, 'i')))) {
+  if (rx(`^Untap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'untap', bind: 'sourceId' }); return true; }
+  if (rx(`^Tap ${selfAny}\\.?$`, 'i').test(c)) { effects.push({ kind: 'tap', bind: 'sourceId' }); return true; }
+  if ((m = c.match(rx(`^${selfAny} fights (another target creature|target creature(?: you don'?t control)?)\\.?$`, 'i')))) {
     const targetBind = targetRequirement(requirements, m[1].toLowerCase(), m[1], { notSource: true });
     effects.push({ kind: 'fight', sourceBind: 'sourceId', targetBind });
     return true;
   }
-  if ((m = c.match(new RegExp(`^Double the number of ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (?:${selfAny}|it)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Double the number of ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters on (?:${selfAny}|it)\\.?$`, 'i')))) {
     effects.push({ kind: 'double-counter', bind: 'sourceId', counter: m[1] });
     return true;
   }
@@ -2410,7 +2421,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Damage to a wider set of targets ("target creature or planeswalker an opponent controls", "target attacking or blocking creature").
-  if ((m = c.match(new RegExp(`^(?:This spell|${selfAny}|It|[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This spell|${selfAny}|It|[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return true;
@@ -2457,15 +2468,15 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Equipment entering: "attach it to target legendary creature you control" (Mithril Coat).
-  if ((m = c.match(new RegExp(`^Attach (?:${selfAny}|it) to (target [^.]*creature you control)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^Attach (?:${selfAny}|it) to (target [^.]*creature you control)\\.?$`, 'i')))) {
     const creatureBind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
     return true;
   }
   // Rancor: "return it to its owner's hand" from the graveyard.
-  if (new RegExp(`^Return (?:it|this card|${selfAny}) to its owner'?s hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
+  if (rx(`^Return (?:it|this card|${selfAny}) to its owner'?s hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
   if (/^(?:You )?draws? an additional card\.?$/i.test(c)) { effects.push({ kind: 'draw', scope: 'you', amount: 1 }); return true; }
-  if (new RegExp(`^(?:It|${selfAny}) can'?t be blocked this turn\\.?$`, 'i').test(c)) { effects.push({ kind: 'combat-restriction', bind: 'sourceId', restriction: 'cant-be-blocked', expires: 'cleanup' }); return true; }
+  if (rx(`^(?:It|${selfAny}) can'?t be blocked this turn\\.?$`, 'i').test(c)) { effects.push({ kind: 'combat-restriction', bind: 'sourceId', restriction: 'cant-be-blocked', expires: 'cleanup' }); return true; }
   if ((m = c.match(/^Create X (Treasure|Food|Clue) tokens\.?$/i))) {
     const name = m[1], text = name === 'Treasure' ? '{T}, Sacrifice this artifact: Add one mana of any color.' : name === 'Clue' ? '{2}, Sacrifice this artifact: Draw a card.' : '{2}, {T}, Sacrifice this artifact: You gain 3 life.';
     effects.push({ kind: 'create-token', amount: 'X', name, typeLine: 'Token Artifact', oracleText: text });
@@ -2554,7 +2565,20 @@ function bridgePronoun(clause, parts, sourceName) {
   const optional = parts.some(p => p.effects.some(e => e.optionalTarget && e.bind === earlier.bind)) || earlier.optional;
   return { effects: c.effects.map(e => ({ ...rebind(e), ...(optional ? { optionalTarget: true } : {}) })), requirements: [], unsupported: [] };
 }
-export function compileEffectText(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
+// Compiling is pure (the same text and name always give the same result), and the screen asks again and again, so
+// results are kept; each caller gets its own copy because some callers adjust the effects they receive.
+const COMPILE_CACHE = new Map();
+export function compileEffectText(text, opts = {}) {
+  const key = `${opts.sourceName || 'Effect'}\u0000${opts.allowGuidedFallback ? 1 : 0}\u0000${text}`;
+  let hit = COMPILE_CACHE.get(key);
+  if (!hit) {
+    hit = compileEffectTextUncached(text, opts);
+    if (COMPILE_CACHE.size > 20000) COMPILE_CACHE.clear();
+    COMPILE_CACHE.set(key, hit);
+  }
+  return structuredClone(hit);
+}
+function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
   const raw = cleanOracle(text);
   const clauses = splitSentences(raw);
   const parts = [];
