@@ -2296,6 +2296,13 @@ function handleAct(act, v, n, pArg) {
     default:
       return;
   }
+  // a deck the player upgrades is kept: a swap on a draft (a generated or loaded deck not saved yet) makes it one of your decks
+  if (changed && S.draft && S.draft === cur() && /^(swap|swap-cap|swap-all|swap-top|swap-a3|fix-swap|undo-card)$/.test(act)) {
+    const dr = S.draft;
+    S.profile.decks.unshift(dr);
+    S.draft = null;
+    S.deckId = dr.id;
+  }
   if (changed) touch();
   render();
   if (S.uaOpen && !$('#modal').hidden && /^dset/.test(act)) openUpgradeAsk();

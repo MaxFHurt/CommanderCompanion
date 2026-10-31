@@ -63,9 +63,11 @@ const s7 = await p1.evaluate(() => { const d = S.profile.decks.find(x => x.id ==
 T('SAVE-IDB', 'With local storage cleared, the device copy brings the decks back', !!s7 && s7.includes('Mind Stone'), JSON.stringify(s7));
 
 // S8. A swap on an unsaved (draft) deck keeps it: the deck joins your decks.
-const s8 = await p1.evaluate(() => { const d = newDeck({name:'Draft X', cards:[{n:'Forest', q:1}, {n:'Llanowar Elves', q:1}]}); doSwap(d, {cut:'Llanowar Elves', add:'Elvish Mystic', q:1}, 0); touch();
-  return {draft:!!S.draft, saved:JSON.parse(localStorage.getItem('cc.deckProfile')).decks.some(x => x.id === d.id)}; });
-T('SAVE-DRAFT', 'A swap on an unsaved deck saves the deck', !s8.draft && s8.saved, JSON.stringify(s8));
+// (the app's own swaps on a draft, while generating, leave it a draft; the player's swap buttons save it: here, Undo on a swapped card)
+const s8 = await p1.evaluate(() => { const d = newDeck({name:'Draft X', cards:[{n:'Forest', q:1}, {n:'Llanowar Elves', q:1}]}); doSwap(d, {cut:'Llanowar Elves', add:'Elvish Mystic', q:1}, 0);
+  const still = !!S.draft; S.noAsk = true; S.autoYes = new Set(['undo-card']); handleAct('undo-card', '', 'Elvish Mystic');
+  return {appSwapKeptDraft:still, draft:!!S.draft, saved:JSON.parse(localStorage.getItem('cc.deckProfile')).decks.some(x => x.id === d.id)}; });
+T('SAVE-DRAFT', 'A swap the app makes on an unsaved deck leaves it a draft; the player’s swap saves the deck', s8.appSwapKeptDraft && !s8.draft && s8.saved, JSON.stringify(s8));
 
 T('SAVE-ERR', 'No page errors', !errs.length, errs.slice(0, 3).join(' | '));
 await b.close();

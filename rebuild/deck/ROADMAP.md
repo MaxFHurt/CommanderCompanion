@@ -254,7 +254,13 @@ no more leaving room for better."
 - **Reanimator themes read card text** (UP.aimText): an EDHREC theme only counted cards in 20% of its decks, so The Soul Stone
   (7% of Teval decks) never fitted "reanimator". Reanimation engines, reanimation spells and Entomb-style tutors now fit the
   reanimator and graveyard themes; a generated Teval Apex deck now has Entomb and Buried Alive.
-- `?engine=old` keeps 0.9.3's choices (poolX, poolRows, aimText 0). The benchmark runs without the whole search (POOL=1 adds
+- **Sol Ring and Arcane Signet in every generated Commander deck** (UP.staples; owner, 31 Oct): only play data put them in,
+  so a commander without an EDHREC page (or a failed download) got neither (Teval, Turtle Power with no data). They go in like
+  the player's seeds when the deck's rules allow (legal, colours, set filters, owned when building from the collection, not
+  ruled out; Arcane Signet needs a colour). `staples2.js` / `staples3.js` (NOEDH=1) check all tiers.
+- A swap the player makes on a draft saves the draft as a deck; the app's own swaps while generating leave it a draft
+  (UI-SET-01). Stick to the theme drops a weak-card row whose pick is not on theme (UI-B158-01).
+- `?engine=old` keeps 0.9.3's choices (poolX, poolRows, aimText, staples 0). The benchmark runs without the whole search (POOL=1 adds
   it), so its numbers do not see poolX/poolRows.
 
 ## Version 0.9.21 (build 166, 26 October 2026; owner: "How can a deck's score be 0? ... When 1 card enters the deck's power should be above 0")

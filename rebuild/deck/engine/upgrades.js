@@ -1952,11 +1952,6 @@ function stickTheme(d, R) {
     })
     .filter(x => x.list.length)
     .sort((a, b) => b.list[0].v - a.list[0].v);
-  // the rows the strongest-card search added for weak cards (poolRows) stay only with an on-theme card to offer
-  {
-    const keepX = new Set(rows.map(x => x.L));
-    R.paths = R.paths.filter(L => !L.extra || keepX.has(L));
-  }
   for (const {L, list} of rows) {
     const O = L.opts,
       base = O.apex || O.mid || O.budget;
@@ -1992,6 +1987,8 @@ function stickTheme(d, R) {
     });
     L.stuck = true;
   }
+  // a row added for a weak card (poolRows) stays only with an on-theme pick
+  R.paths = R.paths.filter(L => !L.extra || (L.opts.apex && onTheme(find(L.opts.apex.add))));
 }
 // A row's cards strongest first (owner, 24 Oct: a Budget card never scores above Mid, nor Mid above Apex). A card's score is its
 // gain in the deck score (dScore); before the score check has run, the engine's order stands (Apex, Mid, Budget).
@@ -2135,6 +2132,7 @@ const UP = {
   poolXs: 300, // scouted: the most played ...
   poolXb: 100, // ... and the best by card value
   poolRows: 10, // rows for the deck's weakest spells that have none
+  staples: 1, // Sol Ring and Arcane Signet in every generated Commander deck (buildPlanG, STAPLES)
   aimText: 1, // a plan's core pieces fit its EDHREC theme by their text (matchAim, AIM_TEXT)
   bs: 1,
   bsF: 0.5,

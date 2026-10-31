@@ -1423,13 +1423,7 @@ function gcBlockMsg() {
   return '';
 }
 function doSwap(d, p, step) {
-  // a swap is saved at once, and a deck being upgraded is kept: a draft becomes one of your decks with its first swap
-  S.saveNow = true;
-  if (S.draft && S.draft === d) {
-    S.profile.decks.unshift(d);
-    S.draft = null;
-    S.deckId = d.id;
-  }
+  S.saveNow = true; // a swap is saved at once (touch)
   delete d.regenUndo; // once you start upgrading, the rebuild can no longer be undone as a whole (each swap has its own Undo)
   const old = d.cards.find(x => x.n === p.cut),
     keep = step ? Math.max(step, (old && old.step) || 0) : (old && old.step) || 0;
