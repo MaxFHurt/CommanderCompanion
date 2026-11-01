@@ -50,6 +50,14 @@ export function stateBasedActions(game) {
             reason = 'has no defense left';
           }
         }
+        // "When you control no Islands, sacrifice this creature." (a state trigger; the game sacrifices it at once)
+        const none = !reason && String(d.oracleText || '').match(/(?:^|\n)When you control no ([A-Z][a-z]+?)s?, sacrifice (?:this creature|this permanent|it|~|[^.]+?)\./);
+        if (none && !(p.deck.battlefield || []).some(x => x.instanceId !== c.instanceId && new RegExp(`\\b${none[1]}s?\\b`).test(defOf(game, x)?.typeLine || ''))) {
+          commit(game, { type: 'move-card', playerId: p.playerId, instanceId: c.instanceId, to: 'graveyard', silent: true });
+          log(game, `${p.displayName} controls no ${none[1]}s: ${d.name} is sacrificed.`);
+          acted = changed = true;
+          continue;
+        }
         if (!reason && /\bSaga\b/i.test(type)) {
           // A Saga with lore counters at its last chapter is sacrificed once no chapter ability is waiting.
           const final = sagaFinalChapter(d);

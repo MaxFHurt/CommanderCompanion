@@ -675,7 +675,7 @@ function probeTrigger(definition, ability, types, events, variants) {
       const victim = variant.victim ? (who === me ? opp : me) : who;
       const event = { type, sourceId, controllerId: who.playerId, playerId: victim.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
         typeLine: sourceId === 'self' ? definition.typeLine : types[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId, 'x1', 'x2', 'x3'], defenders: [victim === who ? (who === me ? 'opp' : 'me') : victim.playerId], defenderId: who === me ? 'opp' : 'me',
-        amount: 2, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', level: Number((String(ability?.trigger || '').match(/level (\\d+)/i) || [])[1] || 2), ...(variant.event || {}) };
+        amount: 2, won: true, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', level: Number((String(ability?.trigger || '').match(/level (\\d+)/i) || [])[1] || 2), ...(variant.event || {}) };
       if (event.to === 'graveyard' && type !== 'zone-change') event.to = ['creature', 'player'];
       try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
     }
@@ -683,7 +683,8 @@ function probeTrigger(definition, ability, types, events, variants) {
   return false;
 }
 export function auditTriggers(definition) { return parseTriggeredAbilities(definition).filter(a => !(/\b(?:Instant|Sorcery)\b/.test(definition?.typeLine || '') && /^At the beginning of (?:your|the) next\b/i.test(a.trigger))).map(a => {   // a spell's delayed trigger is part of the spell
-  if (MANA_EXTRA_TEXT.some(re => re.test(a.text))) return { ...a, fires: true, supported: true, unsupported: [], effectKinds: ['mana-extra'] };   // counted by mana-extras.js as the source is tapped
+  if (MANA_EXTRA_TEXT.some(re => re.test(a.text))) return { ...a, fires: true, supported: true, unsupported: [], effectKinds: ['mana-extra'] };
+  if (/^When you control no [A-Z][a-z]+s?$/.test(a.trigger) && /^sacrifice /i.test(a.effect)) return { ...a, fires: true, supported: true, unsupported: [], effectKinds: ['state-sacrifice'] };   // sba.js   // counted by mana-extras.js as the source is tapped
   const fires = /^When you cast this spell\b/i.test(a.trigger) || triggerCanFire(definition, a);   // cast triggers: castTriggers in keyword-triggers.js
   const never = fires ? [] : [`The game never fires "${a.trigger}" by itself`]; if (a.modes?.length)
   return { ...a, fires, supported: fires, unsupported: never, effectKinds: ['modal-trigger'] }; const compiled = compileEffectText(a.effect, { sourceName: definition?.name || 'Card' }); return { ...a, fires, supported: fires && compiled.supported, unsupported: [...never, ...compiled.unsupported], effectKinds: [...new Set(compiled.effects.map(x => x.kind))] }; }); }

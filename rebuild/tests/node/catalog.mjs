@@ -1190,4 +1190,24 @@ section('round 21: Encore');
   check('…and they are sacrificed at the end step', !t.P(0).deck.battlefield.some(c => c.token));
 }
 
+section('round 22: state triggers, coin-flip triggers');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Dandân can\'t attack unless defending player controls an Island.\nWhen you control no Islands, sacrifice this creature.', { typeLine: 'Creature — Fish' });
+  cast(t, 'Opt', 'Draw a card.');
+  check('Dandân stays while you control Islands', !!t.bf(0, 'Fog Bank'));
+  for (const c of [...t.P(0).deck.battlefield].filter(c => def(t, c)?.name === 'Island')) { t.P(0).deck.battlefield.splice(t.P(0).deck.battlefield.indexOf(c), 1); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); }
+  cast(t, 'Divination', 'Draw a card.', [], { manaCost: '{G}' });
+  check('…and is sacrificed once you control no Islands', !t.bf(0, 'Fog Bank'));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you win a coin flip, draw a card.', { typeLine: 'Enchantment' });
+  const rnd = Math.random; Math.random = () => 0.1;
+  const hand = () => t.P(0).deck.hand.length;
+  let before;
+  try { before = hand(); cast(t, 'Opt', 'Flip a coin.'); } finally { Math.random = rnd; }
+  check('Whenever you win a coin flip: draws a card', hand() === before + 1, `${before} → ${hand()}`);
+}
+
 done();

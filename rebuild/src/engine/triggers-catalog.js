@@ -43,6 +43,11 @@ export function catalogTriggerMatch(game, row, t, event, H) {
     case 'proliferated':
       if (/^Whenever you proliferate/i.test(t)) return event.playerId === me;
       return undefined;
+    case 'coin-flipped':
+      if (/^Whenever you win (?:a|one or more) coin flips?/i.test(t)) return event.playerId === me && !!event.won;
+      if (/^Whenever you lose (?:a|one or more) coin flips?/i.test(t)) return event.playerId === me && !event.won;
+      if (/^Whenever (?:you flip one or more coins|you flip a coin)/i.test(t)) return event.playerId === me;
+      return undefined;
     case 'die-rolled':
       if (/^Whenever you roll (?:one or more dice|a die)/i.test(t)) return event.playerId === me;
       if ((m = t.match(/^Whenever you roll (?:a|an) (\d+)/i))) return event.playerId === me && Number(event.result) === Number(m[1]);
@@ -143,4 +148,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
