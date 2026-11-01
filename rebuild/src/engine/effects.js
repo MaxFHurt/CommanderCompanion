@@ -711,7 +711,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'graveyard') { notes.push('The card is no longer in the graveyard.'); continue; }
       if (effect.transformed && (game.cardDefinitions?.[hit.card.definitionId]?.cardFaces || []).length > 1) hit.card.activeFaceIndex = 1;
       moveCard(game, hit.card.instanceId, 'battlefield', { controllerId: hit.card.ownerId, tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
-      notes.push(`${cardName(game, hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}${effect.transformed ? ' transformed' : ''}.`);
+      if (effect.withCounter) { const back = locateCardInGame(game, hit.card.instanceId)?.card; if (back) back.counters = { ...(back.counters || {}), [effect.withCounter]: Number(back.counters?.[effect.withCounter] || 0) + 1 }; }
+      notes.push(`${cardName(game, hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}${effect.transformed ? ' transformed' : ''}${effect.withCounter ? ` with a ${effect.withCounter} counter` : ''}.`);
       continue;
     }
     if (effect.kind === 'counter-many') {
@@ -2508,8 +2509,8 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push({ kind: 'double-counter-each', scope: 'you', filter: m[2].toLowerCase(), counter: m[1] });
     return true;
   }
-  if ((m = c.match(/^Return (?:this card|this creature card|it) from your graveyard to the battlefield( tapped)?\.?$/i))) {
-    effects.push({ kind: 'return-self-graveyard', tapped: !!m[1] });
+  if ((m = c.match(/^Return (?:this card|this creature card|it) from your graveyard to the battlefield( tapped)?( with a finality counter on it)?\.?$/i))) {
+    effects.push({ kind: 'return-self-graveyard', tapped: !!m[1], ...(m[2] ? { withCounter: 'finality' } : {}) });
     return true;
   }
   // Mass power/toughness and keywords.

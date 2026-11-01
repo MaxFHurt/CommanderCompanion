@@ -1545,4 +1545,17 @@ section('round 42: exile until a nonland card, cast it free');
   check('Mistform: becomes the chosen creature type only', /Dragon/.test(tl) && !/Elf/.test(tl), tl);
 }
 
+section('round 43: finality counters');
+{
+  const t = setup();
+  const w = t.give(0, 'Grizzly Bears', 'graveyard'); asText(t, w, '{2}{G}: Return this card from your graveyard to the battlefield with a finality counter on it.');
+  const row = t.view(0).players[0].graveyard.find(c => c.id === w.instanceId)?.abilities?.find(a => /finality/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: w.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no row' };
+  settle(t);
+  const back = t.bf(0, 'Grizzly Bears');
+  check('Back with a finality counter', r.ok && back?.counters?.finality === 1, JSON.stringify([r.error, back?.counters]));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => back.instanceId]]);
+  check('…and exiled instead of dying', w.zone === 'exile' || t.P(0).deck.exile.some(c => def(t, c)?.name === 'Grizzly Bears'), w.zone);
+}
+
 done();
