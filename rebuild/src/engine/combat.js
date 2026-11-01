@@ -73,13 +73,37 @@ function selfScalingPt(game, card, def) {
   }
   return { power, toughness };
 }
+/** Threshold, Delirium, Metalcraft, Hellbent: "This creature gets +3/+3 (and has X) as long as …" / "… has deathtouch as long as …". */
+function controllerCond(game, card, text) {
+  const p = (game?.players || []).find(q => q.playerId === card?.controllerId);
+  if (!p) return false;
+  const counts = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  let m;
+  if ((m = text.match(/^there are (\w+) or more cards in your graveyard$/i))) return (p.deck?.graveyard || []).length >= (counts[m[1].toLowerCase()] ?? Number(m[1]));
+  if ((m = text.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return new Set((p.deck?.graveyard || []).flatMap(c => (String(definition(game, c)?.typeLine || '').split('—')[0].match(/Artifact|Battle|Creature|Enchantment|Instant|Kindred|Land|Planeswalker|Sorcery/g) || []))).size >= (counts[m[1].toLowerCase()] ?? Number(m[1]));
+  if ((m = text.match(/^you control (\w+) or more (artifacts|creatures|enchantments|lands)$/i))) return (p.deck?.battlefield || []).filter(c => new RegExp(`\\b${m[2].replace(/s$/, '')}\\b`, 'i').test(definition(game, c)?.typeLine || '')).length >= (counts[m[1].toLowerCase()] ?? Number(m[1]));
+  if (/^you have no cards in hand$/i.test(text)) return !(p.deck?.hand || []).length;
+  return false;
+}
+function conditionalSelf(game, card, def) {
+  const out = { power: 0, toughness: 0, keywords: [] };
+  if (!game || !card) return out;
+  const name = String(def?.name || '').split(',')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const line of String(def?.oracleText || '').split('\n')) {
+    const m = line.replace(/\([^()]*\)/g, '').trim().match(new RegExp(`^(?:[A-Z][a-z]+(?: [a-z]+)? — )?(?:This creature|~${name ? `|${name}` : ''}) (?:gets ([+-]\\d+)\\/([+-]\\d+)(?: and has ([a-z ,]+?))?|has ([a-z ,]+?)) as long as (.+?)\\.?$`, 'i'));
+    if (!m || !controllerCond(game, card, m[5])) continue;
+    out.power += Number(m[1] || 0); out.toughness += Number(m[2] || 0);
+    out.keywords.push(...String(m[3] || m[4] || '').split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean));
+  }
+  return out;
+}
 function rawPower(card, def, game) {
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
-  return numStat(def?.power) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'power') + anthem.power + self.power;
+  return numStat(def?.power) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'power') + anthem.power + self.power + conditionalSelf(game, card, def).power;
 }
 function rawToughness(card, def, game) {
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
-  return numStat(def?.toughness) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'toughness') + anthem.toughness + self.toughness;
+  return numStat(def?.toughness) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'toughness') + anthem.toughness + self.toughness + conditionalSelf(game, card, def).toughness;
 }
 // "Switch target creature's power and toughness until end of turn": applied after every other change (an odd number of switches swaps).
 const switched = card => (card?.temporaryEffects || []).filter(e => e?.kind === 'switch-pt').length % 2 === 1;
@@ -98,9 +122,12 @@ export function cardHasKeyword(card, def, name, game = null) {
     return false;
   if ((def?.keywords || []).some(x => String(x).toLowerCase() === low))
     return true;
-  if (new RegExp(`\\b${n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '')))
+  // Keyword text on the card (lines that only grant it "as long as …" are checked by conditionalSelf below).
+  if (new RegExp(`\\b${n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '').split('\n').filter(l => !/\bas long as\b/i.test(l)).join('\n')))
     return true;
   if (tempEffects(card, 'keyword').some(e => e.enabled !== false && String(e.keyword || '').toLowerCase() === low))
+    return true;
+  if (game && card && /as long as/i.test(String(def?.oracleText || '')) && conditionalSelf(game, card, def).keywords.includes(low))
     return true;
   if (game && card) {
     const targetController = card.controllerId;

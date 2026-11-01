@@ -1585,4 +1585,20 @@ section('round 44: subtype targets, color bounce, self-suspend, subtype sweepers
   check('Destroy all Islands', !t.P(0).deck.battlefield.some(c => def(t, c)?.name === 'Island') && t.P(0).deck.battlefield.some(c => def(t, c)?.name === 'Forest'));
 }
 
+section('round 45: Threshold / Delirium / Hellbent self-bonuses');
+{
+  const t = setup();
+  const w = onField(t, 'Grizzly Bears', 'Threshold — This creature gets +1/+1 and has deathtouch as long as there are seven or more cards in your graveyard.');
+  const before = [power(t, w), has(t, w, 'Deathtouch')];
+  for (let i = 0; i < 7; i++) { const c = t.P(0).deck.remainingLibrary.shift(); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); }
+  check('Threshold: +1/+1 and deathtouch only with seven cards in the graveyard', before[0] === 2 && !before[1] && power(t, w) === 3 && has(t, w, 'Deathtouch'), JSON.stringify([before, power(t, w)]));
+}
+{
+  const t = setup();
+  const w = onField(t, 'Grizzly Bears', 'Hellbent — This creature gets +2/+1 as long as you have no cards in hand.');
+  const empty = power(t, w);
+  t.give(0, 'Opt');
+  check('Hellbent: +2/+1 only with an empty hand', empty === 4 && power(t, w) === 2, JSON.stringify([empty, power(t, w)]));
+}
+
 done();
