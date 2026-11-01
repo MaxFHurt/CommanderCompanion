@@ -285,7 +285,7 @@ m('Phasing', 'keyword', 'At your untap step it phases out (treated as though it 
 m('Plot', 'keyword', 'Pay the plot cost and exile this card from your hand; cast it free on a later turn as a sorcery.', { auto: 'auto', steps: 'Use Plot from your hand (as a sorcery); on a later turn cast it from exile for free, as a sorcery.', actions: ['exile'] });
 m('Poisonous', 'keyword', 'Poisonous N: whenever this deals combat damage to a player, that player gets N poison counters.', { auto: 'manual', actions: ['poison'] });
 m('Prototype', 'keyword', 'Cast for the prototype cost with smaller P/T and a different color.', { auto: 'auto' });
-m('Provoke', 'keyword', 'Whenever this attacks, you may have target creature defending player controls untap and block it if able.', { auto: 'manual', actions: ['untap'] });
+m('Provoke', 'keyword', 'Whenever this attacks, you may have target creature defending player controls untap and block it if able.', { auto: 'auto', actions: ['untap'] });
 m('Prowess', 'keyword', 'Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.', { auto: 'auto' });
 m('Prowl', 'keyword', 'You may cast this for its prowl cost if you dealt combat damage to a player this turn with a creature of its type.', { auto: 'manual' });
 m('Rampage', 'keyword', 'Rampage N: whenever this becomes blocked, it gets +N/+N for each creature blocking it beyond the first.', { auto: 'auto', actions: ['pt'] });

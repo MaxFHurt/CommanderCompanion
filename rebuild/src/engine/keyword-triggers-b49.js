@@ -68,6 +68,8 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
       if (attackers.some(id => { const c = field().find(x => x.instanceId === id); return c && pw(c) < p; }))
         add('mentor', 'Mentor — put a +1/+1 counter on target attacking creature with lesser power.', `Put a +1/+1 counter on target attacking creature with power ${p - 1} or less.`);
     }
+    // Provoke: you may have target creature defending player controls untap and block it if able.
+    if (count(text, 'Provoke')) add('provoke', 'Provoke — target creature the defending player controls untaps and blocks it if able.', '', { compiled: { supported: true, unsupported: [], requirements: [{ kind: 'b49-defender-creature', bind: 'provoke' }], effects: [{ kind: 'untap', bind: 'provoke', optionalTarget: true }, { kind: 'force-block', blockerBind: 'provoke', attackerBind: 'sourceId', expires: 'end-combat', optionalTarget: true }] } });
     // Enlist: tap a nonattacking creature you control without summoning sickness; add its power to this creature's until end of turn.
     if (count(text, 'Enlist')) add('enlist', 'Enlist — you may tap a nonattacking creature you control to add its power to this creature\'s until end of turn.', '', { compiled: { supported: true, unsupported: [], requirements: [{ kind: 'b49-enlist', bind: 'enlist' }], effects: [{ kind: 'enlist', bind: 'enlist' }] } });
     if (count(text, 'Training') && attackers.some(id => { const c = field().find(x => x.instanceId === id); return c && pw(c) > pw(card); }))
@@ -146,4 +148,4 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 }
 
 /** The keywords read here (rules-audit and the terms key mark them automatic). */
-export const B49_KEYWORDS = ['Champion', 'Enlist', 'Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];
+export const B49_KEYWORDS = ['Provoke', 'Champion', 'Enlist', 'Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];

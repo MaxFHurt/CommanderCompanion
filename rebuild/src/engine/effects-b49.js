@@ -976,6 +976,13 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Exile another ${req.type} you control, or choose none and sacrifice this.`, options: rows.map(c => util.cardOption(game, c, player)), min: 0, max: 1 })) || []) : [];
     return true;
   }
+  if (req.kind === 'b49-defender-creature') {
+    const def = playerById(game, bindings.eventDefender);
+    const rows = (def?.deck?.battlefield || []).filter(c => /\bCreature\b/.test(util.defOf(game, c)?.typeLine || ''));
+    const v = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', targeting: true, title, prompt: 'Provoke: choose a creature the defending player controls (it untaps and must block), or none.', options: [{ id: 'none', label: 'None' }, ...rows.map(c => util.cardOption(game, c, def))] })) : 'none';
+    bindings[req.bind] = v && v !== 'none' ? v : null;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];

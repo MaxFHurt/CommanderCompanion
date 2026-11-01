@@ -2412,4 +2412,14 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('…when the champion dies, the bear returns', t.names(0, 'battlefield').includes('Grizzly Bears'));
 }
 
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', 'Provoke', { power: '5', toughness: '5' });
+  const foe = onField(t, 'Llanowar Elves', '', {}, 1); foe.tapped = true;
+  attackWith(t, [a.instanceId]);
+  settle(t, [[d => /Provoke/.test(d.prompt || ''), foe.instanceId]]);
+  if (t.game.flow.blocks) { try { t.do(1, { type: 'block', assignments: [] }); } catch (e) { /* must block */ } settle(t); }
+  check('Provoke: the chosen creature untaps and must block', !foe.tapped || t.names(1, 'graveyard').includes('Llanowar Elves'), JSON.stringify([foe.tapped, t.names(1, 'graveyard')]));
+}
+
 done();
