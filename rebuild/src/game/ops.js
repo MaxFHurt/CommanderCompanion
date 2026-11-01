@@ -16,6 +16,7 @@ import { CREATURE_TYPES } from '../data/creature-types.js';
 import {
   COLOR_NAMES, GameError, defOf, definitionsMap, faceDefinition, findInPlayer, isLand, isInstantOrSorcery,
   log, newId, opponentsOf, playerById, plural
+  , FUSE_FACE, hasFuse
 } from './helpers.js';
 import { gatherRequirements, splitRequirements, NoLegalChoice } from './requirements.js';
 import { librarySearchSpec, searchFilter } from './library-search.js';
@@ -168,7 +169,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -195,13 +196,15 @@ function runPlay(game, op, ask) {
 
   let faceIndex = Number.isInteger(op.args.faceIndex) ? op.args.faceIndex : null;
   const faces = hit.zone === 'hand' || free ? playableFaces(base) : [null];
+  if (hit.zone === 'hand' && !free && hasFuse(base)) faces.push(FUSE_FACE);   // Fuse: both halves
   if (faces.length > 1 && faceIndex === null) {
     faceIndex = ask('face', () => ({
       playerId: player.playerId, cancellable: !free, kind: 'choose-one', source: base.name, title: base.combinedName || base.name,
       prompt: 'This card has two faces. Choose the face to play.',
       options: faces.map(i => {
         const check = playCheck(game, player, card, i);
-        return { id: i, label: base.cardFaces[i].name, sub: `${base.cardFaces[i].typeLine}${check.legal || free ? '' : ` — ${check.reasons[0]}`}`, definitionId: base.definitionId, faceIndex: i, disabled: !check.legal && !force && !free };
+        const face = i === FUSE_FACE ? { name: `Both halves (fuse) — ${base.cardFaces.map(f => f.manaCost).join(' + ')}`, typeLine: base.cardFaces[0].typeLine } : base.cardFaces[i];
+        return { id: i, label: face.name, sub: `${face.typeLine}${check.legal || free ? '' : ` — ${check.reasons[0]}`}`, definitionId: base.definitionId, faceIndex: i === FUSE_FACE ? null : i, disabled: !check.legal && !force && !free };
       })
     }));
   }

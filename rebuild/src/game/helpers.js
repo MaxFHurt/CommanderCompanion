@@ -44,7 +44,15 @@ export function defOf(game, card) {
   return withOverlay(card, index === null ? base : faceDefinition(base, index) || base);
 }
 
+/** Fuse (split cards): cast both halves from the hand as one spell, paying both costs. */
+export const FUSE_FACE = 99;
+export function hasFuse(base) { return (base?.cardFaces || []).length === 2 && /(?:^|\n)\s*Fuse\b/i.test((base.cardFaces || []).map(f => f.oracleText || '').join('\n') + '\n' + (base.oracleText || '')); }
 export function faceDefinition(base, index) {
+  if (index === FUSE_FACE && hasFuse(base)) {
+    const [a, b] = base.cardFaces, strip = t => String(t || '').split('\n').filter(l => !/^\s*Fuse\b/i.test(l)).join('\n');
+    return { ...base, name: base.name || `${a.name} // ${b.name}`, typeLine: a.typeLine, manaCost: `${a.manaCost || ''}${b.manaCost || ''}`, manaValue: Number(base.manaValue ?? base.cmc ?? 0),
+      oracleText: `${strip(a.oracleText)}\n${strip(b.oracleText)}`, colors: [...new Set([...(a.colors || []), ...(b.colors || []), ...(base.colors || [])])], faceIndex: null, fused: true };
+  }
   const face = base?.cardFaces?.[index];
   if (!face) return null;
   return {

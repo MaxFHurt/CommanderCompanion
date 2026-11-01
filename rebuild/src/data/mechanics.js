@@ -244,7 +244,7 @@ m('Fortify', 'keyword', 'Attach this Fortification to target land you control. S
 m('For Mirrodin!', 'keyword', 'When this Equipment enters, create a 2/2 red Rebel creature token and attach this to it.', { auto: 'manual', actions: ['token', 'attach'] });
 m('Freerunning', 'keyword', 'You may cast this for its freerunning cost if you dealt combat damage to a player this turn with an Assassin or commander.', { auto: 'manual' });
 m('Frenzy', 'keyword', 'Frenzy N: whenever this attacks and isn\'t blocked, it gets +N/+0 until end of turn.', { auto: 'manual', actions: ['pt'] });
-m('Fuse', 'keyword', 'Cast both halves of this split card from your hand.', { auto: 'manual' });
+m('Fuse', 'keyword', 'Cast both halves of this split card from your hand.', { auto: 'auto', steps: 'When you cast it from your hand, choose "Both halves (fuse)": both costs are paid and both halves resolve.' });
 m('Gift', 'keyword', 'As you cast this, you may choose an opponent to get the gift (a card, Food, etc.); gifted spells get a bonus.', { auto: 'manual', actions: ['draw', 'token'] });
 m('Graft', 'keyword', 'Enters with N +1/+1 counters; whenever another creature enters, you may move a counter onto it.', { auto: 'manual', actions: ['counter+', 'counter-'] });
 m('Gravestorm', 'keyword', 'When you cast this, copy it for each permanent put into a graveyard this turn.', { auto: 'manual' });

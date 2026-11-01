@@ -1496,4 +1496,18 @@ section('round 39: hand disruption until it leaves, graveyard shuffle');
   check('Gaea\'s Blessing: two cards shuffled back', a.zone === 'library' && b.zone === 'library' && !t.P(1).deck.graveyard.length);
 }
 
+section('round 40: Fuse');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const sp = asText(t, t.hand(0, 'Opt'), '', { name: 'Wear // Tear', typeLine: 'Instant // Instant', manaCost: '{1}{G} // {U}', cardFaces: [
+    { name: 'Wear', manaCost: '{1}{G}', typeLine: 'Instant', oracleText: 'Destroy target artifact.\nFuse (You may cast one or both halves of this card from your hand.)' },
+    { name: 'Tear', manaCost: '{U}', typeLine: 'Instant', oracleText: 'Destroy target enchantment.\nFuse (You may cast one or both halves of this card from your hand.)' }] });
+  const art = onField(t, 'Grizzly Bears', '', { typeLine: 'Artifact' }, 1), ench = onField(t, 'Llanowar Elves', '', { typeLine: 'Enchantment' }, 1);
+  let faces = null;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: sp.instanceId }, t.as(0));
+  settle(t, [['face', d => { faces = d.options.map(o => o.label); return 99; }], [d => d.targeting && d.options.some(o => o.id === art.instanceId), () => art.instanceId], [d => d.targeting, () => ench.instanceId]]);
+  const tapped = t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c)?.typeLine || '') && c.tapped).length;
+  check('Fuse: both halves cast together for both costs', r.ok && !t.bf(1, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves') && tapped === 3, JSON.stringify([r.error, faces, tapped]));
+}
+
 done();
