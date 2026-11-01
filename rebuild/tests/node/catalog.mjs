@@ -2300,4 +2300,21 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('…in hand again it is the full card', !back.prototype);
 }
 
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Llanowar Elves', 'Backup 1 (When this creature enters, put a +1/+1 counter on target creature. If that\'s another creature, it gains the following ability until end of turn.)\nTrample', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  check('Backup 1: the other creature gets a counter and trample until end of turn', bear.counters?.['+1/+1'] === 1 && cardHasKeyword(bear, withOverlay(bear, def(t, bear)), 'Trample', t.game), JSON.stringify([bear.counters, bear.grantedText]));
+}
+{
+  const t = newGame(['simic', 'simic', 'simic']); t.keepAll(); t.autoPass = false;
+  const m = t.give(0, 'Grizzly Bears', 'battlefield'); const live = t.P(0).deck.battlefield.find(c => c.instanceId === m.instanceId);
+  asText(t, live, 'Myriad'); live.enteredTurn = 0; live.controlSinceTurn = 0;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: live.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  const copies = t.P(0).deck.battlefield.filter(c => c.token && def(t, c).name === 'Grizzly Bears');
+    check('Myriad: a token copy attacks the other opponent (and is gone after combat)', t.P(2).life === 38 && t.P(1).life === 38 && copies.length === 0, JSON.stringify([t.P(1).life, t.P(2).life, copies.length]));
+}
+
 done();

@@ -90,6 +90,22 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
     for (const [k, r] of amounts(text, 'Renown').entries())
       if (k === 0) add('renown', `Renown ${r} — put ${r} +1/+1 counter${r === 1 ? '' : 's'} on it; it becomes renowned.`, '', compiled([{ kind: 'renown', amount: r }]));
 
+  // --- Backup N: as it enters, N +1/+1 counters on target creature; another creature also gains this one's other abilities until end of turn.
+  if (onField && self && event.type === 'enters-battlefield') {
+    const lines = strip(text).split('\n').map(x => x.trim()).filter(Boolean);
+    const at = lines.findIndex(l => /^Backup \d+$/i.test(l));
+    if (at >= 0) {
+      const b = n(lines[at].match(/\d+/)[0]), rest = lines.slice(at + 1);
+      add('backup', `Backup ${b} — put ${b} +1/+1 counter${b === 1 ? '' : 's'} on target creature; if it's another creature, it gains this creature's abilities until end of turn.`, '', { compiled: { supported: true, unsupported: [],
+        requirements: [{ kind: 'target', bind: 'backup', scope: 'target creature', label: 'target creature (backup)' }],
+        effects: [{ kind: 'counter', bind: 'backup', counter: '+1/+1', amount: b }, { kind: 'condition', test: 'b49-not-source', bind: 'backup', skip: rest.length ? 1 : 0 }, ...(rest.length ? [{ kind: 'grant-text', bind: 'backup', texts: rest, until: 'turn' }] : [])] } });
+    }
+  }
+  // --- Myriad: for each other opponent, a token copy tapped and attacking them (exiled at end of combat).
+  if (onField && self && event.type === 'attacks' && count(text, 'Myriad') && !card.token) {
+    const others = (game.players || []).filter(p => !p.eliminated && p.playerId !== me && p.playerId !== event.defenderId);
+    if (others.length) add('myriad', `Myriad — a token copy attacking each other opponent (${others.length}).`, '', compiled([{ kind: 'myriad', defenders: others.map(p => p.playerId) }]));
+  }
   // --- Ingest: whenever it deals combat damage to a player, that player exiles the top card of their library.
   if (onField && self && event.type === 'combat-damage-player' && count(text, 'Ingest'))
     add('ingest', 'Ingest — that player exiles the top card of their library.', '', compiled([{ kind: 'exile-top-of', playerBind: 'eventPlayer' }]));
@@ -122,4 +138,4 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 }
 
 /** The keywords read here (rules-audit and the terms key mark them automatic). */
-export const B49_KEYWORDS = ['Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];
+export const B49_KEYWORDS = ['Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];

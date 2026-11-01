@@ -695,6 +695,21 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} creates a token copy of ${d.name}${effect.eternalize ? ' (a 4/4 black Zombie)' : ' (a white Zombie)'}.`);
       return true;
     }
+    case 'myriad': {
+      const src = locateCardInGame(game, bindings.sourceId);
+      if (!src || src.zone !== 'battlefield') return true;
+      const cs = game.combatState;
+      for (const pid of effect.defenders) {
+        // "You may create" — made for each opponent still in the game.
+        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'copy-token', targetId: src.card.instanceId, tapped: true }], bindings);
+        const id = (bindings.lastCreated || []).slice(-1)[0], tok = id && locateCardInGame(game, id)?.card;
+        if (!tok) continue;
+        tok.exileEndCombat = true;
+        if (cs && Array.isArray(cs.attackers)) { cs.attackers.push({ playerId: controllerId, instanceId: id, defenderId: pid, targetId: null, blocksConfirmed: false }); if (!(cs.defenders || []).includes(pid)) cs.defenders = [...(cs.defenders || []), pid]; tok.attacking = pid; tok.attackedTurn = game.turnNumber; }
+        notes.push(`A token copy of ${nameOf(game, src.card.instanceId)} attacks ${playerById(game, pid)?.displayName}.`);
+      }
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1026,6 +1041,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
     case 'b49-bound': return !!bindings[effect.bind];
     case 'b49-text-is': return bindings[effect.bind] === effect.value;
+    case 'b49-not-source': return !!bindings[effect.bind] && bindings[effect.bind] !== bindings.sourceId;
     case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
     case 'b49-source-counters': return Object.values(locateCardInGame(game, bindings.sourceId)?.card?.counters || {}).some(v => Number(v) > 0);
     case 'b49-cast-from-graveyard': return bindings.selfFromZone === 'graveyard' && game.resolvingObj?.kind === 'spell';

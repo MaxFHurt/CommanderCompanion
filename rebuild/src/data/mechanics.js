@@ -180,7 +180,7 @@ m('Ascend', 'keyword', 'If you control ten or more permanents, you get the city\
 m('Assist', 'keyword', 'Another player can pay any amount of this spell\'s generic mana.', { auto: 'manual' });
 m('Aura swap', 'keyword', 'Exchange this Aura with an Aura card in your hand.', { auto: 'manual' });
 m('Awaken', 'keyword', 'Cast for the awaken cost: also put N +1/+1 counters on target land you control; it becomes a 0/0 Elemental creature with haste.', { auto: 'manual', actions: ['counter+'] });
-m('Backup', 'keyword', 'Backup N: when this enters, put N +1/+1 counters on target creature; if that\'s another creature, it gains this creature\'s other abilities until end of turn.', { auto: 'manual', actions: ['counter+'] });
+m('Backup', 'keyword', 'Backup N: when this enters, put N +1/+1 counters on target creature; if that\'s another creature, it gains this creature\'s other abilities until end of turn.', { auto: 'auto', actions: ['counter+'] });
 m('Banding', 'keyword', 'Creatures with banding can attack or block as a group; their controller assigns combat damage dealt to the band.', { auto: 'manual' });
 m('Bands with others', 'keyword', 'A narrower form of banding.', { auto: 'manual' });
 m('Bargain', 'keyword', 'As an additional cost you may sacrifice an artifact, enchantment or token; bargained spells get a bonus.', { auto: 'auto', actions: ['sacrifice'] });
@@ -272,7 +272,7 @@ m('More Than Meets the Eye', 'keyword', 'You may cast this converted (back face 
 m('Morph', 'keyword', 'Cast face down for {3} as a 2/2 with no name or abilities; turn face up any time for the morph cost.', { auto: 'auto', rules: ['Turning face up is a special action: no stack, can\'t be responded to.', 'Megamorph also puts a +1/+1 counter on it when turned up.'] });
 m('Megamorph', 'keyword', 'Like morph; when turned face up it also gets a +1/+1 counter.', { auto: 'auto' });
 m('Mutate', 'keyword', 'Cast for the mutate cost targeting a non-Human creature you own: it merges with that creature, on top or underneath, and becomes one creature with all abilities.', { auto: 'manual', steps: 'Choose top or bottom. The merged creature uses the top card\'s name and P/T and has every card\'s abilities; it is one creature.', actions: ['attach'] });
-m('Myriad', 'keyword', 'Whenever this attacks, for each other opponent, you may create a token copy attacking that player; exile the tokens at end of combat.', { auto: 'manual', actions: ['copy-token'] });
+m('Myriad', 'keyword', 'Whenever this attacks, for each other opponent, you may create a token copy attacking that player; exile the tokens at end of combat.', { auto: 'auto', actions: ['copy-token'] });
 m('Ninjutsu', 'keyword', 'Pay the cost and return an unblocked attacker you control to hand: put this onto the battlefield tapped and attacking.', { auto: 'auto' });
 m('Commander ninjutsu', 'keyword', 'Ninjutsu that also works from the command zone.', { auto: 'partial' });
 m('Offering', 'keyword', 'You may cast this as though it had flash by sacrificing a creature of the type and paying the difference in costs.', { auto: 'manual', actions: ['sacrifice'] });

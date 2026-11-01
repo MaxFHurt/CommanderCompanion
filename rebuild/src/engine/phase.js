@@ -85,9 +85,12 @@ function cleanupTemporaryEffects(game) {
   }
   game.damagePrevention = (game.damagePrevention || []).filter(e => e?.expires !== 'cleanup');
 }
-export function cleanupEndCombatEffects(game) { for (const p of game.players || [])
+export function cleanupEndCombatEffects(game) { for (const p of game.players || []) {
   for (const c of p.deck?.battlefield || [])
-    c.temporaryEffects = (c.temporaryEffects || []).filter(e => e?.expires !== 'end-combat'); }
+    c.temporaryEffects = (c.temporaryEffects || []).filter(e => e?.expires !== 'end-combat');
+  // Myriad tokens are exiled at end of combat (tokens cease to exist).
+  if (p.deck?.battlefield) p.deck.battlefield = p.deck.battlefield.filter(c => !(c.token && c.exileEndCombat));
+} }
 export function advanceTurn(game) {
   cleanupTemporaryEffects(game);
   expirePlayPermissions(game);
