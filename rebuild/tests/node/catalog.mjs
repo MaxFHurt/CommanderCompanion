@@ -2043,4 +2043,20 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('…the second cast from hand wins the game', t.game.status === 'complete' || t.P(1).eliminated || !!t.P(1).counters?.lostGame, JSON.stringify([t.game.status, t.P(1).counters?.lostGame]));
 }
 
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  const life = t.P(1).life;
+  const seen = cast(t, 'Opt', 'Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.', [['x', 2], [d => d.playerId === t.P(1).playerId && d.key.includes(':0:'), () => `s:${foe.instanceId}`], [d => d.playerId === t.P(1).playerId, 'life']], { manaCost: '{X}{G}', typeLine: 'Sorcery' });
+  check('Torment of Hailfire: the opponent chooses (sacrifices); with nothing left the next round costs 3 life', t.names(1, 'graveyard').includes('Grizzly Bears') && t.P(1).life === life - 3 && seen.filter(d => d.playerId === t.P(1).playerId).length === 1, JSON.stringify([t.P(1).life - life, seen.length]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 1);
+  for (let i = 0; i < 2; i++) t.give(1, 'Forest', 'battlefield');
+  const lili = onField(t, 'Sol Ring', '{0}: Each opponent chooses a permanent they control of each permanent type and sacrifices the rest.');
+  const seen = activate(t, lili, 0, [[d => d.playerId === t.P(1).playerId && /creature/.test(d.prompt || ''), () => b.instanceId], [d => d.playerId === t.P(1).playerId, d => d.options[0].id]]);
+  check('Liliana −9: the opponent keeps one creature and one land; the rest are sacrificed', t.names(1, 'battlefield').filter(n => n === 'Forest').length === 1 && t.names(1, 'battlefield').includes('Llanowar Elves') && !t.names(1, 'battlefield').includes('Grizzly Bears'), JSON.stringify(t.names(1, 'battlefield')));
+}
+
 done();

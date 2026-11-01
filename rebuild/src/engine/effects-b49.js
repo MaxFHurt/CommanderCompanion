@@ -155,6 +155,12 @@ export function compileB49Clause(c, ctx) {
   if ((m = c.match(/^The next (noncreature )?spell you cast this turn has (improvise|cascade)\.?$/i))) { effects.push({ kind: 'next-spell-keyword', keyword: m[2].toLowerCase(), noncreature: !!m[1] }); return true; }
   // Boromir, Mindbreak Trap-style triggers: "counter that spell." — the spell that caused the trigger.
   if (/^counter that spell\.?$/i.test(c)) { effects.push({ kind: 'counter-event-spell' }); return true; }
+  // Liliana, Dreadhorde General −9: "Each opponent chooses a permanent they control of each permanent type and sacrifices the rest."
+  if (/^Each (opponent|player) chooses a permanent they control of each permanent type and sacrifices the rest\.?$/i.test(c)) {
+    requirements.push({ kind: 'b49-keep-each-type', bind: 'keepTypes', who: /opponent/i.test(c) ? 'opponents' : 'all' });
+    effects.push({ kind: 'keep-each-type', bind: 'keepTypes' });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -273,6 +279,9 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const n = { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8 }[m2[1].toLowerCase()];
     if (n) return { part: { effects: [{ kind: 'condition', test: 'b49-approach', name: m[1], skip: 1 }, { kind: 'game-result', win: true }, { kind: 'condition', test: 'b49-approach', name: m[1], negate: true, skip: 2 }, { kind: 'self-library-nth', n }, { kind: 'life', scope: 'you', amount: num(m2[2]), deltaSign: 1 }], requirements: [], unsupported: [] }, consumed: 2 };
   }
+  // Torment of Hailfire: "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card."
+  if (/^Repeat the following process X times\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^Each opponent loses (\w+) life unless that player sacrifices a nonland permanent of their choice or discards a card\.?$/i)))
+    return { part: { effects: [{ kind: 'torment', bind: 'torment', loss: num(m[1]) }], requirements: [{ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }, { kind: 'b49-torment', bind: 'torment', loss: num(m[1]) }], unsupported: [] }, consumed: 2 };
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -491,6 +500,31 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       game.spellLibraryNth = { id: bindings.sourceId, n: effect.n };
       notes.push(`${nameOf(game, bindings.sourceId)} goes into its owner's library ${effect.n === 7 ? 'seventh' : `#${effect.n}`} from the top.`);
       return true;
+    case 'torment': {
+      // Each round, in order: what each opponent chose (sacrifice, discard, or lose life).
+      const emit = e => H.emit(bindings, e);
+      for (const step of bindings[effect.bind] || []) {
+        const p = playerById(game, step.playerId);
+        if (!p || p.eliminated) continue;
+        const h = step.id && locateCardInGame(game, step.id);
+        if (step.do === 'sacrifice' && h?.zone === 'battlefield') { moveCard(game, step.id, 'graveyard', { moveReason: 'sacrifice', onEvent: emit }); notes.push(`${p.displayName} sacrifices ${nameOf(game, step.id)}.`); continue; }
+        if (step.do === 'discard' && h?.zone === 'hand') { moveCard(game, step.id, 'graveyard', { onEvent: emit }); emit({ type: 'discard', playerId: p.playerId, sourceId: step.id }); notes.push(`${p.displayName} discards ${nameOf(game, step.id)}.`); continue; }
+        notes.push(...H.applyEffectsUnsafe(game, p.playerId, [{ kind: 'life', scope: 'you', amount: effect.loss, deltaSign: -1 }], bindings));
+      }
+      return true;
+    }
+    case 'keep-each-type': {
+      const keep = bindings[effect.bind] || {};
+      const emit = e => H.emit(bindings, e);
+      for (const [pid, ids] of Object.entries(keep)) {
+        const p = playerById(game, pid);
+        if (!p) continue;
+        const gone = (p.deck.battlefield || []).filter(c => !ids.includes(c.instanceId)).map(c => c.instanceId);
+        for (const id of gone) moveCard(game, id, 'graveyard', { moveReason: 'sacrifice', onEvent: emit });
+        notes.push(`${p.displayName} keeps ${ids.map(id => nameOf(game, id)).join(', ') || 'nothing'} and sacrifices ${gone.length} permanent${gone.length === 1 ? '' : 's'}.`);
+      }
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -605,6 +639,41 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
       }
     }
     bindings[req.bind] = plan;
+    return true;
+  }
+  if (req.kind === 'b49-torment') {
+    const rounds = Math.max(0, Number(bindings.X || 0)), steps = [], used = new Set();
+    let lifeLeft = Object.fromEntries((game.players || []).map(p => [p.playerId, Number(p.life || 0)]));
+    for (let r = 0; r < rounds; r++) for (const p of util.opponentsOf(game, player.playerId)) {
+      if (lifeLeft[p.playerId] <= 0) continue;
+      const perms = (p.deck.battlefield || []).filter(c => !used.has(c.instanceId) && !/\bLand\b/.test(util.defOf(game, c)?.typeLine || ''));
+      const hand = (p.deck.hand || []).filter(c => !used.has(c.instanceId));
+      const v = (perms.length || hand.length) ? ask(`${key}:${r}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, private: true, kind: 'choose-one', title: `${title} (${r + 1} of ${rounds})`, prompt: `Lose ${req.loss} life, or sacrifice a nonland permanent, or discard a card.`,
+        options: [{ id: 'life', label: `Lose ${req.loss} life` }, ...perms.map(c => ({ ...util.cardOption(game, c, p, 'Sacrifice'), id: `s:${c.instanceId}` })), ...hand.map(c => ({ ...util.cardOption(game, c, p, 'Discard'), id: `d:${c.instanceId}` }))] })) : 'life';
+      if (v === 'life' || !v) { steps.push({ playerId: p.playerId, do: 'life' }); lifeLeft[p.playerId] -= req.loss; continue; }
+      const id = String(v).slice(2);
+      used.add(id);
+      steps.push({ playerId: p.playerId, do: String(v).startsWith('s:') ? 'sacrifice' : 'discard', id });
+    }
+    bindings[req.bind] = steps;
+    return true;
+  }
+  if (req.kind === 'b49-keep-each-type') {
+    const types = ['Artifact', 'Creature', 'Enchantment', 'Land', 'Planeswalker', 'Battle'];
+    const keep = {};
+    const who = req.who === 'opponents' ? util.opponentsOf(game, player.playerId) : (game.players || []).filter(q => !q.eliminated);
+    for (const p of who) {
+      const kept = new Set();
+      for (const type of types) {
+        const rows = (p.deck.battlefield || []).filter(c => new RegExp(`\\b${type}\\b`).test(util.defOf(game, c)?.typeLine || ''));
+        if (!rows.length) continue;
+        if (rows.some(c => kept.has(c.instanceId)) && rows.length === 1) continue;
+        const v = rows.length === 1 ? rows[0].instanceId : ask(`${key}:${p.playerId}:${type}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: `Choose a ${type.toLowerCase()} to keep; the rest of your permanents are sacrificed.`, options: rows.map(c => util.cardOption(game, c, p, util.defOf(game, c)?.typeLine || '')) }));
+        if (v) kept.add(v);
+      }
+      keep[p.playerId] = [...kept];
+    }
+    bindings[req.bind] = keep;
     return true;
   }
   if (req.kind === 'b49-hand-pick') {
