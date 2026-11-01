@@ -2384,4 +2384,12 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Amplify 1: two Bears revealed, two counters', d?.counters?.['+1/+1'] === 2, JSON.stringify(d?.counters));
 }
 
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', 'Enlist'), b = onField(t, 'Colossal Dreadmaw', '', { power: '6' });
+  attackWith(t, [a.instanceId]);
+  settle(t, [[d => /Enlist/.test(d.prompt || ''), [b.instanceId]]]);
+  check('Enlist: tapping the Dreadmaw adds 6 power', b.tapped && power(t, a) === 8, String(power(t, a)));
+}
+
 done();

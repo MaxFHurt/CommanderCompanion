@@ -68,6 +68,8 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
       if (attackers.some(id => { const c = field().find(x => x.instanceId === id); return c && pw(c) < p; }))
         add('mentor', 'Mentor — put a +1/+1 counter on target attacking creature with lesser power.', `Put a +1/+1 counter on target attacking creature with power ${p - 1} or less.`);
     }
+    // Enlist: tap a nonattacking creature you control without summoning sickness; add its power to this creature's until end of turn.
+    if (count(text, 'Enlist')) add('enlist', 'Enlist — you may tap a nonattacking creature you control to add its power to this creature\'s until end of turn.', '', { compiled: { supported: true, unsupported: [], requirements: [{ kind: 'b49-enlist', bind: 'enlist' }], effects: [{ kind: 'enlist', bind: 'enlist' }] } });
     if (count(text, 'Training') && attackers.some(id => { const c = field().find(x => x.instanceId === id); return c && pw(c) > pw(card); }))
       add('training', 'Training — it attacks with a creature with greater power: put a +1/+1 counter on it.', '', compiled([{ kind: 'counter', bind: 'sourceId', counter: '+1/+1', amount: 1 }]));
   }
@@ -138,4 +140,4 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 }
 
 /** The keywords read here (rules-audit and the terms key mark them automatic). */
-export const B49_KEYWORDS = ['Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];
+export const B49_KEYWORDS = ['Enlist', 'Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];

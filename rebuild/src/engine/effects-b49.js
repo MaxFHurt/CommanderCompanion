@@ -715,6 +715,14 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (h?.zone === 'battlefield' && h.card.attachedTo) { const host = locateCardInGame(game, h.card.attachedTo); if (host?.card?.attachments) host.card.attachments = host.card.attachments.filter(x => x !== h.card.instanceId); h.card.attachedTo = null; notes.push(`${nameOf(game, bindings.sourceId)} becomes unattached.`); }
       return true;
     }
+    case 'enlist': {
+      const id = [].concat(bindings[effect.bind] || [])[0], h = id && locateCardInGame(game, id);
+      if (!h || h.zone !== 'battlefield' || h.card.tapped) { notes.push('No creature is enlisted.'); return true; }
+      H.setTapped(h.card, true);
+      const p = Math.max(0, effectivePower(h.card, definitionFor(game, h.card), game));
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'pump', bind: 'sourceId', power: p, toughness: 0, expires: 'cleanup' }], bindings));
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -935,6 +943,13 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     const max = Number(util.defOf(game, ev)?.manaValue ?? 0);
     const rows = (player.deck.hand || []).filter(c => !/\b(?:Instant|Sorcery)\b/.test(util.defOf(game, c)?.typeLine || '') && Number(util.defOf(game, c)?.manaValue ?? 0) <= max);
     bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `You may put a permanent card with mana value ${max} or less from your hand onto the battlefield.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max: 1 })) || []) : [];
+    return true;
+  }
+  if (req.kind === 'b49-enlist') {
+    const attacking = new Set((game.combatState?.attackers || []).map(a => a.instanceId));
+    const sick = c => Number(c.controlSinceTurn ?? c.enteredTurn ?? -1) >= Number(game.turnNumber) && !/\bHaste\b/i.test(util.defOf(game, c)?.oracleText || '');
+    const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && !c.tapped && !attacking.has(c.instanceId) && /\bCreature\b/.test(util.defOf(game, c)?.typeLine || '') && !sick(c));
+    bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: 'Enlist: you may tap a nonattacking creature you control (its power is added to this creature\'s).', options: rows.map(c => util.cardOption(game, c, player, `power ${effectivePower(c, util.defOf(game, c), game)}`)), min: 0, max: 1 })) || []) : [];
     return true;
   }
   if (req.kind === 'b49-hand-pick') {
