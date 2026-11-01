@@ -1370,4 +1370,27 @@ section('round 32: Exploit, Spacecraft');
   check('Expend 4: fires when the fourth mana this turn is spent', mid === hand && t.P(0).deck.hand.length === hand + 1, JSON.stringify([hand, mid, t.P(0).deck.hand.length]));
 }
 
+section('round 33: casting from the graveyard');
+{
+  const t = setup();
+  const spell = t.give(0, 'Opt', 'graveyard'); asText(t, spell, 'Draw two cards.', { typeLine: 'Instant', manaCost: '{3}{U}' });
+  onField(t, 'Fog Bank', 'When this creature enters, you may cast target instant card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.', { typeLine: 'Artifact Creature — Construct' });
+  const g = t.bf(0, 'Fog Bank');
+  t.P(0).deck.battlefield.splice(t.P(0).deck.battlefield.indexOf(g), 1); g.zone = 'hand'; t.P(0).deck.hand.push(g);
+  t.game.cardDefinitions[g.definitionId].manaCost = '{U}';
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: g.instanceId }, t.as(0));
+  settle(t, [[d => d.kind === 'choose-many' && /graveyard|cast/i.test(d.title + d.prompt), () => [spell.instanceId]]]);
+  check('Torrential Gearhulk: casts the instant free; it is exiled afterwards', spell.zone === 'exile' && t.P(0).deck.hand.length === hand - 1 + 2, JSON.stringify([spell.zone, hand, t.P(0).deck.hand.length]));
+}
+{
+  const t = setup();
+  const spell = t.give(0, 'Opt', 'graveyard'); asText(t, spell, 'Draw a card.', { typeLine: 'Sorcery', manaCost: '{U}' });
+  const jace = onField(t, 'Fog Bank', '{T}: You may cast target instant or sorcery card from your graveyard this turn. If that spell would be put into your graveyard, exile it instead.', { typeLine: 'Artifact' });
+  activate(t, jace, 0, [[d => d.kind === 'choose-many', () => [spell.instanceId]]]);
+  const row = t.view(0).players[0].graveyard.find(c => c.id === spell.instanceId);
+  const r = t.ctl.dispatch({ type: 'play', instanceId: spell.instanceId }, t.as(0)); settle(t);
+  check('…"this turn": castable later this turn for its cost, then exiled', row?.playable && r.ok && spell.zone === 'exile', JSON.stringify([row?.playable, r.error, spell.zone]));
+}
+
 done();

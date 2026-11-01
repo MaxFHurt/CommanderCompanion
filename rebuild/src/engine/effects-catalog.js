@@ -230,6 +230,15 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'switch-pt', bind });
     return true;
   }
+  // Torrential Gearhulk, Emet-Selch: "you may cast target instant card from your graveyard (without paying its mana cost)."
+  // The player picks the card (or none) as it resolves and casts it right away.
+  if ((m = c.match(/^(?:Then )?(?:you may )?cast (?:target|an|a) ([a-z ,]+?)(?: card| spell)( with mana value \d+ or less)? from your graveyard( without paying its mana cost)?( this turn)?\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: `${m[1].trim()}${m[2] || ''}`, max: 1, min: 0, label: `a ${m[1].trim()} card${m[2] || ''} to cast${m[3] ? ' for free' : ''} (or none)` });
+    effects.push({ kind: 'cast-from-graveyard', bind, free: !!m[3], thisTurn: !!m[4] });
+    return true;
+  }
+  if (/^If that spell would be put into (?:your|a) graveyard, exile it instead\.?$/i.test(c)) { effects.push({ kind: 'exile-instead-flag' }); return true; }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1454,6 +1463,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (!obj || !upd || !Object.keys(upd).length) { notes.push('The targets stay the same.'); return true; }
       obj.effectBindings = { ...(obj.effectBindings || {}), ...upd };
       notes.push(`${obj.label || 'The spell'} has new targets.`);
+      return true;
+    }
+    case 'cast-from-graveyard': {
+      const id = [].concat(bindings[effect.bind] || [])[0];
+      const hit = id && locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'graveyard') { notes.push('No spell was cast.'); return true; }
+      if (effect.exileInstead) hit.card.exileInsteadOfGraveyard = true;
+      const d = definitionFor(game, hit.card);
+      // "… from your graveyard this turn": allowed any time this turn (casting.js offers it), not only now.
+      if (effect.thisTurn) { hit.card.graveyardCastPermission = { turn: game.turnNumber, playerId: controllerId, free: !!effect.free }; notes.push(`${controller.displayName} may cast ${name(hit.card)} from the graveyard this turn.`); return true; }
+      game.flow = game.flow || {};
+      game.flow.freeCast = effect.free ? { playerId: controllerId, instanceId: id } : { playerId: controllerId, instanceId: id, cost: d?.manaCost || '', label: 'Cast from graveyard' };
+      notes.push(`${controller.displayName} casts ${name(hit.card)} from the graveyard${effect.free ? ' without paying its mana cost' : ''}.`);
       return true;
     }
     case 'free-cast-hand': {

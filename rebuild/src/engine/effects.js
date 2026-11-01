@@ -1481,7 +1481,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         throw new Error('The chosen stack object is not a spell.');
       bindings.counteredManaValue = Number(definitionFor(game, obj.card)?.manaValue ?? definitionFor(game, obj.card)?.cmc ?? 0);   // Mana Drain
       const owner = ownerFor(game, obj.card, game.players.find(p => p.playerId === obj.controllerId));
-      const where = effect.exile ? 'exile' : 'graveyard';   // Force of Negation exiles it
+      const where = effect.exile || graveyardDestination(game, obj.card) === 'exile' ? 'exile' : 'graveyard';   // Force of Negation exiles it; so do "exile it instead" casts
+      delete obj.card.exileInsteadOfGraveyard;
       obj.card.zone = where;
       obj.card.controllerId = owner.playerId;
       owner.deck[where].push(obj.card);
@@ -3143,6 +3144,13 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   for (const x of merged.effects.filter(e => e.kind === 'untap-those')) {
     const before = merged.effects.slice(0, merged.effects.indexOf(x)).reverse().find(e => ['pump-each', 'counter-each', 'grant-keyword-each'].includes(e.kind));
     if (before) Object.assign(x, { kind: 'untap-each', scope: before.scope || 'you', filter: before.filter || 'creature' });
+  }
+  // "If that spell would be put into your graveyard, exile it instead.": on the cast just before it.
+  for (const x of [...merged.effects].filter(e => e.kind === 'exile-instead-flag')) {
+    const at = merged.effects.indexOf(x);
+    const cast = merged.effects.slice(0, at).reverse().find(e => e.kind === 'cast-from-graveyard');
+    if (cast) { cast.exileInstead = true; merged.effects.splice(at, 1); }
+    else merged.unsupported.push('If that spell would be put into your graveyard, exile it instead.');
   }
   // "You may choose new targets for the copy.": the copy asks its controller as it resolves.
   for (const x of [...merged.effects].filter(e => e.kind === 'retarget-flag')) {

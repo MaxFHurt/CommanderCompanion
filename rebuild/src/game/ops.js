@@ -245,7 +245,7 @@ function runPlay(game, op, ask) {
   }
 
   // How is it cast? (normal, flashback, evoke, face down …)
-  const modes = madness !== null ? [{ id: 'madness', label: 'Madness', cost: madness, legal: true }] : free ? [{ id: 'normal', label: 'Cast', cost: '', legal: true }] : (check.options || []).filter(o => o.legal || force);
+  const modes = madness !== null ? [{ id: 'madness', label: op.args.castLabel || 'Madness', cost: madness, legal: true }] : free ? [{ id: 'normal', label: 'Cast', cost: '', legal: true }] : (check.options || []).filter(o => o.legal || force);
   let mode = modes[0] || { id: 'normal', label: 'Cast', cost: def.manaCost || '' };
   if (modes.length > 1) {
     const pick = ask('castMode', () => ({

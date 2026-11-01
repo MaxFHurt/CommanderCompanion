@@ -240,6 +240,8 @@ export function castModes(game, player, card, def, base = null) {
       modes.push({ id: 'alt-cost', cost: alt[3] || '', altLife: alt[4] ? Number(alt[4]) : 0, altLabel: alt[4] ? `Pay ${alt[4]} life instead` : `Pay ${alt[3]} instead` });
     }
   }
+  if (zone === 'graveyard' && card.graveyardCastPermission?.turn === game.turnNumber && card.graveyardCastPermission.playerId === player.playerId && !isLand(def))
+    modes.push({ id: card.graveyardCastPermission.free ? 'free-exile' : 'normal', cost: card.graveyardCastPermission.free ? '' : (def?.manaCost || '') });
   if (zone === 'graveyard') {
     // Snapcaster Mage: flashback until end of turn, for its mana cost.
     if (card.grantedFlashback?.turn === game.turnNumber && card.grantedFlashback.playerId === player.playerId && def?.manaCost && !keywordCost(text, 'Flashback')) modes.push({ id: 'flashback', cost: def.manaCost, exileAfter: true });

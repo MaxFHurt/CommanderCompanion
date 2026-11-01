@@ -299,7 +299,7 @@ function putSpellOnStack(game, player, action, deck) {
   delete card.foretoldTurn;
   if (action.castMode && action.castMode !== 'normal')
     card.castMode = action.castMode;
-  delete card.plotted; delete card.plottedTurn; delete card.suspended;   // leaving exile ends plot / suspend
+  delete card.plotted; delete card.plottedTurn; delete card.suspended; delete card.graveyardCastPermission;   // leaving exile/graveyard ends plot, suspend, permissions
   card.wasCast = true;   // "if you cast it" (The One Ring); forgotten when it changes zones again
   if (action.kicked) {
     card.kicked = true;
@@ -478,6 +478,7 @@ function resolveStackTop(game) {
     let to = isCopy ? 'none' : (obj.to || (/Instant|Sorcery/i.test(def?.typeLine || '') ? 'graveyard' : 'battlefield'));
     if (to === 'graveyard' && graveyardDestination(game, card) === 'exile')
       obj.to = to = 'exile';
+    delete card.exileInsteadOfGraveyard;
     card.zone = to;
     if (to === 'battlefield') {
       card.controllerId = player.playerId;

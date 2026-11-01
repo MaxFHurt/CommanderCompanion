@@ -82,6 +82,8 @@ export function damageAmount(game, { sourceControllerId, colors = [], targetPlay
 export function graveyardDestination(game, card) {
   // "If that creature would die this turn, exile it instead." (Suplex, Anger of the Gods)
   if ((card?.temporaryEffects || []).some(e => e?.kind === 'exile-if-dies' || e?.kind === 'exile-if-leaves')) return 'exile';
+  // "If that spell would be put into your graveyard, exile it instead." (Torrential Gearhulk, Snapcaster-like effects)
+  if (card?.exileInsteadOfGraveyard) return 'exile';
   for (const { p, text } of permanents(game)) {
     if (/If a card or token would be put into a graveyard from anywhere, exile it instead/i.test(text)) return 'exile';
     if (/If a card would be put into an opponent'?s graveyard from anywhere, exile it instead/i.test(text) && card?.ownerId && card.ownerId !== p.playerId) return 'exile';
