@@ -4,6 +4,7 @@
 // this device takes their copy and repeats its own actions on top, so no move is lost.
 // The game screen uses it like any other session: view(), send(intent), onChange(fn).
 
+import { sendCorrections } from '../net/corrections.js';
 import { createController } from '../game/controller.js';
 import { saveRecord, loadRecord } from '../data/store.js';
 import { fetchOnlineGame, saveOnlineGame } from '../net/online.js';
@@ -55,7 +56,7 @@ function onlineSession({ code, rev, game, seatId, lastJson, offline }) {
   function mount(next) {
     controller?.stop();
     game = next;
-    controller = createController(game, { onChange: emit });
+    controller = createController(game, { onChange: () => { sendCorrections(game); emit(); } });
     session.controller = controller;
     session.game = game;
     controller.start();

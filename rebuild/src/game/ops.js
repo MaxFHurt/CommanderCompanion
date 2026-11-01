@@ -1,3 +1,4 @@
+import { noteCorrection } from './corrections.js';
 // Multi-step game actions ("ops"): play a card, activate an ability, put a trigger on the stack,
 // resolve the top of the stack. An op asks for the choices it needs (see requirements.js) and
 // only changes the game once every answer is in, so cancelling half-way never leaves a mess.
@@ -1017,6 +1018,7 @@ function runResolve(game, op, ask) {
     if (still && still.id === op.args.stackId) {
       still.searchResult = null;
       still.guidedResolution = guidedSpec(`${name} — resolve by hand`, still.text || '', [error?.message || 'This effect could not be applied automatically.']);
+      noteCorrection(game, { kind: 'engine-error', card: name, text: still.text || '', error: String(error?.message || error || '').slice(0, 300) });
     }
     return;
   }

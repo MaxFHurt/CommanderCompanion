@@ -30,7 +30,7 @@ const PROFILE_RE = /^[A-Z]{12}$/;
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Report-Key',
   'Access-Control-Max-Age': '86400'
 };
 
@@ -63,6 +63,23 @@ export default {
         return withCors(res);
       } catch (error) {
         return fail(500, 'The online save service had a problem. Try again.');
+      }
+    }
+    // Rule corrections from every game, and the owner's Dev report (build 47).
+    //   POST /corrections        { records: [...] }                 → { ok, stored }
+    //   POST /devreport/pin      { pin }                            → { ok } (sets the PIN once, if none is set)
+    //   POST /devreport          { pin, all? }  or X-Report-Key     → { records, total, reportedUpTo }
+    //   POST /devreport/mark     { pin, upTo }  or X-Report-Key     → { ok }
+    if (parts[0] === 'corrections' || parts[0] === 'devreport') {
+      if (request.method !== 'POST') return fail(405, 'Not allowed.');
+      const action = parts[0] === 'corrections' ? 'add' : (parts[1] || 'read');
+      if (!['add', 'pin', 'read', 'mark'].includes(action) || parts.length > 2) return fail(404, 'Not found.');
+      const keyOk = !!env.REPORT_KEY && request.headers.get('X-Report-Key') === env.REPORT_KEY;
+      try {
+        const res = await stub(env, 'reports:all').fetch(`https://game/reports/${action}`, { method: 'POST', body: await request.text(), headers: { 'x-key-ok': keyOk ? '1' : '0' } });
+        return withCors(res);
+      } catch (error) {
+        return fail(500, 'The report service had a problem. Try again.');
       }
     }
     if (parts[0] !== 'games') return parts.length ? fail(404, 'Not found.') : json({ ok: true, service: 'Commander Companion online games' });
@@ -172,9 +189,49 @@ export class GameStore {
     return json({ rev: next.rev });
   }
 
+  /** The single store of rule corrections ("reports:all"). Records are kept by id, so the same correction sent from
+   * several devices at one table is stored once. */
+  async reports(request, action) {
+    const body = await readBody(request);
+    const meta = (await this.storage.get('reportsMeta')) || { pinHash: null, reportedUpTo: '' };
+    const hash = async pin => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`cc-dev:${pin}`)))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const authed = async () => request.headers.get('x-key-ok') === '1' || (!!meta.pinHash && /^\d{4,8}$/.test(String(body.pin || '')) && (await hash(body.pin)) === meta.pinHash);
+    if (action === 'add') {
+      const records = Array.isArray(body.records) ? body.records.slice(0, 100) : [];
+      const writes = {};
+      for (const r of records) {
+        if (!r || typeof r !== 'object' || typeof r.id !== 'string' || r.id.length > 120) continue;
+        const text = JSON.stringify(r);
+        if (text.length > 6000) continue;
+        writes[`rec:${r.id}`] = { ...r, receivedAt: Date.now() };
+      }
+      const entries = Object.entries(writes);
+      for (let i = 0; i < entries.length; i += 100) await this.storage.put(Object.fromEntries(entries.slice(i, i + 100)));
+      return json({ ok: true, stored: entries.length });
+    }
+    if (action === 'pin') {
+      if (meta.pinHash) return fail(409, 'A PIN is already set.');
+      if (!/^\d{4,8}$/.test(String(body.pin || ''))) return fail(400, 'The PIN must be 4 to 8 digits.');
+      meta.pinHash = await hash(body.pin);
+      await this.storage.put('reportsMeta', meta);
+      return json({ ok: true });
+    }
+    if (!meta.pinHash && request.headers.get('x-key-ok') !== '1') return fail(428, 'Set a PIN first.');
+    if (!(await authed())) return fail(403, 'Wrong PIN.');
+    if (action === 'mark') {
+      meta.reportedUpTo = String(body.upTo || '');
+      await this.storage.put('reportsMeta', meta);
+      return json({ ok: true });
+    }
+    const all = [...(await this.storage.list({ prefix: 'rec:' })).values()].sort((a, b) => String(a.at).localeCompare(String(b.at)));
+    const records = body.all ? all : all.filter(r => String(r.at) > meta.reportedUpTo);
+    return json({ records, total: all.length, reportedUpTo: meta.reportedUpTo });
+  }
+
   async fetch(request) {
     const url = new URL(request.url);
     const [code, action] = url.pathname.split('/').filter(Boolean).concat('');
+    if (code === 'reports') { try { return await this.reports(request, action); } catch (error) { return fail(error.status || 500, error.status ? error.message : 'The report service had a problem.'); } }
     try {
       const meta = await this.loadMeta();
       if (action === 'profile') return this.profile(request, meta);

@@ -10,6 +10,7 @@ import { saveRecord, deleteRecord, loadRecord } from '../data/store.js';
 import { GAME_SAVE_KEY } from '../game/save-keys.js';
 import { debounce } from '../ui/dom.js';
 import { checkpointStore } from './checkpoints.js';
+import { sendCorrections } from '../net/corrections.js';
 import { hostRoom } from '../net/room.js';
 
 let current = null;
@@ -40,6 +41,7 @@ function baseHostSession(game, { role, seatId = null, net = null }) {
     checkpoints: checkpointStore(game.gameId),
     onChange: () => {
       save();
+      sendCorrections(game);
       net?.pushViews();
       for (const fn of listeners) fn();
     }

@@ -52,7 +52,7 @@ export function hasLocalRecord(key) {
 
 // Device settings (not tied to a game).
 const SETTINGS_KEY = 'cc-settings-v1';
-const DEFAULT_SETTINGS = { guidance: 'coach', tips: true };
+const DEFAULT_SETTINGS = { guidance: 'coach', tips: true, sendCorrections: true };
 
 export function loadSettings() {
   return { ...DEFAULT_SETTINGS, ...(readLocal(SETTINGS_KEY)?.value || {}) };

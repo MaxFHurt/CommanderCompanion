@@ -1,3 +1,4 @@
+import { noteCorrection } from './corrections.js';
 // The game's "what happens next" loop. After every player input the controller calls settle(),
 // which keeps moving the game forward until a person has to decide something.
 
@@ -387,6 +388,8 @@ export function finishGuided(game, playerId, { override = false } = {}) {
   if (!g) throw new GameError('Nothing is waiting to be resolved by hand.');
   if (!top || top.id !== g.stackId) { game.flow.guided = null; return; }
   if (top.controllerId !== playerId && !override) throw new GameError('The player who controls this effect finishes it.');
+  const card = top.card || (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === top.sourceId);
+  noteCorrection(game, { kind: 'manual-resolution', card: game.cardDefinitions?.[card?.definitionId || top.sourceDefinitionId]?.name || top.name || 'Effect', text: top.text || top.guidedResolution?.oracleText || '', unread: top.guidedResolution?.unsupported || [], steps: g.steps || [] });
   top.guidedResolution = null;
   top.effects = [];
   top.resolveReqs = [];

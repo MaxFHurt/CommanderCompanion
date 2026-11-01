@@ -1,3 +1,4 @@
+import { noteCorrection } from './corrections.js';
 // The single owner of a running game. Screens and remote devices never change the game
 // directly: they send an intent here, the controller checks who is asking, applies it,
 // lets the game settle, and tells listeners to redraw.
@@ -128,12 +129,14 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
     const requester = playerById(game, pr.requesterId);
     if (pr.kind === 'undo') {
       log(game, 'Everyone agreed to undo.', { type: 'vote' });
+      noteCorrection(game, { kind: 'undo', play: String(pr.data.playText || '').slice(0, 300) });
       pendingReverse = pr.data.playId;
     } else if (pr.kind === 'challenge') {
       correctionSnap = snapshotGame(game);
       game.flow.correction = { challengerId: pr.requesterId, playId: pr.data.playId, playText: pr.data.playText, since: (game.log || [])[0]?.id || null };
       log(game, `Challenge accepted. ${requester?.displayName || 'The challenger'} is preparing a correction.`, { type: 'vote' });
     } else if (pr.kind === 'correction') {
+      noteCorrection(game, { kind: 'ruling', play: String(game.flow.correction?.playText || '').slice(0, 300), note: 'A challenge was upheld and the table accepted a correction.' });
       game.flow.correction = null;
       correctionSnap = null;
       log(game, 'Everyone accepted the correction.', { type: 'vote' });

@@ -1,3 +1,4 @@
+import { noteCorrection, describeEdit } from './corrections.js';
 // Direct changes to the game used by Free Play, by the host/judge, and while a player resolves
 // an unsupported card by hand. Every edit is logged so the table can see what was changed.
 
@@ -41,6 +42,12 @@ export function sendCounteredSpell(game, obj) {
 }
 
 export function applyEdit(game, e, who = 'Host') {
+  // Rule corrections: an edit while a card is being resolved by hand is a step of that resolution; others are corrections.
+  if (e?.kind && e.kind !== 'rules') {
+    const step = describeEdit(game, e);
+    if (game.flow?.guided) (game.flow.guided.steps = game.flow.guided.steps || []).push(step);
+    else noteCorrection(game, { kind: 'edit', step });
+  }
   const tag = text => log(game, `${who}: ${text}`, { type: 'edit' });
   switch (e.kind) {
     case 'life': {

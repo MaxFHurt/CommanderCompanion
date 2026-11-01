@@ -14,7 +14,8 @@ function memoryStorage() {
       if (Array.isArray(key)) return new Map(key.filter(k => data.has(k)).map(k => [k, structuredClone(data.get(k))]));
       return data.has(key) ? structuredClone(data.get(key)) : undefined;
     },
-    async put(entries) { for (const [k, v] of Object.entries(entries)) data.set(k, structuredClone(v)); },
+    async put(entries, value) { if (typeof entries === 'string') { data.set(entries, structuredClone(value)); return; } for (const [k, v] of Object.entries(entries)) data.set(k, structuredClone(v)); },
+    async list({ prefix = '' } = {}) { return new Map([...data.keys()].filter(k => k.startsWith(prefix)).sort().map(k => [k, structuredClone(data.get(k))])); },
     async delete(keys) { for (const k of [].concat(keys)) data.delete(k); },
     async deleteAll() { data.clear(); },
     async setAlarm() {}

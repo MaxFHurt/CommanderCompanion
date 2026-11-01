@@ -8,7 +8,13 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.46** (1 Nov): more card wordings (subtype targets and pumps, colour-filtered bounce, Threshold /
+- Live build: **1.0.0-rebuild.47** (1 Nov): rule corrections and the Dev report. Every manual resolution (with the steps
+  players took), manual edit, engine error, agreed undo and upheld challenge is logged in the game (`src/game/corrections.js`)
+  and sent to the Worker (`src/net/corrections.js` → `POST /corrections`; Settings → "Send rule corrections", on by default,
+  never from localhost test pages). Settings → **Dev report** (PIN, set on first use, hashed on the server) fetches every new
+  record from all games, shows a grouped text report to copy to Claude, and "Mark as reported" starts the next one after
+  them. The Worker also accepts `X-Report-Key` (secret `REPORT_KEY`) for the monthly Claude audit, once that secret is set.
+  Build 46 (1 Nov): more card wordings (subtype targets and pumps, colour-filtered bounce, Threshold /
   Delirium / Metalcraft / Hellbent bonuses, self-suspend, finality, Valakut Awakening, no combat damage …); the soak bot now
   blocks menace attackers with two creatures (that old "refused block" note is fixed). Build 45 (1 Nov): more card wordings — opponent library searches (Bribery, Praetor's Grasp), Clash,
   Fuse, Learn, "Choose target …" spells, hand reveals until it leaves, exile-until-nonland free casts, finality counters, damage
