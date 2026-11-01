@@ -4,6 +4,7 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
+import { canTarget, canTargetPlayer } from '../../src/game/requirements.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -1994,6 +1995,16 @@ section('round 50: strive, any number of targets, "for each … this way"');
   const a = onField(t, 'Grizzly Bears', '');
   cast(t, 'Opt', 'Target creature you control gets +2/+2 and gains hexproof until end of turn.', [[d => d.targeting, () => a.instanceId]], { manaCost: '{G}' });
   check('Blossoming Defense: the creature gets +2/+2 as well as hexproof (was keyword only)', power(t, a) === 4 && tough(t, a) === 4 && has(t, a, 'Hexproof'), JSON.stringify([power(t, a), tough(t, a)]));
+}
+
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.P(1).counters = { ...(t.P(1).counters || {}), castThisTurn: [{ typeLine: 'Instant', colors: ['U'], manaValue: 1 }] };
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can\'t be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn.', [], { manaCost: '{G}' });
+  const blue = { colors: ['U'] }, red = { colors: ['R'] };
+  check('Veil of Summer: draws (an opponent cast a blue spell); blue sources can\'t target its controller or their creature, red ones can', t.P(0).deck.hand.length === hand + 1 && !canTarget(t.game, bear, t.P(1), blue) && canTarget(t.game, bear, t.P(1), red) && !canTargetPlayer(t.game, t.P(0), t.P(1), blue) && canTargetPlayer(t.game, t.P(0), t.P(1), red), String(t.P(0).deck.hand.length - hand));
 }
 
 done();

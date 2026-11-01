@@ -139,6 +139,18 @@ export function compileB49Clause(c, ctx) {
     const inner = compile(`Create ${m[2]}`, sourceName);
     if (ok(inner) && !inner.requirements.length) { effects.push({ kind: 'per-moved-controller', effects: inner.effects }); return true; }
   }
+  // Veil of Summer: "You and permanents you control gain hexproof from blue and from black until end of turn."
+  if ((m = c.match(/^You and permanents you control gain hexproof from (white|blue|black|red|green)(?: and from (white|blue|black|red|green))? until end of turn\.?$/i))) {
+    const words = [m[1], m[2]].filter(Boolean).map(w => w.toLowerCase());
+    effects.push({ kind: 'player-hexproof', colors: words.map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) });
+    for (const w of words) effects.push({ kind: 'grant-keyword-each', scope: 'you', filter: 'permanent', keyword: `Hexproof from ${w}`, expires: 'cleanup' });
+    return true;
+  }
+  // "Draw a card if an opponent has cast a blue or black spell this turn."
+  if ((m = c.match(/^(.+?) if (an opponent has cast an? .+? spell this turn)\.?$/i)) && parseConditionAny(m[2])) {
+    const inner = compile(`${m[1]}.`, sourceName);
+    if (ok(inner)) { effects.push({ kind: 'condition', ...parseConditionAny(m[2]), skip: inner.effects.length }, ...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -266,6 +278,7 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
   const controller = playerById(game, controllerId);
   switch (effect.kind) {
     case 'player-hexproof':
+      if (effect.colors) { controller.hexproofFrom = { turn: game.turnNumber, colors: effect.colors }; notes.push(`${controller.displayName} has hexproof from ${effect.colors.join(' and ')} until end of turn.`); return true; }
       controller.hexproofTurn = game.turnNumber;
       notes.push(`${controller.displayName} has hexproof until end of turn.`);
       return true;
@@ -650,6 +663,7 @@ export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
+  if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
   if (/^that player controls more lands than you$/i.test(t)) return { test: 'b49-event-player-more-lands' };
   if (/^it isn'?t that player'?s turn$/i.test(t)) return { test: 'b49-not-event-players-turn' };
   if (/^(?:SELFNAME|this (?:artifact|creature|permanent)|[A-Z][A-Za-z ,'-]+) has counters on it$/.test(t)) return { test: 'b49-source-counters' };
@@ -683,6 +697,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-event-player-opponent': return !!bindings.eventPlayer && bindings.eventPlayer !== controllerId;
     case 'b49-event-player-more-lands': { const lands = p => (p?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return lands(playerById(game, bindings.eventPlayer)) > lands(me); }
     case 'b49-not-event-players-turn': return !!bindings.eventPlayer && game.activePlayerId !== bindings.eventPlayer;
+    case 'b49-opp-cast-color': return (game.players || []).some(p => p.playerId !== controllerId && (p.counters?.castThisTurn || []).some(x => (x.colors || []).some(c => effect.colors.includes(c))));
     case 'b49-cast-in-main': return !!bindings.castInMain;
     case 'b49-last-moved-type': return [].concat(bindings.lastMoved || []).some(id => new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, locateCardInGame(game, id)?.card)?.typeLine || ''));
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;

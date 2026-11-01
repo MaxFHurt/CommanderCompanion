@@ -55,12 +55,16 @@ export function canTarget(game, card, player, source = null) {
     const w = from[1].toLowerCase(), colors = source?.colors || [];
     if (COLOR_WORDS[w] ? colors.includes(COLOR_WORDS[w]) : w === 'multicolored' ? colors.length > 1 : colors.length === 1) return false;
   }
+  // "Hexproof from blue" given until end of turn (Veil of Summer).
+  if (opponent && (card.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled !== false && (m => m && (source?.colors || []).includes(COLOR_WORDS[m[1]]))(String(e.keyword || '').toLowerCase().match(/^hexproof from (white|blue|black|red|green)$/)))) return false;
   return !protectedFrom(game, card, source);
 }
 
 /** Players with "You have hexproof/shroud" (Leyline of Sanctity, True Believer) can't be targeted by opponents / anyone. */
-export function canTargetPlayer(game, target, player) {
+export function canTargetPlayer(game, target, player, source = null) {
   if (target.protectionFromEverything) return false;
+  // Veil of Summer: "You … gain hexproof from blue and from black until end of turn."
+  if (target.playerId !== player?.playerId && target.hexproofFrom?.turn === game?.turnNumber && (source?.colors || []).some(c => target.hexproofFrom.colors.includes(c))) return false;
   if (target.playerId !== player?.playerId && target.hexproofTurn === game?.turnNumber) return false;   // Dawn's Truce
   for (const c of target.deck?.battlefield || []) {
     const t = String(defOf(game, c)?.oracleText || '');
@@ -159,7 +163,7 @@ export function candidatesFor(game, req, player, source = null) {
   const out = [];
   if (req.kind === 'player') {
     const rows = scope === 'opponent' ? opponentsOf(game, player.playerId) : alivePlayers(game);
-    return rows.filter(q => canTargetPlayer(game, q, player)).map(playerOption);
+    return rows.filter(q => canTargetPlayer(game, q, player, source)).map(playerOption);
   }
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
@@ -193,7 +197,7 @@ export function candidatesFor(game, req, player, source = null) {
     if (targeted && /any target|any other target|target player|target opponent/.test(scope)) {
       for (const q of alivePlayers(game)) {
         if (/opponent/.test(scope) && q.playerId === player.playerId) continue;
-        if (!canTargetPlayer(game, q, player)) continue;
+        if (!canTargetPlayer(game, q, player, source)) continue;
         out.push(playerOption(q));
       }
     }
