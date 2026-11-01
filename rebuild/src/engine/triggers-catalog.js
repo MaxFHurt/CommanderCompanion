@@ -45,6 +45,9 @@ export function catalogTriggerMatch(game, row, t, event, H) {
     case 'proliferated':
       if (/^Whenever you proliferate/i.test(t)) return event.playerId === me;
       return undefined;
+    case 'expend':
+      if ((m = t.match(/^Whenever you expend (\d+)/i))) return event.playerId === me && Number(event.amount) === Number(m[1]);
+      return undefined;
     case 'coin-flipped':
       if (/^Whenever you win (?:a|one or more) coin flips?/i.test(t)) return event.playerId === me && !!event.won;
       if (/^Whenever you lose (?:a|one or more) coin flips?/i.test(t)) return event.playerId === me && !event.won;
@@ -159,4 +162,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['expend', 'exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];

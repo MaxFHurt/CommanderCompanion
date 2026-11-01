@@ -1360,4 +1360,14 @@ section('round 32: Exploit, Spacecraft');
   check('"When this Spacecraft enters" fires', t.P(0).deck.hand.length === hand, String(t.P(0).deck.hand.length));
 }
 
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you expend 4, draw a card.', { typeLine: 'Enchantment' });
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Scry 1.', [], { manaCost: '{2}{U}' });
+  const mid = t.P(0).deck.hand.length;
+  cast(t, 'Divination', 'Scry 1.', [], { manaCost: '{1}{U}' });
+  check('Expend 4: fires when the fourth mana this turn is spent', mid === hand && t.P(0).deck.hand.length === hand + 1, JSON.stringify([hand, mid, t.P(0).deck.hand.length]));
+}
+
 done();

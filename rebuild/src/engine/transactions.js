@@ -139,6 +139,13 @@ function payMana(game, player, payment) {
   if (lifePayment && Number(player.life || 0) < lifePayment)
     throw new Error('Not enough life to pay this Phyrexian mana cost');
   const assignments = Array.isArray(payment.__sourceAssignments) ? payment.__sourceAssignments : [];
+  // Expend: the total mana this player spent this turn; "whenever you expend 4" fires as the total reaches 4.
+  const spentNow = Object.entries(payment).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0);
+  if (spentNow) {
+    const before = player.manaSpent?.turn === game.turnNumber ? Number(player.manaSpent.n || 0) : 0;
+    player.manaSpent = { turn: game.turnNumber, n: before + spentNow };
+    for (let k = before + 1; k <= before + spentNow; k++) emit(game, { type: 'expend', playerId: player.playerId, controllerId: player.playerId, amount: k });
+  }
   for (const [color, raw] of Object.entries(payment)) {
     if (color.startsWith('__'))
       continue;
