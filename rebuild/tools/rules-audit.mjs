@@ -10,7 +10,7 @@ import { gunzipSync } from 'node:zlib';
 import { scryfallToDefinition } from '../src/data/card-api.js';
 import { analyzeDefinitionSupport } from '../src/engine/abilities.js';
 import { MECHANICS } from '../src/data/mechanics.js';
-import { castText, effectRunsByItself } from '../src/game/ops.js';
+import { castText, effectRunsByItself, giftSpec } from '../src/game/ops.js';
 import { enchantSupported } from '../src/game/attachments.js';
 
 const [input, output] = process.argv.slice(2);
@@ -97,6 +97,10 @@ for (const [rank, card] of cards.entries()) {
   const def = /Instant|Sorcery/i.test(printed.typeLine || '') ? { ...printed, oracleText: castText(printed.oracleText) } : printed;
   let report;
   try { report = analyzeDefinitionSupport(def); } catch (error) { report = { unsupported: [`Other: audit failed (${error.message})`] }; }
+  // Gift: the spell must also run with the gift promised (its "if the gift was promised" sentences kept).
+  if (giftSpec(printed) && /Instant|Sorcery/i.test(printed.typeLine || '')) {
+    try { const g = analyzeDefinitionSupport({ ...printed, oracleText: castText(printed.oracleText, { gift: true }) }); report.unsupported = [...new Set([...report.unsupported, ...g.unsupported.filter(u => u.startsWith('Spell'))])]; } catch {}
+  }
   const gaps = [], unverified = [];
   // Triggered and activated effects: the game's own fallbacks decide (see effectRunsByItself).
   const runs = new Set([...(report.triggers || []).filter(t => t.fires !== false && effectRunsByItself(t.effect, def.name)).map(t => `Trigger: ${t.text}`),

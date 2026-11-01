@@ -11,6 +11,7 @@ import {
 import { effectiveToughness, effectivePower } from './combat.js';
 const effectivePowerOf = (game, card) => effectivePower(card, definitionFor(game, card), game);
 import { librarySearchSpec, searchFilter } from '../game/library-search.js';
+import { compileB49Clause, compileB49Sequence, applyB49, gatherB49 } from './effects-b49.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -466,6 +467,7 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'create-token', amount: 1, name: 'Powerstone', typeLine: 'Token Artifact — Powerstone', oracleText: '{T}: Add {C}. This mana can\'t be spent to cast a nonartifact spell.', tapped: true });
     return true;
   }
+  if (compileB49Clause(c, ctx)) return true;
   return false;
 }
 
@@ -640,7 +642,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes);
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -658,6 +660,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   }
   if (gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (gatherB49(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'explore') {
     // The top card is known now; nothing earlier in the same ability changes the library.
     const top = (player.deck.remainingLibrary || [])[0];
@@ -739,6 +742,8 @@ function parseRest(s) {
  */
 export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
+  const b49 = compileB49Sequence(clauses, i, { sourceName, parts });
+  if (b49) return b49;
   const next = k => String(clauses[i + k] || '').replace(/\([^()]*\)/g, '').trim();
   let m;
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);

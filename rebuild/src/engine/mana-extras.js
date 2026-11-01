@@ -54,6 +54,11 @@ export function manaExtras(game, card, color, base = 1) {
       if (m) take(fn(ctx, m, c));
     }
   }
+  // "Until end of turn, whenever a player taps an Island for mana …" (High Tide, Bubbling Muck): kept on the game for the turn.
+  for (const x of game.turnManaExtras || []) {
+    if (x.turn !== game.turnNumber) continue;
+    for (const [re, fn] of PATTERNS) { const m = x.text.match(re); if (m) take(fn({ ...ctx, mine: x.controllerId === (card.controllerId || null) }, m)); }
+  }
   return { amount: Math.max(1, Number(base || 1)) * mult + add, fixed, any };
 }
 export { ANY as ANY_COLORS };

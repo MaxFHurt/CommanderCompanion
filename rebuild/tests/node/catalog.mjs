@@ -1688,4 +1688,42 @@ section('round 49: extra mana of another colour (Wild Growth on an Island, Utopi
   check('…tapping the land by hand asks its controller for the colour', seen.some(d => d.key.includes('mana-extra') && d.playerId === t2.P(0).playerId) && t2.P(0).mana.floating.R === 1 && t2.P(0).mana.floating.G === 1, JSON.stringify(t2.P(0).mana.floating));
 }
 
+section('round 49: gift, High Tide, greatest power, "that creature\'s controller"');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const oppHand = t.P(1).deck.hand.length, seen = [];
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), "Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)\nYou and permanents you control gain hexproof until end of turn. If the gift was promised, permanents you control also gain indestructible until end of turn.", { manaCost: '{G}', typeLine: 'Instant' });
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  settle(t, [['gift', d => d.options.find(o => o.playerId === t.P(1).playerId).id]], seen);
+  check('Gift: the caster is asked whether to promise a gift, and to whom', seen.some(d => d.key.includes('gift') && d.playerId === t.P(0).playerId));
+  check("…the promised opponent draws a card; Dawn's Truce gives hexproof and indestructible", t.P(1).deck.hand.length === oppHand + 1 && has(t, bear, 'Hexproof') && has(t, bear, 'Indestructible') && t.P(0).hexproofTurn === t.game.turnNumber, JSON.stringify([t.P(1).deck.hand.length - oppHand, has(t, bear, 'Indestructible')]));
+  const t2 = setup(); const b2 = onField(t2, 'Grizzly Bears', ''); const h2 = t2.P(1).deck.hand.length;
+  t2.give(0, 'Opt'); asText(t2, t2.hand(0, 'Opt'), "Gift a card\nYou and permanents you control gain hexproof until end of turn. If the gift was promised, permanents you control also gain indestructible until end of turn.", { manaCost: '{G}', typeLine: 'Instant' });
+  t2.ctl.dispatch({ type: 'play', instanceId: t2.hand(0, 'Opt').instanceId }, t2.as(0)); settle(t2, [['gift', 'none']]);
+  check('…without the gift: hexproof only, nobody draws', t2.P(1).deck.hand.length === h2 && has(t2, b2, 'Hexproof') && !has(t2, b2, 'Indestructible'));
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  const life = t.P(1).life;
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), "Gift a Treasure\nOpt deals 2 damage to target creature. If the gift was promised, Opt also deals 3 damage to that creature's controller.", { manaCost: '{G}', typeLine: 'Instant' });
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  settle(t, [['gift', d => d.options.find(o => o.playerId === t.P(1).playerId).id], [d => d.targeting, () => foe.instanceId]]);
+  check("Blooming Blast with the gift: the opponent gets a Treasure, the creature dies, its controller takes 3", t.P(1).life === life - 3 && t.names(1, 'graveyard').includes('Grizzly Bears') && t.names(1, 'battlefield').includes('Treasure'), JSON.stringify([life, t.P(1).life, t.names(1, 'battlefield')]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { power: '3' }, 1), b = onField(t, 'Llanowar Elves', '', { power: '3' }, 1), c = onField(t, 'Fog Bank', '', { power: '1', typeLine: 'Creature — Wall' }, 1);
+  const seen = [];
+  cast(t, 'Opt', 'Target opponent sacrifices a creature with the greatest power among creatures they control.', [[d => d.key.includes(t.P(1).playerId) && d.playerId === t.P(1).playerId, () => b.instanceId]]);
+  check('Consumed by Greed: with a tie, the opponent chooses which of their biggest creatures to sacrifice', t.names(1, 'graveyard').includes('Llanowar Elves') && t.names(1, 'battlefield').includes('Grizzly Bears') && t.names(1, 'battlefield').includes('Fog Bank'), JSON.stringify(t.names(1, 'graveyard')));
+}
+{
+  const t = setup();
+  cast(t, 'Opt', 'Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.', [], { manaCost: '{U}' });
+  const m = t.view(0).players[0].mana;
+  check('High Tide: each untapped Island now counts for two blue', m.fixed.U === 6, JSON.stringify(m.fixed));
+}
+
 done();

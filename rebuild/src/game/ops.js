@@ -169,8 +169,24 @@ function zoneKeyOf(card) {
 // Play a card (land or spell)
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
-export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+/** Gift (Bloomburrow): "Gift a card", "Gift a tapped Fish" … — what the promised opponent gets, as an instruction for them. */
+const GIFT_TEXT = { 'a card': 'Draw a card.', 'a food': 'Create a Food token.', 'a tapped fish': 'Create a tapped 1/1 blue Fish creature token.', 'a treasure': 'Create a Treasure token.', 'an extra turn': 'Take an extra turn after this one.', 'an octopus': 'Create an 8/8 blue Octopus creature token.' };
+export function giftSpec(def) {
+  const m = String(def?.oracleText || '').match(/^Gift (an? [a-z ]+?)\s*(?:\(|$)/im);
+  const text = m && GIFT_TEXT[m[1].toLowerCase()];
+  return text ? { what: m[1], text } : null;
+}
+/** The sentences that depend on the gift, kept or dropped (an "instead" replaces the sentence before it). */
+function giftText(t, gift) {
+  t = t.replace(/(^|\n|\.\s+)([^.\n]+\.)\s*If the gift was promised, instead ([^.]+\.)/gi, (all, lead, before, after) => `${lead}${gift ? cap(after) : before}`);
+  t = t.replace(/\s*If the gift was promised, ([^.]+)\./gi, (all, clause) => (gift ? ` ${cap(clause.replace(/\balso /, ''))}.` : ''));
+  t = t.replace(/\s*If the gift wasn'?t promised, ([^.]+)\./gi, (all, clause) => (gift ? '' : ` ${cap(clause)}.`));
+  t = t.replace(/(^|\n|\.\s+)([^.\n]+?) if the gift was promised\./gi, (all, lead, clause) => (gift ? `${lead}${clause}.` : lead.replace(/\s+$/, ' ')));
+  return t.replace(/^\s+/, '');
+}
+const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
+export function castText(text, { kicked = false, overload = false, gift = false } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -186,6 +202,7 @@ export function castText(text, { kicked = false, overload = false } = {}) {
   // "deals 2 damage … If kicked, it deals 4 damage instead."
   t = t.replace(/deals (\w+) damage([^\u0000]*?)\.\s*\u0000(\w+)/g, (all, a, rest, b) => `deals ${b} damage${rest}.`);
   if (overload) t = t.replace(/\btarget\b/g, 'each').replace(/\bTarget\b/g, 'Each');
+  if (/\bgift (?:was|wasn'?t) promised\b/i.test(t)) t = giftText(t, gift);
   return t.trim();
 }
 
@@ -290,6 +307,19 @@ function runPlay(game, op, ask) {
     if (buy === 'buy') { extraCost += extras.buyback; buyback = true; }
   }
 
+  // Gift: the caster may promise an opponent a gift as they cast it; the opponent gets it before the spell's other effects.
+  const gift = faceDown ? null : giftSpec(def);
+  let giftTo = null;
+  if (gift) {
+    const opps = (game.players || []).filter(q => !q.eliminated && q.playerId !== player.playerId);
+    const pick = opps.length ? ask('gift', () => ({
+      playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — gift ${gift.what}`,
+      prompt: `Promise an opponent a gift (${gift.what})? They get it before the spell's other effects.`,
+      options: [{ id: 'none', label: 'No gift' }, ...opps.map(q => ({ id: q.playerId, label: `Promise ${gift.what} to ${q.displayName}`, playerId: q.playerId }))]
+    })) : 'none';
+    giftTo = pick && pick !== 'none' ? pick : null;
+  }
+
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
   let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null;
@@ -335,10 +365,10 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload' }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
-  const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
+  const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
   let compiled = { effects: [], requirements: [] }, guided = null, search = null, optional = false;
   if (!permanent) {
     const title = `${def.name}${tag ? ` (${tag})` : ''} — resolve by hand`;
@@ -375,6 +405,13 @@ function runPlay(game, op, ask) {
   }
 
   const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
+  if (giftTo) {
+    // The promised gift comes first, done by the opponent who was promised it.
+    bindings.giftPlayer = giftTo;
+    const g = compileFor(gift.text, def.name).compiled;
+    if (!permanent && !guided && g.supported) compiled = { ...compiled, effects: [...g.effects.map(e => ({ ...e, forPlayerBind: 'giftPlayer' })), ...(compiled.effects || [])] };
+    else if (guided) guided.oracleText = `Gift (${playerById(game, giftTo)?.displayName || 'opponent'}): ${gift.text}\n${guided.oracleText}`;
+  }
   const printed = parseManaCost(def.manaCost || '');
   let xExtra = 0;
   if (printed.X && !faceDown && !free && ['normal', 'adventure', 'foretell'].includes(mode.id)) {
