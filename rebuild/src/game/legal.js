@@ -234,6 +234,7 @@ export function activationRules(text) {
     else if (/^during your turn$/i.test(r)) rules.push({ kind: 'your-turn' });
     else if (/^during combat$/i.test(r)) rules.push({ kind: 'combat' });
     else if (/^during your upkeep$/i.test(r)) rules.push({ kind: 'upkeep' });
+    else if (/^if you have the city'?s blessing$/i.test(r)) rules.push({ kind: 'blessing' });
     else if ((x = r.match(/^if there are (one|two|three|four|five|six|seven|eight|\d+) or more cards in your graveyard$/i))) rules.push({ kind: 'graveyard', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
     else if ((x = r.match(/^if there are (four|five|\d+) or more card types among cards in your graveyard$/i))) rules.push({ kind: 'delirium', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
     else if ((x = r.match(/^if you control (a|an|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+)$/i))) {
@@ -257,6 +258,7 @@ export function activationBlock(game, player, card, ability) {
     if (r.kind === 'your-turn' && game.activePlayerId !== player.playerId) return 'Only during your turn.';
     if (r.kind === 'combat' && !/combat|attackers|blockers|damage/.test(String(game.phase || ''))) return 'Only during combat.';
     if (r.kind === 'upkeep' && !(game.activePlayerId === player.playerId && game.phase === 'upkeep')) return 'Only during your upkeep.';
+    if (r.kind === 'blessing' && !player.citysBlessing) return 'Only if you have the city’s blessing (ten permanents with ascend).';
     if (r.kind === 'graveyard' && (player.deck?.graveyard || []).length < r.n) return `Only with ${r.n} or more cards in your graveyard.`;
     if (r.kind === 'delirium') {
       const types = new Set((player.deck?.graveyard || []).flatMap(c => (String(defOf(game, c)?.typeLine || '').split('—')[0].match(/Artifact|Battle|Creature|Enchantment|Instant|Kindred|Land|Planeswalker|Sorcery/g) || [])));

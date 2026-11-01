@@ -335,6 +335,16 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       return { part: { effects: [{ kind: 'saw-in-half', bind: earlier.bind, lki: `lki${i}` }], requirements: [], unsupported: [] }, consumed: 2 };
     }
   }
+  // "Draw two cards. If you have the city's blessing, draw three cards instead." / "If X, instead Y." — the second replaces the first
+  // when the condition holds (checked as it resolves).
+  const inst = String(clauses[i + 1] || '').match(/^If (.+?), (?:instead (.+?)|(.+?) instead)\.?$/i);
+  if (inst && parseConditionAny(inst[1]) && !/^(?:if|then)\b/i.test(c0)) {
+    const a = compile(c0, sourceName), b = compile(cap(String(inst[2] || inst[3]).replace(/^only /i, '')), sourceName);
+    if (ok(a) && ok(b) && !/\b(?:those|that|it|them)\b/i.test(inst[2] || inst[3])) {
+      const cond = parseConditionAny(inst[1]);
+      return { part: { effects: [{ kind: 'condition', ...cond, negate: true, skip: a.effects.length }, ...a.effects, { kind: 'condition', ...cond, skip: b.effects.length }, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
+    }
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -984,6 +994,7 @@ const cnt = w => COUNTS[String(w).toLowerCase()] ?? Number(w);
 export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
+  if (/^you have the city'?s blessing$/i.test(t)) return { test: 'b49-blessing' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
   if (/^no mana was spent to cast it$/i.test(t)) return { test: 'b49-no-mana-spent' };
   if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
@@ -1030,6 +1041,11 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     }
     case 'b49-cast-in-main': return !!bindings.castInMain;
     case 'b49-last-moved-type': return [].concat(bindings.lastMoved || []).some(id => new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, locateCardInGame(game, id)?.card)?.typeLine || ''));
+    case 'b49-blessing': {
+      // An ascend spell gives the blessing as it resolves if you control ten or more permanents.
+      if (!me?.citysBlessing && (me?.deck?.battlefield || []).length >= 10 && /(?:^|\n)\s*Ascend\b/i.test(String(definitionFor(game, locateCardInGame(game, bindings.sourceId)?.card)?.oracleText || ''))) me.citysBlessing = true;
+      return !!me?.citysBlessing;
+    }
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }

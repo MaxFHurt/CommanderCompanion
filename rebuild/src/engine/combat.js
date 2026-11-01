@@ -83,6 +83,7 @@ function controllerCond(game, card, text) {
   if ((m = text.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return new Set((p.deck?.graveyard || []).flatMap(c => (String(definition(game, c)?.typeLine || '').split('—')[0].match(/Artifact|Battle|Creature|Enchantment|Instant|Kindred|Land|Planeswalker|Sorcery/g) || []))).size >= (counts[m[1].toLowerCase()] ?? Number(m[1]));
   if ((m = text.match(/^you control (\w+) or more (artifacts|creatures|enchantments|lands)$/i))) return (p.deck?.battlefield || []).filter(c => new RegExp(`\\b${m[2].replace(/s$/, '')}\\b`, 'i').test(definition(game, c)?.typeLine || '')).length >= (counts[m[1].toLowerCase()] ?? Number(m[1]));
   if (/^you have no cards in hand$/i.test(text)) return !(p.deck?.hand || []).length;
+  if (/^you have the city'?s blessing$/i.test(text)) return !!p.citysBlessing;   // Ascend
   return false;
 }
 function conditionalSelf(game, card, def) {

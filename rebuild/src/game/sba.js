@@ -12,6 +12,11 @@ import { sagaFinalChapter } from '../engine/keyword-triggers.js';
 
 export function stateBasedActions(game) {
   let changed = false;
+  // Ascend: a player who controls a permanent with ascend and ten or more permanents gets the city's blessing for the rest of the game.
+  for (const p of game.players || []) {
+    if (p.citysBlessing || p.eliminated || (p.deck?.battlefield || []).length < 10) continue;
+    if ((p.deck.battlefield || []).some(c => /(?:^|\n)\s*Ascend\b/i.test(String(defOf(game, c)?.oracleText || '')))) { p.citysBlessing = true; changed = true; log(game, `${p.displayName} gets the city's blessing.`); }
+  }
   // A copy of a card that was not cast (or has left the stack) ceases to exist (707.12).
   for (const p of game.players || []) for (const z of ['exile', 'graveyard', 'hand', 'battlefield', 'remainingLibrary']) {
     const zone = p.deck?.[z];

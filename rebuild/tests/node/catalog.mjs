@@ -2272,4 +2272,19 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Ingest: combat damage makes the player exile their top card', t.P(1).deck.remainingLibrary.length === lib - 1 && t.P(1).deck.exile.length >= 1, String(lib - t.P(1).deck.remainingLibrary.length));
 }
 
+{
+  const t = setup();
+  const text = "Ascend (If you control ten or more permanents, you get the city's blessing for the rest of the game.)\nDraw two cards. If you have the city's blessing, draw three cards instead.";
+  const h0 = t.P(0).deck.hand.length;
+  cast(t, 'Opt', text, [], { manaCost: '{U}' });
+  check('Ascend: with eight permanents, two cards', t.P(0).deck.hand.length === h0 + 2 && !t.P(0).citysBlessing, String(t.P(0).deck.hand.length - h0));
+  onField(t, 'Grizzly Bears', 'Ascend\nThis creature gets +2/+2 as long as you have the city\'s blessing.'); onField(t, 'Llanowar Elves', '');
+  settle(t);
+  const bear = t.bf(0, 'Grizzly Bears');
+  check('…ten permanents and a permanent with ascend: the city\'s blessing, and "as long as" bonuses apply', t.P(0).citysBlessing && power(t, bear) === 4, JSON.stringify([t.P(0).citysBlessing, power(t, bear)]));
+  const h1 = t.P(0).deck.hand.length;
+  cast(t, 'Divination', text, [], { manaCost: '{U}' });
+  check('…then the spell draws three', t.P(0).deck.hand.length === h1 + 3, String(t.P(0).deck.hand.length - h1));
+}
+
 done();

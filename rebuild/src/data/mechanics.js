@@ -176,7 +176,7 @@ m('Afterlife', 'keyword', 'Afterlife N: when this dies, create N 1/1 white and b
 m('Aftermath', 'keyword', 'Cast the second half of this split card only from your graveyard; then exile it.', { auto: 'manual' });
 m('Amplify', 'keyword', 'Amplify N: as this enters, reveal any number of cards of its creature type from your hand; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['counter+'] });
 m('Annihilator', 'keyword', 'Annihilator N: whenever this attacks, defending player sacrifices N permanents.', { auto: 'auto', steps: 'The defending player sacrifices N permanents of their choice.', actions: ['sacrifice'] });
-m('Ascend', 'keyword', 'If you control ten or more permanents, you get the city\'s blessing for the rest of the game.', { auto: 'manual', actions: ['status'] });
+m('Ascend', 'keyword', 'If you control ten or more permanents, you get the city\'s blessing for the rest of the game.', { auto: 'auto', actions: ['status'] });
 m('Assist', 'keyword', 'Another player can pay any amount of this spell\'s generic mana.', { auto: 'manual' });
 m('Aura swap', 'keyword', 'Exchange this Aura with an Aura card in your hand.', { auto: 'manual' });
 m('Awaken', 'keyword', 'Cast for the awaken cost: also put N +1/+1 counters on target land you control; it becomes a 0/0 Elemental creature with haste.', { auto: 'manual', actions: ['counter+'] });
