@@ -1510,4 +1510,19 @@ section('round 40: Fuse');
   check('Fuse: both halves cast together for both costs', r.ok && !t.bf(1, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves') && tapped === 3, JSON.stringify([r.error, faces, tapped]));
 }
 
+section('round 41: counters from a creature that left, tap or untap');
+{
+  const t = setup();
+  const ch = onField(t, 'Grizzly Bears', 'When this creature dies, put its counters on target creature you control.'); ch.counters = { '+1/+1': 2, flying: 1 };
+  const elf = onField(t, 'Llanowar Elves', '');
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting && d.options.some(o => o.id === ch.instanceId), () => ch.instanceId], [d => d.targeting, () => elf.instanceId]]);
+  check('Essence Channeler: its counters move to the target', elf.counters?.['+1/+1'] === 2 && elf.counters?.flying === 1, JSON.stringify(elf.counters));
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'You may tap or untap target creature.', [[d => d.targeting, () => foe.instanceId], [d => d.options?.some(o => o.id === 'Tap' || o.label === 'Tap'), d => d.options.find(o => o.label === 'Tap').id]]);
+  check('Tap or untap: the player chose tap', foe.tapped);
+}
+
 done();

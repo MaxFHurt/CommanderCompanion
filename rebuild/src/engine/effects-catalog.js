@@ -319,6 +319,20 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push(...inner.effects); requirements.push(...inner.requirements);
     return true;
   }
+  // Essence Channeler, Star Pupil: "put its counters on target creature you control." (the counters it had as it left)
+  if (/^put its counters on (target creature you control|target creature)\.?$/i.test(c)) {
+    const bind = H.targetRequirement(requirements, c.match(/on (target [a-z ]+?)\.?$/i)[1].toLowerCase(), 'target creature');
+    effects.push({ kind: 'counters-from-event', bind });
+    return true;
+  }
+  // Derevi, Merrow Reejerey: "you may tap or untap target permanent." — the player chooses which.
+  if ((m = c.match(/^(?:you may )?tap or untap (target [a-z ]+?)\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    const how = `tapOrUntap${requirements.length}`;
+    requirements.push({ kind: 'choose-text', bind: how, options: ['Tap', 'Untap', 'Neither'], label: `Tap or untap ${m[1].replace(/^target /i, 'the ')}?` });
+    effects.push({ kind: 'tap-or-untap', bind, howBind: how });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1943,6 +1957,24 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (!hit) return true;
       hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'cant-block-creature', creatureId: bindings.sourceId, expires: 'cleanup' }];
       notes.push(`${name(hit.card)} can't block ${name(locateCardInGame(game, bindings.sourceId)?.card)} this turn.`);
+      return true;
+    }
+    case 'counters-from-event': {
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      const counters = bindings.eventCounters || {};
+      if (!hit) return true;
+      let n = 0;
+      for (const [k, v] of Object.entries(counters)) if (Number(v) > 0) { H.addCounter(hit.card, k, Number(v)); n += Number(v); emit({ type: 'counter-added', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId, counter: k, amount: Number(v) }); }
+      notes.push(n ? `${name(hit.card)} gets ${n} counter${n === 1 ? '' : 's'}.` : 'It had no counters.');
+      return true;
+    }
+    case 'tap-or-untap': {
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      const how = String(bindings[effect.howBind] || 'Neither');
+      if (!hit || how === 'Neither') { notes.push('Nothing is tapped or untapped.'); return true; }
+      if (how === 'Tap') { hit.card.tapped = true; emit({ type: 'tapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId }); }
+      else if (hit.card.tapped && H.setTapped(hit.card, false)) emit({ type: 'untapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId });
+      notes.push(`${name(hit.card)} ${how === 'Tap' ? 'taps' : 'untaps'}.`);
       return true;
     }
     case 'switch-pt': {
