@@ -533,6 +533,11 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);
 
   if (/^Each player exiles all creature cards from their graveyard, then sacrifices all creatures they control, then puts all cards they exiled this way onto the battlefield\.?$/i.test(c0)) return { part: { effects: [{ kind: 'living-death' }], requirements: [], unsupported: [] }, consumed: 1 };
+  // Sylvan Library.
+  if (/^you may draw two additional cards\.?$/i.test(c0) && /^If you do, choose two cards in your hand drawn this turn\.?$/i.test(next(1)) && /^For each of those cards, pay 4 life or put the card on top of your library\.?$/i.test(next(2))) {
+    const bind = `sylvan${i}`;
+    return { part: { effects: [{ kind: 'sylvan', bind }], requirements: [{ kind: 'sylvan', bind }], unsupported: [] }, consumed: 3 };
+  }
   // Timetwister family (one sentence with "then", read before the "then" splitter).
   if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
     return { part: { effects: [{ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 }], requirements: [], unsupported: [] }, consumed: 1 };
@@ -1285,6 +1290,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'sylvan': {
+      const a = bindings[effect.bind] || {};
+      if (!a.draw) { notes.push('No additional cards.'); return true; }
+      H.applyEffectsUnsafe(game, controllerId, [{ kind: 'draw', scope: 'you', amount: 2 }], bindings);
+      const tops = [];
+      for (const [id, f] of Object.entries(a.fate || {})) {
+        if (f === 'pay') H.applyEffectsUnsafe(game, controllerId, [{ kind: 'life', scope: 'you', amount: 4, deltaSign: -1 }], bindings);
+        else tops.push(id);
+      }
+      for (const id of tops.reverse()) { const i = controller.deck.hand.findIndex(c => c.instanceId === id); if (i >= 0) { const [c] = controller.deck.hand.splice(i, 1); c.zone = 'library'; controller.deck.remainingLibrary.unshift(c); } }
+      notes.push(`${controller.displayName} draws two more and puts ${tops.length} back on top.`);
+      return true;
+    }
     case 'phase-out': {
       const ids = effect.all ? (controller.deck.battlefield || []).map(c => c.instanceId) : effect.single ? [H.resolveBoundId({ bind: effect.single }, bindings)] : [].concat(bindings[effect.bind] || []);
       const all = new Set(ids.filter(Boolean));
@@ -1653,6 +1671,23 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'sylvan') {
+    const yes = ask(`${key}:draw`, () => ({ ...base, cancellable: false, kind: 'confirm', title: `${ctx.sourceName}`, prompt: 'Draw two additional cards?', yesLabel: 'Draw two', noLabel: 'No' }));
+    if (!yes) { bindings[req.bind] = { draw: false }; return true; }
+    const coming = (player.deck.remainingLibrary || []).slice(0, 2);
+    const drawn = [...(player.deck.hand || []).filter(c => c.drawnTurn === game.turnNumber), ...coming];
+    const two = drawn.length <= 2 ? drawn.map(c => c.instanceId) : ask(`${key}:choose`, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — choose two`, prompt: 'Choose two cards in your hand drawn this turn (including the two you draw now).', options: drawn.map(c => util.cardOption(game, c, player, coming.includes(c) ? 'You draw this' : 'Drawn this turn')), min: 2, max: 2 }));
+    const life = Number(player.life || 0);
+    const fate = {};
+    let paid = 0;
+    for (const id of two) {
+      const nm = util.defOf(game, drawn.find(c => c.instanceId === id))?.name || 'Card';
+      fate[id] = ask(`${key}:fate:${id}`, () => ({ ...base, cancellable: false, kind: 'choose-one', private: true, title: `${ctx.sourceName} — ${nm}`, prompt: `Pay 4 life to keep ${nm}, or put it on top of your library.`, options: [{ id: 'pay', label: 'Pay 4 life', disabled: life - paid < 4 }, { id: 'top', label: 'Put it on top' }] }));
+      if (fate[id] === 'pay') paid += 4;
+    }
+    bindings[req.bind] = { draw: true, fate };
     return true;
   }
   if (req.kind === 'manifest-dread') {

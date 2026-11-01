@@ -718,6 +718,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
             break;
           }
           card.zone = 'hand';
+          card.drawnTurn = game.turnNumber;
           p.deck.hand.push(card);
           moved++;
           emit(bindings, { type: 'draw', playerId: p.playerId, sourceId: card.instanceId, definitionId: card.definitionId, drawNumberThisTurn: Number(p.counters?.cardsDrawnThisTurn || 0) + 1, isFirstNormalDrawStepDraw: game.phase === 'draw' && Number(p.counters?.cardsDrawnThisTurn || 0) === 0 });

@@ -707,6 +707,7 @@ export function createTransactionEngine(game) {
         if (!card)
           throw new Error('Library is empty');
         card.zone = 'hand';
+        card.drawnTurn = game.turnNumber;
         deck.hand.push(card);
         player.counters = player.counters || {};
         player.counters.cardsDrawnThisTurn = Number(player.counters.cardsDrawnThisTurn || 0) + 1;

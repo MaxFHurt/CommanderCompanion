@@ -832,4 +832,14 @@ section('round 13: phasing (Teferi\'s Protection)');
   check('…and everything phases back in at your untap step', !!t.bf(0, 'Grizzly Bears') && !t.P(0).lifeLocked);
 }
 
+section('round 13: Sylvan Library');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'At the beginning of your draw step, you may draw two additional cards. If you do, choose two cards in your hand drawn this turn. For each of those cards, pay 4 life or put the card on top of your library.', { typeLine: 'Enchantment' });
+  t.autoPass = true; t.end(0); t.end(1);
+  let choose = null, n = 0;
+  settle(t, [[':draw', true], [':choose', d => { choose = d; return d.options.slice(0, 2).map(o => o.id); }], [':fate:', () => (n++ === 0 ? 'pay' : 'top')]]);
+  check('Sylvan Library: three drawn cards to choose from; one kept for 4 life, one put back', choose?.options.length === 3 && t.P(0).life === 36 && t.P(0).deck.hand.length === 2, JSON.stringify([choose?.options.length, t.P(0).life, t.P(0).deck.hand.length]));
+}
+
 done();

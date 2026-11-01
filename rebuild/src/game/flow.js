@@ -180,7 +180,8 @@ function autoAdvance(game) {
   if (!p) return false;
   switch (game.phase) {
     case 'untap': untapStep(game); return true;
-    case 'upkeep': setPhase(game, 'draw'); return true;
+    // The draw is the turn-based action at the start of the step, before "beginning of your draw step" triggers resolve.
+    case 'upkeep': setPhase(game, 'draw'); drawStep(game); return true;
     case 'draw': drawStep(game); return true;
     case 'combat':
     case 'begin-combat':
