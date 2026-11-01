@@ -347,6 +347,7 @@ const COUNTS = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
 const cnt = w => COUNTS[String(w).toLowerCase()] ?? Number(w);
 export function parseConditionB49(t) {
   let m;
+  if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if ((m = t.match(/^creatures you control have total power (\w+) or greater$/i))) return { test: 'b49-total-power', min: cnt(m[1]) };
   if ((m = t.match(/^you attacked with (\w+) or more creatures this turn$/i))) return { test: 'b49-attacked-with', min: cnt(m[1]) };
   if ((m = t.match(/^an opponent was dealt (\w+) or more damage this turn$/i))) return { test: 'b49-opp-dealt', min: cnt(m[1]) };
@@ -371,6 +372,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-power-at-least': return creatures(me).some(c => pow(c) >= effect.min);
     case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
     case 'b49-bound': return !!bindings[effect.bind];
+    case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }
 }

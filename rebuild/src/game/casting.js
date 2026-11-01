@@ -274,7 +274,16 @@ export function extraCosts(def) {
   return {
     kicker: keywordCost(text, 'Kicker'),
     multikicker: keywordCost(text, 'Multikicker'),
-    buyback: keywordCost(text, 'Buyback')
+    buyback: keywordCost(text, 'Buyback'),
+    // Build 49: Entwine / Escalate (modal spells), Replicate (copies), Offspring and Squad (token copies as it enters),
+    // Casualty N and Bargain (optional sacrifices as you cast it).
+    entwine: keywordCost(text, 'Entwine'),
+    escalate: keywordCost(text, 'Escalate'),
+    replicate: keywordCost(text, 'Replicate'),
+    offspring: keywordCost(text, 'Offspring'),
+    squad: keywordCost(text, 'Squad'),
+    casualty: (strip(text).match(/(?:^|\n)\s*Casualty (\d+|X)\b/i) || [])[1] || null,
+    bargain: /(?:^|\n)\s*Bargain\b/i.test(strip(text))
   };
 }
 

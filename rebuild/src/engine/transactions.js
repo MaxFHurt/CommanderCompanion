@@ -332,6 +332,10 @@ function putSpellOnStack(game, player, action, deck) {
     card.kicked = true;
     card.kickCount = Number(action.kickCount || 1);
   }
+  // Offspring / squad (token copies as it enters) and bargain ("if it was bargained").
+  if (action.offspring) card.offspring = true;
+  if (action.squadCount) card.squadCount = Number(action.squadCount);
+  if (action.bargained) card.bargained = true;
   if (action.faceDown) {
     game.cardDefinitions[FACE_DOWN_ID] = game.cardDefinitions[FACE_DOWN_ID] || faceDownDefinition();
     card.realDefinitionId = card.definitionId;

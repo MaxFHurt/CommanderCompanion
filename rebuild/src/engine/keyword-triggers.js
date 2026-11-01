@@ -50,6 +50,11 @@ export function keywordTriggers(game, row, event) {
   // Exploit: when it enters, you may sacrifice a creature (ops.js asks; "when it exploits a creature" triggers follow).
   if (onField && self && event.type === 'enters-battlefield' && /(?:^|\n)\s*Exploit\b/i.test(strip(d.oracleText)))
     add('exploit', `Exploit — you may sacrifice a creature.`, '', { special: 'exploit' });
+  // Offspring / squad: as it enters, token copies (offspring: a 1/1 copy; squad: one copy for each time the cost was paid).
+  if (onField && self && event.type === 'enters-battlefield' && !card.token && (card.offspring || card.squadCount)) {
+    const n = card.offspring ? 1 : Number(card.squadCount || 0);
+    add('copies', card.offspring ? `Offspring — create a 1/1 token copy of ${d.name}.` : `Squad — create ${n} token cop${n === 1 ? 'y' : 'ies'} of ${d.name}.`, '', { compiled: { supported: true, requirements: [], unsupported: [], effects: Array.from({ length: n }, () => ({ kind: 'copy-token', targetId: card.instanceId, ...(card.offspring ? { setPower: 1, setToughness: 1 } : {}) })) } });
+  }
   // Hideaway N: when it enters, look at the top N cards and exile one face down (effects-b49.js); its other ability plays it later.
   const hide = onField && self && event.type === 'enters-battlefield' && strip(d.oracleText).match(/(?:^|\n)\s*Hideaway (\d+)/i);
   if (hide) add('hideaway', `Hideaway ${hide[1]} — look at the top ${hide[1]} cards of your library and exile one face down.`, '', { compiled: { supported: true, requirements: [{ kind: 'b49-hideaway', bind: 'hideaway0', amount: Number(hide[1]) }], unsupported: [], effects: [{ kind: 'hideaway', bind: 'hideaway0', amount: Number(hide[1]) }] } });

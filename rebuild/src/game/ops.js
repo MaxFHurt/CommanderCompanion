@@ -178,6 +178,7 @@ export function giftSpec(def) {
 }
 /** The sentences that depend on the gift, kept or dropped (an "instead" replaces the sentence before it). */
 function giftText(t, gift) {
+  t = t.replace(/(^|\n|\.\s+)([^.\n]+\.)\s*If the gift was promised, ([^.]+?) instead\./gi, (all, lead, before, after) => `${lead}${gift ? `${cap(after)}.` : before}`);
   t = t.replace(/(^|\n|\.\s+)([^.\n]+\.)\s*If the gift was promised, instead ([^.]+\.)/gi, (all, lead, before, after) => `${lead}${gift ? cap(after) : before}`);
   t = t.replace(/\s*If the gift was promised, ([^.]+)\./gi, (all, clause) => (gift ? ` ${cap(clause.replace(/\balso /, ''))}.` : ''));
   t = t.replace(/\s*If the gift wasn'?t promised, ([^.]+)\./gi, (all, clause) => (gift ? '' : ` ${cap(clause)}.`));
@@ -185,8 +186,8 @@ function giftText(t, gift) {
   return t.replace(/^\s+/, '');
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-export function castText(text, { kicked = false, overload = false, gift = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+export function castText(text, { kicked = false, overload = false, gift = false, bargained = false } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -203,6 +204,8 @@ export function castText(text, { kicked = false, overload = false, gift = false 
   t = t.replace(/deals (\w+) damage([^\u0000]*?)\.\s*\u0000(\w+)/g, (all, a, rest, b) => `deals ${b} damage${rest}.`);
   if (overload) t = t.replace(/\btarget\b/g, 'each').replace(/\bTarget\b/g, 'Each');
   if (/\bgift (?:was|wasn'?t) promised\b/i.test(t)) t = giftText(t, gift);
+  // Bargain: "If this spell was bargained, …" works like the gift sentences.
+  if (/\bwas bargained\b/i.test(t)) t = giftText(t.replace(/If this spell was bargained, /gi, 'If the gift was promised, ').replace(/If this spell wasn'?t bargained, /gi, "If the gift wasn't promised, "), bargained);
   return t.trim();
 }
 
@@ -307,6 +310,41 @@ function runPlay(game, op, ask) {
     if (buy === 'buy') { extraCost += extras.buyback; buyback = true; }
   }
 
+  // Replicate: pay it any number of times; a copy for each time (a cast trigger, below).
+  let replicateCount = 0, offspring = false, squadCount = 0, casualtyId = null, bargainId = null;
+  if (extras.replicate) {
+    let max = 0;
+    while (max < 10 && affordable(extraCost + extras.replicate.repeat(max + 1))) max++;
+    replicateCount = ask('replicate', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — replicate`, prompt: `Pay the replicate cost ${extras.replicate} any number of times; the spell is copied that many times.`, min: 0, max: force ? 10 : max }));
+    extraCost += extras.replicate.repeat(replicateCount);
+  }
+  if (extras.squad) {
+    let max = 0;
+    while (max < 10 && affordable(extraCost + extras.squad.repeat(max + 1))) max++;
+    squadCount = ask('squad', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — squad`, prompt: `Pay the squad cost ${extras.squad} any number of times; it enters with that many token copies.`, min: 0, max: force ? 10 : max }));
+    extraCost += extras.squad.repeat(squadCount);
+  }
+  if (extras.offspring) {
+    const pay = ask('offspring', () => ({
+      playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — offspring`,
+      prompt: `Pay the offspring cost ${extras.offspring}? When it enters, you create a 1/1 token copy of it.`,
+      options: [{ id: 'pay', label: `Offspring (${extras.offspring} more)`, disabled: !affordable(extraCost + extras.offspring) }, { id: 'no', label: 'No offspring' }]
+    }));
+    if (pay === 'pay') { extraCost += extras.offspring; offspring = true; }
+  }
+  if (extras.casualty || extras.bargain) {
+    // Casualty N: sacrifice a creature with power N or greater to copy the spell. Bargain: sacrifice an artifact, enchantment or token.
+    const n = extras.casualty === 'X' ? 0 : Number(extras.casualty || 0);
+    const rows = player.deck.battlefield.filter(c => extras.casualty ? /\bCreature\b/.test(defOf(game, c)?.typeLine || '') && effectivePower(c, defOf(game, c), game) >= n : (c.token || /\b(?:Artifact|Enchantment)\b/.test(defOf(game, c)?.typeLine || '')))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (rows.length) {
+      const pick = ask(extras.casualty ? 'casualty' : 'bargain', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — ${extras.casualty ? `casualty ${extras.casualty}` : 'bargain'}`,
+        prompt: extras.casualty ? `You may sacrifice a creature with power ${n} or greater; if you do, the spell is copied.` : 'You may sacrifice an artifact, enchantment or token to bargain.',
+        options: [{ id: 'none', label: extras.casualty ? 'No casualty' : 'Don’t bargain' }, ...rows] }));
+      if (pick && pick !== 'none') { if (extras.casualty) casualtyId = pick; else bargainId = pick; }
+    }
+  }
+
   // Gift: the caster may promise an opponent a gift as they cast it; the opponent gets it before the spell's other effects.
   const gift = faceDown ? null : giftSpec(def);
   let giftTo = null;
@@ -331,6 +369,9 @@ function runPlay(game, op, ask) {
     if (rows.length) exileFromHandForCost = ask('cost:exile-blue', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Exile a blue card from your hand${mode.lifeCost ? ` and pay ${mode.lifeCost} life` : ''} instead of paying its mana cost.`, options: rows }));
     lifeForCost += Number(mode.lifeCost || 0);
   }
+  // Casualty / bargain sacrifice (an optional additional cost) uses the same sacrifice as other costs.
+  if (!sacrificeForCost && (casualtyId || bargainId)) sacrificeForCost = casualtyId || bargainId;
+  else if (casualtyId || bargainId) { casualtyId = null; bargainId = null; }
   let emergeReduction = 0;
   if (mode.emerge) {
     const rows = player.deck.battlefield.filter(c => /\bCreature\b/i.test(defOf(game, c)?.typeLine || ''))
@@ -365,7 +406,7 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
   const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
@@ -377,8 +418,18 @@ function runPlay(game, op, ask) {
       const modal = support.modal, count = modal.repeat ? modal.count : Math.min(modal.count, modal.modes.length);
       // "one or more" (Farewell): any number; "choose both" with a commander (Jeska's Will, Akroma's Will).
       const both = modal.commanderBoth && controlsACommander(game, player);
-      const min = count, max = modal.oneOrMore ? modal.modes.length : both ? Math.min(2, modal.modes.length) : count;
-      const picked = modal.repeat ? Array.from({ length: count }, (_, i) => ask(`modes:${i}`, () => ({
+      const min = count;
+      let max = modal.oneOrMore ? modal.modes.length : both ? Math.min(2, modal.modes.length) : count;
+      // Entwine: pay the entwine cost to choose all modes.
+      let entwined = false;
+      if (extras.entwine && !modal.repeat) {
+        const pay = ask('entwine', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — entwine`, prompt: `Pay the entwine cost ${extras.entwine} to choose all modes?`,
+          options: [{ id: 'pay', label: `Entwine (${extras.entwine} more) — all modes`, disabled: !affordable(extraCost + extras.entwine) }, { id: 'no', label: 'Choose modes as usual' }] }));
+        if (pay === 'pay') { entwined = true; extraCost += extras.entwine; }
+      }
+      // Escalate: each mode beyond the first costs the escalate cost; at most as many as can be paid.
+      if (extras.escalate && modal.oneOrMore && !force) { let k = 1; while (k < modal.modes.length && affordable(extraCost + extras.escalate.repeat(k))) k++; max = Math.min(max, k); }
+      const picked = entwined ? modal.modes.map((_, i) => i) : modal.repeat ? Array.from({ length: count }, (_, i) => ask(`modes:${i}`, () => ({
         playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — mode ${i + 1} of ${count}`,
         prompt: 'Choose a mode. You may choose the same mode more than once.', options: modal.modes.map((text, j) => ({ id: j, label: text }))
       }))) : ask('modes', () => ({
@@ -386,6 +437,10 @@ function runPlay(game, op, ask) {
         prompt: modal.oneOrMore ? 'Choose one or more modes.' : both ? 'You control a commander: choose one mode, or both.' : `Choose ${plural(count, 'mode')}.`, min, max,
         options: modal.modes.map((text, i) => ({ id: i, label: text }))
       }));
+      if (extras.escalate && picked.length > 1) extraCost += extras.escalate.repeat(picked.length - 1);
+      // Spree: each chosen mode adds its own cost.
+      if (modal.spreeCosts) for (const i of picked) extraCost += modal.spreeCosts[i] || '';
+      if ((extras.escalate || modal.spreeCosts) && !affordable(extraCost)) throw new GameError('You can’t pay for all of those modes.');
       // The same mode twice gets its own targets each time.
       const chosen = picked.map((i, n) => { const c = modal.compiledModes[i]; if (!modal.repeat || !c) return c; let json = JSON.stringify(c); for (const r of c.requirements || []) json = json.split(`"${r.bind}"`).join(`"${r.bind}_m${n}"`); return JSON.parse(json); });
       if (chosen.some(x => !x?.supported)) guided = guidedSpec(title, picked.map(i => modal.modes[i]).join('\n'), chosen.flatMap(x => x?.unsupported || []));
@@ -523,6 +578,7 @@ function runPlay(game, op, ask) {
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
     exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
+    offspring, squadCount, bargained: !!bargainId,
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
   if (commander) commit(game, { ...action, type: 'cast-commander', commanderId: commander.id });
@@ -547,6 +603,15 @@ function runPlay(game, op, ask) {
   if (attachTo && !reanimate) announceTargets(game, player, [{ kind: 'target', bind: '__aura' }], { __aura: attachTo }, card.instanceId, 'spell');
   // Cast triggers of the spell itself (cascade, storm).
   if (!faceDown) for (const t of castTriggers(game, player, card, def)) queueSpecialTrigger(game, player, card, def, t, stackId);
+  // Replicate and casualty: "When you cast this spell, copy it (for each time you paid its replicate cost)."
+  const copies = Number(replicateCount || 0) + (casualtyId ? 1 : 0);
+  if (copies) {
+    game.pendingTriggers = game.pendingTriggers || [];
+    game.pendingTriggers.push({ id: newId('trigger'), controllerId: player.playerId, sourceId: card.instanceId, sourceDefinitionId: card.definitionId, sourceName: def.name,
+      abilityId: 'cast-trigger', abilityText: `${replicateCount ? 'Replicate' : 'Casualty'} — copy ${def.name}${copies > 1 ? ` ${copies} times` : ''}. You may choose new targets for the copies.`, effectText: '', special: null, modal: null,
+      compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'copy-stack', stackId, soft: true, times: copies, retarget: true }] },
+      event: { type: 'spell-cast', stackId, controllerId: player.playerId, playerId: player.playerId, sourceId: card.instanceId }, createdAt: new Date().toISOString() });
+  }
 }
 
 /** Opponents' permanents with a ward mana cost among the chosen targets. */

@@ -1791,4 +1791,60 @@ section('round 49: abilities granted until end of turn');
   check('…the returned creature is a new object: it does not come back again', t.names(0, 'graveyard').includes('Grizzly Bears') && !t.bf(0, 'Grizzly Bears'));
 }
 
+section('round 49: entwine, escalate, spree, replicate, casualty, bargain, offspring, squad');
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length, life = t.P(0).life;
+  cast(t, 'Opt', 'Choose one —\n• Draw a card.\n• You gain 3 life.\nEntwine {1}', [['entwine', 'pay']], { manaCost: '{U}' });
+  check('Entwine: paying it chooses both modes', t.P(0).deck.hand.length === hand + 1 && t.P(0).life === life + 3, JSON.stringify([t.P(0).deck.hand.length - hand, t.P(0).life - life]));
+}
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length, life = t.P(0).life;
+  const before = t.P(0).deck.battlefield.filter(c => !c.tapped).length;
+  cast(t, 'Opt', 'Escalate {1}\nChoose one or more —\n• Draw a card.\n• You gain 3 life.', [['modes', [0, 1]]], { manaCost: '{U}' });
+  const after = t.P(0).deck.battlefield.filter(c => !c.tapped).length;
+  check('Escalate: two modes cost one extra', t.P(0).deck.hand.length === hand + 1 && t.P(0).life === life + 3 && before - after === 2, JSON.stringify([before - after]));
+}
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length, life = t.P(0).life;
+  const before = t.P(0).deck.battlefield.filter(c => !c.tapped).length;
+  cast(t, 'Opt', 'Spree (Choose one or more additional costs.)\n+ {1} — Draw a card.\n+ {2} — You gain 3 life.', [['modes', [1]]], { manaCost: '{U}' });
+  const after = t.P(0).deck.battlefield.filter(c => !c.tapped).length;
+  check('Spree: the chosen mode adds its own cost', t.P(0).deck.hand.length === hand && t.P(0).life === life + 3 && before - after === 3, JSON.stringify([before - after, t.P(0).life - life]));
+}
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Replicate {1}\nDraw a card.', [['replicate', 2]], { manaCost: '{U}' });
+  check('Replicate: paid twice, the spell is copied twice (three draws)', t.P(0).deck.hand.length === hand + 3, String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', { power: '2' });
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Casualty 2 (As you cast this spell, you may sacrifice a creature with power 2 or greater. When you do, copy this spell.)\nDraw a card.', [['casualty', bear.instanceId]], { manaCost: '{U}' });
+  check('Casualty: the sacrificed creature copies the spell', t.P(0).deck.hand.length === hand + 2 && t.names(0, 'graveyard').includes('Grizzly Bears'), String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  t.give(0, 'Sol Ring', 'battlefield');
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nDraw a card. If this spell was bargained, draw two cards instead.', [['bargain', d => d.options.find(o => o.label === 'Sol Ring').id]], { manaCost: '{U}' });
+  check('Bargain: sacrificing Sol Ring gives the bargained effect', t.P(0).deck.hand.length === hand + 2 && t.names(0, 'graveyard').includes('Sol Ring'), String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  cast(t, 'Grizzly Bears', 'Offspring {2} (You may pay an additional {2} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.)', [['offspring', 'pay']], { manaCost: '{1}{G}' });
+  const copy = t.P(0).deck.battlefield.find(c => c.token && def(t, c).name === 'Grizzly Bears');
+  check('Offspring: a 1/1 token copy enters too', !!copy && power(t, copy) === 1 && tough(t, copy) === 1, JSON.stringify(t.names(0, 'battlefield')));
+}
+{
+  const t = setup();
+  cast(t, 'Grizzly Bears', 'Squad {1} (As an additional cost to cast this spell, you may pay {1} any number of times. When this creature enters, create that many tokens that are copies of it.)', [['squad', 2]], { manaCost: '{G}' });
+  const copies = t.P(0).deck.battlefield.filter(c => c.token && def(t, c).name === 'Grizzly Bears');
+  check('Squad: paid twice, two token copies', copies.length === 2 && power(t, copies[0]) === 2, String(copies.length));
+}
+
 done();

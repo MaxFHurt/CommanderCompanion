@@ -87,7 +87,7 @@ export function clearCastState(card, to) {
     delete card.realDefinitionId;
     delete card.faceDownKind;
   }
-  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast'])
+  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast', 'offspring', 'squadCount', 'bargained'])
     delete card[key];
   delete card.playPermission;
   if (to !== 'exile') {
@@ -1510,7 +1510,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('Copy target is no longer on the battlefield.');
       const d = definitionFor(game, hit.card);
-      const token = makeToken(game, controller, { name: d?.name || 'Copy', typeLine: d?.typeLine || 'Token', oracleText: d?.oracleText || '', power: d?.power, toughness: d?.toughness, keywords: d?.keywords || [], colors: d?.colors || [], tapped: !!effect.tapped }, 0);
+      const token = makeToken(game, controller, { name: d?.name || 'Copy', typeLine: d?.typeLine || 'Token', oracleText: d?.oracleText || '', power: effect.setPower !== undefined ? String(effect.setPower) : d?.power, toughness: effect.setToughness !== undefined ? String(effect.setToughness) : d?.toughness, keywords: d?.keywords || [], colors: d?.colors || [], tapped: !!effect.tapped }, 0);
       controller.deck.battlefield.push(token);
       bindings.lastCreated = [...(bindings.lastCreated || []), token.instanceId];
       emit(bindings, { type: 'token-created', sourceId: token.instanceId, definitionId: token.definitionId, controllerId });

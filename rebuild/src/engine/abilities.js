@@ -30,6 +30,12 @@ export function entersWithCountersSpec(definition) {
 }
 export function modalSpellSpec(definition) {
   const text = oracle(definition).trim();
+  // Spree: "+ {1} — mode" lines; one or more are chosen, each adding its cost (ops.js).
+  const spree = [...text.matchAll(/(?:^|\n)\s*\+\s*((?:\{[^}]+\})+)\s*[—-]\s*([^\n]+)/g)];
+  if (spree.length >= 2 && (/(?:^|\n)\s*Spree\b/i.test(String(definition?.oracleText || '')) || /^\s*\+\s*\{/.test(text))) {
+    const modes = spree.map(x => x[2].trim());
+    return { count: 1, oneOrMore: true, repeat: false, commanderBoth: false, modes, spreeCosts: spree.map(x => x[1]), compiledModes: modes.map(mode => compileEffectText(mode, { sourceName: definition?.name || 'Modal spell' })) };
+  }
   // "Choose one —", "Choose one or more —" (Farewell), "Choose one. If you control a commander as you cast this
   // spell, you may choose both instead." (Jeska's Will, Akroma's Will).
   // "Choose three. You may choose the same mode more than once." (the Confluences)

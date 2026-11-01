@@ -183,7 +183,7 @@ m('Awaken', 'keyword', 'Cast for the awaken cost: also put N +1/+1 counters on t
 m('Backup', 'keyword', 'Backup N: when this enters, put N +1/+1 counters on target creature; if that\'s another creature, it gains this creature\'s other abilities until end of turn.', { auto: 'manual', actions: ['counter+'] });
 m('Banding', 'keyword', 'Creatures with banding can attack or block as a group; their controller assigns combat damage dealt to the band.', { auto: 'manual' });
 m('Bands with others', 'keyword', 'A narrower form of banding.', { auto: 'manual' });
-m('Bargain', 'keyword', 'As an additional cost you may sacrifice an artifact, enchantment or token; bargained spells get a bonus.', { auto: 'manual', actions: ['sacrifice'] });
+m('Bargain', 'keyword', 'As an additional cost you may sacrifice an artifact, enchantment or token; bargained spells get a bonus.', { auto: 'auto', actions: ['sacrifice'] });
 m('Battle cry', 'keyword', 'Whenever this attacks, each other attacking creature gets +1/+0 until end of turn.', { auto: 'manual', actions: ['pt'] });
 m('Bestow', 'keyword', 'Cast as an Aura for the bestow cost; if the enchanted creature leaves, it becomes a creature again.', { auto: 'manual', actions: ['attach'] });
 m('Blitz', 'keyword', 'Cast for the blitz cost: it has haste and "When this dies, draw a card", and is sacrificed at the next end step.', { auto: 'auto' });
@@ -192,7 +192,7 @@ m('Boast', 'keyword', 'Activate only if this creature attacked this turn and onl
 m('Bushido', 'keyword', 'Bushido N: whenever this blocks or becomes blocked, it gets +N/+N until end of turn.', { auto: 'manual', actions: ['pt'] });
 m('Buyback', 'keyword', 'You may pay the buyback cost as you cast this; if you do, it returns to your hand as it resolves.', { auto: 'auto' });
 m('Cascade', 'keyword', 'When you cast this, exile from the top until a nonland card that costs less; you may cast it free. The rest go to the bottom in a random order.', { auto: 'auto', tricky: ['Cascade triggers on cast, so it resolves before the cascading spell.', 'Split cards check the total mana value of both halves.'] });
-m('Casualty', 'keyword', 'Casualty N: as you cast this, you may sacrifice a creature with power N or greater; if you do, copy this spell.', { auto: 'manual', actions: ['sacrifice'] });
+m('Casualty', 'keyword', 'Casualty N: as you cast this, you may sacrifice a creature with power N or greater; if you do, copy this spell.', { auto: 'auto', actions: ['sacrifice'] });
 m('Champion', 'keyword', 'When this enters, sacrifice it unless you exile another [quality] you control; when this leaves, return the exiled card.', { auto: 'manual', actions: ['exile', 'sacrifice'] });
 m('Changeling', 'keyword', 'This is every creature type (in every zone).', { auto: 'auto' });
 m('Cipher', 'keyword', 'After this resolves, you may exile it encoded on a creature you control; whenever that creature deals combat damage to a player, you may cast a copy free.', { auto: 'manual' });
@@ -223,9 +223,9 @@ m('Embalm', 'keyword', 'Exile this card from your graveyard and pay: create a to
 m('Emerge', 'keyword', 'Cast by sacrificing a creature and paying the emerge cost reduced by that creature\'s mana value.', { auto: 'auto', steps: 'Choose "Emerge" when casting: pick the creature to sacrifice; the cost is reduced by its mana value.', actions: ['sacrifice'] });
 m('Encore', 'keyword', 'Exile this card from your graveyard and pay: for each opponent, create a token copy that attacks that opponent this turn if able; sacrifice them at the next end step.', { auto: 'auto', steps: 'Use Encore from the graveyard: the game makes a hasty copy for each opponent that must attack them, and sacrifices them at the end step.', actions: ['copy-token'] });
 m('Enlist', 'keyword', 'As this attacks, you may tap a nonattacking creature without summoning sickness; this gets +X/+0 equal to its power.', { auto: 'manual', actions: ['tap', 'pt'] });
-m('Entwine', 'keyword', 'Pay the entwine cost to choose all modes.', { auto: 'manual' });
+m('Entwine', 'keyword', 'Pay the entwine cost to choose all modes.', { auto: 'auto' });
 m('Epic', 'keyword', 'For the rest of the game you can\'t cast spells; at each of your upkeeps, copy this spell.', { auto: 'manual' });
-m('Escalate', 'keyword', 'Pay the escalate cost for each mode beyond the first.', { auto: 'manual' });
+m('Escalate', 'keyword', 'Pay the escalate cost for each mode beyond the first.', { auto: 'auto' });
 m('Escape', 'keyword', 'Cast this from your graveyard for its escape cost (including exiling other cards from your graveyard).', { auto: 'auto' });
 m('Eternalize', 'keyword', 'Exile this card from your graveyard and pay: create a token copy that is a 4/4 black Zombie with no mana cost.', { auto: 'manual', actions: ['copy-token', 'exile'] });
 m('Evoke', 'keyword', 'Cast for the evoke cost; when it enters, sacrifice it.', { auto: 'auto', tricky: ['Its enters-the-battlefield triggers still happen; you choose the order with the sacrifice trigger.'] });
@@ -276,7 +276,7 @@ m('Myriad', 'keyword', 'Whenever this attacks, for each other opponent, you may 
 m('Ninjutsu', 'keyword', 'Pay the cost and return an unblocked attacker you control to hand: put this onto the battlefield tapped and attacking.', { auto: 'auto' });
 m('Commander ninjutsu', 'keyword', 'Ninjutsu that also works from the command zone.', { auto: 'partial' });
 m('Offering', 'keyword', 'You may cast this as though it had flash by sacrificing a creature of the type and paying the difference in costs.', { auto: 'manual', actions: ['sacrifice'] });
-m('Offspring', 'keyword', 'You may pay the offspring cost; when this enters, create a 1/1 token copy of it.', { auto: 'manual', actions: ['copy-token'] });
+m('Offspring', 'keyword', 'You may pay the offspring cost; when this enters, create a 1/1 token copy of it.', { auto: 'auto', actions: ['copy-token'] });
 m('Outlast', 'keyword', 'Pay and tap: put a +1/+1 counter on this. Sorcery speed.', { auto: 'manual', actions: ['counter+', 'tap'] });
 m('Overload', 'keyword', 'Cast for the overload cost and change "target" to "each".', { auto: 'auto' });
 m('Partner', 'keyword', 'You can have two commanders if both have partner.', { auto: 'auto', rules: ['"Partner with [name]" pairs only with that card and lets you search for it when it enters.', 'Friends forever, Doctor\'s companion and Choose a Background are related pairing rules.'] });
@@ -296,7 +296,7 @@ m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unat
 m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay the recover cost to return this card to your hand; otherwise exile it.', { auto: 'manual', actions: ['return-hand', 'exile'] });
 m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'auto', steps: 'Use Reinforce from your hand: discard it and choose the creature.', actions: ['counter+', 'discard'] });
 m('Renown', 'keyword', 'When this deals combat damage to a player, if it isn\'t renowned, put N +1/+1 counters on it; it becomes renowned.', { auto: 'manual', actions: ['counter+'] });
-m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the spell that many times.', { auto: 'manual' });
+m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the spell that many times.', { auto: 'auto' });
 m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'auto', actions: ['discard'] });
 m('Riot', 'keyword', 'Enters with your choice of a +1/+1 counter or haste.', { auto: 'auto', actions: ['counter+'] });
 m('Ripple', 'keyword', 'When you cast this, reveal the top N cards; you may cast cards with the same name free; the rest go to the bottom.', { auto: 'manual' });
@@ -309,8 +309,8 @@ m('Soulshift', 'keyword', 'Soulshift N: when this dies, return target Spirit car
 m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'auto', steps: 'Once an opponent has lost life this turn, "Spectacle" is offered as a way to cast it.' });
 m('Splice', 'keyword', 'Splice onto [type]: reveal this as you cast a spell of that type and pay the cost to add this card\'s effect to it.', { auto: 'manual' });
 m('Split second', 'keyword', 'While this is on the stack, players can\'t cast spells or activate non-mana abilities.', { auto: 'manual' });
-m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s additional cost.', { auto: 'manual' });
-m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; when it enters, create that many token copies.', { auto: 'manual', actions: ['copy-token'] });
+m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s additional cost.', { auto: 'auto' });
+m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; when it enters, create that many token copies.', { auto: 'auto', actions: ['copy-token'] });
 m('Storm', 'keyword', 'When you cast this, copy it for each spell cast before it this turn. Copies may choose new targets.', { auto: 'auto' });
 m('Sunburst', 'keyword', 'Enters with a +1/+1 counter (or charge counter if not a creature) for each color of mana spent to cast it.', { auto: 'manual', actions: ['counter+', 'counter-other'] });
 m('Surge', 'keyword', 'You may cast this for its surge cost if you or a teammate cast another spell this turn.', { auto: 'manual' });
