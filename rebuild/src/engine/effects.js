@@ -786,6 +786,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'life') {
       const players = targetPlayers(game, controllerId, effect.scope || 'you', effect.playerId || bindings[effect.bind]);
       for (const p of players) {
+        if (p.lifeLocked) { notes.push(`${p.displayName}'s life total can't change.`); continue; }   // Teferi's Protection
         const delta = Number(effect.deltaSign || 1) >= 0 ? lifeGainAmount(game, p.playerId, amount) : -amount;
         const before = Number(p.life || 0);
         p.life = Math.max(0, before + delta);

@@ -817,4 +817,19 @@ section('round 13: Boseiju, Takenuma, Pact of Negation');
   }
 }
 
+section('round 13: phasing (Teferi\'s Protection)');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Until your next turn, your life total can\'t change and you gain protection from everything. All permanents you control phase out.\nExile Opt.');
+  check('Teferi\'s Protection: your permanents phase out', !t.bf(0, 'Grizzly Bears') && t.P(0).deck.phasedOut?.some(c => c.instanceId === bear.instanceId));
+  t.autoPass = true; t.end(0);
+  t.give(1, 'Forest', 'battlefield'); t.give(1, 'Divination'); asText(t, t.hand(1, 'Divination'), 'Each opponent loses 5 life.', { manaCost: '{G}' });
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(1, 'Divination').instanceId }, t.as(1)); settle(t);
+  check('…your life total can\'t change', t.P(0).life === life, `${life} → ${t.P(0).life}`);
+  t.end(1);
+  check('…and everything phases back in at your untap step', !!t.bf(0, 'Grizzly Bears') && !t.P(0).lifeLocked);
+}
+
 done();

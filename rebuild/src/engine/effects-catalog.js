@@ -1236,6 +1236,20 @@ function compileRound3(c, ctx, subjectBind) {
   }
   // Bident of Thassa: "Creatures your opponents control attack this turn if able."
   if (/^Creatures your opponents control attack this turn if able\.?$/i.test(c)) { effects.push({ kind: 'restrict-each', filter: 'creature', opponentsOf: true, restriction: 'must-attack' }); return true; }
+  // Phasing.
+  if (/^All permanents you control phase out\.?$/i.test(c)) { effects.push({ kind: 'phase-out', all: true }); return true; }
+  if ((m = c.match(/^(?:Any number of|Up to (one|two|three)) target ([a-z ]+?) (?:you control )?phases? out\.?$/i))) {
+    const bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[2].replace(/s$/, '')}${/you control/i.test(c) ? ' you control' : ''}`, min: 0, max: m[1] ? num(m[1]) : 99, label: `Choose ${m[1] ? `up to ${m[1]}` : 'any number of'} ${m[2]}` });
+    effects.push({ kind: 'phase-out', bind });
+    return true;
+  }
+  if ((m = c.match(rx(`^(${selfAny}|It|Target [^.]+?|That creature|Enchanted creature|Equipped creature) phases out\\.?$`, 'i')))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : subjectBind(m[1]);
+    effects.push({ kind: 'phase-out', single: bind });
+    return true;
+  }
+  if (/^Until your next turn, your life total can'?t change and you gain protection from everything\.?$/i.test(c)) { effects.push({ kind: 'player-protection', lifeLock: true }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1271,6 +1285,26 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'phase-out': {
+      const ids = effect.all ? (controller.deck.battlefield || []).map(c => c.instanceId) : effect.single ? [H.resolveBoundId({ bind: effect.single }, bindings)] : [].concat(bindings[effect.bind] || []);
+      const all = new Set(ids.filter(Boolean));
+      // Auras and Equipment attached to a phasing permanent phase out with it.
+      for (const p of game.players) for (const c of p.deck.battlefield || []) if (c.attachedTo && all.has(c.attachedTo)) all.add(c.instanceId);
+      let n = 0;
+      for (const id of all) {
+        const hit = permanentAt(game, id);
+        if (!hit) continue;
+        const owner = playerById(game, hit.card.controllerId) || hit.player;
+        const arr = hit.player.deck.battlefield; arr.splice(arr.indexOf(hit.card), 1);
+        hit.card.phasedOut = true;
+        owner.deck.phasedOut = [...(owner.deck.phasedOut || []), hit.card];
+        const cs = game.combatState;
+        if (cs) { cs.attackers = (cs.attackers || []).filter(a => a.instanceId !== id); for (const b of Object.values(cs.blocks || {})) if (b?.assignments) b.assignments = b.assignments.filter(a => a.blockerId !== id && a.attackerId !== id); }
+        n++;
+      }
+      notes.push(`${n} permanent${n === 1 ? '' : 's'} phase out.`);
+      return true;
+    }
     case 'attacking-token-each-opponent': {
       for (const opp of (game.players || []).filter(q => !q.eliminated && q.playerId !== controllerId)) {
         H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, ...effect.token, tapped: true }], bindings);
@@ -1373,7 +1407,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${name(hit.card)} is removed from combat${effect.untap ? ' and untaps' : ''}.`);
       return true;
     }
-    case 'player-protection': controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
+    case 'player-protection': if (effect.lifeLock) controller.lifeLocked = true; controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
     case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;

@@ -126,6 +126,13 @@ function setPhase(game, phase, extra = {}) {
 function untapStep(game) {
   const p = activePlayer(game);
   let count = 0;
+  // Phasing: permanents that phased out return before anything untaps (they keep counters, attachments and tapped state).
+  if ((p.deck.phasedOut || []).length) {
+    const back = p.deck.phasedOut.splice(0);
+    for (const c of back) { delete c.phasedOut; p.deck.battlefield.push(c); }
+    log(game, `${plural(back.length, 'permanent')} phase in for ${p.displayName}.`);
+    for (const c of back) queueTriggers(game, { type: 'phased-in', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId });
+  }
   for (const c of p.deck.battlefield) {
     if (!c.tapped) continue;
     if (/doesn['’]t untap during your untap step/i.test(defOf(game, c)?.oracleText || '')) continue;
