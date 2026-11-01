@@ -431,6 +431,17 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const ze = parts.flatMap(p => p.effects).find(e => e.kind === 'zone-each' && e.destroy);
     return { part: { effects: [{ kind: 'split-mana', bind: `split${i}`, colors: [m[1], m[2]] }], requirements: [{ kind: 'b49-split-mana', bind: `split${i}`, colors: [m[1], m[2]], predict: { filter: ze.filter, scope: ze.scope, mv: ze.maxMv ?? ze.mvMax ?? null, effect: ze } }], unsupported: [] }, consumed: 1 };
   }
+  // Ripples of Undeath: "mill three cards. Then you may pay {1} and 3 life. If you do, put a card from among those cards into your hand."
+  if ((m = c0.match(/^(?:you )?mill (\w+) cards\.?$/i)) && (m2 = String(clauses[i + 1] || '').match(/^Then you may pay ((?:\{[^}]+\})+) and (\d+) life\.?$/i)) && /^If you do, put a card from among those cards into your hand\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const n = num(m[1]), mill = compile(`Mill ${m[1]} cards.`, sourceName);
+    if (ok(mill)) return { part: { effects: [...mill.effects, { kind: 'may-pay', cost: m2[1], lifeCost: Number(m2[2]), skip: 1 }, { kind: 'milled-to-hand', bind: `ripple${i}` }], requirements: [{ kind: 'b49-peek-pick', bind: `ripple${i}`, amount: n, label: `If you pay ${m2[1]} and ${m2[2]} life: which milled card goes to your hand?` }], unsupported: [] }, consumed: 3 };
+  }
+  // Springheart Nantuko: "you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy
+  // of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token."
+  if ((m = c0.match(/^you may pay ((?:\{[^}]+\})+) if this permanent is attached to a creature you control\.?$/i)) && /^If you do, create a token that'?s a copy of that creature\.?$/i.test(String(clauses[i + 1] || '')) && (m2 = String(clauses[i + 2] || '').match(/^If you didn'?t create a token this way, (create .+)$/i))) {
+    const tok = compile(cap(m2[1]), sourceName);
+    if (ok(tok)) return { part: { effects: [{ kind: 'may-pay', cost: m[1], lifeCost: 0, skip: 1, onlyIfAttached: true }, { kind: 'copy-host-token' }, { kind: 'condition', test: 'b49-no-host-copy', skip: tok.effects.length }, ...tok.effects], requirements: [], unsupported: [] }, consumed: 3 };
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -921,6 +932,19 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (h?.zone === 'battlefield') { h.card.harnessed = true; notes.push(`${nameOf(game, bindings.sourceId)} is harnessed.`); }
       return true;
     }
+    case 'milled-to-hand': {
+      const id = bindings[effect.bind], h = id && locateCardInGame(game, id);
+      if (h?.zone === 'graveyard') { moveCard(game, id, 'hand', { onEvent: e => H.emit(bindings, e) }); notes.push(`${nameOf(game, id)} goes to ${controller.displayName}'s hand.`); }
+      return true;
+    }
+    case 'copy-host-token': {
+      const src = locateCardInGame(game, bindings.sourceId), host = src?.card?.attachedTo && locateCardInGame(game, src.card.attachedTo);
+      if (!host || host.zone !== 'battlefield') return true;
+      H.applyEffectsUnsafe(game, controllerId, [{ kind: 'copy-token', targetId: host.card.instanceId }], bindings);
+      bindings.hostCopied = true;
+      notes.push(`${controller.displayName} creates a token copy of ${nameOf(game, host.card.instanceId)}.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1202,6 +1226,11 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = n ? ask(key, () => ({ ...base, cancellable: false, kind: 'number', title, prompt: `About ${n} permanent${n === 1 ? '' : 's'} will be destroyed. How many {${req.colors[0]}}? (the rest is {${req.colors[1]}})`, min: 0, max: n })) : 0;
     return true;
   }
+  if (req.kind === 'b49-peek-pick') {
+    const top = (player.deck.remainingLibrary || []).slice(0, Number(req.amount || 0));
+    bindings[req.bind] = top.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title, prompt: req.label, options: top.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -1343,6 +1372,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
       return Math.max(0, ...Object.values(counts)) >= effect.min;
     }
     case 'b49-your-main': return game.activePlayerId === controllerId && ['precombat-main', 'postcombat-main'].includes(game.phase);
+    case 'b49-no-host-copy': return !bindings.hostCopied;
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;

@@ -2553,4 +2553,19 @@ section('round 51: the last top-1,000 cards');
   check('Trouble in Pairs: the opponent draws when we cast our second spell (not the first)', mid === hand && t.P(1).deck.hand.length === hand + 1, JSON.stringify([mid - hand, t.P(1).deck.hand.length - hand]));
 }
 
+{
+  const t = setup();
+  t.give(0, 'Opt');
+  const top3 = t.P(0).deck.remainingLibrary.slice(0, 3).map(c => c.instanceId), life = t.P(0).life;
+  cast(t, 'Opt', 'Mill three cards. Then you may pay {1} and 3 life. If you do, put a card from among those cards into your hand.', [[d => /milled card/.test(d.prompt || ''), top3[1]], [d => d.key === 'may-pay', 'pay']], { manaCost: '{U}' });
+  check('Ripples of Undeath: three milled; paying {1} and 3 life returns the chosen one', t.P(0).deck.hand.some(c => c.instanceId === top3[1]) && t.P(0).life === life - 3, JSON.stringify([t.P(0).life - life]));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', "Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token.", { typeLine: 'Enchantment Creature — Insect' });
+  const seen = [];
+  t.give(0, 'Command Tower', 'battlefield'); settle(t, [], seen);
+  check('Springheart Nantuko unattached: no payment asked, a 1/1 Insect', !seen.some(d => d.key === 'may-pay') && t.names(0, 'battlefield').some(n => /Insect/.test(n)), JSON.stringify(t.names(0, 'battlefield')));
+}
+
 done();

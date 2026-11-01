@@ -1200,7 +1200,9 @@ function runResolve(game, op, ask) {
 
   // "You may pay {4}. If you do, …": the controller chooses, and pays now.
   const mayPay = (top.effects || []).find(e => e.kind === 'may-pay');
-  if (mayPay) {
+  // Springheart Nantuko: "you may pay {1}{G} if this permanent is attached to a creature you control" — not asked otherwise.
+  const attachedOk = !mayPay?.onlyIfAttached || (() => { const src = (game.players || []).flatMap(p => p.deck.battlefield || []).find(c => c.instanceId === bindings.sourceId); const host = src?.attachedTo && player.deck.battlefield.find(c => c.instanceId === src.attachedTo); return !!host && /\bCreature\b/.test(defOf(game, host)?.typeLine || ''); })();
+  if (mayPay && attachedOk) {
     const life = Number(mayPay.lifeCost || 0);
     const plan = planMana(playerManaAvailability(player, game), mayPay.cost, 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
     const can = plan.ok && Number(player.life || 0) >= life;
