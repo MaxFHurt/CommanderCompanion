@@ -1558,4 +1558,31 @@ section('round 43: finality counters');
   check('…and exiled instead of dying', w.zone === 'exile' || t.P(0).deck.exile.some(c => def(t, c)?.name === 'Grizzly Bears'), w.zone);
 }
 
+section('round 44: subtype targets, color bounce, self-suspend, subtype sweepers');
+{
+  const t = setup();
+  const gob = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Goblin' }), elf = onField(t, 'Llanowar Elves', '');
+  let opts = null;
+  cast(t, 'Opt', 'Target Goblin creature gets +2/+0 until end of turn.', [[d => d.targeting, d => { opts = d.options.map(o => o.id); return gob.instanceId; }]]);
+  check('Target Goblin: only Goblins offered', power(t, gob) === 4 && opts && !opts.includes(elf.instanceId), JSON.stringify(opts?.length));
+}
+{
+  const t = setup();
+  const blue = onField(t, 'Grizzly Bears', '', { colors: ['U'] }), green = onField(t, 'Llanowar Elves', '', { colors: ['G'] });
+  let opts = null;
+  cast(t, 'Opt', 'Return a blue or black creature you control to its owner\'s hand.', [[d => d.kind === 'choose-many' || d.kind === 'choose-one', d => { opts = d.options.map(o => o.id); return d.kind === 'choose-many' ? [blue.instanceId] : blue.instanceId; }]]);
+  check('Return a blue or black creature: only the blue one offered', blue.zone === 'hand' && green.zone === 'battlefield' && !(opts || []).includes(green.instanceId), JSON.stringify([blue.zone, opts?.length]));
+}
+{
+  const t = setup();
+  cast(t, 'Opt', 'Draw a card. Exile Opt with three time counters on it. It gains suspend.');
+  const opt = t.P(0).deck.exile.find(c => def(t, c)?.name === 'Opt');
+  check('Rousing Refrain: exiled with three time counters, suspended', !!opt && opt.suspended && opt.counters?.time === 3, JSON.stringify([opt?.counters]));
+}
+{
+  const t = setup();
+  cast(t, 'Opt', 'Destroy all Islands.');
+  check('Destroy all Islands', !t.P(0).deck.battlefield.some(c => def(t, c)?.name === 'Island') && t.P(0).deck.battlefield.some(c => def(t, c)?.name === 'Forest'));
+}
+
 done();

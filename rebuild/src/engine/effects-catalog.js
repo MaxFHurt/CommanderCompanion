@@ -341,6 +341,48 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'animate', bind, power: null, toughness: null, addTypes: [], subtypes: [], subtypeBind: typeBind, replaceSubtypes: true, keywords: [], colors: null, expires: 'cleanup', typeOnly: false });
     return true;
   }
+  // "Target Goblin creature gets +2/+0 until end of turn." (a creature type in the target)
+  if ((m = c.match(/^(Target [A-Z][a-z]+(?: creature)?(?: you control)?) gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    return true;
+  }
+  // "Dragons you control get +1/+0 until end of turn." / "Dragon creatures get +1/+0 until end of turn."
+  if ((m = c.match(/^(?:Other )?([A-Z][a-z]+?)s? (?:you control|creatures(?: you control)?) get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/)) && !/^(?:Creature|Artifact|Permanent|Land|Token)$/.test(m[1])) {
+    const sub = m[1].replace(/ve$/, 'f');
+    effects.push({ kind: 'pump-each', scope: /you control/.test(c) ? 'you' : 'all', filter: `creature|anysub:${sub}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    return true;
+  }
+  // Bounce creatures: "return a blue or black creature you control to its owner's hand." (the player chooses)
+  if ((m = c.match(/^return (?:a|an) ((?:[a-z]+ or )?[a-z]+ )?(creature|land|artifact|enchantment|permanent) you control to its owner'?s hand\.?$/i))) {
+    const words = (m[1] || '').trim(), colors = words.split(/\s+or\s+/).filter(w => /^(white|blue|black|red|green)$/i.test(w)).map(w => COLOR_OF[w.toLowerCase()]);
+    const filter = `${m[2].toLowerCase()}${colors.length ? `|anycolor:${colors.join(',')}` : words ? `|type:${words}` : ''}`;
+    const bind = `cards${requirements.length}`;
+    requirements.push({ kind: 'card-selection', bind, scope: 'you', filter, amount: 1, label: `Choose a ${words ? `${words} ` : ''}${m[2]} to return` });
+    effects.push({ kind: 'bounce-selection', bind });
+    return true;
+  }
+  // "Destroy all Islands." / "Destroy all Goblins."
+  if ((m = c.match(/^(Destroy|Exile) all ([A-Z][a-z]+?)s\.?$/)) && !/^(?:Creature|Artifact|Enchantment|Land|Permanent|Planeswalker)$/.test(m[2])) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: `permanent|anysub:${m[2]}`, to: m[1] === 'Destroy' ? 'graveyard' : 'exile', destroy: m[1] === 'Destroy' });
+    return true;
+  }
+  // "create that many 1/1 green Saproling creature tokens."
+  if ((m = c.match(/^create that many (.+? tokens?(?: with .+)?)\.?$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(`Create X ${m[1]}.`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length && inner.effects.every(e => e.kind === 'create-token')) { effects.push(...inner.effects.map(e => ({ ...e, amount: { kind: 'binding', bind: 'eventAmount' } }))); return true; }
+  }
+  // "you may exile it." (the card the trigger is about; the player chooses)
+  if (/^you may exile (?:it|that card|that creature)\.?$/i.test(c)) {
+    const bind = `mayExile${requirements.length}`;
+    requirements.push({ kind: 'yes-no', bind, label: 'Exile it?' });
+    effects.push({ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'exile-event-card' });
+    return true;
+  }
+  if (/^You may (?:play|cast) (?:that card|those cards|it|them) this turn\.?$/i.test(c)) { effects.push({ kind: 'permit-recent', until: 'turn', castOnly: /cast/i.test(c) }); return true; }
+  // Rousing Refrain: "Exile ~ with three time counters on it." "It gains suspend."
+  if ((m = c.match(rx(`^Exile (?:${selfAny}|this spell|this card) with ${N} time counters? on it\\.?$`, 'i')))) { effects.push({ kind: 'exile-self-suspend', amount: num(m[1]) }); return true; }
+  if (/^It gains suspend\.?$/i.test(c)) return true;
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -2006,6 +2048,29 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (how === 'Tap') { hit.card.tapped = true; emit({ type: 'tapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId }); }
       else if (hit.card.tapped && H.setTapped(hit.card, false)) emit({ type: 'untapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId });
       notes.push(`${name(hit.card)} ${how === 'Tap' ? 'taps' : 'untaps'}.`);
+      return true;
+    }
+    case 'exile-self-suspend': {
+      const hit = locateCardInGame(game, bindings.sourceId) || (game.resolvingSpellId === bindings.sourceId ? null : null);
+      game.spellExileSelf = bindings.sourceId;
+      game.spellSuspendSelf = { id: bindings.sourceId, time: Number(effect.amount || 0) };
+      notes.push(`It is exiled with ${effect.amount} time counters (suspended).`);
+      return true;
+    }
+    case 'bounce-selection': {
+      const raw = bindings[effect.bind] || [];
+      const ids = Array.isArray(raw) ? raw : Object.values(raw).flat();
+      for (const id of ids) { const hit = permanentAt(game, id); if (hit) { moveCard(game, id, 'hand', { onEvent: emit }); notes.push(`${name(hit.card)} returns to its owner's hand.`); } }
+      bindings.lastMoved = ids;
+      return true;
+    }
+    case 'exile-event-card': {
+      const id = bindings.eventCard || bindings.thatCard;
+      const hit = id && locateCardInGame(game, id);
+      if (!hit || !['battlefield', 'graveyard', 'hand'].includes(hit.zone)) { notes.push('It is no longer there to exile.'); return true; }
+      moveCard(game, id, 'exile', { onEvent: emit });
+      bindings.lastMoved = [id];
+      notes.push(`${name(hit.card)} is exiled.`);
       return true;
     }
     case 'switch-pt': {

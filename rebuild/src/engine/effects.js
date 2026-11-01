@@ -242,6 +242,7 @@ export function cardMatchesFilter(game, card, filter) {
       if (c === 'untapped') return !card.tapped;
       if (c.startsWith('keyword:')) return hasKeyword(card, d, c.slice(8));
       if (c.startsWith('nokeyword:')) return !hasKeyword(card, d, c.slice(10));
+      if (c.startsWith('anycolor:')) return c.slice(9).toUpperCase().split(',').some(x => (d?.colors || []).includes(x));
       if (c.startsWith('anysub:')) return /changeling/i.test(text) || c.slice(7).split(',').some(w => rx(`\\b${w}s?\\b`, 'i').test(d?.typeLine || ''));
       if (c.startsWith('subtype:')) return rx(`\\b${c.slice(8)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text);
       if (c.startsWith('not-id:')) return card.instanceId !== c.slice(7);
@@ -1568,6 +1569,7 @@ export function parseCondition(text) {
   if (/^you lose the flip$/i.test(t)) return { test: 'coin', won: false };
   if (/^an opponent lost life this turn$/i.test(t)) return { test: 'opponent-lost-life' };
   if (/^you win(?: the clash)?$/i.test(t)) return { test: 'clash-won' };
+  if ((m = t.match(/^there are (\w+) or more instant and\/or sorcery cards in your graveyard$/i))) return { test: 'grave-instants', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1610,6 +1612,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'opponent-lost-life') return game.players.some(p => p.playerId !== controllerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber);
   if (effect.test === 'done') return !bindings.__notDone;
   if (effect.test === 'clash-won') return !!bindings.clashWon;
+  if (effect.test === 'grave-instants') return (me?.deck?.graveyard || []).filter(c => /\b(?:Instant|Sorcery)\b/.test(definitionFor(game, c)?.typeLine || '')).length >= effect.min;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -1911,9 +1914,9 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'combat-restriction', bind, restriction: 'cant-attack-or-block', expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(Target creature[^.]*) must attack this combat if able\.?$/i))) {
+  if ((m = c.match(/^(Target creature[^.]*) (?:must attack this combat|attacks this (?:turn|combat)) if able\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
-    effects.push({ kind: 'combat-restriction', bind, restriction: 'must-attack', expires: 'end-combat' });
+    effects.push({ kind: 'combat-restriction', bind, restriction: 'must-attack', expires: /turn/i.test(c) ? 'cleanup' : 'end-combat' });
     return { effects, requirements, unsupported };
   }
   if (/^Target creature blocks target creature this turn if able\.?$/i.test(c)) {
@@ -2830,7 +2833,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // "If you control six or more lands, create a token that's a copy of this creature instead." (Scute Swarm) /
     // "Add {B}{B}{B}{B}{B} instead if there are seven or more cards in your graveyard." (Cabal Ritual): the earlier
     // instruction happens only when the condition fails, this one only when it holds.
-    const insteadM = clause.match(/^(?:[A-Z][a-z]+ — )?If (.+?), (.+?) instead\.?$/i) || (m0 => m0 && [m0[0], m0[2], m0[1]])(clause.match(/^(?:[A-Z][a-z]+ — )?(.+?) instead if (.+?)\.?$/i));
+    const insteadM = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?If (.+?), (.+?) instead\.?$/i) || (m0 => m0 && [m0[0], m0[2], m0[1]])(clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?(.+?) instead if (.+?)\.?$/i));
     const insteadCond = insteadM && !/^(?:that creature|it|they|that permanent) /i.test(insteadM[2]) && parseCondition(insteadM[1]);
     const prevPart = parts[parts.length - 1];
     if (insteadCond && prevPart && !prevPart.unsupported.length && prevPart.effects.length) {
@@ -2874,7 +2877,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     const madeToken = quoted && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
     if (madeToken) { madeToken.oracleText = [madeToken.oracleText, quoted[1].replace(/"$/, '')].filter(Boolean).join('\n'); continue; }
     // Tragic Slip: "Morbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
-    const instead = clause.match(/^(?:[A-Z][a-z]+ — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);
+    const instead = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);
     const prevPump = instead && parts[parts.length - 1]?.effects?.find(e => e.kind === 'pump');
     if (prevPump) {
       parts.push({ effects: [{ kind: 'condition', test: 'creature-died', skip: 1 }, { kind: 'pump', bind: prevPump.bind, power: Number(instead[1]) - Number(prevPump.power || 0), toughness: Number(instead[2]) - Number(prevPump.toughness || 0), expires: 'cleanup' }], requirements: [], unsupported: [] });
@@ -2973,8 +2976,8 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
-    const cond = clause.match(/^(?:[A-Z][a-z]+ — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
-    const genericIf = !/^If you do\b/i.test(clause) && clause.match(/^(?:[A-Z][a-z]+ — )?if (.+?), (.+)$/i);
+    const cond = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
+    const genericIf = !/^If you do\b/i.test(clause) && clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?if (.+?), (.+)$/i);
     const genericCond0 = genericIf && !/\bwould\b|\binstead\b/i.test(clause) && parseCondition(genericIf[1]);
     const genericCond = genericCond0 && (!cond || genericCond0.test !== 'control') ? genericCond0 : null;
     if (genericCond) {
