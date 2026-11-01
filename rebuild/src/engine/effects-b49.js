@@ -163,6 +163,18 @@ export function compileB49Clause(c, ctx) {
   }
   // Mizzix's Mastery overloaded: "Exile each card that's an instant or sorcery from your graveyard."
   if ((m = c.match(/^Exile each card that'?s an? ([a-z]+(?: or [a-z]+)?) from your graveyard\.?$/i))) { effects.push({ kind: 'exile-graveyard-filter', filter: m[1].toLowerCase() }); return true; }
+  // Agadeem's Awakening: "Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less."
+  if (/^Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less\.?$/i.test(c)) {
+    requirements.push({ kind: 'b49-distinct-mv', bind: 'agadeem', filter: 'creature' });
+    effects.push({ kind: 'graveyard-to-battlefield-many', bind: 'agadeem', tapped: false });
+    return true;
+  }
+  // Kodama of the East Tree: "if it wasn't put onto the battlefield with this ability, you may put a permanent card with equal or lesser mana value from your hand onto the battlefield."
+  if (/^(?:if it wasn'?t put onto the battlefield with this ability, )?(?:you may )?put a permanent card with equal or lesser mana value from your hand onto the battlefield\.?$/i.test(c)) {
+    requirements.push({ kind: 'b49-kodama', bind: 'kodama' });
+    effects.push({ kind: 'kodama-put', bind: 'kodama' });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -648,6 +660,14 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${playerById(game, lki.controllerId)?.displayName} creates two ${half(lki.power)}/${half(lki.toughness)} copies of ${d?.name}.`);
       return true;
     }
+    case 'kodama-put': {
+      const id = [].concat(bindings[effect.bind] || [])[0];
+      if (!id || locateCardInGame(game, id)?.zone !== 'hand') { notes.push('No card is put onto the battlefield.'); return true; }
+      const moved = moveCard(game, id, 'battlefield', { controllerId, onEvent: e => H.emit(bindings, { ...e, ...(e.type === 'enters-battlefield' ? { viaSource: bindings.sourceId } : {}) }) });
+      if (moved?.card) moved.card.putBy = bindings.sourceId;
+      notes.push(`${controller.displayName} puts ${nameOf(game, id)} onto the battlefield.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -832,6 +852,26 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     if (!lands.length) return true;
     const v = ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: 'You may sacrifice a land to copy this spell (choosing a new target).', options: [{ id: 'none', label: 'Don’t sacrifice' }, ...lands.map(c => util.cardOption(game, c, p))] }));
     bindings[req.bind] = v && v !== 'none' ? { player: p.playerId, land: v } : {};
+    return true;
+  }
+  if (req.kind === 'b49-distinct-mv') {
+    const x = Number(bindings.X || 0);
+    const mv = c => Number(util.defOf(game, c)?.manaValue ?? 0);
+    const rows = (player.deck.graveyard || []).filter(c => cardFitsWords(util.defOf(game, c), req.filter) && mv(c) <= x);
+    const picked = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', targeting: true, title, prompt: `Choose any number of creature cards with mana value ${x} or less, each with a different mana value.`, options: rows.map(c => util.cardOption(game, c, player, `mana value ${mv(c)}`)), min: 0, max: rows.length })) || []) : [];
+    const seenMv = new Set(), keep = [];
+    for (const id of picked) { const c = rows.find(r => r.instanceId === id); if (c && !seenMv.has(mv(c))) { seenMv.add(mv(c)); keep.push(id); } }
+    bindings[req.bind] = keep;
+    return true;
+  }
+  if (req.kind === 'b49-kodama') {
+    // Not for a permanent this ability put onto the battlefield; a card with mana value up to the one that entered.
+    const ev = locateCardInGame(game, bindings.eventCard)?.card;
+    bindings[req.bind] = [];
+    if (!ev || ev.putBy === bindings.sourceId) return true;
+    const max = Number(util.defOf(game, ev)?.manaValue ?? 0);
+    const rows = (player.deck.hand || []).filter(c => !/\b(?:Instant|Sorcery)\b/.test(util.defOf(game, c)?.typeLine || '') && Number(util.defOf(game, c)?.manaValue ?? 0) <= max);
+    bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `You may put a permanent card with mana value ${max} or less from your hand onto the battlefield.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max: 1 })) || []) : [];
     return true;
   }
   if (req.kind === 'b49-hand-pick') {

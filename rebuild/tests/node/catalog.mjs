@@ -2164,4 +2164,20 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Saw in Half: its controller gets two 3/3 copies', toks.length === 2 && toks.every(c => power(t, c) === 3 && tough(t, c) === 3), JSON.stringify(toks.map(c => [power(t, c), tough(t, c)])));
 }
 
+{
+  const t = setup();
+  for (const n of ['Grizzly Bears', 'Llanowar Elves', 'Elvish Visionary']) t.give(0, n, 'graveyard');
+  const g = n => t.P(0).deck.graveyard.find(c => def(t, c).name === n).instanceId;
+  cast(t, 'Opt', 'Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less.', [[d => d.key === 'x', 2], [d => /different mana value/.test(d.prompt || ''), [g('Grizzly Bears'), g('Llanowar Elves'), g('Elvish Visionary')]]], { manaCost: '{X}{G}' });
+  const back = ['Grizzly Bears', 'Llanowar Elves', 'Elvish Visionary'].filter(n => t.names(0, 'battlefield').includes(n));
+  check("Agadeem's Awakening: one card per mana value comes back (Bears 2, Elves 1; Visionary shares 2)", back.length === 2 && back.includes('Llanowar Elves'), JSON.stringify(back));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever another permanent you control enters, if it wasn\'t put onto the battlefield with this ability, you may put a permanent card with equal or lesser mana value from your hand onto the battlefield.', { typeLine: 'Legendary Creature — Spirit' });
+  t.give(0, 'Llanowar Elves'); t.give(0, 'Elvish Visionary');
+  cast(t, 'Grizzly Bears', '', [[d => d.kind === 'confirm', true], [d => /mana value 2 or less/.test(d.prompt || ''), d => [d.options.find(o => o.label === 'Llanowar Elves').id]]], { manaCost: '{1}{G}' });
+  check('Kodama of the East Tree: casting a 2-drop puts a cheaper permanent from hand; that one does not chain', t.names(0, 'battlefield').includes('Llanowar Elves') && t.names(0, 'hand').includes('Elvish Visionary'), JSON.stringify(t.names(0, 'battlefield')));
+}
+
 done();
