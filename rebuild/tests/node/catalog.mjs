@@ -2543,4 +2543,14 @@ section('round 51: the last top-1,000 cards');
   check('The Soul Stone: exiling a creature as a cost, it becomes harnessed', r.ok && ss.harnessed && t.names(0, 'exile').includes('Grizzly Bears'), JSON.stringify([r.error, ss.harnessed]));
 }
 
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn, you draw a card.', { typeLine: 'Enchantment' }, 1);
+  const hand = t.P(1).deck.hand.length;
+  cast(t, 'Opt', 'You gain 1 life.', [], { manaCost: '{U}' });
+  const mid = t.P(1).deck.hand.length;
+  cast(t, 'Divination', 'You gain 1 life.', [], { manaCost: '{U}' });
+  check('Trouble in Pairs: the opponent draws when we cast our second spell (not the first)', mid === hand && t.P(1).deck.hand.length === hand + 1, JSON.stringify([mid - hand, t.P(1).deck.hand.length - hand]));
+}
+
 done();

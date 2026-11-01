@@ -193,6 +193,8 @@ for (const card of CARDS) {
     if (!ability) { unread++; misses.push(`${card.name}: trigger not found in the card text — ${field(t, 'TriggerDescription').slice(0, 90)}`); continue; }
     checked++;
     let got = [];
+    // ∞ abilities work once harnessed (Forge's script has no harness step): the test card is harnessed.
+    for (const p of pos.g.game.players || []) for (const c of p.deck?.battlefield || []) if (c.instanceId === 'self') c.harnessed = true;
     try { got = collectTriggers(pos.g.game, pos.event); } catch (error) { misses.push(`${card.name}: error ${error.message}`); continue; }
     if (got.some(x => x.sourceId === 'self' && x.abilityId === ability.id)) fired++;
     else misses.push(`${card.name}: did not fire on ${pos.event.type} — "${ability.trigger}"  [forge ${field(t, 'Mode')} ${field(t, 'ValidCard') || field(t, 'ValidSource') || field(t, 'ValidPlayer') || field(t, 'ValidActivatingPlayer')}]`);

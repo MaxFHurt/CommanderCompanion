@@ -1,3 +1,4 @@
+import { effectivePower } from './combat.js';
 // More trigger wordings (build 43), read before the older readers in triggers.js. Each returns true / false when the
 // wording is understood for this event, or undefined to let the older readers decide.
 export function catalogTriggerMatch(game, row, t, event, H) {
@@ -10,6 +11,25 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   // Mounts: "Whenever this creature attacks while saddled, …"
   if ((m = t.match(/^Whenever (.+?) attacks while saddled\b/i))) return event.type === 'attacks' && row.card.saddledTurn === game.turnNumber && H.subjectEvent(game, row, m[1], event);
   if ((m = t.match(/^Whenever (.+?) becomes saddled\b/i))) return event.type === 'saddled' && H.subjectEvent(game, row, m[1], event);
+  // Trouble in Pairs: "Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn"
+  if (/^Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn$/i.test(t)) {
+    const opp = (event.controllerId || event.playerId) && (event.controllerId || event.playerId) !== me;
+    if (event.type === 'attackers-declared') return event.controllerId !== me && (event.attacks || []).filter(a => a.defenderId === me).length >= 2;
+    if (event.type === 'draw') return event.playerId !== me && Number(event.drawNumberThisTurn || 0) === 2;
+    if (event.type === 'spell-cast') { const p = (game.players || []).find(q => q.playerId === event.controllerId); return !!opp && event.controllerId !== me && Number(p?.counters?.spellsCastThisTurn ?? event.castNumberThisTurn ?? 0) === 2; }
+    return false;
+  }
+  // Kutzil: "Whenever one or more creatures you control each with power greater than its base power deals combat damage to a player" (once per damage step)
+  if (/^Whenever one or more creatures you control each with power greater than its base power deals? combat damage to a player\b/i.test(t)) {
+    if (event.type !== 'combat-damage-player' || event.controllerId !== me) return false;
+    const src = (game.players || []).flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === event.sourceId);
+    const d = src && game.cardDefinitions?.[src.definitionId];
+    if (!src || !d || !(effectivePower(src, d, game) > Number(d.power || 0))) return false;
+    const stamp = `${game.turnNumber}:${game.phase}:${(game.combatState?.attackers || []).length}`;
+    if (row.card.kutzilStamp === stamp) return false;
+    row.card.kutzilStamp = stamp;
+    return true;
+  }
   // Kardur: "Whenever an attacking creature dies"
   if (/^Whenever an attacking creature dies\b/i.test(t)) return event.type === 'dies' && (!!event.wasAttacking || (game.combatState?.attackers || []).some(a => a.instanceId === event.sourceId) || (event.attackers || []).includes(event.sourceId));
   switch (event.type) {
