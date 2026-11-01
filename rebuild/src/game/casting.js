@@ -140,6 +140,13 @@ export function convokeSources(game, player, card) {
 }
 
 export function hasConvoke(def) { return /(?:^|\n)\s*Convoke\b/i.test(strip(def?.oracleText)); }
+/** Improvise: untapped artifacts may be tapped to pay generic mana, paid last. */
+export function hasImprovise(def) { return /(?:^|\n)\s*Improvise\b/i.test(strip(def?.oracleText)); }
+export function improviseSources(game, player, card) {
+  return (player.deck?.battlefield || [])
+    .filter(c => !c.tapped && c.instanceId !== card?.instanceId && /\bArtifact\b/i.test(defOf(game, c)?.typeLine || ''))
+    .map(c => ({ instanceId: c.instanceId, options: ['C'], zone: 'battlefield', convoke: true, improvise: true }));
+}
 export function hasDelve(def) { return /(?:^|\n)\s*Delve\b/i.test(strip(def?.oracleText)); }
 
 /** Graveyard cards a delve spell could exile (not itself). */
@@ -266,7 +273,7 @@ export function modeCost(game, player, card, def, mode, { tax = 0, extra = '' } 
   if (mode.faceDown) cost = mode.cost; // face-down spells have no other costs printed on them
   const changes = mode.faceDown ? { delta: 0, notes: [] } : costChanges(game, player, def, card);
   cost = adjustGeneric(cost, tax + changes.delta);
-  return { cost, notes: changes.notes, convoke: !mode.faceDown && hasConvoke(def) ? convokeSources(game, player, card) : [], delve: !mode.faceDown && hasDelve(def) ? delveCards(player, card).length : 0 };
+  return { cost, notes: changes.notes, convoke: mode.faceDown ? [] : [...(hasConvoke(def) ? convokeSources(game, player, card) : []), ...(hasImprovise(def) ? improviseSources(game, player, card).filter(x => !(hasConvoke(def) && convokeSources(game, player, card).some(y => y.instanceId === x.instanceId))) : [])], delve: !mode.faceDown && hasDelve(def) ? delveCards(player, card).length : 0 };
 }
 
 /** Legality of each way to cast. Delve counts as paid with the most cards the graveyard allows. */

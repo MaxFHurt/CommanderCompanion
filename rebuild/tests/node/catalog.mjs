@@ -1269,4 +1269,16 @@ section('round 26: Boast');
   check('…after attacking it works once, then not again', t.P(0).deck.hand.length === hand + 1 && row2 && !row2.legal, JSON.stringify([hand, t.P(0).deck.hand.length, row2?.reason]));
 }
 
+section('round 27: Improvise');
+{
+  const t = setup();
+  t.P(0).deck.battlefield.filter(c => def(t, c)?.name !== 'Island').forEach(c => { c.tapped = true; });
+  t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Island').slice(1).forEach(c => { c.tapped = true; });
+  const arts = [onField(t, 'Fog Bank', '', { typeLine: 'Artifact' }), onField(t, 'Grizzly Bears', '', { typeLine: 'Artifact' }), onField(t, 'Llanowar Elves', '', { typeLine: 'Artifact' })];
+  const hand = t.P(0).deck.hand.length;
+  let err = null;
+  try { cast(t, 'Opt', 'Improvise\nDraw two cards.', [], { manaCost: '{3}{U}', typeLine: 'Sorcery' }); } catch (e) { err = e.message; }
+  check('Improvise: three artifacts pay {3}, one Island pays {U}', !err && arts.every(a => a.tapped) && t.P(0).deck.hand.length === hand + 2, JSON.stringify([err, arts.map(a => a.tapped)]));
+}
+
 done();

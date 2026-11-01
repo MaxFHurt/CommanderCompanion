@@ -253,7 +253,7 @@ m('Hidden agenda', 'keyword', 'Start the game with this conspiracy face down wit
 m('Hideaway', 'keyword', 'When this enters, look at the top N cards, exile one face down and the rest to the bottom; later you may play the exiled card free when a condition is met.', { auto: 'manual', actions: ['exile'] });
 m('Horsemanship', 'keyword', 'Can be blocked only by creatures with horsemanship.', { auto: 'auto' });
 m('Impending', 'keyword', 'Cast for the impending cost: it enters with N time counters and isn\'t a creature while it has any; remove one at your end step.', { auto: 'manual', actions: ['counter-other'] });
-m('Improvise', 'keyword', 'Each artifact you tap while casting this pays for {1}.', { auto: 'manual', actions: ['tap'] });
+m('Improvise', 'keyword', 'Each artifact you tap while casting this pays for {1}.', { auto: 'auto', steps: 'Untapped artifacts are counted toward the generic cost and tapped when you cast it.', actions: ['tap'] });
 m('Infect', 'keyword', 'Deals damage to creatures as -1/-1 counters and to players as poison counters.', { auto: 'auto' });
 m('Ingest', 'keyword', 'Whenever this deals combat damage to a player, that player exiles the top card of their library.', { auto: 'manual', actions: ['exile'] });
 m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatures that share a color with it.', { auto: 'auto' });
