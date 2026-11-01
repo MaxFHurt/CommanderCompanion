@@ -3,6 +3,7 @@
 // only changes the game once every answer is in, so cancelling half-way never leaves a mess.
 
 import { effectiveManaAmount } from '../engine/mana-extras.js';
+import { activationReduction } from '../engine/rules.js';
 import { createTransactionEngine } from '../engine/transactions.js';
 import {
   parseManaCost, planMana, playerManaAvailability, parseActivatedAbilities, validateActivatedAbilityFull,
@@ -591,7 +592,7 @@ function runActivate(game, op, ask) {
     costMoveIds.push(ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) })));
   }
 
-  const manaText = (ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join('');
+  const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   const plan = planMana(playerManaAvailability(player, game), manaText, xInCost ? Number(bindings.X || 0) : 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - Number(ability.lifeCost || 0)) });
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
@@ -866,7 +867,8 @@ function runResolve(game, op, ask) {
     const hit = (game.players || []).map(p => ({ p, c: (p.deck.battlefield || []).find(c => c.instanceId === targetId) })).find(x => x.c);
     searcher = hit ? playerById(game, hit.c.controllerId || hit.p.playerId) : null;
     if (searcher) {
-      const rows = searcher.deck.remainingLibrary.filter(c => /\bbasic\b/i.test(defOf(game, c)?.typeLine || '') && /\bland\b/i.test(defOf(game, c)?.typeLine || ''))
+      const fits = theirSearch.filter === 'basic-type land' ? (t => /\bLand\b/.test(t) && /\b(?:Plains|Island|Swamp|Mountain|Forest)\b/.test(t)) : (t => /\bbasic\b/i.test(t) && /\bland\b/i.test(t));
+      const rows = searcher.deck.remainingLibrary.filter(c => fits(defOf(game, c)?.typeLine || ''))
         .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Land', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
       theirPick = ask('their-search', () => ({ playerId: searcher.playerId, cancellable: false, private: true, kind: 'choose-many', source: name, title: `${name} — search your library`,
         prompt: rows.length ? `You may put a basic land card onto the battlefield${theirSearch.tapped ? ' tapped' : ''}. Your library is shuffled after.` : 'Your library has no basic land card. It is shuffled.', options: rows, min: 0, max: Math.min(1, rows.length), searchable: true }))[0] || null;

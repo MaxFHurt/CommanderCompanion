@@ -682,7 +682,8 @@ function probeTrigger(definition, ability, types, events, variants) {
   }
   return false;
 }
-export function auditTriggers(definition) { return parseTriggeredAbilities(definition).map(a => { if (MANA_EXTRA_TEXT.some(re => re.test(a.text))) return { ...a, fires: true, supported: true, unsupported: [], effectKinds: ['mana-extra'] };   // counted by mana-extras.js as the source is tapped
+export function auditTriggers(definition) { return parseTriggeredAbilities(definition).filter(a => !(/\b(?:Instant|Sorcery)\b/.test(definition?.typeLine || '') && /^At the beginning of (?:your|the) next\b/i.test(a.trigger))).map(a => {   // a spell's delayed trigger is part of the spell
+  if (MANA_EXTRA_TEXT.some(re => re.test(a.text))) return { ...a, fires: true, supported: true, unsupported: [], effectKinds: ['mana-extra'] };   // counted by mana-extras.js as the source is tapped
   const fires = /^When you cast this spell\b/i.test(a.trigger) || triggerCanFire(definition, a);   // cast triggers: castTriggers in keyword-triggers.js
   const never = fires ? [] : [`The game never fires "${a.trigger}" by itself`]; if (a.modes?.length)
   return { ...a, fires, supported: fires, unsupported: never, effectKinds: ['modal-trigger'] }; const compiled = compileEffectText(a.effect, { sourceName: definition?.name || 'Card' }); return { ...a, fires, supported: fires && compiled.supported, unsupported: [...never, ...compiled.unsupported], effectKinds: [...new Set(compiled.effects.map(x => x.kind))] }; }); }

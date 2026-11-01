@@ -790,4 +790,31 @@ section('round 12: Ghostly Flicker, Adeline');
   check('Adeline: a 1/1 token attacks each opponent', t.P(0).deck.battlefield.filter(c => c.token).length === 2 && t.P(2).life === l2 - 1 && t.P(1).life === l1 - 3, `${l1}→${t.P(1).life} ${l2}→${t.P(2).life}`);
 }
 
+section('round 13: Boseiju, Takenuma, Pact of Negation');
+{
+  const t = setup();
+  const land = onField(t, 'Grizzly Bears', '', { typeLine: 'Land — Swamp' }, 1);
+  t.give(0, 'Opt'); const bos = asText(t, t.hand(0, 'Opt'), 'Channel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.', { typeLine: 'Legendary Land' });
+  const row = t.view(0).players[0].hand.find(c => c.id === bos.instanceId)?.abilities?.find(a => /Destroy/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: bos.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no channel row' };
+  let asked = null;
+  settle(t, [[d => d.targeting, () => land.instanceId], ['their-search', d => { asked = d; return d.options.slice(0, 1).map(o => o.id); }]]);
+  check('Boseiju: the land is destroyed and its controller searches for a land with a basic type', r.ok && !t.bf(1, 'Grizzly Bears') && asked?.playerId === t.P(1).playerId, JSON.stringify([r.error, asked?.prompt]));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const bear = t.give(0, 'Grizzly Bears'); t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(bear), 1); bear.zone = 'library'; lib.unshift(bear);
+  cast(t, 'Opt', 'Mill three cards, then return a creature or planeswalker card from your graveyard to your hand.', [[d => d.key.includes('grave'), d => [d.options.find(o => o.label === 'Grizzly Bears')?.id].filter(Boolean)]]);
+  check('Takenuma: a creature milled by the same ability can be returned', t.P(0).deck.hand.some(c => c.instanceId === bear.instanceId));
+}
+{
+  for (const pay of [true, false]) {
+    const t = setup();
+    cast(t, 'Opt', 'Draw a card. At the beginning of your next upkeep, pay {1}. If you don\'t, you lose the game.');
+    t.autoPass = true; t.end(0); t.end(1); settle(t, [['may-pay', pay ? 'pay' : 'no']]);
+    check(`Pact: at the next upkeep, ${pay ? 'paying keeps you in the game' : 'not paying loses the game'}`, pay ? !t.P(0).eliminated : !!t.P(0).eliminated, JSON.stringify([t.P(0).eliminated, t.game.status]));
+  }
+}
+
 done();

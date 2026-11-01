@@ -750,6 +750,14 @@ export function validateActivatedAbility({ game, instance, definition, ability }
     reasons.push('This creature has summoning sickness and cannot activate an ability with {T} or {Q} in its cost.');
   return { legal: !reasons.length, reasons };
 }
+/** "This ability costs {1} less to activate for each legendary creature you control." (Boseiju, Takenuma) */
+export function activationReduction(game, player, ability) {
+  const m = String(ability?.effect || '').match(/This ability costs \{(\d+)\} less to activate for each ([a-z ]+?) you control/i);
+  if (!m || !player) return 0;
+  const words = m[2].trim().split(/\s+/), noun = words.pop().replace(/s$/, '');
+  const n = (player.deck?.battlefield || []).filter(c => { const t = withOverlay(c, game?.cardDefinitions?.[c.definitionId])?.typeLine || ''; return new RegExp(`\\b${noun}\\b`, 'i').test(t) && words.every(w => new RegExp(`\\b${w}\\b`, 'i').test(t)); }).length;
+  return Number(m[1]) * n;
+}
 export function validateActivatedAbilityFull({ game, player, instance, definition, ability, definitions } = {}) {
   const base = validateActivatedAbility({ game, instance, definition, ability });
   const reasons = [...base.reasons];
@@ -760,7 +768,9 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
   const cost = String(ability?.cost || '');
   const manaCost = (cost.match(/\{(?:\d+|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join('');
   if (manaCost && player) {
-    const payment = planMana(playerManaAvailability(player, game), manaCost, 0, { lifeAvailable: Math.max(0, Number(player?.life || 0) - Number(ability?.lifeCost || 0)) });
+    const red = activationReduction(game, player, ability);
+    const reduced = red ? manaCost.replace(/\{(\d+)\}/, (_, n) => `{${Math.max(0, Number(n) - red)}}`).replace(/\{0\}/, '') : manaCost;
+    const payment = planMana(playerManaAvailability(player, game), reduced, 0, { lifeAvailable: Math.max(0, Number(player?.life || 0) - Number(ability?.lifeCost || 0)) });
     if (!payment.ok)
       reasons.push(payment.reason);
   }

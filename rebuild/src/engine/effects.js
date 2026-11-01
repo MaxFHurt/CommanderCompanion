@@ -1494,6 +1494,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1508,6 +1509,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'opponent-more-life') return game.players.some(p => !p.eliminated && p.playerId !== controllerId && Number(p.life || 0) > Number(me?.life || 0));
   if (effect.test === 'event-power') { const h = locateCardInGame(game, bindings.eventCard || bindings.sourceId); return !!h && effectivePower(h.card, definitionFor(game, h.card), game) >= (effect.min || 0); }
   if (effect.test === 'life') return Number(me?.life || 0) >= (effect.min || 0);
+  if (effect.test === 'unique-name') { const h = locateCardInGame(game, bindings.eventCard); const n = h && definitionFor(game, h.card)?.name; return !!n && !(me?.deck?.battlefield || []).some(c => c.instanceId !== h.card.instanceId && /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n) && !(me?.deck?.graveyard || []).some(c => /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n); }
   if (effect.test === 'source-cast') { const h = locateCardInGame(game, bindings.sourceId); return !!h?.card?.castMode || !!h?.card?.wasCast; }
   if (effect.test === 'control') {
     const subject = parseSubject(effect.subject, null);
@@ -2654,6 +2656,13 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any' } });
       clause = dm[3].charAt(0).toUpperCase() + dm[3].slice(1);
     }
+    // Pact of Negation: "pay {3}{U}{U}. If you don't, you lose the game." — paying is the player's choice; not paying does the rest.
+    const payOr = clause.match(/^pay ((?:\{[^}]+\})+)\.?$/i);
+    const ifNotPaid = payOr && String(clauses[clauseIndex + 1] || '').match(/^If you don'?t,?\s*(.+)$/i);
+    if (ifNotPaid) {
+      const inner = compileEffectText(ifNotPaid[1].charAt(0).toUpperCase() + ifNotPaid[1].slice(1), { sourceName });
+      if (inner.supported) { parts.push({ effects: [{ kind: 'may-pay', cost: payOr[1], lifeCost: 0, skip: inner.effects.length, invert: true }, ...inner.effects], requirements: inner.requirements, unsupported: [] }); skipNextClause = true; continue; }
+    }
     // "…, where X is the number of creatures you control." — X is counted as it resolves.
     const whereX = clause.match(/^(.+?),? where X is (the number of .+?|the greatest power among .+?|your devotion to (?:white|blue|black|red|green)|.+?'?s power)\.?$/i);
     if (whereX) {
@@ -2905,10 +2914,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
         continue;
       }
     }
-    const search = clause.match(/^(?:Its|That (?:creature|permanent)'s) controller may search their library for (?:a|up to one) basic land card,? (?:and )?put (?:it|that card) onto the battlefield( tapped)?,? then shuffle\.?$/i);
+    const search = clause.match(/^(?:(?:Its|That (?:creature|permanent)'s) controller|That player) may search their library for (?:a|up to one) (basic land card|land card with a basic land type),? (?:and )?put (?:it|that card) onto the battlefield( tapped)?,? then shuffle\.?$/i);
     const searchTarget = search && [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target');
     if (search && searchTarget) {
-      parts.push({ effects: [{ kind: 'their-search', bind: searchTarget.bind, filter: 'basic land', tapped: !!search[1], optional: true }], requirements: [], unsupported: [] });
+      parts.push({ effects: [{ kind: 'their-search', bind: searchTarget.bind, filter: /basic land type/i.test(search[1]) ? 'basic-type land' : 'basic land', tapped: !!search[2], optional: true }], requirements: [], unsupported: [] });
       continue;
     }
     if (/\bthen\b/i.test(clause)) {
@@ -2996,6 +3005,12 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
   // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
   // carried out, so the choice also shows the cards about to be drawn (the top of the library).
+  // "Mill three cards, then return a creature card from your graveyard …": the milled cards can be chosen.
+  let milled = 0;
+  for (const e of merged.effects) {
+    if (e.kind === 'mill' && typeof e.amount === 'number' && (e.scope || 'you') === 'you' && !e.bind) milled += e.amount;
+    if (e.kind === 'graveyard-to-hand-many' && milled) { const r = merged.requirements.find(q => q.bind === e.bind); if (r) r.plusMill = milled; }
+  }
   const drawn = {};
   let xFrom = null;
   for (const e of merged.effects) {

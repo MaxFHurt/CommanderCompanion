@@ -1226,6 +1226,16 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'attacking-token-each-opponent', token: { power: Number(m[1]), toughness: Number(m[2]), name: m[4].trim(), typeLine: `Token Creature — ${m[4].trim()}`, colors, keywords: H.KEYWORD_LIST(m[5] || '').map(cap) } });
     return true;
   }
+  if (/^This ability costs \{\d+\} less to activate for each .+$/i.test(c)) return true;   // applied to the cost (ops.js / rules.js)
+  // Takenuma: "… then return a creature or planeswalker card from your graveyard to your hand." (the milled cards count)
+  if ((m = c.match(/^return (?:a|an) ([a-z ,]+?) card from your graveyard to your hand\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[1].trim(), max: 1, min: 1, label: `a ${m[1]} card in your graveyard` });
+    effects.push({ kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
+  // Bident of Thassa: "Creatures your opponents control attack this turn if able."
+  if (/^Creatures your opponents control attack this turn if able\.?$/i.test(c)) { effects.push({ kind: 'restrict-each', filter: 'creature', opponentsOf: true, restriction: 'must-attack' }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1575,7 +1585,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
     }
     case 'restrict-each': {
       let n = 0;
-      for (const p of game.players) for (const c of p.deck.battlefield || []) if (cardMatchesFilter(game, c, effect.filter)) { c.temporaryEffects = [...(c.temporaryEffects || []), { kind: 'combat-restriction', restriction: effect.restriction, expires: 'cleanup' }]; n++; }
+      for (const p of game.players.filter(q => !effect.opponentsOf || q.playerId !== controllerId)) for (const c of p.deck.battlefield || []) if (cardMatchesFilter(game, c, effect.filter)) { c.temporaryEffects = [...(c.temporaryEffects || []), { kind: 'combat-restriction', restriction: effect.restriction, expires: 'cleanup' }]; n++; }
       notes.push(`${n} creature${n === 1 ? '' : 's'} can't block this turn.`);
       return true;
     }
@@ -1617,7 +1627,8 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     return true;
   }
   if (req.kind === 'graveyard-multi') {
-    const rows = (player.deck.graveyard || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
+    const coming = (player.deck.remainingLibrary || []).slice(0, Number(req.plusMill || 0));
+    const rows = [...(player.deck.graveyard || []), ...coming].filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
     bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(Number(req.min || 0), max), max })) : [];
     return true;
