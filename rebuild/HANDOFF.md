@@ -17,7 +17,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
   end of turn (`temporaryGrants`), Entwine, Escalate, Spree, Replicate, Casualty, Bargain, Offspring, Squad, The Ozolith, Etali (both),
   Braids, "copy this spell" while it resolves (Sevinne's Reclamation), Midnight Clock, Archaeomancer's Map, Curse of Opulence, Scrap
   Trawler, and conditions for hideaway lands. Leaves-the-battlefield events now carry last-known counters and fire for tokens.
-  Top 1,000: 944 run by themselves (was 924). Whole catalog: AUDIT_LINE.
+  Top 1,000: 944 run by themselves (was 924). Whole catalog: 20,777 of 31,770 (was 20,624; 156 newly automatic, 3 Spree cards now honestly by hand for one mode).
   Build 48 (1 Nov): **owner rulings** ("stored outcomes"). With the dev PIN (the Dev report PIN) the owner
   saves how a card resolves, for everyone, while playing: "Store outcome" on the resolve-by-hand panel (the steps just taken
   are filled in) and "Correct ruling" on any card's detail view. A ruling can switch the card's automation off ("resolve by
