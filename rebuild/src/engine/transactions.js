@@ -336,7 +336,8 @@ function putSpellOnStack(game, player, action, deck) {
   if (action.offspring) card.offspring = true;
   if (action.squadCount) card.squadCount = Number(action.squadCount);
   if (action.bargained) card.bargained = true;
-  if (action.disturbed) card.disturbed = true;   // "If it would be put into a graveyard from anywhere, exile it instead."
+  if (action.disturbed) card.disturbed = true;
+  if (action.prototype) card.prototype = action.prototype;   // "If it would be put into a graveyard from anywhere, exile it instead."
   if (action.faceDown) {
     game.cardDefinitions[FACE_DOWN_ID] = game.cardDefinitions[FACE_DOWN_ID] || faceDownDefinition();
     card.realDefinitionId = card.definitionId;

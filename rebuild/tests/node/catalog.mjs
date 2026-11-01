@@ -2287,4 +2287,17 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('…then the spell draws three', t.P(0).deck.hand.length === h1 + 3, String(t.P(0).deck.hand.length - h1));
 }
 
+{
+  const t = setup();
+  t.give(0, 'Colossal Dreadmaw');
+  const c = asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Prototype {1}{G} — 2/2 (You can cast this spell with different mana cost, color, and size. It keeps its abilities and types.)\nTrample', { manaCost: '{6}{G}{G}', power: '6', toughness: '6' });
+  t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0));
+  settle(t, [['castMode', 'prototype']]);
+  const live = t.bf(0, 'Colossal Dreadmaw');
+  check('Prototype: cast for {1}{G}, it is a 2/2', !!live && power(t, live) === 2 && tough(t, live) === 2, JSON.stringify(live && [power(t, live), tough(t, live)]));
+  t.edit({ kind: 'move', instanceId: live.instanceId, to: 'hand' });
+  const back = t.hand(0, 'Colossal Dreadmaw');
+  check('…in hand again it is the full card', !back.prototype);
+}
+
 done();
