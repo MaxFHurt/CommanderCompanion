@@ -3,7 +3,8 @@
 // Each returns a ready-to-resolve ability: either effect text the normal compiler understands,
 // or precompiled effects, or a `special` the game layer resolves with choices (cascade …).
 
-import { compileEffectText } from './effects.js';
+import { compileEffectText, definitionFor } from './effects.js';
+import { keywordTriggersB49 } from './keyword-triggers-b49.js';
 
 const strip = text => String(text || '').replace(/\([^()]*\)/g, '');
 
@@ -55,6 +56,7 @@ export function keywordTriggers(game, row, event) {
     const n = card.offspring ? 1 : Number(card.squadCount || 0);
     add('copies', card.offspring ? `Offspring — create a 1/1 token copy of ${d.name}.` : `Squad — create ${n} token cop${n === 1 ? 'y' : 'ies'} of ${d.name}.`, '', { compiled: { supported: true, requirements: [], unsupported: [], effects: Array.from({ length: n }, () => ({ kind: 'copy-token', targetId: card.instanceId, ...(card.offspring ? { setPower: 1, setToughness: 1 } : {}) })) } });
   }
+  keywordTriggersB49(game, row, event, add, { defOf: (g, c) => definitionFor(g, c) });
   // Hideaway N: when it enters, look at the top N cards and exile one face down (effects-b49.js); its other ability plays it later.
   const hide = onField && self && event.type === 'enters-battlefield' && strip(d.oracleText).match(/(?:^|\n)\s*Hideaway (\d+)/i);
   if (hide) add('hideaway', `Hideaway ${hide[1]} — look at the top ${hide[1]} cards of your library and exile one face down.`, '', { compiled: { supported: true, requirements: [{ kind: 'b49-hideaway', bind: 'hideaway0', amount: Number(hide[1]) }], unsupported: [], effects: [{ kind: 'hideaway', bind: 'hideaway0', amount: Number(hide[1]) }] } });

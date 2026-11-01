@@ -37,6 +37,9 @@ function staticVerdict(line, def) {
   // Reminder text is not rules text: "Encore {3}{R} (… create a token copy …)" is the keyword Encore, not "create".
   const words = text.replace(/\([^()]*\)/g, '').trim().split(/\s*,\s*/);
   const terms = words.map(w => KEYWORDS.find(k => new RegExp(`^${k.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(w)));
+  // Echo and cumulative upkeep are automatic only for a mana cost (or "Pay N life" upkeep).
+  if (/^Cumulative upkeep/i.test(text) && !/^Cumulative upkeep(?:\s*[—-]\s*|\s+)(?:(?:\{[^}]+\})+|Pay \d+ life\.?)\s*(?:\(|$)/i.test(text)) return 'manual:Cumulative upkeep';
+  if (/^Echo\b/i.test(text) && !/^Echo\s+(?:\{[^}]+\})+\s*(?:\(|$)/i.test(text)) return 'manual:Echo';
   if (terms.every(Boolean)) {
     const worst = terms.some(t => t.automation === 'manual') ? 'manual' : terms.some(t => t.automation === 'partial') ? 'partial' : 'auto';
     return worst === 'auto' ? 'auto' : `${worst}:${terms.find(t => t.automation === worst).name}`;

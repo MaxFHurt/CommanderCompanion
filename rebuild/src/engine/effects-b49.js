@@ -668,6 +668,22 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} puts ${nameOf(game, id)} onto the battlefield.`);
       return true;
     }
+    case 'living-weapon': {
+      // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
+      H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
+      const germ = (bindings.lastCreated || []).slice(-1)[0];
+      const eq = locateCardInGame(game, bindings.sourceId);
+      if (germ && eq?.zone === 'battlefield') { eq.card.attachedTo = germ; notes.push(`${nameOf(game, bindings.sourceId)} is attached to a Germ token.`); }
+      return true;
+    }
+    case 'renown': {
+      const h = locateCardInGame(game, bindings.sourceId);
+      if (!h || h.zone !== 'battlefield' || h.card.renowned) return true;
+      H.addCounter(h.card, '+1/+1', effect.amount);
+      h.card.renowned = true;
+      notes.push(`${nameOf(game, bindings.sourceId)} gets ${effect.amount} +1/+1 counter${effect.amount === 1 ? '' : 's'} and becomes renowned.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -981,6 +997,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-power-at-least': return creatures(me).some(c => pow(c) >= effect.min);
     case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
     case 'b49-bound': return !!bindings[effect.bind];
+    case 'b49-text-is': return bindings[effect.bind] === effect.value;
     case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
     case 'b49-source-counters': return Object.values(locateCardInGame(game, bindings.sourceId)?.card?.counters || {}).some(v => Number(v) > 0);
     case 'b49-cast-from-graveyard': return bindings.selfFromZone === 'graveyard' && game.resolvingObj?.kind === 'spell';

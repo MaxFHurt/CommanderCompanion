@@ -2180,4 +2180,66 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Kodama of the East Tree: casting a 2-drop puts a cheaper permanent from hand; that one does not chain', t.names(0, 'battlefield').includes('Llanowar Elves') && t.names(0, 'hand').includes('Elvish Visionary'), JSON.stringify(t.names(0, 'battlefield')));
 }
 
+section('round 50: keyword triggers (bushido, flanking, battle cry, annihilator, evolve, fabricate, renown, extort, echo, cumulative upkeep …)');
+function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: 'attack', attacks: ids.map(id => ({ instanceId: id, defenderId: t.P(1).playerId })) }); }
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', 'Bushido 1\nFlanking\nBattle cry'), b = onField(t, 'Llanowar Elves', '');
+  const blocker = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  attackWith(t, [a.instanceId, b.instanceId]);
+  settle(t);
+  check('Battle cry: the other attacker gets +1/+0', power(t, b) === 2, String(power(t, b)));
+  t.do(1, { type: 'block', assignments: [{ attackerId: a.instanceId, blockerId: blocker.instanceId }] });
+  const stats = [];
+  const st = () => stats.push([power(t, a), tough(t, blocker)]);
+  // Look as the block triggers resolve (before damage): pass priority one step at a time.
+  for (let k = 0; k < 6 && !(t.game.stack || []).length && (t.game.pendingTriggers || []).length; k++) t.passAll();
+  settle(t);
+  const bA = t.P(0).deck.battlefield.find(c => c.instanceId === a.instanceId), bB = t.P(1).deck.battlefield.find(c => c.instanceId === blocker.instanceId);
+  const logText = (t.game.log || []).map(x => x.text || '').join(' | ');
+  check('Bushido 1 and flanking: the blocked bear gets +1/+1, the blocker -1/-1', bA && power(t, bA) === 3 && bB && tough(t, bB) === 8, JSON.stringify([bA && power(t, bA), bB && tough(t, bB)]));
+}
+{
+  const t = setup();
+  const e = onField(t, 'Llanowar Elves', 'Evolve');
+  t.give(0, 'Grizzly Bears', 'battlefield'); settle(t);
+  check('Evolve: a bigger creature entering puts a counter on it', e.counters?.['+1/+1'] === 1, JSON.stringify(e.counters));
+}
+{
+  const t = setup();
+  cast(t, 'Grizzly Bears', 'Fabricate 2', [[d => /Fabricate/.test(d.label || d.title || d.prompt || ''), d => d.options.find(o => /Servo/.test(o.label || o.id)).id]], { manaCost: '{1}{G}' });
+  check('Fabricate 2: choosing Servos makes two 1/1 tokens', t.names(0, 'battlefield').filter(n => n === 'Servo').length === 2, JSON.stringify(t.names(0, 'battlefield')));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Extort', { typeLine: 'Creature — Spirit' });
+  const life0 = t.P(0).life, life1 = t.P(1).life;
+  t.P(0).mana.available.B = 1; t.P(0).mana.floating.B = 1;   // a black mana to pay {W/B} with
+  cast(t, 'Opt', 'Draw a card.', [[d => d.key === 'may-pay', 'pay']], { manaCost: '{U}' });
+  check('Extort: paying {W/B} drains each opponent for 1', t.P(1).life === life1 - 1 && t.P(0).life === life0 + 1, JSON.stringify([t.P(0).life - life0, t.P(1).life - life1]));
+}
+{
+  const t = setup();
+  const eq = onField(t, 'Sol Ring', 'Living weapon\nEquipped creature gets +2/+2.', { typeLine: 'Artifact — Equipment' });
+  t.give(0, 'Arcane Signet'); const ls = asText(t, t.hand(0, 'Arcane Signet'), 'Living weapon\nEquipped creature gets +2/+2.', { typeLine: 'Artifact — Equipment', manaCost: '{1}' });
+  t.ctl.dispatch({ type: 'play', instanceId: ls.instanceId }, t.as(0)); settle(t);
+  const germ = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Phyrexian Germ');
+  check('Living weapon: a Germ token with the Equipment attached (a 2/2)', !!germ && ls.attachedTo === germ.instanceId && power(t, germ) === 2, JSON.stringify([!!germ, ls.attachedTo === germ?.instanceId, germ && power(t, germ)]));
+}
+{
+  const t = setup();
+  const c = onField(t, 'Grizzly Bears', 'Cumulative upkeep {1}'); c.controlSinceTurn = 0;
+  t.autoPass = true; t.end(0); t.end(1);
+  settle(t, [[d => d.key === 'may-pay', 'pay']]);
+  check('Cumulative upkeep: an age counter, paid for, the creature stays', c.counters?.age === 1 && t.names(0, 'battlefield').includes('Grizzly Bears'), JSON.stringify(c.counters));
+  const e = onField(t, 'Llanowar Elves', 'Echo {G}');
+}
+{
+  const t = setup();
+  const c = onField(t, 'Grizzly Bears', 'Echo {1}{G}'); c.controlSinceTurn = 0; c.enteredTurn = 0;
+  t.autoPass = true; t.end(0); t.end(1);
+  settle(t, [[d => d.key === 'may-pay', 'no']]);
+  check('Echo: not paid, it is sacrificed at its controller\'s next upkeep', t.names(0, 'graveyard').includes('Grizzly Bears'), JSON.stringify(t.names(0, 'graveyard')));
+}
+
 done();

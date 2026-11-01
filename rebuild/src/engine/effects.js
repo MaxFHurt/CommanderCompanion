@@ -99,6 +99,7 @@ export function clearCastState(card, to) {
 }
 function resetOnZoneChange(card) {
   delete card.temporaryGrants;   // granted abilities end; grantedText stays for last-known information (dies triggers)
+  delete card.renowned; delete card.echoDone;   // a new object
   card.tapped = false;
   card.damageMarked = 0;
   card.deathtouchDamage = false;
