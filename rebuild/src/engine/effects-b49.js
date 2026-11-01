@@ -723,6 +723,25 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'pump', bind: 'sourceId', power: p, toughness: 0, expires: 'cleanup' }], bindings));
       return true;
     }
+    case 'champion': {
+      const id = [].concat(bindings[effect.bind] || [])[0], src = locateCardInGame(game, bindings.sourceId);
+      const h = id && locateCardInGame(game, id);
+      if (!h || h.zone !== 'battlefield') {
+        if (src?.zone === 'battlefield') { moveCard(game, bindings.sourceId, 'graveyard', { moveReason: 'sacrifice', onEvent: e => H.emit(bindings, e) }); notes.push(`${nameOf(game, bindings.sourceId)} is sacrificed (nothing to champion).`); }
+        return true;
+      }
+      moveCard(game, id, 'exile', { onEvent: e => H.emit(bindings, e) });
+      if (src?.zone === 'battlefield') src.card.championedId = id;
+      notes.push(`${nameOf(game, bindings.sourceId)} champions ${nameOf(game, id)}.`);
+      return true;
+    }
+    case 'champion-return': {
+      const h = locateCardInGame(game, effect.id);
+      if (!h || h.zone !== 'exile') return true;
+      moveCard(game, effect.id, 'battlefield', { controllerId: h.card.ownerId, onEvent: e => H.emit(bindings, e) });
+      notes.push(`${nameOf(game, effect.id)} returns to the battlefield.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -950,6 +969,11 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     const sick = c => Number(c.controlSinceTurn ?? c.enteredTurn ?? -1) >= Number(game.turnNumber) && !/\bHaste\b/i.test(util.defOf(game, c)?.oracleText || '');
     const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && !c.tapped && !attacking.has(c.instanceId) && /\bCreature\b/.test(util.defOf(game, c)?.typeLine || '') && !sick(c));
     bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: 'Enlist: you may tap a nonattacking creature you control (its power is added to this creature\'s).', options: rows.map(c => util.cardOption(game, c, player, `power ${effectivePower(c, util.defOf(game, c), game)}`)), min: 0, max: 1 })) || []) : [];
+    return true;
+  }
+  if (req.kind === 'b49-champion') {
+    const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && (new RegExp(`\\b${req.type}\\b`, 'i').test(util.defOf(game, c)?.typeLine || '') || (/^creature$/i.test(req.type) === false && /\bChangeling\b/.test(util.defOf(game, c)?.oracleText || ''))));
+    bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Exile another ${req.type} you control, or choose none and sacrifice this.`, options: rows.map(c => util.cardOption(game, c, player)), min: 0, max: 1 })) || []) : [];
     return true;
   }
   if (req.kind === 'b49-hand-pick') {

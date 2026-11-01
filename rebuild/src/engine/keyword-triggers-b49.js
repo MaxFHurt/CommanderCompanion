@@ -103,6 +103,12 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
         effects: [{ kind: 'counter', bind: 'backup', counter: '+1/+1', amount: b }, { kind: 'condition', test: 'b49-not-source', bind: 'backup', skip: rest.length ? 1 : 0 }, ...(rest.length ? [{ kind: 'grant-text', bind: 'backup', texts: rest, until: 'turn' }] : [])] } });
     }
   }
+  // --- Champion a <type>: as it enters, exile another one you control or sacrifice it; when it leaves, that card returns.
+  const champ = strip(text).match(/(?:^|\n)\s*Champion an? ([A-Za-z]+)\b/i);
+  if (champ && self && event.type === 'enters-battlefield' && onField)
+    add('champion', `Champion a ${champ[1]} — exile another ${champ[1]} you control, or sacrifice this.`, '', { compiled: { supported: true, unsupported: [], requirements: [{ kind: 'b49-champion', bind: 'champion', type: champ[1] }], effects: [{ kind: 'champion', bind: 'champion' }] } });
+  if (champ && self && event.type === 'leaves-battlefield' && card.championedId)
+    add('champion-return', 'Champion — the exiled card returns to the battlefield under its owner\'s control.', '', compiled([{ kind: 'champion-return', id: card.championedId }]));
   // --- Myriad: for each other opponent, a token copy tapped and attacking them (exiled at end of combat).
   if (onField && self && event.type === 'attacks' && count(text, 'Myriad') && !card.token) {
     const others = (game.players || []).filter(p => !p.eliminated && p.playerId !== me && p.playerId !== event.defenderId);
@@ -140,4 +146,4 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 }
 
 /** The keywords read here (rules-audit and the terms key mark them automatic). */
-export const B49_KEYWORDS = ['Enlist', 'Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];
+export const B49_KEYWORDS = ['Champion', 'Enlist', 'Backup', 'Myriad', 'Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];

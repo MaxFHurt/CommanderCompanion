@@ -2403,4 +2403,13 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('More Than Meets the Eye: cast converted (back face) from hand', live?.activeFaceIndex === 1, JSON.stringify(live?.activeFaceIndex));
 }
 
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Llanowar Elves', 'Champion a creature (When this enters, sacrifice it unless you exile another creature you control. When this leaves the battlefield, that card returns to the battlefield under its owner\'s control.)', [[d => /Exile another creature/.test(d.prompt || ''), [bear.instanceId]]], { manaCost: '{G}' });
+  check('Champion: the bear is exiled', t.names(0, 'exile').includes('Grizzly Bears') && t.names(0, 'battlefield').includes('Llanowar Elves'));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => t.bf(0, 'Llanowar Elves').instanceId]], { manaCost: '{G}' });
+  check('…when the champion dies, the bear returns', t.names(0, 'battlefield').includes('Grizzly Bears'));
+}
+
 done();
