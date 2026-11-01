@@ -2030,4 +2030,17 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Archway of Innovation: the next spell taps artifacts for generic mana', before - lands() < 3 && t.names(0, 'battlefield').includes('Colossal Dreadmaw') && !(t.P(0).temporaryPermissions || []).some(x => x.kind === 'next-spell-keyword'), String(before - lands()));
 }
 
+{
+  const t = setup();
+  const text = 'If this spell was cast from your hand and you\'ve cast another spell named Divination this game, you win the game. Otherwise, put Divination into its owner\'s library seventh from the top and you gain 7 life.';
+  const life = t.P(0).life;
+  cast(t, 'Divination', text, [], { manaCost: '{U}' });
+  const lib = t.P(0).deck.remainingLibrary;
+  check('Approach of the Second Sun: first cast goes seventh from the top and gains 7 life', t.P(0).life === life + 7 && def(t, lib[6]).name === 'Divination', JSON.stringify([t.P(0).life - life, lib.slice(0, 8).map(c => def(t, c).name)]));
+  t.edit({ kind: 'move', instanceId: lib[6].instanceId, to: 'hand' });
+  const d = t.hand(0, 'Divination');
+  t.ctl.dispatch({ type: 'play', instanceId: d.instanceId }, t.as(0)); settle(t);
+  check('…the second cast from hand wins the game', t.game.status === 'complete' || t.P(1).eliminated || !!t.P(1).counters?.lostGame, JSON.stringify([t.game.status, t.P(1).counters?.lostGame]));
+}
+
 done();

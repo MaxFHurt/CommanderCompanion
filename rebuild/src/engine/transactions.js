@@ -359,6 +359,7 @@ function putSpellOnStack(game, player, action, deck) {
   player.counters.spellsCastThisTurn = Number(player.counters.spellsCastThisTurn || 0) + 1;
   // What this player cast this turn, for "their first noncreature spell each turn" and similar.
   const castDef = defFor(game, card);
+  player.castNamesGame = [...(player.castNamesGame || []), { name: castDef?.name || '', fromZone: from }];   // Approach of the Second Sun
   player.counters.castThisTurn = [...(player.counters.castThisTurn || []), { typeLine: castDef?.typeLine || '', colors: castDef?.colors || [], manaValue: Number(castDef?.manaValue ?? castDef?.cmc ?? 0) }];
   game.spellsCastThisTurn = Number(game.spellsCastThisTurn || 0) + 1;
   // Mistrise Village ("the next spell you cast this turn can't be countered"), Veil of Summer.
@@ -543,11 +544,13 @@ function resolveStackTop(game) {
     }
     // A permanent spell enters before its effects; an instant or sorcery goes to its graveyard as the last step of
     // resolving (608.2n), so "Exile all graveyards" (Farewell) does not take the spell itself.
+    let nth = null;
     const place = () => {
       const owner = ownerFor(game, card, player), target = (to === 'battlefield' ? player.deck : owner.deck)[zoneKey(to)];
       if (!target)
         throw new Error('Invalid spell destination');
-      target.push(card);
+      if (nth && to === 'library') target.splice(Math.min(target.length, nth - 1), 0, card);   // "seventh from the top"
+      else target.push(card);
     };
     if (!isCopy && to === 'battlefield')
       place();
@@ -560,10 +563,12 @@ function resolveStackTop(game) {
     game.spellSuspendSelf = null;
     if (!isCopy && to !== 'battlefield' && game.spellShuffleSelf === card.instanceId) { to = 'library'; card.zone = 'library'; obj.to = 'library'; }
     if (!isCopy && to !== 'battlefield' && game.spellToHand === card.instanceId) { to = 'hand'; card.zone = 'hand'; obj.to = 'hand'; }
+    if (!isCopy && to !== 'battlefield' && game.spellLibraryNth?.id === card.instanceId) { nth = Number(game.spellLibraryNth.n); to = 'library'; card.zone = 'library'; obj.to = 'library'; }
+    game.spellLibraryNth = null;
     game.spellExileSelf = game.spellShuffleSelf = game.spellToHand = null;
     if (!isCopy && to !== 'battlefield')
       place();
-    if (!isCopy && to === 'library')
+    if (!isCopy && to === 'library' && !nth)
       shuffleArray(ownerFor(game, card, player).deck.remainingLibrary);
     if (!isCopy && to === 'battlefield')
       emit(game, { type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, ownerId: card.ownerId, typeLine: def?.typeLine || '' });

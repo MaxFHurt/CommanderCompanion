@@ -173,7 +173,7 @@ export function compileB49Clause(c, ctx) {
 /** Several sentences, or one that needs the parts before it. Returns { part, consumed } or null. */
 export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
-  let m;
+  let m, m2;
   // Blooming Blast: "~ deals 3 damage to that creature's controller." — the controller of the creature targeted before.
   if ((m = c0.match(/^(?:.+? )?deals (\w+) damage to that (creature|permanent)'s controller\.?$/i)) && num(m[1]) !== null) {
     const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target');
@@ -267,6 +267,11 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const requirements = [];
     const r = !/each of them/i.test(next) && eachTarget(next, scope, requirements, sourceName);
     if (r) return { part: { effects: [r], requirements, unsupported: [] }, consumed: 2 };
+  }
+  // Approach of the Second Sun.
+  if ((m = c0.match(/^If this spell was cast from your hand and you'?ve cast another spell named (.+?) this game, you win the game\.?$/i)) && (m2 = String(clauses[i + 1] || '').match(/^Otherwise, put .+? into its owner'?s library (\w+) from the top and you gain (\w+) life\.?$/i))) {
+    const n = { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8 }[m2[1].toLowerCase()];
+    if (n) return { part: { effects: [{ kind: 'condition', test: 'b49-approach', name: m[1], skip: 1 }, { kind: 'game-result', win: true }, { kind: 'condition', test: 'b49-approach', name: m[1], negate: true, skip: 2 }, { kind: 'self-library-nth', n }, { kind: 'life', scope: 'you', amount: num(m2[2]), deltaSign: 1 }], requirements: [], unsupported: [] }, consumed: 2 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -482,6 +487,10 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'counter-spell', stackId: bindings.eventStackId }], bindings));
       return true;
     }
+    case 'self-library-nth':
+      game.spellLibraryNth = { id: bindings.sourceId, n: effect.n };
+      notes.push(`${nameOf(game, bindings.sourceId)} goes into its owner's library ${effect.n === 7 ? 'seventh' : `#${effect.n}`} from the top.`);
+      return true;
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -713,6 +722,11 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-not-event-players-turn': return !!bindings.eventPlayer && game.activePlayerId !== bindings.eventPlayer;
     case 'b49-opp-cast-color': return (game.players || []).some(p => p.playerId !== controllerId && (p.counters?.castThisTurn || []).some(x => (x.colors || []).some(c => effect.colors.includes(c))));
     case 'b49-no-mana-spent': return bindings.eventManaSpent === 0;
+    case 'b49-approach': {
+      // Cast from hand, and another spell with this name was cast earlier this game (this one is the last entry).
+      const list = me?.castNamesGame || [], last = list[list.length - 1];
+      return bindings.selfFromZone === 'hand' && list.slice(0, -1).some(x => x.name === effect.name) && !!last;
+    }
     case 'b49-cast-in-main': return !!bindings.castInMain;
     case 'b49-last-moved-type': return [].concat(bindings.lastMoved || []).some(id => new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, locateCardInGame(game, id)?.card)?.typeLine || ''));
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
