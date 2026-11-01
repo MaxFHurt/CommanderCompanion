@@ -221,7 +221,7 @@ m('Dredge', 'keyword', 'Dredge N: if you would draw, you may mill N instead and 
 m('Echo', 'keyword', 'At the beginning of your upkeep, if this came under your control since your last upkeep, sacrifice it unless you pay its echo cost.', { auto: 'manual', actions: ['sacrifice'] });
 m('Embalm', 'keyword', 'Exile this card from your graveyard and pay: create a token copy, except it is a white Zombie with no mana cost. Sorcery speed.', { auto: 'manual', actions: ['copy-token', 'exile'] });
 m('Emerge', 'keyword', 'Cast by sacrificing a creature and paying the emerge cost reduced by that creature\'s mana value.', { auto: 'manual', actions: ['sacrifice'] });
-m('Encore', 'keyword', 'Exile this card from your graveyard and pay: for each opponent, create a token copy that attacks that opponent this turn if able; sacrifice them at the next end step.', { auto: 'manual', actions: ['copy-token'] });
+m('Encore', 'keyword', 'Exile this card from your graveyard and pay: for each opponent, create a token copy that attacks that opponent this turn if able; sacrifice them at the next end step.', { auto: 'auto', steps: 'Use Encore from the graveyard: the game makes a hasty copy for each opponent that must attack them, and sacrifices them at the end step.', actions: ['copy-token'] });
 m('Enlist', 'keyword', 'As this attacks, you may tap a nonattacking creature without summoning sickness; this gets +X/+0 equal to its power.', { auto: 'manual', actions: ['tap', 'pt'] });
 m('Entwine', 'keyword', 'Pay the entwine cost to choose all modes.', { auto: 'manual' });
 m('Epic', 'keyword', 'For the rest of the game you can\'t cast spells; at each of your upkeeps, copy this spell.', { auto: 'manual' });

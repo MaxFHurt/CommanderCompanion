@@ -1170,4 +1170,24 @@ section('round 20: Saddle');
   check('…not saddled: no Angel', !t.P(0).deck.battlefield.some(c => c.token));
 }
 
+section('round 21: Encore');
+{
+  const t = newGame(['simic', 'simic', 'white']); t.keepAll();
+  for (let i = 0; i < 6; i++) t.give(0, 'Forest', 'battlefield');
+  const g = t.give(0, 'Grizzly Bears', 'graveyard'); asText(t, g, 'Encore {2}{G}', { manaCost: '{1}{G}' });
+  const row = t.view(0).players[0].graveyard.find(c => c.id === g.instanceId)?.abilities?.find(a => /Encore/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: g.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no encore row' };
+  settle(t);
+  const toks = t.P(0).deck.battlefield.filter(c => c.token);
+  check('Encore: one hasty token copy per opponent, the card exiled', r.ok && toks.length === 2 && t.P(0).deck.exile.some(c => c.instanceId === g.instanceId) && toks.every(c => has(t, c, 'Haste')), JSON.stringify([r.error, toks.length]));
+  t.do(0, { type: 'next-phase' });
+  const opts = t.view(0).actions.attack || [];
+  const targets = toks.map(c => opts.find(a => a.instanceId === c.instanceId)?.defenders?.[0]).sort();
+  check('…each must attack its own opponent', JSON.stringify(targets) === JSON.stringify([t.P(1).playerId, t.P(2).playerId].sort()) && opts.filter(a => toks.some(c => c.instanceId === a.instanceId)).every(a => a.mustAttack), JSON.stringify(targets));
+  const draft = toks.map(c => ({ instanceId: c.instanceId, defenderId: opts.find(a => a.instanceId === c.instanceId)?.defenders?.[0] }));
+  t.do(0, { type: 'attack', attacks: draft }); settle(t);
+  t.autoPass = true; t.end(0);
+  check('…and they are sacrificed at the end step', !t.P(0).deck.battlefield.some(c => c.token));
+}
+
 done();

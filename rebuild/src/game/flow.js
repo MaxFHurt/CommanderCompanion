@@ -273,7 +273,7 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
     rows.push({ card, def, defender, target });
   }
   if (!rows.length) throw new GameError('Choose at least one attacker, or skip combat with Next Phase.');
-  const required = validateRequiredAttackers({ game, player: p, draft: rows.map(r => ({ instanceId: r.card.instanceId })) });
+  const required = validateRequiredAttackers({ game, player: p, draft: rows.map(r => ({ instanceId: r.card.instanceId, defenderId: r.defender.playerId })) });
   if (!required.legal && strict) throw new GameError(required.reasons[0]);
 
   const attackers = [];

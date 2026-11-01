@@ -157,6 +157,8 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
     const un = keywordCost(text, 'Unearth');
     if (un) row('unearth', 'Unearth', un, [block, !sorcery && 'Only as a sorcery.', !payable(un) && 'Not enough mana.']);
+    const enc = keywordCost(text, 'Encore');
+    if (enc) row('encore', 'Encore', enc, [block, !sorcery && 'Only as a sorcery.', !payable(enc) && 'Not enough mana.']);
     const sc = keywordCost(text, 'Scavenge');
     if (sc) row('scavenge', 'Scavenge', sc, [block, !sorcery && 'Only as a sorcery.', !payable(sc) && 'Not enough mana.']);
   }
@@ -231,7 +233,7 @@ export function abilityRows(game, player, card) {
   const inHand = card.zone === 'hand';
   const zone = card.zone === 'hand' || card.zone === 'graveyard' ? card.zone : 'battlefield';
   const payable = cost => planMana(playerManaAvailability(player, game), (String(cost || '').match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), 0, { lifeAvailable: Number(player.life || 0) }).ok;
-  return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
+  return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge|encore)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
     .filter(ability => (inHand && ability.manaAbility ? HAND_MANA_COST.test(String(ability.cost || '').trim()) : abilityZone(ability) === zone))
     .map(ability => {
       const fromZone = zone !== 'battlefield' && !ability.manaAbility;
@@ -298,10 +300,13 @@ export function attackOptions(game, player) {
     const legal = defenders.filter(d => validateAttack({ game: view, attackerId: player.playerId, defenderId: d.playerId, instance: card, definition: def }).legal);
     const goaded = (card.temporaryEffects || []).some(e => e?.kind === 'goad');
     const mustAttack = goaded || (card.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack');
+    // Encore tokens: "attacks that opponent this turn if able" — offered first.
+    const mustPlayer = (card.temporaryEffects || []).find(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack' && e.playerId)?.playerId;
     // Planeswalkers and battles are attacked through the player who controls / protects them.
     const targets = legal.flatMap(d => attackablePermanents(game, d).filter(x => x.controller.playerId !== player.playerId || x.kind === 'battle')
       .map(x => ({ id: x.card.instanceId, playerId: d.playerId, kind: x.kind, name: defOf(game, x.card)?.name || x.kind, value: Number(x.card.counters?.[x.kind === 'battle' ? 'defense' : 'loyalty'] || 0) })));
-    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: legal.map(d => d.playerId), targets, mustAttack, goaded });
+    const order = legal.map(d => d.playerId).sort((a, b) => (b === mustPlayer) - (a === mustPlayer));
+    if (legal.length) rows.push({ instanceId: card.instanceId, defenders: order, targets, mustAttack, goaded });
   }
   return rows;
 }

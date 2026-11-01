@@ -899,6 +899,11 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
     const able = opponents.some(o => validateAttack({ game: { ...game, phase: 'declare-attackers' }, attackerId: player.playerId, defenderId: o.playerId, instance: c, definition: d }).legal);
     if (able && !chosen.has(c.instanceId))
       reasons.push(`${d?.name || 'A creature'} ${goaded ? 'is goaded and ' : ''}must attack this combat if able.`);
+    // "attacks that opponent this turn if able" (Encore): that player, when it can attack them.
+    const must = (c.temporaryEffects || []).find(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack' && e.playerId);
+    const pick = (draft || []).find(x => x.instanceId === c.instanceId);
+    if (must && pick && pick.defenderId !== must.playerId && opponents.some(o => o.playerId === must.playerId && validateAttack({ game: { ...game, phase: 'declare-attackers' }, attackerId: player.playerId, defenderId: o.playerId, instance: c, definition: d }).legal))
+      reasons.push(`${d?.name || 'A creature'} must attack ${opponents.find(o => o.playerId === must.playerId)?.displayName || 'that player'} this turn if able.`);
   }
   return { legal: reasons.length === 0, reasons };
 }

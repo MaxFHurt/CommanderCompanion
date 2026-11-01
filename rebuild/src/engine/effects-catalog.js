@@ -1745,6 +1745,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'encore': {
+      const made = [];
+      for (const opp of game.players.filter(p => !p.eliminated && p.playerId !== controllerId)) {
+        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'copy-of', bind: 'sourceId', amount: 1, haste: true }], bindings);
+        const id = (bindings.lastCreated || []).slice(-1)[0], tok = id && locateCardInGame(game, id)?.card;
+        if (!tok) continue;
+        tok.temporaryEffects = [...(tok.temporaryEffects || []), { kind: 'combat-restriction', restriction: 'must-attack', playerId: opp.playerId, expires: 'cleanup' }];
+        made.push(id);
+      }
+      if (made.length) H.applyEffectsUnsafe(game, controllerId, [{ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'sacrifice-ids', ids: made }], requirements: [] }], bindings);
+      notes.push(`${controller.displayName} creates ${made.length} encore cop${made.length === 1 ? 'y' : 'ies'}.`);
+      return true;
+    }
     case 'become-saddled': {
       const hit = permanentAt(game, bindings.sourceId);
       if (!hit) return true;

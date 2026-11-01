@@ -707,6 +707,13 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
   }
+  if (kind === 'encore') {
+    const stack = { id: newId('stack'), label: `${def.name} — encore`, text: 'For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step.', effects: [{ kind: 'encore' }] };
+    commit(game, { type: 'special-action', kind: 'scavenge', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} uses encore on ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'scavenge') {
     const n = Math.max(0, Number(String(def.power || '0').replace(/[^0-9-]/g, '') || 0));
     const rows = candidatesFor(game, { kind: 'target', scope: 'target creature' }, player);
