@@ -313,12 +313,12 @@ m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s addi
 m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; when it enters, create that many token copies.', { auto: 'auto', actions: ['copy-token'] });
 m('Storm', 'keyword', 'When you cast this, copy it for each spell cast before it this turn. Copies may choose new targets.', { auto: 'auto' });
 m('Sunburst', 'keyword', 'Enters with a +1/+1 counter (or charge counter if not a creature) for each color of mana spent to cast it.', { auto: 'manual', actions: ['counter+', 'counter-other'] });
-m('Surge', 'keyword', 'You may cast this for its surge cost if you or a teammate cast another spell this turn.', { auto: 'manual' });
+m('Surge', 'keyword', 'You may cast this for its surge cost if you or a teammate cast another spell this turn.', { auto: 'auto' });
 m('Suspend', 'keyword', 'Pay the suspend cost and exile this from your hand with N time counters; remove one each upkeep; when the last is removed, cast it free (creatures get haste).', { auto: 'auto', steps: 'Use Suspend from your hand; the game removes a time counter each upkeep and casts it for free (with haste) when the last one goes. Suspend X and cards that give suspend are by hand.', actions: ['exile', 'counter-other'] });
 m('Toxic', 'keyword', 'Toxic N: combat damage this deals to a player also gives them N poison counters.', { auto: 'auto' });
 m('Training', 'keyword', 'Whenever this attacks with another creature with greater power, put a +1/+1 counter on this.', { auto: 'auto', actions: ['counter+'] });
 m('Transfigure', 'keyword', 'Sacrifice this and pay: search for a creature card with the same mana value, put it onto the battlefield.', { auto: 'manual', actions: ['sacrifice', 'search'] });
-m('Transmute', 'keyword', 'Discard this and pay: search for a card with the same mana value and put it in your hand. Sorcery speed.', { auto: 'manual', actions: ['discard', 'search'] });
+m('Transmute', 'keyword', 'Discard this and pay: search for a card with the same mana value and put it in your hand. Sorcery speed.', { auto: 'auto', actions: ['discard', 'search'] });
 m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on it; if they don\'t, its tribute ability happens.', { auto: 'manual', actions: ['counter+'] });
 m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'auto', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
 m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'auto' });

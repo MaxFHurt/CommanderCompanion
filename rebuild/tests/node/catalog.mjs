@@ -2330,4 +2330,22 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   t.game.stack = [];
 }
 
+{
+  const t = setup();
+  cast(t, 'Opt', 'Draw a card.', [], { manaCost: '{U}' });
+  t.give(0, 'Colossal Dreadmaw'); const c = asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Surge {G}\nWhen this creature enters, if its surge cost was paid, draw a card.', { manaCost: '{5}{G}{G}' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); settle(t, [['castMode', 'surge']]);
+  check('Surge: after another spell, cast for its surge cost; "if its surge cost was paid" applies', t.names(0, 'battlefield').includes('Colossal Dreadmaw') && t.P(0).deck.hand.length === hand, String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  t.give(0, 'Counterspell'); const tr = asText(t, t.hand(0, 'Counterspell'), 'Counter target spell.\nTransmute {1}', { manaCost: '{U}{U}' });
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: tr.instanceId, abilityId: 'special:transmute' }, t.as(0));
+  const seen = settle(t, [[d => d.key === 'search', d => [d.options[0].id]]]);
+  const ask = seen.find(d => d.key === 'search');
+  const two = ask && ask.options.every(o => Number(t.game.cardDefinitions[o.definitionId]?.manaValue ?? 0) === 2);
+  check('Transmute: discards it to search for a card with the same mana value (2)', r.ok && t.names(0, 'graveyard').includes('Counterspell') && !!ask && two, JSON.stringify([r.error, ask?.options?.length, two]));
+}
+
 done();

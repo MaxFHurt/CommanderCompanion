@@ -142,6 +142,11 @@ export function specialRows(game, player, card, { running = false } = {}) {
       const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
       row('plot', 'Plot', plot, [block, !sorcery && 'Only as a sorcery.', !payable(plot) && 'Not enough mana.']);
     }
+    const trans = keywordCost(text, 'Transmute');
+    if (trans) {
+      const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+      row('transmute', 'Transmute', trans, [block, !sorcery && 'Only as a sorcery.', !payable(trans) && 'Not enough mana.']);
+    }
     const fore = keywordCost(text, 'Foretell');
     if (fore) row('foretell', 'Foretell (exile face down)', '{2}', [block, game.activePlayerId !== player.playerId && 'Only during your turn.', !payable('{2}') && 'Not enough mana.']);
     const ninja = keywordCost(text, 'Ninjutsu');

@@ -191,8 +191,8 @@ function giftText(t, gift) {
   return t.replace(/^\s+/, '');
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-export function castText(text, { kicked = false, overload = false, gift = false, bargained = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -210,6 +210,8 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   t = t.replace(/deals (\w+) damage([^\u0000]*?)\.\s*\u0000(\w+)/g, (all, a, rest, b) => `deals ${b} damage${rest}.`);
   if (overload) t = t.replace(/\btarget\b/g, 'each').replace(/\bTarget\b/g, 'Each');
   if (/\bgift (?:was|wasn'?t) promised\b/i.test(t)) t = giftText(t, gift);
+  // Surge: "If this spell's surge cost was paid, …"
+  if (/surge cost was paid/i.test(t)) t = giftText(t.replace(/If this spell'?s surge cost was paid, /gi, 'If the gift was promised, '), surged);
   // Bargain: "If this spell was bargained, …" works like the gift sentences.
   if (/\bwas bargained\b/i.test(t)) t = giftText(t.replace(/If this spell was bargained, /gi, 'If the gift was promised, ').replace(/If this spell wasn'?t bargained, /gi, "If the gift wasn't promised, "), bargained);
   return t.trim();
@@ -414,7 +416,7 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge' }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
   const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
@@ -823,6 +825,16 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'Not enough mana.');
   const payment = plan.ok ? plan.chosen : null;
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
+  if (kind === 'transmute') {
+    // Transmute: discard it (a cost) to search for a card with the same mana value. Only as a sorcery.
+    const mv = Number(def.manaValue ?? def.cmc ?? 0);
+    const search = { ...librarySearchSpec('Search your library for a card, reveal it, put it into your hand, then shuffle.'), manaValue: mv, label: `card with mana value ${mv}` };
+    const stack = { id: newId('stack'), label: `${def.name} — transmute`, text: `Transmute: search for a card with mana value ${mv}.`, effects: [], search };
+    commit(game, { type: 'special-action', kind: 'cycle', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} transmutes ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.search = search; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'cycling' || kind.startsWith('typecycling:')) {
     const typed = kind.startsWith('typecycling:') ? kind.slice(12) : null;
     let stack;
@@ -1085,7 +1097,7 @@ function runResolve(game, op, ask) {
   let picks = [];
   if (top.search) {
     const spec = top.search, filter = searchFilter(spec), count = searchCount(spec);
-    const rows = player.deck.remainingLibrary.filter(c => filter(defOf(game, c)));
+    const rows = player.deck.remainingLibrary.filter(c => filter(defOf(game, c)) && (spec.manaValue === undefined || Number(defOf(game, c)?.manaValue ?? 0) === spec.manaValue));   // transmute: the same mana value
     const options = rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
     if (options.length) {
       picks = ask('search', () => ({
