@@ -9,7 +9,7 @@ A Magic: The Gathering deck builder for Commander and Standard.
 - Commander Brackets: each Commander deck shows which bracket it currently sits in, with a progress bar for Game Changers. It is a label, not a limit: nothing is blocked, and upgrades that would move the deck up a bracket are marked. The card lists come from Scryfall and update on their own.
 - Official preconstructed Commander decklists for new players
 - Generate a deck from any commander
-- Card text, prices, legality and artwork from Scryfall, refreshed about once a day
+- Card text, legality and artwork from Scryfall; prices from tcgplayer.com (through Scryfall), updated every day at 4:00 a.m. Eastern and shown with their source and time
 
 It is a static site: no build step and no server. Decks are saved in the browser's local storage. The Profile screen can save a backup file to the device and restore from it, and in Chrome or Edge on a computer it can keep a chosen backup file updated automatically.
 

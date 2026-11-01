@@ -12,7 +12,14 @@ what each part does, the owner's rules, open notes, and the roadmap.
   Deck Builder 0.9.25. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md), Deck Builder power as a
   share of the Apex build. The old standalone Deck Companion (MaxFHurt/Deck-Companion) only forwards to the Deck Builder; the
   owner chose (31 Oct) to keep that repo as it is: its card-data branch (combo list, refreshed weekly by its workflow) and
-  test-data branch are still used. Old copies can't overwrite decks: the Deck Builder saves under cc.* names and reads
+  test-data branch are still used.
+- **Prices (build 43 / Deck Builder 0.9.26):** the Deck-Companion card-data job runs every day at 4:00 a.m. New York time and
+  publishes `prices.json.gz` (each card's cheapest TCGplayer price, via Scryfall). The Deck Builder downloads it once a day
+  (`loadPrices` in `deck/ui/storage.js`) and shows prices with source and time, e.g. "$5.00 at tcgplayer.com at 04:00 EST"
+  (`priceStamp`). Full card downloads still come from Scryfall as before; a download newer than the file keeps its own prices.
+  Same build: every card's text reading (`tags`) is now done in small idle slices after card data loads (`warmTags`), so
+  the first deck opened no longer stalls for seconds; UI-B144-02 times Build with syncRecs off (the app's own setting).
+  Full UI suite 128/128 (3 groups side by side), quick check 12/12. Old copies can't overwrite decks: the Deck Builder saves under cc.* names and reads
   dc.profile only when nothing is saved under the new name.
 - **Visual masters:** the owner's approved screens were in `design/` until build 30 and are kept in git history
   (`git show b0755ed:rebuild/design/visual-master-game-ipad.png > master.png`). Match them.

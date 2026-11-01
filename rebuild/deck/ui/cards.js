@@ -58,7 +58,10 @@ function viewProfile() {
     backupPanel() +
     '<section class="panel"><div class="ph"><h2>Card database</h2><small>' +
     (DBINFO.source === 'full'
-      ? DBINFO.count.toLocaleString() + ' cards · Scryfall data from ' + esc(DBINFO.when)
+      ? DBINFO.count.toLocaleString() +
+        ' cards · Scryfall data from ' +
+        esc(DBINFO.when) +
+        (priceStamp() ? ' · prices ' + esc(priceStamp()) : '')
       : DBINFO.count + '-card starter library') +
     '</small></div>' +
     cardLogHtml() +
@@ -68,7 +71,9 @@ function viewProfile() {
         ((lsGet('dc.relSig') || {}).name
           ? ' (latest seen: ' + esc(lsGet('dc.relSig').name) + ', ' + esc(lsGet('dc.relSig').latest) + ')'
           : '') +
-        '. Prices refresh at the same time; press Update now whenever you want today’s prices.'
+        '. Prices come from tcgplayer.com and update every day at 4:00 a.m. Eastern' +
+        (priceStamp() ? ' (these were taken ' + esc(priceStamp()) + ')' : '') +
+        '.'
       : 'The app downloads the full card list from Scryfall the first time it opens, then refreshes it whenever a new set or Secret Lair drop releases. Until that finishes it uses a small built-in starter library with estimated prices.') +
     (DBINFO.err ? ' <span class="unk">The last update failed (' + esc(DBINFO.err) + ').</span>' : '') +
     '</p>' +
@@ -1190,7 +1195,7 @@ function openCard(name, pid) {
     '</dd>' +
     '<dt>Price</dt><dd>' +
     money(c) +
-    (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : '') +
+    (c.src === 'starter' ? ' <span class="note">(estimate)</span>' : c.p != null && priceStamp() ? ' ' + esc(priceStamp()) : '') +
     ' · ' +
     (c.p == null
       ? 'no tier data'

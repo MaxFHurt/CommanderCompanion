@@ -1363,7 +1363,11 @@ if (RUN('UI-B144-02')) { try { if (SHARD) await RESET();
 // the deck pressing Build would have built.
 const b144b = await page.evaluate(async () => { const out = {}, name = 'Kenrith, the Returned King'; wkGet(); S.draft = null; Object.assign(S.gen, {cmd:name, tier:'mid', mech:[], best:true, sets:[], partner:'', theme:false}); await loadEdh(name); openGenerate();
   for (let i = 0; i < 300 && !(WK.spec && WK.cb.size === 0); i++) await new Promise(r => setTimeout(r, 100)); await WK.spec.p;
+  // timed with the app's own setting (syncRecs off): the swap check then runs just after the deck is on screen, as players see it;
+  // the suite's syncRecs switch would run it before the screen is drawn and time work no player waits for (0.9.26)
+  const sync0 = S.syncRecs; S.syncRecs = false;
   const t0 = Date.now(); document.querySelector('[data-act="gen-go"]').click(); for (let i = 0; i < 300 && !(S.draft && S.draft.cards.length && !thinkThen.busy); i++) await new Promise(r => setTimeout(r, 20)); out.ms = Date.now() - t0; out.early = !!(genRun.last && genRun.last.early);
+  S.syncRecs = sync0;
   const ahead = S.draft.cards.map(e => e.n + 'x' + e.q).sort().join('|'); S.draft = null; S.noWorker = true; const aims = await edhAimsFor(find(name)); const g = await startPlan(name, [], null, null, {fill:'mid', aims}); S.noWorker = false; S.draft = null;
   const now = g.cards.map(e => e.n + 'x' + e.q).sort(); out.same = ahead === now.join('|'); if (!out.same){ const A = ahead.split('|'); out.onlyAhead = A.filter(x => !now.includes(x)).slice(0, 5); out.onlyNow = now.filter(x => !A.includes(x)).slice(0, 5); } $('#modal').hidden = true; return out; });
 T('UI-B144-02', 'Built ahead: with Generate open, pressing Build opens the deck already built for those settings (under 2 s), the same deck as building it then', b144b.early && b144b.same && b144b.ms < 2000, JSON.stringify(b144b));

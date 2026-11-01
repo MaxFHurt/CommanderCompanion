@@ -351,7 +351,7 @@ function libStatsHtml() {
     ' copies of ' +
     st.cards.toLocaleString() +
     ' cards. Prices are estimates from the card data' +
-    (DBINFO.when ? ' (' + esc(String(DBINFO.when)) + ')' : '') +
+    (priceStamp() ? ', ' + esc(priceStamp()) : DBINFO.when ? ' (' + esc(String(DBINFO.when)) + ')' : '') +
     (st.unpriced
       ? '; ' + st.unpriced + ' card' + (st.unpriced === 1 ? ' has' : 's have') + ' no price and are not counted'
       : '') +
@@ -684,7 +684,7 @@ function carryRecs(d, key) {
 // its settings, the app build, the engine, the card data and its prices, the commander's play data) changes the key, and then
 // the list is worked out again. Regenerate drops the saved list. The last 12 decks' lists are kept.
 const REC_KEEP = 12,
-  recSig = (d, key) => strHash(JSON.stringify([key, window.BUILD || 0, engineMode(), DBINFO.when || '', EDH.decks || 0])),
+  recSig = (d, key) => strHash(JSON.stringify([key, window.BUILD || 0, engineMode(), DBINFO.when || '', DBINFO.px || '', EDH.decks || 0])),
   REC_FIELDS = [
     'paths',
     'fixes',

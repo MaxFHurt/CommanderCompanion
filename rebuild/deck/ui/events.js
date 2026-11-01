@@ -2526,7 +2526,10 @@ function recheckLayout() {
 addEventListener('pageshow', recheckLayout);
 addEventListener('focus', recheckLayout);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) recheckLayout();
+  if (!document.hidden) {
+    recheckLayout();
+    loadPrices(); // a page left open overnight picks up the morning's prices when it is shown again
+  }
 });
 let rz2 = 0;
 if (window.ResizeObserver)
