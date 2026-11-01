@@ -2518,4 +2518,17 @@ section('round 51: the last top-1,000 cards');
   check('Promise of Loyalty: each player keeps one creature with a vow counter', a.counters?.vow === 1 && t.names(0, 'graveyard').includes('Llanowar Elves') && c.counters?.vow === 1, JSON.stringify([a.counters, c.counters]));
 }
 
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Metalcraft — Equipment you control have equip {0} as long as you control three or more artifacts.', { typeLine: 'Creature — Human Knight' });
+  t.give(0, 'Arcane Signet', 'battlefield'); t.give(0, 'Sol Ring', 'battlefield');
+  const eq = onField(t, 'Mulldrifter', 'Equipped creature gets +2/+0.\nEquip {5}', { typeLine: 'Artifact — Equipment' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  for (const c of t.P(0).deck.battlefield) if (/Land/.test(def(t, c).typeLine)) c.tapped = true;   // no mana at all
+  const ab = parseActivatedAbilities(def(t, eq)).find(a => /Attach this Equipment/.test(a.text));
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: eq.instanceId, abilityId: ab.id }, t.as(0));
+  settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  check('Puresteel Paladin: with three artifacts, equip costs {0}', r.ok && eq.attachedTo === bear.instanceId, JSON.stringify([r.error]));
+}
+
 done();

@@ -764,6 +764,20 @@ export function validateActivatedAbility({ game, instance, definition, ability }
 }
 /** "This ability costs {1} less to activate for each legendary creature you control." (Boseiju, Takenuma) */
 export function activationReduction(game, player, ability) {
+  // Equip: "Equip abilities you activate cost {1} less to activate" (Danitha Capashen); "Metalcraft — Equipment you control have
+  // equip {0} as long as you control three or more artifacts" (Puresteel Paladin).
+  if (player && (/^Equip\b/i.test(String(ability?.text || '')) || /^Attach this Equipment to target creature you control\b/i.test(String(ability?.effect || '')))) {
+    let n = 0;
+    const mine = player.deck?.battlefield || [];
+    const artifacts = mine.filter(c => /\bArtifact\b/.test(withOverlay(c, game?.cardDefinitions?.[c.definitionId])?.typeLine || '')).length;
+    for (const c of mine) {
+      const t = String(withOverlay(c, game?.cardDefinitions?.[c.definitionId])?.oracleText || '');
+      const r = t.match(/Equip abilities you activate cost \{(\d+)\} less to activate/i);
+      if (r) n += Number(r[1]);
+      if (/Equipment you control have equip \{0\}(?: as long as you control three or more artifacts)?/i.test(t) && (!/three or more artifacts/i.test(t) || artifacts >= 3)) n += 99;
+    }
+    return n;
+  }
   const m = String(ability?.effect || '').match(/This ability costs \{(\d+)\} less to activate for each ([a-z ]+?) you control/i);
   if (!m || !player) return 0;
   const words = m[2].trim().split(/\s+/), noun = words.pop().replace(/s$/, '');
