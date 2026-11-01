@@ -163,7 +163,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', bestow: 'Bestow (as an Aura)', converted: 'More Than Meets the Eye (converted)'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -200,6 +200,9 @@ export function castModes(game, player, card, def, base = null) {
     // More Than Meets the Eye {cost}: cast it converted (its back face).
     const mtmte = keywordCost(base?.cardFaces?.[0]?.oracleText || base?.oracleText || text, 'More Than Meets the Eye');
     if (mtmte && (base?.cardFaces || []).length > 1) modes.push({ id: 'converted', cost: mtmte, backFace: 1 });
+    // Mutate {cost}: cast it onto a non-Human creature you own (ops.js asks which, and over or under).
+    const mutate = keywordCost(text, 'Mutate');
+    if (mutate && (player.deck.battlefield || []).some(c => c.ownerId === player.playerId && /\bCreature\b/.test(defOf(game, c)?.typeLine || '') && !/\bHuman\b/.test(defOf(game, c)?.typeLine || ''))) modes.push({ id: 'mutate', cost: mutate });
     // Bestow {cost}: cast it as an Aura that enchants a creature.
     const bestow = keywordCost(text, 'Bestow');
     if (bestow) modes.push({ id: 'bestow', cost: bestow });

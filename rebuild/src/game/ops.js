@@ -556,6 +556,14 @@ function runPlay(game, op, ask) {
     if (rows.length) attachTo = ask('enchant', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — enchant ${enchant}`, prompt: `Choose the ${enchant} to enchant.`, options: rows }));
   }
 
+  // Mutate: target non-Human creature you own; over or under it.
+  let mutateOnto = null, mutateUnder = false;
+  if (mode.id === 'mutate') {
+    const rows = candidatesFor(game, { kind: 'target', scope: 'target creature you control' }, player).filter(r => { const c = player.deck.battlefield.find(x => x.instanceId === r.id); return c && c.ownerId === player.playerId && !/\bHuman\b/.test(defOf(game, c)?.typeLine || ''); });
+    if (!rows.length && !force) throw new GameError('You need a non-Human creature you own to mutate onto.');
+    mutateOnto = ask('mutate', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — mutate`, prompt: 'Choose a non-Human creature you own to mutate onto.', options: rows }));
+    mutateUnder = ask('mutate:position', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — mutate`, prompt: 'Put it on top (it uses this card\u2019s name and power/toughness) or underneath?', options: [{ id: 'over', label: 'On top' }, { id: 'under', label: 'Underneath' }] })) === 'under';
+  }
   // Strive: "This spell costs {1}{U} more to cast for each target beyond the first."
   const strive = String(def.oracleText || '').match(/Strive — This spell costs ((?:\{[^}]+\})+) more to cast for each target beyond the first/i);
   if (strive && !free) {
@@ -654,6 +662,7 @@ function runPlay(game, op, ask) {
     top.search = search;
     top.optional = optional;
     top.attachTo = attachTo;
+    if (mutateOnto) { top.mutateOnto = mutateOnto; top.mutateUnder = mutateUnder; }
     top.reanimate = reanimate;
     top.entersTapped = permanent && !faceDown && /enters(?: the battlefield)? tapped/i.test(def.oracleText || '')
       ? entersBattlefieldTapped({ definition: def, battlefield: player.deck.battlefield, definitions: game.cardDefinitions }) : false;

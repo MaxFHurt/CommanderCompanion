@@ -56,6 +56,9 @@ function leveled(card, def) {
 
 /** The definition with every animate effect on this card applied (or the definition itself when there is none). */
 export function withOverlay(card, def) {
+  // A mutated pile (its combined definition) or a permanent that became a copy (Thespian's Stage): kept on the card.
+  if (def && card?.mutatedDef) def = card.mutatedDef;
+  else if (def && card?.copyDef) def = card.copyDef;
   if (def && /Class|Level up/.test(`${def.typeLine}${String(def.oracleText || '').slice(0, 12)}`)) def = leveled(card, def);
   // Abilities granted in quotes by an Aura, Equipment or anthem ('Equipped creature has "{T}: …"'), kept on the card by
   // attachments.js syncAttachments.

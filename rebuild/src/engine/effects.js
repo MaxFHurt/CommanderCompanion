@@ -51,14 +51,18 @@ export function locateCardInGame(game, id) {
     return { player: game.players.find(p => p.playerId === stack.controllerId) || null, zone: 'stack', array: game.stack, index: game.stack.indexOf(stack), card: stack.card, stackObject: stack };
   return null;
 }
-export function definitionFor(game, card) { return withOverlay(card, copiedDefinition(game, card) || plainDefinitionFor(game, card)); }
-/** "This land becomes a copy of target land, except it has this ability." (Thespian's Stage, Shifting Woodland, Mycosynth Gardens) */
-function copiedDefinition(game, card) {
-  const cp = card?.copyOf;
-  if (!cp || (cp.until === 'turn' && cp.turn !== game?.turnNumber)) return null;
-  const d = game?.cardDefinitions?.[cp.definitionId];
-  if (!d) return null;
-  return { ...d, definitionId: card.definitionId, oracleText: [d.oracleText, cp.keep].filter(Boolean).join('\n') };
+export function definitionFor(game, card) { return withOverlay(card, plainDefinitionFor(game, card)); }
+/** Rebuild a mutated pile's stored definition (the top card's characteristics, every card's abilities). */
+export function refreshMutated(game, card) { const d = mutatedDefinition(game, card); if (d) card.mutatedDef = d; else delete card.mutatedDef; }
+/** A mutated creature: the top card's characteristics, with the abilities of every card in the pile (725.2). */
+function mutatedDefinition(game, card) {
+  if (!card?.mutatedWith?.length) return null;
+  const order = card.mutateOrder || [card.instanceId];
+  const cards = order.map(id => id === card.instanceId ? card : card.mutatedWith.find(c => c.instanceId === id)).filter(Boolean);
+  const defs = cards.map(c => plainDefinitionFor(game, { ...c, mutatedWith: null, mutatedDef: null }));
+  const top = defs[0];
+  if (!top) return null;
+  return { ...top, definitionId: card.definitionId, oracleText: defs.map(d => String(d?.oracleText || '').split('\n').filter(l => !/^Mutate\b/i.test(l.trim())).join('\n')).filter(Boolean).join('\n') };
 }
 function plainDefinitionFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
@@ -107,7 +111,7 @@ export function clearCastState(card, to) {
 }
 function resetOnZoneChange(card) {
   delete card.temporaryGrants;   // granted abilities end; grantedText stays for last-known information (dies triggers)
-  delete card.renowned; delete card.echoDone; delete card.tributePaid; delete card.copyOf; delete card.gySeen;   // a new object
+  delete card.renowned; delete card.echoDone; delete card.tributePaid; delete card.copyOf; delete card.copyDef; delete card.copyUntilTurn; delete card.gySeen;   // a new object
   card.tapped = false;
   card.damageMarked = 0;
   card.deathtouchDamage = false;
@@ -138,6 +142,11 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (!preserveCounters)
     resetOnZoneChange(card);
   if (card.pendingVoid) { delete card.pendingVoid; if (to === 'exile') card.counters = { ...(card.counters || {}), void: 1 }; }
+  // A mutated pile leaves together: each merged card goes to the same kind of zone (its owner's).
+  if (from === 'battlefield' && to !== 'battlefield' && card.mutatedWith?.length) {
+    for (const m of card.mutatedWith) { const o = game.players.find(p => p.playerId === m.ownerId) || owner; m.zone = to; m.controllerId = o.playerId; const z = zoneArray(o.deck, to); if (z && !m.token) z.push(m); onEvent?.({ type: 'zone-change', sourceId: m.instanceId, definitionId: m.definitionId, from: 'battlefield', to, controllerId: fromController, ownerId: m.ownerId }); }
+    delete card.mutatedWith; delete card.mutateOrder; delete card.mutatedDef;
+  }
   clearCastState(card, to);
   card.zone = to;
   if (to === 'battlefield') {

@@ -2678,4 +2678,17 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('…and phases back in at the next one', t.P(0).deck.battlefield.includes(ph));
 }
 
+{
+  const t = setup();
+  const host = onField(t, 'Grizzly Bears', 'Trample');
+  t.give(0, 'Colossal Dreadmaw'); const m = asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Mutate {G} (If you cast this spell for its mutate cost, put it over or under target non-Human creature you own. They mutate into the creature on top plus all abilities from under it.)\nReach\nWhenever this creature mutates, draw a card.', { manaCost: '{4}{G}', power: '4', toughness: '4', typeLine: 'Creature — Beast' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: m.instanceId }, t.as(0));
+  settle(t, [['castMode', 'mutate'], [d => d.key === 'mutate', host.instanceId], ['mutate:position', 'over']]);
+  const d = (await import('../../src/engine/effects.js')).definitionFor(t.game, host);
+  check('Mutate: on top it is a 4/4 with the bear\'s trample, its own reach, and it drew a card', d.name === 'Colossal Dreadmaw' && power(t, host) === 4 && /Trample/.test(d.oracleText) && /Reach/.test(d.oracleText) && t.P(0).deck.hand.length === hand, JSON.stringify([d.name, power(t, host), t.P(0).deck.hand.length - hand]));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => host.instanceId]], { manaCost: '{G}' });
+  check('…when it dies, both cards go to the graveyard', t.names(0, 'graveyard').includes('Grizzly Bears') && t.names(0, 'graveyard').includes('Colossal Dreadmaw'), JSON.stringify(t.names(0, 'graveyard')));
+}
+
 done();

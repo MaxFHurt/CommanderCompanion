@@ -885,7 +885,9 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (effect.mvX && Number(definitionFor(game, t.card)?.manaValue ?? 0) !== Number(bindings.X || 0)) { notes.push('That artifact does not have mana value X.'); return true; }
       // "except it has this ability": keep the ability that made the copy.
       const keep = effect.keepAbility ? String(game.cardDefinitions?.[src.card.definitionId]?.oracleText || '').split('\n').find(l => /becomes a copy of/i.test(l)) : null;
-      src.card.copyOf = { definitionId: t.card.copyOf?.definitionId || t.card.definitionId, keep, until: effect.until, turn: game.turnNumber };
+      const base = definitionFor(game, t.card);
+      src.card.copyDef = { ...base, definitionId: src.card.definitionId, oracleText: [base.oracleText, keep].filter(Boolean).join('\n') };
+      if (effect.until === 'turn') src.card.copyUntilTurn = game.turnNumber; else delete src.card.copyUntilTurn;
       notes.push(`${game.cardDefinitions?.[src.card.definitionId]?.name} becomes a copy of ${definitionFor(game, t.card)?.name}${effect.until === 'turn' ? ' until end of turn' : ''}.`);
       return true;
     }

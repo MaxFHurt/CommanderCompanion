@@ -4,7 +4,7 @@ import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOpti
 import { sync } from './deck.js';
 import { advanceTurn, configurePhaseGates, cleanupEndCombatEffects } from './phase.js';
 import { effectivePower, effectiveToughness } from './combat.js';
-import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard, snapshotGame, restoreGameSnapshot, clearCastState } from './effects.js';
+import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard, snapshotGame, restoreGameSnapshot, clearCastState, refreshMutated } from './effects.js';
 import { queueTriggers } from './triggers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from './face-down.js';
 import { graveyardDestination } from './replacements.js';
@@ -524,6 +524,21 @@ function resolveStackTop(game) {
   let notes = [];
   if (obj.kind === 'spell' || obj.kind === 'spell-copy') {
     const card = obj.card, def = defFor(game, card), isCopy = obj.kind === 'spell-copy' || obj.isCopy;
+    // Mutate: merge with the target non-Human creature its owner controls, over or under it (if it's still legal).
+    if (obj.mutateOnto && !isCopy) {
+      const host = (player.deck.battlefield || []).find(c => c.instanceId === obj.mutateOnto);
+      const hd = host && defFor(game, host);
+      if (host && /\bCreature\b/.test(hd?.typeLine || '') && !/\bHuman\b/.test(hd?.typeLine || '') && host.ownerId === player.playerId) {
+        card.zone = 'merged';
+        card.controllerId = player.playerId;
+        host.mutatedWith = [...(host.mutatedWith || []), card];
+        host.mutateOrder = obj.mutateUnder ? [...(host.mutateOrder || [host.instanceId]), card.instanceId] : [card.instanceId, ...(host.mutateOrder || [host.instanceId])];
+        refreshMutated(game, host);
+        emit(game, { type: 'spell-resolved', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, destination: 'merged' });
+        emit(game, { type: 'mutated', sourceId: host.instanceId, definitionId: host.definitionId, controllerId: player.playerId });
+        return { obj, notes: [`${defFor(game, card)?.name} mutates ${obj.mutateUnder ? 'under' : 'onto'} ${hd.name}.`] };
+      }
+    }
     let to = isCopy ? 'none' : (obj.to || (/Instant|Sorcery/i.test(def?.typeLine || '') ? 'graveyard' : 'battlefield'));
     if (to === 'graveyard' && graveyardDestination(game, card) === 'exile')
       obj.to = to = 'exile';

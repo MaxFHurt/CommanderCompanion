@@ -44,6 +44,8 @@ export function catalogTriggerMatch(game, row, t, event, H) {
     row.card.kutzilStamp = stamp;
     return true;
   }
+  // Mutate: "Whenever this creature mutates"
+  if (/^Whenever (?:this creature|SELF|[A-Z][^,]*) mutates\b/i.test(t) && /mutates$/i.test(t)) return event.type === 'mutated' && event.sourceId === self;
   // Kardur: "Whenever an attacking creature dies"
   if (/^Whenever an attacking creature dies\b/i.test(t)) return event.type === 'dies' && (!!event.wasAttacking || (game.combatState?.attackers || []).some(a => a.instanceId === event.sourceId) || (event.attackers || []).includes(event.sourceId));
   switch (event.type) {
@@ -198,4 +200,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['put-into-graveyard', 'expend', 'exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['mutated', 'put-into-graveyard', 'expend', 'exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];

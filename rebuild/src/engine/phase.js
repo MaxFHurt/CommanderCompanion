@@ -56,6 +56,8 @@ export function requiredGatesForPhase(game, phase, player) {
 }
 export function configurePhaseGates(game, phase = game.phase) { const p = game.players?.find(x => x.playerId === game.activePlayerId) || game.players?.[0]; game.phaseGates = requiredGatesForPhase(game, phase, p); return game.phaseGates; }
 function cleanupTemporaryEffects(game) {
+  // "… becomes a copy of … until end of turn" (Shifting Woodland) ends.
+  for (const p of game.players || []) for (const c of p.deck?.battlefield || []) if (c.copyUntilTurn !== undefined) { delete c.copyDef; delete c.copyUntilTurn; }
   // Restore temporary control changes before removing temporary effects.
   const moves = [];
   for (const p of game.players || [])
