@@ -290,6 +290,7 @@ function putSpellOnStack(game, player, action, deck) {
   delete card.foretoldTurn;
   if (action.castMode && action.castMode !== 'normal')
     card.castMode = action.castMode;
+  delete card.plotted; delete card.plottedTurn; delete card.suspended;   // leaving exile ends plot / suspend
   card.wasCast = true;   // "if you cast it" (The One Ring); forgotten when it changes zones again
   if (action.kicked) {
     card.kicked = true;
@@ -642,6 +643,16 @@ export function createTransactionEngine(game) {
             emit(game, { type: 'tapped', sourceId: c.instanceId, controllerId: player.playerId, forCrew: true });
           }
           emit(game, { type: action.saddle ? 'saddled' : 'crewed', sourceId: card.instanceId, controllerId: player.playerId, crewIds: action.crewIds || [] });
+        }
+        else if (action.kind === 'plot') {
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'hand') throw new Error('Plot: the card is no longer in your hand.');
+          hit.a.splice(hit.i, 1);
+          card.zone = 'exile';
+          card.plotted = true;
+          card.plottedTurn = game.turnNumber;
+          deck.exile.push(card);
+          emit(game, { type: 'plotted', sourceId: card.instanceId, controllerId: player.playerId, playerId: player.playerId });
         }
         else if (action.kind === 'foretell') {
           const hit = locate(deck, card.instanceId);

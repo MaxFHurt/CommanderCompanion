@@ -1239,4 +1239,20 @@ section('round 24: Suspend');
   check('…and with the last one it is cast for free, with haste', !!bear && has(t, bear, 'Haste'), JSON.stringify([c.zone, c.counters]));
 }
 
+section('round 25: Plot');
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); const c = asText(t, t.hand(0, 'Grizzly Bears'), 'Plot {1}{G}', { manaCost: '{6}{G}', power: '2', toughness: '2' });
+  const row = t.view(0).players[0].hand.find(x => x.id === c.instanceId)?.abilities?.find(a => /Plot/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no plot row' };
+  settle(t);
+  const same = t.view(0).players[0].exile.find(x => x.id === c.instanceId);
+  check('Plot: exiled face up, not castable the same turn', r.ok && c.zone === 'exile' && !same?.playable, JSON.stringify([r.error, c.zone, same?.playable]));
+  t.autoPass = true; t.end(0); t.end(1); t.autoPass = false;
+  t.P(0).deck.battlefield.forEach(x => { x.tapped = true; });
+  const p = t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0));
+  settle(t, [[d => d.key.includes('castMode'), 'plot']]);
+  check('…and cast for free on a later turn', p.ok && !!t.bf(0, 'Grizzly Bears'), p.error);
+}
+
 done();

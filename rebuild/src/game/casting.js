@@ -152,7 +152,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -244,6 +244,8 @@ export function castModes(game, player, card, def, base = null) {
       if (cost) modes.push({ id: 'foretell', cost });
     }
     if (card.onAdventure && !/Adventure/i.test(def?.typeLine || '')) modes.push({ id: 'adventure', cost: def?.manaCost || '' });
+    // Plot: cast it on a later turn without paying its mana cost, only as a sorcery.
+    if (card.plotted && card.plottedTurn !== game.turnNumber) modes.push({ id: 'plot', cost: '', sorceryOnly: true });
   }
   return modes.map(mode => ({ ...mode, label: mode.altLabel || MODE_LABEL[mode.id] || mode.id }));
 }
@@ -286,6 +288,7 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     if (mode.discard && !(player.deck?.hand || []).length) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a card in hand to discard.']; }
     if (mode.discardLand && !(player.deck?.hand || []).some(c => isLand(defOf(game, c)))) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a land card in hand to discard.']; }
     if (mode.faceDown) result.reasons = result.reasons.filter(r => !/color identity/i.test(r));
+    if (mode.sorceryOnly && !(game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length)) { result.legal = false; result.reasons = ['A plotted card can be cast only as a sorcery.', ...(result.reasons || [])]; }
     // Silence, Ranger-Captain of Eos: "Your opponents can't cast (noncreature) spells this turn."
     const lock = (game.castLocks || []).find(l => l.turn === game.turnNumber && l.playerIds.includes(player.playerId) && !(l.noncreature && /\bCreature\b/i.test(def?.typeLine || '')));
     if (lock) { result.legal = false; result.reasons = [`${lock.source || 'An effect'} stops you casting ${lock.noncreature ? 'noncreature ' : ''}spells this turn.`, ...(result.reasons || [])]; }

@@ -282,7 +282,7 @@ m('Overload', 'keyword', 'Cast for the overload cost and change "target" to "eac
 m('Partner', 'keyword', 'You can have two commanders if both have partner.', { auto: 'auto', rules: ['"Partner with [name]" pairs only with that card and lets you search for it when it enters.', 'Friends forever, Doctor\'s companion and Choose a Background are related pairing rules.'] });
 m('Persist', 'keyword', 'When this dies, if it had no -1/-1 counters on it, return it with a -1/-1 counter.', { auto: 'auto' });
 m('Phasing', 'keyword', 'At your untap step it phases out (treated as though it doesn\'t exist) or phases in.', { auto: 'auto', tricky: ['Phasing out doesn\'t trigger leaves-the-battlefield; Auras and Equipment phase with it.'], actions: ['status'] });
-m('Plot', 'keyword', 'Pay the plot cost and exile this card from your hand; cast it free on a later turn as a sorcery.', { auto: 'manual', actions: ['exile'] });
+m('Plot', 'keyword', 'Pay the plot cost and exile this card from your hand; cast it free on a later turn as a sorcery.', { auto: 'auto', steps: 'Use Plot from your hand (as a sorcery); on a later turn cast it from exile for free, as a sorcery.', actions: ['exile'] });
 m('Poisonous', 'keyword', 'Poisonous N: whenever this deals combat damage to a player, that player gets N poison counters.', { auto: 'manual', actions: ['poison'] });
 m('Prototype', 'keyword', 'Cast for the prototype cost with smaller P/T and a different color.', { auto: 'manual' });
 m('Provoke', 'keyword', 'Whenever this attacks, you may have target creature defending player controls untap and block it if able.', { auto: 'manual', actions: ['untap'] });

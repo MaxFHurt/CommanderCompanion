@@ -128,6 +128,12 @@ export function specialRows(game, player, card, { running = false } = {}) {
       const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
       row(`suspend:${susp[1]}`, `Suspend ${susp[1]}`, susp[2], [block, !instant && !sorcery && 'Only when you could cast a sorcery.', !payable(susp[2]) && 'Not enough mana.']);
     }
+    // Plot {cost}: exile it face up as a sorcery; cast it free on a later turn.
+    const plot = keywordCost(text, 'Plot');
+    if (plot) {
+      const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+      row('plot', 'Plot', plot, [block, !sorcery && 'Only as a sorcery.', !payable(plot) && 'Not enough mana.']);
+    }
     const fore = keywordCost(text, 'Foretell');
     if (fore) row('foretell', 'Foretell (exile face down)', '{2}', [block, game.activePlayerId !== player.playerId && 'Only during your turn.', !payable('{2}') && 'Not enough mana.']);
     const ninja = keywordCost(text, 'Ninjutsu');
