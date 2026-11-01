@@ -336,7 +336,7 @@ function stateBasedDeaths(game, events, onEvent) {
           owner.deck[exiled ? 'exile' : 'graveyard'].push(c);
         events.push(`${d?.name || 'A creature'} dies${c.token ? ' and the token ceases to exist' : ` and is put into ${owner.displayName}'s graveyard`}.`);
         if (!exiled) emit(onEvent, { type: 'dies', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, typeLine: d?.typeLine || '', token: !!c.token, last });
-        emit(onEvent, { type: 'leaves-battlefield', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, destination: 'graveyard', typeLine: d?.typeLine || '' });
+        emit(onEvent, { type: 'leaves-battlefield', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, ownerId: c.ownerId, destination: 'graveyard', typeLine: d?.typeLine || '', token: !!c.token, last });
         changed = true;
       }
     }

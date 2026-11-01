@@ -76,6 +76,19 @@ export function compileB49Clause(c, ctx) {
   }
   // Watcher for Tomorrow: "put the exiled card into its owner's hand."
   if (/^put the exiled card into its owner'?s hand\.?$/i.test(c)) { effects.push({ kind: 'hideaway-to-hand' }); return true; }
+  // The Ozolith: "put those counters on The Ozolith." / "move all counters from The Ozolith onto target creature."
+  if (/^put those counters on (?:SELFNAME|this (?:artifact|creature|permanent))\.?$/i.test(c)) { effects.push({ kind: 'counters-from-event', bind: 'sourceId' }); return true; }
+  if ((m = c.match(/^(?:you may )?move all counters from (?:SELFNAME|this (?:artifact|creature|permanent)) onto (target creature(?: you control)?|target permanent)\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'move-all-counters', from: 'sourceId', bind });
+    return true;
+  }
+  // Etali, Primal Storm: "exile the top card of each player's library, then you may cast any number of spells from among those cards without paying their mana costs."
+  if (/^exile the top card of each player'?s library, then you may cast any number of spells from among (?:those cards|them) without paying their mana costs\.?$/i.test(c)) {
+    requirements.push({ kind: 'b49-each-top-cast', bind: 'etaliPick', mode: 'top' });
+    effects.push({ kind: 'each-top-cast', bind: 'etaliPick', mode: 'top' });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -140,6 +153,18 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   if (/^(?:you may )?copy the exiled card\.?$/i.test(c0) && /^If you do, you may cast the copy without paying its mana cost\.?$/i.test(String(clauses[i + 1] || ''))) {
     const bind = `castCopy${i}`;
     return { part: { effects: [{ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'cast-copy', from: 'imprint' }], requirements: [{ kind: 'yes-no', bind, label: 'Cast a copy of the exiled card without paying its mana cost?' }], unsupported: [] }, consumed: 2 };
+  }
+  if (/^exile the top card of each player'?s library, then you may cast any number of spells from among (?:those cards|them) without paying their mana costs\.?$/i.test(c0))
+    return { part: { effects: [{ kind: 'each-top-cast', bind: 'etaliPick', mode: 'top' }], requirements: [{ kind: 'b49-each-top-cast', bind: 'etaliPick', mode: 'top' }], unsupported: [] }, consumed: 1 };
+  // Braids, Arisen Nightmare.
+  if (/^(you may )?sacrifice an artifact, creature, enchantment, land, or planeswalker\.?$/i.test(c0) && /^If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it\.?$/i.test(String(clauses[i + 1] || '')) && /^For each opponent who doesn'?t, that player loses (\w+) life and you draw a card\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const loss = num(String(clauses[i + 2]).match(/loses (\w+) life/i)[1]);
+    return { part: { effects: [{ kind: 'braids', bind: 'braids', loss }], requirements: [{ kind: 'b49-braids', bind: 'braids', optional: /^you may/i.test(c0) }], unsupported: [] }, consumed: 3 };
+  }
+  // Etali, Primal Conqueror: "each player exiles cards from the top of their library until they exile a nonland card. You may cast any
+  // number of spells from among the nonland cards exiled this way without paying their mana costs."
+  if (/^each player exiles cards from the top of their library until they exile a nonland card\.?$/i.test(c0) && /^You may cast any number of spells from among (?:the nonland cards exiled this way|them|those cards) without paying their mana costs\.?$/i.test(String(clauses[i + 1] || ''))) {
+    return { part: { effects: [{ kind: 'each-top-cast', bind: 'etaliPick', mode: 'until-nonland' }], requirements: [{ kind: 'b49-each-top-cast', bind: 'etaliPick', mode: 'until-nonland' }], unsupported: [] }, consumed: 2 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -241,6 +266,53 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${cards.length === 1 ? definitionFor(game, cards[0])?.name : `${cards.length} creatures`} gain${cards.length === 1 ? 's' : ''} "${effect.texts.join('" and "')}"${effect.until === 'turn' ? ' until end of turn' : ''}.`);
       return true;
     }
+    case 'move-all-counters': {
+      const from = locateCardInGame(game, bindings[effect.from] || bindings.sourceId), to = locateCardInGame(game, H.resolveBoundId(effect, bindings));
+      if (!from || !to || to.zone !== 'battlefield') { notes.push('Nothing to move.'); return true; }
+      let n = 0;
+      for (const [k, v] of Object.entries(from.card.counters || {})) if (Number(v) > 0) { H.addCounter(to.card, k, Number(v)); n += Number(v); H.emit(bindings, { type: 'counter-added', sourceId: to.card.instanceId, controllerId: to.card.controllerId, counter: k, amount: Number(v) }); }
+      from.card.counters = {};
+      notes.push(n ? `${n} counter${n === 1 ? '' : 's'} move${n === 1 ? 's' : ''} to ${definitionFor(game, to.card)?.name}.` : 'There were no counters to move.');
+      return true;
+    }
+    case 'each-top-cast': {
+      // Exile from each library (the top card, or down to the first nonland card), then cast the chosen spells free, one by one.
+      const emit = e => H.emit(bindings, e);
+      const chosen = new Set([].concat(bindings[effect.bind] || []));
+      const exiled = [];
+      for (const p of (game.players || []).filter(q => !q.eliminated)) {
+        const lib = p.deck.remainingLibrary || [];
+        const n = effect.mode === 'top' ? Math.min(1, lib.length) : (() => { const k = lib.findIndex(c => !/\bLand\b/.test(definitionFor(game, c)?.typeLine || '')); return k < 0 ? lib.length : k + 1; })();
+        for (const c of lib.slice(0, n)) {
+          const moved = moveCard(game, c.instanceId, 'exile', { onEvent: emit });
+          exiled.push(c.instanceId);
+          if (chosen.has(c.instanceId) && p.playerId !== controllerId) {
+            // Another player's card: kept with the caster's exiled cards so they can cast it (it still belongs to its owner).
+            const at = p.deck.exile.indexOf(moved?.card || c);
+            if (at >= 0) { const [x] = p.deck.exile.splice(at, 1); controller.deck.exile.push(x); }
+          }
+        }
+      }
+      for (const id of chosen) if (exiled.includes(id)) queueFreeCast(game, { playerId: controllerId, instanceId: id });
+      bindings.lastMoved = exiled;
+      notes.push(`Exiled: ${exiled.map(id => nameOf(game, id)).join(', ') || 'nothing'}.${chosen.size ? ` ${controller.displayName} casts ${[...chosen].map(id => nameOf(game, id)).join(', ')} without paying their mana costs.` : ''}`);
+      return true;
+    }
+    case 'braids': {
+      const pick = bindings[effect.bind] || {};
+      const emit = e => H.emit(bindings, e);
+      const sac = id => { const h = locateCardInGame(game, id); if (!h || h.zone !== 'battlefield') return false; const who = playerById(game, h.card.controllerId)?.displayName; moveCard(game, id, 'graveyard', { moveReason: 'sacrifice', onEvent: emit }); notes.push(`${who} sacrifices ${nameOf(game, id)}.`); return true; };
+      if (!pick.mine || !sac(pick.mine)) { notes.push(`${controller.displayName} doesn't sacrifice a permanent.`); return true; }
+      for (const [pid, id] of Object.entries(pick.theirs || {})) {
+        if (id && sac(id)) continue;
+        const p = playerById(game, pid);
+        if (!p) continue;
+        H.applyEffectsUnsafe(game, pid, [{ kind: 'life', scope: 'you', amount: effect.loss, deltaSign: -1 }], bindings);
+        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'draw', scope: 'you', amount: 1 }], bindings);
+        notes.push(`${p.displayName} doesn't sacrifice: they lose ${effect.loss} life and ${controller.displayName} draws a card.`);
+      }
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -266,7 +338,7 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
   const { player } = ctx;
   if (req.kind === 'b49-greatest') {
     // Each affected player chooses among their own tied creatures.
-    const who = req.each ? util.opponentsOf(game, player) : [playerById(game, bindings[req.playerBind])].filter(Boolean);
+    const who = req.each ? util.opponentsOf(game, player.playerId) : [playerById(game, bindings[req.playerBind])].filter(Boolean);
     const stat = c => req.stat === 'toughness' ? Number(util.defOf(game, c)?.toughness || 0) : req.stat === 'mana value' ? Number(util.defOf(game, c)?.manaValue ?? 0) : effectivePower(c, util.defOf(game, c), game);
     const picked = [];
     for (const p of who) {
@@ -284,6 +356,34 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     const colors = [...new Set(util.defOf(game, imp?.card)?.colors || [])];
     if (!colors.length) throw new Error('The exiled card has no colour, so this adds no mana.');
     bindings[req.bind] = colors.length === 1 ? colors[0] : ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose the mana to add.', options: colors.map(c => ({ id: c, label: c, mana: c })) }));
+    return true;
+  }
+  if (req.kind === 'b49-each-top-cast') {
+    // The cards are known before they move (nothing earlier changes the libraries), so the caster picks now.
+    const spells = [];
+    for (const p of (game.players || []).filter(q => !q.eliminated)) {
+      const lib = p.deck.remainingLibrary || [];
+      const c = req.mode === 'top' ? lib[0] : lib.find(x => !/\bLand\b/.test(util.defOf(game, x)?.typeLine || ''));
+      if (c && !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '')) spells.push({ c, p });
+    }
+    bindings[req.bind] = spells.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: 'Cast any number of these spells without paying their mana costs.', options: spells.map(r => util.cardOption(game, r.c, r.p, `${r.p.displayName}'s library`)), min: 0, max: spells.length })) : [];
+    return true;
+  }
+  if (req.kind === 'b49-braids') {
+    const types = ['Artifact', 'Creature', 'Enchantment', 'Land', 'Planeswalker'];
+    const typesOf = c => types.filter(t => new RegExp(`\\b${t}\\b`).test(util.defOf(game, c)?.typeLine || ''));
+    const mine = (player.deck.battlefield || []).filter(c => typesOf(c).length);
+    if (!mine.length) { bindings[req.bind] = {}; return true; }
+    const own = ask(`${key}:mine`, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Sacrifice an artifact, creature, enchantment, land or planeswalker?', options: [...(req.optional ? [{ id: 'none', label: 'Don’t sacrifice' }] : []), ...mine.map(c => util.cardOption(game, c, player, typesOf(c).join(' ')))] }));
+    if (!own || own === 'none') { bindings[req.bind] = {}; return true; }
+    const shared = typesOf(mine.find(c => c.instanceId === own));
+    const theirs = {};
+    for (const p of util.opponentsOf(game, player.playerId)) {
+      const rows = (p.deck.battlefield || []).filter(c => typesOf(c).some(t => shared.includes(t)));
+      const v = rows.length ? ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: `Sacrifice a ${shared.join(' or ').toLowerCase()}, or lose 2 life and ${player.displayName} draws a card.`, options: [{ id: 'none', label: 'Don’t sacrifice' }, ...rows.map(c => util.cardOption(game, c, p, typesOf(c).join(' ')))] })) : 'none';
+      theirs[p.playerId] = v && v !== 'none' ? v : null;
+    }
+    bindings[req.bind] = { mine: own, theirs };
     return true;
   }
   if (req.kind === 'b49-hand-pick') {
@@ -348,6 +448,8 @@ const cnt = w => COUNTS[String(w).toLowerCase()] ?? Number(w);
 export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
+  if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
+  if (/^(?:SELFNAME|this (?:artifact|creature|permanent)|[A-Z][A-Za-z ,'-]+) has counters on it$/.test(t)) return { test: 'b49-source-counters' };
   if ((m = t.match(/^creatures you control have total power (\w+) or greater$/i))) return { test: 'b49-total-power', min: cnt(m[1]) };
   if ((m = t.match(/^you attacked with (\w+) or more creatures this turn$/i))) return { test: 'b49-attacked-with', min: cnt(m[1]) };
   if ((m = t.match(/^an opponent was dealt (\w+) or more damage this turn$/i))) return { test: 'b49-opp-dealt', min: cnt(m[1]) };
@@ -372,6 +474,8 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-power-at-least': return creatures(me).some(c => pow(c) >= effect.min);
     case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
     case 'b49-bound': return !!bindings[effect.bind];
+    case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
+    case 'b49-source-counters': return Object.values(locateCardInGame(game, bindings.sourceId)?.card?.counters || {}).some(v => Number(v) > 0);
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }

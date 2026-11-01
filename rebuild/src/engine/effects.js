@@ -145,7 +145,9 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (card.token && to !== 'battlefield') {
     onEvent?.({ type: 'zone-change', sourceId: card.instanceId, definitionId: card.definitionId, from, to, controllerId: fromController, ownerId: card.ownerId, token: true });
     if (from === 'battlefield' && to === 'graveyard' && isCreature(definition))
-      onEvent?.({ type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', token: true });
+      onEvent?.({ type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', token: true, last });
+    if (from === 'battlefield')
+      onEvent?.({ type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', destination: to, wasTapped, token: true, last });
     return { card, fromPlayer: hit.player, toPlayer: owner, tokenCeased: true };
   }
   // Permanents live in their controller's battlefield; every other zone belongs to the owner.
@@ -161,7 +163,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (from === 'battlefield' && to === 'graveyard' && isCreature(definition))
     onEvent?.({ type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', last });
   if (from === 'battlefield' && to !== 'battlefield')
-    onEvent?.({ type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', destination: to, wasTapped });
+    onEvent?.({ type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: definition?.typeLine || '', destination: to, wasTapped, last });
   if (to === 'battlefield')
     onEvent?.({ type: 'enters-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: card.controllerId, ownerId: card.ownerId, typeLine: definition?.typeLine || '' });
   return { card, fromPlayer: hit.player, toPlayer: host };

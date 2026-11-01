@@ -1847,4 +1847,37 @@ section('round 49: entwine, escalate, spree, replicate, casualty, bargain, offsp
   check('Squad: paid twice, two token copies', copies.length === 2 && power(t, copies[0]) === 2, String(copies.length));
 }
 
+section('round 49: Ozolith, Etali, Braids');
+{
+  const t = setup();
+  const oz = onField(t, 'Sol Ring', 'Whenever a creature you control leaves the battlefield, if it had counters on it, put those counters on this artifact.\nAt the beginning of combat on your turn, if this artifact has counters on it, you may move all counters from this artifact onto target creature.');
+  const bear = onField(t, 'Grizzly Bears', ''); bear.counters = { '+1/+1': 2 };
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  check('The Ozolith: a dying creature\'s counters go on it', Number(oz.counters?.['+1/+1'] || 0) === 2, JSON.stringify(oz.counters));
+}
+{
+  const t = setup();
+  const libs = t.game.players.map(p => p.deck.remainingLibrary);
+  // Put a known nonland spell on top of each library.
+  for (const [i, lib] of libs.entries()) { const k = lib.findIndex(c => def(t, c).name === 'Divination'); lib.unshift(...lib.splice(k, 1)); }
+  const tops = libs.map(l => l[0].instanceId);
+  const seen = cast(t, 'Opt', 'exile the top card of each player\'s library, then you may cast any number of spells from among those cards without paying their mana costs.', [[d => /Cast any number/.test(d.prompt || ''), d => d.options.map(o => o.id)]], { manaCost: '{U}' });
+  const ask = seen.find(d => /Cast any number/.test(d.prompt || ''));
+  const theirs = t.game.players[1].deck;
+  const stillExiled = tops.filter(id => [...t.P(0).deck.exile, ...theirs.exile].some(c => c.instanceId === id));
+  check('Etali: both top cards are offered to its controller and cast for free', ask?.options?.length === 2 && stillExiled.length === 0, JSON.stringify([ask?.options?.length, stillExiled.length, tops.map(id => def(t, { definitionId: [...t.game.players.flatMap(p => [...p.deck.battlefield, ...p.deck.graveyard, ...p.deck.exile, ...p.deck.hand])].find(c => c.instanceId === id)?.definitionId })?.name)]));
+}
+{
+  const t = setup();
+  const braids = onField(t, 'Grizzly Bears', 'At the beginning of your end step, you may sacrifice an artifact, creature, enchantment, land, or planeswalker. If you do, each opponent may sacrifice a permanent of their choice that shares a card type with it. For each opponent who doesn\'t, that player loses 2 life and you draw a card.');
+  const foeLand = onField(t, 'Forest', '', {}, 1);
+  const myForest = t.bf(0, 'Forest');
+  const life = t.P(1).life, hand = t.P(0).deck.hand.length;
+  t.autoPass = true;
+  const seen = [];
+  t.do(0, { type: 'end-turn' });
+  settle(t, [[d => d.key.includes(':mine'), myForest.instanceId], [d => d.playerId === t.P(1).playerId && /Sacrifice a land/.test(d.prompt || ''), 'none'], [d => d.kind === 'confirm', true]], seen);
+  check('Braids: its controller sacrifices a land; the opponent is asked and declines, loses 2 life; its controller draws', t.P(1).life === life - 2 && seen.some(d => d.playerId === t.P(1).playerId && /land/i.test(d.prompt || '')), JSON.stringify([t.P(1).life - life, seen.map(d => d.prompt)]));
+}
+
 done();
