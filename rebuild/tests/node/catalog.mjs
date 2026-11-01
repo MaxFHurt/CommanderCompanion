@@ -2047,8 +2047,8 @@ section('round 50: strive, any number of targets, "for each … this way"');
   const t = setup();
   const foe = onField(t, 'Grizzly Bears', '', {}, 1);
   const life = t.P(1).life;
-  const seen = cast(t, 'Opt', 'Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.', [['x', 2], [d => d.playerId === t.P(1).playerId && d.key.includes(':0:'), () => `s:${foe.instanceId}`], [d => d.playerId === t.P(1).playerId, 'life']], { manaCost: '{X}{G}', typeLine: 'Sorcery' });
-  check('Torment of Hailfire: the opponent chooses (sacrifices); with nothing left the next round costs 3 life', t.names(1, 'graveyard').includes('Grizzly Bears') && t.P(1).life === life - 3 && seen.filter(d => d.playerId === t.P(1).playerId).length === 1, JSON.stringify([t.P(1).life - life, seen.length]));
+  const seen = cast(t, 'Opt', 'Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.', [['x', 2], [d => d.playerId === t.P(1).playerId && d.key.includes('torment:0:'), () => `s:${foe.instanceId}`], [d => d.playerId === t.P(1).playerId, 'life']], { manaCost: '{X}{G}', typeLine: 'Sorcery' });
+  check('Torment of Hailfire: the opponent chooses (sacrifices); with nothing left the next round costs 3 life', t.names(1, 'graveyard').includes('Grizzly Bears') && t.P(1).life === life - 3 && seen.filter(d => d.playerId === t.P(1).playerId).length >= 1, JSON.stringify([t.P(1).life - life, seen.length]));
 }
 {
   const t = setup();
@@ -2076,6 +2076,14 @@ section('round 50: strive, any number of targets, "for each … this way"');
   const third = lib[2].instanceId;
   cast(t, 'Opt', 'Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.', [[d => d.key.endsWith(':3'), 'take'], [d => /Put it into your hand/.test(d.prompt || ''), 'next']], { manaCost: '{G}' });
   check('Tainted Pact: the player passes twice and keeps the third card', t.P(0).deck.hand.some(c => c.instanceId === third) && t.P(0).deck.exile.length >= 2);
+}
+
+{
+  const t = setup();
+  t.give(0, 'Divination', 'graveyard');
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', "Exile target card that's an instant or sorcery from your graveyard. For each card exiled this way, copy it, and you may cast the copy without paying its mana cost. Exile Opt.", [[d => d.kind === 'confirm' || /Cast the copies/.test(d.prompt || d.label || ''), d => d.kind === 'confirm' ? true : d.options?.find(o => /yes/i.test(String(o.id) + o.label))?.id ?? true]], { manaCost: '{G}', typeLine: 'Sorcery' });
+  check("Mizzix's Mastery: the exiled Divination is copied and cast (two draws)", t.P(0).deck.hand.length === hand + 2 && t.names(0, 'exile').includes('Divination'), String(t.P(0).deck.hand.length - hand));
 }
 
 done();

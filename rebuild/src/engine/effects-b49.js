@@ -161,6 +161,8 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'keep-each-type', bind: 'keepTypes' });
     return true;
   }
+  // Mizzix's Mastery overloaded: "Exile each card that's an instant or sorcery from your graveyard."
+  if ((m = c.match(/^Exile each card that'?s an? ([a-z]+(?: or [a-z]+)?) from your graveyard\.?$/i))) { effects.push({ kind: 'exile-graveyard-filter', filter: m[1].toLowerCase() }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -288,6 +290,14 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   // Tainted Pact.
   if (/^Exile the top card of your library\.?$/i.test(c0) && /^You may put that card into your hand unless it has the same name as another card exiled this way\.?$/i.test(String(clauses[i + 1] || '')) && /^Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first\.?$/i.test(String(clauses[i + 2] || '')))
     return { part: { effects: [{ kind: 'tainted-pact', bind: 'pact' }], requirements: [{ kind: 'b49-tainted-pact', bind: 'pact' }], unsupported: [] }, consumed: 3 };
+  // Mizzix's Mastery: "For each card exiled this way, copy it, and you may cast the copy without paying its mana cost."
+  if (/^For each card exiled this way, copy it, and you may cast the copy without paying its mana cost\.?$/i.test(c0)) {
+    const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'graveyard-target');
+    if (earlier || parts.some(p => p.effects.some(e => e.kind === 'exile-graveyard-filter'))) {
+      const bind = `castCopies${i}`;
+      return { part: { effects: [{ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'cast-copy', bind: earlier?.bind || 'lastMoved' }], requirements: [{ kind: 'yes-no', bind, label: 'Cast the copies without paying their mana costs?' }], unsupported: [] }, consumed: 1 };
+    }
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -549,6 +559,13 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       const ids = (controller.deck.remainingLibrary || []).slice(0, r.count).map(c => c.instanceId);
       for (const id of ids) moveCard(game, id, id === r.take ? 'hand' : 'exile', { onEvent: emit });
       notes.push(`${controller.displayName} exiles ${ids.length - (r.take ? 1 : 0)} card${ids.length - (r.take ? 1 : 0) === 1 ? '' : 's'}${r.take ? ` and puts ${nameOf(game, r.take)} into their hand` : ''}.`);
+      return true;
+    }
+    case 'exile-graveyard-filter': {
+      const ids = (controller.deck.graveyard || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(definitionFor(game, c), effect.filter)).map(c => c.instanceId);
+      for (const id of ids) moveCard(game, id, 'exile', { onEvent: e => H.emit(bindings, e) });
+      bindings.lastMoved = ids;
+      notes.push(`${controller.displayName} exiles ${ids.length} card${ids.length === 1 ? '' : 's'} from their graveyard.`);
       return true;
     }
     case 'cast-lock-all':
