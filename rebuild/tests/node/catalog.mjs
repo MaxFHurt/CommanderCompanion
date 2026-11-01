@@ -1431,6 +1431,8 @@ for (const win of [true, false]) {
   const t = setup();
   t.give(0, 'Opt'); const spell = asText(t, t.hand(0, 'Opt'), 'Clash with an opponent. If you win, return Opt to its owner\'s hand.');
   const mine = t.P(0).deck.remainingLibrary, theirs = t.P(1).deck.remainingLibrary;
+  const other = theirs.findIndex(c => c.definitionId !== mine[0].definitionId);
+  theirs.unshift(...theirs.splice(other, 1));
   asText(t, mine[0], def(t, mine[0])?.oracleText || '', { manaValue: win ? 6 : 1, cardFaces: undefined });
   asText(t, theirs[0], def(t, theirs[0])?.oracleText || '', { manaValue: win ? 1 : 6, cardFaces: undefined });
   const theirTop = theirs[0];
@@ -1599,6 +1601,25 @@ section('round 45: Threshold / Delirium / Hellbent self-bonuses');
   const empty = power(t, w);
   t.give(0, 'Opt');
   check('Hellbent: +2/+1 only with an empty hand', empty === 4 && power(t, w) === 2, JSON.stringify([empty, power(t, w)]));
+}
+
+section('round 46: Valakut Awakening, no combat damage');
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); t.give(0, 'Llanowar Elves');
+  const a = t.hand(0, 'Grizzly Bears'), b = t.hand(0, 'Llanowar Elves');
+  cast(t, 'Opt', 'Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one.', [[d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]]]);
+  check('Valakut Awakening: two to the bottom, three drawn', t.P(0).deck.hand.length === 3 && a.zone === 'library' && b.zone === 'library', String(t.P(0).deck.hand.length));
+}
+{
+  const t = setup();
+  const w = onField(t, 'Llanowar Elves', 'Whenever this creature attacks, you may pay {1}. If you do, this creature assigns no combat damage this turn and defending player loses 2 life.', { power: '3' });
+  const life = t.P(1).life;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: w.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t, [['may-pay', 'pay']]);
+  t.autoPass = true; t.end(0);
+  check('No combat damage this turn (2 life lost from the trigger only)', t.P(1).life === life - 2, `${life} → ${t.P(1).life}`);
 }
 
 done();

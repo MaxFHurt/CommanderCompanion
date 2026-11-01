@@ -220,6 +220,8 @@ function applyQueue(game, queue, events, onEvent) {
   const dealt = new Map();
   for (const hit of queue) {
     const { sourcePlayer, source, sourceDef } = hit;
+    // "This creature assigns no combat damage this turn." (Bone Dancer, Laccolith Whelp)
+    if ((source?.temporaryEffects || []).some(e => e?.kind === 'no-combat-damage')) continue;
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
     const boosted = damageAmount(game, { sourceControllerId: sourcePlayer.playerId, colors: sourceDef?.colors || [], targetPlayerId: hit.kind === 'player' ? targetId : null, targetControllerId: hit.kind === 'player' ? null : (hit.target.controllerId || null) }, Number(hit.amount || 0));
     const fog = (game.combatPrevention || []).some(x => x.turn === game.turnNumber && game.unpreventableTurn !== game.turnNumber && (x.scope === 'all' || (x.scope === 'you' && hit.kind === 'player' && x.playerId === targetId) || (x.scope === 'card' && (x.cardId === targetId || x.cardId === source?.instanceId))));

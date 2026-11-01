@@ -383,6 +383,10 @@ function compileCatalogClauseInner(c, ctx) {
   // Rousing Refrain: "Exile ~ with three time counters on it." "It gains suspend."
   if ((m = c.match(rx(`^Exile (?:${selfAny}|this spell|this card) with ${N} time counters? on it\\.?$`, 'i')))) { effects.push({ kind: 'exile-self-suspend', amount: num(m[1]) }); return true; }
   if (/^It gains suspend\.?$/i.test(c)) return true;
+  if (rx(`^(?:${selfAny}|this creature|it) assigns no combat damage this turn\\.?$`, 'i').test(c)) { effects.push({ kind: 'no-combat-damage' }); return true; }
+  // The Tenth Doctor: "Put three time counters on it. If it doesn't have suspend, it gains suspend." (the exiled card)
+  if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|that card)\\.?$`, 'i')))) { effects.push({ kind: 'time-counters-recent', amount: num(m[1]) }); return true; }
+  if (/^If it doesn'?t have suspend, it gains suspend\.?$/i.test(c)) { effects.push({ kind: 'suspend-recent' }); return true; }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -752,6 +756,10 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   }
   // Sarevok's Tome, Breaching Dragonstorm: "Exile cards from the top of your library until you exile a nonland card. You may cast
   // that card (it) without paying its mana cost [if that spell's mana value is 8 or less]. [If you don't, put that card into your hand.]"
+  if (/^exile cards from the top of your library until you exile a nonland card\.?$/i.test(c0) && /^Put \w+ time counters? on (?:it|that card)\.?$/i.test(next(1))) {
+    const bind = `exileUntil${i}`, n = num(next(1).match(/^Put (\w+)/i)[1]);
+    return { part: { effects: [{ kind: 'exile-until-cast', bind, toHand: false }, { kind: 'time-counters-recent', amount: n }], requirements: [{ kind: 'exile-until-cast', bind, maxMv: -1 }], unsupported: [] }, consumed: 2 };
+  }
   if (/^exile cards from the top of your library until you exile a nonland card\.?$/i.test(c0)) {
     const cast = next(1).match(/^You may cast (?:that card|it) without paying its mana cost(?: if (?:that|the) spell'?s mana value is (\d+) or less)?\.?$/i);
     if (cast) {
@@ -759,6 +767,11 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
       const bind = `exileUntil${i}`;
       return { part: { effects: [{ kind: 'exile-until-cast', bind, toHand }], requirements: [{ kind: 'exile-until-cast', bind, maxMv: cast[1] ? Number(cast[1]) : null }], unsupported: [] }, consumed: toHand ? 3 : 2 };
     }
+  }
+  // Valakut Awakening: "Put any number of cards from your hand on the bottom of your library, then draw that many cards plus one."
+  if ((m = c0.match(rx(`^Put any number of cards from your hand on the bottom of your library(?: in any order)?, then draw that many cards(?: plus ${N})?\\.?$`, 'i')))) {
+    const bind = `handBottom${i}`;
+    return { part: { effects: [{ kind: 'hand-bottom-draw', bind, plus: m[1] ? num(m[1]) : 0 }], requirements: [{ kind: 'hand-card', bind, many: true, filter: '', label: 'any number of cards to put on the bottom of your library' }], unsupported: [] }, consumed: 1 };
   }
   // Timetwister family (one sentence with "then", read before the "then" splitter).
   if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
@@ -899,6 +912,13 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
   const controller = playerById(game, controllerId);
   const emit = e => H.emit(bindings, e);
   const nameOf = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
+  if (effect.kind === 'hand-bottom-draw') {
+    const ids = [].concat(bindings[effect.bind] || []).filter(id => controller.deck.hand.some(c => c.instanceId === id));
+    for (const id of ids) moveCard(game, id, 'library', { position: 'bottom', onEvent: emit });
+    H.applyEffectsUnsafe(game, controllerId, [{ kind: 'draw', scope: 'you', amount: ids.length + Number(effect.plus || 0) }], bindings);
+    notes.push(`${controller.displayName} puts ${ids.length} card${ids.length === 1 ? '' : 's'} on the bottom and draws ${ids.length + Number(effect.plus || 0)}.`);
+    return true;
+  }
   if (effect.kind === 'exile-until-cast') {
     const r = bindings[effect.bind] || {};
     const lib = controller.deck.remainingLibrary || [];
@@ -2048,6 +2068,22 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (how === 'Tap') { hit.card.tapped = true; emit({ type: 'tapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId }); }
       else if (hit.card.tapped && H.setTapped(hit.card, false)) emit({ type: 'untapped', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId });
       notes.push(`${name(hit.card)} ${how === 'Tap' ? 'taps' : 'untaps'}.`);
+      return true;
+    }
+    case 'no-combat-damage': {
+      const hit = permanentAt(game, bindings.sourceId);
+      if (hit) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'no-combat-damage', expires: 'cleanup' }];
+      notes.push('It assigns no combat damage this turn.');
+      return true;
+    }
+    case 'time-counters-recent':
+    case 'suspend-recent': {
+      for (const id of bindings.lastMoved || []) {
+        const hit = locateCardInGame(game, id);
+        if (!hit) continue;
+        if (effect.kind === 'time-counters-recent') hit.card.counters = { ...(hit.card.counters || {}), time: Number(hit.card.counters?.time || 0) + Number(effect.amount || 0) };
+        else if (hit.zone === 'exile') hit.card.suspended = true;
+      }
       return true;
     }
     case 'exile-self-suspend': {
