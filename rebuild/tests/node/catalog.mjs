@@ -2422,4 +2422,29 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Provoke: the chosen creature untaps and must block', !foe.tapped || t.names(1, 'graveyard').includes('Llanowar Elves'), JSON.stringify([foe.tapped, t.names(1, 'graveyard')]));
 }
 
+section('round 51: the last top-1,000 cards');
+{
+  const t = setup();
+  const stage = onField(t, 'Evolving Wilds', '{T}: Add {C}.\n{2}, {T}: This land becomes a copy of target land, except it has this ability.', { typeLine: 'Land' });
+  const isl = t.bf(0, 'Island');
+  const ab = parseActivatedAbilities(def(t, stage)).filter(a => !a.manaAbility)[0];
+  t.ctl.dispatch({ type: 'activate', instanceId: stage.instanceId, abilityId: ab.id }, t.as(0));
+  settle(t, [[d => d.targeting, () => isl.instanceId]]);
+  const now = withOverlay(stage, t.game.cardDefinitions[stage.definitionId]);
+  const d2 = (await import('../../src/engine/effects.js')).definitionFor(t.game, stage);
+  check("Thespian's Stage: it becomes an Island and keeps its copy ability", d2.name === 'Island' && /becomes a copy of target land/.test(d2.oracleText), JSON.stringify([d2.name]));
+}
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length, oh = t.P(1).deck.hand.length;
+  cast(t, 'Opt', 'Each opponent draws a card. Then you draw a card for each opponent who drew a card this way.', [], { manaCost: '{U}' });
+  check('Cut a Deal: the opponent draws, then so do you', t.P(1).deck.hand.length === oh + 1 && t.P(0).deck.hand.length === hand + 1);
+}
+{
+  const t = setup();
+  const own = onField(t, 'Grizzly Bears', ''), foe = onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', "Choose one —\n• Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control.\n• Exile target artifact or enchantment.", [['modes', [0]], [d => d.targeting && d.options.some(o => o.id === own.instanceId), () => own.instanceId], [d => d.targeting, () => foe.instanceId]], { manaCost: '{G}' });
+  check("Archdruid's Charm: counter, then it deals 3 damage to the opponent's creature", own.counters?.['+1/+1'] === 1 && t.names(1, 'graveyard').includes('Llanowar Elves'));
+}
+
 done();

@@ -10,6 +10,8 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   // Mounts: "Whenever this creature attacks while saddled, …"
   if ((m = t.match(/^Whenever (.+?) attacks while saddled\b/i))) return event.type === 'attacks' && row.card.saddledTurn === game.turnNumber && H.subjectEvent(game, row, m[1], event);
   if ((m = t.match(/^Whenever (.+?) becomes saddled\b/i))) return event.type === 'saddled' && H.subjectEvent(game, row, m[1], event);
+  // Kardur: "Whenever an attacking creature dies"
+  if (/^Whenever an attacking creature dies\b/i.test(t)) return event.type === 'dies' && (!!event.wasAttacking || (game.combatState?.attackers || []).some(a => a.instanceId === event.sourceId) || (event.attackers || []).includes(event.sourceId));
   switch (event.type) {
     case 'class-level':
       if ((m = t.match(/^When this Class becomes level (\d+)/i))) return event.sourceId === self && Number(event.level ?? event.to) === Number(m[1]);

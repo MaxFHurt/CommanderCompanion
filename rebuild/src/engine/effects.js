@@ -51,7 +51,15 @@ export function locateCardInGame(game, id) {
     return { player: game.players.find(p => p.playerId === stack.controllerId) || null, zone: 'stack', array: game.stack, index: game.stack.indexOf(stack), card: stack.card, stackObject: stack };
   return null;
 }
-export function definitionFor(game, card) { return withOverlay(card, plainDefinitionFor(game, card)); }
+export function definitionFor(game, card) { return withOverlay(card, copiedDefinition(game, card) || plainDefinitionFor(game, card)); }
+/** "This land becomes a copy of target land, except it has this ability." (Thespian's Stage, Shifting Woodland, Mycosynth Gardens) */
+function copiedDefinition(game, card) {
+  const cp = card?.copyOf;
+  if (!cp || (cp.until === 'turn' && cp.turn !== game?.turnNumber)) return null;
+  const d = game?.cardDefinitions?.[cp.definitionId];
+  if (!d) return null;
+  return { ...d, definitionId: card.definitionId, oracleText: [d.oracleText, cp.keep].filter(Boolean).join('\n') };
+}
 function plainDefinitionFor(game, card) { if (!card)
   return null; const base = game.cardDefinitions?.[card.definitionId] || null, i = Number.isInteger(card?.activeFaceIndex) ? card.activeFaceIndex : null, face = i === null ? null : base?.cardFaces?.[i]; return face ? { ...base, ...face, definitionId: base.definitionId, colorIdentity: base.colorIdentity, cardFaces: base.cardFaces, set: base.set, collectorNumber: base.collectorNumber, printing: base.printing, legalities: base.legalities, hydrationStatus: base.hydrationStatus } : base; }
 function ownerFor(game, card, fallback) { return game.players.find(p => p.playerId === card?.ownerId) || fallback || null; }
@@ -99,7 +107,7 @@ export function clearCastState(card, to) {
 }
 function resetOnZoneChange(card) {
   delete card.temporaryGrants;   // granted abilities end; grantedText stays for last-known information (dies triggers)
-  delete card.renowned; delete card.echoDone; delete card.tributePaid;   // a new object
+  delete card.renowned; delete card.echoDone; delete card.tributePaid; delete card.copyOf;   // a new object
   card.tapped = false;
   card.damageMarked = 0;
   card.deathtouchDamage = false;

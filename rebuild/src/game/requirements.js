@@ -189,7 +189,7 @@ export function candidatesFor(game, req, player, source = null) {
       .filter(x => !req.abilityKind || x.kind === req.abilityKind)
       .filter(x => !req.yours || x.controllerId === player.playerId)
       .filter(x => !req.notYours || x.controllerId !== player.playerId)
-      .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)))
+      .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)) || (req.orAbility && (x.kind === 'ability' || x.kind === 'trigger')))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }
   if (req.kind === 'target' || req.kind === 'choose-permanent') {

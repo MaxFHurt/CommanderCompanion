@@ -175,6 +175,18 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'kodama-put', bind: 'kodama' });
     return true;
   }
+  // Thespian's Stage / Mycosynth Gardens / Shifting Woodland: "This land becomes a copy of target …"
+  if ((m = c.match(/^(?:SELFNAME|This (?:land|artifact|permanent|creature)) becomes a copy of (target (?:land|nontoken artifact you control with mana value X|permanent card in your graveyard))(, except it has this ability)?( until end of turn)?\.?$/i))) {
+    const grave = /graveyard/i.test(m[1]);
+    const bind = grave ? `grave${requirements.length}` : H.targetRequirement(requirements, m[1].toLowerCase().replace(/ with mana value x/, ''), m[1]);
+    if (grave) requirements.push({ kind: 'graveyard-target', bind, scope: 'target permanent card in your graveyard', label: 'target permanent card in your graveyard' });
+    effects.push({ kind: 'become-copy', bind, keepAbility: !!m[2], until: m[3] ? 'turn' : 'permanent', mvX: /mana value X/i.test(m[1]) });
+    return true;
+  }
+  // Cut a Deal: "Each opponent draws a card. Then you draw a card for each opponent who drew a card this way."
+  if (/^(?:Then )?you draw a card for each opponent who drew a card this way\.?$/i.test(c)) { effects.push({ kind: 'draw-per-opponent-drew' }); return true; }
+  // Kardur: "until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able."
+  if (/^until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able\.?$/i.test(c)) { effects.push({ kind: 'goad-each', scope: 'opponents' }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -344,6 +356,24 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       const cond = parseConditionAny(inst[1]);
       return { part: { effects: [{ kind: 'condition', ...cond, negate: true, skip: a.effects.length }, ...a.effects, { kind: 'condition', ...cond, skip: b.effects.length }, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
     }
+  }
+  // Archdruid's Charm: "Search your library for a creature or land card and reveal it. Put it onto the battlefield tapped if it's a land card. Otherwise, put it into your hand." (then shuffle)
+  if (/^Search your library for a creature or land card and reveal it\.?$/i.test(c0) && /^Put it onto the battlefield tapped if it'?s a land card\.?$/i.test(String(clauses[i + 1] || '')) && /^Otherwise, put it into your hand\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const shuffle = /^Then shuffle\.?$/i.test(String(clauses[i + 3] || ''));
+    return { part: { effects: [{ kind: 'search-land-or-hand', bind: `search${i}` }], requirements: [{ kind: 'library-search', bind: `search${i}`, text: 'Search your library for a creature or land card, reveal it, put it into your hand, then shuffle.' }], unsupported: [] }, consumed: shuffle ? 4 : 3 };
+  }
+  // "Put a +1/+1 counter on target creature you control. It deals damage equal to its power to target creature you don't control." (bite)
+  if ((m = c0.match(/^Put (a|an|one|two|three) \+1\/\+1 counters? on target creature you control\.?$/i)) && /^(?:Then )?(?:it|that creature) deals damage equal to its power to (target creature (?:you don'?t control|an opponent controls)|another target creature|target creature or planeswalker you don'?t control)\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const requirements = [];
+    const a = H.targetRequirement(requirements, 'target creature you control', 'target creature you control');
+    const scope = String(clauses[i + 1]).match(/to (target [^.]+?)\.?$/i)[1].toLowerCase();
+    const b = H.targetRequirement(requirements, scope.replace(/^another /, ''), scope);
+    return { part: { effects: [{ kind: 'counter', bind: a, counter: '+1/+1', amount: num(m[1]) }, { kind: 'damage', bind: b, amount: { kind: 'bound-power', bind: a }, sourceName: 'That creature', fromTarget: true, sourceBind: a }], requirements, unsupported: [] }, consumed: 2 };
+  }
+  // Return the Favor: "Copy target instant spell, sorcery spell, activated ability, or triggered ability. You may choose new targets for the copy."
+  if (/^Copy target instant spell, sorcery spell, activated ability, or triggered ability\.?$/i.test(c0)) {
+    const bind = `stack${i}`, more = /^You may choose new targets for the copy\.?$/i.test(String(clauses[i + 1] || ''));
+    return { part: { effects: [{ kind: 'copy-stack', bind, retarget: true }], requirements: [{ kind: 'stack-target', bind, scope: 'any', spellFilter: 'instant|sorcery', orAbility: true, label: 'target instant or sorcery spell, or activated or triggered ability' }], unsupported: [] }, consumed: more ? 2 : 1 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -740,6 +770,33 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (!h || h.zone !== 'exile') return true;
       moveCard(game, effect.id, 'battlefield', { controllerId: h.card.ownerId, onEvent: e => H.emit(bindings, e) });
       notes.push(`${nameOf(game, effect.id)} returns to the battlefield.`);
+      return true;
+    }
+    case 'become-copy': {
+      const src = locateCardInGame(game, bindings.sourceId), t = locateCardInGame(game, H.resolveBoundId(effect, bindings));
+      if (!src || src.zone !== 'battlefield' || !t) { notes.push('Nothing is copied.'); return true; }
+      if (effect.mvX && Number(definitionFor(game, t.card)?.manaValue ?? 0) !== Number(bindings.X || 0)) { notes.push('That artifact does not have mana value X.'); return true; }
+      // "except it has this ability": keep the ability that made the copy.
+      const keep = effect.keepAbility ? String(game.cardDefinitions?.[src.card.definitionId]?.oracleText || '').split('\n').find(l => /becomes a copy of/i.test(l)) : null;
+      src.card.copyOf = { definitionId: t.card.copyOf?.definitionId || t.card.definitionId, keep, until: effect.until, turn: game.turnNumber };
+      notes.push(`${game.cardDefinitions?.[src.card.definitionId]?.name} becomes a copy of ${definitionFor(game, t.card)?.name}${effect.until === 'turn' ? ' until end of turn' : ''}.`);
+      return true;
+    }
+    case 'draw-per-opponent-drew': {
+      // The opponents drew with the earlier sentence; each who could draw a card counts.
+      const n = (game.players || []).filter(p => !p.eliminated && p.playerId !== controllerId).length;
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'draw', scope: 'you', amount: n }], bindings));
+      return true;
+    }
+    case 'search-land-or-hand': {
+      const id = [].concat(bindings[effect.bind] || [])[0];
+      const h = id && locateCardInGame(game, id);
+      if (h && ['library', 'remainingLibrary'].includes(h.zone)) {
+        const land = /\bLand\b/.test(definitionFor(game, h.card)?.typeLine || '');
+        moveCard(game, id, land ? 'battlefield' : 'hand', { controllerId, tapped: land, onEvent: e => H.emit(bindings, e) });
+        notes.push(`${controller.displayName} reveals ${nameOf(game, id)} and puts it ${land ? 'onto the battlefield tapped' : 'into their hand'}.`);
+      }
+      H.shuffle(controller.deck.remainingLibrary);
       return true;
     }
     case 'living-weapon': {
