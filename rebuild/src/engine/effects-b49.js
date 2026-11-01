@@ -151,6 +151,10 @@ export function compileB49Clause(c, ctx) {
     const inner = compile(`${m[1]}.`, sourceName);
     if (ok(inner)) { effects.push({ kind: 'condition', ...parseConditionAny(m[2]), skip: inner.effects.length }, ...inner.effects); requirements.push(...inner.requirements); return true; }
   }
+  // Archway of Innovation, Dark Apostle: "The next [noncreature] spell you cast this turn has improvise / cascade."
+  if ((m = c.match(/^The next (noncreature )?spell you cast this turn has (improvise|cascade)\.?$/i))) { effects.push({ kind: 'next-spell-keyword', keyword: m[2].toLowerCase(), noncreature: !!m[1] }); return true; }
+  // Boromir, Mindbreak Trap-style triggers: "counter that spell." — the spell that caused the trigger.
+  if (/^counter that spell\.?$/i.test(c)) { effects.push({ kind: 'counter-event-spell' }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -469,6 +473,15 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       for (const id of ids) { bindings[effect.innerBind] = id; notes.push(...H.applyEffectsUnsafe(game, controllerId, effect.effects, bindings)); }
       return true;
     }
+    case 'next-spell-keyword':
+      controller.temporaryPermissions = [...(controller.temporaryPermissions || []), { kind: 'next-spell-keyword', keyword: effect.keyword, noncreature: !!effect.noncreature, expires: 'cleanup' }];
+      notes.push(`The next ${effect.noncreature ? 'noncreature ' : ''}spell ${controller.displayName} casts this turn has ${effect.keyword}.`);
+      return true;
+    case 'counter-event-spell': {
+      if (!(game.stack || []).some(x => x.id === bindings.eventStackId)) { notes.push('That spell is no longer on the stack.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'counter-spell', stackId: bindings.eventStackId }], bindings));
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -663,6 +676,7 @@ export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
+  if (/^no mana was spent to cast it$/i.test(t)) return { test: 'b49-no-mana-spent' };
   if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
   if (/^that player controls more lands than you$/i.test(t)) return { test: 'b49-event-player-more-lands' };
   if (/^it isn'?t that player'?s turn$/i.test(t)) return { test: 'b49-not-event-players-turn' };
@@ -698,6 +712,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-event-player-more-lands': { const lands = p => (p?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return lands(playerById(game, bindings.eventPlayer)) > lands(me); }
     case 'b49-not-event-players-turn': return !!bindings.eventPlayer && game.activePlayerId !== bindings.eventPlayer;
     case 'b49-opp-cast-color': return (game.players || []).some(p => p.playerId !== controllerId && (p.counters?.castThisTurn || []).some(x => (x.colors || []).some(c => effect.colors.includes(c))));
+    case 'b49-no-mana-spent': return bindings.eventManaSpent === 0;
     case 'b49-cast-in-main': return !!bindings.castInMain;
     case 'b49-last-moved-type': return [].concat(bindings.lastMoved || []).some(id => new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, locateCardInGame(game, id)?.card)?.typeLine || ''));
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;

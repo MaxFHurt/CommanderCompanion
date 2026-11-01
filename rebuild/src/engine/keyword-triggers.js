@@ -106,7 +106,8 @@ export function keywordTriggers(game, row, event) {
 export function castTriggers(game, player, card, def) {
   const out = [];
   const text = strip(def?.oracleText);
-  const m = text.match(/(?:^|\n)\s*Cascade\b/gi);
+  const m = text.match(/(?:^|\n)\s*Cascade\b/gi) || [];
+  if ((player?.temporaryPermissions || []).some(x => x?.kind === 'next-spell-keyword' && x.keyword === 'cascade' && !(x.noncreature && /\bCreature\b/.test(def?.typeLine || '')))) m.push('Cascade');   // Dark Apostle
   for (let i = 0; i < (m?.length || 0); i++) out.push({ special: 'cascade', label: 'Cascade', text: 'Cascade — exile cards from the top of your library until you exile a nonland card with lesser mana value. You may cast it without paying its mana cost.' });
   const disc = text.match(/When you cast this spell, discover (\d+)/i);
   if (disc) out.push({ special: 'discover', amount: Number(disc[1]), label: `Discover ${disc[1]}`, text: `Discover ${disc[1]} — exile cards from the top of your library until you exile a nonland card with mana value ${disc[1]} or less. Cast it free or put it into your hand.` });

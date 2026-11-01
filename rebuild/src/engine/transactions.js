@@ -366,8 +366,11 @@ function putSpellOnStack(game, player, action, deck) {
   const next = perms.findIndex(x => x?.kind === 'next-uncounterable');
   if (next >= 0 || perms.some(x => x?.kind === 'uncounterable-turn')) stackObject.cantBeCountered = true;
   if (next >= 0) perms.splice(next, 1);
+  // "The next spell you cast this turn has improvise / cascade": used up by this spell (its cascade was queued as it was cast).
+  for (let k = perms.length - 1; k >= 0; k--) if (perms[k]?.kind === 'next-spell-keyword' && !(perms[k].noncreature && /\bCreature\b/.test(castDef?.typeLine || ''))) perms.splice(k, 1);
   game.stack.push(stackObject);
-  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
+  const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
+  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {

@@ -2007,4 +2007,27 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Veil of Summer: draws (an opponent cast a blue spell); blue sources can\'t target its controller or their creature, red ones can', t.P(0).deck.hand.length === hand + 1 && !canTarget(t.game, bear, t.P(1), blue) && canTarget(t.game, bear, t.P(1), red) && !canTargetPlayer(t.game, t.P(0), t.P(1), blue) && canTargetPlayer(t.game, t.P(0), t.P(1), red), String(t.P(0).deck.hand.length - hand));
 }
 
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever an opponent casts a spell, if no mana was spent to cast it, counter that spell.', { typeLine: 'Creature — Human' }, 1);
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), 'Draw a card.', { manaCost: '{0}' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0)); settle(t);
+  check('Boromir: a spell cast with no mana spent is countered', t.P(0).deck.hand.length === hand - 1 && t.names(0, 'graveyard').includes('Opt'), String(t.P(0).deck.hand.length - hand));
+  t.give(0, 'Divination'); asText(t, t.hand(0, 'Divination'), 'Draw a card.', { manaCost: '{U}' });
+  const h2 = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Divination').instanceId }, t.as(0)); settle(t);
+  check('…a spell paid with mana resolves', t.P(0).deck.hand.length === h2, String(t.P(0).deck.hand.length - h2));
+}
+{
+  const t = setup();
+  const arch = onField(t, 'Sol Ring', '{0}: The next spell you cast this turn has improvise.');
+  activate(t, arch, 0);
+  t.give(0, 'Arcane Signet', 'battlefield');
+  const lands = () => t.P(0).deck.battlefield.filter(c => !c.tapped && /Land/.test(def(t, c).typeLine)).length;
+  const before = lands();
+  cast(t, 'Colossal Dreadmaw', 'Trample', [], { manaCost: '{2}{G}' });
+  check('Archway of Innovation: the next spell taps artifacts for generic mana', before - lands() < 3 && t.names(0, 'battlefield').includes('Colossal Dreadmaw') && !(t.P(0).temporaryPermissions || []).some(x => x.kind === 'next-spell-keyword'), String(before - lands()));
+}
+
 done();

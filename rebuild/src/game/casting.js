@@ -141,6 +141,10 @@ export function convokeSources(game, player, card) {
 
 export function hasConvoke(def) { return /(?:^|\n)\s*Convoke\b/i.test(strip(def?.oracleText)); }
 /** Improvise: untapped artifacts may be tapped to pay generic mana, paid last. */
+/** "The next [noncreature] spell you cast this turn has improvise/cascade" (Archway of Innovation, Dark Apostle). */
+export function nextSpellHas(player, def, keyword) {
+  return (player?.temporaryPermissions || []).some(x => x?.kind === 'next-spell-keyword' && x.keyword === keyword && !(x.noncreature && /\bCreature\b/.test(def?.typeLine || '')));
+}
 export function hasImprovise(def) { return /(?:^|\n)\s*Improvise\b/i.test(strip(def?.oracleText)); }
 export function improviseSources(game, player, card) {
   return (player.deck?.battlefield || [])
@@ -293,7 +297,8 @@ export function modeCost(game, player, card, def, mode, { tax = 0, extra = '' } 
   if (mode.faceDown) cost = mode.cost; // face-down spells have no other costs printed on them
   const changes = mode.faceDown ? { delta: 0, notes: [] } : costChanges(game, player, def, card);
   cost = adjustGeneric(cost, tax + changes.delta);
-  return { cost, notes: changes.notes, convoke: mode.faceDown ? [] : [...(hasConvoke(def) ? convokeSources(game, player, card) : []), ...(hasImprovise(def) ? improviseSources(game, player, card).filter(x => !(hasConvoke(def) && convokeSources(game, player, card).some(y => y.instanceId === x.instanceId))) : [])], delve: !mode.faceDown && hasDelve(def) ? delveCards(player, card).length : 0 };
+  const improvise = hasImprovise(def) || nextSpellHas(player, def, 'improvise');   // Archway of Innovation
+  return { cost, notes: changes.notes, convoke: mode.faceDown ? [] : [...(hasConvoke(def) ? convokeSources(game, player, card) : []), ...(improvise ? improviseSources(game, player, card).filter(x => !(hasConvoke(def) && convokeSources(game, player, card).some(y => y.instanceId === x.instanceId))) : [])], delve: !mode.faceDown && hasDelve(def) ? delveCards(player, card).length : 0 };
 }
 
 /** Legality of each way to cast. Delve counts as paid with the most cards the graveyard allows. */
