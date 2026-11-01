@@ -2503,4 +2503,19 @@ section('round 51: the last top-1,000 cards');
   check("Breach the Multiverse: the opponent's milled Dreadmaw enters under its caster's control", !!dm);
 }
 
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 1);
+  const m0 = { ...t.P(0).mana.floating };
+  cast(t, 'Opt', 'Destroy each nonland permanent with mana value 2 or less. Add {B} or {G} for each permanent destroyed this way.', [[d => d.kind === 'number' && /How many/.test(d.prompt || ''), 1]], { manaCost: '{3}{G}', typeLine: 'Sorcery' });
+  const f = t.P(0).mana.floating;
+  check('Culling Ritual: two destroyed; the player splits the mana ({B} and {G})', t.names(1, 'graveyard').includes('Grizzly Bears') && f.B === 1 && f.G === 1, JSON.stringify(f));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Llanowar Elves', ''), c = onField(t, 'Fog Bank', '', {}, 1);
+  cast(t, 'Opt', "Each player puts a vow counter on a creature they control and sacrifices the rest. Each of those creatures can't attack you or planeswalkers you control for as long as it has a vow counter on it.", [[d => d.playerId === t.P(0).playerId && /keep/.test(d.prompt || ''), a.instanceId]], { manaCost: '{G}' });
+  check('Promise of Loyalty: each player keeps one creature with a vow counter', a.counters?.vow === 1 && t.names(0, 'graveyard').includes('Llanowar Elves') && c.counters?.vow === 1, JSON.stringify([a.counters, c.counters]));
+}
+
 done();

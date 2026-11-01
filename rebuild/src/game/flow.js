@@ -266,6 +266,8 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
     if (!card || !defender || defender.eliminated || defender.playerId === p.playerId) throw new GameError('An attacker or its target is no longer available.');
     const check = validateAttack({ game: { ...game, phase: 'declare-attackers' }, attackerId: p.playerId, defenderId: defender.playerId, instance: card, definition: def });
     if (!check.legal && strict) throw new GameError(`${def?.name || 'That creature'} cannot attack: ${check.reasons[0]}`);
+    // Promise of Loyalty: a creature with a vow counter can't attack that player (or their planeswalkers).
+    if (Number(card.counters?.vow || 0) > 0 && card.vowAgainst === defender.playerId && strict) throw new GameError(`${def?.name || 'That creature'} has a vow counter: it can't attack ${defender.displayName}.`);
     let target = null;
     if (a.targetId) {
       target = attackablePermanents(game, defender).find(x => x.card.instanceId === a.targetId && x.card.instanceId !== card.instanceId);

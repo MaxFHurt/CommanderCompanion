@@ -416,6 +416,19 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   }
   if (/^Choose an exiled card an opponent owns with a void counter on it\.?$/i.test(c0) && /^You may play it this turn without paying its mana cost\.?$/i.test(String(clauses[i + 1] || '')))
     return { part: { effects: [{ kind: 'permit-chosen-free', bind: 'voidCard' }], requirements: [{ kind: 'b49-void-card', bind: 'voidCard' }], unsupported: [] }, consumed: 2 };
+  // Moraug: "if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control."
+  if (/^if it'?s your main phase, there'?s an additional combat phase after this phase\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^At the beginning of that combat, (.+)$/i))) {
+    const inner = compile(cap(m[1]), sourceName);
+    if (ok(inner)) return { part: { effects: [{ kind: 'condition', test: 'b49-your-main', skip: 2 }, { kind: 'extra-combat' }, { kind: 'delay', when: { event: 'begin-combat', sameTurn: true }, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] }, consumed: 2 };
+  }
+  // Promise of Loyalty: "Each player puts a vow counter on a creature they control and sacrifices the rest. Each of those creatures can't attack you or planeswalkers you control for as long as it has a vow counter on it."
+  if (/^Each player puts a vow counter on a creature they control and sacrifices the rest\.?$/i.test(c0) && /^Each of those creatures can'?t attack you or planeswalkers you control for as long as it has a vow counter on it\.?$/i.test(String(clauses[i + 1] || '')))
+    return { part: { effects: [{ kind: 'vow', bind: `vow${i}` }], requirements: [{ kind: 'b49-vow', bind: `vow${i}` }], unsupported: [] }, consumed: 2 };
+  // Culling Ritual: "Add {B} or {G} for each permanent destroyed this way."
+  if ((m = c0.match(/^Add \{([WUBRG])\} or \{([WUBRG])\} for each permanent destroyed this way\.?$/i)) && parts.some(p => p.effects.some(e => e.kind === 'zone-each' && e.destroy))) {
+    const ze = parts.flatMap(p => p.effects).find(e => e.kind === 'zone-each' && e.destroy);
+    return { part: { effects: [{ kind: 'split-mana', bind: `split${i}`, colors: [m[1], m[2]] }], requirements: [{ kind: 'b49-split-mana', bind: `split${i}`, colors: [m[1], m[2]], predict: { filter: ze.filter, scope: ze.scope, mv: ze.maxMv ?? ze.mvMax ?? null, effect: ze } }], unsupported: [] }, consumed: 1 };
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -880,6 +893,27 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} puts ${ids.map(id => nameOf(game, id)).join(', ') || 'nothing'} onto the battlefield.`);
       return true;
     }
+    case 'vow': {
+      const keep = bindings[effect.bind] || {};
+      const emit = e => H.emit(bindings, e);
+      for (const p of (game.players || []).filter(q => !q.eliminated)) {
+        const k = keep[p.playerId];
+        for (const c of [...(p.deck.battlefield || [])]) {
+          if (!/\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')) continue;
+          if (c.instanceId === k) { H.addCounter(c, 'vow', 1); c.vowAgainst = controllerId; continue; }
+          moveCard(game, c.instanceId, 'graveyard', { moveReason: 'sacrifice', onEvent: emit });
+        }
+      }
+      notes.push('Each player keeps one creature with a vow counter and sacrifices the rest.');
+      return true;
+    }
+    case 'split-mana': {
+      // As many as were destroyed: the chosen number of the first colour, the rest the second.
+      const n = Number(bindings.movedThisWay || 0), a = Math.min(n, Number(bindings[effect.bind] || 0));
+      if (a) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'add-mana', color: effect.colors[0], amount: a }], bindings));
+      if (n - a) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'add-mana', color: effect.colors[1], amount: n - a }], bindings));
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1143,6 +1177,24 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = picks;
     return true;
   }
+  if (req.kind === 'b49-vow') {
+    const keep = {};
+    for (const p of (game.players || []).filter(q => !q.eliminated)) {
+      const rows = (p.deck.battlefield || []).filter(c => /\bCreature\b/.test(util.defOf(game, c)?.typeLine || ''));
+      if (!rows.length) continue;
+      keep[p.playerId] = rows.length === 1 ? rows[0].instanceId : ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: 'Choose a creature to keep (it gets a vow counter); the rest are sacrificed.', options: rows.map(c => util.cardOption(game, c, p)) }));
+    }
+    bindings[req.bind] = keep;
+    return true;
+  }
+  if (req.kind === 'b49-split-mana') {
+    // How many will be destroyed (the ones that aren't indestructible); the player splits the mana.
+    const e = req.predict.effect;
+    const words = `${String(e.filter || 'permanent').replace(/\|.*/, '')}${e.maxManaValue != null ? ` with mana value ${e.maxManaValue} or less` : ''}`;
+    const n = (game.players || []).flatMap(p => p.deck?.battlefield || []).filter(c => cardFitsWords(util.defOf(game, c), words) && !/\bIndestructible\b/i.test(util.defOf(game, c)?.oracleText || '')).length;
+    bindings[req.bind] = n ? ask(key, () => ({ ...base, cancellable: false, kind: 'number', title, prompt: `About ${n} permanent${n === 1 ? '' : 's'} will be destroyed. How many {${req.colors[0]}}? (the rest is {${req.colors[1]}})`, min: 0, max: n })) : 0;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -1283,6 +1335,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
       for (const c of me?.deck?.battlefield || []) { const d = definitionFor(game, c); if (/\bArtifact\b/.test(d?.typeLine || '')) counts[d.name] = (counts[d.name] || 0) + 1; }
       return Math.max(0, ...Object.values(counts)) >= effect.min;
     }
+    case 'b49-your-main': return game.activePlayerId === controllerId && ['precombat-main', 'postcombat-main'].includes(game.phase);
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
