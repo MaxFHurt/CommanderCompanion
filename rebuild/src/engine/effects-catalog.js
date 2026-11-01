@@ -329,7 +329,8 @@ function compileCatalogClauseInner(c, ctx) {
   if ((m = c.match(/^(?:you may )?tap or untap (target [a-z ]+?)\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     const how = `tapOrUntap${requirements.length}`;
-    requirements.push({ kind: 'choose-text', bind: how, options: ['Tap', 'Untap', 'Neither'], label: `Tap or untap ${m[1].replace(/^target /i, 'the ')}?` });
+    // "Neither" only when this sentence still carries its "you may"; a stripped "you may" was already asked as a yes/no.
+    requirements.push({ kind: 'choose-text', bind: how, options: /^you may/i.test(c) ? ['Tap', 'Untap', 'Neither'] : ['Tap', 'Untap'], label: `Tap or untap ${m[1].replace(/^target /i, 'the ')}?` });
     effects.push({ kind: 'tap-or-untap', bind, howBind: how });
     return true;
   }

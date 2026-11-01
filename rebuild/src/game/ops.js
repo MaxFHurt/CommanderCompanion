@@ -3,7 +3,7 @@ import { noteCorrection } from './corrections.js';
 // resolve the top of the stack. An op asks for the choices it needs (see requirements.js) and
 // only changes the game once every answer is in, so cancelling half-way never leaves a mess.
 
-import { effectiveManaAmount } from '../engine/mana-extras.js';
+import { manaExtras, ANY_COLORS } from '../engine/mana-extras.js';
 import { activationReduction } from '../engine/rules.js';
 import { createTransactionEngine } from '../engine/transactions.js';
 import {
@@ -647,7 +647,15 @@ function runActivate(game, op, ask) {
     let color = op.args.color && options.includes(op.args.color) ? op.args.color : null;
     if (!color) color = options.length === 1 ? options[0] : ask('mana', () => ({ ...base, kind: 'choose-one', title: `${def.name} — mana`, prompt: 'Choose the mana to add.', options: options.map(c => ({ id: c, label: COLOR_NAMES[c], mana: c })) }));
     const baseAmount = manaAmountForAbility(ability, { game, player, card, color });
-    const amount = ability.requiresTap ? effectiveManaAmount(game, card, color, baseAmount) : baseAmount;   // Mana Reflection, Wild Growth …
+    const ex = ability.requiresTap ? manaExtras(game, card, color, baseAmount) : { amount: baseAmount, fixed: [], any: 0 };   // Mana Reflection, Wild Growth …
+    const amount = ex.amount;
+    if (ex.fixed.length || ex.any) {
+      // Extra mana of another colour (Utopia Sprawl, Wild Growth on an Island) or of any colour (Fertile Ground: the player picks).
+      const anyPicks = Array.from({ length: ex.any }, (_, k) => ask(`mana-extra:${k}`, () => ({ ...base, kind: 'choose-one', title: `${def.name} — extra mana`, prompt: ex.any > 1 ? `Choose the colour of extra mana ${k + 1} of ${ex.any}.` : 'Choose the colour of the extra mana.', options: ANY_COLORS.map(c => ({ id: c, label: COLOR_NAMES[c], mana: c })) })));
+      const mix = [...Array(amount).fill(color), ...ex.fixed, ...anyPicks];
+      commit(game, { ...common, type: 'activate-ability', manaColor: color, manaMix: mix, manaAmount: mix.length, label: `${player.displayName} taps ${def.name} for ${mix.map(c => `{${c}}`).join('')}.` });
+      return;
+    }
     commit(game, { ...common, type: 'activate-ability', manaColor: color, manaAmount: amount, label: `${player.displayName} taps ${def.name} for ${amount > 1 ? `${amount} ` : ''}${COLOR_NAMES[color].toLowerCase()} mana.` });
     return;
   }

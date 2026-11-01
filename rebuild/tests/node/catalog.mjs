@@ -1526,6 +1526,16 @@ section('round 41: counters from a creature that left, tap or untap');
   cast(t, 'Opt', 'You may tap or untap target creature.', [[d => d.targeting, () => foe.instanceId], [d => d.options?.some(o => o.id === 'Tap' || o.label === 'Tap'), d => d.options.find(o => o.label === 'Tap').id]]);
   check('Tap or untap: the player chose tap', foe.tapped);
 }
+{
+  // Derevi: "you may tap or untap target permanent" in a trigger — one yes/no, then Tap / Untap (no extra "Neither").
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  const elf = onField(t, 'Llanowar Elves', '{1}: You may tap or untap target creature.');
+  const seen = activate(t, elf, 0, [[d => d.targeting, () => foe.instanceId], [d => d.options?.some(o => o.label === 'Tap'), d => d.options.find(o => o.label === 'Tap').id]]);
+  const pick = seen.find(d => d.options?.some(o => o.label === 'Tap'));
+  const yesNo = seen.filter(d => d.kind === 'confirm' || d.options?.some(o => /^(yes|no)$/i.test(o.label || ''))).length;
+  check('"You may tap or untap": asked once whether, then only Tap / Untap', foe.tapped && pick && !pick.options.some(o => o.label === 'Neither') && yesNo <= 1, JSON.stringify([foe.tapped, pick?.options?.map(o => o.label), seen.map(d => d.kind)]));
+}
 
 section('round 42: exile until a nonland card, cast it free');
 {
@@ -1635,6 +1645,47 @@ section('round 47: owner rulings');
   t.do(0, { type: 'guided-done' });
   const rec = (t.game.corrections || []).find(r => r.kind === 'manual-resolution');
   check('…and finishing logs a manual resolution for the Dev report', rec?.card === 'Opt' && rec.steps.length === 1, JSON.stringify(rec));
+}
+
+section('round 49: extra mana of another colour (Wild Growth on an Island, Utopia Sprawl, Fertile Ground)');
+{
+  const t = setup();
+  const island = t.bf(0, 'Island');
+  const aura = onField(t, 'Fog Bank', 'Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.', { typeLine: 'Enchantment — Aura' });
+  aura.attachedTo = island.instanceId;
+  const m = t.view(0).players[0].mana;
+  check('Wild Growth on an Island: the counter shows one more green and the same blue', m.fixed.G === 5 && m.fixed.U === 4, JSON.stringify(m.fixed));
+  t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Trample', { manaCost: '{G}{G}{G}{G}{G}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Colossal Dreadmaw').instanceId }, t.as(0)); settle(t);
+  check('…five green paid from four Forests and the Island; its blue floats', r.ok && island.tapped && Number(t.P(0).mana.floating.U || 0) === 1, JSON.stringify([r.error, island.tapped, t.P(0).mana.floating]));
+}
+{
+  const t = setup();
+  const forest = t.bf(0, 'Forest');
+  const aura = onField(t, 'Fog Bank', 'Enchant Forest\nAs this Aura enters, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.', { typeLine: 'Enchantment — Aura' });
+  aura.attachedTo = forest.instanceId; aura.chosenColor = 'U';
+  const m = t.view(0).players[0].mana;
+  check('Utopia Sprawl (blue) on a Forest: one more blue, same green', m.fixed.U === 5 && m.fixed.G === 4, JSON.stringify(m.fixed));
+  const ab = parseActivatedAbilities(def(t, forest)).find(a => a.manaAbility);
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: forest.instanceId, abilityId: ab.id }, t.as(0)); settle(t);
+  check('…tapping the Forest by hand adds {G}{U}', r.ok && t.P(0).mana.floating.G === 1 && t.P(0).mana.floating.U === 1, JSON.stringify([r.error, t.P(0).mana.floating]));
+}
+{
+  const t = setup();
+  const forest = t.bf(0, 'Forest');
+  const aura = onField(t, 'Fog Bank', 'Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional one mana of any color.', { typeLine: 'Enchantment — Aura' });
+  aura.attachedTo = forest.instanceId;
+  const m = t.view(0).players[0].mana;
+  check('Fertile Ground: the counter shows one mana of any colour', m.flex.some(g => g.colors.length === 5 && g.count === 1), JSON.stringify(m.flex));
+  t.give(0, 'Colossal Dreadmaw'); asText(t, t.hand(0, 'Colossal Dreadmaw'), 'Trample', { manaCost: '{U}{U}{U}{U}{U}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Colossal Dreadmaw').instanceId }, t.as(0)); settle(t);
+  check('…five blue paid with four Islands and the Forest\'s extra mana; its green floats', r.ok && forest.tapped && t.P(0).mana.floating.G === 1, JSON.stringify([r.error, forest.tapped, t.P(0).mana.floating]));
+  const t2 = setup(); const f2 = t2.bf(0, 'Forest');
+  const a2 = onField(t2, 'Fog Bank', 'Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional one mana of any color.', { typeLine: 'Enchantment — Aura' }); a2.attachedTo = f2.instanceId;
+  const ab = parseActivatedAbilities(def(t2, f2)).find(a => a.manaAbility);
+  t2.ctl.dispatch({ type: 'activate', instanceId: f2.instanceId, abilityId: ab.id }, t2.as(0));
+  const seen = settle(t2, [['mana-extra', 'R']]);
+  check('…tapping the land by hand asks its controller for the colour', seen.some(d => d.key.includes('mana-extra') && d.playerId === t2.P(0).playerId) && t2.P(0).mana.floating.R === 1 && t2.P(0).mana.floating.G === 1, JSON.stringify(t2.P(0).mana.floating));
 }
 
 done();

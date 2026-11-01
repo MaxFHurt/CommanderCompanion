@@ -1,4 +1,4 @@
-import { effectiveManaAmount } from './mana-extras.js';
+import { manaExtras } from './mana-extras.js';
 import { withOverlay } from './overlay.js';
 import { evaluateLosses, basicLandManaColor, tapManaAbilities, effectiveManaOptionsForSource } from './rules.js';
 import { sync } from './deck.js';
@@ -146,35 +146,59 @@ function payMana(game, player, payment) {
     player.manaSpent = { turn: game.turnNumber, n: before + spentNow };
     for (let k = before + 1; k <= before + spentNow; k++) emit(game, { type: 'expend', playerId: player.playerId, controllerId: player.playerId, amount: k });
   }
+  // Extra mana of any colour (Fertile Ground) the plan already spent, by source (ids are `extra:<source id>:<n>`).
+  const extraParent = id => String(id).slice(6).replace(/:\d+$/, '');
+  const anyAssigned = {};
+  for (const a of assignments) if (a.zone === 'extra') { const id = extraParent(a.instanceId); anyAssigned[id] = (anyAssigned[id] || 0) + 1; }
+  const optsOf = c => Array.isArray(c.manaCapacityOptions) && c.manaCapacityOptions.length ? c.manaCapacityOptions : (c.manaCapacityColor ? [c.manaCapacityColor] : []);
+  const singles = () => (player.deck?.battlefield || []).filter(c => !c.tapped && manaSourceUsable(game, c) && c.manaCapacityRegistered && optsOf(c).length === 1);
+  const tapEvent = (card, color) => emit(game, { type: 'tapped-for-mana', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, playerId: player.playerId, color, land: /\bLand\b/.test(defFor(game, card)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, card)?.typeLine || ''), typeLine: defFor(game, card)?.typeLine || '' });
+  // Tap a registered source: its capacity becomes real mana in the pool, with every extra (Mana Reflection, Wild Growth, Utopia Sprawl, Fertile Ground).
+  const tapSource = (src, color, capacity = true) => {
+    src.tapped = true;
+    tapEvent(src, color);
+    const b = Math.max(1, Number(src.manaCapacityAmount || 1)), ex = manaExtras(game, src, color, b);
+    if (capacity) player.mana.available[color] = Math.max(0, Number(player.mana.available[color] || 0) - b);
+    addMana(player, color, ex.amount);
+    for (const c of ex.fixed) addMana(player, c, 1);
+    // Any-colour extra the plan did not spend: kept as the source's own colour.
+    const spare = Math.max(0, ex.any - (anyAssigned[src.instanceId] || 0));
+    if (spare) addMana(player, color, spare);
+  };
+  const spend = (color, n) => { player.mana.floating[color] = Math.max(0, Number(player.mana.floating[color] || 0) - n); player.mana.available[color] = Math.max(0, Number(player.mana.available[color] || 0) - n); };
+  const fromPool = (color, need) => { const use = Math.min(need, Math.max(0, Number(player.mana.floating?.[color] || 0))); if (use) spend(color, use); return need - use; };
+  player.mana.floating = player.mana.floating || { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
   for (const [color, raw] of Object.entries(payment)) {
     if (color.startsWith('__'))
       continue;
     const amount = Math.max(0, Number(raw || 0));
     if (!amount)
       continue;
-    const sources = (player.deck?.battlefield || []).filter(c => { const opts = Array.isArray(c.manaCapacityOptions) && c.manaCapacityOptions.length ? c.manaCapacityOptions : (c.manaCapacityColor ? [c.manaCapacityColor] : []); return !c.tapped && manaSourceUsable(game, c) && c.manaCapacityRegistered && opts.length === 1 && opts[0] === color; }).sort((a, b) => Number(b.manaCapacityAmount || 1) - Number(a.manaCapacityAmount || 1));
-    const available = Math.max(0, Number(player.mana.available[color] || 0)), floating = Math.max(0, Number(player.mana.floating?.[color] || 0));
-    const fromFloating = Math.min(floating, amount), remaining = amount - fromFloating;
-    player.mana.floating[color] = floating - fromFloating;
-    let produced = 0, baseUsed = 0;
-    for (const src of sources) {
-      if (produced >= remaining)
-        break;
-      src.tapped = true;
-      emit(game, { type: 'tapped-for-mana', sourceId: src.instanceId, definitionId: src.definitionId, controllerId: player.playerId, playerId: player.playerId, color, land: /\bLand\b/.test(defFor(game, src)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, src)?.typeLine || ''), typeLine: defFor(game, src)?.typeLine || '' });
-      const b = Math.max(1, Number(src.manaCapacityAmount || 1));
-      baseUsed += b;
-      produced += effectiveManaAmount(game, src, color, b);   // Mana Reflection, Crypt Ghast … (extra mana)
+    let need = fromPool(color, amount);
+    const own = singles().filter(c => optsOf(c)[0] === color).sort((a, b) => Number(b.manaCapacityAmount || 1) - Number(a.manaCapacityAmount || 1));
+    for (const src of own) {
+      if (need <= 0) break;
+      tapSource(src, color);
+      need = fromPool(color, need);
     }
-    if (baseUsed && produced >= remaining) {
-      // Mana made beyond what this payment needed stays in the pool.
-      const excess = produced - remaining;
-      player.mana.available[color] = Math.max(0, available - fromFloating - baseUsed + excess);
-      player.mana.floating[color] = Number(player.mana.floating[color] || 0) + excess;
-    } else
-      player.mana.available[color] = Math.max(0, available - amount);
+    // A source whose extra mana is this colour (an Island with Wild Growth paying {G}).
+    for (const src of singles()) {
+      if (need <= 0) break;
+      const main = optsOf(src)[0];
+      if (!manaExtras(game, src, main, Math.max(1, Number(src.manaCapacityAmount || 1))).fixed.includes(color)) continue;
+      tapSource(src, main);
+      need = fromPool(color, need);
+    }
+    if (need > 0)
+      player.mana.available[color] = Math.max(0, Number(player.mana.available[color] || 0) - need);
   }
   for (const a of assignments) {
+    if (a.zone === 'extra') {
+      // Fertile Ground's any-colour mana: it comes from tapping the land it enchants.
+      const parent = (player.deck?.battlefield || []).find(c => c.instanceId === extraParent(a.instanceId));
+      if (parent && !parent.tapped) { const main = optsOf(parent)[0]; if (main) tapSource(parent, main); }
+      continue;
+    }
     if (a.zoneManaAbility || a.zone === 'hand') {
       const hit = locate(player.deck, a.instanceId);
       if (!hit || hit.z !== 'hand')
@@ -188,7 +212,9 @@ function payMana(game, player, payment) {
     const card = (player.deck?.battlefield || []).find(c => c.instanceId === a.instanceId);
     if (card && !card.tapped) {
       card.tapped = true;
-      emit(game, { type: 'tapped-for-mana', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, playerId: player.playerId, color: a.color || null, land: /\bLand\b/.test(defFor(game, card)?.typeLine || ''), creature: /\bCreature\b/.test(defFor(game, card)?.typeLine || ''), typeLine: defFor(game, card)?.typeLine || '' });
+      tapEvent(card, a.color || null);
+      // Fixed extra mana on a flexible source (Wild Growth on a dual land) goes to the pool.
+      if (a.color) { const ex = manaExtras(game, card, a.color, 1); if (ex.amount > 1) addMana(player, a.color, ex.amount - 1); for (const c of ex.fixed) addMana(player, c, 1); }
     }
   }
   if (lifePayment) {

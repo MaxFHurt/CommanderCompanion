@@ -1,4 +1,4 @@
-import { effectiveManaAmount } from './mana-extras.js';
+import { manaExtras, ANY_COLORS } from './mana-extras.js';
 import { withOverlay } from './overlay.js';
 import { isCardDefinitionComplete } from './schema.js';
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
@@ -264,11 +264,14 @@ export function effectiveManaOptionsForSource({ game, player, card, definition =
 export function playerManaAvailability(player, game = null) {
   const base = Object.fromEntries(COLORS.map(c => [c, Math.max(0, Number(player?.mana?.available?.[c] || 0))]));
   // Extra mana from Mana Reflection, Crypt Ghast, Wild Growth … for each untapped single-type source.
+  const extraFlex = [];
   if (game) for (const card of player?.deck?.battlefield || []) {
     const opts = Array.isArray(card.manaCapacityOptions) && card.manaCapacityOptions.length ? card.manaCapacityOptions : (card.manaCapacityColor ? [card.manaCapacityColor] : []);
     if (!card.manaCapacityRegistered || opts.length !== 1 || card.tapped || !manaCapacitySourceUsable(game, card)) continue;
-    const b = Math.max(1, Number(card.manaCapacityAmount || 1));
-    base[opts[0]] += Math.max(0, effectiveManaAmount(game, card, opts[0], b) - b);
+    const b = Math.max(1, Number(card.manaCapacityAmount || 1)), ex = manaExtras(game, card, opts[0], b);
+    base[opts[0]] += Math.max(0, ex.amount - b);
+    for (const c of ex.fixed) base[c] += 1;   // Wild Growth on an Island, Utopia Sprawl's chosen colour
+    extraFlex.push(...Array.from({ length: ex.any }, (_, k) => ({ instanceId: `extra:${card.instanceId}:${k}`, options: [...ANY_COLORS], zone: 'extra', extraOf: card.instanceId })));   // Fertile Ground
   }
   const flex = [];
   for (const card of player?.deck?.battlefield || []) {
@@ -294,6 +297,7 @@ export function playerManaAvailability(player, game = null) {
         flex.push({ instanceId: card.instanceId, options, zone: 'hand', zoneManaAbility: true });
     }
   }
+  flex.push(...extraFlex);
   return { ...base, __flex: flex };
 }
 export function planMana(available, cost, tax = 0, options = {}) {
