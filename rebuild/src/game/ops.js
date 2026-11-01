@@ -168,7 +168,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -297,6 +297,17 @@ function runPlay(game, op, ask) {
     if (rows.length) exileFromHandForCost = ask('cost:exile-blue', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Exile a blue card from your hand${mode.lifeCost ? ` and pay ${mode.lifeCost} life` : ''} instead of paying its mana cost.`, options: rows }));
     lifeForCost += Number(mode.lifeCost || 0);
   }
+  let emergeReduction = 0;
+  if (mode.emerge) {
+    const rows = player.deck.battlefield.filter(c => /\bCreature\b/i.test(defOf(game, c)?.typeLine || ''))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: `mana value ${Number(defOf(game, c)?.manaValue ?? defOf(game, c)?.cmc ?? 0)}`, instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError('You need a creature to sacrifice for emerge.');
+    if (rows.length) {
+      sacrificeForCost = ask('cost:emerge', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — emerge`, prompt: `Sacrifice a creature; the emerge cost ${mode.emerge} is reduced by its mana value.`, options: rows }));
+      const sac = player.deck.battlefield.find(c => c.instanceId === sacrificeForCost);
+      emergeReduction = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0);
+    }
+  }
   if (mode.altLife) lifeForCost += Number(mode.altLife);
   if (mode.altSacrifice) {
     const words = mode.altSacrifice.split(/\s+/);
@@ -411,7 +422,7 @@ function runPlay(game, op, ask) {
   }
 
   // Pay: the cost for this way of casting, then escape and delve exile graveyard cards.
-  const priced = free ? { cost: extraCost, convoke: [], delve: 0, notes: [] } : modeCost(game, player, card, def, mode, { tax, extra: extraCost });
+  const priced = free ? { cost: extraCost, convoke: [], delve: 0, notes: [] } : modeCost(game, player, card, def, mode.emerge ? { ...mode, cost: adjustGeneric(mode.emerge, -emergeReduction) } : mode, { tax, extra: extraCost });
   let cost = adjustGeneric(priced.cost, xExtra);
   const available = playerManaAvailability(player, game);
   available.__flex = available.__flex.filter(x => x.instanceId !== card.instanceId);

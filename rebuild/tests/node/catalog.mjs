@@ -1281,4 +1281,14 @@ section('round 27: Improvise');
   check('Improvise: three artifacts pay {3}, one Island pays {U}', !err && arts.every(a => a.tapped) && t.P(0).deck.hand.length === hand + 2, JSON.stringify([err, arts.map(a => a.tapped)]));
 }
 
+section('round 28: Emerge');
+{
+  const t = setup();
+  const fodder = onField(t, 'Grizzly Bears', '', { manaValue: 4 });
+  let err = null;
+  try { cast(t, 'Llanowar Elves', 'Emerge {6}{G}{G}\nWhen you cast this spell, draw a card.', [[d => d.key.includes('castMode'), 'emerge'], [d => d.key.includes('emerge'), () => fodder.instanceId]], { manaCost: '{7}{G}{G}', typeLine: 'Creature — Eldrazi', power: '8', toughness: '8' }); } catch (e) { err = e.message; }
+  const lands = t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c)?.typeLine || '') && c.tapped).length;
+  check('Emerge: sacrifice a 4-drop and pay {2}{G}{G}', !err && !t.bf(0, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves') && lands === 4, JSON.stringify([err, lands]));
+}
+
 done();

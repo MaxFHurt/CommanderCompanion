@@ -159,7 +159,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -211,6 +211,12 @@ export function castModes(game, player, card, def, base = null) {
     const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[forceCost[3].toLowerCase()];
     if ((player.deck.hand || []).some(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(color)) && Number(player.life || 0) >= Number(forceCost[2] || 0))
       modes.push({ id: 'force-exile', cost: '', exileColor: color, lifeCost: Number(forceCost[2] || 0) });
+  }
+  // Emerge {cost}: cast it by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.
+  const emerge = zone === 'hand' ? keywordCost(text, 'Emerge') : null;
+  if (emerge) {
+    const mvs = (player.deck.battlefield || []).filter(c => /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).map(c => Number(defOf(game, c)?.manaValue ?? defOf(game, c)?.cmc ?? 0));
+    if (mvs.length) modes.push({ id: 'emerge', cost: adjustGeneric(emerge, -Math.max(...mvs)), emerge });
   }
   // "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost." (Snuff Out), "If an opponent cast
   // three or more spells this turn, you may pay {0} …" (Mindbreak Trap), "You may pay {B} rather than pay this spell's
