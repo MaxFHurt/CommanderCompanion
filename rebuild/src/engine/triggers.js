@@ -588,6 +588,8 @@ function dueDelayedTriggers(game, event) {
 }
 export function queueTriggers(game, event) {
   recordStat(game, event);
+  // Who lost life this turn (Spectacle, "if an opponent lost life this turn").
+  if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) game.lostLifeTurn = { ...(game.lostLifeTurn || {}), [event.playerId]: game.turnNumber };
   // "venture into the dungeon" in the middle of an ability: its own step with the room choice (ops.js runSpecial).
   if (event?.type === 'special-request') {
     const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);

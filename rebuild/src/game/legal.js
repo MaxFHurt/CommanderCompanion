@@ -128,6 +128,9 @@ export function specialRows(game, player, card, { running = false } = {}) {
       const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
       row(`suspend:${susp[1]}`, `Suspend ${susp[1]}`, susp[2], [block, !instant && !sorcery && 'Only when you could cast a sorcery.', !payable(susp[2]) && 'Not enough mana.']);
     }
+    // Reinforce N—{cost}: discard it to put N +1/+1 counters on target creature (any time you could cast an instant).
+    const reinf = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Reinforce (\d+|X)\s*[—-]\s*((?:\{[^}]+\})+)/i);
+    if (reinf && reinf[1] !== 'X') row(`reinforce:${reinf[1]}`, `Reinforce ${reinf[1]}`, reinf[2], [block, !payable(reinf[2]) && 'Not enough mana.']);
     // Plot {cost}: exile it face up as a sorcery; cast it free on a later turn.
     const plot = keywordCost(text, 'Plot');
     if (plot) {

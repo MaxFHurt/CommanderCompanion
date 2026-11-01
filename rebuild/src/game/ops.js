@@ -168,7 +168,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -701,6 +701,17 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     commit(game, { type: 'special-action', kind: 'cycle', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} cycles ${def.name}.` });
     const top = (game.stack || []).find(x => x.id === stack.id);
     if (top) { top.name = def.name; top.text = stack.text; top.search = stack.search || null; top.resolveReqs = []; }
+    return;
+  }
+  if (kind.startsWith('reinforce:')) {
+    const n = Number(kind.slice(10)) || 0;
+    const rows = candidatesFor(game, { kind: 'target', scope: 'target creature' }, player);
+    if (!rows.length && !force) throw new GameError('There is no creature to put the counters on.');
+    const target = ask('reinforce', () => ({ ...base, kind: 'choose-one', targeting: true, title: `${def.name} — reinforce`, prompt: `Put ${n} +1/+1 counter${n === 1 ? '' : 's'} on target creature.`, options: rows }));
+    const stack = { id: newId('stack'), label: `${def.name} — reinforce`, text: `Put ${n} +1/+1 counters on target creature.`, effects: [{ kind: 'counter', targetId: target, counter: '+1/+1', amount: n }] };
+    commit(game, { type: 'special-action', kind: 'reinforce', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} reinforces with ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
   }
   if (kind.startsWith('suspend:')) {

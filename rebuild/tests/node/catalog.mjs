@@ -1215,7 +1215,7 @@ section('round 23: Miracle');
   const t = setup();
   t.autoPass = true; t.end(0);
   const lib = t.P(0).deck.remainingLibrary;
-  const card = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '')) || lib[0];
+  const card = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length) || lib.find(c => !def(t, c)?.cardFaces?.length);
   lib.splice(lib.indexOf(card), 1); lib.unshift(card);
   asText(t, card, 'Each opponent loses 3 life.\nMiracle {U}', { typeLine: 'Sorcery', manaCost: '{5}{U}{U}' });
   const life = t.P(1).life;
@@ -1309,6 +1309,28 @@ section('round 29: Soulbond');
   t.ctl.dispatch({ type: 'play', instanceId: bear.instanceId }, t.as(0));
   settle(t, [['soulbond', d => d.options[0].id]]);
   check('Soulbond: another creature entering can pair; both have double strike', has(t, t.bf(0, 'Grizzly Bears'), 'Double strike') && has(t, t.bf(0, 'Llanowar Elves'), 'Double strike'));
+}
+
+section('round 30: Spectacle, Reinforce');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const sp = asText(t, t.hand(0, 'Opt'), 'Spectacle {G}\nDraw two cards.', { manaCost: '{4}{U}{U}', typeLine: 'Sorcery' });
+  cast(t, 'Divination', 'Each opponent loses 1 life.', [], { manaCost: '{G}' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: sp.instanceId }, t.as(0));
+  let offered = null;
+  settle(t, [[d => d.key.includes('castMode'), d => { offered = d.options.map(o => o.id); return 'spectacle'; }]]);
+  const lands = t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c)?.typeLine || '') && c.tapped).length;
+  check('Spectacle: castable for {G} once an opponent lost life', offered?.includes('spectacle') && lands === 2 && t.P(0).deck.hand.length === hand - 1 + 2, JSON.stringify([offered, lands, hand, t.P(0).deck.hand.length]));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Llanowar Elves'); const r = asText(t, t.hand(0, 'Llanowar Elves'), 'Reinforce 2—{1}{G}');
+  const row = t.view(0).players[0].hand.find(c => c.id === r.instanceId)?.abilities?.find(a => /Reinforce/.test(a.text));
+  const res = row ? t.ctl.dispatch({ type: 'activate', instanceId: r.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no row' };
+  settle(t, [['reinforce', () => bear.instanceId]]);
+  check('Reinforce: discard it, two +1/+1 counters on the creature', res.ok && bear.counters?.['+1/+1'] === 2 && r.zone === 'graveyard', JSON.stringify([res.error, bear.counters, r.zone]));
 }
 
 done();

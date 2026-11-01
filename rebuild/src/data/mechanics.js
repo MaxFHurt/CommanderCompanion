@@ -294,7 +294,7 @@ m('Read ahead', 'keyword', 'As this Saga enters, choose a chapter to start on.',
 m('Rebound', 'keyword', 'If cast from your hand, exile it as it resolves; at your next upkeep you may cast it from exile free.', { auto: 'auto', actions: ['exile'] });
 m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unattach it. While attached it isn\'t a creature. Sorcery speed.', { auto: 'manual', actions: ['attach'] });
 m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay the recover cost to return this card to your hand; otherwise exile it.', { auto: 'manual', actions: ['return-hand', 'exile'] });
-m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'manual', actions: ['counter+', 'discard'] });
+m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'auto', steps: 'Use Reinforce from your hand: discard it and choose the creature.', actions: ['counter+', 'discard'] });
 m('Renown', 'keyword', 'When this deals combat damage to a player, if it isn\'t renowned, put N +1/+1 counters on it; it becomes renowned.', { auto: 'manual', actions: ['counter+'] });
 m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the spell that many times.', { auto: 'manual' });
 m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'auto', actions: ['discard'] });
@@ -306,7 +306,7 @@ m('Shadow', 'keyword', 'Can block or be blocked only by creatures with shadow.',
 m('Skulk', 'keyword', 'Can\'t be blocked by creatures with greater power.', { auto: 'auto' });
 m('Soulbond', 'keyword', 'Pair this with another unpaired creature when either enters; both get the listed bonus while paired.', { auto: 'auto', steps: 'When either creature enters, the game asks whether to pair them; the bonus applies while both stay under your control.', actions: ['status'] });
 m('Soulshift', 'keyword', 'Soulshift N: when this dies, return target Spirit card with mana value N or less from your graveyard to your hand.', { auto: 'manual', actions: ['return-hand'] });
-m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'manual' });
+m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'auto', steps: 'Once an opponent has lost life this turn, "Spectacle" is offered as a way to cast it.' });
 m('Splice', 'keyword', 'Splice onto [type]: reveal this as you cast a spell of that type and pay the cost to add this card\'s effect to it.', { auto: 'manual' });
 m('Split second', 'keyword', 'While this is on the stack, players can\'t cast spells or activate non-mana abilities.', { auto: 'manual' });
 m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s additional cost.', { auto: 'manual' });

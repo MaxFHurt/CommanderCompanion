@@ -611,6 +611,15 @@ export function createTransactionEngine(game) {
           emit(game, { type: 'discard', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, cost: true });
           emit(game, { type: 'cycled', playerId: player.playerId, controllerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId });
         }
+        else if (action.kind === 'reinforce') {
+          // Cost: discard this card.
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'hand') throw new Error('Reinforce: the card is no longer in your hand.');
+          hit.a.splice(hit.i, 1);
+          card.zone = 'graveyard';
+          deck.graveyard.push(card);
+          emit(game, { type: 'discard', playerId: player.playerId, sourceId: card.instanceId, definitionId: card.definitionId, cost: true });
+        }
         else if (action.kind === 'scavenge') {
           // Cost: exile this card from the graveyard.
           const hit = locate(deck, card.instanceId);

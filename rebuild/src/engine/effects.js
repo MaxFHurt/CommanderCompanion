@@ -1555,6 +1555,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^there are (\w+) or more creatures on the battlefield$/i))) return { test: 'creatures-total', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if (/^you win the flip$/i.test(t)) return { test: 'coin', won: true };
   if (/^you lose the flip$/i.test(t)) return { test: 'coin', won: false };
+  if (/^an opponent lost life this turn$/i.test(t)) return { test: 'opponent-lost-life' };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1594,6 +1595,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'opponent-spells') return game.players.some(p => p.playerId !== controllerId && Number(p.counters?.spellsCastThisTurn || 0) >= effect.min);
   if (effect.test === 'creatures-total') return game.players.filter(p => !p.eliminated).reduce((n, p) => n + (p.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')).length, 0) >= effect.min;
   if (effect.test === 'coin') return !!bindings.coinWon === effect.won;
+  if (effect.test === 'opponent-lost-life') return game.players.some(p => p.playerId !== controllerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber);
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }

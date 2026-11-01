@@ -159,7 +159,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -212,6 +212,9 @@ export function castModes(game, player, card, def, base = null) {
     if ((player.deck.hand || []).some(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(color)) && Number(player.life || 0) >= Number(forceCost[2] || 0))
       modes.push({ id: 'force-exile', cost: '', exileColor: color, lifeCost: Number(forceCost[2] || 0) });
   }
+  // Spectacle {cost}: instead of its mana cost, if an opponent lost life this turn.
+  const spectacle = zone === 'hand' ? keywordCost(text, 'Spectacle') : null;
+  if (spectacle && game.players.some(p => p.playerId !== player.playerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber)) modes.push({ id: 'spectacle', cost: spectacle });
   // Emerge {cost}: cast it by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.
   const emerge = zone === 'hand' ? keywordCost(text, 'Emerge') : null;
   if (emerge) {
