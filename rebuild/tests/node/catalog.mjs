@@ -2657,4 +2657,16 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Legend rule: its controller chooses which copy to keep; the other goes to the graveyard', seen.some(d => d.key === 'legend' && d.playerId === t.P(0).playerId) && t.P(0).deck.battlefield.some(c => c.instanceId === a.instanceId) && !t.P(0).deck.battlefield.some(c => c.instanceId === b.instanceId), JSON.stringify(seen.map(d => d.key)));
 }
 
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', 'Ward {2}', {}, 1);
+  const pinger = onField(t, 'Fog Bank', '{0}: Target creature gets -1/-1 until end of turn.', { typeLine: 'Enchantment' });
+  activate(t, pinger, 0, [[d => d.targeting, () => foe.instanceId], [d => /ward/i.test(d.title || ''), 'no']]);
+  check('Ward on an activated ability: not paid, the ability is countered', power(t, foe) === 2);
+  const before = t.P(0).deck.battlefield.filter(c => !c.tapped && /Land/.test(def(t, c).typeLine)).length;
+  activate(t, pinger, 0, [[d => d.targeting, () => foe.instanceId], [d => /ward/i.test(d.title || ''), 'pay']]);
+  const after = t.P(0).deck.battlefield.filter(c => !c.tapped && /Land/.test(def(t, c).typeLine)).length;
+  check('…paid ({2}), it resolves', power(t, foe) === 1 && before - after === 2, JSON.stringify([power(t, foe), before - after]));
+}
+
 done();

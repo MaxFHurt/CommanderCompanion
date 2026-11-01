@@ -566,12 +566,13 @@ function runPlay(game, op, ask) {
   // Ward: targeting an opponent's permanent with ward costs extra, or the spell is countered.
   let wardCountered = false;
   for (const [i, w] of wardCosts(game, player, [...Object.values(bindings), attachTo]).entries()) {
+    const what = w.cost || `${w.life} life`;
     const pay = ask(`ward:${i}`, () => ({
-      playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${w.name} has ward ${w.cost}`,
-      prompt: `Pay ${w.cost} more, or ${def.name} will be countered.`,
-      options: [{ id: 'pay', label: `Pay ward ${w.cost}`, disabled: !free && !force && !modeAffordable(game, player, card, def, mode, { tax, extra: extraCost + w.cost }) }, { id: 'no', label: 'Don\u2019t pay (it is countered)' }]
+      playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${w.name} has ward ${what}`,
+      prompt: `Pay ${what} more, or ${def.name} will be countered.`,
+      options: [{ id: 'pay', label: `Pay ward ${what}`, disabled: !free && !force && (w.cost ? !modeAffordable(game, player, card, def, mode, { tax, extra: extraCost + w.cost }) : Number(player.life || 0) <= lifeForCost + Number(w.life || 0)) }, { id: 'no', label: 'Don\u2019t pay (it is countered)' }]
     }));
-    if (pay === 'pay') extraCost += w.cost; else wardCountered = true;
+    if (pay === 'pay') { if (w.cost) extraCost += w.cost; else lifeForCost += Number(w.life || 0); } else wardCountered = true;
   }
 
   // Pay: the cost for this way of casting, then escape and delve exile graveyard cards.
@@ -680,8 +681,11 @@ function wardCosts(game, player, ids) {
     for (const p of game.players) {
       if (p.playerId === player.playerId) continue;
       const c = (p.deck?.battlefield || []).find(x => x.instanceId === id);
-      const m = c && String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n|,\s*)Ward\s*(?:[—-]\s*)?((?:\{[^}]+\})+)/i);
+      const text = String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '');
+      const m = c && text.match(/(?:^|\n|,\s*)Ward\s*(?:[—-]\s*)?((?:\{[^}]+\})+)/i);
+      const life = c && text.match(/(?:^|\n|,\s*)Ward\s*[—-]\s*Pay (\d+) life/i);
       if (m) out.push({ id, name: defOf(game, c)?.name || 'It', cost: m[1] });
+      else if (life) out.push({ id, name: defOf(game, c)?.name || 'It', cost: '', life: Number(life[1]) });
     }
   }
   return out;
@@ -854,8 +858,24 @@ function runActivate(game, op, ask) {
     if (error instanceof NoLegalChoice) throw new GameError(error.message);
     throw error;
   }
+  // Ward: targeting an opponent's permanent with ward, pay the ward cost too or the ability is countered.
+  const wards = wardCosts(game, player, Object.values(bindings));
+  const wardPay = [];
+  let abilityWardCountered = false;
+  for (const [i, w] of wards.entries()) {
+    const wplan = w.cost ? planMana(playerManaAvailability(player, game), wardPay.map(x => x.cost).join('') + w.cost, 0, { lifeAvailable: 0 }) : null;
+    const can = w.cost ? wplan.ok : Number(player.life || 0) > Number(w.life || 0);
+    const what = w.cost || `${w.life} life`;
+    const pay = ask(`ward:${i}`, () => ({ ...base, kind: 'choose-one', title: `${w.name} has ward ${what}`, prompt: `Pay ${what} more, or the ability will be countered.`,
+      options: [{ id: 'pay', label: `Pay ward ${what}`, disabled: !can && !force }, { id: 'no', label: 'Don\u2019t pay (it is countered)' }] }));
+    if (pay === 'pay') wardPay.push(w); else abilityWardCountered = true;
+  }
   const stackId = newId('stack');
   commit(game, { ...common, type: 'activate-ability-stack', stackId, effects: compiled.effects, effectBindings: bindings, guidedResolution: guided, label: `${player.displayName} activates ${def.name}: ${short}` });
+  for (const w of wardPay) {
+    if (w.cost) { const wp = planMana(playerManaAvailability(player, game), w.cost, 0, { lifeAvailable: 0 }); if (wp.ok) commit(game, { type: 'pay-mana', playerId: player.playerId, payment: wp.chosen, label: `${player.displayName} pays ward ${w.cost}.` }); }
+    else commit(game, { type: 'pay-mana', playerId: player.playerId, payment: {}, lifeCost: Number(w.life || 0), label: `${player.displayName} pays ward (${w.life} life).` });
+  }
   announceTargets(game, player, cast, bindings, card.instanceId, 'ability');
   const live = findInPlayer(player, card.instanceId);
   if (ability.loyaltyDelta !== null && live?.zone === 'battlefield') {
@@ -864,7 +884,7 @@ function runActivate(game, op, ask) {
     live.card.loyaltyUsedTurn = game.turnNumber;
   }
   const top = (game.stack || []).find(x => x.id === stackId);
-  if (top) { top.name = def.name; top.label = `${def.name} ability`; top.text = ability.text; top.resolveReqs = resolve; top.castReqs = cast; top.search = search; top.optional = optional; }
+  if (top) { top.name = def.name; top.label = `${def.name} ability`; top.text = ability.text; top.resolveReqs = resolve; top.castReqs = cast; top.search = search; top.optional = optional; top.wardCountered = abilityWardCountered; }
 }
 
 /** Cycling, typecycling, foretell, ninjutsu, turn face up. */
