@@ -250,7 +250,7 @@ m('Graft', 'keyword', 'Enters with N +1/+1 counters; whenever another creature e
 m('Gravestorm', 'keyword', 'When you cast this, copy it for each permanent put into a graveyard this turn.', { auto: 'manual' });
 m('Haunt', 'keyword', 'When this dies (or resolves, for a spell), exile it haunting target creature; when that creature dies, the haunt effect happens again.', { auto: 'manual', actions: ['exile'] });
 m('Hidden agenda', 'keyword', 'Start the game with this conspiracy face down with a card name secretly chosen (Conspiracy draft).', { auto: 'manual' });
-m('Hideaway', 'keyword', 'When this enters, look at the top N cards, exile one face down and the rest to the bottom; later you may play the exiled card free when a condition is met.', { auto: 'manual', actions: ['exile'] });
+m('Hideaway', 'keyword', 'When this enters, look at the top N cards, exile one face down and the rest to the bottom; later you may play the exiled card free when a condition is met.', { auto: 'auto', actions: ['exile'] });
 m('Horsemanship', 'keyword', 'Can be blocked only by creatures with horsemanship.', { auto: 'auto' });
 m('Impending', 'keyword', 'Cast for the impending cost: it enters with N time counters and isn\'t a creature while it has any; remove one at your end step.', { auto: 'manual', actions: ['counter-other'] });
 m('Improvise', 'keyword', 'Each artifact you tap while casting this pays for {1}.', { auto: 'auto', steps: 'Untapped artifacts are counted toward the generic cost and tapped when you cast it.', actions: ['tap'] });

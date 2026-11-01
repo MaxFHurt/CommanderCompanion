@@ -194,9 +194,9 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       battlefield,
       graveyard: p.deck.graveyard.map(c => cardView(game, c, defs, own ? { ...castable(game, p, c, block), ...graveAbilities(game, p, c, block) } : {})),
       exile: p.deck.exile.map(c => {
-        if (c.foretold && !own && !judge) {
+        if ((c.foretold || c.hiddenExile) && !own && !judge) {
           defs[FACE_DOWN_ID] = faceDownDefinition();
-          return { id: c.instanceId, def: FACE_DOWN_ID, face: null, name: 'Foretold card', type: 'Face down', owner: c.ownerId, controller: c.ownerId, tapped: false, token: false, counters: {}, power: null, toughness: null, damage: 0, attachedTo: null, attachments: [], chosen: null, foretold: true };
+          return { id: c.instanceId, def: FACE_DOWN_ID, face: null, name: c.hiddenExile ? 'Face-down card' : 'Foretold card', type: 'Face down', owner: c.ownerId, controller: c.ownerId, tapped: false, token: false, counters: {}, power: null, toughness: null, damage: 0, attachedTo: null, attachments: [], chosen: null, foretold: true };
         }
         return cardView(game, c, defs, { ...(own ? castable(game, p, c, block) : {}), ...(c.foretold ? { foretold: true } : {}), ...(c.onAdventure ? { onAdventure: true } : {}) });
       }),

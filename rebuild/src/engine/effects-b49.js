@@ -2,7 +2,7 @@
 // compileB49Clause(c, ctx) is tried by effects-catalog.js before it gives up on a sentence; compileB49Sequence sees the
 // sentences around it (and the parts compiled so far); applyB49 runs the effect kinds made here and gatherB49 asks the
 // resolve-time questions. Every choice stays with the player who makes it in the rules.
-import { numberFromText, locateCardInGame, moveCard, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, moveCard, definitionFor, resolveAmount, parseCondition, checkCondition, catalogHelpers as H } from './effects.js';
 import { effectivePower } from './combat.js';
 import { cardFitsWords } from './effects-catalog.js';
 
@@ -50,6 +50,18 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'mana-extra-turn', text });
     return true;
   }
+  // Hideaway lands: "You may play the exiled card without paying its mana cost if you attacked with three or more creatures this turn."
+  // (Without "you may" the game already asked it: an optional ability's "you may" is asked before it resolves.)
+  if ((m = c.match(/^(?:Then )?(?:if (.+?), )?(you may )?(play|cast) the exiled card without paying its mana cost(?: if (.+?))?\.?$/i))) {
+    const cond = m[1] || m[4] || null;
+    if (cond && !parseConditionAny(cond)) return false;
+    const bind = `playExiled${requirements.length}`;
+    requirements.push({ kind: 'b49-play-exiled', bind, cond, castOnly: /cast/i.test(m[3]), ask: !!m[2] });
+    effects.push({ kind: 'play-exiled', bind });
+    return true;
+  }
+  // Watcher for Tomorrow: "put the exiled card into its owner's hand."
+  if (/^put the exiled card into its owner'?s hand\.?$/i.test(c)) { effects.push({ kind: 'hideaway-to-hand' }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -78,6 +90,13 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       return { part: { effects: [{ kind: 'damage', amount: num(m[1]), bind: as, sourceName }], requirements: [], unsupported: [] }, consumed: 1 };
     }
   }
+  // Smuggler's Buggy: "You may cast the exiled card without paying its mana cost. If you do, return this Vehicle to its owner's hand."
+  const after = String(clauses[i + 1] || '').match(/^If you do,\s*(.+)$/i);
+  if (after && /you may (?:play|cast) the exiled card without paying its mana cost/i.test(c0)) {
+    const first = compile(c0, sourceName), then = compile(cap(after[1]), sourceName);
+    const bind = first.requirements.find(r => r.kind === 'b49-play-exiled')?.bind;
+    if (ok(first) && ok(then) && bind) return { part: { effects: [...first.effects, { kind: 'condition', test: 'b49-bound', bind, skip: then.effects.length }, ...then.effects], requirements: [...first.requirements, ...then.requirements], unsupported: [] }, consumed: 2 };
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -99,6 +118,55 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       game.turnManaExtras = [...(game.turnManaExtras || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, controllerId, text: effect.text }];
       notes.push(`Until end of turn: ${effect.text}.`);
       return true;
+    case 'hideaway': {
+      // Exile the chosen card face down (only its owner may look at it); the rest go to the bottom in a random order.
+      const emit = e => H.emit(bindings, e);
+      const lib = controller.deck.remainingLibrary || [];
+      const top = lib.slice(0, Math.max(0, Number(effect.amount || 0)));
+      const pick = top.find(c => c.instanceId === bindings[effect.bind]) || null;
+      const src = locateCardInGame(game, bindings.sourceId)?.card;
+      if (pick) {
+        const moved = moveCard(game, pick.instanceId, 'exile', { onEvent: emit });
+        (moved?.card || pick).hiddenExile = true;
+        if (src) src.hideawayId = pick.instanceId;
+      }
+      const rest = top.filter(c => c !== pick);
+      for (const c of rest) { const k = lib.indexOf(c); if (k >= 0) lib.splice(k, 1); }
+      H.shuffle(rest);
+      lib.push(...rest);
+      notes.push(`${controller.displayName} exiles a card face down and puts ${rest.length} on the bottom of their library.`);
+      return true;
+    }
+    case 'play-exiled': {
+      const id = bindings[effect.bind];
+      if (!id) return true;
+      const hit = locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'exile') { notes.push('The exiled card is gone.'); return true; }
+      const def = definitionFor(game, hit.card);
+      if (/\bLand\b/.test(def?.typeLine || '') && !/\b(?:Instant|Sorcery|Creature|Artifact|Enchantment|Planeswalker)\b/.test(def?.typeLine || '')) {
+        // Playing a land this way uses a land play, so only during your own turn with one left.
+        const limit = (game.rulesConfig?.allowExtraLand ? 2 : 1) + Number(controller.counters?.extraLandPlaysThisTurn || 0);
+        if (game.activePlayerId !== controllerId || Number(controller.counters?.landsPlayedThisTurn || 0) >= limit) { notes.push(`${def?.name || 'The land'} can't be played now (no land play left).`); return true; }
+        moveCard(game, id, 'battlefield', { controllerId, onEvent: e => H.emit(bindings, { ...e, playedLand: true }) });
+        controller.counters = controller.counters || {};
+        controller.counters.landsPlayedThisTurn = Number(controller.counters.landsPlayedThisTurn || 0) + 1;
+        notes.push(`${controller.displayName} plays ${def?.name || 'the land'}.`);
+        return true;
+      }
+      delete hit.card.hiddenExile;
+      game.flow = game.flow || {};
+      game.flow.freeCast = { playerId: controllerId, instanceId: id };
+      notes.push(`${controller.displayName} casts ${def?.name || 'the exiled card'} without paying its mana cost.`);
+      return true;
+    }
+    case 'hideaway-to-hand': {
+      const src = locateCardInGame(game, bindings.sourceId)?.card;
+      const id = src?.hideawayId || bindings.lastKnownHideaway, hit = id && locateCardInGame(game, id);
+      if (!hit || hit.zone !== 'exile') { notes.push('There is no exiled card.'); return true; }
+      moveCard(game, id, 'hand', { onEvent: e => H.emit(bindings, e) });
+      notes.push(`${nameOf(game, id)} is put into its owner's hand.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -136,7 +204,58 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = picked;
     return true;
   }
+  if (req.kind === 'b49-hideaway') {
+    const top = (player.deck.remainingLibrary || []).slice(0, Number(req.amount || 0));
+    bindings[req.bind] = top.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title: `${ctx.sourceName} — hideaway`, prompt: `Look at the top ${top.length} cards. Choose one to exile face down; the rest go on the bottom in a random order.`, options: top.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
+    return true;
+  }
+  if (req.kind === 'b49-play-exiled') {
+    const src = locateCardInGame(game, bindings.sourceId)?.card;
+    const id = src?.hideawayId, hit = id && locateCardInGame(game, id);
+    bindings[req.bind] = null;
+    if (!hit || hit.zone !== 'exile') return true;
+    if (req.cond && !checkCondition(game, player.playerId, req.cond, bindings)) return true;   // the condition isn't met: nothing to ask
+    const name = util.defOf(game, hit.card)?.name || 'the exiled card';
+    if (!req.ask) { bindings[req.bind] = id; return true; }
+    const yes = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — the exiled card`, prompt: `${req.castOnly ? 'Cast' : 'Play'} ${name} without paying its mana cost?`, options: [{ id: 'yes', label: `${req.castOnly ? 'Cast' : 'Play'} ${name}` }, { id: 'no', label: 'Not now' }] }));
+    bindings[req.bind] = yes === 'yes' ? id : null;
+    return true;
+  }
   return false;
 }
+
+// Conditions read here and checked in effects.js (conditionHolds).
+const COUNTS = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twenty: 20 };
+const cnt = w => COUNTS[String(w).toLowerCase()] ?? Number(w);
+export function parseConditionB49(t) {
+  let m;
+  if ((m = t.match(/^creatures you control have total power (\w+) or greater$/i))) return { test: 'b49-total-power', min: cnt(m[1]) };
+  if ((m = t.match(/^you attacked with (\w+) or more creatures this turn$/i))) return { test: 'b49-attacked-with', min: cnt(m[1]) };
+  if ((m = t.match(/^an opponent was dealt (\w+) or more damage this turn$/i))) return { test: 'b49-opp-dealt', min: cnt(m[1]) };
+  if ((m = t.match(/^a library has (\w+) or fewer cards in it$/i))) return { test: 'b49-library-small', max: cnt(m[1]) };
+  if (/^each player has no cards in hand$/i.test(t)) return { test: 'b49-no-hands' };
+  if ((m = t.match(/^you have (\w+) or more cards in hand$/i))) return { test: 'b49-hand', min: cnt(m[1]) };
+  if ((m = t.match(/^you control a creature with power (\w+) or greater$/i))) return { test: 'b49-power-at-least', min: cnt(m[1]) };
+  if ((m = t.match(/^you control (\w+) or more creatures with different powers$/i))) return { test: 'b49-different-powers', min: cnt(m[1]) };
+  return null;
+}
+export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
+  const me = playerById(game, controllerId);
+  const creatures = p => (p?.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || ''));
+  const pow = c => effectivePower(c, definitionFor(game, c), game);
+  switch (effect.test) {
+    case 'b49-total-power': return creatures(me).reduce((n, c) => n + Math.max(0, pow(c)), 0) >= effect.min;
+    case 'b49-attacked-with': { const a = game.attackedWithTurn?.[controllerId]; return !!a && a.turn === game.turnNumber && a.n >= effect.min; }
+    case 'b49-opp-dealt': return (game.players || []).some(p => p.playerId !== controllerId && game.damageTakenTurn?.[p.playerId]?.turn === game.turnNumber && game.damageTakenTurn[p.playerId].n >= effect.min);
+    case 'b49-library-small': return (game.players || []).some(p => !p.eliminated && (p.deck?.remainingLibrary || []).length <= effect.max);
+    case 'b49-no-hands': return (game.players || []).filter(p => !p.eliminated).every(p => !(p.deck?.hand || []).length);
+    case 'b49-hand': return (me?.deck?.hand || []).length >= effect.min;
+    case 'b49-power-at-least': return creatures(me).some(c => pow(c) >= effect.min);
+    case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
+    case 'b49-bound': return !!bindings[effect.bind];
+    default: return undefined;
+  }
+}
+const parseConditionAny = t => parseCondition(String(t).trim().replace(/\.$/, ''));
 
 export { N, num, cap, compile, ok, nameOf, moveCard, resolveAmount };

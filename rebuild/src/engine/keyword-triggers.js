@@ -50,6 +50,9 @@ export function keywordTriggers(game, row, event) {
   // Exploit: when it enters, you may sacrifice a creature (ops.js asks; "when it exploits a creature" triggers follow).
   if (onField && self && event.type === 'enters-battlefield' && /(?:^|\n)\s*Exploit\b/i.test(strip(d.oracleText)))
     add('exploit', `Exploit — you may sacrifice a creature.`, '', { special: 'exploit' });
+  // Hideaway N: when it enters, look at the top N cards and exile one face down (effects-b49.js); its other ability plays it later.
+  const hide = onField && self && event.type === 'enters-battlefield' && strip(d.oracleText).match(/(?:^|\n)\s*Hideaway (\d+)/i);
+  if (hide) add('hideaway', `Hideaway ${hide[1]} — look at the top ${hide[1]} cards of your library and exile one face down.`, '', { compiled: { supported: true, requirements: [{ kind: 'b49-hideaway', bind: 'hideaway0', amount: Number(hide[1]) }], unsupported: [], effects: [{ kind: 'hideaway', bind: 'hideaway0', amount: Number(hide[1]) }] } });
   // Soulbond: when this or another creature you control enters, you may pair them (both unpaired).
   if (onField && event.type === 'enters-battlefield' && /(?:^|\n)\s*Soulbond\b/i.test(strip(d.oracleText)) && !card.pairedWith) {
     const other = event.sourceId !== card.instanceId ? (row.player.deck?.battlefield || []).find(c => c.instanceId === event.sourceId) : null;

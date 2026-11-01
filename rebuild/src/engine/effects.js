@@ -3,6 +3,7 @@
 import { withOverlay } from './overlay.js';
 import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
+import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
@@ -94,6 +95,7 @@ export function clearCastState(card, to) {
     delete card.foretold;
     delete card.foretoldTurn;
   }
+  delete card.hiddenExile;
 }
 function resetOnZoneChange(card) {
   card.tapped = false;
@@ -1573,7 +1575,7 @@ export function parseCondition(text) {
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
-  return null;
+  return parseConditionB49(t);
 }
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
@@ -1616,6 +1618,8 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
+  const b49 = conditionHoldsB49(game, controllerId, effect, bindings);
+  if (b49 !== undefined) return b49;
   return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {

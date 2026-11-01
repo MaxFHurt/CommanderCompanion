@@ -1726,4 +1726,27 @@ section('round 49: gift, High Tide, greatest power, "that creature\'s controller
   check('High Tide: each untapped Island now counts for two blue', m.fixed.U === 6, JSON.stringify(m.fixed));
 }
 
+section('round 49: hideaway');
+{
+  const t = setup();
+  t.give(0, 'Evolving Wilds'); const land = asText(t, t.hand(0, 'Evolving Wilds'), 'Hideaway 4 (When this land enters, look at the top four cards of your library, exile one of them face down, then put the rest on the bottom of your library in a random order.)\nThis land enters tapped.\n{T}: Add {G}.\n{G}, {T}: You may play the exiled card without paying its mana cost if creatures you control have total power 10 or greater.', { typeLine: 'Land' });
+  const lib = t.P(0).deck.remainingLibrary, ae = lib.findIndex(c => def(t, c).name === 'Air Elemental'); lib.unshift(...lib.splice(ae, 1));
+  const top4 = lib.slice(0, 4).map(c => c.instanceId), pickId = top4[0];
+  t.ctl.dispatch({ type: 'play', instanceId: land.instanceId }, t.as(0));
+  const seen = settle(t, [['hideaway', pickId]]);
+  const hid = t.P(0).deck.exile.find(c => c.instanceId === pickId);
+  const ask = seen.find(d => /hideaway/i.test(d.title || ''));
+  check('Hideaway: its controller picks one of the top four privately; it is exiled face down', !!hid && hid.hiddenExile && ask?.private && ask.options.length === 4 && t.P(0).deck.remainingLibrary.slice(-3).every(c => top4.includes(c.instanceId)), JSON.stringify([!!hid, ask?.options?.length]));
+  const shown = t.view(1).players[0].exile.find(c => c.id === pickId);
+  check('…opponents see only a face-down card', shown && shown.name === 'Face-down card', JSON.stringify(shown?.name));
+  const bridge = t.bf(0, 'Evolving Wilds'); bridge.tapped = false;
+  const ab = parseActivatedAbilities(def(t, bridge)).filter(a => !a.manaAbility)[0];
+  t.ctl.dispatch({ type: 'activate', instanceId: bridge.instanceId, abilityId: ab.id }, t.as(0)); const s1 = settle(t);
+  check('…without 10 power it does nothing and asks nothing', t.P(0).deck.exile.some(c => c.instanceId === pickId) && !s1.some(d => /exiled card/.test(d.title || '')));
+  onField(t, 'Colossal Dreadmaw', '', { power: '10', toughness: '10', typeLine: 'Creature — Dinosaur' });
+  bridge.tapped = false;
+  t.ctl.dispatch({ type: 'activate', instanceId: bridge.instanceId, abilityId: ab.id }, t.as(0)); settle(t, [[d => d.kind === 'confirm' || /exiled card/.test(d.title || '') || d.options?.some(o => /^yes$/i.test(String(o.id))), d => d.kind === 'confirm' ? true : 'yes']]);
+  check('…with 10 power the player may cast it free', t.names(0, 'battlefield').includes('Air Elemental'), JSON.stringify(t.names(0, 'battlefield')));
+}
+
 done();
