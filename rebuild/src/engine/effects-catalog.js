@@ -45,7 +45,7 @@ const PRONOUN_OBJECT = /\b(it|that creature|that permanent|that land|that artifa
 /** Pushes onto ctx.effects / ctx.requirements and returns true when the sentence is understood. */
 // The card's own name is replaced by SELFNAME before matching, so the patterns below are the same for every card
 // and are built once (building a regular expression per card name made compiling the whole catalog slow).
-const SELF_STATIC = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker|card))';
+const SELF_STATIC = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card))';
 function selfNameRegex(sourceName) {
   const full = String(sourceName || '').trim(), short = full.split(',')[0].trim();
   const names = [...new Set([full, short].filter(n => n.length > 1))].sort((a, b) => b.length - a.length).map(esc);

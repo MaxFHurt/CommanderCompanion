@@ -7,7 +7,7 @@ import { effectivePower, cardHasKeyword } from './combat.js';
 
 const COLORS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const KEYWORDS = ['flying', 'trample', 'haste', 'vigilance', 'deathtouch', 'lifelink', 'menace', 'reach', 'first strike', 'double strike', 'defender', 'indestructible', 'hexproof', 'flash'];
-const SELF_NOUNS = 'creature|permanent|artifact|enchantment|land|planeswalker|card|aura|equipment|class|vehicle|saga|siege|battle|spell|token|room|case';
+const SELF_NOUNS = 'creature|permanent|artifact|enchantment|land|planeswalker|card|aura|equipment|class|vehicle|saga|siege|battle|spell|token|room|case|spacecraft|planet|mount';
 
 function escRe(s) { return String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 

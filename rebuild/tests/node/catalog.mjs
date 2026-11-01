@@ -1342,4 +1342,22 @@ section('round 31: cards leaving your graveyard, Class levels, die results');
   check('One or more cards leave your graveyard: one trigger for the batch', t.P(0).deck.battlefield.filter(c => c.token).length === 1, String(t.P(0).deck.battlefield.filter(c => c.token).length));
 }
 
+section('round 32: Exploit, Spacecraft');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Llanowar Elves'); const ex = asText(t, t.hand(0, 'Llanowar Elves'), 'Exploit\nWhen this creature exploits a creature, draw two cards.', { manaCost: '{G}' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: ex.instanceId }, t.as(0));
+  settle(t, [['exploit', () => bear.instanceId]]);
+  check('Exploit: sacrifice the Bears, then draw two', !t.bf(0, 'Grizzly Bears') && t.P(0).deck.hand.length === hand - 1 + 2, JSON.stringify([hand, t.P(0).deck.hand.length]));
+}
+{
+  const t = setup();
+  t.give(0, 'Fog Bank'); const sc = asText(t, t.hand(0, 'Fog Bank'), 'When this Spacecraft enters, draw a card.', { typeLine: 'Artifact — Spacecraft', manaCost: '{U}' });
+  const hand = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: sc.instanceId }, t.as(0)); settle(t);
+  check('"When this Spacecraft enters" fires', t.P(0).deck.hand.length === hand, String(t.P(0).deck.hand.length));
+}
+
 done();

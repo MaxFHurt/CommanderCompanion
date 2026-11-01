@@ -231,7 +231,7 @@ m('Eternalize', 'keyword', 'Exile this card from your graveyard and pay: create 
 m('Evoke', 'keyword', 'Cast for the evoke cost; when it enters, sacrifice it.', { auto: 'auto', tricky: ['Its enters-the-battlefield triggers still happen; you choose the order with the sacrifice trigger.'] });
 m('Evolve', 'keyword', 'Whenever a creature enters under your control with greater power or toughness than this, put a +1/+1 counter on this.', { auto: 'manual', actions: ['counter+'] });
 m('Exalted', 'keyword', 'Whenever a creature you control attacks alone, it gets +1/+1 until end of turn for each instance of exalted you control.', { auto: 'auto', actions: ['pt'] });
-m('Exploit', 'keyword', 'When this enters, you may sacrifice a creature.', { auto: 'manual', actions: ['sacrifice'] });
+m('Exploit', 'keyword', 'When this enters, you may sacrifice a creature.', { auto: 'auto', steps: 'As it enters the game asks which creature (if any) to sacrifice; "when it exploits" triggers follow.', actions: ['sacrifice'] });
 m('Extort', 'keyword', 'Whenever you cast a spell, you may pay {W/B}; if you do, each opponent loses 1 life and you gain that much.', { auto: 'manual', actions: ['life-loss', 'life-gain'] });
 m('Fabricate', 'keyword', 'Fabricate N: when this enters, put N +1/+1 counters on it or create N 1/1 Servo artifact creature tokens.', { auto: 'manual', actions: ['counter+', 'token'] });
 m('Fading', 'keyword', 'Enters with N fade counters; at your upkeep remove one, or sacrifice it if you can\'t.', { auto: 'manual', actions: ['counter-other', 'sacrifice'] });

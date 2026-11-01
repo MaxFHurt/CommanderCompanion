@@ -1122,7 +1122,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', suspend: 'Suspend', soulbond: 'Soulbond', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', suspend: 'Suspend', soulbond: 'Soulbond', exploit: 'Exploit', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1267,6 +1267,15 @@ function runSpecial(game, top, player, ask) {
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId);
     const choice = card ? ask('rebound', () => ({ ...base, kind: 'choose-one', title: `${top.name} — rebound`, definitionId: card.definitionId, prompt: `Cast ${top.name} from exile without paying its mana cost?`, options: [{ id: 'cast', label: 'Cast it free' }, { id: 'no', label: 'Leave it in exile' }] })) : 'none';
     after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; };
+  } else if (special === 'exploit') {
+    const rows = player.deck.battlefield.filter(c => /\bCreature\b/.test(defOf(game, c)?.typeLine || ''))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: c.instanceId === top.sourceId ? 'This creature' : defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    const pick = rows.length ? ask('exploit', () => ({ ...base, kind: 'choose-one', title: `${top.name} — exploit`, prompt: 'You may sacrifice a creature.', options: rows, allowNone: true, noneLabel: 'Don\u2019t sacrifice' })) : null;
+    after = () => {
+      if (!pick || !player.deck.battlefield.some(c => c.instanceId === pick)) return;
+      commit(game, { type: 'move-card', playerId: player.playerId, instanceId: pick, to: 'graveyard', moveReason: 'sacrifice', label: `${player.displayName} exploits ${defOf(game, player.deck.battlefield.find(c => c.instanceId === pick))?.name || 'a creature'}.` });
+      queueTriggers(game, { type: 'exploited', sourceId: top.sourceId, controllerId: player.playerId, playerId: player.playerId, sacrificedId: pick });
+    };
   } else if (special === 'soulbond') {
     // Pair this creature with an unpaired creature you control (the one that entered, or any when it entered itself).
     const me = player.deck.battlefield.find(c => c.instanceId === top.sourceId);

@@ -1984,7 +1984,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   const selfName = String(sourceName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // Every way a card's text names itself: full name, the short name before a comma ("Mondrak"), "this artifact" …
   const shortName = String(sourceName || '').split(',')[0].trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const selfAny = `(?:${selfName}|${shortName}|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|planeswalker))`;
+  const selfAny = `(?:${selfName}|${shortName}|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker))`;
   const selfCounterRe = rx(`^Put (a|an|one|two|three|four|five|\\d+) ([+-]\\d+\\/[+-]\\d+|\\+1\\/\\+1|-1\\/-1|[A-Za-z][A-Za-z -]+) counters? on (?:${selfAny}|it)\\.?$`, 'i');
   if ((m = c.match(selfCounterRe))) {
     // "on it" in a trigger is the event's creature (the one that entered); for its own abilities that is the source.

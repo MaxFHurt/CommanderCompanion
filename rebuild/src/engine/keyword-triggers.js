@@ -47,6 +47,9 @@ export function keywordTriggers(game, row, event) {
     for (let i = 0; i < count; i++)
       add(`exalted-${i}`, 'Exalted — the creature attacking alone gets +1/+1 until end of turn.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'pump', targetId: event.attackers[0], power: 1, toughness: 1, expires: 'cleanup' }] } });
   }
+  // Exploit: when it enters, you may sacrifice a creature (ops.js asks; "when it exploits a creature" triggers follow).
+  if (onField && self && event.type === 'enters-battlefield' && /(?:^|\n)\s*Exploit\b/i.test(strip(d.oracleText)))
+    add('exploit', `Exploit — you may sacrifice a creature.`, '', { special: 'exploit' });
   // Soulbond: when this or another creature you control enters, you may pair them (both unpaired).
   if (onField && event.type === 'enters-battlefield' && /(?:^|\n)\s*Soulbond\b/i.test(strip(d.oracleText)) && !card.pairedWith) {
     const other = event.sourceId !== card.instanceId ? (row.player.deck?.battlefield || []).find(c => c.instanceId === event.sourceId) : null;

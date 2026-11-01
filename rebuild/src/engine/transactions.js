@@ -781,6 +781,7 @@ export function createTransactionEngine(game) {
         else if (!(card.token && action.to !== 'battlefield'))
           target.push(card);
         if (from === 'battlefield' && action.to !== 'battlefield') {
+          if (action.moveReason === 'sacrifice') emit(game, { type: 'sacrificed', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: def?.typeLine || '', token: !!card.token });
           emit(game, { type: 'leaves-battlefield', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, destination: action.to, typeLine: def?.typeLine || '', wasTapped: wasTappedBeforeMove });
           if (action.to === 'graveyard' && /Creature/i.test(def?.typeLine || ''))
             emit(game, { type: 'dies', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: fromController, ownerId: card.ownerId, typeLine: def?.typeLine || '', token: !!card.token, last });
