@@ -699,6 +699,16 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const put = next(1).match(rx(`^Put (?:that card|it) ${DEST_RE} and the rest (on the bottom of your library in a random order|into your graveyard)\\.?$`, 'i'));
     if (put) return { part: { effects: [{ kind: 'reveal-until', filter: m[1].trim(), dest: DEST(put[1]), rest: /graveyard/i.test(put[2]) ? 'graveyard' : 'bottom' }], requirements: [], unsupported: [] }, consumed: 2 };
   }
+  // Sarevok's Tome, Breaching Dragonstorm: "Exile cards from the top of your library until you exile a nonland card. You may cast
+  // that card (it) without paying its mana cost [if that spell's mana value is 8 or less]. [If you don't, put that card into your hand.]"
+  if (/^exile cards from the top of your library until you exile a nonland card\.?$/i.test(c0)) {
+    const cast = next(1).match(/^You may cast (?:that card|it) without paying its mana cost(?: if (?:that|the) spell'?s mana value is (\d+) or less)?\.?$/i);
+    if (cast) {
+      const toHand = /^If you don'?t(?: cast (?:it|that card) this way)?, put (?:that card|it) into your hand\.?$/i.test(next(2));
+      const bind = `exileUntil${i}`;
+      return { part: { effects: [{ kind: 'exile-until-cast', bind, toHand }], requirements: [{ kind: 'exile-until-cast', bind, maxMv: cast[1] ? Number(cast[1]) : null }], unsupported: [] }, consumed: toHand ? 3 : 2 };
+    }
+  }
   // Timetwister family (one sentence with "then", read before the "then" splitter).
   if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
     return { part: { effects: [{ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 }], requirements: [], unsupported: [] }, consumed: 1 };
@@ -838,6 +848,18 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
   const controller = playerById(game, controllerId);
   const emit = e => H.emit(bindings, e);
   const nameOf = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
+  if (effect.kind === 'exile-until-cast') {
+    const r = bindings[effect.bind] || {};
+    const lib = controller.deck.remainingLibrary || [];
+    const n = r.hit ? lib.findIndex(c => c.instanceId === r.hit) + 1 : lib.length;
+    const exiled = lib.slice(0, Math.max(0, n)).map(c => c.instanceId);
+    for (const id of exiled) moveCard(game, id, 'exile', { onEvent: emit });
+    bindings.lastMoved = r.hit ? [r.hit] : [];
+    if (r.hit && r.cast) { game.flow = game.flow || {}; game.flow.freeCast = { playerId: controllerId, instanceId: r.hit }; notes.push(`${controller.displayName} exiles ${exiled.length} card${exiled.length === 1 ? '' : 's'} and casts ${nameOf(r.hit)} without paying its mana cost.`); }
+    else if (r.hit && effect.toHand) { moveCard(game, r.hit, 'hand', { onEvent: emit }); notes.push(`${nameOf(r.hit)} goes to ${controller.displayName}'s hand.`); }
+    else notes.push(r.hit ? `${controller.displayName} exiles ${nameOf(r.hit)} and doesn't cast it.` : `${controller.displayName} finds no nonland card.`);
+    return true;
+  }
   if (effect.kind === 'reveal-until') {
     const lib = controller.deck.remainingLibrary || [];
     const at = lib.findIndex(c => cardFitsWords(definitionFor(game, c), effect.filter));
@@ -2073,6 +2095,15 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'exile-until-cast') {
+    const hit = (player.deck.remainingLibrary || []).find(c => !/\bLand\b/.test(util.defOf(game, c)?.typeLine || ''));
+    const mv = hit ? Number(util.defOf(game, hit)?.manaValue ?? util.defOf(game, hit)?.cmc ?? 0) : 0;
+    const allowed = hit && (req.maxMv == null || mv <= req.maxMv);
+    const nm = hit ? util.defOf(game, hit)?.name : '';
+    const cast = allowed ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — ${nm}`, definitionId: hit.definitionId, prompt: `You exile ${nm}. Cast it without paying its mana cost?`, options: [{ id: 'cast', label: `Cast ${nm} free` }, { id: 'no', label: 'Don\u2019t cast it' }] })) === 'cast' : false;
+    bindings[req.bind] = { hit: hit?.instanceId || null, cast };
     return true;
   }
   if (req.kind === 'their-graveyard-pick') {

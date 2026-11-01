@@ -1525,4 +1525,16 @@ section('round 41: counters from a creature that left, tap or untap');
   check('Tap or untap: the player chose tap', foe.tapped);
 }
 
+section('round 42: exile until a nonland card, cast it free');
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const land = lib.find(c => /Land/.test(def(t, c)?.typeLine || '')), spell = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length);
+  lib.splice(lib.indexOf(land), 1); lib.splice(lib.indexOf(spell), 1); lib.unshift(land, spell);
+  asText(t, spell, 'Each opponent loses 2 life.', { typeLine: 'Sorcery', manaCost: '{7}' });
+  const life = t.P(1).life;
+  cast(t, 'Opt', 'Exile cards from the top of your library until you exile a nonland card. You may cast that card without paying its mana cost.', [[d => /free/i.test(JSON.stringify(d.options || [])), 'cast']]);
+  check('Exile until nonland: the land stays exiled, the spell is cast free', land.zone === 'exile' && t.P(1).life === life - 2 && spell.zone === 'graveyard', JSON.stringify([land.zone, spell.zone, t.P(1).life]));
+}
+
 done();
