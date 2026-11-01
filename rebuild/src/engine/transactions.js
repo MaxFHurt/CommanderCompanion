@@ -209,7 +209,9 @@ else
 function applyTrackedEffects(game, player, effects = [], bindings = {}) {
   const notes = [];
   // One bindings object for the whole package so a later effect can read what an earlier one recorded.
-  const shared = { ...bindings, onEvent: e => emit(game, e) };
+  // resolutionId: events from one resolution, for "one or more … leave your graveyard" (one trigger per batch).
+  const resolutionId = `res:${Date.now()}:${Math.random()}`;
+  const shared = { ...bindings, onEvent: e => emit(game, { ...e, resolutionId }) };
   for (const effect of effects || []) {
     // Legacy Special Move payload remains supported.
     if (effect.kind === 'damage-from-creature') {

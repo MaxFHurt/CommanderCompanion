@@ -118,6 +118,15 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       return undefined;
     case 'zone-change':
       if ((m = t.match(/^When(?:ever)? (.+?) is put into (?:a|your) graveyard from anywhere/i)) && event.to === 'graveyard') return H.subjectEvent(game, row, m[1], event);
+      // "Whenever one or more (creature) cards leave your graveyard (during your turn)": once for each batch.
+      if ((m = t.match(/^Whenever one or more ((?:[a-z]+ )?)cards? leaves? your graveyard( during your turn)?/i))) {
+        if (event.from !== 'graveyard' || event.ownerId !== me) return false;
+        if (m[2] && game.activePlayerId !== me) return false;
+        if (m[1].trim() && !new RegExp(`\\b${m[1].trim()}\\b`, 'i').test(event.typeLine || '')) return false;
+        if (event.resolutionId && row.card.lastLeaveBatch === event.resolutionId) return false;
+        if (event.resolutionId) row.card.lastLeaveBatch = event.resolutionId;
+        return true;
+      }
       return undefined;
     case 'damage-player': case 'combat-damage-player': {
       if (/^Whenever you(?:'re| are) dealt damage/i.test(t)) return event.playerId === me;

@@ -1333,4 +1333,13 @@ section('round 30: Spectacle, Reinforce');
   check('Reinforce: discard it, two +1/+1 counters on the creature', res.ok && bear.counters?.['+1/+1'] === 2 && r.zone === 'graveyard', JSON.stringify([res.error, bear.counters, r.zone]));
 }
 
+section('round 31: cards leaving your graveyard, Class levels, die results');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever one or more cards leave your graveyard, create a 1/1 white Zombie creature token.', { typeLine: 'Enchantment' });
+  t.give(0, 'Grizzly Bears', 'graveyard'); t.give(0, 'Llanowar Elves', 'graveyard');
+  cast(t, 'Opt', 'Exile all cards from target player\'s graveyard.', [[d => d.targeting || /player/i.test(d.prompt || ''), () => t.P(0).playerId]]);
+  check('One or more cards leave your graveyard: one trigger for the batch', t.P(0).deck.battlefield.filter(c => c.token).length === 1, String(t.P(0).deck.battlefield.filter(c => c.token).length));
+}
+
 done();
