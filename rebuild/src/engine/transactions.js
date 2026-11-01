@@ -619,6 +619,16 @@ export function createTransactionEngine(game) {
           card.zone = 'exile';
           deck.exile.push(card);
         }
+        else if (action.kind === 'suspend') {
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'hand')
+            throw new Error('Suspend: the card is no longer in your hand.');
+          hit.a.splice(hit.i, 1);
+          card.zone = 'exile';
+          card.suspended = true;
+          card.counters = { ...(card.counters || {}), time: Number(action.time || 0) };
+          deck.exile.push(card);
+        }
         else if (action.kind === 'unearth') {
           if (locate(deck, card.instanceId)?.z !== 'graveyard')
             throw new Error('Unearth: the card is no longer in the graveyard.');

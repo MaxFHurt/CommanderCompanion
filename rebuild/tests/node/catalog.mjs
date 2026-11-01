@@ -1224,4 +1224,19 @@ section('round 23: Miracle');
   check('Miracle: the first card drawn is cast for its miracle cost', t.P(1).life === life - 3 && t.P(0).deck.graveyard.some(c => c.instanceId === card.instanceId), JSON.stringify([life, t.P(1).life, card.zone]));
 }
 
+section('round 24: Suspend');
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); const c = asText(t, t.hand(0, 'Grizzly Bears'), 'Suspend 2—{G}', { manaCost: '{5}{G}{G}', power: '2', toughness: '2' });
+  const row = t.view(0).players[0].hand.find(x => x.id === c.instanceId)?.abilities?.find(a => /Suspend/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no suspend row' };
+  settle(t);
+  check('Suspend: exiled with 2 time counters', r.ok && c.zone === 'exile' && c.counters?.time === 2, JSON.stringify([r.error, c.zone, c.counters]));
+  t.autoPass = true; t.end(0); t.end(1); settle(t);
+  check('…one counter comes off at your upkeep', c.counters?.time === 1, JSON.stringify(c.counters));
+  t.end(0); t.end(1); settle(t);
+  const bear = t.bf(0, 'Grizzly Bears');
+  check('…and with the last one it is cast for free, with haste', !!bear && has(t, bear, 'Haste'), JSON.stringify([c.zone, c.counters]));
+}
+
 done();

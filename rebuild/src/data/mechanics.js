@@ -314,7 +314,7 @@ m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; 
 m('Storm', 'keyword', 'When you cast this, copy it for each spell cast before it this turn. Copies may choose new targets.', { auto: 'auto' });
 m('Sunburst', 'keyword', 'Enters with a +1/+1 counter (or charge counter if not a creature) for each color of mana spent to cast it.', { auto: 'manual', actions: ['counter+', 'counter-other'] });
 m('Surge', 'keyword', 'You may cast this for its surge cost if you or a teammate cast another spell this turn.', { auto: 'manual' });
-m('Suspend', 'keyword', 'Pay the suspend cost and exile this from your hand with N time counters; remove one each upkeep; when the last is removed, cast it free (creatures get haste).', { auto: 'manual', actions: ['exile', 'counter-other'] });
+m('Suspend', 'keyword', 'Pay the suspend cost and exile this from your hand with N time counters; remove one each upkeep; when the last is removed, cast it free (creatures get haste).', { auto: 'auto', steps: 'Use Suspend from your hand; the game removes a time counter each upkeep and casts it for free (with haste) when the last one goes. Suspend X and cards that give suspend are by hand.', actions: ['exile', 'counter-other'] });
 m('Toxic', 'keyword', 'Toxic N: combat damage this deals to a player also gives them N poison counters.', { auto: 'auto' });
 m('Training', 'keyword', 'Whenever this attacks with another creature with greater power, put a +1/+1 counter on this.', { auto: 'manual', actions: ['counter+'] });
 m('Transfigure', 'keyword', 'Sacrifice this and pay: search for a creature card with the same mana value, put it onto the battlefield.', { auto: 'manual', actions: ['sacrifice', 'search'] });

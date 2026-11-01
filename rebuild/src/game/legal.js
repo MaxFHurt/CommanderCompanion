@@ -121,6 +121,13 @@ export function specialRows(game, player, card, { running = false } = {}) {
     if (cyc) row('cycling', 'Cycling', cyc, [block, !payable(cyc) && 'Not enough mana.']);
     const type = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*((?:Basic )?\w+cycling) ((?:\{[^}]+\})+)/i);
     if (type && !/^Cycling$/i.test(type[1])) row(`typecycling:${type[1]}`, type[1], type[2], [block, !payable(type[2]) && 'Not enough mana.']);
+    // Suspend N—{cost}: exile it with N time counters, whenever it could be cast (sorcery timing unless it has flash).
+    const susp = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Suspend (\d+|X)\s*[—-]\s*((?:\{[^}]+\})+)/i);
+    if (susp && susp[1] !== 'X') {
+      const instant = /\bInstant\b/i.test(def.typeLine || '') || /(?:^|\n)\s*Flash\b/i.test(text);
+      const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+      row(`suspend:${susp[1]}`, `Suspend ${susp[1]}`, susp[2], [block, !instant && !sorcery && 'Only when you could cast a sorcery.', !payable(susp[2]) && 'Not enough mana.']);
+    }
     const fore = keywordCost(text, 'Foretell');
     if (fore) row('foretell', 'Foretell (exile face down)', '{2}', [block, game.activePlayerId !== player.playerId && 'Only during your turn.', !payable('{2}') && 'Not enough mana.']);
     const ninja = keywordCost(text, 'Ninjutsu');

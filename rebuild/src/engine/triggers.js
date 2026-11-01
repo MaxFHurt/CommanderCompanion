@@ -26,6 +26,8 @@ function sourceRows(game, event) {
       if (/(?:when|whenever|at)[\s\S]*if this card is in your graveyard/i.test(String(d?.oracleText || '')))
         rows.push({ player: p, card: c, definition: d, zone: 'graveyard', lastKnown: false });
     }
+    // Suspended cards count down from exile.
+    for (const c of p.deck?.exile || []) if (c.suspended && c.instanceId !== event?.sourceId) rows.push({ player: p, card: c, definition: defFor(game, c), zone: 'exile', lastKnown: false });
   }
   // Last-known information for a source that just left the battlefield / died.
   if (event?.sourceId && !rows.some(r => r.card.instanceId === event.sourceId)) {
@@ -544,7 +546,7 @@ export function collectTriggers(game, event) {
   const out = [];
   const seen = new Set();
   for (const row of sourceRows(game, event))
-    for (const ability of [...parseTriggeredAbilities(row.definition), ...keywordTriggers(game, row, event)]) {
+    for (const ability of [...(row.zone === 'exile' && row.card.suspended && !row.lastKnown ? [] : parseTriggeredAbilities(row.definition)), ...keywordTriggers(game, row, event)]) {
       if (!ability.builtin && !triggerMatches(game, row, ability, event))
         continue;
       const turnKey = `${ability.id}:${Number(game.turnNumber || 0)}`;

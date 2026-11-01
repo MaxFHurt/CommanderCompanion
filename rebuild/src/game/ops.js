@@ -168,7 +168,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -692,6 +692,11 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.search = stack.search || null; top.resolveReqs = []; }
     return;
   }
+  if (kind.startsWith('suspend:')) {
+    const n = Number(kind.slice(8)) || 0;
+    commit(game, { type: 'special-action', kind: 'suspend', time: n, playerId: player.playerId, instanceId: card.instanceId, payment, label: `${player.displayName} suspends ${def.name} with ${n} time counter${n === 1 ? '' : 's'}.` });
+    return;
+  }
   if (kind === 'level-up') {
     const stack = { id: newId('stack'), label: `${def.name} — level up`, text: 'Put a level counter on this.', effects: [{ kind: 'counter', bind: 'sourceId', counter: 'level', amount: 1 }] };
     commit(game, { type: 'special-action', kind: 'level-up', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} levels up ${def.name}.` });
@@ -1023,6 +1028,8 @@ function runResolve(game, op, ask) {
     } else if (top.attachTo) attach(game, card.instanceId, top.attachTo);
     const text = String(cardDef.oracleText || '');
     card.counters = card.counters || {};
+    // Cast from suspend: a creature has haste (as long as you control it).
+    if (card.suspendCast) { delete card.suspendCast; delete card.suspended; card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }]; }
     if (['dash', 'blitz'].includes(top.castMode)) {
       card.temporaryEffects = card.temporaryEffects || [];
       card.temporaryEffects.push({ kind: 'keyword', keyword: 'Haste', enabled: true, expires: 'cleanup' });
@@ -1089,7 +1096,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', suspend: 'Suspend', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1234,6 +1241,16 @@ function runSpecial(game, top, player, ask) {
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId);
     const choice = card ? ask('rebound', () => ({ ...base, kind: 'choose-one', title: `${top.name} — rebound`, definitionId: card.definitionId, prompt: `Cast ${top.name} from exile without paying its mana cost?`, options: [{ id: 'cast', label: 'Cast it free' }, { id: 'no', label: 'Leave it in exile' }] })) : 'none';
     after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; };
+  } else if (special === 'suspend') {
+    // Suspend: remove a time counter; when the last is removed, cast it without paying its mana cost (a creature gains haste).
+    const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId && c.suspended);
+    after = () => {
+      if (!card) return;
+      card.counters = card.counters || {};
+      card.counters.time = Math.max(0, Number(card.counters.time || 0) - 1);
+      log(game, `${top.name}: a time counter is removed (${card.counters.time} left).`);
+      if (card.counters.time === 0) { delete card.counters.time; card.suspendCast = true; game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; }
+    };
   } else if (special === 'miracle') {
     // Miracle: the card just drawn may be revealed and cast now for its miracle cost.
     const card = (player.deck.hand || []).find(c => c.instanceId === top.sourceId);

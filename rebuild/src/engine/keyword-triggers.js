@@ -47,6 +47,9 @@ export function keywordTriggers(game, row, event) {
     for (let i = 0; i < count; i++)
       add(`exalted-${i}`, 'Exalted — the creature attacking alone gets +1/+1 until end of turn.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'pump', targetId: event.attackers[0], power: 1, toughness: 1, expires: 'cleanup' }] } });
   }
+  // Suspend: at the beginning of its owner's upkeep, remove a time counter (ops.js casts it when the last one goes).
+  if (row.zone === 'exile' && card.suspended && event.type === 'upkeep' && event.playerId === row.player.playerId && Number(card.counters?.time || 0) > 0)
+    add('suspend', `Suspend — remove a time counter from ${d.name}.`, '', { special: 'suspend' });
   // Miracle: the first card drawn this turn may be revealed and cast for its miracle cost.
   const miracle = self && event.type === 'draw' && row.zone === 'hand' && Number(event.drawNumberThisTurn) === 1 && strip(d.oracleText).match(/(?:^|\n)\s*Miracle ((?:\{[^}]+\})+)/i);
   if (miracle) add('miracle', `Miracle — you may cast ${d.name} for ${miracle[1]}.`, '', { special: 'miracle', madnessCost: miracle[1] });
