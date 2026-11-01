@@ -61,7 +61,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
   (64%) run by themselves. Build 44 (1 Nov): the whole-catalog card work (section 3, "Whole-catalog card work"): 914 of the
   1,000 most-played cards and about 63% of all Commander cards run by themselves, plus Saddle, Encore, Miracle, Suspend, Plot,
   Boast, Improvise, Emerge, Spectacle, Reinforce, Soulbond, Exploit, stun counters and alternative costs. Build 43 (another
-  session): Deck Builder daily prices. Build 42 (31 Oct): on iPhone the screens fill the frame and sit centered in it (section 8). Build 40 (another session):
+  session): Deck Builder daily prices. Build 42 (31 Oct): on iPhone the screens fill the frame and sit centered in it (section 7). Build 40 (another session):
   Deck Builder 0.9.25. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md), Deck Builder power as a
   share of the Apex build. The old standalone Deck Companion (MaxFHurt/Deck-Companion) only forwards to the Deck Builder; the
   owner chose (31 Oct) to keep that repo as it is: its card-data branch (combo list, refreshed weekly by its workflow) and
@@ -376,17 +376,7 @@ mechanics are in `tests/fixtures/lab-cards.mjs` (the `lab` deck).
 Stylesheet: `node tools/css-clean.mjs [--write]` removes unused selectors and always-overridden
 declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-identical on 32 screens).
 
-## 7. Notes from the owner (recorded, not built)
-
-- **No new features until the weekly usage reset.** Take notes only.
-- **QR pairing:** let two devices in the same place connect by scanning QR codes (e.g. two iPads
-  with no cell service). Room codes over the internet stay the main option for players who are not
-  together.
-- **Phone hotspot as host:** the hotspot only provides local Wi-Fi; the QR codes carry the WebRTC
-  offer/answer so no internet signaling server (PeerJS cloud) is needed; game traffic goes device
-  to device over that Wi-Fi. Any device (the phone or an iPad) can be the host.
-
-## 8. Known issues and limits
+## 7. Known issues and limits
 
 - Online games: hands are hidden on screen, but each device holds the whole game (it runs the rules), so
   someone reading the app's data with developer tools could see other hands. Fine between friends.
@@ -417,7 +407,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 - `styles/app.css` still has appended override sections (16–32); folding them into their base
   rules is optional cleanup (verify with `style_diff.py`).
 
-## 9. Roadmap
+## 8. Roadmap
 
 **Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (785 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
@@ -425,9 +415,11 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 2. Extra mana when tapping: done (build 43 same type, build 49 other colours and any colour).
 3. Rare trigger wordings (Class levels, "from anywhere", Kutzil, Trouble in Pairs).
 
-**Next (after the weekly usage reset, when the owner says go)**
+**Next (owner, 1 Nov: go)**
 1. QR pairing for local multiplayer (two-step scan: host offer → joiner answer), working over a
-   phone or iPad hotspot without internet. Keep room codes for remote play.
+   phone or iPad hotspot without internet. Keep room codes for remote play. The hotspot only provides local Wi-Fi; the QR
+   codes carry the WebRTC offer/answer so no internet signaling server (PeerJS cloud) is needed; game traffic goes device
+   to device over that Wi-Fi. Any device (the phone or an iPad) can be the host.
 2. Make sure the whole app and saved decks/card images work offline after the first launch.
 
 **Needs the owner's real devices**
