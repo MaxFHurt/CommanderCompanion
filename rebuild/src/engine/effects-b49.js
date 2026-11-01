@@ -298,6 +298,16 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       return { part: { effects: [{ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'cast-copy', bind: earlier?.bind || 'lastMoved' }], requirements: [{ kind: 'yes-no', bind, label: 'Cast the copies without paying their mana costs?' }], unsupported: [] }, consumed: 1 };
     }
   }
+  // Sword of Hearth and Home: "exile up to one target creature you own, then search your library for a basic land card. Put both cards onto the battlefield under your control, then shuffle."
+  if (/^exile up to one target creature you own, then search your library for a basic land card\.?$/i.test(c0) && /^Put both cards onto the battlefield under your control, then shuffle\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const requirements = [];
+    const bind = H.targetRequirement(requirements, 'target creature you own', 'up to one target creature you own', { optional: true });
+    requirements.push({ kind: 'library-search', bind: `search${i}`, text: 'Search your library for a basic land card, put it onto the battlefield, then shuffle.' });
+    return { part: { effects: [{ kind: 'hearth-and-home', bind, searchBind: `search${i}` }], requirements, unsupported: [] }, consumed: 2 };
+  }
+  // Myr Battlesphere: "you may tap X untapped Myr you control. If you do, this creature gets +X/+0 until end of turn and deals X damage to the player or planeswalker it's attacking."
+  if ((m = c0.match(/^(?:you may )?tap X untapped ([A-Z][a-z]+) you control\.?$/)) && /^If you do, (?:this creature|SELFNAME|.+?) gets \+X\/\+0 until end of turn and deals X damage to the player or planeswalker it'?s attacking\.?$/i.test(String(clauses[i + 1] || '')))
+    return { part: { effects: [{ kind: 'battlesphere', bind: `tapX${i}` }], requirements: [{ kind: 'b49-tap-x', bind: `tapX${i}`, type: m[1] }], unsupported: [] }, consumed: 2 };
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -568,6 +578,26 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} exiles ${ids.length} card${ids.length === 1 ? '' : 's'} from their graveyard.`);
       return true;
     }
+    case 'hearth-and-home': {
+      const emit = e => H.emit(bindings, e);
+      const id = H.resolveBoundId(effect, bindings), hit = id && locateCardInGame(game, id);
+      const land = [].concat(bindings[effect.searchBind] || [])[0];
+      if (hit?.zone === 'battlefield') { moveCard(game, id, 'exile', { onEvent: emit }); moveCard(game, id, 'battlefield', { controllerId, onEvent: emit }); notes.push(`${nameOf(game, id)} is exiled and returns under ${controller.displayName}'s control.`); }
+      if (land && ['library', 'remainingLibrary'].includes(locateCardInGame(game, land)?.zone)) { moveCard(game, land, 'battlefield', { controllerId, onEvent: emit }); notes.push(`${controller.displayName} puts ${nameOf(game, land)} onto the battlefield.`); }
+      H.shuffle(controller.deck.remainingLibrary);
+      return true;
+    }
+    case 'battlesphere': {
+      const ids = [].concat(bindings[effect.bind] || []).filter(id => locateCardInGame(game, id)?.zone === 'battlefield' && !locateCardInGame(game, id).card.tapped);
+      if (!ids.length) { notes.push('No creatures are tapped.'); return true; }
+      for (const id of ids) H.setTapped(locateCardInGame(game, id).card, true);
+      const x = ids.length;
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'pump', bind: 'sourceId', power: x, toughness: 0, expires: 'cleanup' }], bindings));
+      const atk = (game.combatState?.attackers || []).find(a => a.instanceId === bindings.sourceId);
+      const victim = atk ? (atk.targetId || atk.defenderId) : null;
+      if (victim) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: x, targetId: victim, sourceName: nameOf(game, bindings.sourceId) }], bindings));
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -736,6 +766,11 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
       if (v === 'take') { take = c.instanceId; break; }
     }
     bindings[req.bind] = { count, take };
+    return true;
+  }
+  if (req.kind === 'b49-tap-x') {
+    const rows = (player.deck.battlefield || []).filter(c => !c.tapped && c.instanceId !== bindings.sourceId && new RegExp(`\\b${req.type}\\b`).test(util.defOf(game, c)?.typeLine || ''));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Tap any number of untapped ${req.type} you control (X is the number tapped).`, options: rows.map(c => util.cardOption(game, c, player)), min: 0, max: rows.length })) : [];
     return true;
   }
   if (req.kind === 'b49-hand-pick') {

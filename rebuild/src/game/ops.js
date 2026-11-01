@@ -773,7 +773,10 @@ function runActivate(game, op, ask) {
   }
 
   let compiled = { effects: [], requirements: [] }, guided = null, search = null, optional = false;
-  if (/search your library/i.test(effectText)) {
+  // A search that is only part of the ability (Sword of Hearth and Home: exile, then search) runs as compiled effects.
+  const whole = /search your library/i.test(effectText) && !/^(?:you may )?search your library/i.test(effectText) ? compileFor(effectText, def.name) : null;
+  if (whole?.compiled.supported) { compiled = whole.compiled; optional = whole.optional; }
+  else if (/search your library/i.test(effectText)) {
     search = librarySearchSpec(effectText);
     if (!search) guided = guidedSpec(`${def.name} — resolve by hand`, effectText, [effectText]);
   } else {

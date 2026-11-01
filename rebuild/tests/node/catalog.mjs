@@ -2086,4 +2086,25 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check("Mizzix's Mastery: the exiled Divination is copied and cast (two draws)", t.P(0).deck.hand.length === hand + 2 && t.names(0, 'exile').includes('Divination'), String(t.P(0).deck.hand.length - hand));
 }
 
+{
+  const t = setup();
+  const bs = onField(t, 'Colossal Dreadmaw', 'Whenever this creature attacks, you may tap X untapped Myr you control. If you do, this creature gets +X/+0 until end of turn and deals X damage to the player or planeswalker it\'s attacking.', { typeLine: 'Artifact Creature — Myr Construct', power: '4', toughness: '7' });
+  const m1 = onField(t, 'Grizzly Bears', '', { typeLine: 'Artifact Creature — Myr' }), m2 = onField(t, 'Llanowar Elves', '', { typeLine: 'Artifact Creature — Myr' });
+  const life = t.P(1).life;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bs.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t, [[d => d.kind === 'confirm', true], [d => /untapped Myr/.test(d.prompt || ''), [m1.instanceId, m2.instanceId]]]);
+  check('Myr Battlesphere: two Myr tapped: +2/+0 and 2 damage to the defending player (then 6 combat damage)', m1.tapped && m2.tapped && power(t, bs) === 6 && t.P(1).life === life - 8, JSON.stringify([power(t, bs), life - t.P(1).life]));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Sol Ring', 'battlefield');
+  const sw = asText(t, t.bf(0, 'Sol Ring'), '{0}: Exile up to one target creature you own, then search your library for a basic land card. Put both cards onto the battlefield under your control, then shuffle.');
+  const wilds = t.P(0).deck.remainingLibrary.find(c => def(t, c).name === 'Evolving Wilds'); asText(t, wilds, '{T}: Add {G}.', { typeLine: 'Basic Land — Forest' });
+  const lands = t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine)).length;
+  const swSeen = activate(t, sw, 0, [[d => d.targeting, () => bear.instanceId], [d => d.searchable, [wilds.instanceId]]]);
+  check('Sword of Hearth and Home: the creature blinks and a basic land enters', t.names(0, 'battlefield').includes('Grizzly Bears') && t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine)).length === lands + 1, JSON.stringify((t.game.log || []).slice(0, 6).map(x => x.text || x)));
+}
+
 done();
