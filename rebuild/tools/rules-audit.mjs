@@ -34,7 +34,8 @@ function staticVerdict(line, def) {
   // read by combat.js conditionalSelf for these conditions.
   const cond = text.replace(/\([^()]*\)/g, '').trim().match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?(?:This creature|~|[A-Z][^ ]*(?: [A-Z][^ ]*)*) (?:gets [+-]\d+\/[+-]\d+(?: and has [a-z ,]+?)?|has [a-z ,]+?) as long as (.+?)\.?$/);
   if (cond && /^(there are \w+ or more cards in your graveyard|there are \w+ or more card types among cards in your graveyard|you control \w+ or more (?:artifacts|creatures|enchantments|lands)|you have no cards in hand)$/i.test(cond[1])) return 'auto';
-  const words = text.split(/\s*,\s*/);
+  // Reminder text is not rules text: "Encore {3}{R} (… create a token copy …)" is the keyword Encore, not "create".
+  const words = text.replace(/\([^()]*\)/g, '').trim().split(/\s*,\s*/);
   const terms = words.map(w => KEYWORDS.find(k => new RegExp(`^${k.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(w)));
   if (terms.every(Boolean)) {
     const worst = terms.some(t => t.automation === 'manual') ? 'manual' : terms.some(t => t.automation === 'partial') ? 'partial' : 'auto';
