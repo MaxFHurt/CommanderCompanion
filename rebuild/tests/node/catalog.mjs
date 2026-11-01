@@ -1455,4 +1455,26 @@ section('round 37: "Choose target …" then "that creature" / "those creatures"'
   check('Choose target creature, then counters on that creature', bear.counters?.['+1/+1'] === 4);
 }
 
+section('round 38: tapped tokens, half life, owner\'s top-or-bottom, can\'t block this creature');
+{
+  const t = setup();
+  cast(t, 'Opt', 'Create a tapped 2/2 black Zombie creature token.');
+  const tok = t.P(0).deck.battlefield.find(c => c.token);
+  check('Tapped token', !!tok && tok.tapped);
+}
+{
+  const t = setup();
+  t.P(1).life = 25;
+  cast(t, 'Opt', 'Target opponent loses half their life, rounded up.', [[d => d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
+  check('Half their life, rounded up (25 → 12)', t.P(1).life === 12, String(t.P(1).life));
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  let asked = null;
+  cast(t, 'Opt', 'Target creature\'s owner puts it on their choice of the top or bottom of their library.', [[d => d.targeting, () => foe.instanceId], [d => d.options?.some(o => o.id === 'bottom'), d => { asked = d.playerId; return 'bottom'; }]]);
+  const lib = t.P(1).deck.remainingLibrary;
+  check('Dire Downdraft: the owner chooses; it goes to the bottom', asked === t.P(1).playerId && lib[lib.length - 1]?.instanceId === foe.instanceId, String(asked));
+}
+
 done();

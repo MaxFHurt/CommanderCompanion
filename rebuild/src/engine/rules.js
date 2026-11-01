@@ -497,6 +497,9 @@ export function validateBlock({ blocker, definition, attackerDefinition, attacke
     reasons.push('Fear: only artifact or black creatures can block it.');
   if (instanceKeyword(attacker, attackerDefinition, 'Intimidate') && !blockerArtifact && !blockerColors.some(c => (attackerDefinition?.colors || []).includes(c)))
     reasons.push('Intimidate: only artifact creatures or creatures sharing a color can block it.');
+  // "Target creature can't block this creature this turn."
+  if ((blocker?.temporaryEffects || []).some(e => e?.kind === 'cant-block-creature' && e.creatureId === attacker?.instanceId))
+    reasons.push('It can\u2019t block that creature this turn.');
   // Skulk: can't be blocked by creatures with greater power. Unleash: a creature with a +1/+1 counter can't block.
   if (instanceKeyword(attacker, attackerDefinition, 'Skulk') && Number(definition?.power || 0) + Number(blocker?.counters?.['+1/+1'] || 0) - Number(blocker?.counters?.['-1/-1'] || 0) > Number(attackerDefinition?.power || 0) + Number(attacker?.counters?.['+1/+1'] || 0) - Number(attacker?.counters?.['-1/-1'] || 0))
     reasons.push('Skulk: creatures with greater power can\u2019t block it.');

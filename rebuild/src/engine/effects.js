@@ -316,6 +316,11 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return greatestStat(game, controllerId, 'power', amount.filter || 'creature');
   if (amount.kind === 'greatest-toughness')
     return greatestStat(game, controllerId, 'toughness', amount.filter || 'creature');
+  if (amount.kind === 'half-life') {
+    const p = game.players.find(x => x.playerId === (bindings[amount.playerBind] || amount.playerId || controllerId));
+    const life = Math.max(0, Number(p?.life || 0));
+    return amount.roundUp ? Math.ceil(life / 2) : Math.floor(life / 2);
+  }
   if (amount.kind === 'bound-power') {
     const hit = locateCardInGame(game, bindings[amount.bind]);
     return hit ? Math.max(0, effectivePower(hit.card, definitionFor(game, hit.card), game)) : 0;

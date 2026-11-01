@@ -279,6 +279,31 @@ function compileCatalogClauseInner(c, ctx) {
   }
   // "Then those creatures fight each other." (the two creatures targeted)
   if (/^(?:Then )?those creatures fight each other\.?$/i.test(c)) { effects.push({ kind: 'fight', sourceBind: 'firstTarget', targetBind: 'secondTarget' }); return true; }
+  // "create a tapped 2/2 black Zombie creature token" — the same token, entering tapped.
+  if ((m = c.match(/^(?:you )?create (a|an|one|two|three|four|five|\d+|X) tapped (.+? tokens?(?: with .+)?)\.?$/i)) && !/attacking/i.test(c)) {
+    const inner = H.compileSingleClause(ctx.restore(`Create ${m[1]} ${m[2]}.`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length && inner.effects.every(e => e.kind === 'create-token')) { effects.push(...inner.effects.map(e => ({ ...e, tapped: true }))); requirements.push(...inner.requirements); return true; }
+  }
+  // "that player loses half their life, rounded up." / "Each opponent loses half their life, rounded down."
+  if ((m = c.match(/^(that player|target player|target opponent|you) loses? half (?:their|your) life, rounded (up|down)\.?$/i))) {
+    const playerBind = /^target/i.test(m[1]) ? H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]) : /^you$/i.test(m[1]) ? null : 'eventPlayer';
+    effects.push({ kind: 'life', scope: 'you', amount: { kind: 'half-life', playerBind, roundUp: /up/i.test(m[2]) }, deltaSign: -1, ...(playerBind ? { forPlayerBind: playerBind } : {}) });
+    return true;
+  }
+  // "Target creature can't block this creature this turn."
+  if (rx(`^Target creature can'?t block (?:${selfAny}|this creature) this turn\\.?$`, 'i').test(c)) {
+    const bind = H.targetRequirement(requirements, 'target creature', 'target creature');
+    effects.push({ kind: 'cant-block-source', bind });
+    return true;
+  }
+  // Dire Downdraft: "Target creature's owner puts it on their choice of the top or bottom of their library." (the owner chooses)
+  if (/^Target (creature|nonland permanent|permanent|artifact|creature or planeswalker)'s owner puts it on their choice of the top or bottom of their library\.?$/i.test(c)) {
+    const bind = H.targetRequirement(requirements, `target ${c.match(/^Target (.+?)'s/i)[1].toLowerCase()}`, 'target');
+    const where = `place${requirements.length}`;
+    requirements.push({ kind: 'owner-top-bottom', bind: where, targetBind: bind });
+    effects.push({ kind: 'to-library', bind, positionBind: where });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1817,6 +1842,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       return true;
     }
     case 'to-library': {
+      if (effect.positionBind) effect = { ...effect, position: bindings[effect.positionBind] === 'bottom' ? 'bottom' : 'top' };
       for (const id of ids()) {
         const hit = locateCardInGame(game, id);
         if (!hit || !['battlefield', 'graveyard', 'hand', 'exile'].includes(hit.zone)) continue;
@@ -1868,6 +1894,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       hit.card.saddledTurn = game.turnNumber;
       hit.card.saddledBy = [...(effect.ids || [])];
       notes.push(`${name(hit.card)} is saddled until end of turn.`);
+      return true;
+    }
+    case 'cant-block-source': {
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      if (!hit) return true;
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'cant-block-creature', creatureId: bindings.sourceId, expires: 'cleanup' }];
+      notes.push(`${name(hit.card)} can't block ${name(locateCardInGame(game, bindings.sourceId)?.card)} this turn.`);
       return true;
     }
     case 'switch-pt': {
@@ -1966,6 +1999,12 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'owner-top-bottom') {
+    const hit = locateCardInGame(game, bindings[req.targetBind]);
+    const owner = hit && (game.players || []).find(p => p.playerId === hit.card.ownerId);
+    bindings[req.bind] = owner ? ask(key, () => ({ ...base, playerId: owner.playerId, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName}`, prompt: `Put ${util.defOf(game, hit.card)?.name || 'it'} on the top or the bottom of your library?`, options: [{ id: 'top', label: 'On top' }, { id: 'bottom', label: 'On the bottom' }] })) : 'top';
     return true;
   }
   if (req.kind === 'clash') {
