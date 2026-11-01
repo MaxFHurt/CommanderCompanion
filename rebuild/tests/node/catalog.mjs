@@ -2584,4 +2584,19 @@ section('round 51: the last top-1,000 cards');
   check('Inkshield: 3 combat damage prevented, three 2/1 Inklings', r.ok && t.P(0).life === 40 && inklings.length === 3, JSON.stringify([r.error, t.P(0).life, inklings.length]));
 }
 
+{
+  const t = setup();
+  t.give(1, 'Opt'); const foeSpell = t.hand(1, 'Opt');
+  const st = { id: 'trick-target', kind: 'spell', controllerId: t.P(1).playerId, card: foeSpell, label: 'Opt' };
+  t.P(1).deck.hand.splice(t.P(1).deck.hand.indexOf(foeSpell), 1); foeSpell.zone = 'stack';
+  t.game.stack = [st];
+  const lib = t.P(1).deck.remainingLibrary.length;
+  t.give(0, 'Counterspell'); const tt = asText(t, t.hand(0, 'Counterspell'), "Counter target spell. Choose 1, 2, or 3 at random. Its controller mills that many cards, then exiles cards from the top of their library until they exile a nonland card with a different name than that spell. They may cast that card without paying its mana cost. Then they put the exiled cards on the bottom of their library in a random order.", { manaCost: '{U}' });
+  t.ctl.dispatch({ type: 'play', instanceId: tt.instanceId }, t.as(0));
+  const seen = settle(t, [[d => d.targeting, () => 'trick-target'], [d => d.playerId === t.P(1).playerId && /Cast it without/.test(d.prompt || ''), 'no']]);
+  const milled = t.P(1).deck.graveyard.length - 1;   // the countered Opt is there too
+  check("Tibalt's Trickery: the spell is countered, its controller mills 1-3 and is asked about the card found", t.names(1, 'graveyard').includes('Opt') && milled >= 1 && milled <= 3 && seen.some(d => d.playerId === t.P(1).playerId) && t.P(1).deck.remainingLibrary.length === lib - milled, JSON.stringify([milled, t.P(1).deck.remainingLibrary.length - lib]));
+  t.game.stack = [];
+}
+
 done();

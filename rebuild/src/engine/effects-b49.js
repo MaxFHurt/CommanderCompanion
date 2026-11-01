@@ -448,6 +448,17 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const make = ok(tok) && tok.effects.find(e => e.kind === 'create-token');
     if (make) return { part: { effects: [{ kind: 'prevent-combat-tokens', token: make }], requirements: [], unsupported: [] }, consumed: 2 };
   }
+  // Tibalt's Trickery: "Choose 1, 2, or 3 at random. Its controller mills that many cards, then exiles cards from the top of their library until
+  // they exile a nonland card with a different name than that spell. They may cast that card without paying its mana cost. Then they put the
+  // exiled cards on the bottom of their library in a random order."
+  if (/^Choose 1, 2, or 3 at random\.?$/i.test(c0) && /^Its controller mills that many cards, then exiles cards from the top of their library until they exile a nonland card with a different name than that spell\.?$/i.test(String(clauses[i + 1] || '')) && /^They may cast that card without paying its mana cost\.?$/i.test(String(clauses[i + 2] || '')) && /^Then they put the exiled cards on the bottom of their library in a random order\.?$/i.test(String(clauses[i + 3] || ''))) {
+    const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'stack-target');
+    const counter = parts.find(p => p.requirements?.includes(earlier));
+    if (earlier && counter) {
+      counter.effects.unshift({ kind: 'remember-spell', bind: earlier.bind, as: `trick${i}spell` });
+      return { part: { effects: [{ kind: 'trickery', bind: `trick${i}`, spell: `trick${i}spell` }], requirements: [{ kind: 'b49-trickery', bind: `trick${i}`, stackBind: earlier.bind }], unsupported: [] }, consumed: 4 };
+    }
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -955,6 +966,28 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       game.combatPrevention = [...(game.combatPrevention || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, scope: 'you', playerId: controllerId, cardId: null, tokenPerDamage: effect.token }];
       notes.push(`Combat damage to ${controller.displayName} is prevented this turn; each 1 prevented makes a token.`);
       return true;
+    case 'remember-spell': {
+      const obj = (game.stack || []).find(x => x.id === bindings[effect.bind]);
+      if (obj) bindings[effect.as] = { controllerId: obj.controllerId, name: definitionFor(game, obj.card)?.name || '' };
+      return true;
+    }
+    case 'trickery': {
+      const plan = bindings[effect.bind] || {}, who = playerById(game, plan.playerId);
+      if (!who) return true;
+      const emit = e => H.emit(bindings, e), lib = who.deck.remainingLibrary;
+      const milled = lib.splice(0, Math.min(plan.mill || 0, lib.length));
+      for (const c of milled) { c.zone = 'graveyard'; who.deck.graveyard.push(c); emit({ type: 'mill', playerId: who.playerId, sourceId: c.instanceId, definitionId: c.definitionId, amount: 1 }); }
+      const k = plan.hit ? lib.findIndex(c => c.instanceId === plan.hit) : -1;
+      const exiled = k >= 0 ? lib.splice(0, k + 1) : lib.splice(0, lib.length);
+      for (const c of exiled) { c.zone = 'exile'; who.deck.exile.push(c); }
+      const hit = exiled.find(c => c.instanceId === plan.hit);
+      const rest = exiled.filter(c => c !== hit || !plan.cast);
+      for (const c of rest) { const at = who.deck.exile.indexOf(c); if (at >= 0) who.deck.exile.splice(at, 1); c.zone = 'library'; }
+      H.shuffle(rest); lib.push(...rest);
+      if (hit && plan.cast) queueFreeCast(game, { playerId: who.playerId, instanceId: hit.instanceId });
+      notes.push(`${who.displayName} mills ${milled.length}, exiles down to ${hit ? nameOf(game, hit.instanceId) : 'nothing'}${hit && plan.cast ? ' and casts it free' : ''}; the rest go to the bottom.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1239,6 +1272,17 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
   if (req.kind === 'b49-peek-pick') {
     const top = (player.deck.remainingLibrary || []).slice(0, Number(req.amount || 0));
     bindings[req.bind] = top.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title, prompt: req.label, options: top.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
+    return true;
+  }
+  if (req.kind === 'b49-trickery') {
+    // 1, 2 or 3 at random; the spell's controller decides whether to cast the card found (the cards are known now).
+    const obj = (game.stack || []).find(x => x.id === bindings[req.stackBind]);
+    const p = obj && playerById(game, obj.controllerId);
+    if (!p) { bindings[req.bind] = {}; return true; }
+    const n = 1 + ([...String(bindings.selfStackId || obj.id)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 3), name = util.defOf(game, obj.card)?.name || '';
+    const hit = (p.deck.remainingLibrary || []).slice(n).find(c => !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '') && util.defOf(game, c)?.name !== name);
+    const cast = hit ? ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: `${n} chosen at random: you mill ${n}, then find ${util.defOf(game, hit)?.name}. Cast it without paying its mana cost?`, options: [{ id: 'yes', label: `Cast ${util.defOf(game, hit)?.name}` }, { id: 'no', label: 'Don’t cast' }] })) === 'yes' : false;
+    bindings[req.bind] = { playerId: p.playerId, mill: n, hit: hit?.instanceId || null, cast };
     return true;
   }
   if (req.kind === 'b49-hand-pick') {
