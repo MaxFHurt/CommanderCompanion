@@ -246,6 +246,21 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'sacrifice-many', scope: 'you', amount: 1, filter: `permanent|subtype:${m[1]}`, bind });
     return true;
   }
+  // Bribery, Praetor's Grasp, Jester's Cap: "Search target opponent's library for a creature card and put that card onto the
+  // battlefield under your control." / "… and exile it (face down)." — the searcher picks from that library as it resolves.
+  if ((m = c.match(/^Search (target opponent's|target player's|that player's|its controller's) library for (a|an|up to one|up to two|up to three|two|three) ([a-z ,]*?)cards? and (put (?:that card|it|them|those cards) onto the battlefield under your control|exile (?:it|them|those cards)(?: face down)?|put (?:it|them|those cards) into (?:their|its owner's|that player's) graveyard)\.?$/i))) {
+    const playerBind = /^target/i.test(m[1]) ? H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1].replace(/'s$/, '')) : /controller/i.test(m[1]) ? '__thatController' : 'eventPlayer';
+    const n = /one|^a|^an/i.test(m[2]) ? 1 : num(m[2].replace(/^up to /i, ''));
+    const bind = `theirLib${requirements.length}`;
+    const to = /battlefield/i.test(m[4]) ? 'battlefield' : /exile/i.test(m[4]) ? 'exile' : 'graveyard';
+    requirements.push({ kind: 'their-library-pick', bind, playerBind, filter: m[3].trim(), max: n, label: `${m[2]} ${m[3]}card${n === 1 ? '' : 's'}` });
+    effects.push({ kind: 'their-library-move', bind, playerBind, to });
+    return true;
+  }
+  if (/^Then that player shuffles\.?$/i.test(c) || /^That player shuffles\.?$/i.test(c)) { effects.push({ kind: 'shuffle-their', playerBind: 'lastSearchedPlayer' }); return true; }
+  // "You may play that card for as long as it remains exiled." / "Until end of turn, you may play that card."
+  if (/^You may (?:play|cast) (?:that card|it|those cards|them)(?: this turn)? for as long as (?:it|they) remains? exiled\.?$/i.test(c)) { effects.push({ kind: 'permit-recent', until: 'forever', castOnly: /cast/i.test(c) }); return true; }
+  if (/^Until end of turn, you may (?:play|cast) (?:that card|it|those cards|them)\.?$/i.test(c)) { effects.push({ kind: 'permit-recent', until: 'turn', castOnly: /cast/i.test(c) }); return true; }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1472,6 +1487,35 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${obj.label || 'The spell'} has new targets.`);
       return true;
     }
+    case 'their-library-move': {
+      const who = playerById(game, bindings[effect.playerBind]) || controller;
+      bindings.lastSearchedPlayer = who.playerId;
+      const ids = [].concat(bindings[effect.bind] || []);
+      bindings.lastMoved = [];
+      for (const id of ids) {
+        const i = who.deck.remainingLibrary.findIndex(c => c.instanceId === id);
+        if (i < 0) continue;
+        moveCard(game, id, effect.to, { controllerId: effect.to === 'battlefield' ? controllerId : null, onEvent: emit });
+        bindings.lastMoved.push(id);
+        notes.push(`${name(locateCardInGame(game, id)?.card)} ${effect.to === 'battlefield' ? `enters under ${controller.displayName}'s control` : effect.to === 'exile' ? 'is exiled' : 'is put into the graveyard'}.`);
+      }
+      if (!ids.length) notes.push(`${controller.displayName} finds nothing in ${who.displayName}'s library.`);
+      emit({ type: 'library-searched', playerId: controllerId, controllerId, ownerId: who.playerId });
+      return true;
+    }
+    case 'shuffle-their': {
+      const who = playerById(game, bindings[effect.playerBind] || bindings.eventPlayer);
+      if (who) { H.shuffle(who.deck.remainingLibrary); notes.push(`${who.displayName} shuffles their library.`); }
+      return true;
+    }
+    case 'permit-recent': {
+      for (const id of bindings.lastMoved || []) {
+        const hit = locateCardInGame(game, id);
+        if (hit?.zone === 'exile') hit.card.playPermission = { playerId: controllerId, until: effect.until, grantedTurn: game.turnNumber, castOnly: !!effect.castOnly, free: false };
+      }
+      notes.push(`${controller.displayName} may play ${(bindings.lastMoved || []).length === 1 ? 'that card' : 'those cards'}${effect.until === 'turn' ? ' this turn' : ' while it stays exiled'}.`);
+      return true;
+    }
     case 'cast-from-graveyard': {
       const id = [].concat(bindings[effect.bind] || [])[0];
       const hit = id && locateCardInGame(game, id);
@@ -1891,6 +1935,12 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'their-library-pick') {
+    const who = (game.players || []).find(p => p.playerId === bindings[req.playerBind]) || player;
+    const rows = (who.deck.remainingLibrary || []).filter(c => cardFitsWords(util.defOf(game, c), req.filter));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, searchable: true, title: `${ctx.sourceName} — search ${who.displayName}'s library`, prompt: `Choose ${req.label} (you may find nothing).`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max: Math.min(req.max || 1, rows.length) })) : [];
     return true;
   }
   if (req.kind === 'distribute') {

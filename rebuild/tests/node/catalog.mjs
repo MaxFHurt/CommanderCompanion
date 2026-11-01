@@ -1408,4 +1408,21 @@ for (const haveFood of [true, false]) {
   check(`Sacrifice a Food, if you do draw: ${haveFood ? 'with a Food draws' : 'without one, no draw'}`, t.P(0).deck.hand.length === hand + (haveFood ? 1 : 0) && (haveFood ? !t.bf(0, 'Fog Bank') : true), JSON.stringify([hand, t.P(0).deck.hand.length]));
 }
 
+section('round 35: searching an opponent\'s library');
+{
+  const t = setup();
+  const lib = t.P(1).deck.remainingLibrary;
+  const want = lib.find(c => /Creature/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length);
+  let offered = null;
+  cast(t, 'Opt', 'Search target opponent\'s library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.', [[d => d.key.includes('theirLib') || /search/i.test(d.title || ''), d => { offered = d.options; return [want.instanceId]; }], [d => /opponent|player/i.test(d.prompt || d.title || '') && d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
+  check('Bribery: their creature enters under your control', t.P(0).deck.battlefield.some(c => c.instanceId === want.instanceId) && offered?.every(o => /Creature/.test(o.sub || 'Creature')), JSON.stringify([want.zone, offered?.length]));
+}
+{
+  const t = setup();
+  const lib = t.P(1).deck.remainingLibrary;
+  const want = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length) || lib.find(c => !/Land/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length);
+  cast(t, 'Opt', 'Search target opponent\'s library for a card and exile it face down. Then that player shuffles. You may play that card for as long as it remains exiled.', [[d => d.key.includes('theirLib') || /search/i.test(d.title || ''), () => [want.instanceId]], [d => d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
+  check('Praetor\'s Grasp: exiled, and you may play it', want.zone === 'exile' && want.playPermission?.playerId === t.P(0).playerId, JSON.stringify([want.zone, want.playPermission]));
+}
+
 done();
