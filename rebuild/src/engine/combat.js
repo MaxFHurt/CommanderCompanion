@@ -1,6 +1,6 @@
 import { withOverlay } from './overlay.js';
 import { evaluateLosses } from './rules.js';
-import { clearCastState } from './effects.js';
+import { clearCastState, applyEffects } from './effects.js';
 import { regenerates } from './effects-catalog.js';
 import { damageAmount, lifeGainAmount, graveyardDestination } from './replacements.js';
 const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Number(m[0]) : 0; };
@@ -239,6 +239,9 @@ function applyQueue(game, queue, events, onEvent) {
       }
       if (prevented)
         events.push(`${prevented} combat damage to ${target.displayName} is prevented.`);
+      // Inkshield: "For each 1 damage prevented this way, create a 2/1 … Inkling creature token with flying."
+      const ink = fog && prevented > 0 && (game.combatPrevention || []).find(x => x.turn === game.turnNumber && x.scope === 'you' && x.playerId === targetId && x.tokenPerDamage);
+      if (ink) { try { applyEffects(game, ink.playerId, [{ ...ink.tokenPerDamage, amount: prevented }], { sourceId: null }); events.push(`${target.displayName} creates ${prevented} token${prevented === 1 ? '' : 's'}.`); } catch { /* the tokens are made by hand */ } }
       const tox = amount > 0 ? toxicValue(sourceDef) : 0;
       if (tox > 0) {
         target.poison = Math.max(0, Number(target.poison || 0) + tox);

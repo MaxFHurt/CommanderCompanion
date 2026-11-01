@@ -442,6 +442,12 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const tok = compile(cap(m2[1]), sourceName);
     if (ok(tok)) return { part: { effects: [{ kind: 'may-pay', cost: m[1], lifeCost: 0, skip: 1, onlyIfAttached: true }, { kind: 'copy-host-token' }, { kind: 'condition', test: 'b49-no-host-copy', skip: tok.effects.length }, ...tok.effects], requirements: [], unsupported: [] }, consumed: 3 };
   }
+  // Inkshield: "Prevent all combat damage that would be dealt to you this turn. For each 1 damage prevented this way, create a 2/1 … token with flying."
+  if (/^Prevent all combat damage that would be dealt to you this turn\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^For each 1 damage prevented this way, create (an? .+?) tokens?(?: with ([a-z ,]+))?\.?$/i))) {
+    const tok = compile(`Create ${m[1]} token${m[2] ? ` with ${m[2]}` : ''}.`, sourceName);
+    const make = ok(tok) && tok.effects.find(e => e.kind === 'create-token');
+    if (make) return { part: { effects: [{ kind: 'prevent-combat-tokens', token: make }], requirements: [], unsupported: [] }, consumed: 2 };
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -945,6 +951,10 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} creates a token copy of ${nameOf(game, host.card.instanceId)}.`);
       return true;
     }
+    case 'prevent-combat-tokens':
+      game.combatPrevention = [...(game.combatPrevention || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, scope: 'you', playerId: controllerId, cardId: null, tokenPerDamage: effect.token }];
+      notes.push(`Combat damage to ${controller.displayName} is prevented this turn; each 1 prevented makes a token.`);
+      return true;
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);

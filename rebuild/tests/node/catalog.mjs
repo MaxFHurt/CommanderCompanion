@@ -2568,4 +2568,20 @@ section('round 51: the last top-1,000 cards');
   check('Springheart Nantuko unattached: no payment asked, a 1/1 Insect', !seen.some(d => d.key === 'may-pay') && t.names(0, 'battlefield').some(n => /Insect/.test(n)), JSON.stringify(t.names(0, 'battlefield')));
 }
 
+{
+  const t = setup();
+  const atk = onField(t, 'Colossal Dreadmaw', '', { power: '3', toughness: '3' }, 1);
+  t.autoPass = true; t.end(0);
+  // Opponent's turn: cast Inkshield first (as an instant), then they attack with a 3/3.
+  t.give(0, 'Opt'); const ink = asText(t, t.hand(0, 'Opt'), 'Prevent all combat damage that would be dealt to you this turn. For each 1 damage prevented this way, create a 2/1 white and black Inkling creature token with flying.', { manaCost: '{0}', typeLine: 'Instant' });
+  t.autoPass = false;
+  for (const c of t.P(0).deck.battlefield) c.tapped = false;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: ink.instanceId }, t.as(0)); settle(t);
+  t.do(1, { type: 'next-phase' });
+  t.do(1, { type: 'attack', attacks: [{ instanceId: atk.instanceId, defenderId: t.P(0).playerId }] });
+  settle(t); if (t.game.flow.blocks) { t.do(0, { type: 'block', assignments: [] }); settle(t); }
+  const inklings = t.P(0).deck.battlefield.filter(c => /Inkling/.test(def(t, c).name || def(t, c).typeLine));
+  check('Inkshield: 3 combat damage prevented, three 2/1 Inklings', r.ok && t.P(0).life === 40 && inklings.length === 3, JSON.stringify([r.error, t.P(0).life, inklings.length]));
+}
+
 done();
