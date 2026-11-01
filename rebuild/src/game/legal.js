@@ -138,6 +138,14 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
     row('crew', `Crew ${need}`, '', [block, power < need && `Untapped creatures with total power ${need} or more are needed.`]);
   }
+  // Saddle N (Mounts): tap other untapped creatures with total power N or more; it is saddled until end of turn. Sorcery speed.
+  const saddle = card.zone === 'battlefield' && String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Saddle (\d+)/i);
+  if (saddle) {
+    const need = Number(saddle[1]);
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
+    row('saddle', `Saddle ${need}`, '', [block, !sorcery && 'Only as a sorcery.', card.saddledTurn === game.turnNumber && 'Already saddled this turn.', power < need && `Untapped creatures with total power ${need} or more are needed.`]);
+  }
   // Level up {cost}: a level counter, only as a sorcery.
   const lvl = card.zone === 'battlefield' && String(text).match(/^Level up ((?:\{[^}]+\})+)/m);
   if (lvl) {

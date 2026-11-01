@@ -631,7 +631,7 @@ export function createTransactionEngine(game) {
             c.tapped = true;
             emit(game, { type: 'tapped', sourceId: c.instanceId, controllerId: player.playerId, forCrew: true });
           }
-          emit(game, { type: 'crewed', sourceId: card.instanceId, controllerId: player.playerId, crewIds: action.crewIds || [] });
+          emit(game, { type: action.saddle ? 'saddled' : 'crewed', sourceId: card.instanceId, controllerId: player.playerId, crewIds: action.crewIds || [] });
         }
         else if (action.kind === 'foretell') {
           const hit = locate(deck, card.instanceId);

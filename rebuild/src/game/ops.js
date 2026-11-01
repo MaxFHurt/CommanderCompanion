@@ -718,6 +718,19 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
   }
+  if (kind === 'saddle') {
+    const need = Number((row.ability.text.match(/Saddle (\d+)/i) || [])[1] || 0);
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || ''))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: `power ${effectivePower(c, defOf(game, c), game)}`, instanceId: c.instanceId, definitionId: c.definitionId }));
+    const picked = ask('saddle', () => ({ ...base, kind: 'choose-many', title: `${def.name} — saddle ${need}`, prompt: `Tap untapped creatures you control with total power ${need} or more.`, options: rows, min: 1, max: rows.length }));
+    const total = picked.reduce((n, id) => { const c = player.deck.battlefield.find(x => x.instanceId === id); return n + (c ? Math.max(0, effectivePower(c, defOf(game, c), game)) : 0); }, 0);
+    if (total < need && !force) throw new GameError(`Those creatures have total power ${total}; saddle ${need} needs ${need}.`);
+    const stack = { id: newId('stack'), label: `${def.name} — saddle`, text: `${def.name} becomes saddled until end of turn.`, effects: [{ kind: 'become-saddled', ids: picked }] };
+    commit(game, { type: 'special-action', kind: 'crew', saddle: true, playerId: player.playerId, instanceId: card.instanceId, crewIds: picked, payment: null, stack, label: `${player.displayName} saddles ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'crew') {
     const need = Number((row.ability.text.match(/Crew (\d+)/i) || [])[1] || 0);
     const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || ''))

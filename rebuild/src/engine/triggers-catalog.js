@@ -5,6 +5,9 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   const me = row.player.playerId, self = row.card.instanceId;
   // The spell's own cast trigger is put on the stack by ops.js as the spell is cast (castTriggers); never from here.
   if (/^When you cast this spell\b/i.test(t)) return event.type === 'spell-cast' && event.sourceId === self && row.zone === 'stack';
+  // Mounts: "Whenever this creature attacks while saddled, …"
+  if ((m = t.match(/^Whenever (.+?) attacks while saddled\b/i))) return event.type === 'attacks' && row.card.saddledTurn === game.turnNumber && H.subjectEvent(game, row, m[1], event);
+  if ((m = t.match(/^Whenever (.+?) becomes saddled\b/i))) return event.type === 'saddled' && H.subjectEvent(game, row, m[1], event);
   switch (event.type) {
     case 'class-level':
       if ((m = t.match(/^When this Class becomes level (\d+)/i))) return event.sourceId === self && Number(event.level ?? event.to) === Number(m[1]);
@@ -140,4 +143,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];

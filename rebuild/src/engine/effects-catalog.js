@@ -1745,6 +1745,14 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'become-saddled': {
+      const hit = permanentAt(game, bindings.sourceId);
+      if (!hit) return true;
+      hit.card.saddledTurn = game.turnNumber;
+      hit.card.saddledBy = [...(effect.ids || [])];
+      notes.push(`${name(hit.card)} is saddled until end of turn.`);
+      return true;
+    }
     case 'switch-pt': {
       const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
       if (!hit) { notes.push('That creature is no longer on the battlefield.'); return true; }

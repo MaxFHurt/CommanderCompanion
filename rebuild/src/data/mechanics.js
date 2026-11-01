@@ -300,7 +300,7 @@ m('Replicate', 'keyword', 'Pay the replicate cost any number of times; copy the 
 m('Retrace', 'keyword', 'Cast this from your graveyard by discarding a land card in addition to its cost.', { auto: 'auto', actions: ['discard'] });
 m('Riot', 'keyword', 'Enters with your choice of a +1/+1 counter or haste.', { auto: 'auto', actions: ['counter+'] });
 m('Ripple', 'keyword', 'When you cast this, reveal the top N cards; you may cast cards with the same name free; the rest go to the bottom.', { auto: 'manual' });
-m('Saddle', 'keyword', 'Tap creatures with total power N or more: this Mount becomes saddled until end of turn. Sorcery speed.', { auto: 'manual', actions: ['tap', 'status'] });
+m('Saddle', 'keyword', 'Tap creatures with total power N or more: this Mount becomes saddled until end of turn. Sorcery speed.', { auto: 'auto', steps: 'Use Saddle on the Mount and pick the creatures to tap; "attacks while saddled" triggers check it.', actions: ['tap', 'status'] });
 m('Scavenge', 'keyword', 'Exile this card from your graveyard and pay: put +1/+1 counters equal to its power on target creature. Sorcery speed.', { auto: 'auto', actions: ['exile', 'counter+'] });
 m('Shadow', 'keyword', 'Can block or be blocked only by creatures with shadow.', { auto: 'auto' });
 m('Skulk', 'keyword', 'Can\'t be blocked by creatures with greater power.', { auto: 'auto' });
@@ -412,7 +412,7 @@ m('Goaded', 'designation', 'See goad.', { auto: 'auto', detect: '\\bgoaded\\b' }
 m('Monstrous', 'designation', 'Set by monstrosity.', { auto: 'manual', detect: '\\bmonstrous\\b' });
 m('Renowned', 'designation', 'Set by renown.', { auto: 'manual', detect: '\\brenowned\\b' });
 m('Suspected', 'designation', 'Has menace and can\'t block.', { auto: 'manual', detect: '\\bsuspected\\b' });
-m('Saddled', 'designation', 'A Mount that was saddled this turn.', { auto: 'manual', detect: '\\bsaddled\\b' });
+m('Saddled', 'designation', 'A Mount that was saddled this turn.', { auto: 'partial', detect: '\\bsaddled\\b', steps: 'The game tracks saddled Mounts for "attacks while saddled"; other references to the creatures that saddled it are by hand.' });
 m('Ring-bearer', 'designation', 'The creature chosen when the Ring tempts you.', { auto: 'manual', detect: '\\bRing-bearer\\b' });
 m('Voting and council', 'multiplayer', 'Will of the council and council\'s dilemma votes include every player, starting with the caster.', { auto: 'manual', detect: null });
 m('Range of influence', 'multiplayer', 'Limited range of influence: players outside it are not affected. Not used in standard Commander.', { auto: 'info', detect: null });

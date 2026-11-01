@@ -1147,4 +1147,27 @@ section('round 19: Stifle, sweepers, planeswalker damage, divided damage, X targ
   check('Twisted Image: a 0/2 becomes 2/0 and dies; a 1/3 becomes 3/1', !t.bf(1, 'Fog Bank') && power(t, bear) === 3 && tough(t, bear) === 1, JSON.stringify([power(t, bear), tough(t, bear)]));
 }
 
+section('round 20: Saddle');
+{
+  const t = setup();
+  const steed = onField(t, 'Llanowar Elves', 'Whenever this creature attacks while saddled, create a 3/3 white Angel creature token with flying.\nSaddle 2', { typeLine: 'Creature — Horse Mount', power: '3', toughness: '3' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  const row = t.view(0).players[0].battlefield.find(c => c.id === steed.instanceId)?.abilities?.find(a => /Saddle/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: steed.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no saddle row' };
+  settle(t, [['saddle', () => [bear.instanceId]]]);
+  check('Saddle 2: the Grizzly Bears tap and the Mount is saddled', r.ok && bear.tapped && steed.saddledTurn === t.game.turnNumber, JSON.stringify([r.error, bear.tapped, steed.saddledTurn]));
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: steed.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('…attacking while saddled makes an Angel', t.P(0).deck.battlefield.some(c => c.token));
+}
+{
+  const t = setup();
+  onField(t, 'Llanowar Elves', 'Whenever this creature attacks while saddled, create a 3/3 white Angel creature token with flying.\nSaddle 2', { typeLine: 'Creature — Horse Mount', power: '3', toughness: '3' });
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Llanowar Elves').instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('…not saddled: no Angel', !t.P(0).deck.battlefield.some(c => c.token));
+}
+
 done();
