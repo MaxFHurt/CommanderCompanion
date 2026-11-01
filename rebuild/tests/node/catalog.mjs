@@ -2071,7 +2071,9 @@ section('round 50: strive, any number of targets, "for each … this way"');
 {
   const t = setup();
   t.give(0, 'Opt');
-  const lib = t.P(0).deck.remainingLibrary, third = lib[2].instanceId;
+  const lib = t.P(0).deck.remainingLibrary;
+  for (const n of ['Air Elemental', 'Divination', 'Mulldrifter']) { const k = lib.findIndex(c => def(t, c).name === n); lib.unshift(...lib.splice(k, 1)); }
+  const third = lib[2].instanceId;
   cast(t, 'Opt', 'Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.', [[d => d.key.endsWith(':3'), 'take'], [d => /Put it into your hand/.test(d.prompt || ''), 'next']], { manaCost: '{G}' });
   check('Tainted Pact: the player passes twice and keeps the third card', t.P(0).deck.hand.some(c => c.instanceId === third) && t.P(0).deck.exile.length >= 2);
 }
