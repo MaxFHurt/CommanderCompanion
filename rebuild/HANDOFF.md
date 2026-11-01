@@ -8,7 +8,17 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.48** (1 Nov): **owner rulings** ("stored outcomes"). With the dev PIN (the Dev report PIN) the owner
+- Live build: **1.0.0-rebuild.49** (1 Nov): **card fixes, batch 1** (new wordings live in `src/engine/effects-b49.js`, hooked into
+  effects-catalog.js the same way as round 3). Known bugs fixed: extra mana of another colour (Utopia Sprawl, Wild Growth on an Island,
+  Fertile Ground's any colour — `manaExtras` in mana-extras.js; payMana taps a source for its extra colour; a hand tap asks the colour)
+  and "you may tap or untap" no longer offers "Neither" after the yes/no. New: Gift (asked as you cast; the promised opponent gets it
+  first; `castText(…, { gift })`), High Tide-style turn mana, Hideaway (exiled face down, `hiddenExile`), Imprint (Chrome Mox, Isochron
+  Scepter), casting copies (`castCopy`, a free-cast queue `flow.freeCastQueue`, uncast copies vanish in sba.js), abilities granted until
+  end of turn (`temporaryGrants`), Entwine, Escalate, Spree, Replicate, Casualty, Bargain, Offspring, Squad, The Ozolith, Etali (both),
+  Braids, "copy this spell" while it resolves (Sevinne's Reclamation), Midnight Clock, Archaeomancer's Map, Curse of Opulence, Scrap
+  Trawler, and conditions for hideaway lands. Leaves-the-battlefield events now carry last-known counters and fire for tokens.
+  Top 1,000: 944 run by themselves (was 924). Whole catalog: AUDIT_LINE.
+  Build 48 (1 Nov): **owner rulings** ("stored outcomes"). With the dev PIN (the Dev report PIN) the owner
   saves how a card resolves, for everyone, while playing: "Store outcome" on the resolve-by-hand panel (the steps just taken
   are filled in) and "Correct ruling" on any card's detail view. A ruling can switch the card's automation off ("resolve by
   hand"): the effect then waits on the panel with the ruling shown and its chosen targets listed (flow.js `applyOwnerRuling`;
@@ -212,7 +222,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (228 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (267 in-game checks, every new family; choices answered by the player who makes them).
   - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
     "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
     and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
@@ -319,7 +329,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 228 catalog-effect checks (builds 43-48)
+    node tests/node/catalog.mjs       # 267 catalog-effect checks (builds 43-49)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
@@ -388,8 +398,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 **Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (785 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
-2. Extra mana when tapping: done in build 43 for extra mana of the source's own type (mana-extras.js). Still open: extra mana
-   of a different type (Wild Growth on a non-Forest, Utopia Sprawl's chosen colour ≠ green, Fertile Ground's any colour).
+2. Extra mana when tapping: done (build 43 same type, build 49 other colours and any colour).
 3. Rare trigger wordings (Class levels, "from anywhere", Kutzil, Trouble in Pairs).
 
 **Next (after the weekly usage reset, when the owner says go)**
