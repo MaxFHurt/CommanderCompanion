@@ -261,6 +261,14 @@ function compileCatalogClauseInner(c, ctx) {
   // "You may play that card for as long as it remains exiled." / "Until end of turn, you may play that card."
   if (/^You may (?:play|cast) (?:that card|it|those cards|them)(?: this turn)? for as long as (?:it|they) remains? exiled\.?$/i.test(c)) { effects.push({ kind: 'permit-recent', until: 'forever', castOnly: /cast/i.test(c) }); return true; }
   if (/^Until end of turn, you may (?:play|cast) (?:that card|it|those cards|them)\.?$/i.test(c)) { effects.push({ kind: 'permit-recent', until: 'turn', castOnly: /cast/i.test(c) }); return true; }
+  // Clash: you and an opponent reveal your top cards; you win if yours has the greater mana value. Each player decides
+  // whether their card stays on top or goes to the bottom.
+  if (/^(?:you )?clash with an opponent\.?$/i.test(c)) {
+    const bind = `clash${requirements.length}`;
+    requirements.push({ kind: 'clash', bind });
+    effects.push({ kind: 'clash', bind });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1487,6 +1495,19 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${obj.label || 'The spell'} has new targets.`);
       return true;
     }
+    case 'clash': {
+      const r = bindings[effect.bind] || {};
+      const opp = playerById(game, r.opponent);
+      bindings.clashWon = !!r.won;
+      for (const [who, id, bottom] of [[controller, r.mine, r.myBottom], [opp, r.theirs, r.theirBottom]]) {
+        if (!who || !id || !bottom) continue;
+        const i = who.deck.remainingLibrary.findIndex(c => c.instanceId === id);
+        if (i >= 0) { const [card] = who.deck.remainingLibrary.splice(i, 1); who.deck.remainingLibrary.push(card); }
+      }
+      emit({ type: 'clash', playerId: controllerId, controllerId, opponentId: r.opponent, won: !!r.won });
+      notes.push(`${controller.displayName} clashes with ${opp?.displayName || 'an opponent'} and ${r.won ? 'wins' : 'does not win'}.`);
+      return true;
+    }
     case 'their-library-move': {
       const who = playerById(game, bindings[effect.playerBind]) || controller;
       bindings.lastSearchedPlayer = who.playerId;
@@ -1935,6 +1956,19 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'clash') {
+    const opps = game.players.filter(p => !p.eliminated && p.playerId !== player.playerId);
+    const opp = opps.length > 1 ? (opps.find(p => p.playerId === ask(`${key}:opp`, () => ({ ...base, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — clash`, prompt: 'Clash with which opponent?', options: opps.map(p => ({ id: p.playerId, label: p.displayName })) }))) || opps[0]) : opps[0];
+    const mine = player.deck.remainingLibrary[0], theirs = opp?.deck.remainingLibrary[0];
+    const mv = c => Number(util.defOf(game, c)?.manaValue ?? util.defOf(game, c)?.cmc ?? 0);
+    const won = !!mine && (!theirs || mv(mine) > mv(theirs));
+    const shown = `You reveal ${mine ? `${util.defOf(game, mine)?.name} (${mv(mine)})` : 'nothing'}; ${opp?.displayName || 'they'} reveal${opp ? 's' : ''} ${theirs ? `${util.defOf(game, theirs)?.name} (${mv(theirs)})` : 'nothing'}. ${won ? 'You win.' : 'You do not win.'}`;
+    const where = (who, card, k) => card ? ask(`${key}:${k}`, () => ({ ...base, playerId: who.playerId, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — clash`, prompt: `${shown}\nPut ${util.defOf(game, card)?.name} on top or on the bottom of your library?`, options: [{ id: 'top', label: 'Keep it on top' }, { id: 'bottom', label: 'Put it on the bottom' }] })) : 'top';
+    const myPlace = where(player, mine, 'me');
+    const theirPlace = opp ? where(opp, theirs, 'them') : 'top';
+    bindings[req.bind] = { opponent: opp?.playerId || null, mine: mine?.instanceId || null, theirs: theirs?.instanceId || null, won, myBottom: myPlace === 'bottom', theirBottom: theirPlace === 'bottom' };
     return true;
   }
   if (req.kind === 'their-library-pick') {

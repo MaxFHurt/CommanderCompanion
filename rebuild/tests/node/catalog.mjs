@@ -1425,4 +1425,19 @@ section('round 35: searching an opponent\'s library');
   check('Praetor\'s Grasp: exiled, and you may play it', want.zone === 'exile' && want.playPermission?.playerId === t.P(0).playerId, JSON.stringify([want.zone, want.playPermission]));
 }
 
+section('round 36: Clash');
+for (const win of [true, false]) {
+  const t = setup();
+  t.give(0, 'Opt'); const spell = asText(t, t.hand(0, 'Opt'), 'Clash with an opponent. If you win, return Opt to its owner\'s hand.');
+  const mine = t.P(0).deck.remainingLibrary, theirs = t.P(1).deck.remainingLibrary;
+  asText(t, mine[0], def(t, mine[0])?.oracleText || '', { manaValue: win ? 6 : 1, cardFaces: undefined });
+  asText(t, theirs[0], def(t, theirs[0])?.oracleText || '', { manaValue: win ? 1 : 6, cardFaces: undefined });
+  const theirTop = theirs[0];
+  const asked = [];
+  t.ctl.dispatch({ type: 'play', instanceId: spell.instanceId }, t.as(0));
+  settle(t, [[d => d.key.includes('clash'), d => { asked.push(d.playerId); return d.playerId === t.P(1).playerId ? 'bottom' : 'top'; }]]);
+  const opt = [...t.P(0).deck.hand, ...t.P(0).deck.graveyard].find(c => def(t, c)?.name === 'Opt');
+  check(`Research the Deep: clash ${win ? 'won — back to hand' : 'lost — to the graveyard'}; each player places their own card`, opt?.zone === (win ? 'hand' : 'graveyard') && asked.length === 2 && theirs[theirs.length - 1] === theirTop, JSON.stringify([opt?.zone, asked.length]));
+}
+
 done();

@@ -1094,6 +1094,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!targetId)
         throw new Error(`${effect.kind} requires a target or selection.`);
       const hit = locateCardInGame(game, targetId);
+      // "Return Research the Deep to its owner's hand." — a resolving spell goes to the hand instead of the graveyard.
+      if (effect.kind === 'bounce' && targetId === bindings.sourceId && (hit?.zone === 'stack' || (!hit && game.resolvingSpellId === targetId))) { game.spellToHand = targetId; notes.push('It returns to its owner\u2019s hand as it finishes resolving.'); continue; }
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The selected permanent is no longer on the battlefield.');
       const d = definitionFor(game, hit.card), name = d?.name || 'Permanent';
@@ -1558,6 +1560,7 @@ export function parseCondition(text) {
   if (/^you win the flip$/i.test(t)) return { test: 'coin', won: true };
   if (/^you lose the flip$/i.test(t)) return { test: 'coin', won: false };
   if (/^an opponent lost life this turn$/i.test(t)) return { test: 'opponent-lost-life' };
+  if (/^you win(?: the clash)?$/i.test(t)) return { test: 'clash-won' };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1599,6 +1602,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'coin') return !!bindings.coinWon === effect.won;
   if (effect.test === 'opponent-lost-life') return game.players.some(p => p.playerId !== controllerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber);
   if (effect.test === 'done') return !bindings.__notDone;
+  if (effect.test === 'clash-won') return !!bindings.clashWon;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -3179,6 +3183,13 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
   // Nothing targeted: "it" is the card the trigger is about ("When this land enters, sacrifice it.").
   if (!lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget' && e.kind === 'sacrifice') e.bind = 'eventCard';
+  // "Target player discards two cards. Otherwise, that player discards a card.": "that player" is the targeted player.
+  const targetedPlayer = merged.requirements.find(r => r.kind === 'player');
+  if (targetedPlayer) for (const e of merged.effects) if (e.forPlayerBind === 'eventPlayer' && e.kind === 'discard' && e.cardsBind) {
+    delete e.forPlayerBind; e.bind = targetedPlayer.bind;
+    const r = merged.requirements.find(q => q.bind === e.cardsBind);
+    if (r) { r.playerBind = targetedPlayer.bind; r.scope = 'target'; }
+  }
   const lastStack = [...merged.requirements].reverse().find(r => r.kind === 'stack-target');
   for (const e of merged.effects) if (e.amount?.stackBind === 'lastStack' && lastStack) e.amount = { ...e.amount, stackBind: lastStack.bind };
   const firstTarget = merged.requirements.find(r => r.kind === 'target');

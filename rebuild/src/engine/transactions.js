@@ -515,11 +515,13 @@ function resolveStackTop(game) {
     if (!isCopy && to === 'battlefield')
       place();
     applySearchResult(game, player, obj);
-    notes.push(...applyTrackedEffects(game, player, obj.effects || [], { ...obj.effectBindings, sourceId: card.instanceId }));
+    game.resolvingSpellId = isCopy ? null : card.instanceId;
+    try { notes.push(...applyTrackedEffects(game, player, obj.effects || [], { ...obj.effectBindings, sourceId: card.instanceId })); } finally { game.resolvingSpellId = null; }
     // "Exile Teferi's Protection." / "Shuffle this card into its owner's library.": the spell goes there instead.
     if (!isCopy && to !== 'battlefield' && game.spellExileSelf === card.instanceId) { to = 'exile'; card.zone = 'exile'; obj.to = 'exile'; }
     if (!isCopy && to !== 'battlefield' && game.spellShuffleSelf === card.instanceId) { to = 'library'; card.zone = 'library'; obj.to = 'library'; }
-    game.spellExileSelf = game.spellShuffleSelf = null;
+    if (!isCopy && to !== 'battlefield' && game.spellToHand === card.instanceId) { to = 'hand'; card.zone = 'hand'; obj.to = 'hand'; }
+    game.spellExileSelf = game.spellShuffleSelf = game.spellToHand = null;
     if (!isCopy && to !== 'battlefield')
       place();
     if (!isCopy && to === 'library')
