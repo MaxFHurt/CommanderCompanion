@@ -7,11 +7,38 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.51
+- **Live build:** 1.0.0-rebuild.52 (Deck Builder 0.9.27, build 172)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
-- **Next:** keep going in batches, stopping every 100 newly automated cards to check in with the owner.
+- **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
+  Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
+
+## Paused: not finished
+
+1. **Player toolbox (the next card-decisions feature).** When a card is resolved by hand, the player gets a toolbox of steps
+   (move a card, tap, counters, life, draw, create a token …) with the tools the card's text suggests listed first, "that card"
+   carrying from one step to the next, and the steps applied as one change; a remembered ruling replays its steps next time.
+   - Done but kept out of the app: the engine side, saved as `wip/toolbox-engine.patch` at the repo root (apply with
+     `git apply wip/toolbox-engine.patch` from the repo root). It adds `src/game/toolbox.js` (TOOLS, rankTools, stepLabel,
+     applyToolSteps), the controller's `guided-stage` / `guided-done` intents with staged steps (several devices: a
+     `manual-resolution` proposal everyone agrees to; one device: applied straight away), `rememberedOutcomes`, the view's
+     `prompt.toolbox`, flow.js staging stored ruling moves automatically, and `cloud/worker.js` accepting `moves` on a stored
+     outcome. The node suites passed with it applied (game 248, mechanics 62, smoke 6, catalog 364).
+   - Not done: the screens. `panels.js` openGuided rewritten around the toolbox (staged steps listed, suggested tools first,
+     "that card" chaining, on one device an "everyone agrees" confirm, remembered outcomes offered); a toolbox in Host tools →
+     Edit game; the ruling pop-up sending `moves`; a Playwright suite for it. Then deploy the Worker (`sh cloud/deploy.sh`), since
+     the live Worker does not keep `moves` yet.
+2. **Stylesheet cleanup** (roadmap): fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel
+   with `tests/style_diff.py`. Not started.
+3. **The card long tail:** about 10,770 cards of the whole catalog still need something done by hand (batches, check in every 100).
+4. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
+   hotspot, offline after the first launch, hosted rooms between devices.
+5. **Deck Builder test UI-B145-01** (Gisa, no play data: a Zombie deck from the theme pages) fails with no theme pages loaded
+   (`pages: []`), on build 171 as well as 172, so it predates the iPad fix; probably the test-data branch lacks the Zombie theme
+   page. The other 127 Deck Builder UI checks pass (UI-B146-02 is timing-sensitive: it failed once while other tests shared the
+   machine and passed alone).
+6. **iOS app:** on hold (owner, 1 Nov: "We don't want to develop for iOS yet").
 
 ## Known limits
 
@@ -21,9 +48,17 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Dredge is offered in the draw step and for the controller's own draws from a resolving spell or ability; not for draws another
   player's effect gives them ("target player draws").
 - Cumulative upkeep and Echo are automatic only for mana costs (and "Pay N life" upkeep).
-- Still by hand: Mutate, Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
+- Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 52 — 1 Nov 2026 — iPad fix, then paused
+- Deck Builder 0.9.27 (build 172): on iPad the header sat under the status bar and the frames ran under the screen's rounded
+  corners and home bar. The page, the deck screen, pop-ups and the undo button now keep inside the safe area, and the deck
+  screen's working area ends above the home bar. Desktop and Android look the same as before.
+- Released with it (finished since build 51): the legend rule (its controller chooses which to keep), ward on activated
+  abilities and ward "Pay N life", phasing, mutate, offline use after the first launch, QR pairing without internet.
+- Card counts unchanged (top 1,000: 1,000; whole catalog: 21,001).
 
 ### Build 51 — 1 Nov 2026 — the top 1,000 complete
 - Top 1,000: 969 → 1,000. Whole catalog: 20,892 → 21,001.

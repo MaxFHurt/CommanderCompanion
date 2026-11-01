@@ -8,7 +8,14 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.51** (1 Nov): **the top 1,000 complete** — every one of the 1,000 most-played Commander cards runs by itself.
+- Live build: **1.0.0-rebuild.52** (1 Nov): **work paused by the owner** to fix the Deck Builder on iPad (0.9.27, build 172: the
+  header sat under the status bar and frames ran under the screen's corners and home bar; every edge now keeps to the safe area,
+  `rebuild/deck/cc-theme.css` end and `fitWork`'s `safeBottom()` in `deck/ui/cards.js`). Also released: the legend rule (its controller
+  chooses), ward on activated abilities and ward "Pay N life", phasing, mutate, offline after the first launch (`precache.json`
+  from stamp.mjs, sw.js), and QR pairing for nearby devices without internet (`src/net/local-link.js`). **What is not finished is
+  listed in PROGRESS.md, "Paused: not finished".** The half-built player toolbox is kept out of the app as `wip/toolbox-engine.patch`
+  (repo root).
+  Build 51 (1 Nov): **the top 1,000 complete** — every one of the 1,000 most-played Commander cards runs by itself.
   The last 31: copy lands (`card.copyOf`, effects.js definitionFor), Dauthi Voidwalker (void counters), Kutzil, Ripples of Undeath, Return
   the Favor, Conduit of Worlds (`lockAfterNextCast`), Culling Ritual (split mana), Puresteel Paladin and Danitha (equip cost changes in
   rules.js activationReduction), Tibalt's Trickery, Hydroelectric Specimen, Trouble in Pairs, Archdruid's Charm, Springheart Nantuko,
@@ -415,12 +422,11 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 2. Extra mana when tapping: done (build 43 same type, build 49 other colours and any colour).
 3. Rare trigger wordings (Class levels, "from anywhere", Kutzil, Trouble in Pairs).
 
-**Next (owner, 1 Nov: go)**
-1. QR pairing for local multiplayer (two-step scan: host offer → joiner answer), working over a
-   phone or iPad hotspot without internet. Keep room codes for remote play. The hotspot only provides local Wi-Fi; the QR
-   codes carry the WebRTC offer/answer so no internet signaling server (PeerJS cloud) is needed; game traffic goes device
-   to device over that Wi-Fi. Any device (the phone or an iPad) can be the host.
-2. Make sure the whole app and saved decks/card images work offline after the first launch.
+**Paused (owner, 1 Nov: "pause all other work … until I have data to press forward with")** — see PROGRESS.md, "Paused: not
+finished": the player toolbox (`wip/toolbox-engine.patch`), stylesheet cleanup, and the card long tail.
+
+**Done in build 52 (owner, 1 Nov: go):** QR pairing for local multiplayer (host offer → joiner answer, over a phone or iPad hotspot
+without internet; room codes stay for remote play) and offline use after the first launch. Both need checking on the owner's devices.
 
 **Needs the owner's real devices**
 - Hosted rooms between separate phones and iPads (games, Judge mode, Table Tracker).
@@ -430,10 +436,10 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   connection candidates over a hotspot.
 
 **Rules engine, when wanted**
-- Ward on activated abilities; legend rule; mutate, suspend, spectacle, phasing; more effect wordings
+- (Ward on activated abilities, the legend rule, mutate and phasing: done in build 52.) Suspend, spectacle; more effect wordings
   (measure which cards real decks resolve by hand most and automate those first).
 
 **Later / bigger**
 - Native iOS wrapper with Multipeer Connectivity (true Bluetooth). Needs an Apple Developer
-  account and a Mac.
+  account and a Mac. **On hold (owner, 1 Nov: "We don't want to develop for iOS yet").**
 - Fold the stylesheet override sections into their base rules.

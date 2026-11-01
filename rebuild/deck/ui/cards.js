@@ -104,6 +104,15 @@ const phoneLand = () => innerWidth > innerHeight && innerHeight < 560;
 // A phone held upright (owner's iPhone, 18 Oct): the deck panel's buttons left the card list little or no room in a fixed-height
 // box (none at all with large text), so the page scrolls instead, as on a phone held sideways. iPad and desktop keep the box.
 const phoneTall = () => innerWidth < 500 && innerHeight > innerWidth;
+function safeBottom() {
+  // the home bar's height on iPad and iPhone (0 elsewhere), read from a probe
+  const p = document.createElement('div');
+  p.style.cssText = 'position:fixed;visibility:hidden;padding-bottom:env(safe-area-inset-bottom,0px)';
+  document.body.appendChild(p);
+  const b = parseFloat(getComputedStyle(p).paddingBottom) || 0;
+  p.remove();
+  return b;
+}
 function fitWork() {
   const w = document.querySelector('.work'),
     app = document.querySelector('.app');
@@ -118,8 +127,9 @@ function fitWork() {
     return;
   }
   const vh = Math.min(innerHeight, (window.visualViewport && visualViewport.height) || innerHeight);
+  // the work area ends above the iPad's home bar (safe area), so its frame's lower edge stays on the screen
   w.style.height =
-    Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12))) + 'px';
+    Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12) - safeBottom())) + 'px';
 }
 function render() {
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is

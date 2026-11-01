@@ -114,3 +114,29 @@ a { color: var(--glow); }
 .tab { font-family: var(--label); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 /* Touch screens: framed buttons stay comfortable to tap, as the page's own touch rules intend. */
 @media (pointer: coarse) { .btn, .btn.sm { min-height: 30px; } }
+
+/* iPad safe area (owner's iPad, 1 Nov 2026): the header sat under the status bar and the frames ran under the screen's
+   rounded corners and home bar. Every edge keeps clear of the system bars and corners: the page, pop-ups and the undo
+   button. env() is 0 on screens without system bars, so desktop and Android are unchanged. */
+:root {
+  --sa-t: env(safe-area-inset-top, 0px); --sa-r: env(safe-area-inset-right, 0px);
+  --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px);
+}
+.app {
+  padding-top: calc(10px + var(--sa-t)); padding-bottom: calc(40px + var(--sa-b));
+  padding-left: max(16px, calc(10px + var(--sa-l))); padding-right: max(16px, calc(10px + var(--sa-r)));
+}
+.app.home { padding-top: calc(8px + var(--sa-t)); padding-bottom: calc(8px + var(--sa-b)); }
+.app.editing { padding-top: calc(10px + var(--sa-t)); padding-bottom: calc(12px + var(--sa-b)); }
+.modal {
+  padding: calc(16px + var(--sa-t)) calc(16px + var(--sa-r)) calc(16px + var(--sa-b)) calc(16px + var(--sa-l));
+}
+#undo-fab { left: calc(16px + var(--sa-l)); bottom: calc(16px + var(--sa-b)); }
+@media (max-width: 820px) {
+  .app { padding-left: max(12px, calc(8px + var(--sa-l))); padding-right: max(12px, calc(8px + var(--sa-r))); }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .app { padding-top: calc(5px + var(--sa-t)); padding-bottom: calc(6px + var(--sa-b));
+    padding-left: max(8px, calc(var(--sa-l) - 22px)); padding-right: max(8px, calc(var(--sa-r) - 22px)); }
+  .modal { padding: calc(6px + var(--sa-t)) calc(6px + var(--sa-r)) calc(6px + var(--sa-b)) calc(6px + var(--sa-l)); }
+}
