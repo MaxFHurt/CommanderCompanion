@@ -210,7 +210,7 @@ function giftText(t, gift) {
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
 export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -487,6 +487,26 @@ function runPlay(game, op, ask) {
     }
   }
 
+  // Splice onto Arcane: reveal Arcane-splice cards from hand and pay their splice costs; their effects are added to this spell.
+  if (!permanent && !guided && /\bArcane\b/.test(castDef.typeLine || '') && card.zone === 'hand') {
+    const splicers = player.deck.hand.filter(c => c.instanceId !== card.instanceId).map(c => ({ c, m: String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Splice onto Arcane ((?:\{[^}]+\})+)/i) })).filter(x => x.m);
+    if (splicers.length) {
+      const picked = [].concat(ask('splice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — splice onto Arcane`, prompt: 'Reveal any number of cards with splice onto Arcane and pay their splice costs; their effects are added to this spell.',
+        options: splicers.map(x => ({ id: x.c.instanceId, label: `${defOf(game, x.c)?.name} (${x.m[1]})`, sub: defOf(game, x.c)?.typeLine || '', instanceId: x.c.instanceId, definitionId: x.c.definitionId })), min: 0, max: splicers.length })) || []);
+      for (const [n, id] of picked.entries()) {
+        const x = splicers.find(y => y.c.instanceId === id);
+        if (!x) continue;
+        extraCost += x.m[1];
+        const sp = compileFor(castText(defOf(game, x.c)?.oracleText || ''), defOf(game, x.c)?.name).compiled;
+        if (!sp.supported) { guided = guidedSpec(`${def.name} — resolve by hand`, `${castDef.oracleText}\n${castText(defOf(game, x.c)?.oracleText || '')}`, sp.unsupported); break; }
+        let json = JSON.stringify(sp);
+        for (const r of sp.requirements || []) json = json.split(`"${r.bind}"`).join(`"${r.bind}_splice${n}"`);
+        const renamed = JSON.parse(json);
+        compiled = { ...compiled, effects: [...(compiled.effects || []), ...renamed.effects], requirements: [...(compiled.requirements || []), ...renamed.requirements] };
+      }
+      if (picked.length && !affordable(extraCost)) throw new GameError('You can’t pay all of those splice costs.');
+    }
+  }
   const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
   // Addendum: "If you cast this spell during your main phase" (checked as it resolves).
   if (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase)) bindings.castInMain = true;

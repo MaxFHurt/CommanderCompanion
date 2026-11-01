@@ -2616,4 +2616,12 @@ section('round 51: the last top-1,000 cards');
   check('…and in the draw step the player is asked to draw or dredge', t.P(0).deck.hand.some(c => c.instanceId === loam.instanceId));
 }
 
+{
+  const t = setup();
+  t.give(0, 'Divination'); asText(t, t.hand(0, 'Divination'), 'You gain 3 life.\nSplice onto Arcane {1} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card\'s effects to that spell.)', { typeLine: 'Instant — Arcane' });
+  const life = t.P(0).life, hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.', [['splice', d => d.options.map(o => o.id)]], { manaCost: '{U}', typeLine: 'Instant — Arcane' });
+  check('Splice onto Arcane: the spliced card\'s effect is added and it stays in hand', t.P(0).life === life + 3 && t.names(0, 'hand').includes('Divination'), JSON.stringify([t.P(0).life - life]));
+}
+
 done();
