@@ -239,8 +239,8 @@ function runPlay(game, op, ask) {
     // Cast without paying its mana cost (cascade, discover): only timing is waived, not targets.
     if (check.kind === 'land') throw new GameError('A land cannot be cast.');
   } else if (!check.legal && !force) throw new GameError(check.reasons[0] || 'That play is not legal right now.', check.reasons);
-  const def = check.def;
-  const activeFaceIndex = Number.isInteger(def?.faceIndex) ? def.faceIndex : null;
+  let def = check.def;
+  let activeFaceIndex = Number.isInteger(def?.faceIndex) ? def.faceIndex : null;
 
   if (check.kind === 'land') {
     const choices = askAsEnters(game, player, def, ask, def.name);
@@ -281,6 +281,8 @@ function runPlay(game, op, ask) {
     mode = modes.find(o => o.id === pick) || mode;
   }
   const faceDown = mode.faceDown || null;
+  // Disturb: the back face is what is cast.
+  if (mode.backFace) { def = faceDefinition(base, mode.backFace) || def; activeFaceIndex = mode.backFace; }
 
   // Extra costs: kicker, multikicker, buyback.
   const commander = card.zone === 'command' ? commanderEntryFor(player, card) : null;
@@ -588,7 +590,7 @@ function runPlay(game, op, ask) {
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
     exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
-    offspring, squadCount, bargained: !!bargainId,
+    offspring, squadCount, bargained: !!bargainId, disturbed: mode.id === 'disturb',
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
   if (commander) commit(game, { ...action, type: 'cast-commander', commanderId: commander.id });

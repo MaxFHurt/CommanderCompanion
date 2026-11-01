@@ -163,7 +163,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -254,6 +254,9 @@ export function castModes(game, player, card, def, base = null) {
     const js = keywordCost(text, 'Jump-start') !== null || /(?:^|\n)\s*Jump-start\b/i.test(strip(text));
     if (js && def?.manaCost) modes.push({ id: 'jump-start', cost: def.manaCost, exileAfter: true, discard: 1 });
     if (/(?:^|\n)\s*Retrace\b/i.test(strip(text)) && def?.manaCost) modes.push({ id: 'retrace', cost: def.manaCost, discardLand: true });
+    // Disturb {cost}: cast the back face from the graveyard; it is exiled if it would go to a graveyard later.
+    const disturb = keywordCost(base?.cardFaces?.[0]?.oracleText || base?.oracleText || text, 'Disturb');
+    if (disturb && (base?.cardFaces || []).length > 1) modes.push({ id: 'disturb', cost: disturb, backFace: 1 });
     const esc = escapeCost(text);
     if (esc && delveCards(player, card).length >= esc.exile) modes.push({ id: 'escape', cost: esc.cost, escapeExile: esc.exile, exileAfter: /Instant|Sorcery/i.test(def?.typeLine || '') });
   }

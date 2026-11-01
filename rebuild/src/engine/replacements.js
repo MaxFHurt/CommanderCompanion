@@ -84,6 +84,7 @@ export function graveyardDestination(game, card) {
   if ((card?.temporaryEffects || []).some(e => e?.kind === 'exile-if-dies' || e?.kind === 'exile-if-leaves')) return 'exile';
   // "If that spell would be put into your graveyard, exile it instead." (Torrential Gearhulk, Snapcaster-like effects)
   if (card?.exileInsteadOfGraveyard) return 'exile';
+  if (card?.disturbed) return 'exile';   // cast with disturb
   // A finality counter: if it would go to a graveyard from the battlefield, it is exiled instead.
   if (card?.zone === 'battlefield' && Number(card?.counters?.finality || 0) > 0) return 'exile';
   for (const { p, text } of permanents(game)) {

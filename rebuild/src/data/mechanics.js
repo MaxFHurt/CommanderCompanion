@@ -215,7 +215,7 @@ m('Dethrone', 'keyword', 'Whenever this attacks the player with the most life (o
 m('Devoid', 'keyword', 'This card has no color.', { auto: 'auto' });
 m('Devour', 'keyword', 'Devour N: as this enters, you may sacrifice any number of creatures; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['sacrifice', 'counter+'] });
 m('Disguise', 'keyword', 'Cast face down for {3} as a 2/2 with ward {2}; turn face up any time for the disguise cost.', { auto: 'auto' });
-m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the disturb cost; if it would leave the battlefield later, exile it.', { auto: 'manual', actions: ['transform', 'exile'] });
+m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the disturb cost; if it would leave the battlefield later, exile it.', { auto: 'auto', actions: ['transform', 'exile'] });
 m('Double team', 'keyword', 'When this attacks, if it isn\'t a token, conjure a duplicate into your hand; both lose double team (Alchemy).', { auto: 'manual' });
 m('Dredge', 'keyword', 'Dredge N: if you would draw, you may mill N instead and return this card from your graveyard to your hand.', { auto: 'manual', actions: ['mill', 'return-hand'] });
 m('Echo', 'keyword', 'At the beginning of your upkeep, if this came under your control since your last upkeep, sacrifice it unless you pay its echo cost.', { auto: 'manual', actions: ['sacrifice'] });

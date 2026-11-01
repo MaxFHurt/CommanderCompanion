@@ -2107,4 +2107,19 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Sword of Hearth and Home: the creature blinks and a basic land enters', t.names(0, 'battlefield').includes('Grizzly Bears') && t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine)).length === lands + 1, JSON.stringify((t.game.log || []).slice(0, 6).map(x => x.text || x)));
 }
 
+{
+  // Disturb: cast the back face from the graveyard; exiled instead of going to a graveyard later.
+  const t = setup();
+  t.give(0, 'Grizzly Bears', 'graveyard');
+  const g = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Grizzly Bears');
+  const front = { name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Bear', oracleText: 'Disturb {1}{G} (You may cast this card transformed from your graveyard for its disturb cost.)', power: '2', toughness: '2', colors: ['G'] };
+  const back = { name: 'Bear Spirit', manaCost: '', typeLine: 'Creature — Spirit', oracleText: 'Flying\nIf Bear Spirit would be put into a graveyard from anywhere, exile it instead.', power: '1', toughness: '1', colors: ['G'] };
+  asText(t, g, front.oracleText, { cardFaces: [front, back], layout: 'transform' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: g.instanceId }, t.as(0)); settle(t);
+  const bs = t.P(0).deck.battlefield.find(c => c.instanceId === g.instanceId);
+  check('Disturb: the back face is cast from the graveyard', r.ok && !!bs && bs.activeFaceIndex === 1, JSON.stringify([r.error, bs?.activeFaceIndex]));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => g.instanceId]], { manaCost: '{G}' });
+  check('…and it is exiled when it dies', t.P(0).deck.exile.some(c => c.instanceId === g.instanceId));
+}
+
 done();
