@@ -1529,12 +1529,20 @@ section('round 42: exile until a nonland card, cast it free');
 {
   const t = setup();
   const lib = t.P(0).deck.remainingLibrary;
-  const land = lib.find(c => /Land/.test(def(t, c)?.typeLine || '')), spell = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length);
+  const land = lib.find(c => /Land/.test(def(t, c)?.typeLine || '')), spell = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '') && !def(t, c)?.cardFaces?.length && def(t, c)?.name !== 'Opt');
   lib.splice(lib.indexOf(land), 1); lib.splice(lib.indexOf(spell), 1); lib.unshift(land, spell);
   asText(t, spell, 'Each opponent loses 2 life.', { typeLine: 'Sorcery', manaCost: '{7}' });
   const life = t.P(1).life;
   cast(t, 'Opt', 'Exile cards from the top of your library until you exile a nonland card. You may cast that card without paying its mana cost.', [[d => /free/i.test(JSON.stringify(d.options || [])), 'cast']]);
   check('Exile until nonland: the land stays exiled, the spell is cast free', land.zone === 'exile' && t.P(1).life === life - 2 && spell.zone === 'graveyard', JSON.stringify([land.zone, spell.zone, t.P(1).life]));
+}
+
+{
+  const t = setup();
+  const w = onField(t, 'Llanowar Elves', '{1}: This creature becomes the creature type of your choice until end of turn.');
+  activate(t, w, 0, [[d => d.kind === 'creature-type' || /creature type/i.test(d.prompt || d.title || ''), d => (d.kind === 'choose-one' ? (d.options.find(o => /^Dragon$/i.test(o.label))?.id ?? 'Dragon') : 'Dragon')]]);
+  const tl = withOverlay(w, def(t, w))?.typeLine || '';
+  check('Mistform: becomes the chosen creature type only', /Dragon/.test(tl) && !/Elf/.test(tl), tl);
 }
 
 done();

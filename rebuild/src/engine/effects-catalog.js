@@ -333,6 +333,14 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'tap-or-untap', bind, howBind: how });
     return true;
   }
+  // Mistform Wall: "This creature becomes the creature type of your choice until end of turn." (replaces its creature types)
+  if ((m = c.match(rx(`^(${selfAny}|this creature|target creature) becomes the creature type of your choice until end of turn\\.?$`, 'i')))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : 'sourceId';
+    const typeBind = `creatureType${requirements.length}`;
+    requirements.push({ kind: 'creature-type-choice', bind: typeBind, label: 'Choose a creature type' });
+    effects.push({ kind: 'animate', bind, power: null, toughness: null, addTypes: [], subtypes: [], subtypeBind: typeBind, replaceSubtypes: true, keywords: [], colors: null, expires: 'cleanup', typeOnly: false });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -491,9 +499,10 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         const hit = permanentAt(game, id);
         if (!hit) { notes.push('It is no longer on the battlefield.'); continue; }
         hit.card.temporaryEffects = hit.card.temporaryEffects || [];
-        const fx = { kind: 'animate', addTypes: effect.addTypes, subtypes: effect.subtypes, keywords: effect.keywords, colors: effect.colors, power: effect.power === 'X' ? n : effect.power, toughness: effect.toughness === 'X' ? n : effect.toughness };
+        const fx = { kind: 'animate', addTypes: effect.addTypes, subtypes: effect.subtypeBind && bindings[effect.subtypeBind] ? [String(bindings[effect.subtypeBind])] : effect.subtypes, ...(effect.replaceSubtypes ? { replaceSubtypes: true } : {}), keywords: effect.keywords, colors: effect.colors, power: effect.power === 'X' ? n : effect.power, toughness: effect.toughness === 'X' ? n : effect.toughness };
         if (effect.expires) fx.expires = effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : effect.expires;
         hit.card.temporaryEffects.push(fx);
+        if (effect.subtypeBind) { notes.push(`${name(hit.card)} becomes a ${fx.subtypes[0] || 'creature'} until end of turn.`); continue; }
         notes.push(effect.typeOnly ? `${name(hit.card)} is also ${/^[AEIOU]/.test(effect.addTypes[0]) ? 'an' : 'a'} ${effect.addTypes[0].toLowerCase()}${effect.expires ? ' until end of turn' : ''}.` : `${name(hit.card)} becomes ${fx.power != null ? `a ${fx.power}/${fx.toughness} ` : 'a '}creature${effect.expires ? ' until end of turn' : ''}.`);
       }
       return true;
