@@ -21,7 +21,14 @@ export function librarySearchSpec(effectText = '') {
   else if (/put (?:that|it|the card|those cards)[^.]*on top of your library/i.test(text) || /shuffle and put (?:that|the) card on top/i.test(text)) destination = 'library';
   const entersTapped = destination === 'battlefield' && /onto the battlefield tapped/i.test(text);
   let filterKey = 'any', label = 'card';
-  for (const [key, re, name] of FILTERS) {
+  // Land types: "a Mountain or Forest card" (fetch lands), "a basic Swamp, Mountain, or Forest card".
+  const LT = '(?:Plains|Island|Swamp|Mountain|Forest)';
+  const typed = text.match(new RegExp(`search your library for (?:a|an|up to one) (basic )?(${LT}(?:(?:,| or|, or) ${LT})*) card`, 'i'));
+  if (typed) {
+    const types = typed[2].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim()).filter(Boolean);
+    filterKey = `landtypes:${typed[1] ? 'basic' : 'any'}:${types.join(',')}`;
+    label = `${typed[1] ? 'basic ' : ''}${typed[2]} card`;
+  } else for (const [key, re, name] of FILTERS) {
     if (re.test(text)) { filterKey = key; label = name; break; }
   }
   const untapMatch = text.match(/if you control (\d+|one|two|three|four|five) or more lands?, untap (?:that|it|the) land/i);
@@ -35,6 +42,11 @@ export function librarySearchSpec(effectText = '') {
 }
 
 export function searchFilter(spec) {
+  const lt = String(spec?.filterKey || '').match(/^landtypes:(basic|any):(.+)$/);
+  if (lt) {
+    const types = lt[2].split(',');
+    return d => (lt[1] !== 'basic' || /\bBasic\b/i.test(d?.typeLine || '')) && types.some(t => new RegExp(`\\b${t}\\b`).test(d?.typeLine || ''));
+  }
   const row = FILTERS.find(f => f[0] === spec?.filterKey);
   return row ? row[3] : () => true;
 }

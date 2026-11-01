@@ -9,7 +9,7 @@ import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catal
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
-import { cardMatchesFilter } from '../engine/effects.js';
+import { cardMatchesFilter, resolveAmount } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -74,7 +74,7 @@ export class Need {
 }
 
 /** Requirement kinds answered while casting/activating (targets are locked in then). */
-const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number']);
+const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute']);
 
 export function splitRequirements(requirements = []) {
   const cast = [], resolve = [];
@@ -353,8 +353,9 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       // A card from hand, chosen as it resolves; cards about to be drawn by this effect are offered too.
       const fits = c => (!req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter)) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0))));
       const rows = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && fits(c)).map(c => cardOption(game, c, player, 'In your hand')),
-        ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || 0).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
-      if (!rows.length) { bindings[req.bind] = null; return; }
+        ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || (req.plusDrawAmount ? resolveAmount(game, player.playerId, req.plusDrawAmount, bindings) : 0)).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
+      if (!rows.length) { bindings[req.bind] = req.many ? [] : null; return; }
+      if (req.many) { bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${sourceName} — ${req.label}`, prompt: `You may choose ${req.label}.`, options: rows, min: 0, max: rows.length })); return; }
       bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', private: true, title: `${sourceName} — ${req.label}`, prompt: `You may choose ${req.label}.`, options: rows, allowNone: true, noneLabel: 'None' }));
       return;
     }

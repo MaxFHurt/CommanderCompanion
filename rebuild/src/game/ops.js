@@ -587,7 +587,7 @@ function runActivate(game, op, ask) {
   if (ability.hasX) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
-  if (fromZone === 'hand') costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
+  if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
   if (ability.sacrificeRequirement && !ability.sacrificesSelf) {
     const type = ability.sacrificeRequirement;
     const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${type === 'permanent' ? '' : type}`, 'i').test(defOf(game, c)?.typeLine || ''));

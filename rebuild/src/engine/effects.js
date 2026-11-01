@@ -228,6 +228,7 @@ export function cardMatchesFilter(game, card, filter) {
       if (c === 'untapped') return !card.tapped;
       if (c.startsWith('keyword:')) return hasKeyword(card, d, c.slice(8));
       if (c.startsWith('nokeyword:')) return !hasKeyword(card, d, c.slice(10));
+      if (c.startsWith('anysub:')) return /changeling/i.test(text) || c.slice(7).split(',').some(w => rx(`\\b${w}s?\\b`, 'i').test(d?.typeLine || ''));
       if (c.startsWith('subtype:')) return rx(`\\b${c.slice(8)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text);
       if (c.startsWith('not-id:')) return card.instanceId !== c.slice(7);
       if (c.startsWith('type:')) return type.includes(c.slice(5));
@@ -1367,6 +1368,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const eid = effect.equipmentId || bindings[effect.equipmentBind], cid = effect.creatureId || bindings[effect.creatureBind], eq = locateCardInGame(game, eid), cr = locateCardInGame(game, cid);
       if (!eq || eq.zone !== 'battlefield' || !cr || cr.zone !== 'battlefield')
         throw new Error('Attachment target is unavailable.');
+      const was = eq.card.attachedTo && eq.card.attachedTo !== cid ? locateCardInGame(game, eq.card.attachedTo) : null;
+      if (was?.card?.attachments) was.card.attachments = was.card.attachments.filter(x => x !== eid);
       eq.card.attachedTo = cid;
       cr.card.attachments = cr.card.attachments || [];
       if (!cr.card.attachments.includes(eid))
@@ -2048,6 +2051,12 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'damage', amount: numberFromText(m[1]), toController: true, sourceName });
     return { effects, requirements, unsupported };
   }   // checked when something tries to counter it
+  // Valley Floodcaller: "Birds, Frogs, Otters, and Rats you control get +1/+1 until end of turn."
+  if ((m = c.match(/^((?:[A-Z][a-z]+, )+(?:and )?[A-Z][a-z]+|[A-Z][a-z]+ and [A-Z][a-z]+) you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/))) {
+    const subs = m[1].split(/,\s*(?:and\s+)?|\s+and\s+/).map(w => w.trim().replace(/ves$/, 'f').replace(/s$/, '')).filter(Boolean);
+    effects.push({ kind: 'pump-each', scope: 'you', filter: `creature|anysub:${subs.join(',')}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
   if ((m = c.match(/^Non-([A-Z][a-z]+) creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
     effects.push({ kind: 'pump-each', scope: 'you', filter: `creature|non:${m[1].toLowerCase()}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
@@ -3079,6 +3088,8 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   // "Sacrifice it", "… dealt to and dealt by that creature": the last thing targeted.
   const lastTarget = [...merged.requirements].reverse().find(r => r.kind === 'target');
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
+  // Nothing targeted: "it" is the card the trigger is about ("When this land enters, sacrifice it.").
+  if (!lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget' && e.kind === 'sacrifice') e.bind = 'eventCard';
   const lastStack = [...merged.requirements].reverse().find(r => r.kind === 'stack-target');
   for (const e of merged.effects) if (e.amount?.stackBind === 'lastStack' && lastStack) e.amount = { ...e.amount, stackBind: lastStack.bind };
   const firstTarget = merged.requirements.find(r => r.kind === 'target');
@@ -3101,6 +3112,8 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       const req = after && merged.requirements.find(r => r.bind === after.cardsBind);
       if (req) req.plusDrawBind = xFrom;
     }
+    // "Draw cards equal to the greatest toughness …, then put any number of creature cards from your hand onto the battlefield."
+    if (e.kind === 'draw' && e.amount && typeof e.amount === 'object' && !e.bind) for (const x of merged.effects.slice(merged.effects.indexOf(e) + 1).filter(x => x.kind === 'hand-to-battlefield-any')) { const r = merged.requirements.find(q => q.bind === x.bind); if (r && !r.plusDraw) r.plusDrawAmount = e.amount; }
     if (e.kind === 'draw' && typeof e.amount === 'number') { const k = e.bind ? `bind:${e.bind}` : (e.scope || 'you'); drawn[k] = (drawn[k] || 0) + e.amount; }
     const dk = e.bind ? `bind:${e.bind}` : (e.scope || 'you');
     if (e.kind === 'discard' && e.cardsBind && drawn[dk]) {

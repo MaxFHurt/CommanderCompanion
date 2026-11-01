@@ -195,6 +195,32 @@ function compileCatalogClauseInner(c, ctx) {
     }
   }
 
+  // "Distribute two +1/+1 counters among one or two target creatures you control." "Distribute 4 damage among any number
+  // of target creatures and/or planeswalkers." The player divides as the spell is cast.
+  if ((m = c.match(rx(`^Distribute ${N} (\\+1\\/\\+1 counters|damage) among (one or two|one, two, or three|any number of|up to ${N}) (targets|target [^.]+?)\\.?$`, 'i')))) {
+    const total = num(m[1]), most = /one or two/i.test(m[3]) ? 2 : /three/i.test(m[3]) ? 3 : /up to/i.test(m[3]) ? num(m[4]) : null;
+    const scope = /^targets$/i.test(m[5]) ? 'any target' : m[5].toLowerCase().replace(/^target (\w+)s\b/, 'target $1').replace(/ and\/or (\w+)s\b/, ' or $1');
+    const tb = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind: tb, scope, min: 1, max: total === 'X' ? (most || 99) : Math.min(most || total, total), label: `Choose ${m[3].toLowerCase()} ${m[5].replace(/^target /i, '')} (${m[1]} ${/damage/i.test(m[2]) ? 'damage' : 'counters'} divided)` });
+    const db = `divide${requirements.length}`;
+    requirements.push({ kind: 'distribute', bind: db, targetsBind: tb, total, what: /damage/i.test(m[2]) ? 'damage' : 'counter' });
+    effects.push({ kind: 'distribute', bind: db, what: /damage/i.test(m[2]) ? 'damage' : 'counter', sourceName });
+    return true;
+  }
+  // Last March of the Ents: "… then put any number of creature cards from your hand onto the battlefield."
+  if ((m = c.match(/^(?:you may )?put any number of ([a-z ]+?) cards from your hand onto the battlefield( tapped)?\.?$/i))) {
+    const bind = `handCards${requirements.length}`;
+    requirements.push({ kind: 'hand-card', bind, many: true, filter: m[1].toLowerCase().replace(/^(?:permanent|nonland permanent)$/, ''), label: `any number of ${m[1]} cards to put onto the battlefield` });
+    effects.push({ kind: 'hand-to-battlefield-any', bind, tapped: !!m[2], optionalTarget: true });
+    return true;
+  }
+  // Talon Gates of Madara: "{4}: Put this card from your hand onto the battlefield." (activated from the hand)
+  if (rx(`^Put (?:this card|${selfAny}) from your hand onto the battlefield\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-hand-to-battlefield' }); return true; }
+  // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
+  if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
+    effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
+    return true;
+  }
   // Liquimetal Torque: "Target nonland permanent becomes an artifact in addition to its other types until end of turn."
   if ((m = c.match(/^(Target [a-z ]+?) becomes? an? (artifact|enchantment|land) in addition to its other types( until end of turn)?\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
@@ -942,9 +968,10 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   // Equipment: "attach this Equipment to it" (Hero's Blade, Cryptic Coat).
-  if ((m = c.match(/^(?:you may )?attach (?:this Equipment|it|this Aura) to (it|that creature|target creature you control)\.?$/i))) {
-    const creatureBind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : pronBind(m[1]);
-    effects.push({ kind: 'attach', equipmentBind: 'sourceId', creatureBind });
+  if ((m = c.match(/^(?:you may )?attach (this Equipment|it|this Aura|that Equipment) to (it|that creature|target creature you control)\.?$/i))) {
+    const creatureBind = /^target/i.test(m[2]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : pronBind(m[2]);
+    // Hammer of Nazahn: "Whenever … another Equipment you control enters, you may attach that Equipment to …"
+    effects.push({ kind: 'attach', equipmentBind: /^that Equipment$/i.test(m[1]) ? 'eventCard' : 'sourceId', creatureBind });
     return true;
   }
   // Graveyard and library moves.
@@ -1157,6 +1184,11 @@ function compileRound3(c, ctx, subjectBind) {
     return true;
   }
   if (/^If (?:it|that creature|that card) would leave the battlefield, exile it instead of putting it anywhere else\.?$/i.test(c)) { effects.push({ kind: 'mark-exile-if-leaves' }); return true; }
+  // Riveteers Overlook: "search your library for a basic Swamp, Mountain, or Forest card, put it onto the battlefield
+  // tapped, then shuffle and you gain 1 life."
+  if ((m = c.match(rx(`^(.*search your library for .+?,? then shuffle) and you gain ${N} life\\.?$`, 'i')))) {
+    if (compileCatalogClauseInner(`${m[1]}.`, ctx)) { effects.push({ kind: 'life', scope: 'you', amount: num(m[2]), deltaSign: 1 }); return true; }
+  }
   // A library search inside a longer instruction or a mode (Verdant Confluence): the player chooses as it resolves.
   if ((m = c.match(/^(?:you may )?search your library for .+$/i)) && !/ and \/or |each player|target player|that player/i.test(c)) {
     const spec = librarySearchSpec(ctx.restore(c));
@@ -1649,6 +1681,23 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'self-hand-to-battlefield': {
+      const id = bindings.sourceId;
+      if (!controller.deck.hand.some(c => c.instanceId === id)) { notes.push('The card is no longer in your hand.'); return true; }
+      moveCard(game, id, 'battlefield', { controllerId, onEvent: emit });
+      notes.push(`${name(locateCardInGame(game, id)?.card)} is put onto the battlefield.`);
+      return true;
+    }
+    case 'distribute': {
+      const split = bindings[effect.bind] || {};
+      for (const [id, n] of Object.entries(split)) {
+        if (!(Number(n) > 0)) continue;
+        const key = `__divided_${id}`;
+        bindings[key] = id;
+        H.applyEffectsUnsafe(game, controllerId, [effect.what === 'damage' ? { kind: 'damage', amount: Number(n), bind: key, sourceName: effect.sourceName } : { kind: 'counter', bind: key, counter: '+1/+1', amount: Number(n) }], bindings);
+      }
+      return true;
+    }
     case 'emblem': {
       controller.emblems = [...(controller.emblems || []), { id: `emblem-${game.turnNumber}-${(controller.emblems || []).length}`, text: effect.text, source: name(locateCardInGame(game, bindings.sourceId)?.card) }];
       notes.push(`${controller.displayName} gets an emblem: “${effect.text}”`);
@@ -1664,11 +1713,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       return true;
     }
     case 'hand-to-battlefield-any': {
-      const id = bindings[effect.bind];
-      if (!id || !controller.deck.hand.some(c => c.instanceId === id)) { notes.push('Nothing was put onto the battlefield.'); return true; }
-      moveCard(game, id, 'battlefield', { controllerId, tapped: !!effect.tapped, onEvent: emit });
-      bindings.lastMoved = [id];
-      notes.push(`${controller.displayName} puts ${name(locateCardInGame(game, id)?.card)} onto the battlefield.`);
+      const ids = [].concat(bindings[effect.bind] || []).filter(id => controller.deck.hand.some(c => c.instanceId === id));
+      if (!ids.length) { notes.push('Nothing was put onto the battlefield.'); return true; }
+      for (const id of ids) {
+        moveCard(game, id, 'battlefield', { controllerId, tapped: !!effect.tapped, onEvent: emit });
+        notes.push(`${controller.displayName} puts ${name(locateCardInGame(game, id)?.card)} onto the battlefield.`);
+      }
+      bindings.lastMoved = ids;
       return true;
     }
     case 'pump-many':
@@ -1719,6 +1770,25 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'distribute') {
+    const ids = [].concat(bindings[req.targetsBind] || []);
+    const total = req.total === 'X' ? Math.max(0, Number(bindings.X || 0)) : Number(req.total || 0);
+    const split = {};
+    if (ids.length === 1) split[ids[0]] = total;
+    else if (ids.length > 1) {
+      let left = total;
+      ids.forEach((id, i) => {
+        const rest = ids.length - i - 1;
+        if (!rest) { split[id] = left; return; }
+        const label = util.targetLabel ? util.targetLabel(game, id) : (util.defOf(game, locateCardInGame(game, id)?.card)?.name || (game.players.find(p => p.playerId === id)?.displayName) || 'Target');
+        const n = ask(`${key}:${i}`, () => ({ ...base, cancellable: false, kind: 'number', title: `${ctx.sourceName} — divide ${req.what === 'damage' ? 'damage' : 'counters'}`, prompt: `How much of the ${left} left goes to ${label}? (each target gets at least 1)`, min: 1, max: Math.max(1, left - rest) }));
+        split[id] = Math.max(1, Math.min(Number(n) || 1, left - rest));
+        left -= split[id];
+      });
+    }
+    bindings[req.bind] = split;
     return true;
   }
   if (req.kind === 'sylvan') {

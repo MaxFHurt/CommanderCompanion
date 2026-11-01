@@ -212,6 +212,7 @@ export function activationBlock(game, player, card, ability) {
 export function abilityZone(ability) {
   if (/\bDiscard this card\b/i.test(ability?.cost || '')) return 'hand';
   if (/\bthis card from your graveyard\b/i.test(ability?.effect || '')) return 'graveyard';
+  if (/\bthis card from your hand\b/i.test(ability?.effect || '')) return 'hand';   // Talon Gates of Madara
   return 'battlefield';
 }
 

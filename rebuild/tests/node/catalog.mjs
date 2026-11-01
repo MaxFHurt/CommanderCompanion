@@ -7,8 +7,8 @@ import { withOverlay } from '../../src/engine/overlay.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
-const power = (t, c) => effectivePower(c, def(t, c), t.game);
-const tough = (t, c) => effectiveToughness(c, def(t, c), t.game);
+const power = (t, c) => effectivePower(c, withOverlay(c, def(t, c)), t.game);
+const tough = (t, c) => effectiveToughness(c, withOverlay(c, def(t, c)), t.game);
 const require_lock = t => t.P(0).lifeLocked && t.P(0).lifeLockedTurn === t.game.turnNumber;
 const has = (t, c, k) => cardHasKeyword(c, def(t, c), k, t.game);
 const auto = d => { const open = (d.options || []).filter(o => !o.disabled); return d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : d.kind === 'arrange' ? { top: d.cards.map(c => c.id), other: [] } : open[0]?.id; };
@@ -980,6 +980,74 @@ section('round 16: mana of several colours');
   const r = t.ctl.dispatch({ type: 'activate', instanceId: sig.instanceId, abilityId: ab.id }, t.as(0)); settle(t);
   const f = t.P(0).mana.floating || {};
   check('Signet: {W}{U} adds one white and one blue', r.ok && f.W === 1 && f.U === 1, JSON.stringify([r.error, f]));
+}
+
+section('round 17: searches by land type, tribal pumps, distribute, Last March, Talon Gates');
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const forest = lib.find(c => def(t, c)?.name === 'Forest');
+  const island = lib.find(c => def(t, c)?.name === 'Island');
+  let offered = null;
+  t.give(0, 'Fog Bank'); const land = asText(t, t.hand(0, 'Fog Bank'), 'When this land enters, sacrifice it. When you do, search your library for a basic Swamp, Mountain, or Forest card, put it onto the battlefield tapped, then shuffle and you gain 1 life.', { typeLine: 'Land', manaCost: '' });
+  const life = t.P(0).life;
+  t.ctl.dispatch({ type: 'play', instanceId: land.instanceId }, t.as(0));
+  settle(t, [[d => /search/i.test(d.title + d.prompt) && d.options, d => { offered = d.options.map(o => o.label); return d.kind === 'choose-many' ? [d.options.find(o => o.label === 'Forest')?.id].filter(Boolean) : d.options.find(o => o.label === 'Forest')?.id; }]]);
+  check('Riveteers Overlook: only a basic Swamp, Mountain or Forest is offered; life gained', !!forest && !!island && offered && !offered.includes('Island') && offered.includes('Forest') && t.P(0).life === life + 1 && !t.bf(0, 'Fog Bank'), JSON.stringify([offered && [...new Set(offered)], life, t.P(0).life]));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you cast a noncreature spell, Birds, Frogs, Otters, and Rats you control get +1/+1 until end of turn. Untap them.', { typeLine: 'Creature — Otter Wizard' });
+  const frog = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Frog' }); frog.tapped = true;
+  const elf = onField(t, 'Llanowar Elves', '');
+  cast(t, 'Opt', 'Draw a card.');
+  check('Valley Floodcaller: Frogs get +1/+1 and untap; Elves do not', power(t, frog) === 3 && !frog.tapped && power(t, elf) === 1, JSON.stringify([power(t, frog), frog.tapped, power(t, elf)]));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever Fog Bank or another Equipment you control enters, you may attach that Equipment to target creature you control.', { typeLine: 'Legendary Artifact — Equipment' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Llanowar Elves'); const eq = asText(t, t.hand(0, 'Llanowar Elves'), 'Equipped creature gets +2/+0.\nEquip {3}', { typeLine: 'Artifact — Equipment', manaCost: '{1}' });
+  t.ctl.dispatch({ type: 'play', instanceId: eq.instanceId }, t.as(0));
+  settle(t, [[d => d.targeting, d => d.options.find(o => o.id === bear.instanceId)?.id ?? d.options[0].id]]);
+  check('Hammer of Nazahn: the new Equipment attaches to a creature', t.P(0).deck.battlefield.find(c => c.instanceId === eq.instanceId)?.attachedTo === bear.instanceId);
+}
+{
+  const t = setup();
+  const me = onField(t, 'Fog Bank', '{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.', { typeLine: 'Creature — Shapeshifter', power: '1', toughness: '1' });
+  const bear = onField(t, 'Grizzly Bears', ''); bear.counters = { '+1/+1': 1 };
+  activate(t, me, 0, [['x', 4]]);
+  check('Mirror Entity: X=4 makes creatures 4/4 (counters on top)', power(t, bear) === 5 && tough(t, me) === 4, JSON.stringify([power(t, bear), tough(t, me), t.game.log.slice(0, 2).map(l => l.text)]));
+}
+{
+  const t = setup();
+  const cr = onField(t, 'Fog Bank', '{T}: Distribute two +1/+1 counters among one or two target creatures you control.', { typeLine: 'Artifact' });
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Llanowar Elves', '');
+  activate(t, cr, 0, [[d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]], [d => d.kind === 'number', 1]]);
+  check('The Earth Crystal: one counter on each of two creatures', a.counters?.['+1/+1'] === 1 && b.counters?.['+1/+1'] === 1, JSON.stringify([a.counters, b.counters]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 1);
+  const life = t.P(1).life;
+  cast(t, 'Opt', 'Distribute four damage among one, two, or three targets.', [[d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId, t.P(1).playerId]], [d => d.kind === 'number' && /Grizzly/.test(d.prompt), 2], [d => d.kind === 'number', 1]]);
+  check('Distribute damage: 2 to the Bears, 1 to the Elves, 1 to the player', !t.bf(1, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves') && t.P(1).life === life - 1, JSON.stringify([life, t.P(1).life]));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', '', { power: '0', toughness: '2' });
+  const lib = t.P(0).deck.remainingLibrary;
+  const bear = lib.find(c => /Creature/.test(def(t, c)?.typeLine || '')); lib.splice(lib.indexOf(bear), 1); lib.unshift(bear); asText(t, bear, '', { toughness: '1' });
+  cast(t, 'Opt', 'This spell can\'t be countered.\nDraw cards equal to the greatest toughness among creatures you control, then put any number of creature cards from your hand onto the battlefield.', [[d => d.kind === 'choose-many', d => d.options.filter(o => o.id === bear.instanceId).map(o => o.id)]]);
+  check('Last March of the Ents: draws by toughness, the drawn creature can go onto the battlefield', t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId) && t.P(0).deck.hand.length === 1, JSON.stringify([t.P(0).deck.hand.map(c => def(t, c)?.name), t.P(0).deck.battlefield.filter(c => /Creature/.test(def(t, c)?.typeLine || '')).map(c => [def(t, c)?.name, tough(t, c)])]));
+}
+{
+  const t = setup();
+  t.give(0, 'Fog Bank'); const gates = asText(t, t.hand(0, 'Fog Bank'), '{T}: Add {C}.\n{4}: Put this card from your hand onto the battlefield.', { typeLine: 'Land' });
+  const row = t.view(0).players[0].hand.find(c => c.id === gates.instanceId)?.abilities?.find(a => /from your hand/.test(a.text));
+  const r = row ? t.ctl.dispatch({ type: 'activate', instanceId: gates.instanceId, abilityId: row.id }, t.as(0)) : { ok: false, error: 'no row' };
+  settle(t);
+  check('Talon Gates: put onto the battlefield from the hand for {4}', r.ok && !!t.bf(0, 'Fog Bank'), r.error);
 }
 
 done();
