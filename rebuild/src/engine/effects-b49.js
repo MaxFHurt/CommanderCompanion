@@ -308,6 +308,11 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   // Myr Battlesphere: "you may tap X untapped Myr you control. If you do, this creature gets +X/+0 until end of turn and deals X damage to the player or planeswalker it's attacking."
   if ((m = c0.match(/^(?:you may )?tap X untapped ([A-Z][a-z]+) you control\.?$/)) && /^If you do, (?:this creature|SELFNAME|.+?) gets \+X\/\+0 until end of turn and deals X damage to the player or planeswalker it'?s attacking\.?$/i.test(String(clauses[i + 1] || '')))
     return { part: { effects: [{ kind: 'battlesphere', bind: `tapX${i}` }], requirements: [{ kind: 'b49-tap-x', bind: `tapX${i}`, type: m[1] }], unsupported: [] }, consumed: 2 };
+  // Chain of Vapor: "Then that permanent's controller may sacrifice a land of their choice. If the player does, they may copy this spell and may choose a new target for that copy."
+  if (/^Then that permanent'?s controller may sacrifice a land of their choice\.?$/i.test(c0) && /^If the player does, they may copy this spell and may choose a new target for that copy\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target');
+    if (earlier) return { part: { effects: [{ kind: 'chain-copy', bind: `chain${i}` }], requirements: [{ kind: 'b49-chain', bind: `chain${i}`, targetBind: earlier.bind }], unsupported: [] }, consumed: 2 };
+  }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -608,6 +613,17 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${nameOf(game, effect.targetId)} returns transformed.`);
       return true;
     }
+    case 'chain-copy': {
+      const pick = bindings[effect.bind] || {};
+      if (!pick.land) return true;
+      const h = locateCardInGame(game, pick.land);
+      if (!h || h.zone !== 'battlefield') return true;
+      moveCard(game, pick.land, 'graveyard', { moveReason: 'sacrifice', onEvent: e => H.emit(bindings, e) });
+      const who = playerById(game, pick.player);
+      notes.push(`${who?.displayName} sacrifices ${nameOf(game, pick.land)}.`);
+      // Their copy: they control it and choose its new target.
+      return applyB49(game, pick.player, { kind: 'copy-self', retarget: true }, bindings, notes);
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -781,6 +797,17 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
   if (req.kind === 'b49-tap-x') {
     const rows = (player.deck.battlefield || []).filter(c => !c.tapped && c.instanceId !== bindings.sourceId && new RegExp(`\\b${req.type}\\b`).test(util.defOf(game, c)?.typeLine || ''));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Tap any number of untapped ${req.type} you control (X is the number tapped).`, options: rows.map(c => util.cardOption(game, c, player)), min: 0, max: rows.length })) : [];
+    return true;
+  }
+  if (req.kind === 'b49-chain') {
+    const t = locateCardInGame(game, bindings[req.targetBind]);
+    const p = t?.zone === 'battlefield' ? playerById(game, t.card.controllerId) : null;
+    bindings[req.bind] = {};
+    if (!p) return true;
+    const lands = (p.deck.battlefield || []).filter(c => /\bLand\b/.test(util.defOf(game, c)?.typeLine || ''));
+    if (!lands.length) return true;
+    const v = ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: 'You may sacrifice a land to copy this spell (choosing a new target).', options: [{ id: 'none', label: 'Don’t sacrifice' }, ...lands.map(c => util.cardOption(game, c, p))] }));
+    bindings[req.bind] = v && v !== 'none' ? { player: p.playerId, land: v } : {};
     return true;
   }
   if (req.kind === 'b49-hand-pick') {

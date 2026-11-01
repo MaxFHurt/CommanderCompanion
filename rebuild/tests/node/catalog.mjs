@@ -2146,4 +2146,13 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Read ahead: chapter III only (draws, no life)', t.P(0).life === life && t.P(0).deck.hand.length === hand + 1, JSON.stringify([t.P(0).life - life, t.P(0).deck.hand.length - hand, saga?.counters]));
 }
 
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 0);
+  t.give(1, 'Forest', 'battlefield');
+  const seen = cast(t, 'Opt', "Return target nonland permanent to its owner's hand. Then that permanent's controller may sacrifice a land of their choice. If the player does, they may copy this spell and may choose a new target for that copy.",
+    [[d => d.targeting && d.playerId === t.P(0).playerId, () => a.instanceId], [d => d.playerId === t.P(1).playerId && /sacrifice a land/.test(d.prompt || ''), d => d.options.find(o => o.id !== 'none').id], [d => d.key === 'retarget', true], [d => d.targeting && d.playerId === t.P(1).playerId, () => b.instanceId], [d => d.playerId === t.P(0).playerId && /sacrifice a land/.test(d.prompt || ''), 'none']], { manaCost: '{U}' });
+  check('Chain of Vapor: the opponent sacrifices a land, copies it, and bounces our creature', t.names(1, 'hand').includes('Grizzly Bears') && t.names(0, 'hand').includes('Llanowar Elves'), JSON.stringify([t.names(1, 'hand'), t.names(0, 'hand')]));
+}
+
 done();
