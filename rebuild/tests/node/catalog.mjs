@@ -1255,4 +1255,18 @@ section('round 25: Plot');
   check('…and cast for free on a later turn', p.ok && !!t.bf(0, 'Grizzly Bears'), p.error);
 }
 
+section('round 26: Boast');
+{
+  const t = setup();
+  const b = onField(t, 'Llanowar Elves', 'Boast — {1}: Draw a card. (Activate only if this creature attacked this turn and only once each turn.)');
+  const row0 = t.view(0).players[0].battlefield.find(c => c.id === b.instanceId)?.abilities?.find(a => /Boast/.test(a.text));
+  check('Boast: not before it attacked', row0 && !row0.legal, JSON.stringify(row0));
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: b.instanceId, defenderId: t.P(1).playerId }] }); settle(t);
+  const hand = t.P(0).deck.hand.length;
+  activate(t, b);
+  const row2 = t.view(0).players[0].battlefield.find(c => c.id === b.instanceId)?.abilities?.find(a => /Boast/.test(a.text));
+  check('…after attacking it works once, then not again', t.P(0).deck.hand.length === hand + 1 && row2 && !row2.legal, JSON.stringify([hand, t.P(0).deck.hand.length, row2?.reason]));
+}
+
 done();

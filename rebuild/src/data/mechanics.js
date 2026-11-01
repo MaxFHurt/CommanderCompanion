@@ -188,7 +188,7 @@ m('Battle cry', 'keyword', 'Whenever this attacks, each other attacking creature
 m('Bestow', 'keyword', 'Cast as an Aura for the bestow cost; if the enchanted creature leaves, it becomes a creature again.', { auto: 'manual', actions: ['attach'] });
 m('Blitz', 'keyword', 'Cast for the blitz cost: it has haste and "When this dies, draw a card", and is sacrificed at the next end step.', { auto: 'auto' });
 m('Bloodthirst', 'keyword', 'Bloodthirst N: if an opponent was dealt damage this turn, this enters with N +1/+1 counters.', { auto: 'manual', actions: ['counter+'] });
-m('Boast', 'keyword', 'Activate only if this creature attacked this turn and only once each turn.', { auto: 'manual' });
+m('Boast', 'keyword', 'Activate only if this creature attacked this turn and only once each turn.', { auto: 'auto', steps: 'The game allows a boast ability only after the creature attacked this turn, once.' });
 m('Bushido', 'keyword', 'Bushido N: whenever this blocks or becomes blocked, it gets +N/+N until end of turn.', { auto: 'manual', actions: ['pt'] });
 m('Buyback', 'keyword', 'You may pay the buyback cost as you cast this; if you do, it returns to your hand as it resolves.', { auto: 'auto' });
 m('Cascade', 'keyword', 'When you cast this, exile from the top until a nonland card that costs less; you may cast it free. The rest go to the bottom in a random order.', { auto: 'auto', tricky: ['Cascade triggers on cast, so it resolves before the cascading spell.', 'Split cards check the total mana value of both halves.'] });

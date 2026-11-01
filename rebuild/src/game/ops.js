@@ -569,7 +569,7 @@ function runActivate(game, op, ask) {
 
   const restricted = activationBlock(game, player, card, ability);
   if (restricted && !force) throw new GameError(restricted);
-  if (/Activate only once each turn|only once each turn/i.test(ability.text)) card.activatedTurn = { ...(card.activatedTurn || {}), [ability.id]: game.turnNumber };
+  if (/Activate only once each turn|only once each turn|^Boast\b/i.test(ability.text)) card.activatedTurn = { ...(card.activatedTurn || {}), [ability.id]: game.turnNumber };
   if (/Activate only as a sorcery/i.test(ability.text) && !force
     && (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length)) {
     throw new GameError('This ability can be used only during your main phase while the stack is empty.');

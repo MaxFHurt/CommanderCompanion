@@ -210,6 +210,11 @@ export function activationRules(text) {
 }
 /** Why the ability cannot be used right now because of its "Activate only …" text, or null. */
 export function activationBlock(game, player, card, ability) {
+  // Boast: "Activate only if this creature attacked this turn and only once each turn."
+  if (/^Boast\b/i.test(String(ability?.text || ''))) {
+    if (card?.attackedTurn !== game.turnNumber) return 'Boast: only if this creature attacked this turn.';
+    if (card?.activatedTurn?.[ability.id] === game.turnNumber) return 'Boast: only once each turn.';
+  }
   const rules = activationRules(ability?.text) || [];
   for (const r of rules) {
     if (r.kind === 'once' && card?.activatedTurn?.[ability.id] === game.turnNumber) return 'Only once each turn.';
