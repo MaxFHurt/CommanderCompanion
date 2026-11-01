@@ -171,12 +171,13 @@ export function candidatesFor(game, req, player, source = null) {
       if (!req.spellFilter) return true;
       const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
       const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-      return req.spellFilter.split('|').some(w => w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+      return req.spellFilter.split('|').some(w => w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
         : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])
       .filter(x => req.scope !== 'spell' || x.kind === 'spell' || x.kind === 'spell-copy')
       .filter(x => req.scope !== 'ability' || x.kind === 'ability' || x.kind === 'trigger')
+      .filter(x => !req.abilityKind || x.kind === req.abilityKind)
       .filter(x => !req.yours || x.controllerId === player.playerId)
       .filter(x => !req.notYours || x.controllerId !== player.playerId)
       .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)))
@@ -282,7 +283,8 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       return;
     }
     if (req.kind === 'multi-target') {
-      const max = Math.max(0, Number(req.max || 1)), min = Math.max(0, Number(req.min || 0));
+      const xv = v => (v === 'X' ? Math.max(0, Number(bindings.X || 0)) : v);
+      const max = Math.max(0, Number(xv(req.max) ?? 1)), min = Math.max(0, Number(xv(req.min) || 0));
       const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null);
       bindings[req.bind] = rows.length
         ? ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: req.label || `Choose up to ${max}`, options: rows, min: Math.min(min, rows.length), max: Math.min(max, rows.length) }))

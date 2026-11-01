@@ -219,6 +219,11 @@ function compileCatalogClauseInner(c, ctx) {
   }
   // Talon Gates of Madara: "{4}: Put this card from your hand onto the battlefield." (activated from the hand)
   if (rx(`^Put (?:this card|${selfAny}) from your hand onto the battlefield\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-hand-to-battlefield' }); return true; }
+  // "Magma Opus deals 4 damage divided as you choose among any number of targets." (Electrolyze, Forked Bolt …)
+  if ((m = c.match(rx(`^(?:${selfAny}|This spell|It) deals ${N} damage divided as you choose among (one or two|one, two, or three|any number of|two|three) (targets|target [^.]+?)\\.?$`, 'i')))) {
+    const amt = /^X$/i.test(m[1]) ? 'X' : m[1];
+    return compileCatalogClauseInner(`Distribute ${amt} damage among ${/^(two|three)$/i.test(m[2]) ? `one, two, or three` : m[2]} ${m[3]}.`, ctx);
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1235,8 +1240,8 @@ function compileRound3(c, ctx, subjectBind) {
     }
   }
   // Exact counts: "Return two target creatures to their owners' hands." "Destroy two target artifacts."
-  if ((m = c.match(/^(Return|Destroy|Exile|Tap|Untap) (two|three|four) target ([a-z ,/]+?)( to their owners'? hands?)?\.?$/i)) && (m[1].toLowerCase() !== 'return' || m[4])) {
-    const n = num(m[2]), bind = `multi${requirements.length}`;
+  if ((m = c.match(/^(Return|Destroy|Exile|Tap|Untap) (two|three|four|X) target ([a-z ,/]+?)( to their owners'? hands?)?\.?$/i)) && (m[1].toLowerCase() !== 'return' || m[4])) {
+    const n = /^X$/i.test(m[2]) ? 'X' : num(m[2]), bind = `multi${requirements.length}`;
     requirements.push({ kind: 'multi-target', bind, scope: `target ${m[3].replace(/s$/, '')}`, min: n, max: n, label: `Choose ${m[2]} ${m[3]}` });
     effects.push({ kind: m[1].toLowerCase() === 'return' ? 'bounce-many' : `${m[1].toLowerCase()}-many`, bind });
     return true;

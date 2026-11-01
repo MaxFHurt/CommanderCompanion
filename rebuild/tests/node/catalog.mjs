@@ -1091,4 +1091,51 @@ for (const win of [true, false]) {
   check('Bramble Sovereign: the creature\'s controller gets the token copy', t.P(1).deck.battlefield.filter(c => def(t, c)?.name === 'Grizzly Bears').length === 2, String(t.P(1).deck.battlefield.length));
 }
 
+section('round 19: Stifle, sweepers, planeswalker damage, divided damage, X targets');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const stifle = asText(t, t.hand(0, 'Opt'), 'Counter target activated or triggered ability.', { typeLine: 'Instant' });
+  const tim = onField(t, 'Llanowar Elves', '{T}: Draw a card.', {}, 1);
+  t.autoPass = true; t.end(0); t.autoPass = false;
+  const hand = t.P(1).deck.hand.length;
+  const ab = parseActivatedAbilities(def(t, tim))[0];
+  t.ctl.dispatch({ type: 'activate', instanceId: tim.instanceId, abilityId: ab.id }, t.as(1));
+  if (t.game.flow.priority?.holderId === t.P(1).playerId) t.ctl.dispatch({ type: 'pass' }, t.as(1));
+  const r = t.ctl.dispatch({ type: 'play', instanceId: stifle.instanceId }, t.as(0));
+  settle(t, [[d => /ability/i.test(d.prompt + d.title), d => d.options[0].id]]);
+  check('Stifle: the activated ability is countered (no card drawn)', r.ok && t.P(1).deck.hand.length === hand, JSON.stringify([r.error, hand, t.P(1).deck.hand.length]));
+}
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Artifact' }, 1); onField(t, 'Llanowar Elves', '', { typeLine: 'Enchantment' }, 1); onField(t, 'Fog Bank', '', {}, 1);
+  cast(t, 'Opt', 'Destroy all artifacts and enchantments.');
+  check('Destroy all artifacts and enchantments (creatures stay)', !t.bf(1, 'Grizzly Bears') && !t.bf(1, 'Llanowar Elves') && !!t.bf(1, 'Fog Bank'));
+}
+{
+  const t = setup();
+  const pw = onField(t, 'Fog Bank', '+1: Draw a card.', { typeLine: 'Legendary Planeswalker — Jace', loyalty: '5' }, 1); pw.counters = { loyalty: 5 };
+  onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Opt deals 3 damage to each creature and each planeswalker.');
+  check('Damage to each creature and planeswalker: loyalty goes down', !t.bf(1, 'Grizzly Bears') && pw.counters.loyalty === 2, JSON.stringify(pw.counters));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1);
+  const life = t.P(1).life;
+  cast(t, 'Opt', 'Opt deals 3 damage divided as you choose among one or two targets.', [[d => d.kind === 'choose-many', () => [a.instanceId, t.P(1).playerId]], [d => d.kind === 'number', 2]]);
+  check('Electrolyze-style divided damage: 2 to the creature, 1 to the player', !t.bf(1, 'Grizzly Bears') && t.P(1).life === life - 1, JSON.stringify([life, t.P(1).life]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { power: '3', toughness: '3' }, 1);
+  cast(t, 'Opt', 'Target creature deals damage to itself equal to its power.', [[d => d.targeting, () => a.instanceId]]);
+  check('Justice Strike: a 3/3 deals 3 to itself', !t.bf(1, 'Grizzly Bears'));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', 'Tap X target creatures.', [['x', 2], [d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]]], { manaCost: '{X}{U}' });
+  check('Tap X target creatures (X=2)', a.tapped && b.tapped);
+}
+
 done();

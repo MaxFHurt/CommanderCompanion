@@ -170,6 +170,13 @@ function shuffled(array) {
   }
   return array;
 }
+/** Damage to a permanent: a planeswalker loses that much loyalty, a battle that much defense (rule 120.3), others mark it. */
+function markDamage(game, card, n) {
+  const t = String(definitionFor(game, card)?.typeLine || '');
+  const counter = /\bPlaneswalker\b/.test(t) && !/\bCreature\b/.test(t) ? 'loyalty' : /\bBattle\b/.test(t) && !/\bCreature\b/.test(t) ? 'defense' : null;
+  if (counter && n > 0) { card.counters = card.counters || {}; card.counters[counter] = Math.max(0, Number(card.counters[counter] || 0) - n); return; }
+  card.damageMarked = Number(card.damageMarked || 0) + n;
+}
 /** Tap or untap; "if a permanent with a stun counter would become untapped, instead remove a stun counter from it".
  * Returns false when a stun counter was removed instead. */
 export function setTapped(card, tap) {
@@ -309,6 +316,10 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return greatestStat(game, controllerId, 'power', amount.filter || 'creature');
   if (amount.kind === 'greatest-toughness')
     return greatestStat(game, controllerId, 'toughness', amount.filter || 'creature');
+  if (amount.kind === 'bound-power') {
+    const hit = locateCardInGame(game, bindings[amount.bind]);
+    return hit ? Math.max(0, effectivePower(hit.card, definitionFor(game, hit.card), game)) : 0;
+  }
   if (amount.kind === 'stack-mana-value') {
     const obj = (game.stack || []).find(x => x.id === bindings[amount.stackBind]);
     const d = obj?.card ? definitionFor(game, obj.card) : null;
@@ -852,7 +863,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const hit = locateCardInGame(game, targetId);
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The damage target is no longer legal.');
-      hit.card.damageMarked = Number(hit.card.damageMarked || 0) + dealt;
+      markDamage(game, hit.card, dealt);
       if (effect.exileIfDies) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-dies', expires: 'cleanup' }];
       notes.push(`${effect.sourceName || 'Effect'} deals ${dealt} damage to ${cardName(game, hit.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
       if (dealt)
@@ -922,7 +933,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         const hit = locateCardInGame(game, id);
         if (!hit || hit.zone !== 'battlefield') continue;
         const dealt = preventDamage(game, id, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetControllerId: hit.card.controllerId }, amount));
-        hit.card.damageMarked = Number(hit.card.damageMarked || 0) + dealt;
+        markDamage(game, hit.card, dealt);
         if (effect.exileIfDies) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-dies', expires: 'cleanup' }];
         if (dealt) emit(bindings, { type: 'damage-permanent', targetId: id, amount: dealt, sourceId: bindings.sourceId || null, controllerId });
       }
@@ -956,7 +967,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         const th = locateCardInGame(game, targetId);
         if (!th || th.zone !== 'battlefield')
           throw new Error('The chosen damage target is no longer legal.');
-        th.card.damageMarked = Number(th.card.damageMarked || 0) + dealt;
+        markDamage(game, th.card, dealt);
         notes.push(`${sd?.name || 'Creature'} deals ${dealt} damage to ${cardName(game, th.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
         checkLethal(game, targetId, notes, bindings);
       }
@@ -1447,6 +1458,13 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'proliferate') {
       applyProliferate(game, controller, effect, bindings, notes);
+      continue;
+    }
+    if (effect.kind === 'counter-ability') {
+      const i = (game.stack || []).findIndex(x => x.id === bindings[effect.bind]);
+      if (i < 0 || !['ability', 'trigger'].includes(game.stack[i].kind)) { notes.push('The ability is no longer on the stack.'); continue; }
+      const [obj] = game.stack.splice(i, 1);
+      notes.push(`${obj.label || 'The ability'} is countered.`);
       continue;
     }
     if (effect.kind === 'counter-spell') {
@@ -2035,6 +2053,22 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'pump', bind, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
+  // "Target creature gets +X/+0 until end of turn." (X from the cost)
+  if ((m = c.match(/^(Target creature[^.]*) gets ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i)) && /X/.test(m[2] + m[3])) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: /X/.test(m[2]) ? m[2].replace('+', '') : Number(m[2]), toughness: /X/.test(m[3]) ? m[3].replace('+', '') : Number(m[3]), expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  // Justice Strike: "Target creature deals damage to itself equal to its power."
+  if (/^Target creature deals damage to itself equal to its power\.?$/i.test(c)) {
+    const bind = targetRequirement(requirements, 'target creature', 'target creature');
+    effects.push({ kind: 'damage', bind, amount: { kind: 'bound-power', bind }, sourceName: 'That creature', fromTarget: true });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Destroy all (artifacts|creatures|enchantments|lands|planeswalkers) and (artifacts|creatures|enchantments|lands|planeswalkers)\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: `${m[1].replace(/s$/, '').toLowerCase()} or ${m[2].replace(/s$/, '').toLowerCase()}`, to: 'graveyard', destroy: true });
+    return { effects, requirements, unsupported };
+  }
   if ((m = c.match(/^(Creatures you control|Each creature you control) get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
     effects.push({ kind: 'pump-each', scope: 'you', filter: 'creature', power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
@@ -2287,8 +2321,8 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'zone-each', scope: m[3] ? 'opponents' : 'all', filter, to: verb === 'exile' ? 'exile' : verb === 'return' ? 'hand' : 'graveyard', destroy: verb === 'destroy' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
-    effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
+    effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: /planeswalker/i.test(m[2]) ? 'creature or planeswalker' : 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
@@ -2599,6 +2633,19 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     const bind = `stack${requirements.length}`;
     requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target spell with mana value ${m[1]}`, spellFilter: `mv=${m[1]}` });
     effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  if ((m = c.match(/^Counter target spell with mana value (\d+) or less\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target spell with mana value ${m[1]} or less`, spellFilter: `mv<=${m[1]}` });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  // Stifle: "Counter target activated or triggered ability." (mana abilities never use the stack here)
+  if ((m = c.match(/^Counter target (activated or triggered ability|activated ability|triggered ability)\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'ability', label: `target ${m[1]}`, abilityKind: /^activated ability$/i.test(m[1]) ? 'ability' : /^triggered ability$/i.test(m[1]) ? 'trigger' : null });
+    effects.push({ kind: 'counter-ability', bind });
     return true;
   }
   if ((m = c.match(/^Counter target spell if it'?s (white|blue|black|red|green)\.?$/i))) {
@@ -3144,7 +3191,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     }
   }
   // X must be chosen unless a caller already binds it from an X cost.
-  if (merged.effects.some(e => JSON.stringify(e).includes('"X"')) && !merged.effects.some(e => e.kind === 'set-x') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
+  if ((merged.effects.some(e => JSON.stringify(e).includes('"X"')) || merged.requirements.some(r => r.max === 'X' || r.min === 'X' || r.total === 'X')) && !merged.effects.some(e => e.kind === 'set-x') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
     merged.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });
   if (allowGuidedFallback && merged.unsupported.length) {
     for (const u of merged.unsupported)
