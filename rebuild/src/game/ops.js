@@ -27,7 +27,7 @@ import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
 import { adjustGeneric, additionalCost, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
-import { castTriggers } from '../engine/keyword-triggers.js';
+import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
 
@@ -127,6 +127,11 @@ function askAsEnters(game, player, def, ask, source) {
   }
   const spec = asEntersChoiceSpec(def);
   const kwText = String(def?.oracleText || '').replace(/\([^()]*\)/g, '');
+  // Read ahead: choose the chapter it starts on; earlier chapters don't trigger.
+  if (!spec && /(?:^|\n)\s*Read ahead\b/i.test(kwText) && /\bSaga\b/i.test(def?.typeLine || '')) {
+    const last = sagaFinalChapter(def);
+    if (last > 1) return { readAhead: ask('enters:read-ahead', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — read ahead`, kind: 'choose-one', prompt: 'Choose the chapter it starts on. Earlier chapters don’t trigger.', options: Array.from({ length: last }, (_, k) => ({ id: k + 1, label: `Chapter ${['I', 'II', 'III', 'IV', 'V', 'VI'][k]}` })) })) };
+  }
   // Riot: a +1/+1 counter or haste. Unleash: you may have it enter with a +1/+1 counter (then it can't block).
   if (!spec && /(?:^|\n)\s*Riot\b/i.test(kwText)) {
     const pick = ask('enters:riot', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — riot`, kind: 'choose-one', prompt: 'It enters with your choice of a +1/+1 counter or haste.', options: [{ id: 'counter', label: 'A +1/+1 counter' }, { id: 'haste', label: 'Haste' }] }));
@@ -1207,7 +1212,11 @@ function runResolve(game, op, ask) {
     if (kicked && top.kickCount) card.counters[kicked[1]] = Number(card.counters[kicked[1]] || 0) + Number(top.kickCount);
     const kickedPlain = text.match(/If (?:it|this creature) was kicked, it enters(?: the battlefield)? with (a|an|one|two|three|four|five|\d+) ([+-]\d+\/[+-]\d+|[A-Za-z]+) counters? on it/i);
     if (kickedPlain && top.kicked) card.counters[kickedPlain[2]] = Number(card.counters[kickedPlain[2]] || 0) + (Number(kickedPlain[1]) || NUMBER_WORDS[kickedPlain[1].toLowerCase()] || 1);
-    if (/\bSaga\b/i.test(cardDef.typeLine || '')) addLore(game, card, 1);
+    if (/\bSaga\b/i.test(cardDef.typeLine || '')) {
+      const start = Number(top.asEntersChoices?.readAhead || 1);
+      if (start > 1) { card.counters.lore = start - 1; }   // read ahead: only the chosen chapter triggers
+      addLore(game, card, 1);
+    }
     const counters = /for each time it was kicked/i.test(text) ? null : entersWithCountersSpec(cardDef);
     if (counters) {
       const amount = counters.amount === 'X' ? Number(top.effectBindings?.X || 0) : Number(counters.amount || 0);

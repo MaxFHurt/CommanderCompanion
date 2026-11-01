@@ -290,7 +290,7 @@ m('Prowess', 'keyword', 'Whenever you cast a noncreature spell, this creature ge
 m('Prowl', 'keyword', 'You may cast this for its prowl cost if you dealt combat damage to a player this turn with a creature of its type.', { auto: 'manual' });
 m('Rampage', 'keyword', 'Rampage N: whenever this becomes blocked, it gets +N/+N for each creature blocking it beyond the first.', { auto: 'manual', actions: ['pt'] });
 m('Ravenous', 'keyword', 'Enters with X +1/+1 counters; if X is 5 or more, draw a card when it enters.', { auto: 'manual', actions: ['counter+', 'draw'] });
-m('Read ahead', 'keyword', 'As this Saga enters, choose a chapter to start on.', { auto: 'manual' });
+m('Read ahead', 'keyword', 'As this Saga enters, choose a chapter to start on.', { auto: 'auto' });
 m('Rebound', 'keyword', 'If cast from your hand, exile it as it resolves; at your next upkeep you may cast it from exile free.', { auto: 'auto', actions: ['exile'] });
 m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unattach it. While attached it isn\'t a creature. Sorcery speed.', { auto: 'manual', actions: ['attach'] });
 m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay the recover cost to return this card to your hand; otherwise exile it.', { auto: 'manual', actions: ['return-hand', 'exile'] });

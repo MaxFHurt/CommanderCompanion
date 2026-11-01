@@ -1018,7 +1018,7 @@ section('round 17: searches by land type, tribal pumps, distribute, Last March, 
   const t = setup();
   const me = onField(t, 'Fog Bank', '{X}: Until end of turn, creatures you control have base power and toughness X/X and gain all creature types.', { typeLine: 'Creature — Shapeshifter', power: '1', toughness: '1' });
   const bear = onField(t, 'Grizzly Bears', ''); bear.counters = { '+1/+1': 1 };
-  activate(t, me, 0, [['x', 4]]);
+  activate(t, me, 0, [[d => d.key === 'x', 4]]);
   check('Mirror Entity: X=4 makes creatures 4/4 (counters on top)', power(t, bear) === 5 && tough(t, me) === 4, JSON.stringify([power(t, bear), tough(t, me), t.game.log.slice(0, 2).map(l => l.text)]));
 }
 {
@@ -1136,7 +1136,7 @@ section('round 19: Stifle, sweepers, planeswalker damage, divided damage, X targ
 {
   const t = setup();
   const a = onField(t, 'Grizzly Bears', '', {}, 1), b = onField(t, 'Llanowar Elves', '', {}, 1);
-  cast(t, 'Opt', 'Tap X target creatures.', [['x', 2], [d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]]], { manaCost: '{X}{U}' });
+  cast(t, 'Opt', 'Tap X target creatures.', [[d => d.key === 'x', 2], [d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]]], { manaCost: '{X}{U}' });
   check('Tap X target creatures (X=2)', a.tapped && b.tapped);
 }
 
@@ -1986,7 +1986,7 @@ section('round 50: strive, any number of targets, "for each … this way"');
 {
   const t = setup();
   const foe = onField(t, 'Grizzly Bears', '', {}, 1);
-  cast(t, 'Opt', 'Exile X target creatures. For each creature exiled this way, its controller creates a 2/2 green Boar creature token.', [['x', 1], [d => d.targeting || d.kind === 'choose-many', [foe.instanceId]]], { manaCost: '{X}{G}' });
+  cast(t, 'Opt', 'Exile X target creatures. For each creature exiled this way, its controller creates a 2/2 green Boar creature token.', [[d => d.key === 'x', 1], [d => d.targeting || d.kind === 'choose-many', [foe.instanceId]]], { manaCost: '{X}{G}' });
   check('Curse of the Swine: the exiled creature\'s controller gets a Boar', t.names(1, 'exile').includes('Grizzly Bears') && t.names(1, 'battlefield').some(n => /Boar/.test(n)), JSON.stringify(t.names(1, 'battlefield')));
 }
 
@@ -2047,7 +2047,7 @@ section('round 50: strive, any number of targets, "for each … this way"');
   const t = setup();
   const foe = onField(t, 'Grizzly Bears', '', {}, 1);
   const life = t.P(1).life;
-  const seen = cast(t, 'Opt', 'Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.', [['x', 2], [d => d.playerId === t.P(1).playerId && d.key.includes('torment:0:'), () => `s:${foe.instanceId}`], [d => d.playerId === t.P(1).playerId, 'life']], { manaCost: '{X}{G}', typeLine: 'Sorcery' });
+  const seen = cast(t, 'Opt', 'Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card.', [[d => d.key === 'x', 2], [d => d.playerId === t.P(1).playerId && d.key.includes('torment:0:'), () => `s:${foe.instanceId}`], [d => d.playerId === t.P(1).playerId, 'life']], { manaCost: '{X}{G}', typeLine: 'Sorcery' });
   check('Torment of Hailfire: the opponent chooses (sacrifices); with nothing left the next round costs 3 life', t.names(1, 'graveyard').includes('Grizzly Bears') && t.P(1).life === life - 3 && seen.filter(d => d.playerId === t.P(1).playerId).length >= 1, JSON.stringify([t.P(1).life - life, seen.length]));
 }
 {
@@ -2135,6 +2135,15 @@ section('round 50: strive, any number of targets, "for each … this way"');
   settle(t, [['craft', [sig.instanceId]]]);
   const back2 = t.P(0).deck.battlefield.find(c => c.instanceId === ring.instanceId);
   check('Craft: it and an artifact card from the graveyard are exiled; it returns transformed', r.ok && back2?.activeFaceIndex === 1 && t.P(0).deck.exile.some(c => c.instanceId === sig.instanceId), JSON.stringify([r.error, back2?.activeFaceIndex]));
+}
+
+{
+  // Read ahead: start on chapter III; only chapter III triggers.
+  const t = setup();
+  const life = t.P(0).life, hand = t.P(0).deck.hand.length;
+  cast(t, 'Fog Bank', 'Read ahead (Choose a chapter and start with that many lore counters. Add one after your draw step. Skipped chapters don\'t trigger.)\nI — You gain 2 life.\nII — You gain 2 life.\nIII — Draw a card.', [['read-ahead', 3]], { typeLine: 'Enchantment — Saga', manaCost: '{G}', power: null, toughness: null });
+  const saga = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Fog Bank') || t.P(0).deck.graveyard.find(c => def(t, c).name === 'Fog Bank');
+  check('Read ahead: chapter III only (draws, no life)', t.P(0).life === life && t.P(0).deck.hand.length === hand + 1, JSON.stringify([t.P(0).life - life, t.P(0).deck.hand.length - hand, saga?.counters]));
 }
 
 done();
