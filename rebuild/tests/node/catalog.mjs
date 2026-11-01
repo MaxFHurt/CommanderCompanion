@@ -1922,6 +1922,7 @@ section('round 50: Urza, Expressive Iteration, Selvala, counters moved');
 }
 {
   const t = setup();
+  t.give(0, 'Opt');
   const top3 = t.P(0).deck.remainingLibrary.slice(0, 3).map(c => c.instanceId);
   cast(t, 'Opt', 'Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn.', [[d => /into your hand/.test(d.prompt || ''), [top3[0]]], [d => /on the bottom/.test(d.prompt || ''), [top3[1]]], [d => /to play/.test(d.prompt || ''), [top3[2]]]], { manaCost: '{U}' });
   const ex = t.P(0).deck.exile.find(c => c.instanceId === top3[2]);
