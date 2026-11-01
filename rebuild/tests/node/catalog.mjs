@@ -2122,4 +2122,19 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('…and it is exiled when it dies', t.P(0).deck.exile.some(c => c.instanceId === g.instanceId));
 }
 
+{
+  // Craft: exile it and the materials, return it transformed.
+  const t = setup();
+  const front = { name: 'Sol Ring', manaCost: '{1}', typeLine: 'Artifact', oracleText: 'Craft with artifact {2} (Exile this artifact, Exile another artifact you control or an artifact card from your graveyard: Return this card transformed under its owner\'s control. Craft only as a sorcery.)' };
+  const back = { name: 'Crafted Golem', manaCost: '', typeLine: 'Artifact Creature — Golem', oracleText: '', power: '4', toughness: '4' };
+  const ring = onField(t, 'Sol Ring', front.oracleText, { cardFaces: [front, back], layout: 'transform' });
+  t.give(0, 'Arcane Signet', 'graveyard');
+  const sig = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Arcane Signet');
+  const row = (t.view(0).players[0].battlefield.find(c => c.id === ring.instanceId)?.abilities || []).find(a => /special:craft/.test(a.id));
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: ring.instanceId, abilityId: 'special:craft' }, t.as(0));
+  settle(t, [['craft', [sig.instanceId]]]);
+  const back2 = t.P(0).deck.battlefield.find(c => c.instanceId === ring.instanceId);
+  check('Craft: it and an artifact card from the graveyard are exiled; it returns transformed', r.ok && back2?.activeFaceIndex === 1 && t.P(0).deck.exile.some(c => c.instanceId === sig.instanceId), JSON.stringify([r.error, back2?.activeFaceIndex]));
+}
+
 done();

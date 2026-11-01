@@ -686,6 +686,15 @@ export function createTransactionEngine(game) {
           card.zone = 'exile';
           deck.exile.push(card);
         }
+        else if (action.kind === 'craft') {
+          // Cost: exile this permanent and the chosen materials (other permanents or graveyard cards).
+          for (const id of [card.instanceId, ...(action.materialIds || [])]) {
+            const where = locateCardInGame(game, id);
+            if (!where || !['battlefield', 'graveyard'].includes(where.zone))
+              throw new Error('Craft: a card to exile is gone.');
+            moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
+          }
+        }
         else if (action.kind === 'suspend') {
           const hit = locate(deck, card.instanceId);
           if (!hit || hit.z !== 'hand')

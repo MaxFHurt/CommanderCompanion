@@ -178,6 +178,13 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const sc = keywordCost(text, 'Scavenge');
     if (sc) row('scavenge', 'Scavenge', sc, [block, !sorcery && 'Only as a sorcery.', !payable(sc) && 'Not enough mana.']);
   }
+  // Craft with <materials> {cost}: exile this and the materials, return it transformed. Only as a sorcery (ops.js asks for the materials).
+  const craft = card.zone === 'battlefield' && !Number.isInteger(card.activeFaceIndex) && craftSpec(text);
+  if (craft) {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    const have = craftMaterials(game, player, card, craft).length;
+    row('craft', `Craft with ${craft.words}`, craft.cost, [block, !sorcery && 'Only as a sorcery.', have < craft.min && `You need ${craft.min} ${craft.noun} to exile (other permanents you control or cards in your graveyard).`, !payable(craft.cost) && 'Not enough mana.']);
+  }
   if (card.zone === 'battlefield' && card.realDefinitionId && card.castFlags?.turnUpCost) {
     row('turn-face-up', 'Turn face up', card.castFlags.turnUpCost, [block, !payable(card.castFlags.turnUpCost) && 'Not enough mana.']);
   }
@@ -185,6 +192,22 @@ export function specialRows(game, player, card, { running = false } = {}) {
 }
 
 const COUNT_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+/** "Craft with two creatures {4}{G}" → { words, noun, min, max, cost }; null for materials not read here. */
+export function craftSpec(text) {
+  const m = String(text || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Craft with (.+?) ((?:\{[^}]+\})+)\s*$/im);
+  if (!m) return null;
+  const w = m[1].trim();
+  let x;
+  if ((x = w.match(/^(one|two|three|four|five|six) or more(?: ([A-Za-z]+?)s?)?$/i))) return { words: w, noun: (x[2] || 'card').toLowerCase(), min: COUNT_WORDS[x[1].toLowerCase()], max: 99, cost: m[2] };
+  if ((x = w.match(/^(two|three|four|five|six) ([A-Za-z]+?)s$/i))) return { words: w, noun: x[2].toLowerCase(), min: COUNT_WORDS[x[1].toLowerCase()], max: COUNT_WORDS[x[1].toLowerCase()], cost: m[2] };
+  if ((x = w.match(/^(?:an? )?([A-Za-z]+)$/i))) return { words: w, noun: x[1].toLowerCase(), min: 1, max: 1, cost: m[2] };
+  return null;
+}
+/** Other permanents you control and cards in your graveyard that can be exiled for craft. */
+export function craftMaterials(game, player, card, spec) {
+  const fits = c => spec.noun === 'card' || new RegExp(`\\b${spec.noun}s?\\b`, 'i').test(defOf(game, c)?.typeLine || '');
+  return [...(player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && fits(c)), ...(player.deck.graveyard || []).filter(fits)];
+}
 /**
  * "Activate only if …", "Activate only during your turn", "Activate only once each turn": the rules an ability's text
  * puts on when it can be used, read into checks. Returns null if a restriction is not understood (the audit then

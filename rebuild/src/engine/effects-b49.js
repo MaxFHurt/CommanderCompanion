@@ -598,6 +598,16 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (victim) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: x, targetId: victim, sourceName: nameOf(game, bindings.sourceId) }], bindings));
       return true;
     }
+    case 'craft-return': {
+      const hit = locateCardInGame(game, effect.targetId);
+      if (!hit || hit.zone !== 'exile') { notes.push('The card is no longer in exile.'); return true; }
+      const owner = hit.card.ownerId || controllerId;
+      hit.card.activeFaceIndex = 1;   // transformed as it enters (its back face's enters abilities apply)
+      const moved = moveCard(game, effect.targetId, 'battlefield', { controllerId: owner, onEvent: e => H.emit(bindings, e) });
+      (moved?.card || hit.card).activeFaceIndex = 1;
+      notes.push(`${nameOf(game, effect.targetId)} returns transformed.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);

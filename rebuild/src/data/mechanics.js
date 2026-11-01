@@ -201,7 +201,7 @@ m('Companion', 'keyword', 'If your deck meets the condition, you may start with 
 m('Compleated', 'keyword', 'Phyrexian mana in this planeswalker\'s cost can be paid with life; it enters with two fewer loyalty for each one paid that way.', { auto: 'manual' });
 m('Conspire', 'keyword', 'As you cast this, you may tap two untapped creatures you control that share a color with it; if you do, copy it.', { auto: 'manual', actions: ['tap'] });
 m('Convoke', 'keyword', 'Each creature you tap while casting this pays for {1} or one mana of that creature\'s color.', { auto: 'auto' });
-m('Craft', 'keyword', 'Craft with [materials]: exile this and the materials from the battlefield or graveyard, then return it transformed. Sorcery speed.', { auto: 'manual', actions: ['exile', 'transform'] });
+m('Craft', 'keyword', 'Craft with [materials]: exile this and the materials from the battlefield or graveyard, then return it transformed. Sorcery speed.', { auto: 'auto', actions: ['exile', 'transform'] });
 m('Crew', 'keyword', 'Crew N: tap untapped creatures with total power N or more: this Vehicle becomes an artifact creature until end of turn.', { auto: 'auto', steps: 'Tap creatures with total power N or more; the Vehicle is a creature until end of turn.', actions: ['tap'] });
 m('Cumulative upkeep', 'keyword', 'At the beginning of your upkeep, put an age counter on this, then pay the cost once per age counter or sacrifice it.', { auto: 'manual', actions: ['counter-other', 'sacrifice'] });
 m('Cycling', 'keyword', 'Pay the cost and discard this card from your hand: draw a card.', { auto: 'auto', tricky: ['Cycling is an activated ability from hand; "when you cycle" triggers happen too.'] });

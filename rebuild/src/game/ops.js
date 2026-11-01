@@ -21,7 +21,7 @@ import {
 } from './helpers.js';
 import { gatherRequirements, splitRequirements, NoLegalChoice } from './requirements.js';
 import { librarySearchSpec, searchFilter } from './library-search.js';
-import { abilityZone, activationBlock, activationRules, commanderEntryFor, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
+import { abilityZone, activationBlock, activationRules, commanderEntryFor, craftMaterials, craftSpec, manaAmountForAbility, manaOptionsForAbility, playCheck, specialRows, stackTop } from './legal.js';
 import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
@@ -851,6 +851,17 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
   if (kind === 'level-up') {
     const stack = { id: newId('stack'), label: `${def.name} — level up`, text: 'Put a level counter on this.', effects: [{ kind: 'counter', bind: 'sourceId', counter: 'level', amount: 1 }] };
     commit(game, { type: 'special-action', kind: 'level-up', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} levels up ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
+  if (kind === 'craft') {
+    const spec = craftSpec(String(def.oracleText || ''));
+    const rows = craftMaterials(game, player, card, spec).map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: c.zone === 'graveyard' ? 'Your graveyard' : 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId }));
+    const picked = [].concat(ask('craft', () => ({ ...base, kind: 'choose-many', title: `${def.name} — craft`, prompt: `Exile ${spec.max === 99 ? `${spec.min} or more` : spec.min} ${spec.noun}${spec.min === 1 && spec.max === 1 ? '' : 's'} (other permanents you control or cards in your graveyard).`, options: rows, min: Math.min(spec.min, rows.length), max: Math.min(spec.max, rows.length) })) || []);
+    if (picked.length < spec.min && !force) throw new GameError(`Craft needs ${spec.min} ${spec.noun}${spec.min === 1 ? '' : 's'}.`);
+    const stack = { id: newId('stack'), label: `${def.name} — craft`, text: 'Return this card transformed under its owner\'s control.', effects: [{ kind: 'craft-return', targetId: card.instanceId }] };
+    commit(game, { type: 'special-action', kind: 'craft', playerId: player.playerId, instanceId: card.instanceId, materialIds: picked, payment, stack, label: `${player.displayName} crafts ${def.name} with ${picked.map(id => defOf(game, rows.find(r => r.id === id))?.name || rows.find(r => r.id === id)?.label).join(', ')}.` });
     const top = (game.stack || []).find(x => x.id === stack.id);
     if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
