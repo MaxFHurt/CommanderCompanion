@@ -60,6 +60,8 @@ export function withOverlay(card, def) {
   // Abilities granted in quotes by an Aura, Equipment or anthem ('Equipped creature has "{T}: …"'), kept on the card by
   // attachments.js syncAttachments.
   if (def && card?.grantedText?.length) def = { ...def, oracleText: [def.oracleText, ...card.grantedText].filter(Boolean).join('\n') };
+  // Reconfigure: while attached to a creature it isn't a creature.
+  if (def && card?.attachedTo && /(?:^|\n)\s*Reconfigure\b/i.test(String(def.oracleText || ''))) def = { ...def, typeLine: String(def.typeLine || '').replace(/\s*\bCreature\b\s*/, ' ').replace(/\s+/g, ' ').trim() };
   // Prototype: cast for its prototype cost, it has that smaller power and toughness, mana cost and colour while on the battlefield or stack.
   if (def && card?.prototype) def = { ...def, power: card.prototype.power, toughness: card.prototype.toughness, manaCost: card.prototype.cost, manaValue: card.prototype.manaValue, colors: card.prototype.colors };
   const fx = (card?.temporaryEffects || []).filter(e => e?.kind === 'animate');

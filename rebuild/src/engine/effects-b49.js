@@ -710,6 +710,11 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'unattach-self': {
+      const h = locateCardInGame(game, bindings.sourceId);
+      if (h?.zone === 'battlefield' && h.card.attachedTo) { const host = locateCardInGame(game, h.card.attachedTo); if (host?.card?.attachments) host.card.attachments = host.card.attachments.filter(x => x !== h.card.instanceId); h.card.attachedTo = null; notes.push(`${nameOf(game, bindings.sourceId)} becomes unattached.`); }
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);

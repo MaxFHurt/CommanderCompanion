@@ -2348,4 +2348,15 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Transmute: discards it to search for a card with the same mana value (2)', r.ok && t.names(0, 'graveyard').includes('Counterspell') && !!ask && two, JSON.stringify([r.error, ask?.options?.length, two]));
 }
 
+{
+  const t = setup();
+  const rc = onField(t, 'Llanowar Elves', 'Equipped creature gets +2/+2.\nReconfigure {1}', { typeLine: 'Artifact Creature — Equipment Lizard' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: rc.instanceId, abilityId: 'special:reconfigure' }, t.as(0));
+  settle(t, [['reconfigure', bear.instanceId]]);
+  check('Reconfigure: attached, it is no longer a creature and the creature gets +2/+2', r.ok && rc.attachedTo === bear.instanceId && !/Creature/.test(withOverlay(rc, def(t, rc)).typeLine) && power(t, bear) === 4, JSON.stringify([r.error, rc.attachedTo === bear.instanceId, power(t, bear)]));
+  const r2 = t.ctl.dispatch({ type: 'activate', instanceId: rc.instanceId, abilityId: 'special:unconfigure' }, t.as(0)); settle(t);
+  check('…and can be unattached to be a creature again', r2.ok && !rc.attachedTo && power(t, bear) === 2);
+}
+
 done();

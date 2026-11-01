@@ -891,6 +891,20 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
     if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
     return;
   }
+  if (kind === 'reconfigure' || kind === 'unconfigure') {
+    let effects;
+    if (kind === 'reconfigure') {
+      const rows = candidatesFor(game, { kind: 'target', scope: 'target creature you control' }, player).filter(r => r.id !== card.instanceId);
+      if (!rows.length && !force) throw new GameError('You control no other creature.');
+      const target = ask('reconfigure', () => ({ ...base, kind: 'choose-one', targeting: true, title: `${def.name} — reconfigure`, prompt: 'Attach it to target creature you control.', options: rows }));
+      effects = [{ kind: 'attach', equipmentId: card.instanceId, creatureId: target }];
+    } else effects = [{ kind: 'unattach-self' }];
+    const stack = { id: newId('stack'), label: `${def.name} — reconfigure`, text: kind === 'reconfigure' ? 'Attach to target creature you control.' : 'Unattach it.', effects };
+    commit(game, { type: 'special-action', kind: 'scavenge-free', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} reconfigures ${def.name}.` });
+    const top = (game.stack || []).find(x => x.id === stack.id);
+    if (top) { top.name = def.name; top.text = stack.text; top.resolveReqs = []; }
+    return;
+  }
   if (kind === 'outlast') {
     const stack = { id: newId('stack'), label: `${def.name} — outlast`, text: 'Put a +1/+1 counter on this creature.', effects: [{ kind: 'counter', targetId: card.instanceId, counter: '+1/+1', amount: 1 }] };
     commit(game, { type: 'special-action', kind: 'outlast', playerId: player.playerId, instanceId: card.instanceId, payment, stack, label: `${player.displayName} uses outlast on ${def.name}.` });

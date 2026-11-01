@@ -192,6 +192,14 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const sc = keywordCost(text, 'Scavenge');
     if (sc) row('scavenge', 'Scavenge', sc, [block, !sorcery && 'Only as a sorcery.', !payable(sc) && 'Not enough mana.']);
   }
+  // Reconfigure {cost}: attach to target creature you control, or unattach. Only as a sorcery.
+  const reconf = card.zone === 'battlefield' && keywordCost(text, 'Reconfigure');
+  if (reconf) {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    const hosts = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && /\bCreature\b/.test(defOf(game, c)?.typeLine || ''));
+    if (card.attachedTo) row('unconfigure', 'Reconfigure (unattach)', reconf, [block, !sorcery && 'Only as a sorcery.', !payable(reconf) && 'Not enough mana.']);
+    else row('reconfigure', 'Reconfigure (attach)', reconf, [block, !sorcery && 'Only as a sorcery.', !hosts.length && 'You control no other creature.', !payable(reconf) && 'Not enough mana.']);
+  }
   // Outlast {cost}: {cost}, {T}: put a +1/+1 counter on this. Only as a sorcery.
   const outlast = card.zone === 'battlefield' && keywordCost(text, 'Outlast');
   if (outlast) {

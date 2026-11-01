@@ -292,7 +292,7 @@ m('Rampage', 'keyword', 'Rampage N: whenever this becomes blocked, it gets +N/+N
 m('Ravenous', 'keyword', 'Enters with X +1/+1 counters; if X is 5 or more, draw a card when it enters.', { auto: 'manual', actions: ['counter+', 'draw'] });
 m('Read ahead', 'keyword', 'As this Saga enters, choose a chapter to start on.', { auto: 'auto' });
 m('Rebound', 'keyword', 'If cast from your hand, exile it as it resolves; at your next upkeep you may cast it from exile free.', { auto: 'auto', actions: ['exile'] });
-m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unattach it. While attached it isn\'t a creature. Sorcery speed.', { auto: 'manual', actions: ['attach'] });
+m('Reconfigure', 'keyword', 'Attach this to target creature you control, or unattach it. While attached it isn\'t a creature. Sorcery speed.', { auto: 'auto', actions: ['attach'] });
 m('Recover', 'keyword', 'When a creature is put into your graveyard, you may pay the recover cost to return this card to your hand; otherwise exile it.', { auto: 'manual', actions: ['return-hand', 'exile'] });
 m('Reinforce', 'keyword', 'Discard this card and pay: put N +1/+1 counters on target creature.', { auto: 'auto', steps: 'Use Reinforce from your hand: discard it and choose the creature.', actions: ['counter+', 'discard'] });
 m('Renown', 'keyword', 'When this deals combat damage to a player, if it isn\'t renowned, put N +1/+1 counters on it; it becomes renowned.', { auto: 'auto', actions: ['counter+'] });
