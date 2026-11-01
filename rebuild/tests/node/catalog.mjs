@@ -1440,4 +1440,19 @@ for (const win of [true, false]) {
   check(`Research the Deep: clash ${win ? 'won — back to hand' : 'lost — to the graveyard'}; each player places their own card`, opt?.zone === (win ? 'hand' : 'graveyard') && asked.length === 2 && theirs[theirs.length - 1] === theirTop, JSON.stringify([opt?.zone, asked.length]));
 }
 
+section('round 37: "Choose target …" then "that creature" / "those creatures"');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', { power: '3', toughness: '3' }), elf = onField(t, 'Llanowar Elves', '', {}, 1);
+  const picks = [bear.instanceId, elf.instanceId];
+  cast(t, 'Opt', 'Choose target creature you control and target creature you don\'t control. Then those creatures fight each other.', [[d => d.targeting, () => picks.shift()]]);
+  check('Choose two targets, then they fight', !t.bf(1, 'Llanowar Elves') && !!t.bf(0, 'Grizzly Bears'));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Choose target creature. Put four +1/+1 counters on that creature.', [[d => d.targeting, () => bear.instanceId]]);
+  check('Choose target creature, then counters on that creature', bear.counters?.['+1/+1'] === 4);
+}
+
 done();

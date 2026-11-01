@@ -269,6 +269,16 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'clash', bind });
     return true;
   }
+  // "Choose target creature." / "Choose target creature you control and target creature you don't control." — the targets
+  // later sentences refer to ("that creature", "those creatures", "the chosen creature").
+  if ((m = c.match(/^Choose (target [a-z ,'-]+?)(?: and (target [a-z ,'-]+?))?\.?$/i)) && !/\bcard\b|\bspell\b|graveyard/i.test(c)) {
+    H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    if (m[2]) H.targetRequirement(requirements, m[2].toLowerCase(), m[2], { excludeBind: requirements[requirements.length - 1].bind });
+    effects.push({ kind: 'note', text: '' });
+    return true;
+  }
+  // "Then those creatures fight each other." (the two creatures targeted)
+  if (/^(?:Then )?those creatures fight each other\.?$/i.test(c)) { effects.push({ kind: 'fight', sourceBind: 'firstTarget', targetBind: 'secondTarget' }); return true; }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });

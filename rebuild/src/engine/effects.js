@@ -3193,6 +3193,8 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   const lastStack = [...merged.requirements].reverse().find(r => r.kind === 'stack-target');
   for (const e of merged.effects) if (e.amount?.stackBind === 'lastStack' && lastStack) e.amount = { ...e.amount, stackBind: lastStack.bind };
   const firstTarget = merged.requirements.find(r => r.kind === 'target');
+  const secondTarget = merged.requirements.filter(r => r.kind === 'target')[1];
+  for (const e of merged.effects) if (e.targetBind === 'secondTarget') { if (secondTarget) e.targetBind = e.bind = secondTarget.bind; else merged.unsupported.push('Then those creatures fight each other.'); }
   for (const e of merged.effects) if (e.sourceBind === 'firstTarget') e.sourceBind = firstTarget && firstTarget.bind !== e.targetBind ? firstTarget.bind : 'sourceId';
   // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
   // carried out, so the choice also shows the cards about to be drawn (the top of the library).
