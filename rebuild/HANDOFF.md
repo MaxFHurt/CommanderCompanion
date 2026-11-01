@@ -84,6 +84,9 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 2. Owner's rules (do not break these)
 
+- **Every push updates `PROGRESS.md`** (owner, 1 Nov 2026): the live build, the top-1,000 and whole-catalog counts, what
+  changed (a new log entry, newest first), known limits and what's next.
+
 - **Never push to `main` (ship a build) without the owner's explicit confirmation.** Commit
   locally, report what is ready, and wait for a yes.
 - **Do only what was asked; ask if a change goes beyond the request.** When the owner says
