@@ -8,7 +8,7 @@ import { resolveCombat, cardHasKeyword } from '../engine/combat.js';
 import { queueTriggers } from '../engine/triggers.js';
 import { GameError, activePlayer, alivePlayers, attackablePermanents, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
 import { Need, makeAsk, validateAnswer } from './requirements.js';
-import { OPS, commit, addLore, dredgeOptions } from './ops.js';
+import { OPS, commit, addLore, dredgeOptions, legendRuleViolation } from './ops.js';
 import { attackOptions, blockOptions, hasResponse, stackTop } from './legal.js';
 import { syncAttachments } from './attachments.js';
 import { stateBasedActions } from './sba.js';
@@ -446,6 +446,8 @@ export function settle(game) {
     if (game.status === 'complete') { finishGame(game); return; }
     if (f.stage !== 'play') return;
     if (f.vote || f.proposal || f.correction) return;
+    // The legend rule: its controller chooses which copy to keep (a state-based action that needs a choice).
+    if (!f.op && game.rulesConfig?.legendRule !== false) { const v = legendRuleViolation(game); if (v) { startOp(game, 'legend-rule', v.playerId, {}, { system: true }); continue; } }
     if (f.op) {
       if (f.op.decision) return;
       runOp(game);

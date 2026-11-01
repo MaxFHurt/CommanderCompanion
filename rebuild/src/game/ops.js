@@ -1339,6 +1339,29 @@ function runResolve(game, op, ask) {
 // ---------------------------------------------------------------------------------------------
 // Physical draw: the player picks which card they drew from their real deck.
 
+/** The legend rule (704.5j): two or more legendary permanents with the same name under one player — which ones break it. */
+export function legendRuleViolation(game) {
+  for (const p of (game.players || []).filter(q => !q.eliminated)) {
+    const byName = new Map();
+    for (const c of p.deck.battlefield || []) {
+      const d = defOf(game, c);
+      if (!/\bLegendary\b/.test(d?.typeLine || '') || /Legend rule doesn'?t apply/i.test(d?.oracleText || '')) continue;
+      byName.set(d.name, [...(byName.get(d.name) || []), c]);
+    }
+    for (const [name, cards] of byName) if (cards.length > 1) return { playerId: p.playerId, name, ids: cards.map(c => c.instanceId) };
+  }
+  return null;
+}
+/** Its controller chooses the one to keep; the others are put into their owners' graveyards (not sacrificed). */
+function runLegendRule(game, op, ask) {
+  const v = legendRuleViolation(game);
+  if (!v || v.playerId !== op.playerId) return;
+  const player = playerById(game, v.playerId);
+  const keep = ask('legend', () => ({ playerId: player.playerId, cancellable: false, kind: 'choose-one', source: v.name, title: `${v.name} — the legend rule`,
+    prompt: `You control more than one ${v.name}. Choose the one to keep; the others go to the graveyard.`,
+    options: v.ids.map(id => { const c = player.deck.battlefield.find(x => x.instanceId === id); return { id, label: v.name, sub: `${c?.tapped ? 'tapped' : 'untapped'}${Object.keys(c?.counters || {}).length ? `, ${Object.entries(c.counters).map(([k, n]) => `${n} ${k}`).join(', ')}` : ''}`, instanceId: id, definitionId: c?.definitionId }; }) }));
+  for (const id of v.ids) if (id !== keep) commit(game, { type: 'move-card', playerId: player.playerId, instanceId: id, to: 'graveyard', label: `${v.name} is put into the graveyard (the legend rule).` });
+}
 /** Cards in the graveyard that can dredge now (Dredge N, with at least N cards in the library). */
 export function dredgeOptions(game, player) {
   return (player.deck.graveyard || []).map(c => { const m = String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Dredge (\d+)/i); return m && player.deck.remainingLibrary.length >= Number(m[1]) ? { id: c.instanceId, n: Number(m[1]), name: defOf(game, c)?.name || 'Card' } : null; }).filter(Boolean);
@@ -1599,4 +1622,4 @@ function runSpecial(game, top, player, ask) {
   after();
 }
 
-export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice, 'dredge-draw': runDredgeDraw };
+export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice, 'dredge-draw': runDredgeDraw, 'legend-rule': runLegendRule };

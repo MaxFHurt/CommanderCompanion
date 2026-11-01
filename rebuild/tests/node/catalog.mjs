@@ -2644,4 +2644,17 @@ section('round 51: the last top-1,000 cards');
   check('Bloodchief Ascension: a card into an opponent\'s graveyard drains 2', t.P(1).life === l1 - 2 && t.P(0).life === l0 + 2, JSON.stringify([t.P(0).life - l0, t.P(1).life - l1]));
 }
 
+section('round 52: rules features (legend rule, ward on abilities, phasing, mutate)');
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { typeLine: 'Legendary Creature — Bear' });
+  t.give(0, 'Llanowar Elves'); const b = t.hand(0, 'Llanowar Elves');
+  t.game.cardDefinitions[b.definitionId] = { ...def(t, a), definitionId: b.definitionId };   // a second copy of the same legend
+  a.counters = { '+1/+1': 2 };
+  const seen = [];
+  t.ctl.dispatch({ type: 'play', instanceId: b.instanceId }, t.as(0));
+  settle(t, [[d => d.key === 'legend', a.instanceId]], seen);
+  check('Legend rule: its controller chooses which copy to keep; the other goes to the graveyard', seen.some(d => d.key === 'legend' && d.playerId === t.P(0).playerId) && t.P(0).deck.battlefield.some(c => c.instanceId === a.instanceId) && !t.P(0).deck.battlefield.some(c => c.instanceId === b.instanceId), JSON.stringify(seen.map(d => d.key)));
+}
+
 done();

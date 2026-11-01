@@ -1,6 +1,6 @@
 // State-based actions the game checks whenever it settles (rule 704), not only in combat:
 // creatures with 0 or less toughness or lethal damage die, planeswalkers with no loyalty go to
-// the graveyard, and the legend rule asks nothing — it keeps the newest copy and logs it.
+// the graveyard. The legend rule needs a choice, so flow.js settle runs it as an op (ops.js runLegendRule).
 
 import { effectiveToughness, cardHasKeyword } from '../engine/combat.js';
 import { defOf, log, turnOrderFrom } from './helpers.js';
