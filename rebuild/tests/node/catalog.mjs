@@ -1967,4 +1967,33 @@ section('round 50: Urza, Expressive Iteration, Selvala, counters moved');
   check('…a Cave gives 4 life', t.P(0).life === life + 4, String(t.P(0).life - life));
 }
 
+section('round 50: strive, any number of targets, "for each … this way"');
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Llanowar Elves', '');
+  const before = t.P(0).deck.battlefield.filter(c => !c.tapped && /Land/.test(def(t, c).typeLine)).length;
+  cast(t, 'Opt', 'Strive — This spell costs {1}{G} more to cast for each target beyond the first.\nAny number of target creatures each get +1/+1 and gain flying until end of turn.', [[d => d.targeting || d.kind === 'choose-many', [a.instanceId, b.instanceId]]], { manaCost: '{G}' });
+  const after = t.P(0).deck.battlefield.filter(c => !c.tapped && /Land/.test(def(t, c).typeLine)).length;
+  check('Strive: two targets cost {G} + {1}{G}; both get +1/+1 and flying', before - after === 3 && power(t, a) === 3 && power(t, b) === 2 && has(t, a, 'Flying') && has(t, b, 'Flying'), JSON.stringify([before - after, power(t, a), power(t, b)]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Llanowar Elves', '');
+  cast(t, 'Opt', 'Choose any number of target creatures. Put a +1/+1 counter on each of them.', [[d => d.targeting || d.kind === 'choose-many', [a.instanceId, b.instanceId]]], { manaCost: '{G}' });
+  check("Nature's Panoply: a counter on each chosen creature", a.counters?.['+1/+1'] === 1 && b.counters?.['+1/+1'] === 1);
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Exile X target creatures. For each creature exiled this way, its controller creates a 2/2 green Boar creature token.', [['x', 1], [d => d.targeting || d.kind === 'choose-many', [foe.instanceId]]], { manaCost: '{X}{G}' });
+  check('Curse of the Swine: the exiled creature\'s controller gets a Boar', t.names(1, 'exile').includes('Grizzly Bears') && t.names(1, 'battlefield').some(n => /Boar/.test(n)), JSON.stringify(t.names(1, 'battlefield')));
+}
+
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Target creature you control gets +2/+2 and gains hexproof until end of turn.', [[d => d.targeting, () => a.instanceId]], { manaCost: '{G}' });
+  check('Blossoming Defense: the creature gets +2/+2 as well as hexproof (was keyword only)', power(t, a) === 4 && tough(t, a) === 4 && has(t, a, 'Hexproof'), JSON.stringify([power(t, a), tough(t, a)]));
+}
+
 done();

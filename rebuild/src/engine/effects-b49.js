@@ -128,6 +128,17 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'spread-counters', bind: 'spread' });
     return true;
   }
+  // "Any number of target creatures each get +1/+1 and gain flying until end of turn." — the same instruction for each one chosen.
+  if ((m = c.match(/\bany number of target ((?:[a-z]+ )*?[a-z]+?)s\b((?: you control| you don'?t control| your opponents control)?)/i)) && !/\bChoose\b/i.test(c)) {
+    const single = singularEach(c.replace(m[0], `target ${m[1]}${m[2]}`));
+    const r = eachTarget(single, `target ${m[1].toLowerCase()}${m[2]}`, requirements, sourceName);
+    if (r) { effects.push(r); return true; }
+  }
+  // Curse of the Swine: "For each creature exiled this way, its controller creates a 2/2 green Boar creature token."
+  if ((m = c.match(/^For each (creature|permanent|artifact|nonland permanent) (?:exiled|destroyed|put into a graveyard) this way, its controller creates (.+)$/i))) {
+    const inner = compile(`Create ${m[2]}`, sourceName);
+    if (ok(inner) && !inner.requirements.length) { effects.push({ kind: 'per-moved-controller', effects: inner.effects }); return true; }
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -232,6 +243,14 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   if ((m = c0.match(/^If you put an? ([A-Z][a-z]+) onto the battlefield this way, (.+)$/))) {
     const inner = compile(cap(m[2]), sourceName);
     if (ok(inner)) return { part: { effects: [{ kind: 'condition', test: 'b49-last-moved-type', type: m[1], skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] }, consumed: 1 };
+  }
+  // "Choose any number of target creatures. Put a +1/+1 counter on each of them." (Nature's Panoply, Twinflame, Solidarity of Heroes)
+  if ((m = c0.match(/^Choose any number of target ((?:[a-z]+ )*?[a-z]+?)s((?: you control| you don'?t control)?)\.?$/i)) && /\beach of them\b/i.test(String(clauses[i + 1] || ''))) {
+    const scope = `target ${m[1].toLowerCase()}${m[2]}`;
+    const next = String(clauses[i + 1]).replace(/^For each of them, create a token that'?s a copy of that creature/i, 'Create a token that\'s a copy of target creature').replace(/\bon each of them\b/i, 'on target creature');
+    const requirements = [];
+    const r = !/each of them/i.test(next) && eachTarget(next, scope, requirements, sourceName);
+    if (r) return { part: { effects: [r], requirements, unsupported: [] }, consumed: 2 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -427,6 +446,16 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'per-moved-controller': {
+      for (const was of bindings.movedThisWayCards || []) if (playerById(game, was.controllerId)) notes.push(...H.applyEffectsUnsafe(game, was.controllerId, effect.effects, bindings));
+      return true;
+    }
+    case 'each-id': {
+      const ids = [].concat(bindings[effect.bind] || []);
+      if (!ids.length) { notes.push('No targets were chosen.'); return true; }
+      for (const id of ids) { bindings[effect.innerBind] = id; notes.push(...H.applyEffectsUnsafe(game, controllerId, effect.effects, bindings)); }
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -586,6 +615,21 @@ export function queueFreeCast(game, entry) {
   game.flow = game.flow || {};
   if (!game.flow.freeCast) game.flow.freeCast = entry;
   else game.flow.freeCastQueue = [...(game.flow.freeCastQueue || []), entry];
+}
+
+/** "each get +1/+1 and gain flying" → "gets +1/+1 and gains flying"; "to their owners' hands" → "to its owner's hand". */
+function singularEach(t) {
+  return t.replace(/\beach (get|gain|become|deal|fight|lose|have)\b/gi, (a, v) => `${v}s`).replace(/^(target [^.]*?) (get|gain|become|lose|have) /i, (a, x, v) => `${x} ${v}s `)
+    .replace(/\band gain\b/gi, 'and gains').replace(/to their owners'? hands/gi, "to its owner's hand").replace(/^Any number of /i, '').replace(/^target/, 'Target');
+}
+/** One instruction about a single target, repeated for each of any number of targets. */
+function eachTarget(text, scope, requirements, sourceName) {
+  const inner = compile(cap(text), sourceName);
+  const t = ok(inner) && inner.requirements.filter(r => r.kind === 'target');
+  if (!t || t.length !== 1 || inner.requirements.length !== 1) return null;
+  const bind = `anyNumber${requirements.length}`;
+  requirements.push({ kind: 'multi-target', bind, scope: t[0].scope || scope, min: 0, max: 99, label: `Choose any number of ${String(t[0].scope || scope).replace(/^target /, '')}s` });
+  return { kind: 'each-id', bind, innerBind: t[0].bind, effects: inner.effects };
 }
 
 /** Is a granted quoted ability one the game runs ("When this creature dies, …", "{T}: …")? */

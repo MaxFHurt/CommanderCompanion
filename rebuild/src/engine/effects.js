@@ -742,9 +742,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         const d = definitionFor(game, hit.card), n = cardName(game, hit.card);
         if (effect.kind === 'destroy-many' && isIndestructible(hit.card, d)) { notes.push(`${n} is indestructible.`); continue; }
         if (effect.kind === 'destroy-many' && regenerates(game, hit.card, notes)) continue;
+        const was = { id, controllerId: hit.card.controllerId || hit.player?.playerId, definitionId: hit.card.definitionId };
         moveCard(game, id, effect.kind === 'exile-many' ? 'exile' : 'graveyard', { onEvent: e => emit(bindings, e) });
+        bindings.movedThisWayCards = [...(bindings.movedThisWayCards || []), was];   // "for each creature exiled this way, its controller …"
         notes.push(`${n} ${effect.kind === 'exile-many' ? 'is exiled' : 'is destroyed'}.`);
       }
+      bindings.movedThisWay = (bindings.movedThisWayCards || []).length;
       if (!ids.length) notes.push('No targets were chosen.');
       continue;
     }
@@ -1022,7 +1025,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         const d = definitionFor(game, hit.card);
         if (effect.to === 'graveyard' && effect.destroy && (isIndestructible(hit.card, d) || regenerates(game, hit.card, notes)))
           continue;
+        const was = { id, controllerId: hit.card.controllerId || hit.player?.playerId, definitionId: hit.card.definitionId };
         moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e), ...(effect.sacrifice ? { moveReason: 'sacrifice' } : {}) });
+        bindings.movedThisWayCards = [...(bindings.movedThisWayCards || []), was];
         moved++;
       }
       bindings.movedThisWay = moved;
@@ -2099,7 +2104,14 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'pump-each', scope: 'you', filter: 'creature', power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)[^.]*?) gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
+  // "Target creature gets +1/+1 and gains flying until end of turn." (the subject must not swallow "gets +1/+1 and")
+  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)(?:(?! gets? )[^.])*?) gets? ([+-](?:\d+|X))\/([+-](?:\d+|X)) and gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i)) && KEYWORD_LIST(m[4]).length) {
+    const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'pump', bind, power: /X/.test(m[2]) ? m[2].replace('+', '') : Number(m[2]), toughness: /X/.test(m[3]) ? m[3].replace('+', '') : Number(m[3]), expires: 'cleanup' });
+    for (const keyword of KEYWORD_LIST(m[4])) effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)(?:(?! gets? [+-])[^.])*?) gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     for (const keyword of m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean))
       effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: 'cleanup' });

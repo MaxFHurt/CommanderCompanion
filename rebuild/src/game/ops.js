@@ -189,6 +189,7 @@ const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice
 export function castText(text, { kicked = false, overload = false, gift = false, bargained = false } = {}) {
   let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
+  t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
   t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
@@ -508,6 +509,13 @@ function runPlay(game, op, ask) {
     if (rows.length) attachTo = ask('enchant', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', targeting: true, source: def.name, title: `${def.name} — enchant ${enchant}`, prompt: `Choose the ${enchant} to enchant.`, options: rows }));
   }
 
+  // Strive: "This spell costs {1}{U} more to cast for each target beyond the first."
+  const strive = String(def.oracleText || '').match(/Strive — This spell costs ((?:\{[^}]+\})+) more to cast for each target beyond the first/i);
+  if (strive && !free) {
+    const chosen = new Set(cast.filter(r => ['target', 'multi-target', 'player'].includes(r.kind)).flatMap(r => [].concat(bindings[r.bind] || [])).filter(Boolean));
+    if (chosen.size > 1) extraCost += strive[1].repeat(chosen.size - 1);
+    if (chosen.size > 1 && !affordable(extraCost)) throw new GameError(`You can't pay ${strive[1]} for each target beyond the first.`);
+  }
   // Ward: targeting an opponent's permanent with ward costs extra, or the spell is countered.
   let wardCountered = false;
   for (const [i, w] of wardCosts(game, player, [...Object.values(bindings), attachTo]).entries()) {
