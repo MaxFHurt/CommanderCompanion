@@ -343,7 +343,9 @@ export function blockOptions(game, defender) {
       .filter(b => validateBlock({ blocker: b, definition: defOf(game, b), attackerDefinition: attackerDef, attacker }).legal)
       .map(b => ({ instanceId: b.instanceId, capacity: blockerCapacity(defOf(game, b)) }));
     const attacked = attack.targetId ? (game.players || []).flatMap(q => q.deck?.battlefield || []).find(c => c.instanceId === attack.targetId) : null;
-    return { attackerId: attack.instanceId, attackerName: attackerDef?.name || 'Attacker', targetName: attacked ? defOf(game, attacked)?.name || null : null, blockers };
+    // Menace: it can't be blocked except by two or more creatures.
+    const minBlockers = /(?:^|\n|,\s*)\s*Menace\b/i.test(String(attackerDef?.oracleText || '')) || (attackerDef?.keywords || []).some(k => /^menace$/i.test(k)) || (attacker?.temporaryEffects || []).some(e => e?.kind === 'keyword' && /^menace$/i.test(e.keyword || '') && e.enabled !== false) ? 2 : 1;
+    return { attackerId: attack.instanceId, attackerName: attackerDef?.name || 'Attacker', targetName: attacked ? defOf(game, attacked)?.name || null : null, blockers, minBlockers };
   });
 }
 

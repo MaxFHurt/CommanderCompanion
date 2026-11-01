@@ -38,7 +38,11 @@ for (let g = 0; g < GAMES; g++) {
       intent = ids.length && Math.random() < 0.5 ? { type: 'play', instanceId: pick(ids) } : { type: 'pass' };
     } else if (p.kind === 'blocks') {
       const used = new Set(), assignments = [];
-      for (const row of p.rows) { const b = row.blockers.find(x => !used.has(x.instanceId)); if (b && Math.random() < 0.5) { used.add(b.instanceId); assignments.push({ attackerId: row.attackerId, blockerId: b.instanceId }); } }
+      for (const row of p.rows) {
+        // Menace and similar: block with as many as the attacker needs, or not at all.
+        const free = row.blockers.filter(x => !used.has(x.instanceId)).slice(0, row.minBlockers || 1);
+        if (free.length >= (row.minBlockers || 1) && Math.random() < 0.5) for (const b of free) { used.add(b.instanceId); assignments.push({ attackerId: row.attackerId, blockerId: b.instanceId }); }
+      }
       intent = { type: 'block', assignments };
     } else if (p.kind === 'discard') intent = { type: 'discard', ids: me.hand.slice(0, p.need).map(c => c.id) };
     else if (p.kind === 'turn') {

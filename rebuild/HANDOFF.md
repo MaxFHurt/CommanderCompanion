@@ -8,7 +8,9 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.45** (1 Nov): more card wordings — opponent library searches (Bribery, Praetor's Grasp), Clash,
+- Live build: **1.0.0-rebuild.46** (1 Nov): more card wordings (subtype targets and pumps, colour-filtered bounce, Threshold /
+  Delirium / Metalcraft / Hellbent bonuses, self-suspend, finality, Valakut Awakening, no combat damage …); the soak bot now
+  blocks menace attackers with two creatures (that old "refused block" note is fixed). Build 45 (1 Nov): more card wordings — opponent library searches (Bribery, Praetor's Grasp), Clash,
   Fuse, Learn, "Choose target …" spells, hand reveals until it leaves, exile-until-nonland free casts, finality counters, damage
   prevention to you, tap-or-untap, counters from a creature that left. 924 of the top 1,000 and 20,343 of 31,776 Commander cards
   (64%) run by themselves. Build 44 (1 Nov): the whole-catalog card work (section 3, "Whole-catalog card work"): 914 of the
@@ -196,7 +198,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (217 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (225 in-game checks, every new family; choices answered by the player who makes them).
   - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
     "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
     and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
@@ -303,7 +305,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 217 catalog-effect checks (builds 43-45)
+    node tests/node/catalog.mjs       # 225 catalog-effect checks (builds 43-46)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
