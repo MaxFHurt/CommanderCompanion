@@ -2392,4 +2392,15 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Enlist: tapping the Dreadmaw adds 6 power', b.tapped && power(t, a) === 8, String(power(t, a)));
 }
 
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); const g = t.hand(0, 'Grizzly Bears');
+  const front = { name: 'Grizzly Bears', manaCost: '{3}{G}', typeLine: 'Artifact Creature — Robot', oracleText: 'More Than Meets the Eye {1}{G} (You may cast this card converted for {1}{G}.)', power: '4', toughness: '4' };
+  const back = { name: 'Bear Car', manaCost: '', typeLine: 'Artifact — Vehicle', oracleText: 'Crew 1', power: '3', toughness: '3' };
+  asText(t, g, front.oracleText, { cardFaces: [front, back], layout: 'transform', manaCost: '{3}{G}' });
+  t.ctl.dispatch({ type: 'play', instanceId: g.instanceId }, t.as(0)); settle(t, [['castMode', 'converted']]);
+  const live = t.P(0).deck.battlefield.find(c => c.instanceId === g.instanceId);
+  check('More Than Meets the Eye: cast converted (back face) from hand', live?.activeFaceIndex === 1, JSON.stringify(live?.activeFaceIndex));
+}
+
 done();
