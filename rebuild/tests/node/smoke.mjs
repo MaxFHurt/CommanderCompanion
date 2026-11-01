@@ -2,7 +2,7 @@ import { newGame, check, section, done } from './harness.mjs';
 
 section('opening + first turn');
 {
-  const t = newGame(['white', 'simic']);
+  const t = newGame(['white', 'simic'], { keepHands: true });
   check('opening stage', t.game.flow.stage === 'opening');
   check('7 cards each', t.P(0).deck.hand.length === 7 && t.P(1).deck.hand.length === 7);
   t.do(0, { type: 'mulligan' });
