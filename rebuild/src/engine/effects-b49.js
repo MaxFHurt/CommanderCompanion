@@ -96,6 +96,15 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'copy-self', retarget: /new target/i.test(c) });
     return true;
   }
+  // Midnight Clock, Timetwister-style: "Shuffle your hand and graveyard into your library"
+  if (/^(?:you )?shuffle your hand and graveyard into your library\.?$/i.test(c)) { effects.push({ kind: 'shuffle-hand-graveyard' }); return true; }
+  // Scrap Trawler: "Return to your hand target artifact card in your graveyard with lesser mana value."
+  if ((m = c.match(/^Return to your hand target ([a-z]+) card in your graveyard with lesser mana value\.?$/i))) {
+    const bind = `lesser${requirements.length}`;
+    requirements.push({ kind: 'b49-grave-lesser', bind, filter: m[1].toLowerCase(), label: `${m[1]} card with lesser mana value` });
+    effects.push({ kind: 'return-from-graveyard', bind, to: 'hand' });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -172,6 +181,11 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   // number of spells from among the nonland cards exiled this way without paying their mana costs."
   if (/^each player exiles cards from the top of their library until they exile a nonland card\.?$/i.test(c0) && /^You may cast any number of spells from among (?:the nonland cards exiled this way|them|those cards) without paying their mana costs\.?$/i.test(String(clauses[i + 1] || ''))) {
     return { part: { effects: [{ kind: 'each-top-cast', bind: 'etaliPick', mode: 'until-nonland' }], requirements: [{ kind: 'b49-each-top-cast', bind: 'etaliPick', mode: 'until-nonland' }], unsupported: [] }, consumed: 2 };
+  }
+  // Curse of Opulence: "Each opponent attacking that player does the same." — the attacking player gets the same (if it isn't you).
+  if (/^Each opponent attacking that player does the same\.?$/i.test(c0) && parts.length) {
+    const prev = parts[parts.length - 1];
+    if (prev.effects?.length && !(prev.requirements || []).length) return { part: { effects: [{ kind: 'condition', test: 'b49-event-player-opponent', skip: prev.effects.length }, ...prev.effects.map(e => ({ ...e, forPlayerBind: 'eventPlayer' }))], requirements: [], unsupported: [] }, consumed: 1 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -334,6 +348,14 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} copies ${obj.label || 'the spell'}.`);
       return true;
     }
+    case 'shuffle-hand-graveyard': {
+      const lib = controller.deck.remainingLibrary;
+      const moved = [...controller.deck.hand.splice(0), ...controller.deck.graveyard.splice(0)];
+      for (const c of moved) { c.zone = 'library'; lib.push(c); }
+      H.shuffle(lib);
+      notes.push(`${controller.displayName} shuffles ${moved.length} card${moved.length === 1 ? '' : 's'} from their hand and graveyard into their library.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -407,6 +429,13 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = { mine: own, theirs };
     return true;
   }
+  if (req.kind === 'b49-grave-lesser') {
+    const ev = locateCardInGame(game, bindings.eventCard)?.card;
+    const mv = Number(util.defOf(game, ev)?.manaValue ?? 0);
+    const rows = (player.deck.graveyard || []).filter(c => c.instanceId !== bindings.eventCard && cardFitsWords(util.defOf(game, c), req.filter) && Number(util.defOf(game, c)?.manaValue ?? 0) < mv);
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', targeting: true, title, prompt: `Choose a target ${req.label} (less than ${mv}).`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -470,6 +499,7 @@ export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
+  if (/^that player controls more lands than you$/i.test(t)) return { test: 'b49-event-player-more-lands' };
   if (/^(?:SELFNAME|this (?:artifact|creature|permanent)|[A-Z][A-Za-z ,'-]+) has counters on it$/.test(t)) return { test: 'b49-source-counters' };
   if ((m = t.match(/^creatures you control have total power (\w+) or greater$/i))) return { test: 'b49-total-power', min: cnt(m[1]) };
   if ((m = t.match(/^you attacked with (\w+) or more creatures this turn$/i))) return { test: 'b49-attacked-with', min: cnt(m[1]) };
@@ -498,6 +528,8 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
     case 'b49-source-counters': return Object.values(locateCardInGame(game, bindings.sourceId)?.card?.counters || {}).some(v => Number(v) > 0);
     case 'b49-cast-from-graveyard': return bindings.selfFromZone === 'graveyard' && game.resolvingObj?.kind === 'spell';
+    case 'b49-event-player-opponent': return !!bindings.eventPlayer && bindings.eventPlayer !== controllerId;
+    case 'b49-event-player-more-lands': { const lands = p => (p?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return lands(playerById(game, bindings.eventPlayer)) > lands(me); }
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }

@@ -1892,4 +1892,23 @@ section('round 49: copy this spell');
   check('Sevinne\'s Reclamation: cast from the graveyard it copies itself once (two draws)', r.ok && t.P(0).deck.hand.length === hand + 2, JSON.stringify([r.error, t.P(0).deck.hand.length - hand]));
 }
 
+section('round 49: Midnight Clock, Archaeomancer\'s Map, Scrap Trawler');
+{
+  const t = setup();
+  t.give(0, 'Opt'); t.give(0, 'Divination', 'graveyard'); t.give(0, 'Counterspell');
+  const lib = t.P(0).deck.remainingLibrary.length, hand = t.P(0).deck.hand.length - 1, grave = t.P(0).deck.graveyard.length;
+  cast(t, 'Counterspell', 'Shuffle your hand and graveyard into your library, then draw seven cards.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Midnight Clock: hand and graveyard shuffled in, then seven cards drawn', t.P(0).deck.hand.length === 7 && t.P(0).deck.remainingLibrary.length === lib + hand + grave - 7, JSON.stringify([t.P(0).deck.hand.length, t.P(0).deck.remainingLibrary.length - lib]));
+}
+{
+  const t = setup();
+  for (let i = 0; i < 9; i++) t.give(1, i % 2 ? 'Island' : 'Forest', 'battlefield');
+  onField(t, 'Sol Ring', 'Whenever a land an opponent controls enters, if that player controls more lands than you, you may put a land card from your hand onto the battlefield.');
+  t.give(0, 'Command Tower');
+  const before = t.P(0).deck.battlefield.length;
+  t.give(1, 'Evolving Wilds', 'battlefield');
+  settle(t, [[d => d.kind === 'confirm', true], [d => /land card/i.test(d.prompt || d.label || ''), d => d.options?.[0]?.id]]);
+  check('Archaeomancer\'s Map: with more lands, the opponent\'s land lets you put a land from your hand', t.P(0).deck.battlefield.length === before + 1, String(t.P(0).deck.battlefield.length - before));
+}
+
 done();
