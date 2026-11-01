@@ -613,6 +613,19 @@ function runActivate(game, op, ask) {
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 
+  // "For each color among permanents you control, add one mana of that color." (Bloom Tender, Faeburrow Elder)
+  if (ability.manaAbility && /For each color among permanents you control, add one mana of that color/i.test(ability.effect || '')) {
+    const mix = ['W', 'U', 'B', 'R', 'G'].filter(c => player.deck.battlefield.some(p => (defOf(game, p)?.colors || []).includes(c)));
+    if (!mix.length && !force) throw new GameError('You control no coloured permanent, so this adds no mana.');
+    commit(game, { ...common, type: 'activate-ability', manaColor: mix[0] || null, manaMix: mix, manaAmount: mix.length, label: `${player.displayName} taps ${def.name} for ${mix.map(c => `{${c}}`).join('') || 'no mana'}.` });
+    return;
+  }
+  // "Add {W}{U}." — two different colours from one ability (Signets): both are added.
+  const fixedMix = ability.manaAbility && !/\bor\b|any|chosen|for each|equal|X\b/i.test(ability.effect || '') ? [...String(ability.effect || '').matchAll(/\{([WUBRGC])\}/g)].map(x => x[1]) : [];
+  if (fixedMix.length > 1 && new Set(fixedMix).size > 1) {
+    commit(game, { ...common, type: 'activate-ability', manaColor: fixedMix[0], manaMix: fixedMix, manaAmount: fixedMix.length, label: `${player.displayName} taps ${def.name} for ${fixedMix.map(c => `{${c}}`).join('')}.` });
+    return;
+  }
   if (ability.manaAbility) {
     const options = manaOptionsForAbility(game, player, card, ability);
     if (!options.length) throw new GameError('This ability cannot make any mana right now.');

@@ -962,4 +962,24 @@ section('round 15: alternative costs, Flare of Fortitude');
   check('…and the lock ends with the turn', !require_lock(t));
 }
 
+section('round 16: mana of several colours');
+{
+  const t = setup();
+  const bt = onField(t, 'Llanowar Elves', '{T}: For each color among permanents you control, add one mana of that color.', { colors: ['G'] });
+  onField(t, 'Fog Bank', '', { colors: ['U'] });
+  const ab = parseActivatedAbilities(def(t, bt))[0];
+  const before = { ...t.P(0).mana.floating };
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: bt.instanceId, abilityId: ab.id }, t.as(0)); settle(t);
+  const f = t.P(0).mana.floating || {};
+  check('Bloom Tender: one green and one blue', r.ok && f.G - (before.G || 0) === 1 && f.U - (before.U || 0) === 1, JSON.stringify([r.error, f]));
+}
+{
+  const t = setup();
+  const sig = onField(t, 'Fog Bank', '{1}, {T}: Add {W}{U}.', { typeLine: 'Artifact' });
+  const ab = parseActivatedAbilities(def(t, sig))[0];
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: sig.instanceId, abilityId: ab.id }, t.as(0)); settle(t);
+  const f = t.P(0).mana.floating || {};
+  check('Signet: {W}{U} adds one white and one blue', r.ok && f.W === 1 && f.U === 1, JSON.stringify([r.error, f]));
+}
+
 done();

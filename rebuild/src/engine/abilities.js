@@ -53,7 +53,7 @@ export function activatedAbilitySupport(definition, ability) {
     return { supported: false, reasons: ['Ability is unavailable.'] };
   if (ability.manaAbility) {
     const chosen = /chosen color/i.test(ability.effect || '');
-    if (ability.manaOptions?.length || chosen || /mana of any (?:color|type)/i.test(ability.effect || ''))
+    if (ability.manaOptions?.length || chosen || /mana of any (?:color|type)|For each color among permanents you control, add one mana of that color/i.test(ability.effect || ''))
       return { supported: true, kind: 'mana', compiled: null, reasons: [] };
     return { supported: false, kind: 'mana', reasons: ['Mana output could not be determined from this Oracle text.'], guidedFallback: true };
   }

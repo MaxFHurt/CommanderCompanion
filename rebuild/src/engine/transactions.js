@@ -411,7 +411,10 @@ function putAbilityOnStack(game, player, action, deck) {
 }
 function applySearchResult(game, player, obj) {
   const deck = player.deck;
-  if (obj.manaColor)
+  // Several colours at once: "Add {W}{U}." (Signets), "For each color among permanents you control, add one mana of that color." (Bloom Tender)
+  if (obj.manaMix?.length)
+    for (const c of obj.manaMix) addMana(player, c, 1);
+  else if (obj.manaColor)
     addMana(player, obj.manaColor, obj.manaAmount || 1);
   const search = obj.searchResult;
   if (!search)
