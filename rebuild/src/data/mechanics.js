@@ -266,7 +266,7 @@ m('Living weapon', 'keyword', 'When this Equipment enters, create a 0/0 black Ph
 m('Madness', 'keyword', 'If you discard this card, you may exile it instead and cast it for its madness cost.', { auto: 'auto', actions: ['exile'] });
 m('Melee', 'keyword', 'Whenever this attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.', { auto: 'manual', actions: ['pt'] });
 m('Mentor', 'keyword', 'Whenever this attacks, put a +1/+1 counter on target attacking creature with lesser power.', { auto: 'manual', actions: ['counter+'] });
-m('Miracle', 'keyword', 'If this is the first card you drew this turn, you may reveal it and cast it for its miracle cost.', { auto: 'manual' });
+m('Miracle', 'keyword', 'If this is the first card you drew this turn, you may reveal it and cast it for its miracle cost.', { auto: 'auto', steps: 'When you draw it as your first card of the turn, the game asks whether to cast it for its miracle cost.' });
 m('Modular', 'keyword', 'Enters with N +1/+1 counters; when it dies, you may put its +1/+1 counters on target artifact creature.', { auto: 'manual', actions: ['counter+'] });
 m('More Than Meets the Eye', 'keyword', 'You may cast this converted (back face up) for its More Than Meets the Eye cost.', { auto: 'manual', actions: ['transform'] });
 m('Morph', 'keyword', 'Cast face down for {3} as a 2/2 with no name or abilities; turn face up any time for the morph cost.', { auto: 'auto', rules: ['Turning face up is a special action: no stack, can\'t be responded to.', 'Megamorph also puts a +1/+1 counter on it when turned up.'] });

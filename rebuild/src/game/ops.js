@@ -168,7 +168,7 @@ function zoneKeyOf(card) {
 
 /** Rules text as it applies to this cast: keyword-cost lines removed, kicker and overload applied. */
 export function castText(text, { kicked = false, overload = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
@@ -1089,7 +1089,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1234,6 +1234,13 @@ function runSpecial(game, top, player, ask) {
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId);
     const choice = card ? ask('rebound', () => ({ ...base, kind: 'choose-one', title: `${top.name} — rebound`, definitionId: card.definitionId, prompt: `Cast ${top.name} from exile without paying its mana cost?`, options: [{ id: 'cast', label: 'Cast it free' }, { id: 'no', label: 'Leave it in exile' }] })) : 'none';
     after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; };
+  } else if (special === 'miracle') {
+    // Miracle: the card just drawn may be revealed and cast now for its miracle cost.
+    const card = (player.deck.hand || []).find(c => c.instanceId === top.sourceId);
+    const cost = top.madnessCost || '';
+    const choice = card ? ask('miracle', () => ({ ...base, kind: 'choose-one', title: `${top.name} — miracle`, definitionId: card.definitionId, private: true,
+      prompt: `Reveal ${top.name} and cast it for its miracle cost ${cost}?`, options: [{ id: 'cast', label: `Cast it for ${cost}` }, { id: 'no', label: 'Keep it in my hand' }] })) : 'none';
+    after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId, cost }; };
   } else if (special === 'madness') {
     // Madness: the discarded card waits in exile; its owner may cast it now for its madness cost, or it goes to the graveyard.
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId && c.madness);

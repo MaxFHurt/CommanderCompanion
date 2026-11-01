@@ -1210,4 +1210,18 @@ section('round 22: state triggers, coin-flip triggers');
   check('Whenever you win a coin flip: draws a card', hand() === before + 1, `${before} → ${hand()}`);
 }
 
+section('round 23: Miracle');
+{
+  const t = setup();
+  t.autoPass = true; t.end(0);
+  const lib = t.P(0).deck.remainingLibrary;
+  const card = lib.find(c => /Sorcery|Instant/.test(def(t, c)?.typeLine || '')) || lib[0];
+  lib.splice(lib.indexOf(card), 1); lib.unshift(card);
+  asText(t, card, 'Each opponent loses 3 life.\nMiracle {U}', { typeLine: 'Sorcery', manaCost: '{5}{U}{U}' });
+  const life = t.P(1).life;
+  t.end(1);
+  settle(t, [['miracle', 'cast']]);
+  check('Miracle: the first card drawn is cast for its miracle cost', t.P(1).life === life - 3 && t.P(0).deck.graveyard.some(c => c.instanceId === card.instanceId), JSON.stringify([life, t.P(1).life, card.zone]));
+}
+
 done();
