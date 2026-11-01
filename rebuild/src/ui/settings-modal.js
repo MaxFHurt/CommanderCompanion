@@ -38,11 +38,13 @@ export function openSettings() {
           <span><strong>Send rule corrections</strong><small>When a card has to be resolved by hand or a play is corrected, send the card and what was done (no names, decks or hands) so it can be automated.</small></span>
           <span class="option__end">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
         </button>
+      </div>
+      <p class="muted">Commander Companion ${VERSION} • ${BUILD_DATE}</p>
+      <div class="option-list">
         <button type="button" class="option" data-dev-report>
           <span><strong>Dev report</strong><small>PIN protected. Every correction from every game, ready to copy.</small></span>
         </button>
-      </div>
-      <p class="muted">Commander Companion ${VERSION} • ${BUILD_DATE}</p>`,
+      </div>`,
     onMount(el, { close }) {
       on(el, 'click', '[data-guidance]', (event, button) => {
         saveSettings({ guidance: button.dataset.guidance });

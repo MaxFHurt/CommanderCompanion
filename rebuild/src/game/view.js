@@ -118,7 +118,8 @@ function promptFor(game, viewerId, defs, viewer) {
     const top = stackTop(game);
     if (top?.controllerId === viewerId || viewer.isHost) {
       const text = top.guidedResolution?.oracleText || top.text || '';
-      return { kind: 'guided', stackId: top.id, name: top.name || top.label, text, notes: top.guidedResolution?.unsupported || [], controllerId: top.controllerId,
+      const cardName = (top.card?.definitionId || top.sourceDefinitionId) ? game.cardDefinitions?.[top.card?.definitionId || top.sourceDefinitionId]?.name || '' : '';
+      return { kind: 'guided', stackId: top.id, name: top.name || top.label, cardName, ruling: game.storedOutcomes?.[cardName] || null, steps: [...(f.guided.steps || [])], text, notes: top.guidedResolution?.unsupported || [], controllerId: top.controllerId,
         targets: guidedTargetsView(game, top.guidedResolution?.targets), actions: guidedActionsFor(text), hint: guidedHintFor(text) };
     }
     return waiting(top?.controllerId, `Waiting for ${name(top?.controllerId)} to resolve ${top?.name || 'an effect'} by hand.`);

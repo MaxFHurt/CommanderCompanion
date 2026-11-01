@@ -1622,4 +1622,19 @@ section('round 46: Valakut Awakening, no combat damage');
   check('No combat damage this turn (2 life lost from the trigger only)', t.P(1).life === life - 2, `${life} → ${t.P(1).life}`);
 }
 
+section('round 47: owner rulings');
+{
+  const t = setup();
+  t.game.storedOutcomes = { Opt: { card: 'Opt', ruling: 'Scry 2 instead, then draw.', steps: ['scry 2', 'draw 1'], override: true } };
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.');
+  const prompt = t.view(0).prompt;
+  check('Owner ruling: the automated card waits on the resolve-by-hand panel with the ruling', prompt?.kind === 'guided' && /Scry 2 instead/.test(prompt.ruling?.ruling || '') && t.P(0).deck.hand.length === hand, JSON.stringify([prompt?.kind, prompt?.ruling?.ruling]));
+  t.do(0, { type: 'edit', edit: { kind: 'life', playerId: t.P(0).playerId, delta: -1 } });
+  check('…edits made there are recorded as its steps', (t.view(0).prompt?.steps || []).some(x => /life/.test(x)), JSON.stringify(t.view(0).prompt?.steps));
+  t.do(0, { type: 'guided-done' });
+  const rec = (t.game.corrections || []).find(r => r.kind === 'manual-resolution');
+  check('…and finishing logs a manual resolution for the Dev report', rec?.card === 'Opt' && rec.steps.length === 1, JSON.stringify(rec));
+}
+
 done();

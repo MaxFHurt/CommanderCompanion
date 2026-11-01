@@ -70,6 +70,15 @@ export default {
     //   POST /devreport/pin      { pin }                            → { ok } (sets the PIN once, if none is set)
     //   POST /devreport          { pin, all? }  or X-Report-Key     → { records, total, reportedUpTo }
     //   POST /devreport/mark     { pin, upTo }  or X-Report-Key     → { ok }
+    // Owner rulings (stored outcomes): GET /outcomes → { outcomes }; POST /outcomes { pin, card, ruling, steps, override, remove }.
+    if (parts[0] === 'outcomes' && parts.length === 1) {
+      try {
+        const res = await stub(env, 'reports:all').fetch(`https://game/reports/${request.method === 'GET' ? 'outcomes' : 'outcome-set'}`, { method: 'POST', body: request.method === 'GET' ? '{}' : await request.text(), headers: { 'x-key-ok': (!!env.REPORT_KEY && request.headers.get('X-Report-Key') === env.REPORT_KEY) ? '1' : '0' } });
+        return withCors(res);
+      } catch (error) {
+        return fail(500, 'The rulings service had a problem. Try again.');
+      }
+    }
     if (parts[0] === 'corrections' || parts[0] === 'devreport') {
       if (request.method !== 'POST') return fail(405, 'Not allowed.');
       const action = parts[0] === 'corrections' ? 'add' : (parts[1] || 'read');
@@ -209,6 +218,11 @@ export class GameStore {
       for (let i = 0; i < entries.length; i += 100) await this.storage.put(Object.fromEntries(entries.slice(i, i + 100)));
       return json({ ok: true, stored: entries.length });
     }
+    if (action === 'outcomes') {
+      const out = {};
+      for (const v of (await this.storage.list({ prefix: 'out:' })).values()) out[v.card] = v;
+      return json({ outcomes: out });
+    }
     if (action === 'pin') {
       if (meta.pinHash) return fail(409, 'A PIN is already set.');
       if (!/^\d{4,8}$/.test(String(body.pin || ''))) return fail(400, 'The PIN must be 4 to 8 digits.');
@@ -218,6 +232,14 @@ export class GameStore {
     }
     if (!meta.pinHash && request.headers.get('x-key-ok') !== '1') return fail(428, 'Set a PIN first.');
     if (!(await authed())) return fail(403, 'Wrong PIN.');
+    if (action === 'outcome-set') {
+      const card = String(body.card || '').trim().slice(0, 200);
+      if (!card) return fail(400, 'Which card?');
+      if (body.remove) { await this.storage.delete(`out:${card}`); return json({ ok: true, removed: true }); }
+      const rec = { card, ruling: String(body.ruling || '').slice(0, 2000), steps: (Array.isArray(body.steps) ? body.steps : []).map(x => String(x).slice(0, 300)).slice(0, 30), override: !!body.override, oracle: String(body.oracle || '').slice(0, 3000), updatedAt: new Date().toISOString() };
+      await this.storage.put(`out:${card}`, rec);
+      return json({ ok: true, outcome: rec });
+    }
     if (action === 'mark') {
       meta.reportedUpTo = String(body.upTo || '');
       await this.storage.put('reportsMeta', meta);

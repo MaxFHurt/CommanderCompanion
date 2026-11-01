@@ -383,6 +383,25 @@ export function discardCards(game, playerId, ids = [], { override = false } = {}
 // ---------------------------------------------------------------------------------------------
 // Guided (by-hand) resolution
 
+/** The card a stack object comes from, by name (spells, abilities and triggers). */
+export function stackCardName(game, top) {
+  const id = top?.card?.definitionId || top?.sourceDefinitionId;
+  return (id && game.cardDefinitions?.[id]?.name) || top?.name || '';
+}
+
+/** An owner ruling stored with the dev PIN (game.storedOutcomes, loaded by the app for every player). With "resolve by
+ * hand" set, the card's automation is switched off: the effect waits on the resolve-by-hand panel, showing the ruling and
+ * pointing at the targets chosen as it was cast. A permanent spell itself still enters normally. */
+function applyOwnerRuling(game, top) {
+  const so = game.storedOutcomes?.[stackCardName(game, top)];
+  if (!so?.override || top.guidedResolution || top.ownerRulingApplied) return;
+  if (top.kind === 'spell' && !/\b(?:Instant|Sorcery)\b/.test(game.cardDefinitions?.[top.card?.definitionId]?.typeLine || '')) return;
+  top.ownerRulingApplied = true;
+  const ids = [...new Set(Object.entries(top.effectBindings || {}).filter(([k, v]) => k !== 'sourceId' && typeof v === 'string' && v).map(([, v]) => v))];
+  top.guidedResolution = { title: `${top.name || 'Effect'} — owner ruling`, oracleText: top.text || top.abilityText || '', unsupported: [`Owner ruling: ${so.ruling || 'resolve by hand'}`], targets: ids.map(id => ({ id, label: 'Chosen' })) };
+  top.effects = []; top.search = null; top.resolveReqs = [];
+}
+
 export function finishGuided(game, playerId, { override = false } = {}) {
   const g = game.flow.guided, top = stackTop(game);
   if (!g) throw new GameError('Nothing is waiting to be resolved by hand.');
@@ -451,6 +470,7 @@ export function settle(game) {
       if (!f.priority || f.priority.stackId !== top.id) openPriority(game, { stackId: top.id, reason: top.name || top.label, exclude: top.controllerId, startAfter: top.controllerId });
       if (stepPriority(game)) return;
       f.priority = null;
+      applyOwnerRuling(game, top);
       if (top.guidedResolution) { f.guided = { stackId: top.id }; continue; }
       startOp(game, 'resolve', top.controllerId, { stackId: top.id }, { system: true });
       continue;

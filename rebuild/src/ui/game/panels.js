@@ -11,6 +11,7 @@ import { prepareReader, readCardTitle } from '../../data/card-scan.js';
 import { recordGame, loadProfile } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
+import { openStoreOutcome } from '../ruling-modal.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
 import { openCardDetail, openTable, pickNumber, pickText } from './card-modals.js';
 
@@ -108,6 +109,7 @@ export function openGuided(ctx) {
     title: `${p.name} — resolve by hand`, size: 'wide',
     body: html`
       ${def ? cardDetailHtml(def, top.face) : html`<p class="card-detail__oracle">${oracleHtml(p.text)}</p>`}
+      ${p.ruling ? html`<p class="card-detail__why"><b>Owner ruling:</b> ${p.ruling.ruling || ''}${p.ruling.steps?.length ? html`<br><small>Steps: ${p.ruling.steps.join(' → ')}</small>` : ''}</p>` : ''}
       <p class="guided__steps"><b>${steps}</b>${p.hint ? html` <span>${p.hint.name}: ${p.hint.steps}</span>` : ''}</p>
       ${(p.targets || []).map((t, i) => html`<div class="guided__target">
         <span class="guided__who"><small>${t.label}</small><b>${t.name}</b>${t.owner ? html`<small>${t.owner}</small>` : ''}</span>
@@ -116,6 +118,7 @@ export function openGuided(ctx) {
       ${selfActions.length ? html`<div class="guided__target"><span class="guided__who"><small>You</small><b>${you?.name || 'You'}</b></span>
         <span class="guided__acts">${selfActions.map(a => html`<button type="button" class="btn btn--small" data-act-guided="${a}" data-t="you">${ACTION_LABEL[a]}</button>`)}</span></div>` : ''}`,
     actions: [
+      { label: 'Store outcome', kind: 'plain', onClick: () => openStoreOutcome({ card: p.cardName || p.name, oracle: p.text, steps: ctx.view.prompt?.steps || p.steps || [] }) },
       { label: 'Host Tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } },
       { label: 'Done', kind: 'confirm', onClick: async ({ close }) => { const r = await ctx.send({ type: 'guided-done' }); if (r.ok) close(); } }
     ],

@@ -11,6 +11,7 @@ import { GAME_SAVE_KEY } from '../game/save-keys.js';
 import { debounce } from '../ui/dom.js';
 import { checkpointStore } from './checkpoints.js';
 import { sendCorrections } from '../net/corrections.js';
+import { attachOutcomes } from '../net/outcomes.js';
 import { hostRoom } from '../net/room.js';
 
 let current = null;
@@ -37,6 +38,7 @@ function baseHostSession(game, { role, seatId = null, net = null }) {
     if (game.status === 'complete') { deleteRecord(GAME_SAVE_KEY); return; }
     saveRecord(GAME_SAVE_KEY, { savedAt: new Date().toISOString(), status: game.status, role, seatId, roomCode: net?.code || null, game }).catch(error => console.warn('Autosave failed', error));
   }, 600);
+  attachOutcomes(game, () => { for (const fn of listeners) fn(); });
   const controller = createController(game, {
     checkpoints: checkpointStore(game.gameId),
     onChange: () => {

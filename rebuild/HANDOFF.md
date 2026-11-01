@@ -8,7 +8,15 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.47** (1 Nov): rule corrections and the Dev report. Every manual resolution (with the steps
+- Live build: **1.0.0-rebuild.48** (1 Nov): **owner rulings** ("stored outcomes"). With the dev PIN (the Dev report PIN) the owner
+  saves how a card resolves, for everyone, while playing: "Store outcome" on the resolve-by-hand panel (the steps just taken
+  are filled in) and "Correct ruling" on any card's detail view. A ruling can switch the card's automation off ("resolve by
+  hand"): the effect then waits on the panel with the ruling shown and its chosen targets listed (flow.js `applyOwnerRuling`;
+  a permanent spell still enters, its abilities follow the ruling). Rulings live on the Worker (`GET/POST /outcomes`, key
+  `out:<card name>` in the reports object), every device loads them (`src/net/outcomes.js`, cached for offline, refreshed
+  every 2 minutes) into `game.storedOutcomes`. The monthly Claude audit treats them as decided and never changes report
+  items without the owner's approval (it writes a proposal file and asks). Dev report is the last item in Settings.
+  Build 47 (1 Nov): rule corrections and the Dev report. Every manual resolution (with the steps
   players took), manual edit, engine error, agreed undo and upheld challenge is logged in the game (`src/game/corrections.js`)
   and sent to the Worker (`src/net/corrections.js` → `POST /corrections`; Settings → "Send rule corrections", on by default,
   never from localhost test pages). Settings → **Dev report** (PIN, set on first use, hashed on the server) fetches every new
@@ -204,7 +212,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (225 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (228 in-game checks, every new family; choices answered by the player who makes them).
   - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
     "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
     and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
@@ -311,7 +319,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 225 catalog-effect checks (builds 43-46)
+    node tests/node/catalog.mjs       # 228 catalog-effect checks (builds 43-48)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)

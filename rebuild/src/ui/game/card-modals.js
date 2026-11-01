@@ -1,5 +1,6 @@
 // Popups for looking at cards: one card, a zone, another player's board, the whole table.
 
+import { openStoreOutcome } from '../ruling-modal.js';
 import { html, on, $ } from '../dom.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
@@ -75,6 +76,8 @@ export function openCardDetail(ctx, id) {
     else if (view.players.length > 1 && view.stage === 'play') actions.push({ label: 'Ask the table', kind: 'plain', onClick: ({ close }) => { close(); askTableHere(ctx, card, { type: 'play', instanceId: id }); } });
   }
 
+  // Owner rulings: fix how this card resolves, for everyone (dev PIN).
+  actions.push({ label: 'Correct ruling', kind: 'plain', onClick: ({ close }) => { close(); openStoreOutcome({ card: card.realName || card.name, oracle: def?.oracleText || '', override: true }); } });
   openModal({
     title: `${card.name}${zone !== 'battlefield' ? ` — ${player.name}'s ${ZONE_LABEL[zone]}` : ''}`, size: 'wide',
     body: cardDetailHtml(def, card.face, extra),
