@@ -87,7 +87,7 @@ export function clearCastState(card, to) {
     delete card.realDefinitionId;
     delete card.faceDownKind;
   }
-  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast', 'offspring', 'squadCount', 'bargained', 'disturbed', 'prototype'])
+  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast', 'offspring', 'squadCount', 'bargained', 'disturbed', 'prototype', 'bestowed'])
     delete card[key];
   delete card.playPermission;
   if (to !== 'exile') {

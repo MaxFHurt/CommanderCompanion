@@ -100,6 +100,8 @@ export function syncAttachments(game) {
     if (!host) {
       card.attachedTo = null;
       changed = true;
+      // Bestow: when what it enchants leaves, it stops being an Aura and stays as a creature.
+      if (card.bestowed) { delete card.bestowed; log(game, `${defOf(game, card)?.name || 'It'} is no longer attached and is a creature again.`); continue; }
       if (/\bAura\b/i.test(def?.typeLine || '')) {
         // An Aura with nothing to enchant goes to its owner's graveyard.
         const i = player.deck.battlefield.indexOf(card);

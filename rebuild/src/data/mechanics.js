@@ -185,7 +185,7 @@ m('Banding', 'keyword', 'Creatures with banding can attack or block as a group; 
 m('Bands with others', 'keyword', 'A narrower form of banding.', { auto: 'manual' });
 m('Bargain', 'keyword', 'As an additional cost you may sacrifice an artifact, enchantment or token; bargained spells get a bonus.', { auto: 'auto', actions: ['sacrifice'] });
 m('Battle cry', 'keyword', 'Whenever this attacks, each other attacking creature gets +1/+0 until end of turn.', { auto: 'auto', actions: ['pt'] });
-m('Bestow', 'keyword', 'Cast as an Aura for the bestow cost; if the enchanted creature leaves, it becomes a creature again.', { auto: 'manual', actions: ['attach'] });
+m('Bestow', 'keyword', 'Cast as an Aura for the bestow cost; if the enchanted creature leaves, it becomes a creature again.', { auto: 'auto', actions: ['attach'] });
 m('Blitz', 'keyword', 'Cast for the blitz cost: it has haste and "When this dies, draw a card", and is sacrificed at the next end step.', { auto: 'auto' });
 m('Bloodthirst', 'keyword', 'Bloodthirst N: if an opponent was dealt damage this turn, this enters with N +1/+1 counters.', { auto: 'manual', actions: ['counter+'] });
 m('Boast', 'keyword', 'Activate only if this creature attacked this turn and only once each turn.', { auto: 'auto', steps: 'The game allows a boast ability only after the creature attacked this turn, once.' });

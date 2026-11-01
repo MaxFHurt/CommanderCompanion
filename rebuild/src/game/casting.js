@@ -163,7 +163,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', bestow: 'Bestow (as an Aura)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -197,6 +197,9 @@ export function castModes(game, player, card, def, base = null) {
     if (def?.manaCost || isLand(def)) modes.push({ id: 'normal', cost: def.manaCost || '' });
   }
   if (zone === 'hand') {
+    // Bestow {cost}: cast it as an Aura that enchants a creature.
+    const bestow = keywordCost(text, 'Bestow');
+    if (bestow) modes.push({ id: 'bestow', cost: bestow });
     // Prototype {cost} — P/T: a smaller version (ops.js / overlay.js).
     const proto = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Prototype ((?:\{[^}]+\})+)\s*[—-]\s*(\d+)\/(\d+)/i);
     if (proto) modes.push({ id: 'prototype', cost: proto[1], prototype: { cost: proto[1], power: proto[2], toughness: proto[3] } });

@@ -60,6 +60,8 @@ export function withOverlay(card, def) {
   // Abilities granted in quotes by an Aura, Equipment or anthem ('Equipped creature has "{T}: …"'), kept on the card by
   // attachments.js syncAttachments.
   if (def && card?.grantedText?.length) def = { ...def, oracleText: [def.oracleText, ...card.grantedText].filter(Boolean).join('\n') };
+  // Bestow: cast as an Aura, it is an Aura enchantment (not a creature) until what it enchants leaves.
+  if (def && card?.bestowed) def = { ...def, typeLine: `Enchantment — Aura${(String(def.typeLine || '').split('—')[1] || '').trim() ? ` ${String(def.typeLine).split('—')[1].trim()}` : ''}`, oracleText: `Enchant creature\n${def.oracleText || ''}` };
   // Reconfigure: while attached to a creature it isn't a creature.
   if (def && card?.attachedTo && /(?:^|\n)\s*Reconfigure\b/i.test(String(def.oracleText || ''))) def = { ...def, typeLine: String(def.typeLine || '').replace(/\s*\bCreature\b\s*/, ' ').replace(/\s+/g, ' ').trim() };
   // Prototype: cast for its prototype cost, it has that smaller power and toughness, mana cost and colour while on the battlefield or stack.

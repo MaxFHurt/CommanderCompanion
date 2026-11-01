@@ -2359,4 +2359,15 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('…and can be unattached to be a creature again', r2.ok && !rc.attachedTo && power(t, bear) === 2);
 }
 
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Llanowar Elves'); const b = asText(t, t.hand(0, 'Llanowar Elves'), 'Bestow {1}{G} (If you cast this card for its bestow cost, it\'s an Aura spell with enchant creature. It becomes a creature again if it\'s not attached to a creature.)\nEnchanted creature gets +1/+1.', { typeLine: 'Enchantment Creature — Elf', manaCost: '{G}', power: '1', toughness: '1' });
+  t.ctl.dispatch({ type: 'play', instanceId: b.instanceId }, t.as(0));
+  settle(t, [['castMode', 'bestow'], ['enchant', bear.instanceId]]);
+  check('Bestow: cast as an Aura on the bear, +1/+1, not a creature itself', b.attachedTo === bear.instanceId && power(t, bear) === 3 && !/Creature/.test(withOverlay(b, def(t, b)).typeLine), JSON.stringify([b.attachedTo === bear.instanceId, power(t, bear), withOverlay(b, def(t, b)).typeLine]));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  check('…when the bear dies it stays as a 1/1 creature', t.names(0, 'battlefield').includes('Llanowar Elves') && !b.bestowed && /Creature/.test(withOverlay(b, def(t, b)).typeLine));
+}
+
 done();

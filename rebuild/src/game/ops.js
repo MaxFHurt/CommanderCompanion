@@ -499,7 +499,7 @@ function runPlay(game, op, ask) {
 
   // Auras choose what they enchant as they are cast.
   let attachTo = null;
-  const enchant = permanent && !faceDown ? enchantTarget(def) : null;
+  const enchant = permanent && !faceDown ? (mode.id === 'bestow' ? 'creature' : enchantTarget(def)) : null;   // bestow: an Aura with enchant creature
   let reanimate = false;
   if (enchant && /^(?:player|opponent)$/.test(enchant)) {
     // Curses and other player Auras: enchant a player (an opponent for "Enchant opponent").
@@ -598,6 +598,7 @@ function runPlay(game, op, ask) {
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
     exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
     offspring, squadCount, bargained: !!bargainId, disturbed: mode.id === 'disturb',
+    bestowed: mode.id === 'bestow',
     prototype: mode.prototype ? { ...mode.prototype, manaValue: Object.entries(parseManaCost(mode.prototype.cost)).reduce((n, [k, v]) => n + (k === 'generic' ? Number(v) : ['W', 'U', 'B', 'R', 'G', 'C'].includes(k) ? Number(v) : 0), 0), colors: [...new Set((mode.prototype.cost.match(/\{([WUBRG])\}/g) || []).map(x => x[1]))] } : null,
     label: `${player.displayName} casts ${shown}${where}${tag ? ` (${tag})` : ''}${free ? ' without paying its mana cost' : ''}${bindings.X !== undefined ? ` with X = ${bindings.X}` : ''}.`
   };
