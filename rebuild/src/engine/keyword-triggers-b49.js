@@ -90,6 +90,9 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
     for (const [k, r] of amounts(text, 'Renown').entries())
       if (k === 0) add('renown', `Renown ${r} — put ${r} +1/+1 counter${r === 1 ? '' : 's'} on it; it becomes renowned.`, '', compiled([{ kind: 'renown', amount: r }]));
 
+  // --- Ingest: whenever it deals combat damage to a player, that player exiles the top card of their library.
+  if (onField && self && event.type === 'combat-damage-player' && count(text, 'Ingest'))
+    add('ingest', 'Ingest — that player exiles the top card of their library.', '', compiled([{ kind: 'exile-top-of', playerBind: 'eventPlayer' }]));
   // --- Dies: Soulshift N (return a Spirit card with mana value N or less).
   if (self && event.type === 'dies')
     for (const [k, s] of amounts(text, 'Soulshift').entries())
@@ -119,4 +122,4 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 }
 
 /** The keywords read here (rules-audit and the terms key mark them automatic). */
-export const B49_KEYWORDS = ['Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];
+export const B49_KEYWORDS = ['Ingest', 'Bushido', 'Rampage', 'Afflict', 'Flanking', 'Battle cry', 'Annihilator', 'Dethrone', 'Melee', 'Mentor', 'Training', 'Evolve', 'Fabricate', 'Living weapon', 'Renown', 'Soulshift', 'Extort', 'Echo', 'Cumulative upkeep'];

@@ -485,6 +485,15 @@ export function prepareBindings(game, bindings) {
 
 /** A regeneration shield is used up instead of the creature being destroyed: tap it, remove damage, remove it from combat. */
 export function regenerates(game, card, notes = []) {
+  // Umbra armor (totem armor): "If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura."
+  const umbra = (game.players || []).flatMap(p => p.deck?.battlefield || []).find(a => a.attachedTo === card?.instanceId && /(?:^|\n)\s*(?:Umbra|Totem) armor\b/i.test(String(definitionFor(game, a)?.oracleText || '').replace(/\([^()]*\)/g, '')));
+  if (umbra) {
+    card.damageMarked = 0;
+    card.deathtouchDamage = false;
+    moveCard(game, umbra.instanceId, 'graveyard', {});
+    notes.push(`${definitionFor(game, umbra)?.name || 'The Aura'} is destroyed instead (umbra armor).`);
+    return true;
+  }
   const shields = (card?.temporaryEffects || []).filter(e => e?.kind === 'regen-shield');
   if (!shields.length || card.cantRegenerate) return false;
   card.temporaryEffects.splice(card.temporaryEffects.indexOf(shields[0]), 1);

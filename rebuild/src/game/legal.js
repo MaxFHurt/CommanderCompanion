@@ -175,8 +175,18 @@ export function specialRows(game, player, card, { running = false } = {}) {
     if (un) row('unearth', 'Unearth', un, [block, !sorcery && 'Only as a sorcery.', !payable(un) && 'Not enough mana.']);
     const enc = keywordCost(text, 'Encore');
     if (enc) row('encore', 'Encore', enc, [block, !sorcery && 'Only as a sorcery.', !payable(enc) && 'Not enough mana.']);
+    const emb = keywordCost(text, 'Embalm');
+    if (emb) row('embalm', 'Embalm', emb, [block, !sorcery && 'Only as a sorcery.', !payable(emb) && 'Not enough mana.']);
+    const ete = keywordCost(text, 'Eternalize');
+    if (ete) row('eternalize', 'Eternalize', ete, [block, !sorcery && 'Only as a sorcery.', !payable(ete) && 'Not enough mana.']);
     const sc = keywordCost(text, 'Scavenge');
     if (sc) row('scavenge', 'Scavenge', sc, [block, !sorcery && 'Only as a sorcery.', !payable(sc) && 'Not enough mana.']);
+  }
+  // Outlast {cost}: {cost}, {T}: put a +1/+1 counter on this. Only as a sorcery.
+  const outlast = card.zone === 'battlefield' && keywordCost(text, 'Outlast');
+  if (outlast) {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    row('outlast', 'Outlast', outlast, [block, !sorcery && 'Only as a sorcery.', card.tapped && 'It is tapped.', !payable(outlast) && 'Not enough mana.']);
   }
   // Craft with <materials> {cost}: exile this and the materials, return it transformed. Only as a sorcery (ops.js asks for the materials).
   const craft = card.zone === 'battlefield' && !Number.isInteger(card.activeFaceIndex) && craftSpec(text);
@@ -277,7 +287,7 @@ export function abilityRows(game, player, card) {
   const inHand = card.zone === 'hand';
   const zone = card.zone === 'hand' || card.zone === 'graveyard' ? card.zone : 'battlefield';
   const payable = cost => planMana(playerManaAvailability(player, game), (String(cost || '').match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), 0, { lifeAvailable: Number(player.life || 0) }).ok;
-  return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge|encore)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
+  return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge|encore|embalm|eternalize)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
     .filter(ability => (inHand && ability.manaAbility ? HAND_MANA_COST.test(String(ability.cost || '').trim()) : abilityZone(ability) === zone))
     .map(ability => {
       const fromZone = zone !== 'battlefield' && !ability.manaAbility;

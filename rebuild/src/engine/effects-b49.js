@@ -668,6 +668,23 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} puts ${nameOf(game, id)} onto the battlefield.`);
       return true;
     }
+    case 'exile-top-of': {
+      const p = playerById(game, bindings[effect.playerBind]);
+      const top = p?.deck?.remainingLibrary?.[0];
+      if (!top) return true;
+      moveCard(game, top.instanceId, 'exile', { onEvent: e => H.emit(bindings, e) });
+      notes.push(`${p.displayName} exiles ${nameOf(game, top.instanceId)} from the top of their library.`);
+      return true;
+    }
+    case 'embalm-token': {
+      // Embalm: a token copy that's a white Zombie with no mana cost. Eternalize: a 4/4 black Zombie with no mana cost.
+      const h = locateCardInGame(game, effect.targetId), d = definitionFor(game, h?.card);
+      if (!d) return true;
+      const type = String(d.typeLine || 'Creature').replace(/—\s*(.*)$/, (a, sub) => `— Zombie ${sub}`).replace(/^(?!.*—)(.*)$/, '$1 — Zombie');
+      H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: d.name, typeLine: /^Token\b/.test(type) ? type : `Token ${type}`, oracleText: d.oracleText || '', power: effect.eternalize ? '4' : d.power, toughness: effect.eternalize ? '4' : d.toughness, keywords: d.keywords || [], colors: effect.eternalize ? ['B'] : ['W'] }], bindings);
+      notes.push(`${controller.displayName} creates a token copy of ${d.name}${effect.eternalize ? ' (a 4/4 black Zombie)' : ' (a white Zombie)'}.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);

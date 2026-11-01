@@ -2242,4 +2242,34 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('Echo: not paid, it is sacrificed at its controller\'s next upkeep', t.names(0, 'graveyard').includes('Grizzly Bears'), JSON.stringify(t.names(0, 'graveyard')));
 }
 
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const um = onField(t, 'Fog Bank', 'Enchant creature\nUmbra armor', { typeLine: 'Enchantment — Aura' }); um.attachedTo = bear.instanceId;
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  check('Umbra armor: the Aura is destroyed instead of the creature', t.names(0, 'battlefield').includes('Grizzly Bears') && t.names(0, 'graveyard').includes('Fog Bank'));
+}
+{
+  const t = setup();
+  const o = onField(t, 'Grizzly Bears', 'Outlast {1}');
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: o.instanceId, abilityId: 'special:outlast' }, t.as(0)); settle(t);
+  check('Outlast: tap and pay for a +1/+1 counter', r.ok && o.tapped && o.counters?.['+1/+1'] === 1, JSON.stringify([r.error, o.counters]));
+}
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears', 'graveyard');
+  const g = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Grizzly Bears'); asText(t, g, 'Eternalize {2}');
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: g.instanceId, abilityId: 'special:eternalize' }, t.as(0)); settle(t);
+  const tok = t.P(0).deck.battlefield.find(c => c.token && def(t, c).name === 'Grizzly Bears');
+  check('Eternalize: the card is exiled and a 4/4 black Zombie copy enters', r.ok && !!tok && power(t, tok) === 4 && /Zombie/.test(def(t, tok).typeLine) && t.names(0, 'exile').includes('Grizzly Bears'), JSON.stringify([r.error, tok && power(t, tok), tok && def(t, tok).typeLine]));
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', 'Ingest');
+  const lib = t.P(1).deck.remainingLibrary.length;
+  attackWith(t, [a.instanceId]); settle(t);
+  if (t.game.flow.blocks) { t.do(1, { type: 'block', assignments: [] }); settle(t); }
+  check('Ingest: combat damage makes the player exile their top card', t.P(1).deck.remainingLibrary.length === lib - 1 && t.P(1).deck.exile.length >= 1, String(lib - t.P(1).deck.remainingLibrary.length));
+}
+
 done();

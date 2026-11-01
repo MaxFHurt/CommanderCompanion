@@ -219,7 +219,7 @@ m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the 
 m('Double team', 'keyword', 'When this attacks, if it isn\'t a token, conjure a duplicate into your hand; both lose double team (Alchemy).', { auto: 'manual' });
 m('Dredge', 'keyword', 'Dredge N: if you would draw, you may mill N instead and return this card from your graveyard to your hand.', { auto: 'manual', actions: ['mill', 'return-hand'] });
 m('Echo', 'keyword', 'At the beginning of your upkeep, if this came under your control since your last upkeep, sacrifice it unless you pay its echo cost.', { auto: 'auto', actions: ['sacrifice'] });
-m('Embalm', 'keyword', 'Exile this card from your graveyard and pay: create a token copy, except it is a white Zombie with no mana cost. Sorcery speed.', { auto: 'manual', actions: ['copy-token', 'exile'] });
+m('Embalm', 'keyword', 'Exile this card from your graveyard and pay: create a token copy, except it is a white Zombie with no mana cost. Sorcery speed.', { auto: 'auto', actions: ['copy-token', 'exile'] });
 m('Emerge', 'keyword', 'Cast by sacrificing a creature and paying the emerge cost reduced by that creature\'s mana value.', { auto: 'auto', steps: 'Choose "Emerge" when casting: pick the creature to sacrifice; the cost is reduced by its mana value.', actions: ['sacrifice'] });
 m('Encore', 'keyword', 'Exile this card from your graveyard and pay: for each opponent, create a token copy that attacks that opponent this turn if able; sacrifice them at the next end step.', { auto: 'auto', steps: 'Use Encore from the graveyard: the game makes a hasty copy for each opponent that must attack them, and sacrifices them at the end step.', actions: ['copy-token'] });
 m('Enlist', 'keyword', 'As this attacks, you may tap a nonattacking creature without summoning sickness; this gets +X/+0 equal to its power.', { auto: 'manual', actions: ['tap', 'pt'] });
@@ -227,7 +227,7 @@ m('Entwine', 'keyword', 'Pay the entwine cost to choose all modes.', { auto: 'au
 m('Epic', 'keyword', 'For the rest of the game you can\'t cast spells; at each of your upkeeps, copy this spell.', { auto: 'manual' });
 m('Escalate', 'keyword', 'Pay the escalate cost for each mode beyond the first.', { auto: 'auto' });
 m('Escape', 'keyword', 'Cast this from your graveyard for its escape cost (including exiling other cards from your graveyard).', { auto: 'auto' });
-m('Eternalize', 'keyword', 'Exile this card from your graveyard and pay: create a token copy that is a 4/4 black Zombie with no mana cost.', { auto: 'manual', actions: ['copy-token', 'exile'] });
+m('Eternalize', 'keyword', 'Exile this card from your graveyard and pay: create a token copy that is a 4/4 black Zombie with no mana cost.', { auto: 'auto', actions: ['copy-token', 'exile'] });
 m('Evoke', 'keyword', 'Cast for the evoke cost; when it enters, sacrifice it.', { auto: 'auto', tricky: ['Its enters-the-battlefield triggers still happen; you choose the order with the sacrifice trigger.'] });
 m('Evolve', 'keyword', 'Whenever a creature enters under your control with greater power or toughness than this, put a +1/+1 counter on this.', { auto: 'auto', actions: ['counter+'] });
 m('Exalted', 'keyword', 'Whenever a creature you control attacks alone, it gets +1/+1 until end of turn for each instance of exalted you control.', { auto: 'auto', actions: ['pt'] });
@@ -255,7 +255,7 @@ m('Horsemanship', 'keyword', 'Can be blocked only by creatures with horsemanship
 m('Impending', 'keyword', 'Cast for the impending cost: it enters with N time counters and isn\'t a creature while it has any; remove one at your end step.', { auto: 'manual', actions: ['counter-other'] });
 m('Improvise', 'keyword', 'Each artifact you tap while casting this pays for {1}.', { auto: 'auto', steps: 'Untapped artifacts are counted toward the generic cost and tapped when you cast it.', actions: ['tap'] });
 m('Infect', 'keyword', 'Deals damage to creatures as -1/-1 counters and to players as poison counters.', { auto: 'auto' });
-m('Ingest', 'keyword', 'Whenever this deals combat damage to a player, that player exiles the top card of their library.', { auto: 'manual', actions: ['exile'] });
+m('Ingest', 'keyword', 'Whenever this deals combat damage to a player, that player exiles the top card of their library.', { auto: 'auto', actions: ['exile'] });
 m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatures that share a color with it.', { auto: 'auto' });
 m('Jump-start', 'keyword', 'Cast this from your graveyard by discarding a card in addition to its cost; then exile it.', { auto: 'auto', actions: ['discard', 'exile'] });
 m('Kicker', 'keyword', 'You may pay an additional kicker cost as you cast this for an extra effect ("if this spell was kicked").', { auto: 'auto', tricky: ['Multikicker can be paid any number of times.', 'A copy of a kicked spell is also kicked.'] });
@@ -277,7 +277,7 @@ m('Ninjutsu', 'keyword', 'Pay the cost and return an unblocked attacker you cont
 m('Commander ninjutsu', 'keyword', 'Ninjutsu that also works from the command zone.', { auto: 'partial' });
 m('Offering', 'keyword', 'You may cast this as though it had flash by sacrificing a creature of the type and paying the difference in costs.', { auto: 'manual', actions: ['sacrifice'] });
 m('Offspring', 'keyword', 'You may pay the offspring cost; when this enters, create a 1/1 token copy of it.', { auto: 'auto', actions: ['copy-token'] });
-m('Outlast', 'keyword', 'Pay and tap: put a +1/+1 counter on this. Sorcery speed.', { auto: 'manual', actions: ['counter+', 'tap'] });
+m('Outlast', 'keyword', 'Pay and tap: put a +1/+1 counter on this. Sorcery speed.', { auto: 'auto', actions: ['counter+', 'tap'] });
 m('Overload', 'keyword', 'Cast for the overload cost and change "target" to "each".', { auto: 'auto' });
 m('Partner', 'keyword', 'You can have two commanders if both have partner.', { auto: 'auto', rules: ['"Partner with [name]" pairs only with that card and lets you search for it when it enters.', 'Friends forever, Doctor\'s companion and Choose a Background are related pairing rules.'] });
 m('Persist', 'keyword', 'When this dies, if it had no -1/-1 counters on it, return it with a -1/-1 counter.', { auto: 'auto' });
@@ -320,7 +320,7 @@ m('Training', 'keyword', 'Whenever this attacks with another creature with great
 m('Transfigure', 'keyword', 'Sacrifice this and pay: search for a creature card with the same mana value, put it onto the battlefield.', { auto: 'manual', actions: ['sacrifice', 'search'] });
 m('Transmute', 'keyword', 'Discard this and pay: search for a card with the same mana value and put it in your hand. Sorcery speed.', { auto: 'manual', actions: ['discard', 'search'] });
 m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on it; if they don\'t, its tribute ability happens.', { auto: 'manual', actions: ['counter+'] });
-m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'manual', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
+m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'auto', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
 m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'auto' });
 m('Undying', 'keyword', 'When this dies, if it had no +1/+1 counters on it, return it with a +1/+1 counter.', { auto: 'auto' });
 m('Unearth', 'keyword', 'Return this from your graveyard with haste; exile it at the next end step or if it would leave the battlefield. Sorcery speed.', { auto: 'auto', actions: ['return-battlefield', 'exile'] });

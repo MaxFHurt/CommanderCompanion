@@ -686,6 +686,11 @@ export function createTransactionEngine(game) {
           card.zone = 'exile';
           deck.exile.push(card);
         }
+        else if (action.kind === 'outlast') {
+          if (card.tapped) throw new Error('Outlast: it is already tapped.');
+          setTappedWithCapacity(game, player, card, true);
+          emit(game, { type: 'tapped', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId });
+        }
         else if (action.kind === 'craft') {
           // Cost: exile this permanent and the chosen materials (other permanents or graveyard cards).
           for (const id of [card.instanceId, ...(action.materialIds || [])]) {
