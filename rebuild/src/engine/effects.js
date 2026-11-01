@@ -770,6 +770,16 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const p of players) {
         let moved = 0;
         for (let i = 0; i < amount; i++) {
+          // Dredge: the player chose (before it resolved) to mill and return a dredge card instead of this draw.
+          const plan = bindings.dredgePlan?.[p.playerId];
+          const pick = plan?.length ? plan.shift() : null;
+          const dc = pick && p.deck.graveyard.find(c => c.instanceId === pick.id);
+          if (dc && p.deck.remainingLibrary.length >= pick.n) {
+            for (let k = 0; k < pick.n; k++) { const m = p.deck.remainingLibrary.shift(); m.zone = 'graveyard'; p.deck.graveyard.push(m); emit(bindings, { type: 'mill', playerId: p.playerId, sourceId: m.instanceId, definitionId: m.definitionId, amount: 1 }); }
+            p.deck.graveyard.splice(p.deck.graveyard.indexOf(dc), 1); dc.zone = 'hand'; p.deck.hand.push(dc);
+            notes.push(`${p.displayName} dredges ${cardName(game, dc)} (mills ${pick.n}) instead of drawing.`);
+            continue;
+          }
           const card = p.deck.remainingLibrary.shift();
           if (!card) {
             p.counters = p.counters || {};

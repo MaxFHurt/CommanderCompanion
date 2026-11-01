@@ -816,6 +816,17 @@ export function createTransactionEngine(game) {
         if (notes.length)
           action.label = `${action.label || 'Effect resolves.'} ${notes.join(' ')}`;
       }
+      else if (action.type === 'dredge') {
+        // Dredge N instead of drawing: mill N, then return the dredge card from the graveyard to hand.
+        const hit = locate(deck, action.instanceId);
+        if (!hit || hit.z !== 'graveyard' || deck.remainingLibrary.length < Number(action.amount || 0))
+          throw new Error('That card can no longer dredge.');
+        for (let k = 0; k < Number(action.amount || 0); k++) { const c = deck.remainingLibrary.shift(); c.zone = 'graveyard'; deck.graveyard.push(c); emit(game, { type: 'mill', playerId: player.playerId, sourceId: c.instanceId, definitionId: c.definitionId, amount: 1 }); }
+        const at = deck.graveyard.findIndex(c => c.instanceId === action.instanceId);
+        const [card] = deck.graveyard.splice(at, 1);
+        card.zone = 'hand'; deck.hand.push(card);
+        emit(game, { type: 'zone-change', sourceId: card.instanceId, definitionId: card.definitionId, from: 'graveyard', to: 'hand', controllerId: player.playerId, ownerId: card.ownerId });
+      }
       else if (action.type === 'draw') {
         const card = deck.remainingLibrary.shift();
         if (!card)

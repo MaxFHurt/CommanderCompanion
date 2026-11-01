@@ -210,7 +210,7 @@ function giftText(t, gift) {
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
 export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -1215,6 +1215,17 @@ function runResolve(game, op, ask) {
     }
   }
 
+  // Dredge: for each card its controller would draw from this, they may dredge instead (asked now, done as it resolves).
+  const draws = (top.effects || []).filter(e => e.kind === 'draw' && ['you', 'each-player', 'all'].includes(e.scope || 'you') && !e.forPlayerBind && !e.bind).reduce((n, e) => n + (typeof e.amount === 'number' ? e.amount : 0), 0);
+  const plan = [];
+  for (let k = 0; k < Math.min(draws, 10); k++) {
+    const options = dredgeOptions(game, player).filter(o => !plan.some(x => x.id === o.id));
+    if (!options.length) break;
+    const v = ask(`dredge:${k}`, () => ({ ...base, kind: 'choose-one', title: `${name} — draw ${k + 1}`, prompt: 'Draw the card, or dredge instead (mill and return the dredge card to your hand)?', options: [{ id: 'draw', label: 'Draw' }, ...options.map(o => ({ id: o.id, label: `Dredge ${o.name} (mill ${o.n})` }))] }));
+    plan.push(v === 'draw' ? null : options.find(o => o.id === v));
+  }
+  if (plan.some(Boolean)) bindings.dredgePlan = { [player.playerId]: plan };
+
   // Everything is answered: apply.
   if (top.search) {
     const spec = top.search;
@@ -1308,6 +1319,20 @@ function runResolve(game, op, ask) {
 // ---------------------------------------------------------------------------------------------
 // Physical draw: the player picks which card they drew from their real deck.
 
+/** Cards in the graveyard that can dredge now (Dredge N, with at least N cards in the library). */
+export function dredgeOptions(game, player) {
+  return (player.deck.graveyard || []).map(c => { const m = String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Dredge (\d+)/i); return m && player.deck.remainingLibrary.length >= Number(m[1]) ? { id: c.instanceId, n: Number(m[1]), name: defOf(game, c)?.name || 'Card' } : null; }).filter(Boolean);
+}
+/** The turn's draw when a dredge card could replace it: the player chooses. */
+function runDredgeDraw(game, op, ask) {
+  const player = playerById(game, op.playerId);
+  const options = dredgeOptions(game, player);
+  const v = options.length ? ask('dredge', () => ({ playerId: player.playerId, cancellable: false, kind: 'choose-one', source: 'Draw', title: 'Draw a card',
+    prompt: 'Draw, or dredge instead (mill and return the dredge card to your hand)?', options: [{ id: 'draw', label: 'Draw a card' }, ...options.map(o => ({ id: o.id, label: `Dredge ${o.name} (mill ${o.n})` }))] })) : 'draw';
+  const pick = options.find(o => o.id === v);
+  if (pick) commit(game, { type: 'dredge', playerId: player.playerId, instanceId: pick.id, amount: pick.n, label: `${player.displayName} dredges ${pick.name} (mills ${pick.n}).` });
+  else commit(game, { type: 'draw', playerId: player.playerId, label: `${player.displayName} draws a card.` });
+}
 function runDrawChoice(game, op, ask) {
   const player = playerById(game, op.playerId);
   const rows = player.deck.remainingLibrary;
@@ -1554,4 +1579,4 @@ function runSpecial(game, top, player, ask) {
   after();
 }
 
-export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice };
+export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice, 'dredge-draw': runDredgeDraw };

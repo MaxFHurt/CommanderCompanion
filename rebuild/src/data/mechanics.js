@@ -217,7 +217,7 @@ m('Devour', 'keyword', 'Devour N: as this enters, you may sacrifice any number o
 m('Disguise', 'keyword', 'Cast face down for {3} as a 2/2 with ward {2}; turn face up any time for the disguise cost.', { auto: 'auto' });
 m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the disturb cost; if it would leave the battlefield later, exile it.', { auto: 'auto', actions: ['transform', 'exile'] });
 m('Double team', 'keyword', 'When this attacks, if it isn\'t a token, conjure a duplicate into your hand; both lose double team (Alchemy).', { auto: 'manual' });
-m('Dredge', 'keyword', 'Dredge N: if you would draw, you may mill N instead and return this card from your graveyard to your hand.', { auto: 'manual', actions: ['mill', 'return-hand'] });
+m('Dredge', 'keyword', 'Dredge N: if you would draw, you may mill N instead and return this card from your graveyard to your hand.', { auto: 'auto', actions: ['mill', 'return-hand'] });
 m('Echo', 'keyword', 'At the beginning of your upkeep, if this came under your control since your last upkeep, sacrifice it unless you pay its echo cost.', { auto: 'auto', actions: ['sacrifice'] });
 m('Embalm', 'keyword', 'Exile this card from your graveyard and pay: create a token copy, except it is a white Zombie with no mana cost. Sorcery speed.', { auto: 'auto', actions: ['copy-token', 'exile'] });
 m('Emerge', 'keyword', 'Cast by sacrificing a creature and paying the emerge cost reduced by that creature\'s mana value.', { auto: 'auto', steps: 'Choose "Emerge" when casting: pick the creature to sacrifice; the cost is reduced by its mana value.', actions: ['sacrifice'] });

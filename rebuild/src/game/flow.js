@@ -8,7 +8,7 @@ import { resolveCombat, cardHasKeyword } from '../engine/combat.js';
 import { queueTriggers } from '../engine/triggers.js';
 import { GameError, activePlayer, alivePlayers, attackablePermanents, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
 import { Need, makeAsk, validateAnswer } from './requirements.js';
-import { OPS, commit, addLore } from './ops.js';
+import { OPS, commit, addLore, dredgeOptions } from './ops.js';
 import { attackOptions, blockOptions, hasResponse, stackTop } from './legal.js';
 import { syncAttachments } from './attachments.js';
 import { stateBasedActions } from './sba.js';
@@ -162,6 +162,8 @@ function drawStep(game) {
       evaluateLosses(game);
     } else if (game.rulesConfig?.physicalDraw) {
       startOp(game, 'draw-choice', p.playerId, {}, { system: true });
+    } else if (dredgeOptions(game, p).length) {
+      startOp(game, 'dredge-draw', p.playerId, {}, { system: true });   // dredge instead of the draw?
     } else {
       commit(game, { type: 'draw', playerId: p.playerId, label: `${p.displayName} draws a card.` });
     }

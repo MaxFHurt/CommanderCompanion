@@ -2599,4 +2599,21 @@ section('round 51: the last top-1,000 cards');
   t.game.stack = [];
 }
 
+{
+  const t = setup();
+  t.give(0, 'Divination', 'graveyard');
+  const loam = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Divination'); asText(t, loam, 'Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)', { typeLine: 'Sorcery' });
+  const lib = t.P(0).deck.remainingLibrary.length;
+  cast(t, 'Opt', 'Draw a card.', [[d => d.key.startsWith('dredge'), d => d.options.find(o => o.id !== 'draw').id]], { manaCost: '{U}' });
+  check('Dredge: instead of the draw, three are milled and the dredge card returns to hand', t.P(0).deck.hand.some(c => c.instanceId === loam.instanceId) && t.P(0).deck.remainingLibrary.length === lib - 3 - 1, JSON.stringify([lib - t.P(0).deck.remainingLibrary.length]));
+}
+{
+  const t = setup();
+  t.give(0, 'Divination', 'graveyard');
+  const loam = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Divination'); asText(t, loam, 'Dredge 2', { typeLine: 'Sorcery' });
+  t.autoPass = true; t.end(0); t.end(1);
+  settle(t, [[d => d.key === 'dredge', d => d.options.find(o => o.id !== 'draw').id]]);
+  check('…and in the draw step the player is asked to draw or dredge', t.P(0).deck.hand.some(c => c.instanceId === loam.instanceId));
+}
+
 done();
