@@ -6,6 +6,7 @@
 // are extra costs asked for after the way to cast is chosen.
 
 import { exilePlayPermission } from '../engine/effects-catalog.js';
+import { checkCondition } from '../engine/effects.js';
 import { parseManaCost, validatePlay } from '../engine/rules.js';
 import { defOf, definitionsMap, isLand, opponentsOf } from './helpers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from '../engine/face-down.js';
@@ -204,6 +205,25 @@ export function castModes(game, player, card, def, base = null) {
     if ((player.deck.hand || []).some(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(color)) && Number(player.life || 0) >= Number(forceCost[2] || 0))
       modes.push({ id: 'force-exile', cost: '', exileColor: color, lifeCost: Number(forceCost[2] || 0) });
   }
+  // "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost." (Snuff Out), "If an opponent cast
+  // three or more spells this turn, you may pay {0} …" (Mindbreak Trap), "You may pay {B} rather than pay this spell's
+  // mana cost if there are thirteen or more creatures on the battlefield." (Blasphemous Edict), "You may sacrifice a
+  // nontoken white creature rather than pay …" (Flare of Fortitude).
+  if (zone === 'hand') {
+    for (const alt of text.matchAll(/(?:^|\n|\.\s+)(?:If ([^,.]+), )?you may (pay ((?:\{[^}]+\})+)|pay (\d+) life|sacrifice an? ([a-z ]+?)) rather than pay this spell'?s mana cost(?: if ([^.]+))?\./gi)) {
+      const cond = alt[1] || alt[6];
+      if (cond && checkCondition(game, player.playerId, cond, { sourceId: card.instanceId }) !== true) continue;
+      if (alt[4] && Number(player.life || 0) < Number(alt[4])) continue;
+      if (alt[5]) {
+        const words = alt[5].toLowerCase().split(/\s+/);
+        const fits = c => { const d = defOf(game, c), t = String(d?.typeLine || '').toLowerCase(); return words.every(w => w === 'nontoken' ? !c.token : w === 'token' ? !!c.token : /^(white|blue|black|red|green)$/.test(w) ? (d?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w]) : w === 'permanent' || t.includes(w)); };
+        if (!(player.deck.battlefield || []).some(fits)) continue;
+        modes.push({ id: 'alt-cost', cost: '', altSacrifice: alt[5].toLowerCase(), altLabel: `Sacrifice a ${alt[5]} instead of paying` });
+        continue;
+      }
+      modes.push({ id: 'alt-cost', cost: alt[3] || '', altLife: alt[4] ? Number(alt[4]) : 0, altLabel: alt[4] ? `Pay ${alt[4]} life instead` : `Pay ${alt[3]} instead` });
+    }
+  }
   if (zone === 'graveyard') {
     // Snapcaster Mage: flashback until end of turn, for its mana cost.
     if (card.grantedFlashback?.turn === game.turnNumber && card.grantedFlashback.playerId === player.playerId && def?.manaCost && !keywordCost(text, 'Flashback')) modes.push({ id: 'flashback', cost: def.manaCost, exileAfter: true });
@@ -225,7 +245,7 @@ export function castModes(game, player, card, def, base = null) {
     }
     if (card.onAdventure && !/Adventure/i.test(def?.typeLine || '')) modes.push({ id: 'adventure', cost: def?.manaCost || '' });
   }
-  return modes.map(mode => ({ ...mode, label: MODE_LABEL[mode.id] || mode.id }));
+  return modes.map(mode => ({ ...mode, label: mode.altLabel || MODE_LABEL[mode.id] || mode.id }));
 }
 
 /** Kicker / multikicker / buyback costs printed on a spell. */

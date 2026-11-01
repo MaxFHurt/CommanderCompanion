@@ -174,6 +174,7 @@ export function castText(text, { kicked = false, overload = false } = {}) {
   t = t.replace(/If you control a commander, you may cast this spell without paying its mana cost\.\s*/gi, '');
   t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
   t = t.replace(/(?:If it'?s not your turn, )?You may (?:pay \d+ life and )?exile an? \w+ card from your hand rather than pay this spell'?s mana cost\.\s*/gi, '');
+  t = t.replace(/(?:If [^,.]+, )?you may (?:pay (?:\{[^}]+\})+|pay \d+ life|sacrifice an? [a-z ]+?) rather than pay this spell'?s mana cost(?: if [^.]+)?\.\s*/gi, '');
   t = t.replace(/\s*If (?:this spell|it) was kicked, ([^.]+)\./gi, (all, clause) => {
     if (!kicked) return '';
     const dmg = clause.match(/^it deals (\w+) damage instead$/i);
@@ -295,6 +296,14 @@ function runPlay(game, op, ask) {
     if (!rows.length && !force) throw new GameError('You need another blue card in your hand to exile.');
     if (rows.length) exileFromHandForCost = ask('cost:exile-blue', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Exile a blue card from your hand${mode.lifeCost ? ` and pay ${mode.lifeCost} life` : ''} instead of paying its mana cost.`, options: rows }));
     lifeForCost += Number(mode.lifeCost || 0);
+  }
+  if (mode.altLife) lifeForCost += Number(mode.altLife);
+  if (mode.altSacrifice) {
+    const words = mode.altSacrifice.split(/\s+/);
+    const fits = c => { const d = defOf(game, c), t = String(d?.typeLine || '').toLowerCase(); return words.every(w => w === 'nontoken' ? !c.token : w === 'token' ? !!c.token : /^(white|blue|black|red|green)$/.test(w) ? (d?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w]) : w === 'permanent' || t.includes(w)); };
+    const rows = player.deck.battlefield.filter(fits).map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (!rows.length && !force) throw new GameError(`You need a ${mode.altSacrifice} to sacrifice.`);
+    if (rows.length) sacrificeForCost = ask('cost:alt-sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Sacrifice a ${mode.altSacrifice} instead of paying its mana cost.`, options: rows }));
   }
   if (addCost?.kind === 'sacrifice') {
     const rows = player.deck.battlefield.filter(c => addCost.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))

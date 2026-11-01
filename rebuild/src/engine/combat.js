@@ -81,6 +81,8 @@ export function effectiveToughness(card, def, game = null) {
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
   return numStat(def?.toughness) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'toughness') + anthem.toughness + self.toughness;
 }
+/** "Your life total can't change" (Teferi's Protection until your next turn, Flare of Fortitude this turn). */
+export function lifeFixed(game, p) { return !!p?.lifeLocked && (p.lifeLockedTurn == null || p.lifeLockedTurn === game?.turnNumber); }
 export function cardHasKeyword(card, def, name, game = null) {
   const n = String(name || ''), low = n.toLowerCase();
   // "loses hexproof and indestructible until end of turn" (Shadowspear) wins over every source of the keyword.
@@ -194,7 +196,7 @@ function applyQueue(game, queue, events, onEvent) {
         events.push(`${target.displayName} gets ${amount} poison counter${amount === 1 ? '' : 's'} from ${sourceDef?.name || 'an attacker'}.`);
       }
       else if (amount > 0) {
-        target.life = Math.max(0, Number(target.life || 0) - amount);
+        if (!lifeFixed(game, target)) target.life = Math.max(0, Number(target.life || 0) - amount);
         events.push(`${target.displayName} takes ${amount} combat damage from ${sourceDef?.name || 'an attacker'}.`);
       }
       if (prevented)

@@ -1282,6 +1282,11 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'phase-out', single: bind });
     return true;
   }
+  // Flare of Fortitude: "Until end of turn, your life total can't change, and permanents you control gain hexproof and indestructible."
+  if (/^Until end of turn, your life total can'?t change, and permanents you control gain hexproof and indestructible\.?$/i.test(c)) {
+    effects.push({ kind: 'life-lock-turn' }, { kind: 'grant-keyword-each', scope: 'you', filter: 'permanent', keyword: 'Hexproof', expires: 'cleanup' }, { kind: 'grant-keyword-each', scope: 'you', filter: 'permanent', keyword: 'Indestructible', expires: 'cleanup' });
+    return true;
+  }
   if (/^Until your next turn, your life total can'?t change and you gain protection from everything\.?$/i.test(c)) { effects.push({ kind: 'player-protection', lifeLock: true }); return true; }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
@@ -1453,7 +1458,8 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${name(hit.card)} is removed from combat${effect.untap ? ' and untaps' : ''}.`);
       return true;
     }
-    case 'player-protection': if (effect.lifeLock) controller.lifeLocked = true; controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
+    case 'life-lock-turn': controller.lifeLocked = true; controller.lifeLockedTurn = game.turnNumber; notes.push(`${controller.displayName}'s life total can't change this turn.`); return true;
+    case 'player-protection': if (effect.lifeLock) { controller.lifeLocked = true; delete controller.lifeLockedTurn; } controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
     case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;

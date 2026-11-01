@@ -5,7 +5,7 @@ import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
-import { effectivePower, effectiveToughness } from './combat.js';
+import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -803,7 +803,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'life') {
       const players = targetPlayers(game, controllerId, effect.scope || 'you', effect.playerId || bindings[effect.bind]);
       for (const p of players) {
-        if (p.lifeLocked) { notes.push(`${p.displayName}'s life total can't change.`); continue; }   // Teferi's Protection
+        if (lifeFixed(game, p)) { notes.push(`${p.displayName}'s life total can't change.`); continue; }   // Teferi's Protection
         const delta = Number(effect.deltaSign || 1) >= 0 ? lifeGainAmount(game, p.playerId, amount) : -amount;
         const before = Number(p.life || 0);
         p.life = Math.max(0, before + delta);
@@ -835,7 +835,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const prevented = boosted - dealt;
       const p = game.players.find(x => x.playerId === targetId);
       if (p) {
-        p.life = Math.max(0, Number(p.life || 0) - dealt);
+        if (!lifeFixed(game, p)) p.life = Math.max(0, Number(p.life || 0) - dealt);
         notes.push(`${effect.sourceName || 'Effect'} deals ${dealt} damage to ${p.displayName}${prevented ? ` (${prevented} prevented)` : ''}.`);
         if (dealt)
           emit(bindings, { type: 'damage-player', playerId: p.playerId, amount: dealt, sourceId: bindings.sourceId || effect.sourceId || null, controllerId, combat: false });
@@ -921,7 +921,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const victims = effect.players === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.players === 'all' ? game.players.filter(p => !p.eliminated) : [];
       for (const p of victims) {
         const dealt = preventDamage(game, p.playerId, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: p.playerId }, amount));
-        p.life = Math.max(0, Number(p.life || 0) - dealt);
+        if (!lifeFixed(game, p)) p.life = Math.max(0, Number(p.life || 0) - dealt);
         if (dealt) emit(bindings, { type: 'damage-player', playerId: p.playerId, amount: dealt, sourceId: bindings.sourceId || null, controllerId, combat: false });
       }
       notes.push(`${effect.sourceName || 'Effect'} deals ${amount} damage to ${[ids.length ? `${ids.length} ${effect.filter || 'creature'}${ids.length === 1 ? '' : 's'}` : '', victims.length ? `${victims.length} player${victims.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' and ') || 'nothing'}.`);
@@ -939,7 +939,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const p = game.players.find(x => x.playerId === targetId);
       const dealt = preventDamage(game, targetId, dmg), prevented = dmg - dealt;
       if (p) {
-        p.life = Math.max(0, Number(p.life || 0) - dealt);
+        if (!lifeFixed(game, p)) p.life = Math.max(0, Number(p.life || 0) - dealt);
         notes.push(`${sd?.name || 'Creature'} deals ${dealt} damage to ${p.displayName}${prevented ? ` (${prevented} prevented)` : ''}.`);
         if (dealt)
           emit(bindings, { type: 'damage-player', playerId: p.playerId, amount: dealt, sourceId, controllerId: src.card.controllerId || controllerId, combat: false });
@@ -1516,6 +1516,8 @@ export function parseCondition(text) {
   if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
   if ((m = t.match(/^(?:it'?s|that creature is) (?:a|an) ([A-Z][a-z]+)$/))) return { test: 'it-is', type: m[1], bind: 'lastTarget' };
   if (/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i.test(t)) return { test: 'greatest-artifact-mv' };
+  if ((m = t.match(/^an opponent cast (\w+) or more spells this turn$/i))) return { test: 'opponent-spells', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
+  if ((m = t.match(/^there are (\w+) or more creatures on the battlefield$/i))) return { test: 'creatures-total', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1552,6 +1554,8 @@ function conditionHolds(game, controllerId, effect, bindings) {
     const mine = (me?.deck?.battlefield || []).filter(art);
     return mine.length > 0 && Math.max(...mine.map(mv)) >= Math.max(...all.map(mv));
   }
+  if (effect.test === 'opponent-spells') return game.players.some(p => p.playerId !== controllerId && Number(p.counters?.spellsCastThisTurn || 0) >= effect.min);
+  if (effect.test === 'creatures-total') return game.players.filter(p => !p.eliminated).reduce((n, p) => n + (p.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')).length, 0) >= effect.min;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -2389,7 +2393,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Sacrifice "of their choice", "nontoken creature", "creature or planeswalker", "each other player".
-  if ((m = c.match(/^(You|Each player|Each opponent|Each other player|Target player|Target opponent) sacrifices? (a|an|one|two|three|four|five|\d+) ((?:nontoken )?(?:creature|artifact|enchantment|land|permanent)s?(?: or planeswalkers?)?)(?: of their choice)?\.?$/i))) {
+  if ((m = c.match(/^(You|Each player|Each opponent|Each other player|Target player|Target opponent) sacrifices? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|thirteen|\d+) ((?:nontoken )?(?:creature|artifact|enchantment|land|permanent)s?(?: or planeswalkers?)?)(?: of their choice)?\.?$/i))) {
     const scope = /each other player/i.test(m[1]) ? 'each-opponent' : scopeFromSubject(m[1]), amount = numberFromText(m[2]);
     const filter = filterFromNoun(m[3]);
     if (!filter) return false;

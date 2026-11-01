@@ -9,6 +9,7 @@ const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.defi
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
 const power = (t, c) => effectivePower(c, def(t, c), t.game);
 const tough = (t, c) => effectiveToughness(c, def(t, c), t.game);
+const require_lock = t => t.P(0).lifeLocked && t.P(0).lifeLockedTurn === t.game.turnNumber;
 const has = (t, c, k) => cardHasKeyword(c, def(t, c), k, t.game);
 const auto = d => { const open = (d.options || []).filter(o => !o.disabled); return d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : d.kind === 'arrange' ? { top: d.cards.map(c => c.id), other: [] } : open[0]?.id; };
 /** Answer every question; `picks` maps a part of the question key (or a test on the question) to an answer. */
@@ -929,6 +930,36 @@ section('round 14: top-1,000 batch (fight, sweepers by type and colour, emblems,
   const r = t.ctl.dispatch({ type: 'play', instanceId: imp.instanceId }, t.as(0));
   settle(t, [[d => d.key.includes('stack') || /spell/i.test(d.prompt || ''), d => d.options[0].id]]);
   check("Imp's Mischief: you lose life equal to the spell's mana value", r.ok && t.P(0).life <= life - 1, JSON.stringify([r.error, life, t.P(0).life]));
+}
+
+section('round 15: alternative costs, Flare of Fortitude');
+{
+  const t = setup();
+  onField(t, 'Fog Bank', '', { typeLine: 'Basic Land — Swamp' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  t.P(0).deck.battlefield.forEach(c => { c.tapped = true; });
+  let modes = null;
+  cast(t, 'Opt', 'If you control a Swamp, you may pay 4 life rather than pay this spell\'s mana cost.\nDestroy target nonblack creature. It can\'t be regenerated.', [[d => d.key.includes('castMode'), d => { modes = d.options.map(o => o.label); return 'alt-cost'; }], [d => d.targeting, () => bear.instanceId]], { manaCost: '{3}{B}' });
+  check('Snuff Out: with a Swamp, cast for 4 life with no mana', t.P(0).life === 36 && !t.bf(1, 'Grizzly Bears'), JSON.stringify([modes, t.P(0).life]));
+}
+{
+  const t = setup();
+  t.P(0).deck.battlefield.forEach(c => { c.tapped = true; });
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), 'If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell\'s mana cost.\nExile any number of target spells.', { manaCost: '{2}{U}{U}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  const d = t.decision();
+  check('Mindbreak Trap: no free cast unless an opponent cast three spells', !r.ok || !(d?.options || []).some(o => o.id === 'alt-cost'), JSON.stringify([r.ok, d?.key, d?.options?.map(o => o.id)]));
+}
+{
+  const t = setup();
+  const white = onField(t, 'Grizzly Bears', '', { colors: ['W'] });
+  t.P(0).deck.battlefield.forEach(c => { c.tapped = true; });
+  cast(t, 'Opt', 'You may sacrifice a nontoken white creature rather than pay this spell\'s mana cost.\nUntil end of turn, your life total can\'t change, and permanents you control gain hexproof and indestructible.', [[d => d.key.includes('castMode'), 'alt-cost'], [d => d.key.includes('alt-sacrifice'), () => white.instanceId]], { manaCost: '{1}{W}{W}' });
+  const life = t.P(0).life, land = t.bf(0, 'Forest');
+  t.give(1, 'Divination'); asText(t, t.hand(1, 'Divination'), 'Each opponent loses 5 life.');
+  check('Flare of Fortitude: free by sacrificing a white creature; life locked, permanents indestructible', !t.bf(0, 'Grizzly Bears') && has(t, land, 'Indestructible') && t.P(0).lifeLocked && t.P(0).lifeLockedTurn === t.game.turnNumber, JSON.stringify([life]));
+  t.autoPass = true; t.end(0);
+  check('…and the lock ends with the turn', !require_lock(t));
 }
 
 done();
