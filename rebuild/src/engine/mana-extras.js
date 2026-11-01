@@ -16,9 +16,9 @@ const PATTERNS = [
   [/If you tap a permanent for mana, it produces twice as much of that mana instead/i, x => x.mine ? { mult: 2 } : null]
 ];
 const AURA = [
-  [/Whenever enchanted (?:land|permanent|creature) is tapped for mana, its controller adds an additional ((?:\{[WUBRGC]\})+)/i, (x, m) => { const s = m[1].match(/\{([WUBRGC])\}/g).map(y => y[1]); return s.every(c => c === x.color) ? { add: s.length } : null; }],
-  [/Whenever enchanted land is tapped for mana, its controller adds an additional one mana of the chosen color/i, (x, m, aura) => aura.chosenColor === x.color ? { add: 1 } : null],
-  [/Whenever enchanted land is tapped for mana, its controller adds an additional one mana of any type that land produced/i, () => ({ add: 1 })]
+  [/Whenever enchanted (?:land|permanent|creature|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional ((?:\{[WUBRGC]\})+)/i, (x, m) => { const s = m[1].match(/\{([WUBRGC])\}/g).map(y => y[1]); return s.every(c => c === x.color) ? { add: s.length } : null; }],
+  [/Whenever enchanted (?:land|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional one mana of the chosen color/i, (x, m, aura) => aura.chosenColor === x.color ? { add: 1 } : null],
+  [/Whenever enchanted (?:land|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional one mana of any type that land produced/i, () => ({ add: 1 })]
 ];
 export const MANA_EXTRA_TEXT = [...PATTERNS, ...AURA].map(p => p[0]);
 
