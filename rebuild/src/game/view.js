@@ -182,6 +182,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       playerId: p.playerId, name: p.displayName, seat: p.seat, color: p.color, matId: p.matId || null, advice: p.settings?.advice !== false,
       life: p.life, poison: Number(p.poison || 0), eliminated: !!p.eliminated, eliminationReason: p.eliminationReason || null,
       statuses: [...(p.statuses || [])],
+      emblems: (p.emblems || []).map(e => ({ id: e.id, text: e.text, source: e.source || '' })),
       counters: Object.fromEntries(Object.entries(p.counters || {}).filter(([k, v]) => Number(v) > 0 && !/ThisTurn$|^damageDealt$|^failedDraws$/.test(k))),
       commanderDamage: { ...(p.commanderDamage || {}) },
       commanders: (p.commanders || []).map(c => {

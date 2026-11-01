@@ -195,6 +195,18 @@ function compileCatalogClauseInner(c, ctx) {
     }
   }
 
+  // Liquimetal Torque: "Target nonland permanent becomes an artifact in addition to its other types until end of turn."
+  if ((m = c.match(/^(Target [a-z ]+?) becomes? an? (artifact|enchantment|land) in addition to its other types( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'animate', bind, power: null, toughness: null, addTypes: [cap(m[2].toLowerCase())], subtypes: [], keywords: [], colors: null, expires: m[3] ? 'cleanup' : null, typeOnly: true });
+    return true;
+  }
+  // Emblems: 'You get an emblem with "Creatures you control get +2/+2 and have flying."' The game applies the
+  // anthem and keyword wordings it understands on permanents (combat.js); other emblem text stays by hand.
+  if ((m = c.match(/^You get an emblem with "([^"]+)"\.?$/i)) && /^(?:Other )?[A-Za-z ]*creatures? you control (?:get [+-]\d+\/[+-]\d+(?: and (?:have|gain) [A-Za-z ,]+)?|(?:have|gain) [A-Za-z ,]+)\.?$/i.test(m[1])) {
+    effects.push({ kind: 'emblem', text: m[1] });
+    return true;
+  }
   // --- Classes: "{2}{U}: Level 2" (one level at a time, as a sorcery — checked in legal.js).
   if ((m = c.match(/^Level (\d+)\.?$/i))) { effects.push({ kind: 'class-level', level: Number(m[1]) }); return true; }
   // "transform Ashling" (short name), "transform her" / "him".
@@ -339,7 +351,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         const fx = { kind: 'animate', addTypes: effect.addTypes, subtypes: effect.subtypes, keywords: effect.keywords, colors: effect.colors, power: effect.power === 'X' ? n : effect.power, toughness: effect.toughness === 'X' ? n : effect.toughness };
         if (effect.expires) fx.expires = effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : effect.expires;
         hit.card.temporaryEffects.push(fx);
-        notes.push(`${name(hit.card)} becomes ${fx.power != null ? `a ${fx.power}/${fx.toughness} ` : 'a '}creature${effect.expires ? ' until end of turn' : ''}.`);
+        notes.push(effect.typeOnly ? `${name(hit.card)} is also ${/^[AEIOU]/.test(effect.addTypes[0]) ? 'an' : 'a'} ${effect.addTypes[0].toLowerCase()}${effect.expires ? ' until end of turn' : ''}.` : `${name(hit.card)} becomes ${fx.power != null ? `a ${fx.power}/${fx.toughness} ` : 'a '}creature${effect.expires ? ' until end of turn' : ''}.`);
       }
       return true;
     }
@@ -980,9 +992,9 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'pump-many', bind, power: Number(m[2]), toughness: Number(m[3]) });
     return true;
   }
-  if ((m = c.match(/^Up to (two|three|four|five|\d+|X) target creatures? can'?t block this turn\.?$/i))) {
-    const bind = `multi${requirements.length}`, max = num(m[1]);
-    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: 0, max, label: `Choose up to ${m[1]} creatures` });
+  if ((m = c.match(/^(Up to|One or) (two|three|four|five|\d+|X) target creatures? can'?t block this turn\.?$/i))) {
+    const bind = `multi${requirements.length}`, max = num(m[2]);
+    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: /^one/i.test(m[1]) ? 1 : 0, max, label: `Choose ${m[1].toLowerCase()} ${m[2]} creatures` });
     effects.push({ kind: 'restrict-many', bind, restriction: 'cant-block' });
     return true;
   }
@@ -1168,6 +1180,16 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'graveyard-to-hand-many', bind });
     return true;
   }
+  // Victimize: "Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards …"
+  if ((m = c.match(rx(`^Choose ${N} target ([a-z ,]*?)cards? in your graveyard\\.?$`, 'i')))) {
+    const n = num(m[1]);
+    requirements.push({ kind: 'graveyard-multi', bind: 'chosenGraveCards', filter: m[2].trim(), max: n, min: n, label: `${m[1]} ${m[2]}cards in your graveyard` });
+    return true;
+  }
+  if ((m = c.match(/^return the chosen cards to (?:the battlefield( tapped)?(?: under your control)?|your hand)\.?$/i))) {
+    effects.push(/hand/i.test(c) ? { kind: 'graveyard-to-hand-many', bind: 'chosenGraveCards' } : { kind: 'graveyard-to-battlefield-many', bind: 'chosenGraveCards', tapped: !!m[1] });
+    return true;
+  }
   // The Enduring cycle: "return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)"
   if (/^if it was a creature, return it to the battlefield under its owner'?s control\.?$/i.test(c)) { effects.push({ kind: 'return-self-graveyard', tapped: false }); return true; }
   if (/^It'?s an enchantment\.?$/i.test(c)) { effects.push({ kind: 'not-a-creature' }); return true; }
@@ -1191,6 +1213,12 @@ function compileRound3(c, ctx, subjectBind) {
     const pick = `retarget${requirements.length}`;
     requirements.push({ kind: 'retarget-stack', bind: pick, stackBind: bind, single: !!m[3] || /^Change/i.test(m[1]), mustChange: /^Change/i.test(m[1]) });
     effects.push({ kind: 'retarget-stack', stackBind: bind, bind: pick });
+    return true;
+  }
+  // Imp's Mischief: "You lose life equal to that spell's mana value." (the spell targeted earlier)
+  if (/^You lose life equal to that spell'?s mana value\.?$/i.test(c)) {
+    const stack = [...requirements].reverse().find(r => r.kind === 'stack-target');
+    effects.push({ kind: 'life', scope: 'you', amount: { kind: 'stack-mana-value', stackBind: stack?.bind || 'lastStack' }, deltaSign: -1 });
     return true;
   }
   // Rishkar's Expertise: "You may cast a spell with mana value 5 or less from your hand without paying its mana cost."
@@ -1612,6 +1640,20 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
         if (!hit || hit.zone !== 'graveyard') continue;
         moveCard(game, id, 'hand', { onEvent: emit });
         notes.push(`${name(hit.card)} returns to ${controller.displayName}'s hand.`);
+      }
+      return true;
+    }
+    case 'emblem': {
+      controller.emblems = [...(controller.emblems || []), { id: `emblem-${game.turnNumber}-${(controller.emblems || []).length}`, text: effect.text, source: name(locateCardInGame(game, bindings.sourceId)?.card) }];
+      notes.push(`${controller.displayName} gets an emblem: “${effect.text}”`);
+      return true;
+    }
+    case 'graveyard-to-battlefield-many': {
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        moveCard(game, id, 'battlefield', { controllerId, tapped: !!effect.tapped, onEvent: emit });
+        notes.push(`${name(hit.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}.`);
       }
       return true;
     }

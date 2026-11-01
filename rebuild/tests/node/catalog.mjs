@@ -3,6 +3,7 @@
 import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
+import { withOverlay } from '../../src/engine/overlay.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -840,6 +841,94 @@ section('round 13: Sylvan Library');
   let choose = null, n = 0;
   settle(t, [[':draw', true], [':choose', d => { choose = d; return d.options.slice(0, 2).map(o => o.id); }], [':fate:', () => (n++ === 0 ? 'pay' : 'top')]]);
   check('Sylvan Library: three drawn cards to choose from; one kept for 4 life, one put back', choose?.options.length === 3 && t.P(0).life === 36 && t.P(0).deck.hand.length === 2, JSON.stringify([choose?.options.length, t.P(0).life, t.P(0).deck.hand.length]));
+}
+
+section('round 14: top-1,000 batch (fight, sweepers by type and colour, emblems, Victimize …)');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', ''), elf = onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', 'Target creature you control gets +2/+2 until end of turn. It fights up to one target creature you don\'t control.', [[d => d.targeting && /don/i.test(d.prompt + d.title), () => elf.instanceId], [d => d.targeting, () => bear.instanceId]]);
+  check('Bridgeworks Battle: the pumped creature fights the other', !t.bf(1, 'Llanowar Elves') && !!t.bf(0, 'Grizzly Bears'));
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', { colors: ['G'] }), wall = onField(t, 'Fog Bank', '', { colors: [] }, 1), land = t.bf(0, 'Forest');
+  cast(t, 'Opt', 'Each player sacrifices all permanents they control that are one or more colors.', [], { colors: [] });
+  check('All Is Dust: coloured permanents are sacrificed, colourless ones stay', !t.bf(0, 'Grizzly Bears') && !!t.bf(1, 'Fog Bank') && !!land);
+}
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', ''); onField(t, 'Llanowar Elves', '', {}, 1);
+  cast(t, 'Opt', 'Choose a creature type. Destroy all creatures that aren\'t of the chosen type.', [[d => d.kind === 'creature-type' || /creature type/i.test(d.prompt || d.title || ''), d => (d.kind === 'choose-one' ? (d.options.find(o => /^Elf$/i.test(o.label))?.id ?? 'Elf') : 'Elf')]]);
+  check('Kindred Dominance: only the chosen type survives', !t.bf(0, 'Grizzly Bears') && !!t.bf(1, 'Llanowar Elves'));
+}
+{
+  const t = setup();
+  const spirit = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Spirit' });
+  cast(t, 'Opt', 'Exile target creature you control, then return that card to the battlefield under its owner\'s control. If it\'s a Spirit, put a +1/+1 counter on it.', [[d => d.targeting, () => spirit.instanceId]]);
+  const back = t.bf(0, 'Grizzly Bears');
+  check('Essence Flux: a Spirit comes back with a +1/+1 counter', !!back && Number(back.counters?.['+1/+1'] || 0) === 1, JSON.stringify(back?.counters));
+}
+{
+  const t = setup();
+  const torque = onField(t, 'Fog Bank', '{T}: Target nonland permanent becomes an artifact in addition to its other types until end of turn.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, torque, 0, [[d => d.targeting, () => bear.instanceId]]);
+  check('Liquimetal Torque: the creature is also an artifact', /Artifact/.test(withOverlay(bear, def(t, bear))?.typeLine || ''));
+}
+{
+  const t = setup();
+  const a = t.give(0, 'Grizzly Bears', 'graveyard'), b = t.give(0, 'Llanowar Elves', 'graveyard');
+  onField(t, 'Fog Bank', '');
+  cast(t, 'Opt', 'Choose two target creature cards in your graveyard. Sacrifice a creature. If you do, return the chosen cards to the battlefield tapped.', [[d => d.kind === 'choose-many' && /graveyard/i.test(d.prompt + d.title), () => [a.instanceId, b.instanceId]]]);
+  check('Victimize: the two chosen cards return tapped, the creature is sacrificed', !!t.bf(0, 'Grizzly Bears')?.tapped && !!t.bf(0, 'Llanowar Elves')?.tapped && !t.bf(0, 'Fog Bank'));
+}
+{
+  const t = setup();
+  const bloom = onField(t, 'Fog Bank', '{1}, Sacrifice this creature: Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Proliferate.', { typeLine: 'Creature — Fungus' });
+  const ench = onField(t, 'Grizzly Bears', '', { typeLine: 'Enchantment' }, 1);
+  activate(t, bloom, 0, [['modes', () => [1]], [d => d.targeting, () => ench.instanceId]]);
+  check('Cankerbloom: the chosen mode destroys the enchantment', !t.bf(1, 'Grizzly Bears') && !t.bf(0, 'Fog Bank'));
+}
+{
+  const t = setup();
+  const els = onField(t, 'Fog Bank', '+1: Create three 1/1 white Soldier creature tokens.\n−7: You get an emblem with "Creatures you control get +2/+2 and have flying."', { typeLine: 'Legendary Planeswalker — Elspeth' });
+  els.counters = { loyalty: 8 };
+  const bear = onField(t, 'Grizzly Bears', '');
+  activate(t, els, 1);
+  check('Elspeth: the emblem gives creatures +2/+2 and flying', power(t, bear) === 4 && has(t, bear, 'Flying') && t.view(0).players[0].emblems?.length === 1, JSON.stringify([power(t, bear), has(t, bear, 'Flying')]));
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'At the beginning of your upkeep, if you control the artifact with the greatest mana value or tied for the greatest mana value, draw a card.', { typeLine: 'Creature' });
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Artifact', manaValue: 3 });
+  onField(t, 'Llanowar Elves', '', { typeLine: 'Artifact', manaValue: 2 }, 1);
+  t.autoPass = true; t.end(0); t.end(1); settle(t);
+  check('Padeem: draws in upkeep with the biggest artifact (plus the turn\'s draw)', t.P(0).deck.hand.length === 2, String(t.P(0).deck.hand.length));
+}
+{
+  const t = setup();
+  const nb = onField(t, 'Grizzly Bears', '', { typeLine: 'Land' }, 1);
+  const field = onField(t, 'Fog Bank', '{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Destroy target nonbasic land an opponent controls. Each player searches their library for a basic land card, puts it onto the battlefield, then shuffles.', { typeLine: 'Land' });
+  const lands = [0, 1].map(i => t.P(i).deck.battlefield.length);
+  const asked = [];
+  activate(t, field, 0, [[d => d.targeting, () => nb.instanceId], ['their-search', d => { asked.push(d.playerId); return d.options.slice(0, 1).map(o => o.id); }]]);
+  check('Field of Ruin: the land is destroyed and each player searches for a basic land', !t.bf(1, 'Grizzly Bears') && asked.length === 2 && t.P(0).deck.battlefield.length === lands[0] && t.P(1).deck.battlefield.length === lands[1], JSON.stringify([asked.length, lands, t.P(0).deck.battlefield.length, t.P(1).deck.battlefield.length]));
+}
+{
+  const t = setup();
+  t.autoPass = true; t.end(0);
+  t.give(1, 'Forest', 'battlefield'); t.give(1, 'Divination'); asText(t, t.hand(1, 'Divination'), 'Divination deals 2 damage to any target.', { manaCost: '{G}', manaValue: 1 });
+  t.autoPass = false;
+  t.give(0, 'Opt'); const imp = asText(t, t.hand(0, 'Opt'), 'Change the target of target spell with a single target. You lose life equal to that spell\'s mana value.', { typeLine: 'Instant' });
+  const sp = t.hand(1, 'Divination');
+  t.ctl.dispatch({ type: 'play', instanceId: sp.instanceId }, t.as(1));
+  const tq = t.decision(); t.ctl.dispatch({ type: 'answer', key: tq.key, value: tq.options[0].id }, { playerId: tq.playerId, isHost: false });
+  if (t.game.flow.priority?.holderId === t.P(1).playerId) t.ctl.dispatch({ type: 'pass' }, t.as(1));
+  const life = t.P(0).life;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: imp.instanceId }, t.as(0));
+  settle(t, [[d => d.key.includes('stack') || /spell/i.test(d.prompt || ''), d => d.options[0].id]]);
+  check("Imp's Mischief: you lose life equal to the spell's mana value", r.ok && t.P(0).life <= life - 1, JSON.stringify([r.error, life, t.P(0).life]));
 }
 
 done();

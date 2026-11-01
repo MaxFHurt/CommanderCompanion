@@ -796,8 +796,9 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
       reasons.push(`No legal ${need.toLowerCase()} is available to sacrifice.`);
   }
   if (ability?.needsTarget) {
-    const effect = String(ability.effect || '');
-    let targetFound = false;
+    // A modal ability ("Choose one — • Destroy target artifact. • Proliferate."): one usable mode is enough.
+    const hasTarget = effect => {
+    let targetFound = !/\btarget\b/i.test(effect);
     if (/target (?:player|opponent)/i.test(effect))
       targetFound = (game?.players || []).some(q => !/opponent/i.test(effect) || q.playerId !== player?.playerId);
     // "any target" can always be a player (Prodigal Pyromancer); other wordings the checks below don't know are allowed
@@ -830,6 +831,9 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
       const players = /your graveyard/i.test(effect) ? [player] : (game?.players || []);
       targetFound = players.filter(Boolean).some(q => (q.deck?.graveyard || []).length > 0);
     }
+    return targetFound;
+    };
+    const targetFound = (ability.modes?.length ? ability.modes : [String(ability.effect || '')]).some(hasTarget);
     if (!targetFound)
       reasons.push('No legal target is currently available for this ability.');
   }

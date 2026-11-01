@@ -73,6 +73,9 @@ export function effectRunsByItself(text, sourceName = 'Card') {
   if (!t) return true;
   if (/Activate (?:this ability )?only (?:if|during|once)/i.test(t) && !activationRules(t)) return false;
   if (specialFromText(t)) return true;
+  // A modal ability ("Choose one — • Destroy target artifact. • Proliferate."): the player picks; each mode must run.
+  const modes = /^Choose (?:one|two|three|one or more) —/i.test(t) ? [...t.matchAll(/(?:^|\n|\s)•\s*([^\n•]+)/g)].map(x => x[1].trim()) : [];
+  if (modes.length) return modes.every(x => effectRunsByItself(x, sourceName));
   if (compileFor(t, sourceName).compiled.supported) return true;
   const iff = t.match(/^if (.+?), ((?:you may )?search your library.+)$/i);
   if (iff && parseCondition(iff[1])) return !!librarySearchSpec(iff[2]);
@@ -861,17 +864,26 @@ function runResolve(game, op, ask) {
   }
   // "Its controller may search their library for a basic land card …": that player chooses (before the target leaves).
   const theirSearch = (top.effects || []).find(e => e.kind === 'their-search');
-  let theirPick = null, searcher = null;
+  // "Each player searches their library for a basic land card …" (Field of Ruin): every player, in turn order, chooses.
+  const searches = [];
   if (theirSearch) {
-    const targetId = (top.effectBindings || {})[theirSearch.bind];
-    const hit = (game.players || []).map(p => ({ p, c: (p.deck.battlefield || []).find(c => c.instanceId === targetId) })).find(x => x.c);
-    searcher = hit ? playerById(game, hit.c.controllerId || hit.p.playerId) : null;
-    if (searcher) {
-      const fits = theirSearch.filter === 'basic-type land' ? (t => /\bLand\b/.test(t) && /\b(?:Plains|Island|Swamp|Mountain|Forest)\b/.test(t)) : (t => /\bbasic\b/i.test(t) && /\bland\b/i.test(t));
+    let who = [];
+    if (theirSearch.each) {
+      const order = game.players.filter(p => !p.eliminated), at = Math.max(0, order.findIndex(p => p.playerId === game.activePlayerId));
+      who = [...order.slice(at), ...order.slice(0, at)];
+    } else {
+      const targetId = (top.effectBindings || {})[theirSearch.bind];
+      const hit = (game.players || []).map(p => ({ p, c: (p.deck.battlefield || []).find(c => c.instanceId === targetId) })).find(x => x.c);
+      const one = hit ? playerById(game, hit.c.controllerId || hit.p.playerId) : null;
+      if (one) who = [one];
+    }
+    const fits = theirSearch.filter === 'basic-type land' ? (t => /\bLand\b/.test(t) && /\b(?:Plains|Island|Swamp|Mountain|Forest)\b/.test(t)) : (t => /\bbasic\b/i.test(t) && /\bland\b/i.test(t));
+    for (const searcher of who) {
       const rows = searcher.deck.remainingLibrary.filter(c => fits(defOf(game, c)?.typeLine || ''))
         .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Land', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
-      theirPick = ask('their-search', () => ({ playerId: searcher.playerId, cancellable: false, private: true, kind: 'choose-many', source: name, title: `${name} — search your library`,
+      const pick = ask(theirSearch.each ? `their-search:${searcher.playerId}` : 'their-search', () => ({ playerId: searcher.playerId, cancellable: false, private: true, kind: 'choose-many', source: name, title: `${name} — search your library`,
         prompt: rows.length ? `You may put a basic land card onto the battlefield${theirSearch.tapped ? ' tapped' : ''}. Your library is shuffled after.` : 'Your library has no basic land card. It is shuffled.', options: rows, min: 0, max: Math.min(1, rows.length), searchable: true }))[0] || null;
+      searches.push({ searcher, pick });
     }
   }
   const bindings = { ...(top.effectBindings || {}) };
@@ -933,7 +945,7 @@ function runResolve(game, op, ask) {
     return;
   }
 
-  if (searcher) {
+  for (const { searcher, pick: theirPick } of searches) {
     const lib = searcher.deck.remainingLibrary;
     const i = theirPick ? lib.findIndex(c => c.instanceId === theirPick) : -1;
     if (i >= 0) {

@@ -23,18 +23,24 @@ function subtypeMatch(def, phrase) {
   if (clean && /^[A-Z]/.test(clean) && typeHas(def, 'Creature') && (/\bChangeling\b/.test(String(def?.oracleText || '')) || (def?.keywords || []).some(k => /^changeling$/i.test(k)))) return true;   // Changeling
   return typeHas(def, 'Creature') && (!clean || new RegExp(`\\b${clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(def?.typeLine || ''));
 }
+/** Permanents a player controls, and their emblems ({ text }), with the rules text of each. */
+function staticSources(game, controllerId) {
+  const out = [];
+  for (const p of game.players || []) {
+    for (const source of p.deck?.battlefield || []) if (source.controllerId === controllerId) out.push({ source, text: String(definition(game, source)?.oracleText || '') });
+    if (p.playerId === controllerId) for (const e of p.emblems || []) out.push({ source: { instanceId: e.id }, text: String(e.text || '') });
+  }
+  return out;
+}
 function continuousPtBonus(game, card) {
   if (!game || !card)
     return { power: 0, toughness: 0 };
   const targetController = card.controllerId;
   let power = 0, toughness = 0;
-  for (const p of game.players || [])
-    for (const source of p.deck?.battlefield || []) {
-      if (source.controllerId !== targetController)
-        continue;
-      const sd = definition(game, source), text = String(sd?.oracleText || '');
+  for (const { source, text } of staticSources(game, targetController))
+    {
       for (const line of text.split('\n')) {
-        let m = line.match(/^(Other\s+)?(.*?creatures?) you control get ([+-]\d+)\/([+-]\d+)(?:\.|$)/i);
+        let m = line.match(/^(Other\s+)?(.*?creatures?) you control get ([+-]\d+)\/([+-]\d+)(?: and (?:have|gain) [A-Za-z ,-]+)?(?:\.|$)/i);
         if (!m)
           continue;
         if (m[1] && source.instanceId === card.instanceId)
@@ -88,20 +94,17 @@ export function cardHasKeyword(card, def, name, game = null) {
     return true;
   if (game && card) {
     const targetController = card.controllerId;
-    for (const p of game.players || [])
-      for (const source of p.deck?.battlefield || []) {
-        if (source.controllerId !== targetController)
-          continue;
-        const sd = definition(game, source);
-        for (const line of String(sd?.oracleText || '').split('\n')) {
-          const m = line.match(/^(Other\s+)?(.+?creatures?) you control (?:have|gain) ([A-Za-z][A-Za-z -]+)(?:\.|$)/i);
+    for (const { source, text } of staticSources(game, targetController))
+      {
+        for (const line of text.split('\n')) {
+          const m = line.match(/^(Other\s+)?(.*?creatures?) you control (?:get [+-]\d+\/[+-]\d+ and )?(?:have|gain) ([A-Za-z][A-Za-z ,-]+)(?:\.|$)/i);
           if (!m)
             continue;
           if (m[1] && source.instanceId === card.instanceId)
             continue;
           if (!subtypeMatch(def, m[2]))
             continue;
-          const kws = m[3].split(/,| and /).map(x => x.trim().toLowerCase());
+          const kws = m[3].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase());
           if (kws.includes(low))
             return true;
         }

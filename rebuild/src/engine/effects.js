@@ -170,6 +170,17 @@ function shuffled(array) {
   }
   return array;
 }
+/** Extra tests on a mass move: "that are one or more colors", "that aren't of the chosen type", "with mana value 2 or less". */
+function zoneEachExtra(game, card, effect, bindings) {
+  const d = definitionFor(game, card);
+  if (effect.colored && !(d?.colors || []).length) return false;
+  if (effect.notChosenType) {
+    const t = String(bindings.chosenCreatureType || locateCardInGame(game, bindings.sourceId)?.card?.chosenCreatureType || '');
+    if (t && new RegExp(`\\b${t.replace(/[^A-Za-z' -]/g, '')}\\b`, 'i').test(String(d?.typeLine || '').split(/—|-/).slice(1).join(' ')) || /\bChangeling\b/i.test(d?.oracleText || '')) return false;
+  }
+  if (effect.maxManaValue != null && Number(d?.manaValue ?? d?.cmc ?? 0) > effect.maxManaValue) return false;
+  return true;
+}
 export function cardMatchesFilter(game, card, filter) {
   if (!filter || filter === 'card')
     return true;
@@ -290,6 +301,11 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return greatestStat(game, controllerId, 'power', amount.filter || 'creature');
   if (amount.kind === 'greatest-toughness')
     return greatestStat(game, controllerId, 'toughness', amount.filter || 'creature');
+  if (amount.kind === 'stack-mana-value') {
+    const obj = (game.stack || []).find(x => x.id === bindings[amount.stackBind]);
+    const d = obj?.card ? definitionFor(game, obj.card) : null;
+    return Math.max(0, Number(d?.manaValue ?? d?.cmc ?? 0));
+  }
   if (amount.kind === 'source-power') {
     const hit = locateCardInGame(game, amount.sourceId || bindings.sourceId);
     return hit ? effectivePower(hit.card, definitionFor(game, hit.card), game) : 0;
@@ -965,7 +981,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const ids = [];
       for (const p of players)
         for (const c of [...(p.deck?.battlefield || [])])
-          if (cardMatchesFilter(game, c, effect.filter || 'permanent'))
+          if (cardMatchesFilter(game, c, effect.filter || 'permanent') && zoneEachExtra(game, c, effect, bindings))
             ids.push(c.instanceId);
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
@@ -974,7 +990,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         const d = definitionFor(game, hit.card);
         if (effect.to === 'graveyard' && effect.destroy && (isIndestructible(hit.card, d) || regenerates(game, hit.card, notes)))
           continue;
-        moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e) });
+        moveCard(game, id, effect.to, { onEvent: e => emit(bindings, e), ...(effect.sacrifice ? { moveReason: 'sacrifice' } : {}) });
         moved++;
       }
       bindings.movedThisWay = moved;
@@ -1298,11 +1314,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'choose-creature-type') {
       const targetId = effect.targetId || bindings.sourceId;
       const hit = locateCardInGame(game, targetId);
-      if (!hit || hit.zone !== 'battlefield')
-        throw new Error('The permanent that needs a creature type choice is unavailable.');
       const value = String(effect.value || bindings[effect.bind || 'creatureType'] || '').trim();
       if (!value)
         throw new Error('Choose a creature type.');
+      bindings.chosenCreatureType = value;
+      // A spell (Kindred Dominance) remembers the type only while it resolves.
+      if (!hit || hit.zone !== 'battlefield') { if (hit?.zone === 'stack' || !hit) { notes.push(`${value} is chosen.`); continue; } throw new Error('The permanent that needs a creature type choice is unavailable.'); }
       hit.card.chosenCreatureType = value;
       notes.push(`${cardName(game, hit.card)} has ${value} chosen.`);
       continue;
@@ -1497,6 +1514,8 @@ export function parseCondition(text) {
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
   if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
+  if ((m = t.match(/^(?:it'?s|that creature is) (?:a|an) ([A-Z][a-z]+)$/))) return { test: 'it-is', type: m[1], bind: 'lastTarget' };
+  if (/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i.test(t)) return { test: 'greatest-artifact-mv' };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1526,6 +1545,13 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'creature-died') return game.creatureDiedTurn === game.turnNumber;
   if (effect.test === 'source-tapped') return !!locateCardInGame(game, bindings.sourceId)?.card?.tapped;
   if (effect.test === 'not-your-turn') return game.activePlayerId !== controllerId;
+  if (effect.test === 'it-is') { const h = locateCardInGame(game, bindings[effect.bind] || bindings.lastMoved || bindings.eventCard || bindings.thatCard); return !!h && new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, h.card)?.typeLine || ''); }
+  if (effect.test === 'greatest-artifact-mv') {
+    const mv = c => Number(definitionFor(game, c)?.manaValue ?? definitionFor(game, c)?.cmc ?? 0), art = c => /\bArtifact\b/.test(definitionFor(game, c)?.typeLine || '');
+    const all = game.players.filter(p => !p.eliminated).flatMap(p => (p.deck?.battlefield || []).filter(art));
+    const mine = (me?.deck?.battlefield || []).filter(art);
+    return mine.length > 0 && Math.max(...mine.map(mv)) >= Math.max(...all.map(mv));
+  }
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -1761,6 +1787,12 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'fight', sourceBind, targetBind });
     return { effects, requirements, unsupported };
   }
+  // "Target creature you control gets +2/+2 … It fights target creature you don't control." (the first creature targeted)
+  if ((m = c.match(/^(?:It|That creature) fights (target creature(?: you don'?t control)?|another target creature|target creature an opponent controls)\.?$/i))) {
+    const targetBind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'fight', sourceBind: 'firstTarget', targetBind, bind: targetBind });
+    return { effects, requirements, unsupported };
+  }
   if ((m = c.match(/^Return all (creature|artifact|enchantment|land|permanent) cards? from your graveyard to your hand\.?$/i))) {
     effects.push({ kind: 'graveyard-zone-each', scope: 'you', filter: m[1].toLowerCase(), to: 'hand' });
     return { effects, requirements, unsupported };
@@ -1778,6 +1810,23 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   // Mass removal / bounce and temporary combat restrictions.
   if ((m = c.match(/^Destroy all (creatures|artifacts|enchantments|lands|permanents)\.?$/i))) {
     effects.push({ kind: 'zone-each', scope: 'all', filter: m[1].replace(/s$/, ''), to: 'graveyard', destroy: true });
+    return { effects, requirements, unsupported };
+  }
+  // All Is Dust, Kindred Dominance, Raise the Palisade, Culling Ritual.
+  if ((m = c.match(/^Each player sacrifices all permanents they control that are one or more colors\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: 'permanent', to: 'graveyard', colored: true, sacrifice: true });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^(Destroy|Exile) all creatures that aren'?t of the chosen type\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: 'creature', to: /destroy/i.test(m[1]) ? 'graveyard' : 'exile', destroy: /destroy/i.test(m[1]), notChosenType: true });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Return all creatures that aren'?t of the chosen type to their owners?'? hands?\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: 'creature', to: 'hand', notChosenType: true });
+    return { effects, requirements, unsupported };
+  }
+  if ((m = c.match(/^Destroy each nonland permanent with mana value (\d+) or less\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: 'nonland permanent', to: 'graveyard', destroy: true, maxManaValue: Number(m[1]) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Exile all (creatures|artifacts|enchantments|lands|permanents)\.?$/i))) {
@@ -2818,7 +2867,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     const genericCond0 = genericIf && !/\bwould\b|\binstead\b/i.test(clause) && parseCondition(genericIf[1]);
     const genericCond = genericCond0 && (!cond || genericCond0.test !== 'control') ? genericCond0 : null;
     if (genericCond) {
-      const body = compileEffectText(genericIf[2].charAt(0).toUpperCase() + genericIf[2].slice(1), { sourceName });
+      const bodyText = genericIf[2].charAt(0).toUpperCase() + genericIf[2].slice(1);
+      // "If it's a Spirit, put a +1/+1 counter on it." — "it" is the creature targeted earlier.
+      const bridgedBody = genericCond.test === 'it-is' && bridgePronoun(bodyText, parts, sourceName);
+      const body = bridgedBody && !bridgedBody.unsupported.length ? { ...bridgedBody, supported: true } : compileEffectText(bodyText, { sourceName });
       if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...genericCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: genericCond }); continue; }
     }
     if (cond && !/^If you do\b/i.test(clause)) {
@@ -2916,6 +2968,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
         continue;
       }
     }
+    const eachSearch = clause.match(/^Each player (?:may )?searches their library for (?:a|up to one) (basic land card|land card with a basic land type),? (?:and )?puts? (?:it|that card) onto the battlefield( tapped)?,? then shuffles\.?$/i);
+    if (eachSearch) {
+      parts.push({ effects: [{ kind: 'their-search', each: true, filter: /basic land type/i.test(eachSearch[1]) ? 'basic-type land' : 'basic land', tapped: !!eachSearch[2], optional: true }], requirements: [], unsupported: [] });
+      continue;
+    }
     const search = clause.match(/^(?:(?:Its|That (?:creature|permanent)'s) controller|That player) may search their library for (?:a|up to one) (basic land card|land card with a basic land type),? (?:and )?put (?:it|that card) onto the battlefield( tapped)?,? then shuffle\.?$/i);
     const searchTarget = search && [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target');
     if (search && searchTarget) {
@@ -2984,6 +3041,19 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     if (inner.unsupported.length || !inner.effects.length) continue;
     parts.splice(d.from, d.to - d.from, { effects: [{ kind: 'delay', when: d.when, effects: inner.effects, requirements: inner.requirements }], requirements: [], unsupported: [] });
   }
+  // Two sentences that each target ("Target creature you control gets +2/+2 … It fights up to one target creature …")
+  // are compiled one at a time and may both call their choice "target0": give the later one its own name.
+  const usedBinds = new Set();
+  parts.forEach((p, i) => {
+    const own = [...new Set((p.requirements || []).map(r => r.bind).filter(b => /\d$/.test(String(b || ''))))];
+    const clash = own.filter(b => usedBinds.has(b));
+    if (clash.length) {
+      let json = JSON.stringify({ effects: p.effects, requirements: p.requirements });
+      for (const b of clash) json = json.split(`"${b}"`).join(`"${b}_p${i}"`);
+      Object.assign(p, JSON.parse(json));
+    }
+    for (const r of p.requirements || []) if (r.bind) usedBinds.add(r.bind);
+  });
   const merged = mergeCompiled(parts);
   // "Untap those creatures." after "Creatures you control get +1/+1 …" (Jeskai Ascendancy): untap that same group.
   for (const x of merged.effects.filter(e => e.kind === 'untap-those')) {
@@ -3005,6 +3075,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   // "Sacrifice it", "… dealt to and dealt by that creature": the last thing targeted.
   const lastTarget = [...merged.requirements].reverse().find(r => r.kind === 'target');
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
+  const lastStack = [...merged.requirements].reverse().find(r => r.kind === 'stack-target');
+  for (const e of merged.effects) if (e.amount?.stackBind === 'lastStack' && lastStack) e.amount = { ...e.amount, stackBind: lastStack.bind };
+  const firstTarget = merged.requirements.find(r => r.kind === 'target');
+  for (const e of merged.effects) if (e.sourceBind === 'firstTarget') e.sourceBind = firstTarget && firstTarget.bind !== e.targetBind ? firstTarget.bind : 'sourceId';
   // "Draw two cards, then discard a card": the discard is chosen as the spell resolves, before the draw is
   // carried out, so the choice also shows the cards about to be drawn (the top of the library).
   // "Mill three cards, then return a creature card from your graveyard …": the milled cards can be chosen.
