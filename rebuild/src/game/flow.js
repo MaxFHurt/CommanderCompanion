@@ -127,13 +127,20 @@ function setPhase(game, phase, extra = {}) {
 function untapStep(game) {
   const p = activePlayer(game);
   let count = 0;
-  // Phasing: permanents that phased out return before anything untaps (they keep counters, attachments and tapped state).
+  // Phasing: permanents with phasing phase out (with what's attached to them) as the ones that phased out phase in (502.1).
+  const phasers = (p.deck.battlefield || []).filter(c => /(?:^|\n|,\s*)\s*Phasing\b/i.test(String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '')));
+  const goingOut = new Set(phasers.map(c => c.instanceId));
+  for (const q of game.players) for (const c of q.deck.battlefield || []) if (c.attachedTo && goingOut.has(c.attachedTo)) goingOut.add(c.instanceId);
+  const out = [];
+  for (const q of game.players) for (const c of [...(q.deck.battlefield || [])]) if (goingOut.has(c.instanceId)) { q.deck.battlefield.splice(q.deck.battlefield.indexOf(c), 1); out.push({ q, c }); }
   if ((p.deck.phasedOut || []).length) {
     const back = p.deck.phasedOut.splice(0);
     for (const c of back) { delete c.phasedOut; p.deck.battlefield.push(c); }
     log(game, `${plural(back.length, 'permanent')} phase in for ${p.displayName}.`);
     for (const c of back) queueTriggers(game, { type: 'phased-in', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId });
   }
+  for (const { q, c } of out) { c.phasedOut = true; const holder = playerById(game, c.controllerId) || q; holder.deck.phasedOut = [...(holder.deck.phasedOut || []), c]; }
+  if (out.length) log(game, `${plural(out.length, 'permanent')} with phasing phase out for ${p.displayName}.`);
   for (const c of p.deck.battlefield) {
     if (!c.tapped) continue;
     if (/doesn['’]t untap during your untap step/i.test(defOf(game, c)?.oracleText || '')) continue;

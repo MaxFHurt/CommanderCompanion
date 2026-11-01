@@ -2669,4 +2669,13 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('…paid ({2}), it resolves', power(t, foe) === 1 && before - after === 2, JSON.stringify([power(t, foe), before - after]));
 }
 
+{
+  const t = setup();
+  const ph = onField(t, 'Grizzly Bears', 'Phasing (This phases in or out before you untap during each of your untap steps. While it\'s phased out, it\'s treated as though it doesn\'t exist.)');
+  t.autoPass = true; t.end(0); t.end(1);
+  check('Phasing: at its controller\'s untap step it phases out', !t.P(0).deck.battlefield.includes(ph) && (t.P(0).deck.phasedOut || []).includes(ph));
+  t.end(0); t.end(1);
+  check('…and phases back in at the next one', t.P(0).deck.battlefield.includes(ph));
+}
+
 done();
