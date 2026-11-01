@@ -2478,4 +2478,29 @@ section('round 51: the last top-1,000 cards');
   check('Conduit of Worlds: the creature is cast from the graveyard, then no more spells this turn', t.names(0, 'battlefield').includes('Grizzly Bears') && !r.ok, JSON.stringify([t.names(0, 'battlefield').includes('Grizzly Bears'), r.error]));
 }
 
+{
+  const t = setup();
+  const dv = onField(t, 'Fog Bank', 'If a card would be put into an opponent\'s graveyard from anywhere, instead exile it with a void counter on it.\n{T}, Sacrifice this creature: Choose an exiled card an opponent owns with a void counter on it. You may play it this turn without paying its mana cost.', { typeLine: 'Creature — Minion' });
+  const foe = onField(t, 'Colossal Dreadmaw', '', {}, 1);
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => foe.instanceId]], { manaCost: '{G}' });
+  const ex = t.P(1).deck.exile.find(c => c.instanceId === foe.instanceId);
+  check('Dauthi Voidwalker: the opponent\'s dying creature is exiled with a void counter', !!ex && ex.counters?.void === 1, JSON.stringify(ex?.counters));
+  activate(t, dv, 0, [[d => /void counter/.test(d.prompt || ''), foe.instanceId]]);
+  const mine = t.P(0).deck.exile.find(c => c.instanceId === foe.instanceId);
+  check('…sacrificed, it lets its controller play that card free this turn', mine?.playPermission?.free === true);
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''); a.counters = { '+1/+1': 1 };
+  cast(t, 'Opt', 'Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out.', [[d => d.kind === 'choose-many' && /phase out/.test(d.prompt || ''), [a.instanceId]], [d => d.kind === 'choose-many', d => d.options.map(o => o.id)]], { manaCost: '{U}' });
+  check('Ripples of Potential: proliferated, then it phases out', a.counters['+1/+1'] === 2 && (a.phasedOut || a.phased || /phas/i.test(JSON.stringify(a))), JSON.stringify([a.counters, a.phasedOut]));
+}
+{
+  const t = setup();
+  const lib1 = t.P(1).deck.remainingLibrary, k = lib1.findIndex(c => def(t, c).name === 'Colossal Dreadmaw'); lib1.unshift(...lib1.splice(k, 1));
+  cast(t, 'Opt', "Each player mills ten cards. For each player, choose a creature or planeswalker card in that player's graveyard. Put those cards onto the battlefield under your control. Then each creature you control becomes a Phyrexian in addition to its other types.", [[d => d.key.includes(t.P(1).playerId), d => d.options.find(o => o.label === 'Colossal Dreadmaw').id]], { manaCost: '{U}' });
+  const dm = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Colossal Dreadmaw' && c.ownerId === t.P(1).playerId);
+  check("Breach the Multiverse: the opponent's milled Dreadmaw enters under its caster's control", !!dm);
+}
+
 done();

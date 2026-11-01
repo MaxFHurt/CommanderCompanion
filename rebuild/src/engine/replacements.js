@@ -90,6 +90,8 @@ export function graveyardDestination(game, card) {
   for (const { p, text } of permanents(game)) {
     if (/If a card or token would be put into a graveyard from anywhere, exile it instead/i.test(text)) return 'exile';
     if (/If a card would be put into an opponent'?s graveyard from anywhere, exile it instead/i.test(text) && card?.ownerId && card.ownerId !== p.playerId) return 'exile';
+    // Dauthi Voidwalker: "… instead exile it with a void counter on it."
+    if (/If a card would be put into an opponent'?s graveyard from anywhere, instead exile it with a void counter on it/i.test(text) && card?.ownerId && card.ownerId !== p.playerId) { card.pendingVoid = true; return 'exile'; }
   }
   return 'graveyard';
 }

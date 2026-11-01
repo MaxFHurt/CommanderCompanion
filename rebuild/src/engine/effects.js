@@ -137,6 +137,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
   if (!preserveCounters)
     resetOnZoneChange(card);
+  if (card.pendingVoid) { delete card.pendingVoid; if (to === 'exile') card.counters = { ...(card.counters || {}), void: 1 }; }
   clearCastState(card, to);
   card.zone = to;
   if (to === 'battlefield') {

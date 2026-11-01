@@ -196,6 +196,14 @@ export function compileB49Clause(c, ctx) {
   }
   // Throne of Eldraine: the restriction is applied to the payment (ops.js).
   if (/^Spend only mana of the chosen color to activate this ability\.?$/i.test(c)) return true;
+  // Dauthi Voidwalker: "Choose an exiled card an opponent owns with a void counter on it. You may play it this turn without paying its mana cost."
+
+  // Mechanized Production: "Then if you control eight or more artifacts with the same name as one another, you win the game." (condition read below)
+  // "Then if <condition>, <effect>." for conditions read here (checked as it resolves).
+  if ((m = c.match(/^(?:Then )?if (.+?), (.+)$/i)) && parseConditionB49(m[1].trim())) {
+    const inner = compile(cap(m[2]), sourceName);
+    if (ok(inner)) { effects.push({ kind: 'condition', ...parseConditionB49(m[1].trim()), skip: inner.effects.length }, ...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -394,6 +402,20 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const bind = `grave${i}`;
     return { part: { effects: [{ kind: 'condition', test: 'b49-no-spell-cast', skip: 1 }, { kind: 'conduit-cast', bind }], requirements: [{ kind: 'graveyard-target', bind, scope: `target ${m[1].toLowerCase()} card in your graveyard`, label: `target ${m[1].toLowerCase()} card in your graveyard` }], unsupported: [] }, consumed: 3 };
   }
+  // Ripples of Potential: "Proliferate, then choose any number of permanents you control that had a counter put on them this way. Those permanents phase out."
+  if (/^Proliferate, then choose any number of permanents you control that had a counter put on them this way\.?$/i.test(c0) && /^Those permanents phase out\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const pro = compile('Proliferate.', sourceName), preq = pro.requirements.find(r => r.kind === 'proliferate');
+    if (ok(pro) && preq) return { part: { effects: [...pro.effects, { kind: 'phase-out', bind: `ripple${i}` }], requirements: [...pro.requirements, { kind: 'b49-proliferated-mine', bind: `ripple${i}`, from: preq.bind }], unsupported: [] }, consumed: 2 };
+  }
+  // Breach the Multiverse: "Each player mills ten cards. For each player, choose a creature or planeswalker card in that player's graveyard.
+  // Put those cards onto the battlefield under your control. Then each creature you control becomes a Phyrexian in addition to its other types."
+  if ((m = c0.match(/^Each player mills (\w+) cards\.?$/i)) && /^For each player, choose a creature or planeswalker card in that player'?s graveyard\.?$/i.test(String(clauses[i + 1] || '')) && /^Put those cards onto the battlefield under your control\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const phyrexian = /^Then each creature you control becomes a Phyrexian in addition to its other types\.?$/i.test(String(clauses[i + 3] || ''));
+    const mill = compile(`Each player mills ${m[1]} cards.`, sourceName);
+    if (ok(mill)) return { part: { effects: [...mill.effects, { kind: 'breach', bind: `breach${i}`, phyrexian }], requirements: [{ kind: 'b49-breach', bind: `breach${i}`, mill: num(m[1]) }], unsupported: [] }, consumed: phyrexian ? 4 : 3 };
+  }
+  if (/^Choose an exiled card an opponent owns with a void counter on it\.?$/i.test(c0) && /^You may play it this turn without paying its mana cost\.?$/i.test(String(clauses[i + 1] || '')))
+    return { part: { effects: [{ kind: 'permit-chosen-free', bind: 'voidCard' }], requirements: [{ kind: 'b49-void-card', bind: 'voidCard' }], unsupported: [] }, consumed: 2 };
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -841,6 +863,23 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} may cast ${nameOf(game, id)} from the graveyard.`);
       return true;
     }
+    case 'permit-chosen-free': {
+      const id = bindings[effect.bind], h = id && locateCardInGame(game, id);
+      if (!h || h.zone !== 'exile') { notes.push('No card is chosen.'); return true; }
+      // Kept with the player's exiled cards so they can play it (it still belongs to its owner).
+      if (h.player && h.player.playerId !== controllerId) { const at = h.player.deck.exile.indexOf(h.card); if (at >= 0) { h.player.deck.exile.splice(at, 1); controller.deck.exile.push(h.card); } }
+      h.card.playPermission = { playerId: controllerId, until: 'turn', grantedTurn: game.turnNumber, castOnly: false, free: true };
+      notes.push(`${controller.displayName} may play ${nameOf(game, id)} this turn without paying its mana cost.`);
+      return true;
+    }
+    case 'breach': {
+      const emit = e => H.emit(bindings, e);
+      const ids = [].concat(bindings[effect.bind] || []).filter(id => locateCardInGame(game, id)?.zone === 'graveyard');
+      for (const id of ids) moveCard(game, id, 'battlefield', { controllerId, onEvent: emit });
+      if (effect.phyrexian) for (const c of controller.deck.battlefield || []) if (/\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')) c.temporaryEffects = [...(c.temporaryEffects || []), { kind: 'animate', subtypes: ['Phyrexian'], addTypes: [] }];
+      notes.push(`${controller.displayName} puts ${ids.map(id => nameOf(game, id)).join(', ') || 'nothing'} onto the battlefield.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1082,6 +1121,28 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = v && v !== 'none' ? v : null;
     return true;
   }
+  if (req.kind === 'b49-proliferated-mine') {
+    const ids = [...new Set([].concat(bindings[req.from] || []).map(x => typeof x === 'object' ? (x.kind === 'card' ? x.id : null) : (String(x).split('|')[0] === 'card' ? String(x).split('|')[1] : null)).filter(Boolean))].filter(id => (player.deck.battlefield || []).some(c => c.instanceId === id));
+    bindings[req.bind] = ids.length ? [].concat(ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: 'Choose any number of your permanents that got a counter to phase out.', options: ids.map(id => util.cardOption(game, locateCardInGame(game, id).card, player)), min: 0, max: ids.length })) || []) : [];
+    return true;
+  }
+  if (req.kind === 'b49-void-card') {
+    const rows = (game.players || []).filter(p => p.playerId !== player.playerId).flatMap(p => (p.deck.exile || []).filter(c => Number(c.counters?.void || 0) > 0).map(c => ({ c, p })));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose an exiled card an opponent owns with a void counter on it.', options: rows.map(r => util.cardOption(game, r.c, r.p, `${r.p.displayName}'s exile`)) })) : null;
+    return true;
+  }
+  if (req.kind === 'b49-breach') {
+    // The cards are milled first: each graveyard plus the top cards about to be milled are the choices.
+    const picks = [];
+    for (const p of (game.players || []).filter(q => !q.eliminated)) {
+      const rows = [...(p.deck.graveyard || []), ...(p.deck.remainingLibrary || []).slice(0, req.mill)].filter(c => /\b(?:Creature|Planeswalker)\b/.test(util.defOf(game, c)?.typeLine || ''));
+      if (!rows.length) continue;
+      const v = ask(`${key}:${p.playerId}`, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: `Choose a creature or planeswalker card from ${p.displayName}'s graveyard (after milling).`, options: rows.map(c => util.cardOption(game, c, p, p.deck.graveyard.includes(c) ? 'Graveyard' : 'Milled')) }));
+      if (v) picks.push(v);
+    }
+    bindings[req.bind] = picks;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -1162,6 +1223,7 @@ export function parseConditionB49(t) {
   if (/^you have the city'?s blessing$/i.test(t)) return { test: 'b49-blessing' };
   if (/^its surge cost was paid$/i.test(t)) return { test: 'b49-surged' };
   if (/^tribute wasn'?t paid$/i.test(t)) return { test: 'b49-tribute-unpaid' };
+  if ((m = t.match(/^you control (\w+) or more artifacts with the same name as one another$/i))) return { test: 'b49-same-name-artifacts', min: cnt(m[1]) };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
   if (/^no mana was spent to cast it$/i.test(t)) return { test: 'b49-no-mana-spent' };
   if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
@@ -1216,6 +1278,11 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     }
     case 'b49-tribute-unpaid': return locateCardInGame(game, bindings.sourceId)?.card?.tributePaid === false;
     case 'b49-no-spell-cast': return !Number(me?.counters?.spellsCastThisTurn || 0);
+    case 'b49-same-name-artifacts': {
+      const counts = {};
+      for (const c of me?.deck?.battlefield || []) { const d = definitionFor(game, c); if (/\bArtifact\b/.test(d?.typeLine || '')) counts[d.name] = (counts[d.name] || 0) + 1; }
+      return Math.max(0, ...Object.values(counts)) >= effect.min;
+    }
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
