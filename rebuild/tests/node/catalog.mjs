@@ -770,4 +770,24 @@ section('round 12: redirect, free casts from hand, Second Harvest, Living Death,
   check('Reality Shift: the controller gets a face-down 2/2', !!fd && t.view(1).players[1].battlefield.find(c => c.id === fd.instanceId)?.power === 2);
 }
 
+section('round 12: Ghostly Flicker, Adeline');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', ''); bear.counters = { '+1/+1': 2 };
+  const elf = onField(t, 'Llanowar Elves', '');
+  cast(t, 'Opt', 'Exile two target artifacts, creatures, and/or lands you control, then return those cards to the battlefield under your control.', [[d => d.kind === 'choose-many', () => [bear.instanceId, elf.instanceId]]]);
+  check('Ghostly Flicker: both return as new objects (counters gone)', !!t.bf(0, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves') && !t.bf(0, 'Grizzly Bears').counters?.['+1/+1']);
+}
+{
+  const t = newGame(['simic', 'simic', 'white']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Fog Bank', 'battlefield');
+  asText(t, t.bf(0, 'Fog Bank'), 'Whenever you attack, for each opponent, create a 1/1 white Human creature token that\'s tapped and attacking that player or a planeswalker they control.', { typeLine: 'Enchantment' });
+  t.end(0); t.end(1); t.end(2);
+  const l1 = t.P(1).life, l2 = t.P(2).life;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: t.bf(0, 'Grizzly Bears').instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('Adeline: a 1/1 token attacks each opponent', t.P(0).deck.battlefield.filter(c => c.token).length === 2 && t.P(2).life === l2 - 1 && t.P(1).life === l1 - 3, `${l1}→${t.P(1).life} ${l2}→${t.P(2).life}`);
+}
+
 done();

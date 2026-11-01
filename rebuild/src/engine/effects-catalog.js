@@ -1066,8 +1066,8 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'return-linked', to: /hand/i.test(m[1]) ? 'hand' : 'battlefield' });
     return true;
   }
-  if ((m = c.match(/^return (that card|it|the exiled card|them|those cards|that creature) to the battlefield (?:tapped )?under (its owner's|your|their owners'|its owner'?s?) control(?: at the beginning of the next end step| at the beginning of your next upkeep)?\.?$/i))) {
-    const ret = { kind: 'return-ids', fromBind: '__recent', yours: /your/i.test(m[2]), tapped: /tapped/i.test(c) };
+  if ((m = c.match(/^return (that card|it|the exiled card|them|those cards|that creature) to the battlefield (?:tapped )?under (its owner's|your|their owners'|their owner's|its owner'?s?) control(?: at the beginning of the next end step| at the beginning of your next upkeep)?\.?$/i))) {
+    const ret = { kind: 'return-ids', fromBind: '__recent', yours: /^your$/i.test(m[2]), tapped: /tapped/i.test(c) };
     if (/end step|upkeep/i.test(c)) effects.push({ kind: 'delay', when: /upkeep/i.test(c) ? { event: 'upkeep', whose: 'owner' } : { event: 'end-step', whose: 'any', sameTurn: true }, effects: [ret], requirements: [] });
     else effects.push(ret);
     return true;
@@ -1151,7 +1151,7 @@ function compileRound3(c, ctx, subjectBind) {
     }
   }
   // Exact counts: "Return two target creatures to their owners' hands." "Destroy two target artifacts."
-  if ((m = c.match(/^(Return|Destroy|Exile|Tap|Untap) (two|three|four) target ([a-z ]+?)( to their owners'? hands?)?\.?$/i)) && (m[1].toLowerCase() !== 'return' || m[4])) {
+  if ((m = c.match(/^(Return|Destroy|Exile|Tap|Untap) (two|three|four) target ([a-z ,/]+?)( to their owners'? hands?)?\.?$/i)) && (m[1].toLowerCase() !== 'return' || m[4])) {
     const n = num(m[2]), bind = `multi${requirements.length}`;
     requirements.push({ kind: 'multi-target', bind, scope: `target ${m[3].replace(/s$/, '')}`, min: n, max: n, label: `Choose ${m[2]} ${m[3]}` });
     effects.push({ kind: m[1].toLowerCase() === 'return' ? 'bounce-many' : `${m[1].toLowerCase()}-many`, bind });
@@ -1213,6 +1213,19 @@ function compileRound3(c, ctx, subjectBind) {
   if (/^(?:you )?manifest the top card of your library\.?$/i.test(c)) { effects.push({ kind: 'manifest', whose: 'you' }); return true; }
   if (/^Its controller manifests the top card of their library\.?$/i.test(c)) { effects.push({ kind: 'manifest', whose: 'lastController' }); return true; }
   if (/^(?:you )?manifest dread\.?$/i.test(c)) { const bind = `dread${requirements.length}`; requirements.push({ kind: 'manifest-dread', bind }); effects.push({ kind: 'manifest', whose: 'you', dreadBind: bind }); return true; }
+  // "Exile any number of target creatures you control." (Eerie Interlude)
+  if ((m = c.match(/^(Exile|Destroy|Tap|Untap) any number of target ([a-z ,/]+?)\.?$/i))) {
+    const bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: `target ${m[2].replace(/s(?= you|$)/, '').replace(/creatures/, 'creature')}`, min: 0, max: 99, label: `Choose any number of ${m[2]}` });
+    effects.push({ kind: `${m[1].toLowerCase()}-many`, bind });
+    return true;
+  }
+  // Adeline: "for each opponent, create a 1/1 white Human creature token that's tapped and attacking that player or a planeswalker they control."
+  if ((m = c.match(/^for each opponent, create (?:a|an) (\d+)\/(\d+) ([a-z ]*?)((?:[A-Z][a-z'-]+ )+)creature token(?: with ([a-z ,]+?))? that'?s tapped and attacking that player(?: or a planeswalker they control)?\.?$/))) {
+    const colors = m[3].split(/\s+/).map(w => COLOR_OF[w]).filter(Boolean);
+    effects.push({ kind: 'attacking-token-each-opponent', token: { power: Number(m[1]), toughness: Number(m[2]), name: m[4].trim(), typeLine: `Token Creature — ${m[4].trim()}`, colors, keywords: H.KEYWORD_LIST(m[5] || '').map(cap) } });
+    return true;
+  }
   // Copying spells and abilities.
   if ((m = c.match(/^Copy target (instant or sorcery |instant |sorcery |noncreature |creature |multicolored |red |blue |green |white |black )?spell( you control| an opponent controls| you don't control)?(?:\. You may choose new targets for the copy)?\.?$/i))) {
     const bind = `stack${requirements.length}`;
@@ -1248,6 +1261,20 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
   const ids = () => (effect.ids || [H.resolveBoundId(effect, bindings)]).filter(Boolean);
   switch (effect.kind) {
     case 'note': notes.push(effect.text || ''); return true;
+    case 'attacking-token-each-opponent': {
+      for (const opp of (game.players || []).filter(q => !q.eliminated && q.playerId !== controllerId)) {
+        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, ...effect.token, tapped: true }], bindings);
+        const id = (bindings.lastCreated || []).slice(-1)[0];
+        const cs = game.combatState;
+        if (id && cs && Array.isArray(cs.attackers) && /combat|attackers|blockers/.test(String(game.phase))) {
+          cs.attackers.push({ playerId: controllerId, instanceId: id, defenderId: opp.playerId, targetId: null, blocksConfirmed: false });
+          if (!(cs.defenders || []).includes(opp.playerId)) cs.defenders = [...(cs.defenders || []), opp.playerId];
+          const tok = locateCardInGame(game, id)?.card; if (tok) { tok.attacking = opp.playerId; tok.attackedTurn = game.turnNumber; }
+        }
+        notes.push(`A ${effect.token.name} token enters tapped and attacking ${opp.displayName}.`);
+      }
+      return true;
+    }
     case 'retarget-stack': {
       const obj = (game.stack || []).find(x => x.id === bindings[effect.stackBind]);
       const upd = bindings[effect.bind];

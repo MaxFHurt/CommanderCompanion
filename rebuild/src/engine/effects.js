@@ -688,6 +688,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'exile-many' || effect.kind === 'destroy-many') {
       const ids = [].concat(bindings[effect.bind] || []);
+      bindings.lastMoved = [...ids]; bindings.lastCreated = [];   // "Return those cards …" (Eerie Interlude)
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
         if (!hit || hit.zone !== 'battlefield') continue;
