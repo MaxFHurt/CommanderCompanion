@@ -170,6 +170,13 @@ function shuffled(array) {
   }
   return array;
 }
+/** Tap or untap; "if a permanent with a stun counter would become untapped, instead remove a stun counter from it".
+ * Returns false when a stun counter was removed instead. */
+export function setTapped(card, tap) {
+  if (!tap && card.tapped && Number(card.counters?.stun || 0) > 0) { card.counters.stun -= 1; if (!card.counters.stun) delete card.counters.stun; return false; }
+  card.tapped = !!tap;
+  return true;
+}
 /** Extra tests on a mass move: "that are one or more colors", "that aren't of the chosen type", "with mana value 2 or less". */
 function zoneEachExtra(game, card, effect, bindings) {
   const d = definitionFor(game, card);
@@ -1000,7 +1007,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'untap-selection') {
       const ids = [].concat(bindings[effect.bind] || []);
-      for (const id of ids) { const hit = locateCardInGame(game, id); if (hit) hit.card.tapped = false; }
+      for (const id of ids) { const hit = locateCardInGame(game, id); if (hit) setTapped(hit.card, false); }
       notes.push(`${ids.length} land${ids.length === 1 ? '' : 's'} untapped.`);
       continue;
     }
@@ -1167,7 +1174,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
         if (hit?.zone === 'battlefield')
-          hit.card.tapped = tap;
+          setTapped(hit.card, tap);
       }
       notes.push(`${ids.length} permanent${ids.length === 1 ? '' : 's'} ${tap ? 'tap' : 'untap'}.`);
       continue;
@@ -1177,7 +1184,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const hit = locateCardInGame(game, targetId);
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('Tap/untap target is no longer legal.');
-      hit.card.tapped = effect.kind === 'tap';
+      if (!setTapped(hit.card, effect.kind === 'tap')) { notes.push(`${cardName(game, hit.card)} stays tapped; a stun counter is removed.`); continue; }
       notes.push(`${cardName(game, hit.card)} ${effect.kind === 'tap' ? 'taps' : 'untaps'}.`);
       emit(bindings, { type: effect.kind === 'tap' ? 'tapped' : 'untapped', sourceId: targetId, controllerId: hit.card.controllerId });
       continue;
@@ -1210,6 +1217,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       notes.push(`${controller.displayName} may play ${effect.amount || 1} additional land this turn.`);
       continue;
     }
+    if (effect.kind === 'counter-those') {
+      const ids = bindings.__tappedNow || [];
+      for (const id of ids) { const hit = locateCardInGame(game, id); if (hit?.zone === 'battlefield') { hit.card.counters = hit.card.counters || {}; hit.card.counters[effect.counter] = Number(hit.card.counters[effect.counter] || 0) + 1; } }
+      notes.push(`${ids.length} creature${ids.length === 1 ? '' : 's'} get a ${effect.counter} counter.`);
+      continue;
+    }
     if (effect.kind === 'tap-each' || effect.kind === 'untap-each') {
       const tap = effect.kind === 'tap-each';
       const players = effect.scope === 'target-player' ? [game.players.find(p => p.playerId === (effect.playerId || bindings[effect.playerBind]))].filter(Boolean) : effect.scope === 'opponents' ? game.players.filter(p => p.playerId !== controllerId) : [controller];
@@ -1217,8 +1230,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const p of players)
         for (const c of p.deck?.battlefield || [])
           if (cardMatchesFilter(game, c, effect.filter || 'creature')) {
-            c.tapped = tap;
+            setTapped(c, tap);
             n++;
+            (bindings.__tappedNow = bindings.__tappedNow || []).push(c.instanceId);
           }
       notes.push(`${n} permanent${n === 1 ? '' : 's'} ${tap ? 'tap' : 'untap'}.`);
       continue;
@@ -1521,6 +1535,8 @@ export function parseCondition(text) {
   if (/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i.test(t)) return { test: 'greatest-artifact-mv' };
   if ((m = t.match(/^an opponent cast (\w+) or more spells this turn$/i))) return { test: 'opponent-spells', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if ((m = t.match(/^there are (\w+) or more creatures on the battlefield$/i))) return { test: 'creatures-total', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
+  if (/^you win the flip$/i.test(t)) return { test: 'coin', won: true };
+  if (/^you lose the flip$/i.test(t)) return { test: 'coin', won: false };
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
@@ -1559,6 +1575,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   }
   if (effect.test === 'opponent-spells') return game.players.some(p => p.playerId !== controllerId && Number(p.counters?.spellsCastThisTurn || 0) >= effect.min);
   if (effect.test === 'creatures-total') return game.players.filter(p => !p.eliminated).reduce((n, p) => n + (p.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')).length, 0) >= effect.min;
+  if (effect.test === 'coin') return !!bindings.coinWon === effect.won;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -2413,8 +2430,13 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Untap / tap / goad everything of a kind.
-  if ((m = c.match(/^(Tap|Untap) all (nonland permanents|creatures|artifacts|lands|permanents) you control\.?$/i))) {
-    effects.push({ kind: m[1].toLowerCase() === 'tap' ? 'tap-each' : 'untap-each', scope: 'you', filter: m[2].toLowerCase().replace(/s$/, '') });
+  if ((m = c.match(/^(Tap|Untap) all (nonland permanents|creatures|artifacts|lands|permanents) (you control|your opponents control|an opponent controls)\.?$/i))) {
+    effects.push({ kind: m[1].toLowerCase() === 'tap' ? 'tap-each' : 'untap-each', scope: /opponent/i.test(m[3]) ? 'opponents' : 'you', filter: m[2].toLowerCase().replace(/s$/, '') });
+    return true;
+  }
+  // Monstrosity of the Lake: "… then put a stun counter on each of those creatures." (the ones just tapped)
+  if ((m = c.match(/^put an? ([a-z+\/0-9-]+) counter on each of those creatures\.?$/i))) {
+    effects.push({ kind: 'counter-those', counter: m[1].toLowerCase() });
     return true;
   }
   if (/^Goad all creatures (?:you don'?t control|your opponents control)\.?$/i.test(c)) {
@@ -3133,4 +3155,4 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
 export function supportForEffectText(text) { const c = compileEffectText(text); return { supported: c.supported, unsupported: c.unsupported, effectKinds: [...new Set(c.effects.map(e => e.kind))], requirements: c.requirements, guidedFallbackAvailable: c.guidedFallbackAvailable }; }
 
 // Helpers for effects-catalog.js (read when its functions run, never at load time).
-export const catalogHelpers = { faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
+export const catalogHelpers = { setTapped, faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };

@@ -94,6 +94,9 @@ function compileCatalogClauseInner(c, ctx) {
     if (!inner.unsupported.length && inner.effects.length) { effects.push(...inner.effects); requirements.push(...inner.requirements); return true; }
   }
   if (/^you gain protection from everything until your next turn\.?$/i.test(c)) { effects.push({ kind: 'player-protection' }); return true; }
+  // Coins: "Flip a coin. If you win the flip, …" (the condition is checked in effects.js).
+  if (/^(?:you )?flip a coin\.?$/i.test(c)) { effects.push({ kind: 'flip-coin' }); return true; }
+  if (/^(?:you )?flip a coin until you lose a flip\.?$/i.test(c)) { effects.push({ kind: 'flip-coin', untilLose: true }); return true; }
   // Dice: "roll a d20." then "… equal to the result".
   if ((mt = c.match(/^(?:you )?roll a d(\d+)\.?$/i))) { effects.push({ kind: 'roll-die', sides: Number(mt[1]) }); return true; }
   if (/equal to the result\.?$/i.test(c)) {
@@ -576,6 +579,12 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const bind = `sylvan${i}`;
     return { part: { effects: [{ kind: 'sylvan', bind }], requirements: [{ kind: 'sylvan', bind }], unsupported: [] }, consumed: 3 };
   }
+  // "Reveal cards from the top of your library until you reveal a land card. Put that card onto the battlefield tapped and
+  // the rest on the bottom of your library in a random order." (Clifftop Lookout, Evolutionary Leap, The Prismatic Bridge)
+  if ((m = c0.match(/^(?:you may )?reveal cards from the top of your library until you reveal (?:a|an) ([a-z ,'-]+?) card\.?$/i))) {
+    const put = next(1).match(rx(`^Put (?:that card|it) ${DEST_RE} and the rest (on the bottom of your library in a random order|into your graveyard)\\.?$`, 'i'));
+    if (put) return { part: { effects: [{ kind: 'reveal-until', filter: m[1].trim(), dest: DEST(put[1]), rest: /graveyard/i.test(put[2]) ? 'graveyard' : 'bottom' }], requirements: [], unsupported: [] }, consumed: 2 };
+  }
   // Timetwister family (one sentence with "then", read before the "then" splitter).
   if ((m = c0.match(/^Each player shuffles (their hand and graveyard|the cards from their hand|their hand) into their library, then draws (seven|that many) cards\.?$/i)))
     return { part: { effects: [{ kind: 'twister', graveyard: /graveyard/i.test(m[1]), draw: /that many/i.test(m[2]) ? 'that-many' : 7 }], requirements: [], unsupported: [] }, consumed: 1 };
@@ -703,6 +712,23 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
   const controller = playerById(game, controllerId);
   const emit = e => H.emit(bindings, e);
   const nameOf = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
+  if (effect.kind === 'reveal-until') {
+    const lib = controller.deck.remainingLibrary || [];
+    const at = lib.findIndex(c => cardFitsWords(definitionFor(game, c), effect.filter));
+    const revealed = at < 0 ? [...lib] : lib.slice(0, at + 1);
+    const hit = at < 0 ? null : lib[at];
+    if (hit) moveTo(game, hit.instanceId, effect.dest || { to: 'hand' }, emit, controllerId);
+    const rest = revealed.filter(c => c !== hit);
+    if (effect.rest === 'graveyard') for (const c of rest) moveCard(game, c.instanceId, 'graveyard', { onEvent: emit });
+    else {
+      for (const c of rest) { const k = lib.indexOf(c); if (k >= 0) lib.splice(k, 1); }
+      for (let j = rest.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [rest[j], rest[k]] = [rest[k], rest[j]]; }
+      lib.push(...rest);
+    }
+    bindings.lastMoved = hit ? [hit.instanceId] : [];
+    notes.push(hit ? `${controller.displayName} reveals ${revealed.length} card${revealed.length === 1 ? '' : 's'} and finds ${nameOf(hit.instanceId)}.` : `${controller.displayName} reveals their whole library and finds no ${effect.filter} card.`);
+    return true;
+  }
   if (effect.kind === 'dig') {
     const answer = bindings[effect.bind] || { groups: [], rest: [] };
     const owner = effect.playerBind ? playerById(game, bindings[effect.playerBind]) || controller : controller;
@@ -900,6 +926,10 @@ function compileRound3(c, ctx, subjectBind) {
   // Copies: "create a token that's a copy of that creature", "… except it has haste", "a tapped token …".
   if ((m = c.match(rx(`^(?:You may )?create (a|two|three|X) (tapped )?tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of ${PRON}(?:, except (it has haste|it isn't legendary|it's not legendary|it has haste and it isn't legendary|it isn't legendary and it has haste))?\\.?$`, 'i')))) {
     effects.push({ kind: 'copy-of', bind: pronBind(m[3]), amount: num(m[1]) ?? 1, tapped: !!m[2], haste: /haste/i.test(m[4] || ''), nonlegendary: /legendary/i.test(m[4] || '') });
+    return true;
+  }
+  if ((m = c.match(/^(?:that creature's|its) controller creates a token that'?s a copy of (that creature|it)\.?$/i))) {
+    effects.push({ kind: 'copy-of', bind: pronBind(m[1]), amount: 1, forItsController: true });
     return true;
   }
   if ((m = c.match(/^Populate\.?$/i))) {
@@ -1114,6 +1144,11 @@ function compileRound3(c, ctx, subjectBind) {
     const ret = { kind: 'return-ids', fromBind: '__recent', yours: /^your$/i.test(m[2]), tapped: /tapped/i.test(c) };
     if (/end step|upkeep/i.test(c)) effects.push({ kind: 'delay', when: /upkeep/i.test(c) ? { event: 'upkeep', whose: 'owner' } : { event: 'end-step', whose: 'any', sameTurn: true }, effects: [ret], requirements: [] });
     else effects.push(ret);
+    return true;
+  }
+  // Nim Deathmantle: "return that card to the battlefield and attach this Equipment to it."
+  if ((m = c.match(rx(`^return (?:that card|it) to the battlefield( tapped)?(?: under (its owner's|your) control)? and attach (?:this Equipment|${selfAny}) to it\\.?$`, 'i')))) {
+    effects.push({ kind: 'return-ids', fromBind: '__recent', yours: /your/i.test(m[2] || ''), tapped: !!m[1] }, { kind: 'attach', equipmentBind: 'sourceId', creatureBind: '__returned' });
     return true;
   }
   // Mana kept through the turn (Birgi, Savage Ventmaw).
@@ -1486,18 +1521,31 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (!hit) return true;
       const cs = game.combatState;
       if (cs) { cs.attackers = (cs.attackers || []).filter(a => a.instanceId !== hit.card.instanceId); for (const b of Object.values(cs.blocks || {})) if (b?.assignments) b.assignments = b.assignments.filter(a => a.blockerId !== hit.card.instanceId && a.attackerId !== hit.card.instanceId); }
-      if (effect.untap) hit.card.tapped = false;
+      if (effect.untap) H.setTapped(hit.card, false);
       notes.push(`${name(hit.card)} is removed from combat${effect.untap ? ' and untaps' : ''}.`);
       return true;
     }
     case 'life-lock-turn': controller.lifeLocked = true; controller.lifeLockedTurn = game.turnNumber; notes.push(`${controller.displayName}'s life total can't change this turn.`); return true;
     case 'player-protection': if (effect.lifeLock) { controller.lifeLocked = true; delete controller.lifeLockedTurn; } controller.protectionFromEverything = true; notes.push(`${controller.displayName} has protection from everything until their next turn.`); return true;
+    case 'flip-coin': {
+      if (effect.untilLose) {
+        let won = 0;
+        while (Math.random() < 0.5 && won < 50) won++;
+        bindings.flipsWon = won; bindings.coinWon = won > 0;
+        notes.push(`${controller.displayName} flips coins until losing one: ${won} won.`);
+      } else {
+        bindings.coinWon = Math.random() < 0.5;
+        notes.push(`${controller.displayName} flips a coin and ${bindings.coinWon ? 'wins' : 'loses'} the flip.`);
+      }
+      emit({ type: 'coin-flipped', playerId: controllerId, controllerId, won: bindings.coinWon });
+      return true;
+    }
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
     case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;
     case 'untap-those': {
       const ids = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : []);
-      for (const id of ids) { const hit = permanentAt(game, id); if (hit && hit.card.tapped) { hit.card.tapped = false; emit({ type: 'untapped', sourceId: id, controllerId: hit.card.controllerId }); } }
+      for (const id of ids) { const hit = permanentAt(game, id); if (hit && hit.card.tapped && H.setTapped(hit.card, false)) { emit({ type: 'untapped', sourceId: id, controllerId: hit.card.controllerId }); } }
       notes.push(`${ids.length} untap.`);
       return true;
     }
@@ -1576,8 +1624,10 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       if (!d) { notes.push('There is nothing to copy.'); return true; }
       const n = Math.max(0, resolveAmount(game, controllerId, effect.amount ?? 1, bindings));
       const typeLine = effect.nonlegendary ? String(d.typeLine || '').replace(/\bLegendary\s+/i, '') : d.typeLine;
+      // Bramble Sovereign: "that creature's controller creates …"
+      const maker = effect.forItsController && hit?.card?.controllerId ? hit.card.controllerId : controllerId;
       for (let i = 0; i < n; i++) {
-        H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: d.name, typeLine: /^Token\b/.test(typeLine) ? typeLine : `Token ${typeLine}`, oracleText: d.oracleText || '', power: d.power, toughness: d.toughness, keywords: d.keywords || [], colors: d.colors || [], tapped: !!effect.tapped }], bindings);
+        H.applyEffectsUnsafe(game, maker, [{ kind: 'create-token', amount: 1, name: d.name, typeLine: /^Token\b/.test(typeLine) ? typeLine : `Token ${typeLine}`, oracleText: d.oracleText || '', power: d.power, toughness: d.toughness, keywords: d.keywords || [], colors: d.colors || [], tapped: !!effect.tapped }], bindings);
         const made = (bindings.lastCreated || []).slice(-1)[0];
         const token = made && locateCardInGame(game, made)?.card;
         if (token && effect.haste) { token.temporaryEffects = [...(token.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }]; }
@@ -1598,11 +1648,14 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       return true;
     }
     case 'return-ids': {
-      const list = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : bindings.lastCreated || []);
+      // The cards just moved or made; otherwise the card the trigger is about ("Whenever a creature dies, … return that card").
+      const event = [bindings.eventCard].filter(id => id && ['exile', 'graveyard'].includes(locateCardInGame(game, id)?.zone));
+      const list = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : bindings.lastCreated?.length ? bindings.lastCreated : event);
       for (const id of list) {
         const hit = locateCardInGame(game, id);
         if (!hit || !['exile', 'graveyard'].includes(hit.zone)) continue;
         moveCard(game, id, 'battlefield', { controllerId: effect.yours ? controllerId : hit.card.ownerId, tapped: !!effect.tapped, onEvent: emit });
+        bindings.__returned = id;
         notes.push(`${name(hit.card)} returns to the battlefield.`);
       }
       return true;

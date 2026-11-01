@@ -139,6 +139,8 @@ function untapStep(game) {
     if ((c.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e?.restriction === 'no-untap')) continue;
     // "… doesn't untap during its controller's next untap step": this is that step; it stays tapped once.
     if ((c.temporaryEffects || []).some(e => e?.kind === 'skip-next-untap')) { c.temporaryEffects = c.temporaryEffects.filter(e => e?.kind !== 'skip-next-untap'); continue; }
+    // A stun counter: instead of untapping, one stun counter is removed.
+    if (Number(c.counters?.stun || 0) > 0) { c.counters.stun -= 1; if (!c.counters.stun) delete c.counters.stun; continue; }
     c.tapped = false;
     count += 1;
     queueTriggers(game, { type: 'untapped', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, untapStep: true });

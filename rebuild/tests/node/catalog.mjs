@@ -1050,4 +1050,45 @@ section('round 17: searches by land type, tribal pumps, distribute, Last March, 
   check('Talon Gates: put onto the battlefield from the hand for {4}', r.ok && !!t.bf(0, 'Fog Bank'), r.error);
 }
 
+section('round 18: coins, reveal until, Nim Deathmantle, stun counters, Bramble Sovereign');
+for (const win of [true, false]) {
+  const t = setup();
+  const rnd = Math.random; Math.random = () => (win ? 0.1 : 0.9);
+  try { cast(t, 'Opt', 'Flip a coin. If you win the flip, create a Treasure token.'); } finally { Math.random = rnd; }
+  check(`Coin flip: ${win ? 'winning makes' : 'losing makes no'} Treasure`, t.P(0).deck.battlefield.some(c => c.token) === win);
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary;
+  const firstCreature = lib.findIndex(c => /Creature/.test(def(t, c)?.typeLine || ''));
+  const want = lib[firstCreature], before = firstCreature;
+  cast(t, 'Opt', 'Reveal cards from the top of your library until you reveal a creature card. Put that card into your hand and the rest on the bottom of your library in a random order.');
+  check('Reveal until a creature: it goes to the hand, the rest to the bottom', t.P(0).deck.hand.some(c => c.instanceId === want.instanceId) && t.P(0).deck.remainingLibrary.length === lib.length && (before === 0 || !/Creature/.test('') ), String(before));
+}
+{
+  const t = setup();
+  const nim = onField(t, 'Fog Bank', 'Equipped creature gets +2/+2.\nWhenever a nontoken creature is put into your graveyard from the battlefield, you may pay {4}. If you do, return that card to the battlefield and attach this Equipment to it.\nEquip {4}', { typeLine: 'Artifact — Equipment', power: null, toughness: null });
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => bear.instanceId], ['may-pay', 'pay']]);
+  const back = t.bf(0, 'Grizzly Bears');
+  check('Nim Deathmantle: the creature returns with the Equipment attached', !!back && t.P(0).deck.battlefield.find(c => c.instanceId === nim.instanceId)?.attachedTo === back.instanceId);
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Tap all creatures your opponents control, then put a stun counter on each of those creatures.');
+  check('Monstrosity of the Lake: tapped with a stun counter', foe.tapped && foe.counters?.stun === 1);
+  t.autoPass = true; t.end(0);
+  check('…and at its untap step the stun counter comes off instead', foe.tapped && !foe.counters?.stun);
+  t.end(1); t.end(0);
+  check('…then it untaps normally the next time', !foe.tapped);
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever another nontoken creature enters, you may pay {1}{G}. If you do, that creature\'s controller creates a token that\'s a copy of that creature.', { typeLine: 'Creature — Treefolk' });
+  t.give(1, 'Grizzly Bears', 'battlefield');
+  settle(t, [['may-pay', 'pay']]);
+  check('Bramble Sovereign: the creature\'s controller gets the token copy', t.P(1).deck.battlefield.filter(c => def(t, c)?.name === 'Grizzly Bears').length === 2, String(t.P(1).deck.battlefield.length));
+}
+
 done();
