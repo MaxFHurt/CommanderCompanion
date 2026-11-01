@@ -1127,6 +1127,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         // A player sacrifices as many as they can; fewer legal permanents than required is not an error.
         const available = (p.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'permanent')).length;
         const need = Math.min(amount, available);
+        if (effect.requireDone && need < amount) bindings.__notDone = true;   // "If you do": it didn't happen
         if (ids.length < need)
           throw new Error(`${p.displayName} must choose ${need} permanent${need === 1 ? '' : 's'} to sacrifice.`);
         for (const id of ids.slice(0, need)) {
@@ -1597,6 +1598,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'creatures-total') return game.players.filter(p => !p.eliminated).reduce((n, p) => n + (p.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || '')).length, 0) >= effect.min;
   if (effect.test === 'coin') return !!bindings.coinWon === effect.won;
   if (effect.test === 'opponent-lost-life') return game.players.some(p => p.playerId !== controllerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber);
+  if (effect.test === 'done') return !bindings.__notDone;
   if (effect.test === 'your-turn') return game.activePlayerId === controllerId;
   if (effect.test === 'x-ge-library') return Number(bindings.X || 0) >= Number(me?.deck?.remainingLibrary?.length || 0);
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
@@ -2907,6 +2909,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // "You may pay {4}. If you do, untap this artifact." (Mana Vault, Mentor of the Meek): the controller is asked to pay
     // as it resolves (ops.js); "You may sacrifice another creature. If you do, …": a yes/no choice, then both or neither.
     const nextDo = clauses[clauses.indexOf(clause) + 1]?.match(/^If you do,?\s*(.+)$/i);
+    const lifePay = nextDo && clause.match(/^(?:Then )?you may pay (\d+|one|two|three|four|five) life\.?$/i);
+    if (lifePay) {
+      const inner = compileEffectText(nextDo[1], { sourceName });
+      if (inner.supported) { parts.push({ effects: [{ kind: 'may-pay', cost: '', lifeCost: numberFromText(lifePay[1]) || 0, skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] }); skipNextClause = true; continue; }
+    }
     const selfPay = nextDo && clause.match(/^(?:Then )?you may pay ((?:\{[^}]+\})+)(?: and (\d+|one|two|three|four) life)?\.?$/i);
     if (selfPay) {
       const inner = compileEffectText(nextDo[1], { sourceName });
@@ -2923,7 +2930,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       if (first.supported && then.supported) {
         const bind = `mayDo${parts.length}`;
         const req = [{ kind: 'yes-no', bind, label: `${mayDo[1].replace(/\.$/, '')}?` }];
-        parts.push({ effects: [{ kind: 'condition', test: 'chosen', bind, skip: first.effects.length + then.effects.length }, ...first.effects, ...then.effects], requirements: [...req, ...first.requirements, ...then.requirements], unsupported: [] });
+        // A sacrifice that could not be made means "if you do" is false: the rest is skipped.
+        const firstFx = first.effects.map(e => (e.kind === 'sacrifice-many' ? { ...e, requireDone: true } : e));
+        const guard = firstFx.some(e => e.requireDone) ? [{ kind: 'condition', test: 'done', skip: then.effects.length }] : [];
+        parts.push({ effects: [{ kind: 'condition', test: 'chosen', bind, skip: firstFx.length + guard.length + then.effects.length }, ...firstFx, ...guard, ...then.effects], requirements: [...req, ...first.requirements, ...then.requirements], unsupported: [] });
         skipNextClause = true;
         continue;
       }

@@ -986,7 +986,7 @@ function runResolve(game, op, ask) {
     const life = Number(mayPay.lifeCost || 0);
     const plan = planMana(playerManaAvailability(player, game), mayPay.cost, 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
     const can = plan.ok && Number(player.life || 0) >= life;
-    const what = `${mayPay.cost}${life ? ` and ${life} life` : ''}`;
+    const what = [mayPay.cost, life ? `${life} life` : ''].filter(Boolean).join(' and ');
     const pay = ask('may-pay', () => ({ ...base, kind: 'choose-one', title: `${name} — pay ${what}?`, prompt: `${top.text || name}`,
       options: [{ id: 'pay', label: `Pay ${what}`, disabled: !can, sub: can ? '' : 'You cannot pay this now.' }, { id: 'no', label: 'Don\u2019t pay' }] }));
     if (pay === 'pay' && can) {

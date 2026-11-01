@@ -1393,4 +1393,19 @@ section('round 33: casting from the graveyard');
   check('…"this turn": castable later this turn for its cost, then exiled', row?.playable && r.ok && spell.zone === 'exile', JSON.stringify([row?.playable, r.error, spell.zone]));
 }
 
+section('round 34: may pay life / may sacrifice a subtype, if you do');
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'You may pay 2 life. If you do, draw a card.', [['may-pay', 'pay']]);
+  check('Pay 2 life: then draw', t.P(0).life === 38 && t.P(0).deck.hand.length === hand + 1, JSON.stringify([t.P(0).life, hand, t.P(0).deck.hand.length]));
+}
+for (const haveFood of [true, false]) {
+  const t = setup();
+  if (haveFood) onField(t, 'Fog Bank', '', { typeLine: 'Artifact — Food' });
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'You may sacrifice a Food. If you do, draw a card.', [[d => d.kind === 'confirm', true]]);
+  check(`Sacrifice a Food, if you do draw: ${haveFood ? 'with a Food draws' : 'without one, no draw'}`, t.P(0).deck.hand.length === hand + (haveFood ? 1 : 0) && (haveFood ? !t.bf(0, 'Fog Bank') : true), JSON.stringify([hand, t.P(0).deck.hand.length]));
+}
+
 done();

@@ -239,6 +239,13 @@ function compileCatalogClauseInner(c, ctx) {
     return true;
   }
   if (/^If that spell would be put into (?:your|a) graveyard, exile it instead\.?$/i.test(c)) { effects.push({ kind: 'exile-instead-flag' }); return true; }
+  // "Sacrifice a Zombie." "Sacrifice a Food." (a creature or artifact subtype)
+  if ((m = c.match(/^Sacrifice (?:a|an) ([A-Z][a-z]+)\.?$/)) && !/^(?:Creature|Artifact|Enchantment|Land|Planeswalker|Permanent)$/.test(m[1])) {
+    const bind = `cards${requirements.length}`;
+    requirements.push({ kind: 'card-selection', bind, scope: 'you', filter: `permanent|subtype:${m[1]}`, amount: 1, label: `Choose a ${m[1]} to sacrifice` });
+    effects.push({ kind: 'sacrifice-many', scope: 'you', amount: 1, filter: `permanent|subtype:${m[1]}`, bind });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
