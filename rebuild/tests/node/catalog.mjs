@@ -2624,4 +2624,24 @@ section('round 51: the last top-1,000 cards');
   check('Splice onto Arcane: the spliced card\'s effect is added and it stays in hand', t.P(0).life === life + 3 && t.names(0, 'hand').includes('Divination'), JSON.stringify([t.P(0).life - life]));
 }
 
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever one or more land cards are put into your graveyard from anywhere, draw a card.', { typeLine: 'Legendary Creature — Frog Horror' });
+  const lib = t.P(0).deck.remainingLibrary;
+  for (const n of ['Forest', 'Island']) { const k = lib.findIndex(c => def(t, c).name === n); if (k >= 0) lib.unshift(...lib.splice(k, 1)); }
+  const hand = t.P(0).deck.hand.length;
+  t.give(0, 'Opt');
+  cast(t, 'Opt', 'Mill three cards.', [], { manaCost: '{U}' });
+  check('The Gitrog Monster: milling two lands at once draws one card', t.P(0).deck.hand.length === hand + 1, String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  const ba = onField(t, 'Sol Ring', "At the beginning of each end step, if an opponent lost 2 or more life this turn, you may put a quest counter on this enchantment.\nWhenever a card is put into an opponent's graveyard from anywhere, if this enchantment has three or more quest counters on it, you may have that player lose 2 life. If you do, you gain 2 life.", { typeLine: 'Enchantment' });
+  ba.counters = { quest: 3 };
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  const foe = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => foe.instanceId], [d => d.kind === 'confirm', true]], { manaCost: '{G}' });
+  check('Bloodchief Ascension: a card into an opponent\'s graveyard drains 2', t.P(1).life === l1 - 2 && t.P(0).life === l0 + 2, JSON.stringify([t.P(0).life - l0, t.P(1).life - l1]));
+}
+
 done();

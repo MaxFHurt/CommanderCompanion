@@ -11,6 +11,20 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   // Mounts: "Whenever this creature attacks while saddled, …"
   if ((m = t.match(/^Whenever (.+?) attacks while saddled\b/i))) return event.type === 'attacks' && row.card.saddledTurn === game.turnNumber && H.subjectEvent(game, row, m[1], event);
   if ((m = t.match(/^Whenever (.+?) becomes saddled\b/i))) return event.type === 'saddled' && H.subjectEvent(game, row, m[1], event);
+  // "Whenever a card is put into an opponent's graveyard from anywhere" (Bloodchief Ascension); "Whenever one or more land cards are put
+  // into your graveyard from anywhere" (The Gitrog Monster: once for each batch).
+  if ((m = t.match(/^Whenever (?:a|an) ([a-z]+ )?card is put into (an opponent'?s|your|a) graveyard from anywhere/i))) {
+    if (event.type !== 'put-into-graveyard') return false;
+    if (/opponent/i.test(m[2]) ? event.ownerId === me : /your/i.test(m[2]) ? event.ownerId !== me : false) return false;
+    return !m[1] || new RegExp(`\\b${m[1].trim()}\\b`, 'i').test(event.typeLine || '');
+  }
+  if ((m = t.match(/^Whenever one or more ([a-z]+ )?cards are put into (your|an opponent'?s) graveyard from anywhere/i))) {
+    if (event.type !== 'put-into-graveyard' || (/your/i.test(m[2]) ? event.ownerId !== me : event.ownerId === me)) return false;
+    if (m[1] && !new RegExp(`\\b${m[1].trim()}\\b`, 'i').test(event.typeLine || '')) return false;
+    if (event.resolutionId && row.card.lastGraveBatch === event.resolutionId) return false;
+    if (event.resolutionId) row.card.lastGraveBatch = event.resolutionId;
+    return true;
+  }
   // Trouble in Pairs: "Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn"
   if (/^Whenever an opponent attacks you with two or more creatures, draws their second card each turn, or casts their second spell each turn$/i.test(t)) {
     const opp = (event.controllerId || event.playerId) && (event.controllerId || event.playerId) !== me;
@@ -184,4 +198,4 @@ export function catalogTriggerMatch(game, row, t, event, H) {
 }
 
 /** Extra probe settings for the audit: tried only when the usual probe never fires the trigger. */
-export const PROBE_EXTRA_EVENTS = ['expend', 'exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];
+export const PROBE_EXTRA_EVENTS = ['put-into-graveyard', 'expend', 'exploited', 'coin-flipped', 'saddled', 'proliferated', 'die-rolled', 'transformed', 'crewed', 'tapped-for-mana', 'class-level', 'turned-face-up', 'cycled', 'becomes-monstrous', 'untapped', 'postcombat-main-start', 'scry', 'surveil', 'ring-tempts', 'crime', 'explores', 'becomes-target', 'zone-change'];

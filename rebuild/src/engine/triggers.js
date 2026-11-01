@@ -61,7 +61,7 @@ export function parseTriggeredAbilities(definition) {
         out.push(current);
       current = start;
     }
-    else if (current && (/^[•—-]/.test(line) || (/^if\b/i.test(line) && !/\bwould\b|triggers? an additional time|causes? a triggered ability/i.test(line)) || /^you may\b/i.test(line) || /^this ability triggers only once each turn\.?$/i.test(line))) {
+    else if (current && (/^[•—-]/.test(line) || (/^if\b/i.test(line) && !/\bwould\b|triggers? an additional time|causes? a triggered ability/i.test(line)) || (/^you may\b/i.test(line) && !/^You may play an additional land\b/i.test(line)) || /^this ability triggers only once each turn\.?$/i.test(line))) {
       current += `\n${line}`;
     }
     else if (current) {
@@ -591,6 +591,23 @@ function dueDelayedTriggers(game, event) {
 }
 export function queueTriggers(game, event) {
   recordStat(game, event);
+  // Life lost this turn, by amount (Bloodchief Ascension: "if an opponent lost 2 or more life this turn").
+  if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) { const was = game.lifeLostAmountTurn?.[event.playerId]; game.lifeLostAmountTurn = { ...(game.lifeLostAmountTurn || {}), [event.playerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + Number(event.amount) } }; }
+  // One "put into a graveyard" event per card, however it got there (moved, milled, discarded, died, sacrificed, a spell resolving).
+  const intoGraveyard = (event?.type === 'zone-change' && event.to === 'graveyard') || ['mill', 'discard', 'dies', 'sacrificed'].includes(event?.type) || (event?.type === 'spell-resolved' && event.destination === 'graveyard');
+  if (intoGraveyard && event.sourceId) {
+    const owner = (game.players || []).find(p => (p.deck?.graveyard || []).some(c => c.instanceId === event.sourceId));
+    const c = owner?.deck.graveyard.find(x => x.instanceId === event.sourceId);
+    if (c && !c.token && !c.gySeen) {
+      c.gySeen = true;
+      const extra = queueTriggers(game, { type: 'put-into-graveyard', sourceId: c.instanceId, definitionId: c.definitionId, ownerId: owner.playerId, playerId: owner.playerId, typeLine: defFor(game, c)?.typeLine || '', resolutionId: event.resolutionId || null });
+      const mine = queueTriggersInner(game, event);
+      return [...mine, ...extra];
+    }
+  }
+  return queueTriggersInner(game, event);
+}
+function queueTriggersInner(game, event) {
   // Who lost life this turn (Spectacle, "if an opponent lost life this turn").
   if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) game.lostLifeTurn = { ...(game.lostLifeTurn || {}), [event.playerId]: game.turnNumber };
   // Damage each player was dealt this turn (Spinerock Knoll) and how many creatures each player attacked with (Windbrisk Heights).

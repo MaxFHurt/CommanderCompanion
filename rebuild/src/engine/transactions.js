@@ -267,6 +267,7 @@ function applyTrackedEffects(game, player, effects = [], bindings = {}) {
 function putSpellOnStack(game, player, action, deck) {
   const allowed = Array.isArray(action.fromZones) && action.fromZones.length ? action.fromZones : ['hand', 'commandZone'];
   const { card, from } = removeFromZone(deck, action.instanceId, allowed);
+  delete card.gySeen;
   payMana(game, player, action.payment);
   if (Number.isInteger(action.activeFaceIndex))
     card.activeFaceIndex = action.activeFaceIndex;
@@ -824,6 +825,7 @@ export function createTransactionEngine(game) {
         for (let k = 0; k < Number(action.amount || 0); k++) { const c = deck.remainingLibrary.shift(); c.zone = 'graveyard'; deck.graveyard.push(c); emit(game, { type: 'mill', playerId: player.playerId, sourceId: c.instanceId, definitionId: c.definitionId, amount: 1 }); }
         const at = deck.graveyard.findIndex(c => c.instanceId === action.instanceId);
         const [card] = deck.graveyard.splice(at, 1);
+        delete card.gySeen;
         card.zone = 'hand'; deck.hand.push(card);
         emit(game, { type: 'zone-change', sourceId: card.instanceId, definitionId: card.definitionId, from: 'graveyard', to: 'hand', controllerId: player.playerId, ownerId: card.ownerId });
       }

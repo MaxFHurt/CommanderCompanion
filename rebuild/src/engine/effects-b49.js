@@ -206,6 +206,24 @@ export function compileB49Clause(c, ctx) {
   }
   // The Soul Stone: "Harness The Soul Stone." — its ∞ abilities work from now on.
   if (/^Harness (?:SELFNAME|this (?:artifact|permanent))\.?$/i.test(c)) { effects.push({ kind: 'harness' }); return true; }
+  // The Gitrog Monster: "sacrifice The Gitrog Monster unless you sacrifice a land."
+  if ((m = c.match(/^sacrifice (?:SELFNAME|this (?:creature|permanent|enchantment|artifact)) unless you sacrifice (?:a|an) ([a-z]+)\.?$/i))) {
+    requirements.push({ kind: 'b49-sac-or-self', bind: 'sacOrSelf', filter: m[1].toLowerCase() });
+    effects.push({ kind: 'sac-or-self', bind: 'sacOrSelf' });
+    return true;
+  }
+  // Bloodchief Ascension: "you may have that player lose 2 life. If you do, you gain 2 life."
+  if ((m = c.match(/^you may have that player lose (\w+) life\. If you do, you gain (\w+) life\.?$/i))) {
+    const bind = `mayDrain${requirements.length}`;
+    requirements.push({ kind: 'yes-no', bind, label: `Have that player lose ${m[1]} life (and you gain ${m[2]})?` });
+    effects.push({ kind: 'condition', test: 'chosen', bind, skip: 2 }, { kind: 'life', scope: 'you', amount: num(m[1]), deltaSign: -1, forPlayerBind: 'eventPlayer' }, { kind: 'life', scope: 'you', amount: num(m[2]), deltaSign: 1 });
+    return true;
+  }
+  // "you may <instruction>." when nothing more specific read it: asked as it resolves.
+  if ((m = c.match(/^you may (.+)$/i)) && !/\btarget\b/i.test(m[1])) {
+    const inner = compile(cap(m[1]), sourceName);
+    if (ok(inner) && !inner.requirements.length) { const bind = `mayDo${requirements.length}`; requirements.push({ kind: 'yes-no', bind, label: `${cap(m[1]).replace(/\.$/, '')}?` }); effects.push({ kind: 'condition', test: 'chosen', bind, skip: inner.effects.length }, ...inner.effects); return true; }
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -458,6 +476,11 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       counter.effects.unshift({ kind: 'remember-spell', bind: earlier.bind, as: `trick${i}spell` });
       return { part: { effects: [{ kind: 'trickery', bind: `trick${i}`, spell: `trick${i}spell` }], requirements: [{ kind: 'b49-trickery', bind: `trick${i}`, stackBind: earlier.bind }], unsupported: [] }, consumed: 4 };
     }
+  }
+  if ((m = c0.match(/^(?:if (.+?), )?(you may have that player lose \w+ life)\.?$/i)) && /^If you do, you gain (\w+) life\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const cond = m[1] ? parseConditionB49(m[1].trim()) : null;
+    const r = compile(`${m[2]}. ${clauses[i + 1]}`, sourceName);
+    if (ok(r) && (!m[1] || cond)) return { part: { ...r, effects: [...(cond ? [{ kind: 'condition', ...cond, skip: r.effects.length }] : []), ...r.effects] }, consumed: 2 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -988,6 +1011,12 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${who.displayName} mills ${milled.length}, exiles down to ${hit ? nameOf(game, hit.instanceId) : 'nothing'}${hit && plan.cast ? ' and casts it free' : ''}; the rest go to the bottom.`);
       return true;
     }
+    case 'sac-or-self': {
+      const id = bindings[effect.bind], h = id && locateCardInGame(game, id);
+      const target = h?.zone === 'battlefield' ? id : bindings.sourceId;
+      if (locateCardInGame(game, target)?.zone === 'battlefield') { moveCard(game, target, 'graveyard', { moveReason: 'sacrifice', onEvent: e => H.emit(bindings, e) }); notes.push(`${controller.displayName} sacrifices ${nameOf(game, target)}.`); }
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1285,6 +1314,12 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = { playerId: p.playerId, mill: n, hit: hit?.instanceId || null, cast };
     return true;
   }
+  if (req.kind === 'b49-sac-or-self') {
+    const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
+    const v = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: `Sacrifice a ${req.filter}, or this is sacrificed.`, options: [{ id: 'self', label: `Sacrifice ${ctx.sourceName}` }, ...rows.map(c => util.cardOption(game, c, player))] })) : 'self';
+    bindings[req.bind] = v === 'self' ? null : v;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -1367,6 +1402,8 @@ export function parseConditionB49(t) {
   if (/^tribute wasn'?t paid$/i.test(t)) return { test: 'b49-tribute-unpaid' };
   if ((m = t.match(/^you control (\w+) or more artifacts with the same name as one another$/i))) return { test: 'b49-same-name-artifacts', min: cnt(m[1]) };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
+  if ((m = t.match(/^an opponent lost (\w+) or more life this turn$/i))) return { test: 'b49-opp-lost', min: cnt(m[1]) };
+  if ((m = t.match(/^(?:SELFNAME|this (?:enchantment|artifact|creature|permanent)) has (\w+) or more ([a-z+\/\d-]+) counters on it$/i))) return { test: 'b49-self-counters', min: cnt(m[1]), counter: m[2] };
   if (/^no mana was spent to cast it$/i.test(t)) return { test: 'b49-no-mana-spent' };
   if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
   if (/^that player controls more lands than you$/i.test(t)) return { test: 'b49-event-player-more-lands' };
@@ -1427,6 +1464,8 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     }
     case 'b49-your-main': return game.activePlayerId === controllerId && ['precombat-main', 'postcombat-main'].includes(game.phase);
     case 'b49-no-host-copy': return !bindings.hostCopied;
+    case 'b49-opp-lost': return (game.players || []).some(p => p.playerId !== controllerId && game.lifeLostAmountTurn?.[p.playerId]?.turn === game.turnNumber && game.lifeLostAmountTurn[p.playerId].n >= effect.min);
+    case 'b49-self-counters': return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[effect.counter] || 0) >= effect.min;
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
