@@ -46,6 +46,10 @@ export function commanderEntryFor(player, card) {
 }
 
 /** Legality of playing one card (optionally a specific face). */
+/** Split second: while such a spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities. */
+export function splitSecondOnStack(game) {
+  return (game.stack || []).some(x => (x.kind === 'spell' || x.kind === 'spell-copy') && /(?:^|\n|,\s*)\s*Split second\b/i.test(String(defOf(game, x.card)?.oracleText || '').replace(/\([^()]*\)/g, '')));
+}
 export function playCheck(game, player, card, faceIndex = null) {
   const base = game.cardDefinitions?.[card.definitionId];
   const def = Number.isInteger(faceIndex) ? faceDefinition(base, faceIndex) : defOf(game, { ...card, activeFaceIndex: null });
@@ -55,6 +59,7 @@ export function playCheck(game, player, card, faceIndex = null) {
   const options = castOptions(game, player, card, def, { commander });
   if (!options.length) return { legal: false, reasons: [card.zone === 'graveyard' ? 'This card cannot be cast from a graveyard right now.' : card.zone === 'exile' ? 'This card cannot be cast from exile.' : 'This card cannot be cast.'], kind, def, commander, options };
   const best = options.find(o => o.legal) || options[0];
+  if (kind === 'cast' && splitSecondOnStack(game)) return { ...best, legal: false, reasons: ['A spell with split second is on the stack.'], kind, def, commander, options: options.map(o => ({ ...o, legal: false, reasons: ['A spell with split second is on the stack.'] })), mode: best.id };
   return { ...best, legal: !!options.find(o => o.legal), kind, def, commander, options, mode: best.id };
 }
 

@@ -308,7 +308,7 @@ m('Soulbond', 'keyword', 'Pair this with another unpaired creature when either e
 m('Soulshift', 'keyword', 'Soulshift N: when this dies, return target Spirit card with mana value N or less from your graveyard to your hand.', { auto: 'auto', actions: ['return-hand'] });
 m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'auto', steps: 'Once an opponent has lost life this turn, "Spectacle" is offered as a way to cast it.' });
 m('Splice', 'keyword', 'Splice onto [type]: reveal this as you cast a spell of that type and pay the cost to add this card\'s effect to it.', { auto: 'manual' });
-m('Split second', 'keyword', 'While this is on the stack, players can\'t cast spells or activate non-mana abilities.', { auto: 'manual' });
+m('Split second', 'keyword', 'While this is on the stack, players can\'t cast spells or activate non-mana abilities.', { auto: 'auto' });
 m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s additional cost.', { auto: 'auto' });
 m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; when it enters, create that many token copies.', { auto: 'auto', actions: ['copy-token'] });
 m('Storm', 'keyword', 'When you cast this, copy it for each spell cast before it this turn. Copies may choose new targets.', { auto: 'auto' });

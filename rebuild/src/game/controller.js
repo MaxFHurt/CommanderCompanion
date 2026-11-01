@@ -11,7 +11,7 @@ import {
 } from './flow.js';
 import { applyEdit } from './edits.js';
 import { commit } from './ops.js';
-import { timingBlock, stackTop, playCheck, abilityRows } from './legal.js';
+import { timingBlock, stackTop, playCheck, abilityRows, splitSecondOnStack } from './legal.js';
 import { phaseLabel } from '../engine/phase.js';
 import { buildView, actorId } from './view.js';
 
@@ -196,6 +196,11 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
         assessment = assess(intent, p.playerId, intent.approved === true);
         const block = timingBlock(game, p.playerId);
         if (block && !(force && !game.flow.op)) throw new GameError(block);
+        if (splitSecondOnStack(game) && !force) {
+          const hitCard = findCard(game, intent.instanceId)?.card;
+          const row = intent.type === 'activate' && hitCard ? abilityRows(game, p, hitCard).find(r => r.ability.id === intent.abilityId) : null;
+          if (intent.type === 'play' || !row?.ability?.manaAbility) throw new GameError('A spell with split second is on the stack: only mana abilities can be used.');
+        }
         startOp(game, intent.type, p.playerId, { instanceId: intent.instanceId, faceIndex: intent.faceIndex, abilityId: intent.abilityId, color: intent.color, force });
         if (game.flow.priority?.holderId === p.playerId && !game.flow.op) { /* responding: a new round opens when the game settles */ }
         break;

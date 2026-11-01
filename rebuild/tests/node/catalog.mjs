@@ -5,6 +5,7 @@ import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/en
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
 import { canTarget, canTargetPlayer } from '../../src/game/requirements.js';
+import { playCheck } from '../../src/game/legal.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -2316,6 +2317,17 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   settle(t);
   const copies = t.P(0).deck.battlefield.filter(c => c.token && def(t, c).name === 'Grizzly Bears');
     check('Myriad: a token copy attacks the other opponent (and is gone after combat)', t.P(2).life === 38 && t.P(1).life === 38 && copies.length === 0, JSON.stringify([t.P(1).life, t.P(2).life, copies.length]));
+}
+
+{
+  const t = setup();
+  for (let i = 0; i < 2; i++) t.give(1, 'Island', 'battlefield');
+  t.give(1, 'Counterspell');
+  t.give(0, 'Opt'); const ss = asText(t, t.hand(0, 'Opt'), 'Split second (As long as this spell is on the stack, players can\'t cast spells or activate abilities that aren\'t mana abilities.)\nDraw a card.', { manaCost: '{U}' });
+  t.game.stack = [{ id: 'ss', kind: 'spell', controllerId: t.P(0).playerId, card: ss, label: 'Opt' }];   // a split second spell waiting on the stack
+  const pc = playCheck(t.game, t.P(1), t.hand(1, 'Counterspell'));
+  check('Split second: the opponent cannot cast Counterspell in response (and is passed automatically)', !pc.legal && /split second/i.test(pc.reasons?.[0] || ''), JSON.stringify(pc.reasons));
+  t.game.stack = [];
 }
 
 done();
