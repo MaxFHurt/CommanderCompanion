@@ -13,12 +13,12 @@ export function catalogTriggerMatch(game, row, t, event, H) {
   if ((m = t.match(/^Whenever (.+?) becomes saddled\b/i))) return event.type === 'saddled' && H.subjectEvent(game, row, m[1], event);
   // "Whenever a card is put into an opponent's graveyard from anywhere" (Bloodchief Ascension); "Whenever one or more land cards are put
   // into your graveyard from anywhere" (The Gitrog Monster: once for each batch).
-  if ((m = t.match(/^Whenever (?:a|an) ([a-z]+ )?card is put into (an opponent'?s|your|a) graveyard from anywhere/i))) {
+  if ((m = t.match(/^Whenever (?:a|an) ([a-z]+ )?card is put into (an opponent'?s|your|a) graveyard from anywhere$/i))) {
     if (event.type !== 'put-into-graveyard') return false;
     if (/opponent/i.test(m[2]) ? event.ownerId === me : /your/i.test(m[2]) ? event.ownerId !== me : false) return false;
     return !m[1] || new RegExp(`\\b${m[1].trim()}\\b`, 'i').test(event.typeLine || '');
   }
-  if ((m = t.match(/^Whenever one or more ([a-z]+ )?cards are put into (your|an opponent'?s) graveyard from anywhere/i))) {
+  if ((m = t.match(/^Whenever one or more ([a-z]+ )?cards are put into (your|an opponent'?s) graveyard from anywhere$/i))) {
     if (event.type !== 'put-into-graveyard' || (/your/i.test(m[2]) ? event.ownerId !== me : event.ownerId === me)) return false;
     if (m[1] && !new RegExp(`\\b${m[1].trim()}\\b`, 'i').test(event.typeLine || '')) return false;
     if (event.resolutionId && row.card.lastGraveBatch === event.resolutionId) return false;

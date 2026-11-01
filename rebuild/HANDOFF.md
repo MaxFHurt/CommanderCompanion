@@ -8,7 +8,16 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.50** (1 Nov): **card fixes, batch 2**. Audit fix first: keyword lines are now read without their reminder
+- Live build: **1.0.0-rebuild.51** (1 Nov): **the top 1,000 complete** — every one of the 1,000 most-played Commander cards runs by itself.
+  The last 31: copy lands (`card.copyOf`, effects.js definitionFor), Dauthi Voidwalker (void counters), Kutzil, Ripples of Undeath, Return
+  the Favor, Conduit of Worlds (`lockAfterNextCast`), Culling Ritual (split mana), Puresteel Paladin and Danitha (equip cost changes in
+  rules.js activationReduction), Tibalt's Trickery, Hydroelectric Specimen, Trouble in Pairs, Archdruid's Charm, Springheart Nantuko,
+  Dredge (Life from the Loam: the draw step and resolving draws ask draw or dredge), Bloodchief Ascension and The Gitrog Monster (one
+  `put-into-graveyard` event per card, triggers.js), Inkshield, Buster Sword, The Soul Stone (harness, ∞ abilities, exile-a-creature costs),
+  Mycosynth Gardens, Ripples of Potential, Breach the Multiverse, Throne of Eldraine (chosen-colour payment), Promise of Loyalty (vow
+  counters), Splice onto Arcane, Cut a Deal, Approach-style "If X, Y instead", Moraug, Mechanized Production, Kardur.
+  Whole catalog: 21,001 of 31,770 (Moonshadow restored after the count: 21,000 + 1).
+  Build 50 (1 Nov): **card fixes, batch 2**. Audit fix first: keyword lines are now read without their reminder
   text, so cards with keywords the terms key marks "by hand" (Echo, Bushido, Cumulative upkeep …) are no longer counted as automatic
   (about 580 were; the honest count for build 49 was 20,226). Engine bug fixed: "Target creature gets +X/+X and gains <keyword>" dropped
   the +X/+X (about 140 cards, e.g. Blossoming Defense). New keywords: Bushido, Rampage, Afflict, Flanking, Battle cry, Annihilator,
@@ -234,7 +243,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (333 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (357 in-game checks, every new family; choices answered by the player who makes them).
   - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
     "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
     and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
@@ -341,7 +350,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 333 catalog-effect checks (builds 43-50)
+    node tests/node/catalog.mjs       # 357 catalog-effect checks (builds 43-51)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
