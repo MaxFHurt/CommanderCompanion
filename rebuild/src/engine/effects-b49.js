@@ -3,7 +3,7 @@
 // sentences around it (and the parts compiled so far); applyB49 runs the effect kinds made here and gatherB49 asks the
 // resolve-time questions. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, moveCard, definitionFor, resolveAmount, parseCondition, checkCondition, catalogHelpers as H } from './effects.js';
-import { effectivePower } from './combat.js';
+import { effectivePower, effectiveToughness } from './combat.js';
 import { cardFitsWords } from './effects-catalog.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
@@ -312,6 +312,16 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   if (/^Then that permanent'?s controller may sacrifice a land of their choice\.?$/i.test(c0) && /^If the player does, they may copy this spell and may choose a new target for that copy\.?$/i.test(String(clauses[i + 1] || ''))) {
     const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target');
     if (earlier) return { part: { effects: [{ kind: 'chain-copy', bind: `chain${i}` }], requirements: [{ kind: 'b49-chain', bind: `chain${i}`, targetBind: earlier.bind }], unsupported: [] }, consumed: 2 };
+  }
+  // Saw in Half: "If that creature dies this way, its controller creates two tokens that are copies of that creature, except their power is
+  // half that creature's power and their toughness is half that creature's toughness. Round up each time."
+  if (/^If that creature dies this way, its controller creates two tokens that are copies of that creature, except their power is half that creature'?s power and their toughness is half that creature'?s toughness\.?$/i.test(c0) && /^Round up each time\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const earlier = [...parts].reverse().flatMap(p => p.requirements || []).find(r => r.kind === 'target');
+    const part = earlier && parts.find(p => p.requirements?.includes(earlier));
+    if (part) {
+      part.effects.unshift({ kind: 'remember-lki', bind: earlier.bind, as: `lki${i}` });
+      return { part: { effects: [{ kind: 'saw-in-half', bind: earlier.bind, lki: `lki${i}` }], requirements: [], unsupported: [] }, consumed: 2 };
+    }
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -623,6 +633,20 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${who?.displayName} sacrifices ${nameOf(game, pick.land)}.`);
       // Their copy: they control it and choose its new target.
       return applyB49(game, pick.player, { kind: 'copy-self', retarget: true }, bindings, notes);
+    }
+    case 'remember-lki': {
+      const h = locateCardInGame(game, H.resolveBoundId(effect, bindings));
+      if (h?.zone === 'battlefield') bindings[effect.as] = { controllerId: h.card.controllerId, power: effectivePower(h.card, definitionFor(game, h.card), game), toughness: effectiveToughness(h.card, definitionFor(game, h.card), game) };
+      return true;
+    }
+    case 'saw-in-half': {
+      const id = H.resolveBoundId(effect, bindings), h = locateCardInGame(game, id), lki = bindings[effect.lki];
+      if (!lki || !h || h.zone !== 'graveyard') { notes.push('It did not die, so no tokens are made.'); return true; }
+      const d = definitionFor(game, h.card);
+      const half = n => String(Math.ceil(Math.max(0, Number(n || 0)) / 2));
+      for (let k = 0; k < 2; k++) H.applyEffectsUnsafe(game, lki.controllerId, [{ kind: 'create-token', amount: 1, name: d?.name, typeLine: /^Token\b/.test(d?.typeLine || '') ? d.typeLine : `Token ${d?.typeLine || 'Creature'}`, oracleText: d?.oracleText || '', power: half(lki.power), toughness: half(lki.toughness), keywords: d?.keywords || [], colors: d?.colors || [] }], bindings);
+      notes.push(`${playerById(game, lki.controllerId)?.displayName} creates two ${half(lki.power)}/${half(lki.toughness)} copies of ${d?.name}.`);
+      return true;
     }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];

@@ -2155,4 +2155,12 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Chain of Vapor: the opponent sacrifices a land, copies it, and bounces our creature', t.names(1, 'hand').includes('Grizzly Bears') && t.names(0, 'hand').includes('Llanowar Elves'), JSON.stringify([t.names(1, 'hand'), t.names(0, 'hand')]));
 }
 
+{
+  const t = setup();
+  const a = onField(t, 'Colossal Dreadmaw', '', { power: '5', toughness: '5' }, 1);
+  cast(t, 'Opt', "Destroy target creature. If that creature dies this way, its controller creates two tokens that are copies of that creature, except their power is half that creature's power and their toughness is half that creature's toughness. Round up each time.", [[d => d.targeting, () => a.instanceId]], { manaCost: '{G}' });
+  const toks = t.P(1).deck.battlefield.filter(c => c.token && def(t, c).name === 'Colossal Dreadmaw');
+  check('Saw in Half: its controller gets two 3/3 copies', toks.length === 2 && toks.every(c => power(t, c) === 3 && tough(t, c) === 3), JSON.stringify(toks.map(c => [power(t, c), tough(t, c)])));
+}
+
 done();
