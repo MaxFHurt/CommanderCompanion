@@ -1138,4 +1138,13 @@ section('round 19: Stifle, sweepers, planeswalker damage, divided damage, X targ
   check('Tap X target creatures (X=2)', a.tapped && b.tapped);
 }
 
+{
+  const t = setup();
+  const wall = onField(t, 'Fog Bank', '', { power: '0', toughness: '2' }, 1);
+  const bear = onField(t, 'Grizzly Bears', '', { power: '1', toughness: '3' });
+  cast(t, 'Opt', 'Switch target creature\'s power and toughness until end of turn.', [[d => d.targeting, () => wall.instanceId]]);
+  cast(t, 'Divination', 'Switch target creature\'s power and toughness until end of turn.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{U}' });
+  check('Twisted Image: a 0/2 becomes 2/0 and dies; a 1/3 becomes 3/1', !t.bf(1, 'Fog Bank') && power(t, bear) === 3 && tough(t, bear) === 1, JSON.stringify([power(t, bear), tough(t, bear)]));
+}
+
 done();

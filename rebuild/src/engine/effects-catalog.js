@@ -224,6 +224,12 @@ function compileCatalogClauseInner(c, ctx) {
     const amt = /^X$/i.test(m[1]) ? 'X' : m[1];
     return compileCatalogClauseInner(`Distribute ${amt} damage among ${/^(two|three)$/i.test(m[2]) ? `one, two, or three` : m[2]} ${m[3]}.`, ctx);
   }
+  // Twisted Image, Aquamoeba: "Switch target creature's power and toughness until end of turn."
+  if ((m = c.match(rx(`^Switch (target creature's|${selfAny}'s|this creature's|its) power and toughness until end of turn\\.?$`, 'i')))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : 'sourceId';
+    effects.push({ kind: 'switch-pt', bind });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -1737,6 +1743,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
         moveCard(game, id, 'hand', { onEvent: emit });
         notes.push(`${name(hit.card)} returns to ${controller.displayName}'s hand.`);
       }
+      return true;
+    }
+    case 'switch-pt': {
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      if (!hit) { notes.push('That creature is no longer on the battlefield.'); return true; }
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'switch-pt', expires: 'cleanup' }];
+      notes.push(`${name(hit.card)} has its power and toughness switched until end of turn.`);
       return true;
     }
     case 'self-hand-to-battlefield': {

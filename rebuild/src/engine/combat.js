@@ -73,13 +73,21 @@ function selfScalingPt(game, card, def) {
   }
   return { power, toughness };
 }
-export function effectivePower(card, def, game = null) {
+function rawPower(card, def, game) {
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
-  return Math.max(0, numStat(def?.power) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'power') + anthem.power + self.power);
+  return numStat(def?.power) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'power') + anthem.power + self.power;
 }
-export function effectiveToughness(card, def, game = null) {
+function rawToughness(card, def, game) {
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
   return numStat(def?.toughness) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'toughness') + anthem.toughness + self.toughness;
+}
+// "Switch target creature's power and toughness until end of turn": applied after every other change (an odd number of switches swaps).
+const switched = card => (card?.temporaryEffects || []).filter(e => e?.kind === 'switch-pt').length % 2 === 1;
+export function effectivePower(card, def, game = null) {
+  return Math.max(0, switched(card) ? rawToughness(card, def, game) : rawPower(card, def, game));
+}
+export function effectiveToughness(card, def, game = null) {
+  return switched(card) ? rawPower(card, def, game) : rawToughness(card, def, game);
 }
 /** "Your life total can't change" (Teferi's Protection until your next turn, Flare of Fortitude this turn). */
 export function lifeFixed(game, p) { return !!p?.lifeLocked && (p.lifeLockedTurn == null || p.lifeLockedTurn === game?.turnNumber); }
