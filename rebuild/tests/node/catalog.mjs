@@ -2282,7 +2282,8 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   settle(t);
   const bear = t.bf(0, 'Grizzly Bears');
   check('…ten permanents and a permanent with ascend: the city\'s blessing, and "as long as" bonuses apply', t.P(0).citysBlessing && power(t, bear) === 4, JSON.stringify([t.P(0).citysBlessing, power(t, bear)]));
-  const h1 = t.P(0).deck.hand.length;
+  t.give(0, 'Divination');
+  const h1 = t.P(0).deck.hand.length - 1;
   cast(t, 'Divination', text, [], { manaCost: '{U}' });
   check('…then the spell draws three', t.P(0).deck.hand.length === h1 + 3, String(t.P(0).deck.hand.length - h1));
 }
