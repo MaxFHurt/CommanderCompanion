@@ -111,6 +111,31 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const bind = first.requirements.find(r => r.kind === 'b49-play-exiled')?.bind;
     if (ok(first) && ok(then) && bind) return { part: { effects: [...first.effects, { kind: 'condition', test: 'b49-bound', bind, skip: then.effects.length }, ...then.effects], requirements: [...first.requirements, ...then.requirements], unsupported: [] }, consumed: 2 };
   }
+  // "Until end of turn, target creature gets +2/+0 and gains "…"": the pump, then the grant to the same creature.
+  if ((m = c0.match(/^(Until end of turn, )?(target creature(?: you control)?) gets ([+-]\d+\/[+-]\d+) and gains ((?:"[^"]+"(?:,? and )?)+)( until end of turn)?\.?$/i))) {
+    const a = compile(`${cap(m[2])} gets ${m[3]} until end of turn.`, sourceName);
+    const t = ok(a) && a.requirements.find(r => r.kind === 'target');
+    const quotes = [...m[4].matchAll(/"([^"]+)"/g)].map(x => x[1]);
+    const bind = t ? t.bind : null;
+    if (ok(a) && quotes.every(grantedUnderstood)) {
+      const earlier = bind || [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'choose-permanent')?.bind;
+      if (earlier) return { part: { effects: [...a.effects, { kind: 'grant-text', bind: earlier, texts: quotes, until: m[1] || m[5] ? 'turn' : 'permanent' }], requirements: a.requirements, unsupported: [] }, consumed: 1 };
+    }
+  }
+  // Malakir Rebirth: 'Until end of turn, that creature gains "When this creature dies, return it to the battlefield tapped …"'
+  if ((m = c0.match(/^(?:Until end of turn, )?(that creature|it|that permanent|target creature(?: you control)?|creatures you control|each creature you control)( also)? gains? ((?:"[^"]+"(?:,? and )?)+)( until end of turn)?\.?$/i))) {
+    const quotes = [...m[3].matchAll(/"([^"]+)"/g)].map(x => x[1]);
+    const until = /^Until end of turn/i.test(c0) || m[4] ? 'turn' : 'permanent';
+    if (quotes.every(grantedUnderstood)) {
+      if (/^(?:creatures you control|each creature you control)$/i.test(m[1])) return { part: { effects: [{ kind: 'grant-text-each', filter: 'creature', texts: quotes, until }], requirements: [], unsupported: [] }, consumed: 1 };
+      if (/^target/i.test(m[1])) {
+        const requirements = [], bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+        return { part: { effects: [{ kind: 'grant-text', bind, texts: quotes, until }], requirements, unsupported: [] }, consumed: 1 };
+      }
+      const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'choose-permanent');
+      if (earlier) return { part: { effects: [{ kind: 'grant-text', bind: earlier.bind, texts: quotes, until }], requirements: [], unsupported: [] }, consumed: 1 };
+    }
+  }
   // Isochron Scepter: "You may copy the exiled card. If you do, you may cast the copy without paying its mana cost."
   if (/^(?:you may )?copy the exiled card\.?$/i.test(c0) && /^If you do, you may cast the copy without paying its mana cost\.?$/i.test(String(clauses[i + 1] || ''))) {
     const bind = `castCopy${i}`;
@@ -204,6 +229,18 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} casts a copy of ${live.map(h => definitionFor(game, h.card)?.name).join(', ')} without paying its mana cost.`);
       return true;
     }
+    case 'grant-text':
+    case 'grant-text-each': {
+      const cards = effect.kind === 'grant-text' ? [locateCardInGame(game, H.resolveBoundId(effect, bindings))].filter(h => h?.zone === 'battlefield').map(h => h.card)
+        : (controller.deck.battlefield || []).filter(c => cardFitsWords(definitionFor(game, c), effect.filter));
+      if (!cards.length) { notes.push('It is no longer on the battlefield.'); return true; }
+      for (const card of cards) {
+        card.temporaryGrants = [...(card.temporaryGrants || []), ...effect.texts.map(text => ({ text, until: effect.until, turn: game.turnNumber }))];
+        card.grantedText = [...(card.grantedText || []), ...effect.texts];
+      }
+      notes.push(`${cards.length === 1 ? definitionFor(game, cards[0])?.name : `${cards.length} creatures`} gain${cards.length === 1 ? 's' : ''} "${effect.texts.join('" and "')}"${effect.until === 'turn' ? ' until end of turn' : ''}.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -292,6 +329,17 @@ export function queueFreeCast(game, entry) {
   game.flow = game.flow || {};
   if (!game.flow.freeCast) game.flow.freeCast = entry;
   else game.flow.freeCastQueue = [...(game.flow.freeCastQueue || []), entry];
+}
+
+/** Is a granted quoted ability one the game runs ("When this creature dies, …", "{T}: …")? */
+function grantedUnderstood(q) {
+  const t = String(q).trim();
+  const trig = t.match(/^(?:When|Whenever|At)\b[^,]*,\s*(.+)$/i);
+  const act = t.match(/^[^:"]+:\s*(.+)$/);
+  const body = trig ? trig[1] : act ? act[1] : null;
+  if (!body) return /^(?:flying|haste|trample|vigilance|lifelink|deathtouch|indestructible|hexproof|first strike|double strike|menace|reach)$/i.test(t);
+  const r = H.compileEffectText(body.replace(/^you may /i, m => m).replace(/^You may /, ''), { sourceName: 'this creature' });
+  return !!r?.supported;
 }
 
 // Conditions read here and checked in effects.js (conditionHolds).

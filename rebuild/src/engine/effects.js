@@ -98,6 +98,7 @@ export function clearCastState(card, to) {
   delete card.hiddenExile;
 }
 function resetOnZoneChange(card) {
+  delete card.temporaryGrants;   // granted abilities end; grantedText stays for last-known information (dies triggers)
   card.tapped = false;
   card.damageMarked = 0;
   card.deathtouchDamage = false;

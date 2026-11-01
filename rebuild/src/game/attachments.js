@@ -41,7 +41,12 @@ export function syncAttachments(game) {
   for (const p of game.players) for (const c of p.deck.battlefield) onField.set(c.instanceId, { card: c, player: p });
   let changed = false;
   // Quoted abilities granted by anthems: 'Creatures you control have "{T}: Add one mana of any color."' (Cryptolith Rite).
-  for (const { card } of onField.values()) card.grantedText = [];
+  for (const { card } of onField.values()) {
+    // Abilities granted for a while by a spell (Malakir Rebirth: until end of turn) stay with the card.
+    card.temporaryGrants = (card.temporaryGrants || []).filter(g => g.until === 'permanent' || g.turn === game.turnNumber);
+    card.grantedText = card.temporaryGrants.map(g => g.text);
+    if (!card.temporaryGrants.length) delete card.temporaryGrants;
+  }
   for (const { card: src, player } of onField.values()) {
     const text = String(defOf(game, { ...src, grantedText: [] })?.oracleText || '');
     for (const line of text.split('\n')) {

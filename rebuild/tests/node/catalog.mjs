@@ -1778,4 +1778,17 @@ section('round 49: imprint (Chrome Mox, Isochron Scepter)');
   check('Isochron Scepter: a copy of the exiled Opt is cast and resolves (its controller draws)', t.P(0).deck.hand.length === hand + 1 && t.names(0, 'exile').includes('Opt') && !t.P(0).deck.exile.some(c => c.castCopy) && !t.names(0, 'graveyard').includes('Opt'), JSON.stringify([t.P(0).deck.hand.length - hand, t.names(0, 'exile'), t.names(0, 'graveyard')]));
 }
 
+section('round 49: abilities granted until end of turn');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Choose target creature. You lose 3 life. Until end of turn, that creature gains "When this creature dies, return it to the battlefield tapped under its owner\'s control."', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  check('Malakir Rebirth: the creature gains the ability', (bear.grantedText || []).some(x => /When this creature dies/.test(x)));
+  cast(t, 'Divination', 'Destroy target creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}' });
+  const back = t.bf(0, 'Grizzly Bears');
+  check('…when it dies it returns to the battlefield tapped', !!back && back.tapped, JSON.stringify([t.names(0, 'battlefield').includes('Grizzly Bears'), back?.tapped]));
+  cast(t, 'Naturalize', 'Destroy target creature.', [[d => d.targeting, () => back.instanceId]], { manaCost: '{G}' });
+  check('…the returned creature is a new object: it does not come back again', t.names(0, 'graveyard').includes('Grizzly Bears') && !t.bf(0, 'Grizzly Bears'));
+}
+
 done();

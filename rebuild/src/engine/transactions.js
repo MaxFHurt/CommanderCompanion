@@ -122,6 +122,7 @@ function emit(game, event) {
 }
 /** Leaving the battlefield: remember counters for "dies" abilities, then reset the card. */
 function leaveBattlefield(card, to = 'graveyard') {
+  delete card.temporaryGrants;
   const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
   card.damageMarked = 0;
   card.deathtouchDamage = false;
