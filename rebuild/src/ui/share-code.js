@@ -8,6 +8,7 @@ import { html, raw, on, $ } from './dom.js';
 import { openModal } from './modal.js';
 import { toast } from './toast.js';
 import qrcode from '../vendor/qrcode.js';
+import { isLocalPairText } from '../net/local-link.js';
 
 /** Link that opens the app straight on the join screen. Keeps test settings (?net, ?online) if any. */
 export function joinLink(kind, code) {
@@ -21,6 +22,8 @@ export function joinLink(kind, code) {
 /** The code a scanned QR (or a typed link) points to: { kind: 'online' | 'room' | 'table', code } or null. */
 export function codeFromText(text) {
   const s = String(text || '').trim();
+  // A QR pairing code from a nearby host (local-link.js): "CCL1|o|ABCD|…".
+  if (isLocalPairText(s)) { const [, kind, code] = s.split('|'); return { kind: kind === 'a' ? 'pair-answer' : 'pair', code, text: s }; }
   try {
     const url = new URL(s);
     const join = url.searchParams.get('join'), room = url.searchParams.get('room'), table = url.searchParams.get('table');
@@ -33,7 +36,7 @@ export function codeFromText(text) {
   return null;
 }
 
-function qrSvg(text) {
+export function qrSvg(text) {
   const qr = qrcode(0, 'M');
   qr.addData(text);
   qr.make();
@@ -141,9 +144,43 @@ export function scanJoinCode() {
   });
 }
 
+/** Show a pairing QR code (dense: shown large). */
+export function openPairQr({ title, text, message, actions = [] }) {
+  return openModal({
+    title, size: 'small',
+    body: html`<div data-qr style="background:#fff;padding:10px;border-radius:12px;width:min(30rem,70vh);margin:0 auto">${raw(qrSvg(text))}</div>
+      <p class="muted" style="text-align:center">${message}</p>`,
+    actions: [...actions, { label: 'Close', kind: 'cancel' }]
+  });
+}
+
+/** Pair a nearby device from a host (lobby or game): show the offer, then read the answer (camera or pasted). */
+export async function pairNearbyDevice(room) {
+  let text;
+  try { text = await room.pairOffer(); } catch (error) { return toast(error.message || 'Pairing is not available here.', { bad: true }); }
+  const finish = async (answer, close) => {
+    const found = codeFromText(answer);
+    if (found?.kind !== 'pair-answer') return toast('That is not the answer code from the other device.', { bad: true });
+    close();
+    toast('Connecting…');
+    try { await room.pairAccept(found.text); toast('Paired — the device is joining.'); } catch (error) { toast(error.message, { bad: true, ms: 5000 }); }
+  };
+  openPairQr({
+    title: 'Pair a nearby device', text,
+    message: 'No internet needed — both devices on the same Wi-Fi or hotspot. On the other device: Join a room → Scan QR, scan this, then scan the code it shows with "Scan their code".',
+    actions: [
+      { label: 'Copy code', onClick: async () => toast((await copyText(text)) ? 'Pairing code copied.' : 'Could not copy.') },
+      { label: 'Paste theirs', onClick: async ({ close }) => { let t = ''; try { t = await navigator.clipboard.readText(); } catch { t = prompt('Paste the code from the other device') || ''; } if (t) finish(t, close); } },
+      { label: 'Scan their code', kind: 'confirm', onClick: async ({ close }) => { const found = await scanJoinCode(); if (found) finish(found.text || '', close); } }
+    ]
+  });
+}
+
 /** Open the screen a join code belongs to (after a scan, or a link that opened the app). */
 export function goToJoin(found, go) {
   if (!found) return false;
+  if (found.kind === 'pair') return go('join', { code: found.code, pair: found.text });
+  if (found.kind === 'pair-answer') return false;
   if (found.kind === 'online') return go('online', { code: found.code });
   if (found.kind === 'table') return go('tracker-join', { code: found.code });
   return go('join', { code: found.code });

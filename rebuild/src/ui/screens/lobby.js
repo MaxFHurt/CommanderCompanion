@@ -8,7 +8,7 @@ import { hostRoom } from '../../net/room.js';
 import { newRoomCode } from '../../net/transport.js';
 import { chooseRules, buildGame } from '../../app/start-game.js';
 import { startHostSession } from '../../app/session.js';
-import { shareCodeHtml, bindShareCode } from '../share-code.js';
+import { shareCodeHtml, bindShareCode, pairNearbyDevice } from '../share-code.js';
 
 export const lobbyScreen = {
   mount(root, params = {}) {
@@ -31,7 +31,8 @@ export const lobbyScreen = {
               <b class="chrome-text">${room ? room.code : '····'}</b>
               <p class="muted">${error || (room ? 'On each other device: Start Game → choose a mode → Join a room, then enter this code.' : 'Opening the room…')}</p>
               ${room ? shareCodeHtml({ code: room.code, kind: 'room', what: 'game', inlineQr: true }) : ''}
-              ${room?.kind === 'loopback' ? html`<p class="warn">Same-browser room: the online connection service could not be reached, so only tabs of this browser can join.</p>` : ''}
+              ${room ? html`<button type="button" class="btn btn--small" data-act="pair" style="margin-top:0.6rem">Pair a nearby device (no internet)</button>` : ''}
+              ${room?.kind === 'loopback' ? html`<p class="warn">No internet connection service: pair nearby devices by QR code (Pair a nearby device), or use tabs of this browser.</p>` : ''}
             </section>
             <section class="panel lobby__seats">
               <h3 class="section-title">Players (${localSeats.length + joined.length} of ${localSeats.length + remoteSeats})</h3>
@@ -96,6 +97,7 @@ export const lobbyScreen = {
       switch (el.dataset.act) {
         case 'back': return go(hostDevice ? 'mode-select' : 'player-setup', { mode, play: 'host-player', seats: params.setupSeats, remoteSeats });
         case 'kick': return room?.kick(el.dataset.id);
+        case 'pair': return room && pairNearbyDevice(room);
         case 'start': return start();
         case 'cancel-rules': return room?.cancelRules();
       }

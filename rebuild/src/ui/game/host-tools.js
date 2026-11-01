@@ -1,3 +1,4 @@
+import { pairNearbyDevice } from '../share-code.js';
 // Host / Free Play tools: change anything about the game by hand. Every change is logged.
 
 import { html, on, $, setHtml } from '../dom.js';
@@ -38,6 +39,7 @@ export function openHostTools(ctx) {
         <button type="button" class="btn btn--small" data-tool="phase">Set phase…</button>
         <button type="button" class="btn btn--small" data-tool="active">Set active player…</button>
         <button type="button" class="btn btn--small" data-tool="rules">Table rules…</button>
+        ${ctx.session?.net?.pairOffer ? html`<button type="button" class="btn btn--small" data-tool="pair">Pair a nearby device…</button>` : ''}
       </div>
       <h4 class="section-title">Stack (${view.stack.length})</h4>
       <div class="row row--wrap">
@@ -70,6 +72,7 @@ export function openHostTools(ctx) {
         if (tool === 'token') return choosePlayer('Who gets the token?', playerId => openTokenPicker(ctx, playerId, close));
         if (tool === 'add-card') return choosePlayer('Add a card for…', playerId => openAddCard(ctx, playerId, close));
         if (tool === 'rules') return openRulesEdit(ctx, close);
+        if (tool === 'pair') { close(); return pairNearbyDevice(ctx.session.net); }   // a QR-paired player who dropped, or a new watcher
       });
     }
   });

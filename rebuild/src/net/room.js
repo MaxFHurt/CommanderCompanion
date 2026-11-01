@@ -113,13 +113,16 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
       });
     },
     cancelRules() { if (rulesVote) { const v = rulesVote; rulesVote = null; v.resolve({ ok: false, cancelled: true }); } },
+    /** QR pairing with a nearby device (no internet): the QR text to show, then the answer it shows back. */
+    pairOffer: () => transport.local.offer(),
+    pairAccept: text => transport.local.accept(text),
     close() { transport.close(); }
   };
 }
 
 /** Client side. Resolves once the host has accepted the join. */
-export async function joinRoom(code, { clientId, seat = null, name = '' }) {
-  let transport = await openClientTransport(code, clientId);
+export async function joinRoom(code, { clientId, seat = null, name = '', local = null }) {
+  let transport = await openClientTransport(code, clientId, local);
   const view = emitter(), status = emitter(), lobby = emitter(), rulesEv = emitter();
   const pending = new Map();
   let state = 'online', next = 1, lastLobby = null;
@@ -150,6 +153,8 @@ export async function joinRoom(code, { clientId, seat = null, name = '' }) {
     transport.onClose(async () => {
       if (state === 'closed') return;
       state = 'lost'; status.emit(state);
+      // A QR-paired device can't reconnect by itself: pair again from the host's lobby or game.
+      if (transport.kind === 'local') return;
       // Try to get back in for a while (phone slept, wifi blip).
       for (let attempt = 0; attempt < 40 && state === 'lost'; attempt++) {   // about two minutes: covers a host restart
         await new Promise(r => setTimeout(r, 3000));

@@ -2,6 +2,8 @@
 // "peer" uses WebRTC through PeerJS (works across phones on any network).
 // "loopback" uses BroadcastChannel (tabs of one browser) — used for testing and as a fallback.
 
+import { withLocalPeers, localClient } from './local-link.js';
+
 const PEER_SRC = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
 const PREFIX = 'commander-companion-room-';
 
@@ -120,18 +122,21 @@ async function peerClient(code, clientId) {
   return { kind: 'peer', send: body => { if (conn.open) conn.send(body); }, onMessage: message.on, onClose: closed.on, close: () => { try { conn.close(); } catch { /* closing */ } peer.destroy(); } };
 }
 
+// Every host can also pair nearby devices by QR code (local-link.js), with or without internet.
 export async function openHostTransport(code) {
-  if (preferredTransport() === 'loopback') return loopbackHost(code);
-  try { return await peerHost(code); } catch (error) {
+  if (preferredTransport() === 'loopback') return withLocalPeers(await loopbackHost(code), code);
+  try { return withLocalPeers(await peerHost(code), code); } catch (error) {
     if (/already in use/.test(error.message)) throw error;
-    console.warn('PeerJS unavailable, using same-browser rooms', error);
-    const t = await loopbackHost(code);
+    console.warn('PeerJS unavailable, using same-browser rooms (QR pairing still works)', error);
+    const t = withLocalPeers(await loopbackHost(code), code);
     t.fallback = true;
     return t;
   }
 }
 
-export async function openClientTransport(code, clientId) {
+/** `local`: { offer, onAnswer } — join by scanning the host's pairing QR code (no internet needed). */
+export async function openClientTransport(code, clientId, local = null) {
+  if (local?.offer) return localClient(local.offer, clientId, local.onAnswer || (() => {}));
   if (preferredTransport() === 'loopback') return loopbackClient(code, clientId);
   try { return await peerClient(code, clientId); } catch (error) {
     try { return await loopbackClient(code, clientId); } catch { throw error; }

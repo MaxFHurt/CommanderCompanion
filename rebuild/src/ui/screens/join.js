@@ -11,14 +11,14 @@ import { joinRoom, deviceClientId } from '../../net/room.js';
 import { startClientSession } from '../../app/session.js';
 import { openModal } from '../modal.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
-import { scanJoinCode, goToJoin } from '../share-code.js';
+import { scanJoinCode, goToJoin, openPairQr, codeFromText } from '../share-code.js';
 
 export const joinScreen = {
   mount(root, params = {}) {
     const seat = params.seat || emptySeat(accountSetupDefaults().displayName || '');
     let lastRoom = '';
     try { lastRoom = localStorage.getItem('cc-last-room') || ''; } catch { /* optional */ }
-    let code = params.code || lastRoom, link = null, busy = false, left = false;
+    let code = params.code || lastRoom, link = null, busy = false, left = false, pairText = params.pair || null, answerModal = null;
     const offs = [];
 
     function draw() {
@@ -42,6 +42,8 @@ export const joinScreen = {
                 ${lastRoom ? html`<button type="button" class="btn btn--small btn--confirm" data-act="watch">Rejoin room ${lastRoom}</button>` : ''}
                 <button type="button" class="btn btn--small" data-act="watch">Just watch</button>
                 <button type="button" class="btn btn--small" data-act="scan">Scan QR</button>
+                <button type="button" class="btn btn--small" data-act="paste-pair">Paste pairing code</button>
+                ${pairText ? html`<p class="muted">Paired with room ${code} on this Wi-Fi (no internet needed). Choose your deck, then Join.</p>` : ''}
               </nav>
               <section class="setup__form panel">${seatFormHtml(seat, 0)}</section>`}
           </div>
@@ -63,7 +65,9 @@ export const joinScreen = {
           try { localStorage.setItem('cc-join-mat', seat.matId || ''); } catch { /* optional */ }
         }
         toast('Connecting…');
-        link = await joinRoom(code, { clientId: deviceClientId(), seat: prepared, name: seat.name || 'Spectator' });
+        const local = pairText ? { offer: pairText, onAnswer: t => { answerModal = openPairQr({ title: 'Show this to the host', text: t, message: 'On the host: "Scan their code". You are connected once it is scanned.' }); } } : null;
+        try { link = await joinRoom(code, { clientId: deviceClientId(), seat: prepared, name: seat.name || 'Spectator', local }); }
+        finally { answerModal?.close(); answerModal = null; }
         try { localStorage.setItem('cc-last-room', code); } catch { /* optional */ }
         if (left) return link.close();
         if (link.kind === 'tracker') { link.close(); link = null; left = true; return go('tracker-join', { code, name: seat.name }); }
@@ -103,9 +107,17 @@ export const joinScreen = {
         case 'watch': return join(true);
         case 'scan': return scanJoinCode().then(found => {
           if (!found) return;
+          if (found.kind === 'pair') { pairText = found.text; code = found.code; draw(); return toast(`Paired with room ${code} — choose your deck, then Join.`); }
           if (found.kind !== 'room') return goToJoin(found, go);
-          code = found.code; draw(); toast(`Room ${code} — choose your deck, then Join.`);
+          pairText = null; code = found.code; draw(); toast(`Room ${code} — choose your deck, then Join.`);
         });
+        case 'paste-pair': return (async () => {
+          let t = '';
+          try { t = await navigator.clipboard.readText(); } catch { t = prompt('Paste the pairing code from the host') || ''; }
+          const found = codeFromText(t);
+          if (found?.kind !== 'pair') return toast('That is not a pairing code from the host.', { bad: true });
+          pairText = found.text; code = found.code; draw(); toast(`Paired with room ${code} — choose your deck, then Join.`);
+        })();
       }
     }));
     return () => { const entered = left; left = true; for (const off of offs) off(); if (link && !entered) link.close(); };
