@@ -58,7 +58,7 @@ function cardView(game, card, defs, extra = {}) {
     name: def?.name || 'Card', type: def?.typeLine || '', owner: card.ownerId, controller: card.controllerId,
     tapped: !!card.tapped, token: !!card.token, counters: { ...(card.counters || {}) },
     power: creature ? effectivePower(card, def, game) : null, toughness: creature ? effectiveToughness(card, def, game) : null,
-    damage: Number(card.damageMarked || 0), attachedTo: card.attachedTo || null, attachments: [...(card.attachments || [])],
+    damage: Number(card.damageMarked || 0), attachedTo: card.attachedTo || null, pairedWith: card.pairedWith || null, attachments: [...(card.attachments || [])],
     chosen: card.chosenColor || card.chosenCreatureType || card.chosenCardName || null,
     ...extra
   };

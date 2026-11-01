@@ -63,6 +63,28 @@ export function syncAttachments(game) {
     card.attachments = [];
     if ((card.temporaryEffects || []).some(e => e?.source === 'attachment')) card.temporaryEffects = card.temporaryEffects.filter(e => e?.source !== 'attachment');
   }
+  // Soulbond: a pair ends when either creature leaves or changes control; while paired, both get what the text says.
+  for (const { card, player } of onField.values()) {
+    if (!card.pairedWith) continue;
+    const mate = onField.get(card.pairedWith);
+    if (!mate || mate.player.playerId !== player.playerId || mate.card.pairedWith !== card.instanceId || !/\bCreature\b/.test(defOf(game, mate.card)?.typeLine || '')) { delete card.pairedWith; changed = true; }
+  }
+  for (const { card: src } of onField.values()) {
+    if (!src.pairedWith) continue;
+    const mate = onField.get(src.pairedWith)?.card;
+    if (!mate) continue;
+    for (const line of String(defOf(game, { ...src, grantedText: [] })?.oracleText || '').split('\n')) {
+      const m = line.match(/^As long as .+? is paired with another creature, (?:both creatures|each of those creatures) (have|has|gets?) (.+?)\.?$/i);
+      if (!m) continue;
+      for (const c of [src, mate]) {
+        c.temporaryEffects = c.temporaryEffects || [];
+        const pt = m[2].match(/^([+-]\d+)\/([+-]\d+)$/);
+        if (/^gets?$/i.test(m[1]) && pt) c.temporaryEffects.push({ kind: 'pt', power: Number(pt[1]), toughness: Number(pt[2]), source: 'attachment' });
+        else if (/"/.test(m[2])) c.grantedText = [...(c.grantedText || []), ...[...m[2].matchAll(/"([^"]+)"/g)].map(x => x[1])];
+        else for (const k of m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean)) c.temporaryEffects.push({ kind: 'keyword', keyword: k.charAt(0).toUpperCase() + k.slice(1), enabled: true, source: 'attachment' });
+      }
+    }
+  }
   for (const { card, player } of [...onField.values()]) {
     if (!card.attachedTo) continue;
     // Attached to a player (Curses): stays while that player is in the game.

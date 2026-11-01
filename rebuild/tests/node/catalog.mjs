@@ -1291,4 +1291,24 @@ section('round 28: Emerge');
   check('Emerge: sacrifice a 4-drop and pay {2}{G}{G}', !err && !t.bf(0, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves') && lands === 4, JSON.stringify([err, lands]));
 }
 
+section('round 29: Soulbond');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Llanowar Elves'); const wolfir = asText(t, t.hand(0, 'Llanowar Elves'), 'Soulbond\nAs long as this creature is paired with another creature, each of those creatures gets +4/+4.', { manaCost: '{G}', power: '4', toughness: '4' });
+  t.ctl.dispatch({ type: 'play', instanceId: wolfir.instanceId }, t.as(0));
+  settle(t, [['soulbond', () => bear.instanceId]]);
+  check('Soulbond: paired on entering; both get +4/+4', power(t, bear) === 6 && power(t, t.bf(0, 'Llanowar Elves')) === 8, JSON.stringify([power(t, bear), power(t, t.bf(0, 'Llanowar Elves'))]));
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => t.bf(0, 'Llanowar Elves').instanceId]]);
+  check('…the pair ends when one leaves', power(t, bear) === 2 && !bear.pairedWith, JSON.stringify([power(t, bear), bear.pairedWith]));
+}
+{
+  const t = setup();
+  onField(t, 'Llanowar Elves', 'Soulbond\nAs long as this creature is paired with another creature, both creatures have double strike.');
+  t.give(0, 'Grizzly Bears'); const bear = asText(t, t.hand(0, 'Grizzly Bears'), '', { manaCost: '{G}' });
+  t.ctl.dispatch({ type: 'play', instanceId: bear.instanceId }, t.as(0));
+  settle(t, [['soulbond', d => d.options[0].id]]);
+  check('Soulbond: another creature entering can pair; both have double strike', has(t, t.bf(0, 'Grizzly Bears'), 'Double strike') && has(t, t.bf(0, 'Llanowar Elves'), 'Double strike'));
+}
+
 done();

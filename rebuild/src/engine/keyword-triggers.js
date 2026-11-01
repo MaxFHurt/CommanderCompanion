@@ -47,6 +47,12 @@ export function keywordTriggers(game, row, event) {
     for (let i = 0; i < count; i++)
       add(`exalted-${i}`, 'Exalted — the creature attacking alone gets +1/+1 until end of turn.', '', { compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'pump', targetId: event.attackers[0], power: 1, toughness: 1, expires: 'cleanup' }] } });
   }
+  // Soulbond: when this or another creature you control enters, you may pair them (both unpaired).
+  if (onField && event.type === 'enters-battlefield' && /(?:^|\n)\s*Soulbond\b/i.test(strip(d.oracleText)) && !card.pairedWith) {
+    const other = event.sourceId !== card.instanceId ? (row.player.deck?.battlefield || []).find(c => c.instanceId === event.sourceId) : null;
+    if (self) add('soulbond', `Soulbond — you may pair ${d.name} with another unpaired creature you control.`, '', { special: 'soulbond' });
+    else if (other && !other.pairedWith && event.controllerId === row.player.playerId && /\bCreature\b/.test(event.typeLine || '')) add('soulbond', `Soulbond — you may pair ${d.name} with the creature that entered.`, '', { special: 'soulbond' });
+  }
   // Suspend: at the beginning of its owner's upkeep, remove a time counter (ops.js casts it when the last one goes).
   if (row.zone === 'exile' && card.suspended && event.type === 'upkeep' && event.playerId === row.player.playerId && Number(card.counters?.time || 0) > 0)
     add('suspend', `Suspend — remove a time counter from ${d.name}.`, '', { special: 'suspend' });

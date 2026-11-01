@@ -1111,7 +1111,7 @@ export function specialFromText(text) {
   return null;
 }
 
-const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', suspend: 'Suspend', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
+const SPECIAL_LABEL = { rebound: 'Rebound', madness: 'Madness', miracle: 'Miracle', suspend: 'Suspend', soulbond: 'Soulbond', 'initiative-venture': 'Venture into Undercity', cascade: 'Cascade', storm: 'Storm', discover: 'Discover', venture: 'Venture into the dungeon', initiative: 'The initiative' };
 
 /** Which room the player ventures into (asks for the dungeon and branch; changes nothing). */
 function ventureChoice(game, player, ask, { undercity = false } = {}) {
@@ -1168,7 +1168,7 @@ function stackSpecial(game, player, trigger, spec) {
   if (top) Object.assign(top, {
     name, label: `${name} — ${SPECIAL_LABEL[spec.special]}`, text: trigger.abilityText || SPECIAL_LABEL[spec.special],
     special: spec.special, amount: spec.amount ?? trigger.amount ?? null, spellStackId: trigger.spellStackId || null,
-    manaValue: trigger.manaValue ?? null, stormCount: trigger.stormCount ?? null, madnessCost: trigger.madnessCost ?? null, resolveReqs: []
+    manaValue: trigger.manaValue ?? null, stormCount: trigger.stormCount ?? null, madnessCost: trigger.madnessCost ?? null, event: trigger.event ? structuredClone(trigger.event) : null, resolveReqs: []
   });
 }
 
@@ -1256,6 +1256,19 @@ function runSpecial(game, top, player, ask) {
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId);
     const choice = card ? ask('rebound', () => ({ ...base, kind: 'choose-one', title: `${top.name} — rebound`, definitionId: card.definitionId, prompt: `Cast ${top.name} from exile without paying its mana cost?`, options: [{ id: 'cast', label: 'Cast it free' }, { id: 'no', label: 'Leave it in exile' }] })) : 'none';
     after = () => { if (card && choice === 'cast') game.flow.freeCast = { playerId: player.playerId, instanceId: card.instanceId }; };
+  } else if (special === 'soulbond') {
+    // Pair this creature with an unpaired creature you control (the one that entered, or any when it entered itself).
+    const me = player.deck.battlefield.find(c => c.instanceId === top.sourceId);
+    const entered = top.event?.sourceId && top.event.sourceId !== top.sourceId ? top.event.sourceId : null;
+    const rows = me && !me.pairedWith ? player.deck.battlefield.filter(c => c.instanceId !== me.instanceId && !c.pairedWith && /\bCreature\b/.test(defOf(game, c)?.typeLine || '') && (!entered || c.instanceId === entered))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) : [];
+    const pick = rows.length ? ask('soulbond', () => ({ ...base, kind: 'choose-one', title: `${top.name} — soulbond`, prompt: `Pair ${top.name} with a creature?`, options: rows, allowNone: true, noneLabel: 'Don\u2019t pair' })) : null;
+    after = () => {
+      const mate = pick && player.deck.battlefield.find(c => c.instanceId === pick);
+      if (!me || !mate || me.pairedWith || mate.pairedWith) return;
+      me.pairedWith = mate.instanceId; mate.pairedWith = me.instanceId;
+      log(game, `${top.name} is paired with ${defOf(game, mate)?.name || 'a creature'}.`);
+    };
   } else if (special === 'suspend') {
     // Suspend: remove a time counter; when the last is removed, cast it without paying its mana cost (a creature gains haste).
     const card = (player.deck.exile || []).find(c => c.instanceId === top.sourceId && c.suspended);

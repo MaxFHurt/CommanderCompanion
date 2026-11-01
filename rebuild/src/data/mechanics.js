@@ -304,7 +304,7 @@ m('Saddle', 'keyword', 'Tap creatures with total power N or more: this Mount bec
 m('Scavenge', 'keyword', 'Exile this card from your graveyard and pay: put +1/+1 counters equal to its power on target creature. Sorcery speed.', { auto: 'auto', actions: ['exile', 'counter+'] });
 m('Shadow', 'keyword', 'Can block or be blocked only by creatures with shadow.', { auto: 'auto' });
 m('Skulk', 'keyword', 'Can\'t be blocked by creatures with greater power.', { auto: 'auto' });
-m('Soulbond', 'keyword', 'Pair this with another unpaired creature when either enters; both get the listed bonus while paired.', { auto: 'manual', actions: ['status'] });
+m('Soulbond', 'keyword', 'Pair this with another unpaired creature when either enters; both get the listed bonus while paired.', { auto: 'auto', steps: 'When either creature enters, the game asks whether to pair them; the bonus applies while both stay under your control.', actions: ['status'] });
 m('Soulshift', 'keyword', 'Soulshift N: when this dies, return target Spirit card with mana value N or less from your graveyard to your hand.', { auto: 'manual', actions: ['return-hand'] });
 m('Spectacle', 'keyword', 'You may cast this for its spectacle cost if an opponent lost life this turn.', { auto: 'manual' });
 m('Splice', 'keyword', 'Splice onto [type]: reveal this as you cast a spell of that type and pay the cost to add this card\'s effect to it.', { auto: 'manual' });
