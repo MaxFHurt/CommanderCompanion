@@ -1050,7 +1050,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (effect.kind === 'prevent-damage') {
-      const targetId = resolveBoundId(effect, bindings);
+      const targetId = effect.toController ? controllerId : resolveBoundId(effect, bindings);
       if (!targetId)
         throw new Error('Damage-prevention target is unavailable.');
       game.damagePrevention = game.damagePrevention || [];
@@ -2283,6 +2283,11 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   }
   if (/^You may cast spells from your graveyard this turn\.?$/i.test(c)) {
     effects.push({ kind: 'grant-cast-zone', zone: 'graveyard', expires: 'cleanup' });
+    return { effects, requirements, unsupported };
+  }
+  // "Prevent the next 3 damage that would be dealt to you / to this creature this turn."
+  if ((m = c.match(rx(`^Prevent the next (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage that would be dealt to (you|${selfAny}|this creature) this turn\\.?$`, 'i')))) {
+    effects.push({ kind: 'prevent-damage', ...(/^you$/i.test(m[2]) ? { toController: true } : { bind: 'sourceId' }), amount: numberFromText(m[1]) ?? m[1].toUpperCase(), expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Prevent the next (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage that would be dealt to (any target|target creature|target player|target permanent) this turn\.?$/i))) {
