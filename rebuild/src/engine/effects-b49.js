@@ -282,6 +282,12 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   // Torment of Hailfire: "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card."
   if (/^Repeat the following process X times\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^Each opponent loses (\w+) life unless that player sacrifices a nonland permanent of their choice or discards a card\.?$/i)))
     return { part: { effects: [{ kind: 'torment', bind: 'torment', loss: num(m[1]) }], requirements: [{ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }, { kind: 'b49-torment', bind: 'torment', loss: num(m[1]) }], unsupported: [] }, consumed: 2 };
+  // Demonic Consultation.
+  if (/^Choose a card name\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^Exile the top (\w+) cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name\.?$/i)) && /^Put that card into your hand and exile all other cards revealed this way\.?$/i.test(String(clauses[i + 2] || '')))
+    return { part: { effects: [{ kind: 'consultation', skipTop: num(m[1]), bind: 'chosenName' }], requirements: [{ kind: 'b49-card-name', bind: 'chosenName' }], unsupported: [] }, consumed: 3 };
+  // Tainted Pact.
+  if (/^Exile the top card of your library\.?$/i.test(c0) && /^You may put that card into your hand unless it has the same name as another card exiled this way\.?$/i.test(String(clauses[i + 1] || '')) && /^Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first\.?$/i.test(String(clauses[i + 2] || '')))
+    return { part: { effects: [{ kind: 'tainted-pact', bind: 'pact' }], requirements: [{ kind: 'b49-tainted-pact', bind: 'pact' }], unsupported: [] }, consumed: 3 };
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
     const mine = /^control$/i.test(m[3]);
@@ -525,6 +531,26 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'consultation': {
+      const emit = e => H.emit(bindings, e);
+      const lib = controller.deck.remainingLibrary || [];
+      const want = String(bindings[effect.bind] || '').trim().toLowerCase();
+      for (const c of lib.slice(0, effect.skipTop)) moveCard(game, c.instanceId, 'exile', { onEvent: emit });
+      const rest = [...lib];
+      const k = rest.findIndex(c => String(definitionFor(game, c)?.name || '').toLowerCase() === want);
+      const revealed = k < 0 ? rest : rest.slice(0, k + 1);
+      for (const c of revealed) moveCard(game, c.instanceId, c === rest[k] ? 'hand' : 'exile', { onEvent: emit });
+      notes.push(k < 0 ? `${controller.displayName} reveals their whole library and finds no "${bindings[effect.bind]}"; it is all exiled.` : `${controller.displayName} finds ${definitionFor(game, rest[k])?.name} after ${k} other card${k === 1 ? '' : 's'} and puts it into their hand.`);
+      return true;
+    }
+    case 'tainted-pact': {
+      const emit = e => H.emit(bindings, e);
+      const r = bindings[effect.bind] || { count: 0, take: null };
+      const ids = (controller.deck.remainingLibrary || []).slice(0, r.count).map(c => c.instanceId);
+      for (const id of ids) moveCard(game, id, id === r.take ? 'hand' : 'exile', { onEvent: emit });
+      notes.push(`${controller.displayName} exiles ${ids.length - (r.take ? 1 : 0)} card${ids.length - (r.take ? 1 : 0) === 1 ? '' : 's'}${r.take ? ` and puts ${nameOf(game, r.take)} into their hand` : ''}.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -674,6 +700,25 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
       keep[p.playerId] = [...kept];
     }
     bindings[req.bind] = keep;
+    return true;
+  }
+  if (req.kind === 'b49-card-name') {
+    bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'text', title, prompt: 'Name a card.' }));
+    return true;
+  }
+  if (req.kind === 'b49-tainted-pact') {
+    // Walk the library as the cards would be exiled: stop at a repeated name or when the player keeps one.
+    const lib = player.deck.remainingLibrary || [], seen = new Set();
+    let count = 0, take = null;
+    for (const c of lib) {
+      const name = util.defOf(game, c)?.name || '';
+      count++;
+      if (seen.has(name)) break;
+      seen.add(name);
+      const v = ask(`${key}:${count}`, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title, prompt: `You exile ${name}. Put it into your hand (and stop)?`, options: [{ id: 'take', label: `Put ${name} into your hand` }, { id: 'next', label: 'Exile it and continue' }] }));
+      if (v === 'take') { take = c.instanceId; break; }
+    }
+    bindings[req.bind] = { count, take };
     return true;
   }
   if (req.kind === 'b49-hand-pick') {

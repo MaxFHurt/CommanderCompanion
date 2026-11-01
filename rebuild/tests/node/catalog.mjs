@@ -2059,4 +2059,20 @@ section('round 50: strive, any number of targets, "for each … this way"');
   check('Liliana −9: the opponent keeps one creature and one land; the rest are sacrificed', t.names(1, 'battlefield').filter(n => n === 'Forest').length === 1 && t.names(1, 'battlefield').includes('Llanowar Elves') && !t.names(1, 'battlefield').includes('Grizzly Bears'), JSON.stringify(t.names(1, 'battlefield')));
 }
 
+{
+  const t = setup();
+  t.give(0, 'Opt');
+  const lib = t.P(0).deck.remainingLibrary, k = lib.findIndex(c => def(t, c).name === 'Mulldrifter');
+  lib.splice(9, 0, ...lib.splice(k, 1));
+  const size = lib.length;
+  cast(t, 'Opt', 'Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.', [[d => d.kind === 'text', 'Mulldrifter']], { manaCost: '{G}' });
+  check('Demonic Consultation: six exiled, then cards revealed down to the named card, which goes to hand', t.P(0).deck.hand.some(c => def(t, c).name === 'Mulldrifter') && t.P(0).deck.remainingLibrary.length === size - 10, String(size - t.P(0).deck.remainingLibrary.length));
+}
+{
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary, third = lib[2].instanceId;
+  cast(t, 'Opt', 'Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.', [[d => d.key.endsWith(':3'), 'take'], [d => /Put it into your hand/.test(d.prompt || ''), 'next']], { manaCost: '{G}' });
+  check('Tainted Pact: the player passes twice and keeps the third card', t.P(0).deck.hand.some(c => c.instanceId === third) && t.P(0).deck.exile.length >= 2);
+}
+
 done();
