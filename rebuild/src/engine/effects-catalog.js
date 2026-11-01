@@ -312,6 +312,13 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'graveyard-shuffle-in', bind, playerBind });
     return true;
   }
+  // Learn: in Commander there is normally no sideboard to fetch a Lesson from, so learning means "you may discard a card;
+  // if you do, draw a card" (the player decides).
+  if (/^(?:you )?learn\.?$/i.test(c)) {
+    const inner = H.compileEffectText('You may discard a card. If you do, draw a card.', { sourceName });
+    effects.push(...inner.effects); requirements.push(...inner.requirements);
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });

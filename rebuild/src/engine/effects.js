@@ -792,6 +792,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         if (!Array.isArray(ids))
           ids = [ids];
         const need = Math.min(amount, p.deck.hand.length);
+        if (effect.requireDone && need < amount) bindings.__notDone = true;   // "If you do": nothing (or too little) to discard
         if (ids.length < need)
           throw new Error(`${p.displayName} must choose ${need} card${need === 1 ? '' : 's'} to discard.`);
         for (const id of ids.slice(0, need)) {
@@ -2940,7 +2941,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
         const bind = `mayDo${parts.length}`;
         const req = [{ kind: 'yes-no', bind, label: `${mayDo[1].replace(/\.$/, '')}?` }];
         // A sacrifice that could not be made means "if you do" is false: the rest is skipped.
-        const firstFx = first.effects.map(e => (e.kind === 'sacrifice-many' ? { ...e, requireDone: true } : e));
+        const firstFx = first.effects.map(e => (['sacrifice-many', 'discard'].includes(e.kind) ? { ...e, requireDone: true } : e));
         const guard = firstFx.some(e => e.requireDone) ? [{ kind: 'condition', test: 'done', skip: then.effects.length }] : [];
         parts.push({ effects: [{ kind: 'condition', test: 'chosen', bind, skip: firstFx.length + guard.length + then.effects.length }, ...firstFx, ...guard, ...then.effects], requirements: [...req, ...first.requirements, ...then.requirements], unsupported: [] });
         skipNextClause = true;
@@ -3240,4 +3241,4 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
 export function supportForEffectText(text) { const c = compileEffectText(text); return { supported: c.supported, unsupported: c.unsupported, effectKinds: [...new Set(c.effects.map(e => e.kind))], requirements: c.requirements, guidedFallbackAvailable: c.guidedFallbackAvailable }; }
 
 // Helpers for effects-catalog.js (read when its functions run, never at load time).
-export const catalogHelpers = { setTapped, faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
+export const catalogHelpers = { setTapped, compileEffectText: (...a) => compileEffectText(...a), faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
