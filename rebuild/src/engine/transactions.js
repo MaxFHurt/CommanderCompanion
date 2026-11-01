@@ -536,6 +536,7 @@ function resolveStackTop(game) {
         card.chosenPlayerId = obj.asEntersChoices.playerId;
       if (obj.asEntersChoices?.protectorId)
         card.protectorId = obj.asEntersChoices.protectorId;
+      if (obj.asEntersChoices && 'tributePaid' in obj.asEntersChoices) card.tributePaid = !!obj.asEntersChoices.tributePaid;
       if (obj.asEntersChoices?.plusCounters) {
         card.counters = card.counters || {};
         card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);

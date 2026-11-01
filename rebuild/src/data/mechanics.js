@@ -174,7 +174,7 @@ m('Affinity', 'keyword', 'Affinity for [type]: this spell costs {1} less for eac
 m('Afflict', 'keyword', 'Afflict N: whenever this becomes blocked, defending player loses N life.', { auto: 'auto', actions: ['life-loss'] });
 m('Afterlife', 'keyword', 'Afterlife N: when this dies, create N 1/1 white and black Spirit tokens with flying.', { auto: 'auto', actions: ['token'] });
 m('Aftermath', 'keyword', 'Cast the second half of this split card only from your graveyard; then exile it.', { auto: 'manual' });
-m('Amplify', 'keyword', 'Amplify N: as this enters, reveal any number of cards of its creature type from your hand; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['counter+'] });
+m('Amplify', 'keyword', 'Amplify N: as this enters, reveal any number of cards of its creature type from your hand; it enters with N +1/+1 counters for each.', { auto: 'auto', actions: ['counter+'] });
 m('Annihilator', 'keyword', 'Annihilator N: whenever this attacks, defending player sacrifices N permanents.', { auto: 'auto', steps: 'The defending player sacrifices N permanents of their choice.', actions: ['sacrifice'] });
 m('Ascend', 'keyword', 'If you control ten or more permanents, you get the city\'s blessing for the rest of the game.', { auto: 'auto', actions: ['status'] });
 m('Assist', 'keyword', 'Another player can pay any amount of this spell\'s generic mana.', { auto: 'manual' });
@@ -319,7 +319,7 @@ m('Toxic', 'keyword', 'Toxic N: combat damage this deals to a player also gives 
 m('Training', 'keyword', 'Whenever this attacks with another creature with greater power, put a +1/+1 counter on this.', { auto: 'auto', actions: ['counter+'] });
 m('Transfigure', 'keyword', 'Sacrifice this and pay: search for a creature card with the same mana value, put it onto the battlefield.', { auto: 'manual', actions: ['sacrifice', 'search'] });
 m('Transmute', 'keyword', 'Discard this and pay: search for a card with the same mana value and put it in your hand. Sorcery speed.', { auto: 'auto', actions: ['discard', 'search'] });
-m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on it; if they don\'t, its tribute ability happens.', { auto: 'manual', actions: ['counter+'] });
+m('Tribute', 'keyword', 'As this enters, an opponent may put N +1/+1 counters on it; if they don\'t, its tribute ability happens.', { auto: 'auto', actions: ['counter+'] });
 m('Umbra armor', 'keyword', 'If the enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura. (Formerly totem armor.)', { auto: 'auto', detect: '\\b(?:Umbra|Totem) armor\\b', actions: ['destroy'] });
 m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.', { auto: 'auto' });
 m('Undying', 'keyword', 'When this dies, if it had no +1/+1 counters on it, return it with a +1/+1 counter.', { auto: 'auto' });

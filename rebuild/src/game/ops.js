@@ -132,6 +132,23 @@ function askAsEnters(game, player, def, ask, source) {
     const last = sagaFinalChapter(def);
     if (last > 1) return { readAhead: ask('enters:read-ahead', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — read ahead`, kind: 'choose-one', prompt: 'Choose the chapter it starts on. Earlier chapters don’t trigger.', options: Array.from({ length: last }, (_, k) => ({ id: k + 1, label: `Chapter ${['I', 'II', 'III', 'IV', 'V', 'VI'][k]}` })) })) };
   }
+  // Amplify N: reveal any number of cards in hand that share a creature type with it; N +1/+1 counters for each.
+  const amp = !spec && kwText.match(/(?:^|\n)\s*Amplify (\d+)/i);
+  if (amp) {
+    const types = (String(def?.typeLine || '').split('—')[1] || '').trim().split(/\s+/).filter(Boolean);
+    const rows = (player.deck.hand || []).filter(c => c.definitionId !== def.definitionId && types.some(t => new RegExp(`\\b${t}\\b`).test(defOf(game, c)?.typeLine || '') || /\bChangeling\b/.test(defOf(game, c)?.oracleText || '')));
+    const shown = rows.length ? [].concat(ask('enters:amplify', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — amplify ${amp[1]}`, kind: 'choose-many', prompt: `Reveal any number of cards from your hand that share a creature type with it (${amp[1]} +1/+1 counters each).`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })), min: 0, max: rows.length })) || []) : [];
+    return shown.length ? { plusCounters: shown.length * Number(amp[1]) } : null;
+  }
+  // Tribute N: an opponent of your choice may put N +1/+1 counters on it ("if tribute wasn't paid" is checked as it enters).
+  const trib = !spec && kwText.match(/(?:^|\n)\s*Tribute (\d+)/i);
+  if (trib) {
+    const opps = opponentsOf(game, player.playerId);
+    if (!opps.length) return { tributePaid: false };
+    const who = opps.length === 1 ? opps[0].playerId : ask('enters:tribute-who', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — tribute ${trib[1]}`, kind: 'choose-one', prompt: 'Choose an opponent to decide the tribute.', options: opps.map(q => ({ id: q.playerId, label: q.displayName, playerId: q.playerId })) }));
+    const pay = ask('enters:tribute', () => ({ playerId: who, cancellable: false, source, title: `${def.name} — tribute ${trib[1]}`, kind: 'choose-one', prompt: `Put ${trib[1]} +1/+1 counters on ${def.name}? If you don't, its "tribute wasn't paid" ability happens.`, options: [{ id: 'pay', label: `Put ${trib[1]} +1/+1 counters on it` }, { id: 'no', label: 'Don’t' }] }));
+    return pay === 'pay' ? { plusCounters: Number(trib[1]), tributePaid: true } : { tributePaid: false };
+  }
   // Riot: a +1/+1 counter or haste. Unleash: you may have it enter with a +1/+1 counter (then it can't block).
   if (!spec && /(?:^|\n)\s*Riot\b/i.test(kwText)) {
     const pick = ask('enters:riot', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — riot`, kind: 'choose-one', prompt: 'It enters with your choice of a +1/+1 counter or haste.', options: [{ id: 'counter', label: 'A +1/+1 counter' }, { id: 'haste', label: 'Haste' }] }));

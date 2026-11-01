@@ -1016,6 +1016,7 @@ export function parseConditionB49(t) {
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^you have the city'?s blessing$/i.test(t)) return { test: 'b49-blessing' };
   if (/^its surge cost was paid$/i.test(t)) return { test: 'b49-surged' };
+  if (/^tribute wasn'?t paid$/i.test(t)) return { test: 'b49-tribute-unpaid' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
   if (/^no mana was spent to cast it$/i.test(t)) return { test: 'b49-no-mana-spent' };
   if ((m = t.match(/^an opponent has cast an? ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))*) spell this turn$/i))) return { test: 'b49-opp-cast-color', colors: m[1].toLowerCase().split(/ or /).map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w])) };
@@ -1068,6 +1069,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
       if (!me?.citysBlessing && (me?.deck?.battlefield || []).length >= 10 && /(?:^|\n)\s*Ascend\b/i.test(String(definitionFor(game, locateCardInGame(game, bindings.sourceId)?.card)?.oracleText || ''))) me.citysBlessing = true;
       return !!me?.citysBlessing;
     }
+    case 'b49-tribute-unpaid': return locateCardInGame(game, bindings.sourceId)?.card?.tributePaid === false;
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;

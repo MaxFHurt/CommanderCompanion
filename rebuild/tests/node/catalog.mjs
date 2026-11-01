@@ -2370,4 +2370,18 @@ function attackWith(t, ids) { t.do(0, { type: 'next-phase' }); t.do(0, { type: '
   check('…when the bear dies it stays as a 1/1 creature', t.names(0, 'battlefield').includes('Llanowar Elves') && !b.bestowed && /Creature/.test(withOverlay(b, def(t, b)).typeLine));
 }
 
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length;
+  const seen = cast(t, 'Grizzly Bears', 'Tribute 2 (As this creature enters, an opponent of your choice may put two +1/+1 counters on it.)\nWhen this creature enters, if tribute wasn\'t paid, draw a card.', [[d => d.key.includes('tribute') && d.playerId === t.P(1).playerId, 'no']], { manaCost: '{1}{G}' });
+  check('Tribute: the opponent decides; unpaid, the "tribute wasn\'t paid" ability happens', seen.some(d => d.playerId === t.P(1).playerId) && t.P(0).deck.hand.length === hand + 1, String(t.P(0).deck.hand.length - hand));
+}
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears'); t.give(0, 'Llanowar Elves'); asText(t, t.hand(0, 'Llanowar Elves'), '', { typeLine: 'Creature — Bear' });
+  cast(t, 'Colossal Dreadmaw', 'Amplify 1 (As this creature enters, put a +1/+1 counter on it for each Bear card you reveal in your hand.)', [[d => d.key.includes('amplify'), d => d.options.map(o => o.id)]], { manaCost: '{G}', typeLine: 'Creature — Bear', power: '1', toughness: '1' });
+  const d = t.bf(0, 'Colossal Dreadmaw');
+  check('Amplify 1: two Bears revealed, two counters', d?.counters?.['+1/+1'] === 2, JSON.stringify(d?.counters));
+}
+
 done();
