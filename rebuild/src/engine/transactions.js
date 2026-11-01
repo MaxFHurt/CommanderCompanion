@@ -349,6 +349,7 @@ function putSpellOnStack(game, player, action, deck) {
     commanderId: action.commanderId || null, guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString(),
     castMode: action.castMode || 'normal', exileOnLeave: !!action.exileOnLeave, adventure: !!action.adventure, kicked: !!action.kicked, kickCount: Number(action.kickCount || 0)
   };
+  if (card.castCopy) stackObject.isCopy = true;   // a cast copy (Isochron Scepter) ceases to exist as it resolves
   player.counters = player.counters || {};
   player.counters.spellsCastThisTurn = Number(player.counters.spellsCastThisTurn || 0) + 1;
   // What this player cast this turn, for "their first noncreature spell each turn" and similar.

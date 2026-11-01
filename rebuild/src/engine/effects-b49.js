@@ -60,6 +60,20 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'play-exiled', bind });
     return true;
   }
+  // Imprint — Chrome Mox, Isochron Scepter: "you may exile a nonartifact, nonland card from your hand." (kept with this permanent)
+  if ((m = c.match(/^(you may )?exile (?:a|an) ([a-z ,-]+?) card(?: with mana value (\d+) or less)? from your hand\.?$/i)) && !/target/i.test(c)) {
+    const bind = `imprint${requirements.length}`;
+    requirements.push({ kind: 'b49-hand-pick', bind, filter: `${m[2]}${m[3] ? ` with mana value ${m[3]} or less` : ''}`, min: m[1] ? 0 : 1, label: `${m[2]} card${m[3] ? ` with mana value ${m[3]} or less` : ''} to exile` });
+    effects.push({ kind: 'imprint', bind });
+    return true;
+  }
+  // Chrome Mox: "Add one mana of any of the exiled card's colors." (as a mana ability the game asks the colour in ops.js)
+  if (/^Add one mana of any of the exiled card'?s colors\.?$/i.test(c)) {
+    const bind = `imprintColor${requirements.length}`;
+    requirements.push({ kind: 'b49-imprint-color', bind });
+    effects.push({ kind: 'add-mana', colorBind: bind, amount: 1 });
+    return true;
+  }
   // Watcher for Tomorrow: "put the exiled card into its owner's hand."
   if (/^put the exiled card into its owner'?s hand\.?$/i.test(c)) { effects.push({ kind: 'hideaway-to-hand' }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
@@ -96,6 +110,11 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const first = compile(c0, sourceName), then = compile(cap(after[1]), sourceName);
     const bind = first.requirements.find(r => r.kind === 'b49-play-exiled')?.bind;
     if (ok(first) && ok(then) && bind) return { part: { effects: [...first.effects, { kind: 'condition', test: 'b49-bound', bind, skip: then.effects.length }, ...then.effects], requirements: [...first.requirements, ...then.requirements], unsupported: [] }, consumed: 2 };
+  }
+  // Isochron Scepter: "You may copy the exiled card. If you do, you may cast the copy without paying its mana cost."
+  if (/^(?:you may )?copy the exiled card\.?$/i.test(c0) && /^If you do, you may cast the copy without paying its mana cost\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const bind = `castCopy${i}`;
+    return { part: { effects: [{ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'cast-copy', from: 'imprint' }], requirements: [{ kind: 'yes-no', bind, label: 'Cast a copy of the exiled card without paying its mana cost?' }], unsupported: [] }, consumed: 2 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -167,6 +186,24 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${nameOf(game, id)} is put into its owner's hand.`);
       return true;
     }
+    case 'imprint': {
+      const id = [].concat(bindings[effect.bind] || [])[0];
+      if (!id || locateCardInGame(game, id)?.zone !== 'hand') { notes.push('No card is exiled.'); return true; }
+      moveCard(game, id, 'exile', { onEvent: e => H.emit(bindings, e) });
+      const src = locateCardInGame(game, bindings.sourceId)?.card;
+      if (src) src.imprintIds = [...(src.imprintIds || []), id];
+      notes.push(`${controller.displayName} exiles ${nameOf(game, id)} with ${nameOf(game, bindings.sourceId)}.`);
+      return true;
+    }
+    case 'cast-copy': {
+      const src = locateCardInGame(game, bindings.sourceId)?.card;
+      const ids = effect.from === 'imprint' ? (src?.imprintIds || []) : [].concat(bindings[effect.bind] || []);
+      const live = ids.map(id => locateCardInGame(game, id)).filter(h => h && h.zone === 'exile');
+      if (!live.length) { notes.push('There is no exiled card to copy.'); return true; }
+      for (const h of live) castCopy(game, controllerId, h.card);
+      notes.push(`${controller.displayName} casts a copy of ${live.map(h => definitionFor(game, h.card)?.name).join(', ')} without paying its mana cost.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -204,6 +241,19 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = picked;
     return true;
   }
+  if (req.kind === 'b49-imprint-color') {
+    const src = locateCardInGame(game, bindings.sourceId)?.card;
+    const imp = (src?.imprintIds || []).map(id => locateCardInGame(game, id)).find(h => h?.zone === 'exile');
+    const colors = [...new Set(util.defOf(game, imp?.card)?.colors || [])];
+    if (!colors.length) throw new Error('The exiled card has no colour, so this adds no mana.');
+    bindings[req.bind] = colors.length === 1 ? colors[0] : ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose the mana to add.', options: colors.map(c => ({ id: c, label: c, mana: c })) }));
+    return true;
+  }
+  if (req.kind === 'b49-hand-pick') {
+    const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
+    return true;
+  }
   if (req.kind === 'b49-hideaway') {
     const top = (player.deck.remainingLibrary || []).slice(0, Number(req.amount || 0));
     bindings[req.bind] = top.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title: `${ctx.sourceName} — hideaway`, prompt: `Look at the top ${top.length} cards. Choose one to exile face down; the rest go on the bottom in a random order.`, options: top.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
@@ -222,6 +272,26 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     return true;
   }
   return false;
+}
+
+/**
+ * Cast a copy of a card (Isochron Scepter, Mizzix's Mastery, Spellbinder): the copy is made in its caster's exile and cast
+ * without paying its mana cost; it ceases to exist as it resolves or if it isn't cast (sba.js).
+ */
+export function castCopy(game, controllerId, card) {
+  const me = playerById(game, controllerId);
+  if (!me || !card) return null;
+  const copy = { ...structuredClone(card), instanceId: `copy:${card.instanceId}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`, zone: 'exile', ownerId: controllerId, controllerId, castCopy: true, token: true };
+  delete copy.hiddenExile; delete copy.playPermission;
+  me.deck.exile.push(copy);
+  queueFreeCast(game, { playerId: controllerId, instanceId: copy.instanceId });
+  return copy;
+}
+/** Free casts wait their turn (Etali, Mizzix's Mastery: several cards cast one after another). */
+export function queueFreeCast(game, entry) {
+  game.flow = game.flow || {};
+  if (!game.flow.freeCast) game.flow.freeCast = entry;
+  else game.flow.freeCastQueue = [...(game.flow.freeCastQueue || []), entry];
 }
 
 // Conditions read here and checked in effects.js (conditionHolds).

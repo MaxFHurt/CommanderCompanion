@@ -682,8 +682,8 @@ export function cardFitsWords(def, words) {
   if (!w || w === 'a' || w === 'any') return true;
   const t = String(def?.typeLine || '').toLowerCase();
   const mv = Number(def?.manaValue ?? def?.cmc ?? 0);
-  return w.split(/\s+or\s+|,\s*or\s+|\s*\/\s*/).some(alt => {
-    let a = alt.trim(), ok = true, m;
+  return w.replace(/(\d+) or (less|greater|more|fewer)/g, '$1 or_$2').split(/\s+or\s+|,\s*or\s+|\s*\/\s*/).some(alt => {
+    let a = alt.trim().replace(/ or_/g, ' or '), ok = true, m;
     if ((m = a.match(/\s*with mana value (\d+) or (less|greater)/))) { ok = m[2] === 'less' ? mv <= Number(m[1]) : mv >= Number(m[1]); a = a.replace(m[0], ''); }
     if ((m = a.match(/\s*with mana value (\d+)/))) { ok = ok && mv === Number(m[1]); a = a.replace(m[0], ''); }
     for (const part of a.split(/[ ,]+/).filter(Boolean)) {

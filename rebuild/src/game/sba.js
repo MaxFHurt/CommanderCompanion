@@ -12,6 +12,14 @@ import { sagaFinalChapter } from '../engine/keyword-triggers.js';
 
 export function stateBasedActions(game) {
   let changed = false;
+  // A copy of a card that was not cast (or has left the stack) ceases to exist (707.12).
+  for (const p of game.players || []) for (const z of ['exile', 'graveyard', 'hand', 'battlefield', 'remainingLibrary']) {
+    const zone = p.deck?.[z];
+    if (!Array.isArray(zone) || !zone.some(c => c.castCopy)) continue;
+    const pending = [game.flow?.freeCast, ...(game.flow?.freeCastQueue || [])].filter(Boolean).map(x => x.instanceId);
+    const opId = game.flow?.op?.args?.instanceId;
+    for (let k = zone.length - 1; k >= 0; k--) if (zone[k].castCopy && !pending.includes(zone[k].instanceId) && zone[k].instanceId !== opId && !(z === 'battlefield')) { zone.splice(k, 1); changed = true; }
+  }
   for (let guard = 0; guard < 20; guard++) {
     let acted = false;
     for (const p of game.players || []) {

@@ -1749,4 +1749,33 @@ section('round 49: hideaway');
   check('…with 10 power the player may cast it free', t.names(0, 'battlefield').includes('Air Elemental'), JSON.stringify(t.names(0, 'battlefield')));
 }
 
+section('round 49: imprint (Chrome Mox, Isochron Scepter)');
+{
+  const t = setup();
+  t.give(0, 'Counterspell');
+  t.give(0, 'Sol Ring'); const mox = asText(t, t.hand(0, 'Sol Ring'), "Imprint — When this artifact enters, you may exile a nonartifact, nonland card from your hand.\n{T}: Add one mana of any of the exiled card's colors.", { manaCost: '{0}' });
+  t.ctl.dispatch({ type: 'play', instanceId: mox.instanceId }, t.as(0));
+  const cs = t.hand(0, 'Counterspell');
+  const seen = settle(t, [[d => /exile/i.test(d.prompt || ''), [cs.instanceId]]]);
+  const live = t.bf(0, 'Sol Ring');
+  check('Chrome Mox: its controller chooses a card to exile from their hand (privately)', t.names(0, 'exile').includes('Counterspell') && (live.imprintIds || []).includes(cs.instanceId) && seen.some(d => d.private && /exile/i.test(d.prompt || '')), JSON.stringify(seen.map(d => d.prompt)));
+  const m = t.view(0).players[0].mana;
+  check('…and makes mana of that card\'s colour (blue)', m.fixed.U >= 5 || m.flex.some(g => g.colors.join('') === 'U'), JSON.stringify(m));
+  const ab = parseActivatedAbilities(def(t, live)).find(a => a.manaAbility);
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: live.instanceId, abilityId: ab.id }, t.as(0)); settle(t);
+  check('…tapping it adds {U}', r.ok && t.P(0).mana.floating.U === 1, JSON.stringify([r.error, t.P(0).mana.floating]));
+}
+{
+  const t = setup();
+  t.give(0, 'Opt');
+  t.give(0, 'Sol Ring'); const sc = asText(t, t.hand(0, 'Sol Ring'), 'Imprint — When this artifact enters, you may exile an instant card with mana value 2 or less from your hand.\n{2}, {T}: You may copy the exiled card. If you do, you may cast the copy without paying its mana cost.', { manaCost: '{0}' });
+  t.ctl.dispatch({ type: 'play', instanceId: sc.instanceId }, t.as(0));
+  const opt = t.hand(0, 'Opt');
+  settle(t, [[d => /exile/i.test(d.prompt || ''), [opt.instanceId]]]);
+  const live = t.bf(0, 'Sol Ring'); live.tapped = false;
+  const hand = t.P(0).deck.hand.length;
+  activate(t, live, 0, [[d => d.kind === 'confirm' || /copy/i.test(d.prompt || d.label || ''), d => d.kind === 'confirm' ? true : (d.options?.find(o => /yes/i.test(String(o.id) + o.label))?.id ?? true)]]);
+  check('Isochron Scepter: a copy of the exiled Opt is cast and resolves (its controller draws)', t.P(0).deck.hand.length === hand + 1 && t.names(0, 'exile').includes('Opt') && !t.P(0).deck.exile.some(c => c.castCopy) && !t.names(0, 'graveyard').includes('Opt'), JSON.stringify([t.P(0).deck.hand.length - hand, t.names(0, 'exile'), t.names(0, 'graveyard')]));
+}
+
 done();

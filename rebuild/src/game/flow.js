@@ -424,7 +424,7 @@ export function finishGuided(game, playerId, { override = false } = {}) {
 
 function finishGame(game) {
   const f = game.flow;
-  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null; f.proposal = null; f.correction = null; f.freeCast = null;
+  f.op = null; f.priority = null; f.queue = []; f.blocks = null; f.discard = null; f.guided = null; f.vote = null; f.proposal = null; f.correction = null; f.freeCast = null; f.freeCastQueue = [];
   if (!game.endedAt) {
     game.endedAt = new Date().toISOString();
     const winner = playerById(game, game.winner);
@@ -454,6 +454,7 @@ export function settle(game) {
       f.guided = null;
       continue;
     }
+    if (!f.freeCast && f.freeCastQueue?.length) f.freeCast = f.freeCastQueue.shift();
     if (f.freeCast) {
       // Cascade / discover: cast the hit card without paying its mana cost.
       const { playerId, instanceId, cost, label } = f.freeCast;

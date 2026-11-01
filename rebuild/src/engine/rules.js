@@ -248,6 +248,11 @@ export function effectiveManaOptionsForSource({ game, player, card, definition =
   if (/^Gemstone Caverns$/i.test(String(def?.name || ''))) {
     return counterAmount(card, 'luck') > 0 ? ['W', 'U', 'B', 'R', 'G'] : ['C'];
   }
+  // Chrome Mox: "Add one mana of any of the exiled card's colors." — the card it imprinted.
+  if (/any of the exiled card'?s colors/i.test(ability?.effect || def?.oracleText || '')) {
+    const imp = (game?.players || []).flatMap(p => p.deck?.exile || []).find(c => (card.imprintIds || []).includes(c.instanceId));
+    return imp ? [...new Set((game.cardDefinitions?.[imp.definitionId]?.colors || []).filter(x => COLORS.includes(x)))] : [];
+  }
   let options = ability?.manaOptions?.length ? [...ability.manaOptions] : Array.isArray(card?.manaCapacityOptions) ? card.manaCapacityOptions.filter(x => COLORS.includes(x)) : [];
   if (options.length < 2 && !ability) {
     options = [...new Set(tapManaAbilities(def).flatMap(row => row.options || []).filter(x => COLORS.includes(x)))];
@@ -282,7 +287,7 @@ export function playerManaAvailability(player, game = null) {
     if (options.length > 1)
       flex.push({ instanceId: card.instanceId, options, zone: 'battlefield' });
     // A mana ability granted by another permanent (Cryptolith Rite, Paradise Mantle) is not a registered source: offer it here.
-    else if (options.length === 1 && card.grantedText?.length && !card.manaCapacityRegistered && card.grantedText.some(t => /^\{T\}: Add/i.test(t)))
+    else if (options.length === 1 && ((card.grantedText?.length && !card.manaCapacityRegistered && card.grantedText.some(t => /^\{T\}: Add/i.test(t))) || (card.imprintIds?.length && /any of the exiled card'?s colors/i.test(def?.oracleText || ''))))
       flex.push({ instanceId: card.instanceId, options, zone: 'battlefield' });
   }
   // Zone-aware mana abilities explicitly permitted from hand (Spirit Guides and similar cards).
