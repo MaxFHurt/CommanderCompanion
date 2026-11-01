@@ -19,7 +19,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
   Split second (`splitSecondOnStack`). Wordings: any number of targets, "for each … this way, its controller", "If X, Y instead", Veil of
   Summer colour hexproof, Approach of the Second Sun, Torment of Hailfire, Liliana's −9, Demonic Consultation, Tainted Pact, Mizzix's
   Mastery, Chain of Vapor, Saw in Half, Sword of Hearth and Home, Myr Battlesphere, Boromir, Urza, Expressive Iteration and more.
-  Top 1,000: 969 by themselves. Whole catalog: AUDIT50.
+  Top 1,000: 969 by themselves. Whole catalog: 20,892 of 31,770 (honest build 49: 20,226; 669 newly automatic, 3 honestly back to by hand).
   Build 49 (1 Nov): **card fixes, batch 1** (new wordings live in `src/engine/effects-b49.js`, hooked into
   effects-catalog.js the same way as round 3). Known bugs fixed: extra mana of another colour (Utopia Sprawl, Wild Growth on an Island,
   Fertile Ground's any colour — `manaExtras` in mana-extras.js; payMana taps a source for its extra colour; a hand tap asks the colour)
