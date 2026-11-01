@@ -8,7 +8,19 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.49** (1 Nov): **card fixes, batch 1** (new wordings live in `src/engine/effects-b49.js`, hooked into
+- Live build: **1.0.0-rebuild.50** (1 Nov): **card fixes, batch 2**. Audit fix first: keyword lines are now read without their reminder
+  text, so cards with keywords the terms key marks "by hand" (Echo, Bushido, Cumulative upkeep …) are no longer counted as automatic
+  (about 580 were; the honest count for build 49 was 20,226). Engine bug fixed: "Target creature gets +X/+X and gains <keyword>" dropped
+  the +X/+X (about 140 cards, e.g. Blossoming Defense). New keywords: Bushido, Rampage, Afflict, Flanking, Battle cry, Annihilator,
+  Dethrone, Melee, Mentor, Training, Evolve, Fabricate, Living weapon, Renown, Soulshift, Extort, Echo and Cumulative upkeep (mana or life),
+  Ingest, Backup, Myriad, Enlist, Provoke, Champion (keyword-triggers-b49.js); Umbra armor (regenerates()), Outlast, Embalm, Eternalize,
+  Transmute, Reconfigure, Craft (special actions in legal.js / ops.js); Disturb, More Than Meets the Eye (back face, `mode.backFace`),
+  Prototype, Bestow, Surge, Strive (cast modes); Read ahead, Amplify, Tribute (as it enters); Ascend (`citysBlessing`, set in sba.js);
+  Split second (`splitSecondOnStack`). Wordings: any number of targets, "for each … this way, its controller", "If X, Y instead", Veil of
+  Summer colour hexproof, Approach of the Second Sun, Torment of Hailfire, Liliana's −9, Demonic Consultation, Tainted Pact, Mizzix's
+  Mastery, Chain of Vapor, Saw in Half, Sword of Hearth and Home, Myr Battlesphere, Boromir, Urza, Expressive Iteration and more.
+  Top 1,000: 969 by themselves. Whole catalog: AUDIT50.
+  Build 49 (1 Nov): **card fixes, batch 1** (new wordings live in `src/engine/effects-b49.js`, hooked into
   effects-catalog.js the same way as round 3). Known bugs fixed: extra mana of another colour (Utopia Sprawl, Wild Growth on an Island,
   Fertile Ground's any colour — `manaExtras` in mana-extras.js; payMana taps a source for its extra colour; a hand tap asks the colour)
   and "you may tap or untap" no longer offers "Neither" after the yes/no. New: Gift (asked as you cast; the promised opponent gets it
@@ -222,7 +234,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (267 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (333 in-game checks, every new family; choices answered by the player who makes them).
   - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
     "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
     and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
@@ -329,7 +341,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 267 catalog-effect checks (builds 43-49)
+    node tests/node/catalog.mjs       # 333 catalog-effect checks (builds 43-50)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
