@@ -2531,4 +2531,16 @@ section('round 51: the last top-1,000 cards');
   check('Puresteel Paladin: with three artifacts, equip costs {0}', r.ok && eq.attachedTo === bear.instanceId, JSON.stringify([r.error]));
 }
 
+{
+  const t = setup();
+  const ss = onField(t, 'Sol Ring', '{T}: Add {B}.\n{6}{B}, {T}, Exile a creature you control: Harness The Soul Stone.\n∞ — At the beginning of your upkeep, return target creature card from your graveyard to the battlefield.', { name: 'The Soul Stone', typeLine: 'Legendary Artifact — Infinity Stone' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  for (let i = 0; i < 3; i++) t.give(0, i % 2 ? 'Island' : 'Forest', 'battlefield');
+  t.P(0).mana.available.B = 1; t.P(0).mana.floating.B = 1;
+  const ab = parseActivatedAbilities(def(t, ss)).filter(a => !a.manaAbility)[0];
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: ss.instanceId, abilityId: ab.id }, t.as(0));
+  settle(t, [['cost:exile', bear.instanceId]]);
+  check('The Soul Stone: exiling a creature as a cost, it becomes harnessed', r.ok && ss.harnessed && t.names(0, 'exile').includes('Grizzly Bears'), JSON.stringify([r.error, ss.harnessed]));
+}
+
 done();

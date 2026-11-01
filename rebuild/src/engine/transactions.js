@@ -380,6 +380,11 @@ function putSpellOnStack(game, player, action, deck) {
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
+  for (const id of action.costExileIds || []) {
+    const h = locateCardInGame(game, id);
+    if (!h || h.zone !== 'battlefield') throw new Error('The card chosen to exile is gone.');
+    moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
+  }
   const hit = locate(deck, action.instanceId);
   // Channel (from the hand) and "return this card from your graveyard" abilities name the zone they work from.
   if (!hit || (hit.z !== 'battlefield' && !(action.fromZone && hit.z === action.fromZone)))

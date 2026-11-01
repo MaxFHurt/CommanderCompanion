@@ -277,6 +277,9 @@ function triggerMatches(game, row, ability, event) {
   const t = String(ability.trigger || ''), d = row.definition;
   if (!event || !selfZoneConditionMatches(row, ability))
     return false;
+  // ∞ abilities (The Soul Stone, the Infinity Stones) work only once the permanent is harnessed.
+  if (!row.card?.harnessed && String(d?.oracleText || '').split('\n').some(l => /^∞\s*[—-]/.test(l) && l.includes(String(ability.text || '').slice(0, 40))))
+    return false;
   const general = generalMatch(game, row, t, event);
   if (general !== undefined)
     return general;
@@ -677,7 +680,7 @@ function probeTrigger(definition, ability, types, events, variants) {
   for (const variant of variants) for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
     game.activePlayerId = variant.oppTurn ? 'opp' : 'me';
     // attached: this card is an Aura or Equipment on the probe card ("equipped creature", "enchanted land").
-    const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {}, chosenCreatureType: 'Dragon', saddledTurn: 3 }, definition, player: me, zone };
+    const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {}, chosenCreatureType: 'Dragon', saddledTurn: 3, harnessed: true }, definition, player: me, zone };
     for (const type of events) for (const [sourceId, who] of [['self', me], ['mine', me], ['theirs', opp]]) for (let i = 0; i < types.length; i++) {
       row.card.attachedTo = attached ? sourceId : null;
       for (const p of [me, opp]) p.counters = { castThisTurn: Array.from({ length: castCount }, () => ({ typeLine: types[i], colors: [], manaValue: 3 })) };

@@ -28,6 +28,7 @@ import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
 import { adjustGeneric, additionalCost, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
 import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
+import { cardFitsWords } from '../engine/effects-catalog.js';
 import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
 
@@ -753,6 +754,15 @@ function runActivate(game, op, ask) {
     if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
     costMoveIds.push(sacrificedId);
   }
+  // "Exile a creature you control" as part of the cost (The Soul Stone).
+  const costExileIds = [];
+  const exCost = String(ability.cost || '').match(/Exile (?:a|an|another) ([a-z ]+?) you control/i);
+  if (exCost) {
+    const words = exCost[1].toLowerCase();
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && cardFitsWords(defOf(game, c), words));
+    if (!rows.length && !force) throw new GameError(`You need a ${words} to exile.`);
+    if (rows.length) costExileIds.push(ask('cost:exile', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words} to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) })));
+  }
   if (ability.discardCount && fromZone !== 'hand') {
     const rows = player.deck.hand;
     if (!rows.length) throw new GameError('You have no card to discard.');
@@ -768,7 +778,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 

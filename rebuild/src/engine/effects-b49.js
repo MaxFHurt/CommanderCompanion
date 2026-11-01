@@ -204,6 +204,8 @@ export function compileB49Clause(c, ctx) {
     const inner = compile(cap(m[2]), sourceName);
     if (ok(inner)) { effects.push({ kind: 'condition', ...parseConditionB49(m[1].trim()), skip: inner.effects.length }, ...inner.effects); requirements.push(...inner.requirements); return true; }
   }
+  // The Soul Stone: "Harness The Soul Stone." — its ∞ abilities work from now on.
+  if (/^Harness (?:SELFNAME|this (?:artifact|permanent))\.?$/i.test(c)) { effects.push({ kind: 'harness' }); return true; }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -912,6 +914,11 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       const n = Number(bindings.movedThisWay || 0), a = Math.min(n, Number(bindings[effect.bind] || 0));
       if (a) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'add-mana', color: effect.colors[0], amount: a }], bindings));
       if (n - a) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'add-mana', color: effect.colors[1], amount: n - a }], bindings));
+      return true;
+    }
+    case 'harness': {
+      const h = locateCardInGame(game, bindings.sourceId);
+      if (h?.zone === 'battlefield') { h.card.harnessed = true; notes.push(`${nameOf(game, bindings.sourceId)} is harnessed.`); }
       return true;
     }
     case 'living-weapon': {
