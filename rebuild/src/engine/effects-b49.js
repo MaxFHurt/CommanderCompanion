@@ -187,6 +187,15 @@ export function compileB49Clause(c, ctx) {
   if (/^(?:Then )?you draw a card for each opponent who drew a card this way\.?$/i.test(c)) { effects.push({ kind: 'draw-per-opponent-drew' }); return true; }
   // Kardur: "until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able."
   if (/^until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able\.?$/i.test(c)) { effects.push({ kind: 'goad-each', scope: 'opponents' }); return true; }
+  // Hydroelectric Specimen: "you may change the target of target instant or sorcery spell with a single target to this creature."
+  if (/^(?:you may )?change the target of target instant or sorcery spell with a single target to (?:this creature|SELFNAME)\.?$/i.test(c)) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', spellFilter: 'instant|sorcery', label: 'target instant or sorcery spell with a single target' });
+    effects.push({ kind: 'retarget-to-self', bind });
+    return true;
+  }
+  // Throne of Eldraine: the restriction is applied to the payment (ops.js).
+  if (/^Spend only mana of the chosen color to activate this ability\.?$/i.test(c)) return true;
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -374,6 +383,16 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   if (/^Copy target instant spell, sorcery spell, activated ability, or triggered ability\.?$/i.test(c0)) {
     const bind = `stack${i}`, more = /^You may choose new targets for the copy\.?$/i.test(String(clauses[i + 1] || ''));
     return { part: { effects: [{ kind: 'copy-stack', bind, retarget: true }], requirements: [{ kind: 'stack-target', bind, scope: 'any', spellFilter: 'instant|sorcery', orAbility: true, label: 'target instant or sorcery spell, or activated or triggered ability' }], unsupported: [] }, consumed: more ? 2 : 1 };
+  }
+  // Buster Sword: "draw a card, then you may cast a spell from your hand with mana value less than or equal to that damage without paying its mana cost."
+  if (/^draw a card, then you may cast a spell from your hand with mana value less than or equal to that damage without paying its mana cost\.?$/i.test(c0)) {
+    const bind = `handCard${i}`;
+    return { part: { effects: [{ kind: 'draw', scope: 'you', amount: 1 }, { kind: 'free-cast-hand', bind, optionalTarget: true }], requirements: [{ kind: 'hand-card', bind, filter: '', fitsWords: 'nonland with mana value EVENTAMOUNT or less', plusDraw: 1, label: 'a spell with mana value up to the damage to cast free' }], unsupported: [] }, consumed: 1 };
+  }
+  // Conduit of Worlds: "Choose target nonland permanent card in your graveyard. If you haven't cast a spell this turn, you may cast that card. If you do, you can't cast additional spells this turn."
+  if ((m = c0.match(/^Choose target (nonland permanent|[a-z ]+?) card in your graveyard\.?$/i)) && /^If you haven'?t cast a spell this turn, you may cast that card\.?$/i.test(String(clauses[i + 1] || '')) && /^If you do, you can'?t cast additional spells this turn\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const bind = `grave${i}`;
+    return { part: { effects: [{ kind: 'condition', test: 'b49-no-spell-cast', skip: 1 }, { kind: 'conduit-cast', bind }], requirements: [{ kind: 'graveyard-target', bind, scope: `target ${m[1].toLowerCase()} card in your graveyard`, label: `target ${m[1].toLowerCase()} card in your graveyard` }], unsupported: [] }, consumed: 3 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -799,6 +818,29 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       H.shuffle(controller.deck.remainingLibrary);
       return true;
     }
+    case 'retarget-to-self': {
+      const obj = (game.stack || []).find(x => x.id === bindings[effect.bind]);
+      if (!obj) { notes.push('That spell is gone.'); return true; }
+      // A single target: the one target binding of the spell becomes this creature (if it could be targeted by the spell).
+      const reqs = (obj.castReqs || []).filter(r => r.kind === 'target');
+      if (reqs.length !== 1) { notes.push('That spell does not have a single target.'); return true; }
+      const scope = String(reqs[0].scope || '');
+      const src = locateCardInGame(game, bindings.sourceId);
+      if (!src || src.zone !== 'battlefield' || !/creature|permanent|any target/i.test(scope) || /you control/i.test(scope) && src.card.controllerId !== obj.controllerId || /opponent controls|you don'?t control/i.test(scope) && src.card.controllerId === obj.controllerId) { notes.push('This creature can\'t be the new target.'); return true; }
+      obj.effectBindings = { ...(obj.effectBindings || {}), [reqs[0].bind]: bindings.sourceId };
+      notes.push(`${obj.label || 'The spell'} now targets ${nameOf(game, bindings.sourceId)}.`);
+      return true;
+    }
+    case 'conduit-cast': {
+      const id = [].concat(bindings[effect.bind] || [])[0], h = id && locateCardInGame(game, id);
+      if (!h || h.zone !== 'graveyard') { notes.push('The card is no longer in the graveyard.'); return true; }
+      // Cast it now for its mana cost; once it is cast, no more spells this turn.
+      controller.lockAfterNextCast = true;
+      game.flow = game.flow || {};
+      game.flow.freeCast = { playerId: controllerId, instanceId: id, cost: definitionFor(game, h.card)?.manaCost || '', label: 'Cast from graveyard' };
+      notes.push(`${controller.displayName} may cast ${nameOf(game, id)} from the graveyard.`);
+      return true;
+    }
     case 'living-weapon': {
       // Create a 0/0 black Phyrexian Germ, then attach this Equipment to it.
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Phyrexian Germ', typeLine: 'Token Creature — Phyrexian Germ', oracleText: '', power: '0', toughness: '0', colors: ['B'] }], bindings);
@@ -1173,6 +1215,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
       return !!me?.citysBlessing;
     }
     case 'b49-tribute-unpaid': return locateCardInGame(game, bindings.sourceId)?.card?.tributePaid === false;
+    case 'b49-no-spell-cast': return !Number(me?.counters?.spellsCastThisTurn || 0);
     case 'b49-surged': return locateCardInGame(game, bindings.sourceId)?.card?.castMode === 'surge';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;

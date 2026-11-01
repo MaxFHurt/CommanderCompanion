@@ -2447,4 +2447,35 @@ section('round 51: the last top-1,000 cards');
   check("Archdruid's Charm: counter, then it deals 3 damage to the opponent's creature", own.counters?.['+1/+1'] === 1 && t.names(1, 'graveyard').includes('Llanowar Elves'));
 }
 
+{
+  const t = setup();
+  const throne = onField(t, 'Sol Ring', '{3}, {T}: Draw two cards. Spend only mana of the chosen color to activate this ability.'); throne.chosenColor = 'G';
+  const hand = t.P(0).deck.hand.length;
+  activate(t, throne, 0);
+  const tappedIslands = t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Island' && c.tapped).length;
+  check('Throne of Eldraine: paid only with green (Forests), draws two', t.P(0).deck.hand.length === hand + 2 && tappedIslands === 0, JSON.stringify([t.P(0).deck.hand.length - hand, tappedIslands]));
+}
+{
+  const t = setup();
+  const g = onField(t, 'Grizzly Bears', ''), spec = onField(t, 'Fog Bank', 'When this creature enters, you may change the target of target instant or sorcery spell with a single target to this creature.', { typeLine: 'Creature — Weird' }, 1);
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), 'Destroy target creature.', { manaCost: '{G}' });
+  t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  settle(t, [[d => d.targeting, () => g.instanceId]], [], true);
+  // Not reachable mid-stack in this harness: check the effect directly on a stack object.
+  t.game.stack = [{ id: 's1', kind: 'spell', controllerId: t.P(0).playerId, castReqs: [{ kind: 'target', bind: 'target0', scope: 'target creature' }], effectBindings: { target0: g.instanceId }, label: 'Murder' }];
+  (await import('../../src/engine/effects-b49.js')).applyB49(t.game, t.P(1).playerId, { kind: 'retarget-to-self', bind: 'st' }, { st: 's1', sourceId: spec.instanceId }, []);
+  check('Hydroelectric Specimen: the spell now targets it', t.game.stack[0].effectBindings.target0 === spec.instanceId);
+  t.game.stack = [];
+}
+
+{
+  const t = setup();
+  t.give(0, 'Grizzly Bears', 'graveyard');
+  const g = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Grizzly Bears');
+  const cw = onField(t, 'Sol Ring', '{T}: Choose target nonland permanent card in your graveyard. If you haven\'t cast a spell this turn, you may cast that card. If you do, you can\'t cast additional spells this turn. Activate only as a sorcery.', { typeLine: 'Artifact' });
+  activate(t, cw, 0, [[d => d.targeting, () => g.instanceId], [d => d.kind === 'confirm', true]]);
+  const r = t.ctl.dispatch({ type: 'play', instanceId: (t.give(0, 'Opt'), t.hand(0, 'Opt')).instanceId }, t.as(0));
+  check('Conduit of Worlds: the creature is cast from the graveyard, then no more spells this turn', t.names(0, 'battlefield').includes('Grizzly Bears') && !r.ok, JSON.stringify([t.names(0, 'battlefield').includes('Grizzly Bears'), r.error]));
+}
+
 done();

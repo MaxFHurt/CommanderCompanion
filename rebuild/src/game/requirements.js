@@ -362,7 +362,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
     if (req.kind === 'hand-card') {
       // A card from hand, chosen as it resolves; cards about to be drawn by this effect are offered too.
-      const fits = c => (!req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter)) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0))));
+      const fits = c => (!req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter)) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0)).replace(/\bEVENTAMOUNT\b/, String(bindings.eventAmount ?? 0))));
       const rows = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && fits(c)).map(c => cardOption(game, c, player, 'In your hand')),
         ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || (req.plusDrawAmount ? resolveAmount(game, player.playerId, req.plusDrawAmount, bindings) : 0)).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
       if (!rows.length) { bindings[req.bind] = req.many ? [] : null; return; }

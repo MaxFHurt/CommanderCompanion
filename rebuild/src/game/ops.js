@@ -760,7 +760,11 @@ function runActivate(game, op, ask) {
   }
 
   const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
-  const plan = planMana(playerManaAvailability(player, game), manaText, xInCost ? Number(bindings.X || 0) : 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - Number(ability.lifeCost || 0)) });
+  // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
+  const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;
+  const pool = playerManaAvailability(player, game);
+  if (onlyColor) { for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) if (c !== onlyColor) pool[c] = 0; pool.__flex = (pool.__flex || []).filter(f => f.options.includes(onlyColor)).map(f => ({ ...f, options: [onlyColor] })); }
+  const plan = planMana(pool, manaText, xInCost ? Number(bindings.X || 0) : 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - Number(ability.lifeCost || 0)) });
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,

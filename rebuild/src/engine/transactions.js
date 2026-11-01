@@ -357,7 +357,9 @@ function putSpellOnStack(game, player, action, deck) {
     commanderId: action.commanderId || null, guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString(),
     castMode: action.castMode || 'normal', exileOnLeave: !!action.exileOnLeave, adventure: !!action.adventure, kicked: !!action.kicked, kickCount: Number(action.kickCount || 0)
   };
-  if (card.castCopy) stackObject.isCopy = true;   // a cast copy (Isochron Scepter) ceases to exist as it resolves
+  if (card.castCopy) stackObject.isCopy = true;
+  // Conduit of Worlds: after that spell, no more spells this turn.
+  if (player.lockAfterNextCast) { delete player.lockAfterNextCast; game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: [player.playerId], noncreature: false, source: 'Conduit of Worlds' }]; }   // a cast copy (Isochron Scepter) ceases to exist as it resolves
   player.counters = player.counters || {};
   player.counters.spellsCastThisTurn = Number(player.counters.spellsCastThisTurn || 0) + 1;
   // What this player cast this turn, for "their first noncreature spell each turn" and similar.
