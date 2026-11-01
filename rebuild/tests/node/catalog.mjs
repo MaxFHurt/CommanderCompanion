@@ -1880,4 +1880,16 @@ section('round 49: Ozolith, Etali, Braids');
   check('Braids: its controller sacrifices a land; the opponent is asked and declines, loses 2 life; its controller draws', t.P(1).life === life - 2 && seen.some(d => d.playerId === t.P(1).playerId && /land/i.test(d.prompt || '')), JSON.stringify([t.P(1).life - life, seen.map(d => d.prompt)]));
 }
 
+section('round 49: copy this spell');
+{
+  const t = setup();
+  const hand = t.P(0).deck.hand.length;
+  t.give(0, 'Divination', 'graveyard');
+  const d = t.P(0).deck.graveyard.find(c => def(t, c).name === 'Divination');
+  asText(t, d, 'Draw a card. If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy.\nFlashback {1}', { manaCost: '{U}' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: d.instanceId }, t.as(0));
+  settle(t, [[d => d.kind === 'choose-one' && d.options?.some(o => /flashback/i.test(o.label || '')), d => d.options.find(o => /flashback/i.test(o.label || '')).id], [d => /Copy this spell/.test(d.prompt || d.title || '') || d.kind === 'confirm', d => d.kind === 'confirm' ? true : d.options.find(o => /yes/i.test(String(o.id) + o.label))?.id]]);
+  check('Sevinne\'s Reclamation: cast from the graveyard it copies itself once (two draws)', r.ok && t.P(0).deck.hand.length === hand + 2, JSON.stringify([r.error, t.P(0).deck.hand.length - hand]));
+}
+
 done();

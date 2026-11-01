@@ -1073,7 +1073,7 @@ function runResolve(game, op, ask) {
       searches.push({ searcher, pick });
     }
   }
-  const bindings = { ...(top.effectBindings || {}) };
+  const bindings = { ...(top.effectBindings || {}), selfStackId: top.id, selfFromZone: top.fromZone || null };
   gatherRequirements(game, { player, sourceName: name, cancellable: false }, top.resolveReqs || [], bindings, ask, 'resolve');
   // "… unless that player pays {1}": ask them; if they pay, the effect does not happen.
   const unless = (top.effects || []).find(e => e.kind === 'unless-pays');

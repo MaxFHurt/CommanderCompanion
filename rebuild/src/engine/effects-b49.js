@@ -89,6 +89,13 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'each-top-cast', bind: 'etaliPick', mode: 'top' });
     return true;
   }
+  // Sevinne's Reclamation: "If this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy."
+  if ((m = c.match(/^(?:If this spell was cast from a graveyard, )?(you may )?copy this spell(?: and may choose (?:a )?new targets? for the copy)?\.?$/i))) {
+    if (/^If this spell was cast from a graveyard/i.test(c)) effects.push({ kind: 'condition', test: 'b49-cast-from-graveyard', skip: m[1] ? 2 : 1 });
+    if (m[1]) { const bind = `copySelf${requirements.length}`; requirements.push({ kind: 'yes-no', bind, label: 'Copy this spell?' }); effects.push({ kind: 'condition', test: 'chosen', bind, skip: 1 }); }
+    effects.push({ kind: 'copy-self', retarget: /new target/i.test(c) });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -313,6 +320,20 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'copy-self': {
+      // The spell is resolving (already off the stack): its copy goes on the stack and resolves after it.
+      const obj = game.__resolvingFull;
+      if (!obj || obj.id !== bindings.selfStackId) { notes.push('The spell can no longer be copied.'); return true; }
+      const copy = structuredClone(obj);
+      copy.id = `stack-copy:${Date.now()}:${Math.random()}`;
+      copy.kind = 'spell-copy'; copy.isCopy = true; copy.controllerId = controllerId; copy.retarget = !!effect.retarget;
+      if (copy.card) copy.card = { ...copy.card, instanceId: `copy:${copy.card.instanceId}:${Date.now()}`, token: true, zone: 'stack' };
+      // The copy can't copy itself again: its "cast from a graveyard" check fails (it wasn't cast).
+      copy.fromZone = null;
+      game.stack.push(copy);
+      notes.push(`${controller.displayName} copies ${obj.label || 'the spell'}.`);
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -476,6 +497,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-bound': return !!bindings[effect.bind];
     case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
     case 'b49-source-counters': return Object.values(locateCardInGame(game, bindings.sourceId)?.card?.counters || {}).some(v => Number(v) > 0);
+    case 'b49-cast-from-graveyard': return bindings.selfFromZone === 'graveyard' && game.resolvingObj?.kind === 'spell';
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }

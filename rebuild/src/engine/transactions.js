@@ -501,6 +501,8 @@ function resolveStackTop(game) {
   const obj = game.stack.pop();
   if (!obj)
     throw new Error('The stack is empty.');
+  game.resolvingObj = { id: obj.id, kind: obj.kind, fromZone: obj.fromZone || null };   // "copy this spell" while it resolves (effects-b49.js)
+  Object.defineProperty(game, '__resolvingFull', { value: obj, enumerable: false, configurable: true, writable: true });
   const player = game.players.find(p => p.playerId === obj.controllerId);
   if (!player)
     throw new Error('Stack object controller is unavailable.');
