@@ -8,7 +8,10 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.42** (31 Oct): on iPhone the screens fill the frame and sit centered in it (section 8). Build 40 (another session):
+- Live build: **1.0.0-rebuild.44** (1 Nov): the whole-catalog card work (section 3, "Whole-catalog card work"): 914 of the
+  1,000 most-played cards and about 63% of all Commander cards run by themselves, plus Saddle, Encore, Miracle, Suspend, Plot,
+  Boast, Improvise, Emerge, Spectacle, Reinforce, Soulbond, Exploit, stun counters and alternative costs. Build 43 (another
+  session): Deck Builder daily prices. Build 42 (31 Oct): on iPhone the screens fill the frame and sit centered in it (section 8). Build 40 (another session):
   Deck Builder 0.9.25. Build 39: 785 of the 1,000 most-played cards run by themselves (RULES_AUDIT.md), Deck Builder power as a
   share of the Apex build. The old standalone Deck Companion (MaxFHurt/Deck-Companion) only forwards to the Deck Builder; the
   owner chose (31 Oct) to keep that repo as it is: its card-data branch (combo list, refreshed weekly by its workflow) and
@@ -153,7 +156,7 @@ what each part does, the owner's rules, open notes, and the roadmap.
   "return this card from your graveyard" abilities (`abilityZone` in legal.js), "Activate only if/during/once"
   (`activationRules`, unknown ones count as by hand in the audit), morbid (`game.creatureDiedTurn`). Looting fixed: a
   discard after a draw in the same spell can choose the cards about to be drawn (`plusDraw`).
-- **Whole-catalog card work (build 43, branch `claude/card-effects`, not shipped yet):** from the owner's card-by-card handoff
+- **Whole-catalog card work (built on branch `claude/card-effects`, shipped as build 44):** from the owner's card-by-card handoff
   (every Oracle card), the most common wordings still resolved by hand were automated, measured over all 31,776
   Commander-legal cards (Scryfall oracle-cards 2026-10-31; see RULES_AUDIT.md, "Whole catalog"). New modules:
   - `src/engine/effects-catalog.js` — more instructions, tried after the older readers in effects.js: self / enchanted /
@@ -190,7 +193,17 @@ what each part does, the owner's rules, open notes, and the roadmap.
     Auras that enchant a player (Curses) or a graveyard creature card (Animate Dead), Cycling spells.
   - Speed: compiled texts are cached (`COMPILE_CACHE`) and the catalog patterns see the card's name as `SELFNAME`, so the
     regular expressions are built once.
-  - Tests: `node tests/node/catalog.mjs` (104 in-game checks, every new family; choices answered by the player who makes them).
+  - Tests: `node tests/node/catalog.mjs` (198 in-game checks, every new family; choices answered by the player who makes them).
+  - Later in the same work (build 44): keyword mechanics as special actions or keyword triggers — Saddle (`saddledTurn`,
+    "attacks while saddled"), Encore (tokens that must attack one player: `combat-restriction` with `playerId`), Miracle
+    and Suspend (special triggers in ops.js, suspended cards are trigger sources in exile), Plot (`card.plotted`, cast free
+    later as a sorcery), Boast (`activationBlock`), Improvise and Emerge (casting.js), Spectacle (`game.lostLifeTurn`),
+    Reinforce, Soulbond (`card.pairedWith`, bonuses in attachments.js `syncAttachments`), Exploit (`exploited` event);
+    alternative costs "pay … rather than pay this spell's mana cost [if …]"; stun counters (`setTapped` and the untap step);
+    damage to planeswalkers/battles removes loyalty/defense (`markDamage`); Expend (`player.manaSpent`); coin flips;
+    reveal-until; divide damage/counters as cast (`distribute`); emblems (`player.emblems`, read by combat.js
+    `staticSources`); casting from the graveyard with "exile it instead" (`exileInsteadOfGraveyard`); "one or more cards leave
+    your graveyard" once per resolution (`resolutionId` on events); library searches for land types filter correctly.
   - The handoff's ledgers were filled from the before/after audits (CONFIRMATION-LEDGER.csv / ABILITY-LEDGER.csv; delivered
     with the session, not in the repo): engine confirmation is the audit, not a card-by-card review of rulings.
 - **Rules audit:** `node tools/rules-audit.mjs cards.json [report.json]` (Scryfall card list). Findings for the
@@ -283,11 +296,11 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
-    node tests/node/game.mjs          # 197 rules/coach/judge/undo/challenge checks
+    node tests/node/game.mjs          # 248 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks
     node tests/node/forge-triggers.mjs # triggers against Forge's scripts (expect ≥99% / 100%)
-    node tests/node/catalog.mjs       # 104 catalog-effect checks (build 43)
+    node tests/node/catalog.mjs       # 198 catalog-effect checks (builds 43-44)
     node tests/node/soak.mjs 20       # random full games (includes the lab deck), expects "0 problems"
                                       # (now and then 1 "refused block … requires at least 2 blockers": the random bot
                                       #  blocks a menace creature with one creature and the game rightly refuses — a bot gap)
