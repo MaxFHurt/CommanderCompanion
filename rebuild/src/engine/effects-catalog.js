@@ -304,6 +304,14 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'to-library', bind, positionBind: where });
     return true;
   }
+  // Gaea's Blessing, Memory's Journey: "Target player shuffles up to three target cards from their graveyard into their library."
+  if ((m = c.match(rx(`^Target player shuffles up to ${N} target cards from their graveyard into their library\\.?$`, 'i')))) {
+    const playerBind = H.playerRequirement(requirements, 'player', 'Target player');
+    const bind = `graveTheirs${requirements.length}`;
+    requirements.push({ kind: 'their-graveyard-pick', bind, playerBind, max: num(m[1]), label: `up to ${m[1]} cards from their graveyard` });
+    effects.push({ kind: 'graveyard-shuffle-in', bind, playerBind });
+    return true;
+  }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
@@ -761,11 +769,23 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     return { part: { effects: [{ kind: 'impulse', amount, until, castOnly: /cast/i.test(p[2]) && !/lands/i.test(p[3]), free: !!p[5], chooseBind: bind, libPlayer }], requirements: [...(libPlayerReq ? [libPlayerReq] : []), ...requirements], unsupported: [] }, consumed: k + 1 };
   }
 
+  // One-sentence form: "Target opponent reveals their hand and you choose a nonland card from it. Exile that card (until this
+  // creature leaves the battlefield)." (Brain Maggot, Kitesail Freebooter) / "… That player discards that card."
+  if ((m = c0.match(/^(target opponent|target player|that player) reveals (?:their|his or her) hand and you choose (a|an|one) ([a-z ,/'-]+? )?card from it\.?$/i))) {
+    const fin = next(1).match(/^(?:That player discards that card|Exile that card( until (?:this creature|SELFNAME|this artifact|this enchantment) leaves the battlefield)?)\.?$/i);
+    if (fin) {
+      const bindPlayer = /^that/i.test(m[1]) ? 'eventPlayer' : `player${i}`;
+      const requirements = /^that/i.test(m[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }];
+      const pick = `handPick${i}`;
+      requirements.push({ kind: 'hand-pick', bind: pick, playerBind: bindPlayer, filter: (m[3] || '').trim(), min: 1, max: 1, label: `a ${(m[3] || '').trim()} card from their hand`.replace(/\s+/g, ' ') });
+      return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to: /discard/i.test(fin[0]) ? 'graveyard' : 'exile', untilLeaves: !!fin[1] }], requirements, unsupported: [] }, consumed: 2 };
+    }
+  }
   // Hand disruption: "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card."
   if ((m = c0.match(/^(Target opponent|Target player|Each opponent) reveals (?:their|his or her) hand\.?$/i))) {
     const ch = next(1).match(/^You (?:may )?choose (a|an|up to (?:one|two|three|\d+)|one|two|three|any number of) ([a-z ,/'-]+? )?cards? from (?:it|their hand|among them|those cards)(?: with mana value (\d+) or (less|greater))?\.?$/i);
     const fin = next(2).match(/^(?:That player|They|Its owner) (discards? (?:that card|those cards|the chosen cards?|it)|exiles? (?:that card|it)|puts? (?:that card|it) on the bottom of their library)\.?$/i)
-      || next(2).match(/^Exile (?:that card|it|those cards)\.?$/i);
+      || next(2).match(/^Exile (?:that card|it|those cards)( until (?:this creature|SELFNAME|this artifact|this enchantment) leaves the battlefield)?\.?$/i);
     const bindPlayer = `player${i}`;
     const requirements = /^each/i.test(m[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }];
     if (!ch || !fin || /^each/i.test(m[1])) {
@@ -778,7 +798,7 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const pick = `handPick${i}`;
     requirements.push({ kind: 'hand-pick', bind: pick, playerBind: bindPlayer, filter, min, max, label: `${count} ${filter || ''} card from their hand`.replace(/\s+/g, ' ') });
     const to = /exile/i.test(fin[0]) ? 'exile' : /bottom/i.test(fin[0]) ? 'bottom' : 'graveyard';
-    return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to }], requirements, unsupported: [] }, consumed: 3 };
+    return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to, untilLeaves: !!fin[1] && /^Exile/i.test(fin[0]) }], requirements, unsupported: [] }, consumed: 3 };
   }
   return null;
 }
@@ -892,7 +912,13 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
         c.zone = 'graveyard'; p.deck.graveyard.push(c);
         emit({ type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
         notes.push(`${p.displayName} discards ${name}.`);
-      } else { moveTo(game, id, { to: effect.to }, emit, controllerId); notes.push(`${name} is ${effect.to === 'exile' ? 'exiled' : 'put on the bottom of its owner’s library'}.`); }
+      } else {
+        moveTo(game, id, { to: effect.to }, emit, controllerId);
+        // "until this creature leaves the battlefield": it goes back to its owner's hand then (triggers.js).
+        const src = effect.untilLeaves ? locateCardInGame(game, bindings.sourceId) : null;
+        if (src?.zone === 'battlefield') src.card.untilLeavesExileHand = [...(src.card.untilLeavesExileHand || []), id];
+        notes.push(`${name} is ${effect.to === 'exile' ? 'exiled' : 'put on the bottom of its owner’s library'}.`);
+      }
     }
     if (!ids.length) notes.push(`${p.displayName} reveals their hand; nothing is chosen.`);
     return true;
@@ -1530,6 +1556,15 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${obj.label || 'The spell'} has new targets.`);
       return true;
     }
+    case 'graveyard-shuffle-in': {
+      const who = playerById(game, bindings[effect.playerBind]);
+      if (!who) return true;
+      const ids = [].concat(bindings[effect.bind] || []).filter(id => who.deck.graveyard.some(c => c.instanceId === id));
+      for (const id of ids) moveCard(game, id, 'library', { onEvent: emit });
+      H.shuffle(who.deck.remainingLibrary);
+      notes.push(`${who.displayName} shuffles ${ids.length} card${ids.length === 1 ? '' : 's'} from their graveyard into their library.`);
+      return true;
+    }
     case 'clash': {
       const r = bindings[effect.bind] || {};
       const opp = playerById(game, r.opponent);
@@ -1999,6 +2034,12 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
     if (!req.mustChange && !ask(`${key}:new`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `Choose new targets for ${obj.label || 'that spell'}?`, yesLabel: 'New targets', noLabel: 'Keep them' }))) { bindings[req.bind] = {}; return true; }
     util.gather(game, { player, sourceName: ctx.sourceName, cancellable: false }, reqs.map(r => ({ ...r, optional: false })), fresh, ask, `${key}:t`);
     bindings[req.bind] = Object.fromEntries(reqs.map(r => [r.bind, fresh[r.bind]]));
+    return true;
+  }
+  if (req.kind === 'their-graveyard-pick') {
+    const who = (game.players || []).find(p => p.playerId === bindings[req.playerBind]) || player;
+    const rows = who.deck.graveyard || [];
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title: `${ctx.sourceName} — ${who.displayName}'s graveyard`, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: 0, max: Math.min(req.max || 1, rows.length) })) : [];
     return true;
   }
   if (req.kind === 'owner-top-bottom') {

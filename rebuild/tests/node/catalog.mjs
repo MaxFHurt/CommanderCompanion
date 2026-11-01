@@ -10,6 +10,7 @@ const def = (t, c) => t.game.cardDefinitions[c.definitionId];
 const power = (t, c) => effectivePower(c, withOverlay(c, def(t, c)), t.game);
 const tough = (t, c) => effectiveToughness(c, withOverlay(c, def(t, c)), t.game);
 const require_lock = t => t.P(0).lifeLocked && t.P(0).lifeLockedTurn === t.game.turnNumber;
+const d0 = c => (c && c.instanceId);
 const has = (t, c, k) => cardHasKeyword(c, def(t, c), k, t.game);
 const auto = d => { const open = (d.options || []).filter(o => !o.disabled); return d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : d.kind === 'arrange' ? { top: d.cards.map(c => c.id), other: [] } : open[0]?.id; };
 /** Answer every question; `picks` maps a part of the question key (or a test on the question) to an answer. */
@@ -1475,6 +1476,24 @@ section('round 38: tapped tokens, half life, owner\'s top-or-bottom, can\'t bloc
   cast(t, 'Opt', 'Target creature\'s owner puts it on their choice of the top or bottom of their library.', [[d => d.targeting, () => foe.instanceId], [d => d.options?.some(o => o.id === 'bottom'), d => { asked = d.playerId; return 'bottom'; }]]);
   const lib = t.P(1).deck.remainingLibrary;
   check('Dire Downdraft: the owner chooses; it goes to the bottom', asked === t.P(1).playerId && lib[lib.length - 1]?.instanceId === foe.instanceId, String(asked));
+}
+
+section('round 39: hand disruption until it leaves, graveyard shuffle');
+{
+  const t = setup();
+  t.give(1, 'Opt'); const theirs = t.hand(1, 'Opt');
+  t.give(0, 'Grizzly Bears'); const mag = asText(t, t.hand(0, 'Grizzly Bears'), 'When this creature enters, target opponent reveals their hand and you choose a nonland card from it. Exile that card until this creature leaves the battlefield.', { manaCost: '{G}' });
+  t.ctl.dispatch({ type: 'play', instanceId: mag.instanceId }, t.as(0));
+  settle(t, [[d => d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId], [d => d.options?.some(o => o.id === theirs.instanceId), () => [theirs.instanceId]]]);
+  check('Brain Maggot: their card is exiled', theirs.zone === 'exile', theirs.zone);
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => t.bf(0, 'Grizzly Bears').instanceId]]);
+  check('…and returns to their hand when it leaves', theirs.zone === 'hand' && t.P(1).deck.hand.includes(theirs), theirs.zone);
+}
+{
+  const t = setup();
+  const a = t.give(1, 'Grizzly Bears', 'graveyard'), b = t.give(1, 'Llanowar Elves', 'graveyard');
+  cast(t, 'Opt', 'Target player shuffles up to three target cards from their graveyard into their library.', [[d => d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId], [d => d.kind === 'choose-many', () => [a.instanceId, b.instanceId]]]);
+  check('Gaea\'s Blessing: two cards shuffled back', a.zone === 'library' && b.zone === 'library' && !t.P(1).deck.graveyard.length);
 }
 
 done();

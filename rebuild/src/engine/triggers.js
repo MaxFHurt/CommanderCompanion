@@ -601,6 +601,11 @@ export function queueTriggers(game, event) {
   // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
   if (event?.type === 'leaves-battlefield' && event.sourceId) {
     const gone = (game.players || []).flatMap(p => ['graveyard', 'exile', 'hand', 'commandZone', 'remainingLibrary'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
+    const toHand = gone?.untilLeavesExileHand || [];
+    if (toHand.length) {
+      gone.untilLeavesExileHand = [];
+      for (const id of toHand) if ((game.players || []).some(p => (p.deck?.exile || []).some(c => c.instanceId === id))) moveCard(game, id, 'hand', { onEvent: e => queueTriggers(game, e) });
+    }
     const back = gone?.untilLeavesExile || [];
     if (back.length) {
       gone.untilLeavesExile = [];
