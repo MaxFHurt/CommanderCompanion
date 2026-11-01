@@ -460,6 +460,8 @@ function runPlay(game, op, ask) {
   }
 
   const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
+  // Addendum: "If you cast this spell during your main phase" (checked as it resolves).
+  if (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase)) bindings.castInMain = true;
   if (giftTo) {
     // The promised gift comes first, done by the opponent who was promised it.
     bindings.giftPlayer = giftTo;

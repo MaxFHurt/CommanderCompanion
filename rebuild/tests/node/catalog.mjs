@@ -1911,4 +1911,60 @@ section('round 49: Midnight Clock, Archaeomancer\'s Map, Scrap Trawler');
   check('Archaeomancer\'s Map: with more lands, the opponent\'s land lets you put a land from your hand', t.P(0).deck.battlefield.length === before + 1, String(t.P(0).deck.battlefield.length - before));
 }
 
+section('round 50: Urza, Expressive Iteration, Selvala, counters moved');
+{
+  const t = setup();
+  const urza = onField(t, 'Sol Ring', '{5}: Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost.');
+  activate(t, urza, 0);
+  const ex = t.P(0).deck.exile.find(c => c.playPermission);
+  check('Urza: the exiled top card may be played free this turn', !!ex && ex.playPermission.free && ex.playPermission.until === 'turn', JSON.stringify(ex?.playPermission));
+}
+{
+  const t = setup();
+  const top3 = t.P(0).deck.remainingLibrary.slice(0, 3).map(c => c.instanceId);
+  cast(t, 'Opt', 'Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn.', [[d => /into your hand/.test(d.prompt || ''), [top3[0]]], [d => /on the bottom/.test(d.prompt || ''), [top3[1]]], [d => /to play/.test(d.prompt || ''), [top3[2]]]], { manaCost: '{U}' });
+  const ex = t.P(0).deck.exile.find(c => c.instanceId === top3[2]);
+  check('Expressive Iteration: one to hand, one to the bottom, one exiled and playable', t.P(0).deck.hand.some(c => c.instanceId === top3[0]) && t.P(0).deck.remainingLibrary.slice(-1)[0].instanceId === top3[1] && ex?.playPermission?.until === 'turn');
+}
+{
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever another creature enters, its controller may draw a card if its power is greater than each other creature\'s power.', { typeLine: 'Creature — Wall', power: '0' });
+  const hand1 = t.P(1).deck.hand.length; const seen = [];
+  t.give(1, 'Colossal Dreadmaw', 'battlefield');
+  settle(t, [[d => d.playerId === t.P(1).playerId && d.prompt === 'Draw a card?', 'yes']], seen);
+  check("Selvala: the entering creature's controller is asked and draws", t.P(1).deck.hand.length === hand1 + 1 && seen.some(d => d.playerId === t.P(1).playerId), String(t.P(1).deck.hand.length - hand1));
+  const hand0 = t.P(0).deck.hand.length, seen2 = [];
+  t.give(0, 'Llanowar Elves', 'battlefield'); settle(t, [], seen2);
+  check('…a smaller creature: nothing is asked', !seen2.some(d => d.prompt === 'Draw a card?') && t.P(0).deck.hand.length === hand0);
+}
+{
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''); a.counters = { '+1/+1': 2 };
+  const b = onField(t, 'Llanowar Elves', '');
+  const ng = onField(t, 'Sol Ring', '{1}, {T}: Move a counter from target permanent you control onto a second target permanent. Activate only as a sorcery.');
+  activate(t, ng, 0, [[d => d.targeting && d.options.some(o => o.id === a.instanceId) && !d.key.includes('1'), () => a.instanceId], [d => d.targeting, () => b.instanceId]]);
+  check('Nesting Grounds: one counter moves', a.counters['+1/+1'] === 1 && b.counters?.['+1/+1'] === 1, JSON.stringify([a.counters, b.counters]));
+}
+{
+  const t = setup();
+  const fa = onField(t, 'Grizzly Bears', '{0}: You may move any number of +1/+1 counters from this creature onto other creatures.'); fa.counters = { '+1/+1': 3 };
+  const b = onField(t, 'Llanowar Elves', '');
+  activate(t, fa, 0, [[d => d.kind === 'confirm', true], [d => d.kind === 'choose-many' && /move \+1/.test(d.prompt || ''), [b.instanceId]], [d => d.kind === 'number', 2]]);
+  check('Forgotten Ancient: its controller chooses where and how many', fa.counters['+1/+1'] === 1 && b.counters?.['+1/+1'] === 2, JSON.stringify([fa.counters, b.counters]));
+}
+{
+  const t = setup();
+  t.give(0, 'Command Tower');
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Draw a card, then you may put a land card from your hand onto the battlefield. If you put a Cave onto the battlefield this way, you gain 4 life.', [[d => /land card/i.test(d.prompt || d.label || ''), d => d.options?.find(o => o.label === 'Command Tower')?.id ?? d.options?.[0]?.id]], { manaCost: '{G}' });
+  check('Spelunking: a land that is not a Cave gives no life', t.names(0, 'battlefield').includes('Command Tower') && t.P(0).life === life, JSON.stringify([t.P(0).life - life]));
+}
+{
+  const t = setup();
+  t.give(0, 'Command Tower'); asText(t, t.hand(0, 'Command Tower'), '{T}: Add {C}.', { typeLine: 'Land — Cave' });
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Draw a card, then you may put a land card from your hand onto the battlefield. If you put a Cave onto the battlefield this way, you gain 4 life.', [[d => /land card/i.test(d.prompt || d.label || ''), d => d.options?.find(o => o.label === 'Command Tower')?.id ?? d.options?.[0]?.id]], { manaCost: '{G}' });
+  check('…a Cave gives 4 life', t.P(0).life === life + 4, String(t.P(0).life - life));
+}
+
 done();

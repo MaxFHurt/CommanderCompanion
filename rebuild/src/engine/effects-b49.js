@@ -105,6 +105,29 @@ export function compileB49Clause(c, ctx) {
     effects.push({ kind: 'return-from-graveyard', bind, to: 'hand' });
     return true;
   }
+  // Selvala: "its controller may draw a card if its power is greater than each other creature's power."  Tataru Taru: "target opponent may draw a card."
+  if ((m = c.match(/^(its controller|target opponent|target player|that player) may draw a card(?: if its power is greater than each other creature'?s power)?\.?$/i))) {
+    const pb = /^target/i.test(m[1]) ? H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]) : 'eventPlayer';
+    const bind = `theyMay${requirements.length}`;
+    requirements.push({ kind: 'b49-they-may', bind, playerBind: pb, label: 'Draw a card?', biggest: /greater than each other/i.test(c) });
+    effects.push({ kind: 'condition', test: 'chosen', bind, skip: 1 }, { kind: 'draw', scope: 'you', amount: 1, forPlayerBind: pb });
+    return true;
+  }
+  // Nesting Grounds: "Move a counter from target permanent you control onto a second target permanent."
+  if (/^Move a counter from target permanent you control onto a second target permanent\.?$/i.test(c)) {
+    const from = H.targetRequirement(requirements, 'target permanent you control', 'target permanent you control');
+    const to = H.targetRequirement(requirements, 'target permanent', 'a second target permanent');
+    const kind = `counterKind${requirements.length}`;
+    requirements.push({ kind: 'b49-counter-kind', bind: kind, fromBind: from });
+    effects.push({ kind: 'move-counter', fromBind: from, bind: to, kindBind: kind, amount: 1 });
+    return true;
+  }
+  // Forgotten Ancient: "you may move any number of +1/+1 counters from this creature onto other creatures."
+  if (/^(?:you may )?move any number of \+1\/\+1 counters from (?:SELFNAME|this creature) onto other creatures\.?$/i.test(c)) {
+    requirements.push({ kind: 'b49-spread-counters', bind: 'spread' });
+    effects.push({ kind: 'spread-counters', bind: 'spread' });
+    return true;
+  }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
   if ((m = c.match(/^(?:Players|Each player) can'?t cast (noncreature )?spells this turn\.?$/i))) { effects.push({ kind: 'cast-lock-all', noncreature: !!m[1] }); return true; }
   // "All permanents you control phase out, and until your next turn, …" — two instructions.
@@ -186,6 +209,29 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
   if (/^Each opponent attacking that player does the same\.?$/i.test(c0) && parts.length) {
     const prev = parts[parts.length - 1];
     if (prev.effects?.length && !(prev.requirements || []).length) return { part: { effects: [{ kind: 'condition', test: 'b49-event-player-opponent', skip: prev.effects.length }, ...prev.effects.map(e => ({ ...e, forPlayerBind: 'eventPlayer' }))], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // Urza, Lord High Artificer: "Shuffle your library, then exile the top card. Until end of turn, you may play that card without paying its mana cost."
+  if (/^Shuffle your library, then exile the top card\.?$/i.test(c0) && /^Until end of turn, you may play that card without paying its mana cost\.?$/i.test(String(clauses[i + 1] || '')))
+    return { part: { effects: [{ kind: 'shuffle' }, { kind: 'impulse', amount: 1, until: 'turn', free: true }], requirements: [], unsupported: [] }, consumed: 2 };
+  // Emry: "Choose target artifact card in your graveyard. You may cast that card this turn."
+  if ((m = c0.match(/^Choose target ([a-z ]+?) card in your graveyard\.?$/i)) && /^You may cast that card this turn\.?$/i.test(String(clauses[i + 1] || ''))) {
+    const bind = `grave${i}`;
+    return { part: { effects: [{ kind: 'cast-from-graveyard', bind, thisTurn: true }], requirements: [{ kind: 'graveyard-target', bind, scope: `target ${m[1].toLowerCase()} card in your graveyard`, label: `target ${m[1].toLowerCase()} card in your graveyard` }], unsupported: [] }, consumed: 2 };
+  }
+  // Expressive Iteration: "Put one of them into your hand, put one of them on the bottom of your library, and exile one of them." (+ "You may play the exiled card this turn.")
+  if (/^Look at the top three cards of your library\.?$/i.test(c0) && /^Put one of them into your hand, put one of them on the bottom of your library, and exile one of them\.?$/i.test(String(clauses[i + 1] || '')) && /^You may play the exiled card this turn\.?$/i.test(String(clauses[i + 2] || ''))) {
+    const bind = `dig${i}`, picks = [{ min: 1, max: 1, filter: '', to: 'hand' }, { min: 1, max: 1, filter: '', to: 'bottom' }, { min: 1, max: 1, filter: '', to: 'exile-play' }];
+    return { part: { effects: [{ kind: 'dig', bind, amount: 3, picks, rest: { to: 'exile' } }], requirements: [{ kind: 'dig', bind, amount: 3, picks, rest: { to: 'exile' }, label: 'the top three cards' }], unsupported: [] }, consumed: 3 };
+  }
+  // Unbreakable Formation: "Addendum — If you cast this spell during your main phase, put a +1/+1 counter on each of those creatures and they gain vigilance until end of turn."
+  if (/^(?:Addendum — )?If you cast this spell during your main phase, put a \+1\/\+1 counter on each of those creatures and they gain vigilance until end of turn\.?$/i.test(c0) && parts.some(p => p.effects.some(e => e.kind === 'grant-keyword-each' && e.scope === 'you'))) {
+    const a = compile('Put a +1/+1 counter on each creature you control.', sourceName), b = compile('Creatures you control gain vigilance until end of turn.', sourceName);
+    if (ok(a) && ok(b)) return { part: { effects: [{ kind: 'condition', test: 'b49-cast-in-main', skip: a.effects.length + b.effects.length }, ...a.effects, ...b.effects], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // Spelunking: "If you put a Cave onto the battlefield this way, you gain 4 life."
+  if ((m = c0.match(/^If you put an? ([A-Z][a-z]+) onto the battlefield this way, (.+)$/))) {
+    const inner = compile(cap(m[2]), sourceName);
+    if (ok(inner)) return { part: { effects: [{ kind: 'condition', test: 'b49-last-moved-type', type: m[1], skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] }, consumed: 1 };
   }
   // Longstalk Brawl: "Put a +1/+1 counter on the creature you control." — the one targeted earlier in the spell.
   if ((m = c0.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on the creature you (control|don'?t control)\.?$/i))) {
@@ -356,6 +402,31 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} shuffles ${moved.length} card${moved.length === 1 ? '' : 's'} from their hand and graveyard into their library.`);
       return true;
     }
+    case 'move-counter': {
+      const from = locateCardInGame(game, bindings[effect.fromBind]), to = locateCardInGame(game, H.resolveBoundId(effect, bindings)), k = bindings[effect.kindBind];
+      if (!from || !to || from.zone !== 'battlefield' || to.zone !== 'battlefield' || !k || !(Number(from.card.counters?.[k] || 0) > 0)) { notes.push('No counter is moved.'); return true; }
+      from.card.counters[k] = Number(from.card.counters[k]) - 1;
+      if (!from.card.counters[k]) delete from.card.counters[k];
+      H.addCounter(to.card, k, 1);
+      H.emit(bindings, { type: 'counter-added', sourceId: to.card.instanceId, controllerId: to.card.controllerId, counter: k, amount: 1 });
+      notes.push(`A ${k} counter moves from ${definitionFor(game, from.card)?.name} to ${definitionFor(game, to.card)?.name}.`);
+      return true;
+    }
+    case 'spread-counters': {
+      const src = locateCardInGame(game, bindings.sourceId);
+      const plan = bindings[effect.bind] || {};
+      for (const [id, n0] of Object.entries(plan)) {
+        const n = Math.min(Number(n0 || 0), Number(src?.card?.counters?.['+1/+1'] || 0));
+        const to = locateCardInGame(game, id);
+        if (!src || !to || to.zone !== 'battlefield' || n <= 0) continue;
+        src.card.counters['+1/+1'] -= n;
+        if (!src.card.counters['+1/+1']) delete src.card.counters['+1/+1'];
+        H.addCounter(to.card, '+1/+1', n);
+        H.emit(bindings, { type: 'counter-added', sourceId: to.card.instanceId, controllerId: to.card.controllerId, counter: '+1/+1', amount: n });
+        notes.push(`${n} +1/+1 counter${n === 1 ? '' : 's'} move${n === 1 ? 's' : ''} to ${definitionFor(game, to.card)?.name}.`);
+      }
+      return true;
+    }
     case 'cast-lock-all':
       game.castLocks = [...(game.castLocks || []).filter(x => x.turn === game.turnNumber), { turn: game.turnNumber, playerIds: game.players.map(p => p.playerId), noncreature: !!effect.noncreature, source: nameOf(game, bindings.sourceId) }];
       notes.push(`Players can't cast ${effect.noncreature ? 'noncreature ' : ''}spells this turn.`);
@@ -436,6 +507,42 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', targeting: true, title, prompt: `Choose a target ${req.label} (less than ${mv}).`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')) })) : null;
     return true;
   }
+  if (req.kind === 'b49-they-may') {
+    const pid = bindings[req.playerBind], p = playerById(game, pid);
+    bindings[req.bind] = false;
+    if (!p) return true;
+    if (req.biggest) {
+      const ev = locateCardInGame(game, bindings.eventCard)?.card;
+      const all = (game.players || []).flatMap(q => q.deck?.battlefield || []).filter(c => /\bCreature\b/.test(util.defOf(game, c)?.typeLine || ''));
+      const pw = c => effectivePower(c, util.defOf(game, c), game);
+      if (!ev || !all.includes(ev) || !all.filter(c => c !== ev).every(c => pw(ev) > pw(c))) return true;   // not the biggest: nothing to ask
+    }
+    const v = ask(key, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: req.label, options: [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }] }));
+    bindings[req.bind] = v === 'yes';
+    return true;
+  }
+  if (req.kind === 'b49-counter-kind') {
+    const from = locateCardInGame(game, bindings[req.fromBind])?.card;
+    const kinds = Object.entries(from?.counters || {}).filter(([, v]) => Number(v) > 0).map(([k]) => k);
+    bindings[req.bind] = kinds.length <= 1 ? kinds[0] || null : ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose the kind of counter to move.', options: kinds.map(k => ({ id: k, label: `${k} counter` })) }));
+    return true;
+  }
+  if (req.kind === 'b49-spread-counters') {
+    const src = locateCardInGame(game, bindings.sourceId)?.card;
+    let left = Number(src?.counters?.['+1/+1'] || 0);
+    const plan = {};
+    const others = (game.players || []).flatMap(q => (q.deck?.battlefield || []).map(c => ({ c, q }))).filter(x => x.c.instanceId !== bindings.sourceId && /\bCreature\b/.test(util.defOf(game, x.c)?.typeLine || ''));
+    if (left > 0 && others.length) {
+      const picked = [].concat(ask(`${key}:who`, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose creatures to move +1/+1 counters onto (${left} available), or none.`, options: others.map(x => util.cardOption(game, x.c, x.q)), min: 0, max: others.length })) || []);
+      for (const id of picked) {
+        if (left <= 0) break;
+        const n = ask(`${key}:${id}`, () => ({ ...base, cancellable: false, kind: 'number', title, prompt: `How many +1/+1 counters onto ${util.defOf(game, others.find(x => x.c.instanceId === id)?.c)?.name}? (${left} left)`, min: 0, max: left }));
+        plan[id] = Number(n || 0); left -= Number(n || 0);
+      }
+    }
+    bindings[req.bind] = plan;
+    return true;
+  }
   if (req.kind === 'b49-hand-pick') {
     const rows = (player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, cancellable: false, private: true, kind: 'choose-many', title, prompt: `Choose a ${req.label}${req.min ? '' : ' (or none)'}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(req.min || 0, 1), max: 1 })) : [];
@@ -500,6 +607,7 @@ export function parseConditionB49(t) {
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^it had counters on it$/i.test(t)) return { test: 'b49-event-counters' };
   if (/^that player controls more lands than you$/i.test(t)) return { test: 'b49-event-player-more-lands' };
+  if (/^it isn'?t that player'?s turn$/i.test(t)) return { test: 'b49-not-event-players-turn' };
   if (/^(?:SELFNAME|this (?:artifact|creature|permanent)|[A-Z][A-Za-z ,'-]+) has counters on it$/.test(t)) return { test: 'b49-source-counters' };
   if ((m = t.match(/^creatures you control have total power (\w+) or greater$/i))) return { test: 'b49-total-power', min: cnt(m[1]) };
   if ((m = t.match(/^you attacked with (\w+) or more creatures this turn$/i))) return { test: 'b49-attacked-with', min: cnt(m[1]) };
@@ -530,6 +638,9 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-cast-from-graveyard': return bindings.selfFromZone === 'graveyard' && game.resolvingObj?.kind === 'spell';
     case 'b49-event-player-opponent': return !!bindings.eventPlayer && bindings.eventPlayer !== controllerId;
     case 'b49-event-player-more-lands': { const lands = p => (p?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return lands(playerById(game, bindings.eventPlayer)) > lands(me); }
+    case 'b49-not-event-players-turn': return !!bindings.eventPlayer && game.activePlayerId !== bindings.eventPlayer;
+    case 'b49-cast-in-main': return !!bindings.castInMain;
+    case 'b49-last-moved-type': return [].concat(bindings.lastMoved || []).some(id => new RegExp(`\\b${effect.type}\\b`).test(definitionFor(game, locateCardInGame(game, id)?.card)?.typeLine || ''));
     case 'b49-bargained': return !!locateCardInGame(game, bindings.sourceId)?.card?.bargained;
     default: return undefined;
   }

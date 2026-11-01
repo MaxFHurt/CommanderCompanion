@@ -976,7 +976,9 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
           notes.push(`${controller.displayName} casts ${nameOf(id)} without paying its mana cost.`);
           continue;
         }
-        moveTo(game, id, d, emit, controllerId);
+        const mv = moveTo(game, id, d, emit, controllerId);
+        // Expressive Iteration: "exile one of them. You may play the exiled card this turn."
+        if (d.to === 'exile-play' && mv?.card) mv.card.playPermission = { playerId: controllerId, until: 'turn', grantedTurn: game.turnNumber, castOnly: false, free: false };
         notes.push(`${controller.displayName} puts ${nameOf(id)} ${d.to === 'hand' ? 'into their hand' : d.to === 'battlefield' ? 'onto the battlefield' : d.to === 'graveyard' ? 'into their graveyard' : d.to === 'bottom' ? 'on the bottom of their library' : 'on top of their library'}.`);
       }
     });
