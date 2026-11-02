@@ -222,6 +222,11 @@ async def main():
             await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=10000)
             online = await d.evaluate(f"fetch('http://127.0.0.1:{PORT}/profiles/' + JSON.parse(localStorage.getItem('cc-online-profile')).key).then(r => r.json()).then(j => (j.backup.deckBuilder?.decks || []).map(x => x.name))")
             check('closing a deck in the Deck Builder sends it to the online profile', 'Synced Deck' in online, str(online))
+            before = await d.evaluate("JSON.parse(localStorage.getItem('cc-online-profile')).rev")
+            await d.evaluate("() => { const x = S.profile.decks[0]; S.deckId = x.id; S.view = 'decks'; S.open = true; render(); x.name = 'Hidden Deck'; touch(); Object.defineProperty(document, 'hidden', {configurable: true, get: () => true}); document.dispatchEvent(new Event('visibilitychange')); }")
+            await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=10000)
+            online = await d.evaluate(f"fetch('http://127.0.0.1:{PORT}/profiles/' + JSON.parse(localStorage.getItem('cc-online-profile')).key).then(r => r.json()).then(j => (j.backup.deckBuilder?.decks || []).map(x => x.name))")
+            check('putting the app away with a deck open sends the edits too', 'Hidden Deck' in online, str(online))
             for name, pg in (('a', a), ('b', b), ('c', c), ('d', d), ('e', e)):
                 errors = [e for e in pg.errors if '409 (Conflict)' not in e and 'ERR_FAILED' not in e]   # 409 = someone saved first, handled
                 check(f'no page errors on {name}', not errors, '; '.join(errors[:3]))

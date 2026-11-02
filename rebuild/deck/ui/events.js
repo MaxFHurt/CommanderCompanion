@@ -2602,6 +2602,7 @@ document.addEventListener('visibilitychange', () => {
     if (!S.profile.example) {
       clearTimeout(saveT);
       persist();
+      pushDeckEdits(); // linked to an online profile: the edits go up as the app is put away, deck open or not (owner, 2 Nov)
     }
   }
 });

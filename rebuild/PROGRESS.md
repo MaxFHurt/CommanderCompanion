@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.58 (Deck Builder {"build": 177, "version": "0.9.32"})
+- **Live build:** 1.0.0-rebuild.59 (Deck Builder {"build": 178, "version": "0.9.33"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 59 — 2 Nov 2026
+- Deck Builder 0.9.33 (build 178): putting the app away with a deck open sends the edits to the online profile (the Deck Builder's hide handler calls `pushDeckEdits`), closing the last profile-sync gap. Tests: quick check 12, online_ui 40 (new: a deck renamed while open reaches the online copy when the page is hidden).
 
 ### Build 58 — 2 Nov 2026
 - Deck Builder 0.9.32 (build 177): a Back button on every page (item 6) except the home screen and an open deck (which has All decks), and every page or tab change is a history entry, so the browser or phone back gesture returns to the previous page and closes an open pop-up (`trackSpot` and the popstate handler at the end of deck/ui/events.js; the button in render, deck/ui/cards.js). Pop-ups still close with their × (not a Back button). Tests: quick check 12, a back-navigation check. With this, all eight planning-chat items are done or checked.
