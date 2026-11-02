@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.54 (Deck Builder 0.9.28, build 173)
+- **Live build:** 1.0.0-rebuild.55 (Deck Builder 0.9.29, build 174)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,12 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 55 — 2 Nov 2026 — Deck Builder: health in one line, details in a pop-up
+- Deck Builder 0.9.29: the planning chat's items 3 and 5 (Deck-Companion CHAT_TO_WORK_HANDOFF.md). One colour-coded health line,
+  a short positive lead under the power bar, and a Show all details pop-up with the full picture; "Foundation" replaces "Starter".
+  Still open from that list: 1 (power as the only headline number), 2 (swaps labelled in power), 4 (tier picks after a tier is
+  passed), 6 (back button on every page), 8 (searched cards replace by job).
 
 ### Build 54 — 2 Nov 2026 — Deck Builder edits sync when a deck is closed
 - Deck Builder 0.9.28: closing a deck saves it and sends the profile to the online copy on a linked device. Minimum tests

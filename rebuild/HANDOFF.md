@@ -8,7 +8,14 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.54** (2 Nov): Deck Builder 0.9.28 (build 173): **closing a deck sends the edits to the online
+- Live build: **1.0.0-rebuild.55** (2 Nov): Deck Builder 0.9.29 (build 174): **deck health in one colour-coded line** (red / yellow /
+  green from the worst alert that isn't ignored; info never colours it; names the problem areas) in the Upgrades bar and on Build
+  stats, and **a positive one-line lead** under the power bar ("Stronger than this deck's Budget build … Next: Mid, N power to go").
+  Everything else (power against each build, "To reach <next build>" part by part, every alert with its numbers, why it matters,
+  Fix and Ignore, then what is going well) is in the **Show all details** pop-up (`openDeckPop`, `DECKPOP` in deck/ui/upgrades.js).
+  Below Budget now reads **Foundation** (internally still 'Starter'). Tests: Deck Builder quick check 12; UI-B101/B123/B126/B165
+  updated to the new layout and passing. Minimum tests by the owner's choice.
+  Build 54 (2 Nov): Deck Builder 0.9.28 (build 173): **closing a deck sends the edits to the online
   profile** straight away on a linked device (`pushDeckEdits` in `deck/ui/cards.js` → `pushProfileNow` in online-profile.js, which
   loads the profile, deck and playmat stores first). Tests: online_ui 39 (new: a deck renamed and closed reaches the online copy),
   Deck Builder quick check 12. Minimum tests again by the owner's choice.

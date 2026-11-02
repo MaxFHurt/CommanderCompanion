@@ -474,6 +474,7 @@ function handleAct(act, v, n, pArg) {
       break;
     case 'close':
       $('#modal').hidden = true;
+      S.deckPop = null;
       S.watchOpen = false;
       return;
     case 'undo':
@@ -1856,6 +1857,9 @@ function handleAct(act, v, n, pArg) {
       })();
       return;
     }
+    case 'deck-pop':
+      openDeckPop(v);
+      return;
     case 'h-fix': {
       const H0 = Object.keys(FIX_OF);
       if (String(v).startsWith('*')) {
@@ -1868,6 +1872,7 @@ function handleAct(act, v, n, pArg) {
     }
     case 'h-ignore':
       if (!d) return;
+      if (S.deckPop && !$('#modal').hidden && !S.fixKeys) setTimeout(() => openDeckPop('health'), 0);
       d.ignoreH = (d.ignoreH || []).filter(x => x !== v).concat(v);
       toast('The ' + v + ' alert is ignored for this deck. You can stop ignoring it under Health.');
       if (!$('#modal').hidden && S.fixKeys) {
@@ -1878,6 +1883,7 @@ function handleAct(act, v, n, pArg) {
       break;
     case 'h-unignore':
       if (!d) return;
+      if (S.deckPop && !$('#modal').hidden && !S.fixKeys) setTimeout(() => openDeckPop('health'), 0);
       d.ignoreH = (d.ignoreH || []).filter(x => x !== v);
       toast('The ' + v + ' alert is back on.');
       break;

@@ -738,7 +738,7 @@ if (RUN('UI-B101-01')) { try { if (SHARD) await RESET();
 const b101 = await page.evaluate(async () => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)), d = JSON.parse(JSON.stringify(w)); d.id = 'over-lands'; d.name = 'Over lands';
   const spells = d.cards.filter(e => !e.l && find(e.n) && !tags(find(e.n)).land).slice(-7); spells.forEach(e => cutCard(d, e.n, e.q)); addCard(d, 'Forest', 7); S.profile.decks.unshift(d); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
   for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); const A = analyze(d), out = {lands:A.lands, T:A.T.lands};
-  S.tab = 'stats'; render(); const hl = [...document.querySelectorAll('.hfix .row')].find(r => /Lands/.test(r.textContent)); out.landsFlag = !!hl && /more than needed/.test(hl.textContent) && !!hl.querySelector('[data-act="h-fix"]');
+  S.tab = 'stats'; render(); openDeckPop('health'); const hl = [...document.querySelectorAll('#modal .hfix .row')].find(r => /Lands/.test(r.textContent)); out.landsFlag = !!hl && /more than needed/.test(hl.textContent) && !!hl.querySelector('[data-act="h-fix"]'); $('#modal').hidden = true;   /* 0.9.29: the health list is in the Show all details pop-up */
   const L = fixList(d, 'Lands'); out.lfix = L.map(p => p.cut + '>' + p.add + ' ' + p.dScore); out.landForSpell = L.every(p => tags(find(p.cut)).land && !tags(find(p.add)).land && p.dScore >= SCORE_MIN);
   const M = fixList(d, 'Mana'); out.mfix = M.map(p => p.cut + '>' + p.add); out.manaNoAdds = M.every(p => tags(find(p.cut)).land);
   const e = evalFor(d); out.manaLine = manaText(e.sim); out.lineOk = e.sim.screwT5 >= 0.08 || !/ran out of lands/.test(out.manaLine);
@@ -1009,7 +1009,7 @@ if (RUN('UI-B123-01')) { try { if (SHARD) await RESET();
 const b123 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; $('#modal').hidden = true;
   const ar = apexRef(d); ar.tot = refScores(d, ar); APX.set(apexKey(d), ar); EVC.delete(d.id); render(); await recsReady(d); render();
   const m = document.querySelector('.tmeter'), e = evalFor(d), lab = m ? m.getAttribute('aria-label') : '';
-  const pw = e && e.exact != null ? 100 * e.exact / ar.tot.apex : null, want = pw == null ? '' : pw >= 99.5 ? 'Apex' : pw >= 100 * ar.tot.mid / ar.tot.apex ? 'Mid' : pw >= 100 * ar.tot.budget / ar.tot.apex ? 'Budget' : 'Starter';
+  const pw = e && e.exact != null ? 100 * e.exact / ar.tot.apex : null, want = pw == null ? '' : pw >= 99.5 ? 'Apex' : pw >= 100 * ar.tot.mid / ar.tot.apex ? 'Mid' : pw >= 100 * ar.tot.budget / ar.tot.apex ? 'Budget' : 'Foundation';   /* 0.9.29: "Starter" reads "Foundation" */
   return {lab, tot:ar.tot, score:e && e.exact, want, power:/Deck power/.test(lab), right:want && lab.includes(want + ' level')}; });
 T('UI-B123-01', 'Apex progress is deck power: the reference builds are scored as whole decks and the deck’s level follows its own score on that scale', b123.power && b123.right && b123.tot && b123.tot.apex > 0, JSON.stringify(b123));
 } catch (e) { QUIET = false; T('UI-B123-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1052,7 +1052,7 @@ if (RUN('UI-B126-01')) { try { if (SHARD) await RESET();
 // progress at the top, then the upgrades. Both show the score and the progress bar.
 const b126 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; render(); await recsReady(d); render();
   const tabs = [...document.querySelectorAll('.tabs [data-act="tab"]')].map(b => b.dataset.v), st = document.querySelector('#statscroll'), out = {order:tabs.indexOf('list') + 1 === tabs.indexOf('stats') && tabs.indexOf('stats') + 1 === tabs.indexOf('up')};
-  out.statsHas = !!(st && st.querySelector('.statbar') && st.querySelector('.hgrid')); out.statsNoMeter = !!(st && !st.querySelector('.tmeter'));   /* 0.9.20: the meter moved to Upgrades (owner 26 Oct) */ S.tab = 'up'; render(); const up = document.querySelector('#upscroll');
+  out.statsHas = !!(st && st.querySelector('.statbar') && st.querySelector('.hline'));   /* 0.9.29: health is one line */ out.statsNoMeter = !!(st && !st.querySelector('.tmeter'));   /* 0.9.20: the meter moved to Upgrades (owner 26 Oct) */ S.tab = 'up'; render(); const up = document.querySelector('#upscroll');
   out.upHas = !!(up && up.querySelector('.statbar') && up.querySelector('.tmeter')); out.upNoHealth = !(up && up.querySelector('.hgrid')); out.paths = !!(up && up.querySelector('.paths')); return out; });
 T('UI-B126-01', 'Build stats tab sits between Decklist and Upgrades with the analysis (score, health; no Apex progress since 0.9.20); Upgrades shows the score and Apex progress, then the upgrades', Object.values(b126).every(v => v === true), JSON.stringify(b126));
 } catch (e) { QUIET = false; T('UI-B126-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1558,7 +1558,7 @@ const b165 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   out.upMeter = !!up.querySelector('.tmeter'); out.upTips = !!up.querySelector('.apextips') || /Path to Apex/i.test(up.textContent); out.upPlan = !!up.querySelector('#plan-more');
   const rows = [...up.querySelectorAll('.paths .path')], tb = up.querySelector('.tierbtns'); out.tiersBelow = !!(tb && rows.length && tb.getBoundingClientRect().top >= rows[rows.length - 1].getBoundingClientRect().bottom - 1);
   out.capsLeft = document.querySelectorAll('.aimp .bfoot [data-act="cap-show"]').length === 2 && !up.querySelector('[data-act="cap-show"]');
-  S.tab = 'stats'; render(); const st = document.querySelector('#statscroll'), hg = st.querySelector('.hgrid');
+  S.tab = 'stats'; render(); const st = document.querySelector('#statscroll'), hg = st.querySelector('.hline');   /* 0.9.29: health is one line */
   out.statsClean = !st.querySelector('.tmeter') && !st.querySelector('.apextips') && !st.querySelector('#plan-more') && !/Path to Apex|Upgrades left/i.test(st.textContent);
   out.healthShort = !!(hg && hg.getBoundingClientRect().height < 90); S.tab = 'up'; render(); return out; });
 T('UI-B165-01', 'Version 0.9.20: Path to Apex, the meter and the game plan are on Upgrades; Build stats is stats only with a short health list; Apply All buttons sit below the upgrade rows; the under-$X buttons sit in the left pane', Object.values(b165).every(v => v === true), JSON.stringify(b165));

@@ -2364,7 +2364,7 @@ function gapHtml(e, T0r, lvl) {
   const ahead = Object.keys(P).filter(k => e.parts[k] != null && P[k] != null && e.parts[k] - P[k] >= 3);
   if (!gaps.length) return '';
   return (
-    '<div class="gapbox"><p class="note" style="margin:0"><b>What keeps it below ' +
+    '<div class="gapbox"><p class="note" style="margin:0"><b>To reach ' +
     TIERS[next].label +
     '</b> (this deck’s ' +
     TIERS[next].label +
@@ -2401,7 +2401,7 @@ function tmeterHtml(qp, mk, lvl, sc, power) {
   return (
     '<div class="tmeter" role="img" aria-label="' +
     (power ? 'Deck power ' + qp + ' (Budget build 70, Mid 85, Apex 100); ' : 'Card quality ' + qp + '% of the Apex build; ') +
-    lvl +
+    lvlName(lvl) +
     ' level"><i><b style="width:' +
     x(qp).toFixed(1) +
     '%"></b>' +
@@ -2607,11 +2607,21 @@ function statsHtml(d, A, R, mode) {
           pw != null
         ) +
         (pw != null
-          ? '<p class="note" style="margin:0">Your deck is at <b>' +
-            lvl +
-            '</b> level' +
-            (lvl === 'Starter' ? ' (below the best Budget build)' : '') +
-            ': power <b>' +
+          ? leadLine(lvl, pwr, pctOf(T0.budget), pctOf(T0.mid)) +
+            '<div class="row"><button class="btn sm" data-act="deck-pop">Show all details</button></div>'
+          : '<p class="note" style="margin:0">Your cards are at <b>' +
+            lvlName(lvl) +
+            '</b> level: ' +
+            qp +
+            '% of the way from random playable cards to the Apex build' +
+            statDelta(qp, B && B.q, ' pts') +
+            (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') +
+            '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
+  // everything else about where the deck stands, in the Show all details pop-up (owner, 1 Nov: one line on the page, the
+  // full picture a tap away)
+  const popTop =
+    pw != null
+      ? '<p class="note" style="margin:0">Power <b>' +
             Math.round(pwr) +
             '</b>, that is ' +
             Math.round(pwr) +
@@ -2625,16 +2635,18 @@ function statsHtml(d, A, R, mode) {
             Math.round(pctOf(T0.mid)) +
             '.</p>' +
             gapHtml(e, T0r, lvl)
-          : '<p class="note" style="margin:0">Your cards are at <b>' +
-            lvl +
-            '</b> level' +
-            (lvl === 'Starter' ? ' (below the best Budget build)' : '') +
-            ': ' +
-            qp +
-            '% of the way from random playable cards to the Apex build' +
-            statDelta(qp, B && B.q, ' pts') +
-            (B && B.q != null && B.q !== qp ? ' since ' + B.at : '') +
-            '. The marks show where the best all-under-$3 and all-under-$12 builds land.</p>');
+      : '';
+  // Deck health in one line (owner, 1 Nov): red = needs attention now (any bad), yellow = needs attention (any warn), green =
+  // healthy; ignored alerts and info (Interaction) never set the colour. It names the problem areas; tapping it opens the pop-up.
+  const hNames = HA.filter(x => x.s === 'bad').concat(HA.filter(x => x.s === 'warn')).map(x => x.k),
+    hLine =
+      '<button class="hline ' +
+      hs +
+      '" data-act="deck-pop" data-v="health"><i></i>Health: ' +
+      (hs === 'bad' ? 'needs attention now' : hs === 'warn' ? 'needs attention' : 'healthy') +
+      (hNames.length ? ' · ' + esc(hNames.slice(0, 3).join(', ')) + (hNames.length > 3 ? ' +' + (hNames.length - 3) : '') : '') +
+      '</button>';
+  DECKPOP.set(d.id, popTop + popHealthHtml(H, ign, fixable));
   const strip =
     '<div class="statbar" role="status" aria-live="polite"><span>' +
     (pwr != null
@@ -2644,7 +2656,7 @@ function statsHtml(d, A, R, mode) {
         (prev && prev.score != null ? statDelta(Math.round(pwr), Math.round(pctOf(prev.score))) : '')
       : '<b>' + (e ? e.total : '—') + '</b>/100' + (e ? statDelta(e.total, prev && prev.score) : '')) +
     '</span>' +
-    (lvl ? '<span>Tier <b>' + lvl + '</b></span>' : '') +
+    (lvl ? '<span>Tier <b>' + lvlName(lvl) + '</b></span>' : '') +
     // the price level is a rule on what the deck may cost, shown apart from the power tier (owner, 20 Oct); a generated deck
     // with a total budget shows what is left to buy against it
     (d.format === 'commander' && TIERS[d.tier]
@@ -2657,11 +2669,8 @@ function statsHtml(d, A, R, mode) {
     (A.ctx.bracket ? '<span>Bracket <b>' + A.ctx.bracket + '</b></span>' : '') +
     '<span>Swaps <b>' +
     nSw +
-    '</b></span><span class="hdot ' +
-    hs +
-    '">Health ' +
-    (nBad + nWarn ? nBad + nWarn + ' to watch' : 'good') +
-    '</span>' +
+    '</b></span>' +
+    hLine +
     (edhNote(A.ctx.cmd)
       ? '<span class="sb-edh" title="' + esc(edhNote(A.ctx.cmd).replace(/<[^>]+>/g, '')) + '">' + edhNote(A.ctx.cmd) + '</span>'
       : '') +
@@ -2719,23 +2728,10 @@ function statsHtml(d, A, R, mode) {
     '</b><span class="note">$' +
     wCost.toFixed(0) +
     '</span></div></div>' +
-    // Health in one compact row (owner, 25 Oct: it should not take much vertical space)
-    '<span class="lab">Health</span><div class="hgrid compact">' +
-    H.map(
-      x =>
-        '<span class="hi ' +
-        (ign.has(x.k) ? 'ign' : x.s) +
-        '" title="' +
-        esc(x.k + ': ' + x.t) +
-        '"><i></i><b>' +
-        x.k +
-        '</b> ' +
-        esc(x.t) +
-        (ign.has(x.k) ? ' · ignored' : '') +
-        '</span>'
-    ).join('') +
+    // Health in one colour-coded line; the full picture is in the pop-up it opens (owner, 1 Nov)
+    '<div class="row">' +
+    hLine +
     '</div>' +
-    healthFixHtml(H, ign, fixable) +
     (B
       ? '<div class="row"><span class="note">Changes are counted from ' +
         B.at +
@@ -2863,7 +2859,7 @@ function apexTips(d, A, R, e, HA, lvl) {
   if (!T.length) return '';
   return (
     '<div class="tip ok apextips"><b><small>Path to Apex</small>' +
-    (lvl ? 'At ' + lvl + ' level · ' : '') +
+    (lvl ? 'At ' + lvlName(lvl) + ' level · ' : '') +
     'what would help this deck most</b><ul>' +
     T.sort((a, b) => b.w - a.w)
       .slice(0, 4)
@@ -2878,7 +2874,53 @@ function apexTips(d, A, R, e, HA, lvl) {
     '</ul></div>'
   );
 }
-function healthFixHtml(H, ign, fixable) {
+// The level names shown to the player. Below the Budget build is "Foundation" (owner, 1 Nov: a neutral name, not "Starter").
+const lvlName = l => (l === 'Starter' ? 'Foundation' : l);
+// One positive line under the bar (owner, 1 Nov): what the deck has passed first, then the next build and how far to it.
+function leadLine(lvl, pwr, budget, mid) {
+  const p = Math.round(pwr),
+    to = v => Math.max(1, Math.ceil(v - pwr)) + ' power to go';
+  const t =
+    lvl === 'Apex'
+      ? 'As strong as this deck’s Apex build: power <b>' + p + '</b>.'
+      : lvl === 'Mid'
+        ? 'Stronger than this deck’s Mid build (power <b>' + p + '</b>). Next: <b>Apex</b>, ' + to(100) + '.'
+        : lvl === 'Budget'
+          ? 'Stronger than this deck’s Budget build (power <b>' + p + '</b>). Next: <b>Mid</b>, ' + to(mid) + '.'
+          : 'Power <b>' + p + '</b>. Next: <b>Budget</b>, ' + to(budget) + '.';
+  return '<p class="note lead" style="margin:0">' + t + '</p>';
+}
+// What the Show all details pop-up holds for each deck (filled as the stats are drawn).
+const DECKPOP = new Map();
+function openDeckPop(focus) {
+  const d = cur();
+  if (!d) return;
+  const body = DECKPOP.get(d.id);
+  if (!body) return toast('The details appear once the deck has been measured.');
+  S.fixKeys = null;
+  S.deckPop = d.id;
+  $('#modal').innerHTML =
+    '<div class="panel deckpop" role="dialog" aria-label="Deck details"><div class="ph"><h2>Deck details</h2>' +
+    '<button class="ico" data-act="close" aria-label="Close">×</button></div>' +
+    '<div class="scroll">' + body + '</div></div>';
+  $('#modal').hidden = false;
+  const h = focus === 'health' && $('#modal .pop-h');
+  if (h) h.scrollIntoView({block: 'start'});
+}
+// The pop-up's health part: every alert that isn't good, with its numbers, why it matters and how to fix it (or Ignore), then
+// the healthy ones briefly, so the player sees what is going well.
+function popHealthHtml(H, ign, fixable) {
+  // info alerts (Interaction) are not problems: they go with the healthy ones
+  const good = H.filter(x => (x.s === 'good' || x.s === 'info') && !ign.has(x.k));
+  return (
+    '<h3 class="pop-h">Health</h3>' +
+    (healthFixHtml(H.filter(x => x.s !== 'info'), ign, fixable, true) || '<p class="note" style="margin:0">Nothing needs attention.</p>') +
+    (good.length
+      ? '<p class="note" style="margin:6px 0 0"><b>Going well:</b> ' + good.map(x => esc(x.k) + ' (' + esc(x.t) + ')').join(' · ') + '</p>'
+      : '')
+  );
+}
+function healthFixHtml(H, ign, fixable, why) {
   const bad = H.filter(x => x.s !== 'good');
   if (!bad.length) return '';
   return (
@@ -2892,11 +2934,12 @@ function healthFixHtml(H, ign, fixable) {
           x.k +
           '</b> ' +
           esc(x.t) +
+          (why && FIX_OF[x.k] && FIX_WHY[FIX_OF[x.k]] ? '<small class="why">' + FIX_WHY[FIX_OF[x.k]] + '</small>' : '') +
           '</span>' +
           (ign.has(x.k)
             ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>'
             : (FIX_OF[x.k]
-                ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Show</button>'
+                ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">' + (why ? 'Fix' : 'Show') + '</button>'
                 : x.k === 'Legal' && /open slot/.test(x.t)
                   ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>'
                   : '') +

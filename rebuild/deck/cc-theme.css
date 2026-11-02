@@ -140,3 +140,18 @@ a { color: var(--glow); }
     padding-left: max(8px, calc(var(--sa-l) - 22px)); padding-right: max(8px, calc(var(--sa-r) - 22px)); }
   .modal { padding: calc(6px + var(--sa-t)) calc(6px + var(--sa-r)) calc(6px + var(--sa-b)) calc(6px + var(--sa-l)); }
 }
+
+/* Deck health in one colour-coded line, and the Show all details pop-up (owner, 1 Nov) */
+.hline { display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 2px 12px; border: 1px solid currentColor;
+  border-radius: 14px; background: rgba(8, 5, 16, 0.75); font: 800 12.5px/1.2 var(--label); letter-spacing: 0.06em;
+  text-transform: uppercase; cursor: pointer; text-align: left; }
+.hline i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+.hline.bad { color: var(--bad); } .hline.warn { color: #f2a93b; } .hline.good { color: var(--good); }
+.hline:hover { filter: brightness(1.2); }
+.statbar .hline { min-height: 24px; padding: 1px 10px; }
+.note.lead { font-size: 15px; color: var(--ink); }
+.deckpop { width: min(720px, 100%); max-height: calc(100dvh - 32px - var(--sa-t) - var(--sa-b)); display: flex; flex-direction: column; }
+.deckpop .scroll { overflow: auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.deckpop .pop-h { font-size: 16px; margin-top: 6px; }
+.deckpop .hfix .row { align-items: flex-start; }
+.deckpop .why { display: block; color: var(--mute); font-weight: 400; margin-top: 2px; }
