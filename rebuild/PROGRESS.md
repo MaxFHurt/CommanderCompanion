@@ -16,6 +16,8 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Paused: not finished
 
+The complete roadmap of every open change across the app is `ROADMAP.md`.
+
 1. **Player toolbox (the next card-decisions feature).** When a card is resolved by hand, the player gets a toolbox of steps
    (move a card, tap, counters, life, draw, create a token …) with the tools the card's text suggests listed first, "that card"
    carrying from one step to the next, and the steps applied as one change; a remembered ruling replays its steps next time.

@@ -444,6 +444,8 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
 
 ## 8. Roadmap
 
+**The complete list of every open change is `ROADMAP.md` (2 Nov 2026).** The notes below are older detail.
+
 **Next rules work (owner, 29 Oct: "start wherever you deem best"):** see RULES_AUDIT.md (785 of 1,000 automatic).
 1. The rest of the by-hand spells (~110: Chaos Warp, Arcane Denial, Brainstorm, Deflecting Swat …), trigger effects
    (~125) and activated abilities (~110), most-played first; Forge's `A:`/`SVar` lines are the answer key.
