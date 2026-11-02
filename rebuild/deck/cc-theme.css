@@ -155,3 +155,5 @@ a { color: var(--glow); }
 .deckpop .pop-h { font-size: 16px; margin-top: 6px; }
 .deckpop .hfix .row { align-items: flex-start; }
 .deckpop .why { display: block; color: var(--mute); font-weight: 400; margin-top: 2px; }
+.leadrow { align-items: center; gap: 8px; }
+.deckpop .note.lead { margin: 2px 0 6px !important; }

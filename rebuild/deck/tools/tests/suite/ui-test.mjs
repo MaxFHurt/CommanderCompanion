@@ -497,12 +497,12 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
   const ramp = d.cards.filter(e => { const x = find(e.n); return x && tags(x).roles.has('ramp') && !tags(x).land; }).slice(0, 6).map(e => e.n); d.save81 = JSON.parse(JSON.stringify(d.cards));
   ramp.forEach(n => { cutCard(d, n, 1); addCard(d, 'Grizzly Bears', 0); }); d.cards = d.cards.filter(e => e.q > 0); ramp.forEach(() => addCard(d, 'Plains', 1));
   recsFor.k = null; render(); await recsReady(d); render(); const st = document.querySelector('#stats-more'); if (st) st.open = true;
-  S.tab = 'stats'; render();   // Build 126: health and its fix menus are on the Build stats tab
-  out.fixBtn = !!document.querySelector('[data-act="h-fix"][data-v="Ramp"]'); const before = analyze(d).roles.ramp;
-  if (out.fixBtn){ document.querySelector('[data-act="h-fix"][data-v="Ramp"]').click(); const m = document.querySelector('#modal'); out.menu = /Fix: Ramp/.test(m.textContent); out.swaps = m.querySelectorAll('[data-act="fix-swap"]').length; out.scoreShown = m.querySelectorAll('.opt .chip').length > 0;
+  S.tab = 'stats'; render(); openDeckPop('health');   // 0.9.29: health and its fix menus are in Show all details
+  out.fixBtn = !!document.querySelector('#modal [data-act="h-fix"][data-v="Ramp"]'); const before = analyze(d).roles.ramp;
+  if (out.fixBtn){ document.querySelector('#modal [data-act="h-fix"][data-v="Ramp"]').click(); const m = document.querySelector('#modal'); out.menu = /Fix: Ramp/.test(m.textContent); out.swaps = m.querySelectorAll('[data-act="fix-swap"]').length; out.scoreShown = m.querySelectorAll('.opt .chip').length > 0;
     const g = S.fixG[0]; out.allAddRamp = g.L.every(p => tags(find(p.add)).roles.has('ramp')); m.querySelector('[data-act="fix-swap"]').click(); out.rampUp = analyze(d).roles.ramp === before + 1;
-    document.querySelector('#modal [data-act="h-ignore"][data-v="Ramp"]').click(); out.ignored = (d.ignoreH || []).includes('Ramp'); render(); out.unignoreBtn = !!document.querySelector('[data-act="h-unignore"][data-v="Ramp"]'); }
-  S.tab = 'up'; render(); out.tips = !!document.querySelector('.apextips') || /Path to Apex/.test(document.body.textContent);   /* on Upgrades since 0.9.20 */
+    document.querySelector('#modal [data-act="h-ignore"][data-v="Ramp"]').click(); out.ignored = (d.ignoreH || []).includes('Ramp'); render(); openDeckPop('health'); out.unignoreBtn = !!document.querySelector('#modal [data-act="h-unignore"][data-v="Ramp"]'); $('#modal').hidden = true; }
+  S.tab = 'up'; render(); out.tips = /Path to Apex/.test(DECKPOP.get(cur().id) || '');   /* in Show all details since 0.9.34 */   /* on Upgrades since 0.9.20 */
   Object.keys(d).forEach(k => delete d[k]); Object.assign(d, JSON.parse(save)); S.profile.want = JSON.parse(saveW); S.upOrd = null; recsFor.k = null; render(); return out; });   // leaves the deck and the buy list exactly as it found them
 T('UI-B81-01', 'Build 81: decklist A–Z inside each type; a card goes on My buy list without touching any deck and shows on My decks; Upgrades sort by biggest impact; Game Changers have their own chip; a Ramp alert opens a Fix menu of swaps that each add ramp (with score effect), a swap raises ramp by one, and the alert can be ignored and un-ignored; Path to Apex tips show', b81.alpha && b81.mine && b81.mineShown && b81.impactSorted && b81.sortBar && b81.gcChip !== false && b81.fixBtn && b81.menu && b81.swaps > 0 && b81.scoreShown && b81.allAddRamp && b81.rampUp && b81.ignored && b81.unignoreBtn && b81.tips, JSON.stringify(b81));
 } catch (e) { QUIET = false; T('UI-B81-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -894,7 +894,7 @@ if (RUN('UI-B113-01')) { try { if (SHARD) await RESET();
 // 63. Build 113: Lands helper. Lands against the target, sources needed for each colour (Karsten tables) against what the deck
 // has, popular lands for the commander it doesn't run (lands, in its colours, run by 20%+), and buttons to the land swaps.
 const b113 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await recsReady(w); render();
-  const b = document.querySelector('[data-act="lands-open"]'); out.btn = !!b; b.click(); const m = $('#modal'), t = m.textContent, A = analyze(w), H = landHelp(w), ctx = ctxOf(w);
+  openDeckPop(); const b = document.querySelector('#modal [data-act="lands-open"]'); out.btn = !!b; b.click();   /* in Show all details since 0.9.34 */ const m = $('#modal'), t = m.textContent, A = analyze(w), H = landHelp(w), ctx = ctxOf(w);
   out.landsLine = new RegExp(A.lands + ' lands, about ' + A.T.lands + ' needed').test(t);
   out.colours = ctx.ident.map(k => ({k, need:Math.round(H.need[k] || 0), have:H.src[k].lands + H.src[k].other})); out.coloursShown = out.colours.every(x => new RegExp('needs about ' + x.need + ' sources · has ' + x.have).test(t) || (!x.need && /no spells need it/.test(t)));
   out.needSane = out.colours.every(x => x.need === 0 || (x.need >= 10 && x.need <= 40));
@@ -1555,7 +1555,7 @@ if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 const b165 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.syncRecs = false; render(); await recsReady(d);
   for (let i = 0; i < 150 && recsFor.v && recsFor.v.pool && !recsFor.v.poolDone; i++) await new Promise(r => setTimeout(r, 100)); render();
   const up = document.querySelector('#upscroll'), out = {};
-  out.upMeter = !!up.querySelector('.tmeter'); out.upTips = !!up.querySelector('.apextips') || /Path to Apex/i.test(up.textContent); out.upPlan = !!up.querySelector('#plan-more');
+  out.upMeter = !!up.querySelector('.tmeter'); out.upTips = !up.querySelector('.apextips') && /Path to Apex/i.test(DECKPOP.get(cur().id) || '');   /* 0.9.34: Path to Apex in Show all details */ out.upPlan = !!up.querySelector('#plan-more');
   const rows = [...up.querySelectorAll('.paths .path')], tb = up.querySelector('.tierbtns'); out.tiersBelow = !!(tb && rows.length && tb.getBoundingClientRect().top >= rows[rows.length - 1].getBoundingClientRect().bottom - 1);
   out.capsLeft = document.querySelectorAll('.aimp .bfoot [data-act="cap-show"]').length === 2 && !up.querySelector('[data-act="cap-show"]');
   S.tab = 'stats'; render(); const st = document.querySelector('#statscroll'), hg = st.querySelector('.hline');   /* 0.9.29: health is one line */

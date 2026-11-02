@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.59 (Deck Builder {"build": 178, "version": "0.9.33"})
+- **Live build:** 1.0.0-rebuild.60 (Deck Builder {"build": 179, "version": "0.9.34"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 60 — 2 Nov 2026
+- Deck Builder 0.9.34 (build 179): a shorter Upgrades page (owner's screenshot, 2 Nov). The stats bar is one row (the EDHREC chip moved up; the health line left it); under the power bar sit only the health line and Show all details. Path to Apex, the 'Next: Budget, N power to go' line (now leading the pop-up's Health part) and Lands helper moved into Show all details; Best by job took Lands helper's place in the toolbar row. Show by impact in the pop-up closes it. Tests: quick check 12; UI-B81, B113, B126, B165 updated and passing (B81 had been failing since 0.9.29: the Fix buttons moved into the pop-up).
 
 ### Build 59 — 2 Nov 2026
 - Deck Builder 0.9.33 (build 178): putting the app away with a deck open sends the edits to the online profile (the Deck Builder's hide handler calls `pushDeckEdits`), closing the last profile-sync gap. Tests: quick check 12, online_ui 40 (new: a deck renamed while open reaches the online copy when the page is hidden).

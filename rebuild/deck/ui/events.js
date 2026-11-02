@@ -2181,6 +2181,7 @@ function handleAct(act, v, n, pArg) {
       break;
     case 'upsort':
       S.upSort = SORT_LAB[v] ? v : 'impact';
+      if (S.deckPop) $('#modal').hidden = true;   // from Show all details: show the sorted list
       changed = false;
       break;
     case 'theme-first':

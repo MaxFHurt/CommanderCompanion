@@ -2615,8 +2615,7 @@ function statsHtml(d, A, R, mode) {
           pw != null
         ) +
         (pw != null
-          ? leadLine(lvl, pwr, pctOf(T0.budget), pctOf(T0.mid)) +
-            '<div class="row"><button class="btn sm" data-act="deck-pop">Show all details</button></div>'
+          ? ''   // the lead line, Path to Apex and the health list are in Show all details (owner, 2 Nov)
           : '<p class="note" style="margin:0">Your cards are at <b>' +
             lvlName(lvl) +
             '</b> level: ' +
@@ -2654,7 +2653,16 @@ function statsHtml(d, A, R, mode) {
       (hs === 'bad' ? 'needs attention now' : hs === 'warn' ? 'needs attention' : 'healthy') +
       (hNames.length ? ' · ' + esc(hNames.slice(0, 3).join(', ')) + (hNames.length > 3 ? ' +' + (hNames.length - 3) : '') : '') +
       '</button>';
-  DECKPOP.set(d.id, popTop + popHealthHtml(H, ign, fixable));
+  // Show all details (owner, 2 Nov): where the deck stands, Lands helper, Path to Apex, then Health led by the next build
+  DECKPOP.set(
+    d.id,
+    popTop +
+      (d.format === 'commander' && find(d.commander)
+        ? '<div class="row"><button class="btn sm" data-act="lands-open">Lands helper</button></div>'
+        : '') +
+      (mode === 'compact' ? apexTips(d, A, R, e, HA, lvl) : '') +
+      popHealthHtml(H, ign, fixable, pw != null ? leadLine(lvl, pwr, pctOf(T0.budget), pctOf(T0.mid)) : '')
+  );
   const strip =
     '<div class="statbar" role="status" aria-live="polite"><span>' +
     (pwr != null
@@ -2678,7 +2686,6 @@ function statsHtml(d, A, R, mode) {
     '<span>Swaps <b>' +
     nSw +
     '</b></span>' +
-    hLine +
     (edhNote(A.ctx.cmd)
       ? '<span class="sb-edh" title="' + esc(edhNote(A.ctx.cmd).replace(/<[^>]+>/g, '')) + '">' + edhNote(A.ctx.cmd) + '</span>'
       : '') +
@@ -2704,7 +2711,16 @@ function statsHtml(d, A, R, mode) {
       '</div></div>'
     : '';
   if (mode === 'compact')
-    return strip + '<div class="grp">' + tierMeter + '</div>' + apexTips(d, A, R, e, HA, lvl) + leftHtml + gamePlanHtml(d, A);
+    return (
+      strip +
+      '<div class="grp">' +
+      tierMeter +
+      '<div class="row leadrow">' +
+      hLine +
+      '<button class="btn sm" data-act="deck-pop">Show all details</button></div></div>' +
+      leftHtml +
+      gamePlanHtml(d, A)
+    );
   return (
     strip +
     '<details class="stats grp" id="stats-more"' +
@@ -2916,11 +2932,12 @@ function openDeckPop(focus) {
 }
 // The pop-up's health part: every alert that isn't good, with its numbers, why it matters and how to fix it (or Ignore), then
 // the healthy ones briefly, so the player sees what is going well.
-function popHealthHtml(H, ign, fixable) {
+function popHealthHtml(H, ign, fixable, lead) {
   // info alerts (Interaction) are not problems: they go with the healthy ones
   const good = H.filter(x => (x.s === 'good' || x.s === 'info') && !ign.has(x.k));
   return (
     '<h3 class="pop-h">Health</h3>' +
+    (lead || '') +
     (healthFixHtml(H.filter(x => x.s !== 'info'), ign, fixable, true) || '<p class="note" style="margin:0">Nothing needs attention.</p>') +
     (good.length
       ? '<p class="note" style="margin:6px 0 0"><b>Going well:</b> ' + good.map(x => esc(x.k) + ' (' + esc(x.t) + ')').join(' · ') + '</p>'

@@ -139,7 +139,7 @@ function upPanel(d, A, mode) {
       (d.cards.length ? '' : ' disabled') +
       ' title="Read what your cards are doing, score the deck as it stands, and see what it needs">Analyze this build</button>' +
       (d.format === 'commander' && find(d.commander)
-        ? '<button class="btn" data-act="lands-open" title="Lands, colour sources and land swaps for this deck">Lands helper</button><button class="btn" data-act="jobs-open" title="The best ramp, card draw, removal, board wipes and protection for this deck">Best by job</button>'
+        ? '<button class="btn" data-act="jobs-open" title="The best ramp, card draw, removal, board wipes and protection for this deck">Best by job</button>'
         : '') +
       '' +
       (d.plan && d.plan.length
