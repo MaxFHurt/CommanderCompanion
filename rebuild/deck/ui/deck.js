@@ -272,11 +272,13 @@ function upPanel(d, A, mode) {
       return c ? '<img alt="" src="' + artFor(c, {pid: c.id}) + '">' : '<span></span>';
     },
     price = n => money(find(n));
-  const side = (kind, n, q) =>
+  // cut: the card this upgrade replaces, so the card window leads with this swap (owner, 2 Nov)
+  const side = (kind, n, q, cut) =>
     '<button class="sw ' +
     kind +
     '" data-act="card" data-n="' +
     esc(n) +
+    (cut ? '" data-cut="' + esc(cut) : '') +
     '">' +
     thumb(n) +
     (kind === 'in' ? cardBadges(d, n) : '') +
@@ -311,7 +313,7 @@ function upPanel(d, A, mode) {
             ? ''
             : '<div class="path">' +
               side('out', p.cut, p.q) +
-              side('in', p.add, p.q) +
+              side('in', p.add, p.q, p.cut) +
               '<div class="row"><span class="chip warn">' +
               esc(p.fix ? p.cutWhy[0] : p.why[0]) +
               '</span><button class="btn pri sm" data-act="fix" data-v="' +
@@ -559,7 +561,7 @@ function upPanel(d, A, mode) {
             '</div>' +
             (fp
               ? '<div class="tip good free"><b><small>Tip</small>Free swap · you already own this</b>' +
-                side('in', fp.add, fp.q) +
+                side('in', fp.add, fp.q, fp.cut || L.cut) +
                 '<div class="row">' +
                 scoreChip(fp.dScore) +
                 gcChip(fp, R) +
@@ -599,7 +601,7 @@ function upPanel(d, A, mode) {
                 '"><span class="chip gold">' +
                 TIERS[t].label +
                 '</span>' +
-                side('in', p.add, p.q) +
+                side('in', p.add, p.q, L.cut) +
                 '<div class="row">' +
                 inh +
                 (p.held ? '<span class="chip" title="The alternative you chose for this slot">Your choice</span>' : '') +

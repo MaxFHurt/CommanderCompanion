@@ -483,6 +483,7 @@ function handleAct(act, v, n, pArg) {
     case 'close':
       $('#modal').hidden = true;
       S.deckPop = null;
+      S.rowCut = null;
       S.watchOpen = false;
       return;
     case 'undo':
@@ -600,6 +601,7 @@ function handleAct(act, v, n, pArg) {
       changed = false;
       break;
     case 'card':
+      S.rowCut = b.dataset.cut || null;   // opened from an upgrade row: the window leads with that row's swap
       openCard(n, b.dataset.p);
       return;
     case 'flip': {

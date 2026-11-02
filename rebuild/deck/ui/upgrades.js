@@ -1449,6 +1449,7 @@ function alt3Html(d, R, rowShown, p, i, t) {
       return (
         '<div class="a3"><button class="sw in" data-act="card" data-n="' +
         esc(a.n) +
+        (L && L.cut ? '" data-cut="' + esc(L.cut) : '') +
         '">' +
         (c ? '<img alt="" src="' + artFor(c, {pid: c.id}) + '">' : '<span></span>') +
         cardBadges(cur(), a.n) +

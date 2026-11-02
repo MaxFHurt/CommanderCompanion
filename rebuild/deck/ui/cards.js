@@ -630,6 +630,14 @@ function wantHtml(d, c) {
       .map(x => x[0])
       .slice(0, 3);
   }
+  // opened from an upgrade row (owner, 2 Nov): that row's swap leads, measured the same way; the other cuts follow
+  const rc = S.rowCut && d.cards.find(x => norm(x.n) === norm(S.rowCut));
+  if (rc) {
+    const x0 = cuts0.find(y => norm(y.n) === norm(rc.n)) || cuts.find(y => norm(y.n) === norm(rc.n)) || {n: rc.n, s: 0};
+    const x = Object.assign({}, x0, {why: ['The swap this upgrade suggests']});
+    if (x.dScore == null && e && e.exact != null) x.dScore = swapScore(d, e, ar, x.n, c.n, 1);
+    cuts = [x].concat(cuts.filter(y => norm(y.n) !== norm(x.n))).slice(0, 3);
+  }
   if (!cuts.length)
     return (
       lab +

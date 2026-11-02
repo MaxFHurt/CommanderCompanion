@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.62 (Deck Builder {"build": 181, "version": "0.9.36"})
+- **Live build:** 1.0.0-rebuild.63 (Deck Builder {"build": 182, "version": "0.9.37"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 63 — 2 Nov 2026
+- Deck Builder 0.9.37 (build 182): a card opened from an upgrade row leads with that row's swap (the row's card coming out, measured the same way); the other cuts follow. Upgrade buttons carry data-cut (deck.js side, alternatives a3); the card handler sets S.rowCut, wantHtml in deck/ui/cards.js puts that cut first; closing resets it. Cards opened from search or elsewhere are unchanged. Tests: quick check 12; Wakanda Forever: Dyadrine opened from its row leads with Greater Good.
 
 ### Build 62 — 2 Nov 2026
 - Deck Builder 0.9.36 (build 181): the green + also covers Curve (a spell costing 2 or less, not an X spell), Win routes (a finisher, isFinisher) and Mana (a land making two or more of the deck's colours, one in a mono deck; any land when practice games run out of lands more than colours) — `fixesMore` in deck/ui/upgrades.js. Tests: quick check 12; on Wakanda Forever (Ramp, Curve, Mana alerts) the + lands on Avacyn's Pilgrim and Farseek (Ramp, Curve), Path to Exile, Swords to Plowshares, Heroic Intervention, Swiftfoot Boots (Curve), Jhoira's Familiar, Foundry Inspector (Ramp).
