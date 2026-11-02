@@ -125,6 +125,14 @@ export const syncProfileOnOpen = once(async () => {
   return took ? 'loaded-game' : 'loaded';
 });
 
+/** From the Deck Builder page when a deck is closed: read the stores (that page has not loaded them), then save if
+ * anything changed. */
+export async function pushProfileNow() {
+  if (!onlineProfileLink()) return 'off';
+  await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+  return autoSaveProfile();
+}
+
 /** Save in the background while the app is open: every minute and when it is put away. */
 export function startProfileSync() {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autoSaveProfile(); });

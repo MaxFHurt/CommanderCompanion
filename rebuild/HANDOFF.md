@@ -8,7 +8,11 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.53** (2 Nov): **profile sync between devices** (`src/app/online-profile.js`). A device linked to an
+- Live build: **1.0.0-rebuild.54** (2 Nov): Deck Builder 0.9.28 (build 173): **closing a deck sends the edits to the online
+  profile** straight away on a linked device (`pushDeckEdits` in `deck/ui/cards.js` → `pushProfileNow` in online-profile.js, which
+  loads the profile, deck and playmat stores first). Tests: online_ui 39 (new: a deck renamed and closed reaches the online copy),
+  Deck Builder quick check 12. Minimum tests again by the owner's choice.
+  Build 53 (2 Nov): **profile sync between devices** (`src/app/online-profile.js`). A device linked to an
   online profile takes the newer copy when the start screen opens, if it has nothing new of its own; it saves on the start screen,
   every minute and when the app goes to the background. The backup now also carries the online games list (so online games
   show on every device) and the game in progress when it is played on one device (`currentGame`; the other device asks

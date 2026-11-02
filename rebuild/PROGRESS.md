@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.53 (Deck Builder 0.9.27, build 172)
+- **Live build:** 1.0.0-rebuild.54 (Deck Builder 0.9.28, build 173)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -37,9 +37,8 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
    so moving it means handing over the host role mid-game: the old host must stop (or become a player) before the new one reopens
    the room with the same code, and every connected device must follow. Online games ("play over time") already live on the
    Worker and need none of this; their list now travels with the profile.
-5. **Profile sync gaps (build 53):** the Deck Builder page has no timer of its own: its changes go up when the start screen next
-   opens (or the next minute on a game screen), so edits made right before switching devices can meet "saved from another
-   device" and the player chooses. A device that declines "Continue your game?" keeps its own game and uploads it next time it
+5. **Profile sync gaps:** the Deck Builder sends its edits when a deck is closed (build 54); edits to a deck left open when
+   the app is put away go up the next time a deck is closed or the start screen opens. A device that declines "Continue your game?" keeps its own game and uploads it next time it
    changes. Not yet checked on two real devices.
 6. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
    hotspot, offline after the first launch, hosted rooms between devices.
@@ -60,6 +59,10 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 54 — 2 Nov 2026 — Deck Builder edits sync when a deck is closed
+- Deck Builder 0.9.28: closing a deck saves it and sends the profile to the online copy on a linked device. Minimum tests
+  (online_ui 39, Deck Builder quick check 12) by the owner's choice.
 
 ### Build 53 — 2 Nov 2026 — profile sync between devices
 - Linked devices take the newer online profile when the app opens, and save it on the start screen, every minute and when put

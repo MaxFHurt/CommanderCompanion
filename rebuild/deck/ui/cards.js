@@ -131,7 +131,22 @@ function fitWork() {
   w.style.height =
     Math.max(vh < 480 ? 300 : 200, Math.round(vh - w.getBoundingClientRect().top - scrollY - (vh < 520 ? 6 : 12) - safeBottom())) + 'px';
 }
+// Online profile (owner, 2 Nov): closing a deck saves it now and sends the profile to the online copy when this device is
+// linked (Profile → Online on the game side), so the edits are on the other devices without going back to the start screen.
+let deckWasOpen = false;
+function pushDeckEdits() {
+  try { if (!localStorage.getItem('cc-online-profile')) return; } catch (e) { return; }
+  persist()
+    .then(() => import(new URL('../src/app/online-profile.js', location.href).href))
+    .then(m => m.pushProfileNow())
+    .then(state => {
+      if (state === 'conflict') toast('Your online profile was saved from another device. Open Profile → Online on the start screen to choose which to keep.');
+    })
+    .catch(() => {});   // offline: the start screen sends it next time
+}
 function render() {
+  if (deckWasOpen && !S.open) pushDeckEdits();
+  deckWasOpen = !!S.open;
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
   // carried for a few redraws until the full list is back.
   const keep = {},
