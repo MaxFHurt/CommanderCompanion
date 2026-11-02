@@ -546,13 +546,12 @@ function wantChip(v) {
   return v == null
     ? ''
     : Math.abs(v) < SCORE_MIN
-      ? '<span class="chip" title="Change to the deck score if you make this swap">Score unchanged</span>'
+      ? '<span class="chip" title="Change to the deck’s power if you make this swap">Score unchanged</span>'
       : '<span class="chip ' +
         (v > 0 ? 'good' : 'warn') +
-        '" title="Change to the deck score if you make this swap">' +
-        (v > 0 ? '+' : '−') +
-        Math.abs(v).toFixed(1) +
-        ' score</span>';
+        '" title="Change to the deck’s power if you make this swap">' +
+        gainTxt(v) +
+        '</span>';
 }
 // Which parts of the deck score a swap moves (practice games reused, as swapScore does; land swaps are not split).
 function swapGain(d, e, ar, b, c) {

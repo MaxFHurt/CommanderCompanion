@@ -8,7 +8,8 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.55** (2 Nov): Deck Builder 0.9.29 (build 174): **deck health in one colour-coded line** (red / yellow /
+- Live build: **1.0.0-rebuild.56** (2 Nov): Deck Builder 0.9.30 (build 175): swap gains shown in power (`gainTxt` in deck/ui/upgrades.js: power = score as a share of the Apex build, as the bar), on upgrade chips, the swap sheet, alternatives and Path to Apex. Item 1 (power as the only headline) was already met. Tests: quick check 12, UI-ALT-01 and UI-B78-01 (updated to read power).
+  Build 55 (2 Nov): Deck Builder 0.9.29 (build 174): **deck health in one colour-coded line** (red / yellow /
   green from the worst alert that isn't ignored; info never colours it; names the problem areas) in the Upgrades bar and on Build
   stats, and **a positive one-line lead** under the power bar ("Stronger than this deck's Budget build … Next: Mid, N power to go").
   Everything else (power against each build, "To reach <next build>" part by part, every alert with its numbers, why it matters,

@@ -977,7 +977,7 @@ function sheetHead(d, R, L, i, si, n, sel) {
       ? 'Not measured'
       : Math.abs(p.dScore) < SCORE_MIN
         ? 'Score unchanged'
-        : (p.dScore > 0 ? '+' : '−') + Math.abs(p.dScore).toFixed(1) + ' score';
+        : gainTxt(p.dScore);
   return (
     '<div class="row sheethead"><button class="btn shnav" data-act="sheet-go" data-v="' +
     (si - 1) +
@@ -1584,6 +1584,15 @@ function pcChip(p) {
       : '<span class="chip" title="Change to the deck score if you make this swap: about even, within the practice games’ margin">Score about even</span>')
   );
 }
+// Swap gains in power, not raw score points (owner, 1 Nov): the same mapping as the power bar (power = score as a share of this
+// deck's Apex build), so the swaps visibly add up to the next build. Falls back to score before the Apex build is scored.
+function gainTxt(v) {
+  const d = cur(),
+    T = d && (apexFor(d) || {}).tot,
+    p = T && T.apex > 0 ? (100 * v) / T.apex : null,
+    a = Math.abs(p != null ? p : v);
+  return (v >= 0 ? '+' : '−') + (a >= 10 ? Math.round(a) : a.toFixed(1)) + (p != null ? ' power' : ' score');
+}
 function scoreChip(v) {
   return v == null
     ? ''
@@ -1591,11 +1600,10 @@ function scoreChip(v) {
       ? '<span class="chip" title="This swap keeps the deck score the same; it can still suit your plan or budget better">Score unchanged</span>'
       : '<span class="chip ' +
         (v > 0 ? 'good' : 'warn') +
-        '" title="Change to the deck score if you make this swap">' +
+        '" title="Change to the deck’s power if you make this swap">' +
         (v >= 2 ? 'Major upgrade · ' : v >= 1 ? 'Strong upgrade · ' : v > 0 ? 'Small upgrade · ' : '') +
-        (v >= 0 ? '+' : '−') +
-        Math.abs(v).toFixed(1) +
-        ' score</span>';
+        gainTxt(v) +
+        '</span>';
 }
 function upChip(L, t) {
   const p = L.opts[t];
@@ -2791,9 +2799,8 @@ function apexTips(d, A, R, e, HA, lvl) {
       h:
         '<b>Biggest gains:</b> ' +
         top.map(p => esc(p.add.split(' // ')[0]) + ' for ' + esc(p.cut.split(' // ')[0])).join('; ') +
-        ' · together about +' +
-        top.reduce((s, p) => s + p.dScore, 0).toFixed(1) +
-        ' score',
+        ' · together about ' +
+        gainTxt(top.reduce((s, p) => s + p.dScore, 0)),
       b: '<button class="btn sm" data-act="upsort" data-v="impact">Show by impact</button>'
     });
   if (ar && ar.cards) {

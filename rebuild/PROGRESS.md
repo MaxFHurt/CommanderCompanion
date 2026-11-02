@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.55 (Deck Builder 0.9.29, build 174)
+- **Live build:** 1.0.0-rebuild.56 (Deck Builder {"build": 175, "version": "0.9.30"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 56 — 2 Nov 2026
+- Deck Builder 0.9.30 (build 175): swap gains shown in power (`gainTxt` in deck/ui/upgrades.js: power = score as a share of the Apex build, as the bar), on upgrade chips, the swap sheet, alternatives and Path to Apex. Item 1 (power as the only headline) was already met. Tests: quick check 12, UI-ALT-01 and UI-B78-01 (updated to read power).
 
 ### Build 55 — 2 Nov 2026 — Deck Builder: health in one line, details in a pop-up
 - Deck Builder 0.9.29: the planning chat's items 3 and 5 (Deck-Companion CHAT_TO_WORK_HANDOFF.md). One colour-coded health line,

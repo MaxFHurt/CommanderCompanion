@@ -341,7 +341,7 @@ const al = await page.evaluate(async () => { const out = {}; const wait = async 
   out.deck = w.name; out.upButtons = document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]').length; let U = [], p = null, t = null, R = recsFor(w);
   for (const ub of [...document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]')].slice(0, 10)){ const v = ub.dataset.v.split('|'); t = v[2]; p = R.paths[+v[1]].opts[t]; ub.click(); await wait(); U = names(); if (U.length) break; $('#modal').hidden = true; }
   out.upAlts = U.length; if (!U.length) return out; out.pick = p.add + ' ' + p.dScore;
-  const shown = [...document.querySelectorAll('#modal .opt.alt')].map(o => /([+−])(\d+\.\d) score/.exec(o.textContent)).map(m => m ? (m[1] === '+' ? 1 : -1) * +m[2] : null);
+  const shown = [...document.querySelectorAll('#modal .opt.alt')].map(o => /([+−])(\d+(?:\.\d)?) (?:score|power)/.exec(o.textContent)).map(m => m ? (m[1] === '+' ? 1 : -1) * +m[2] : null);
   out.scores = shown; out.upRule = U.every(n => band(n) === band(p.add) && !w.cards.some(e => e.n === n)) && shown.every(v => v != null && v > 0 && v >= 0.5 * p.dScore - 0.05);
   const before = JSON.stringify(w.cards), cut = p.cut; document.querySelector('#modal [data-act="alt-use"]').click(); await new Promise(r => setTimeout(r, 400));
   const R2 = recsFor(w), L2 = R2.paths.find(x => x.cut === cut); out.upUsed = JSON.stringify(w.cards) === before && !!L2 && !!L2.opts[t] && L2.opts[t].add === U[0] && !!(w.recP || {})[norm(U[0])];
@@ -449,7 +449,7 @@ const b78 = await page.evaluate(async () => { const out = {}; const wait = async
   S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await new Promise(r => setTimeout(r, 200)); render();
   // every shown pick raises the score and says by how much
   const R = recsFor(d), all = R.paths.flatMap(L => Object.values(L.opts)); out.picks = all.length; out.allPositive = all.every(p => p.dScore != null && p.dScore >= 0);
-  out.chips = [...document.querySelectorAll('.paths .opt .chip')].filter(x => /score$/.test(x.textContent)).length; out.noMinus = ![...document.querySelectorAll('.paths .opt .chip')].some(x => /−\d.*score$/.test(x.textContent));
+  out.chips = [...document.querySelectorAll('.paths .opt .chip')].filter(x => /(score|power)$/.test(x.textContent)).length; out.noMinus = ![...document.querySelectorAll('.paths .opt .chip')].some(x => /−\d.*(score|power)$/.test(x.textContent));
   // kind filter
   const kb = [...document.querySelectorAll('select[data-act="upkind"] option')].map(o => o.value).filter(Boolean); out.kinds = kb; if (kb.length){ const k = kb[0]; handleAct('upkind', k); await new Promise(r => setTimeout(r, 100));
     const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]); out.kindOk = shown.length > 0 && [...new Set(shown)].every(i => slotKinds(d, Object.values(R.paths[i].opts)).has(k)); handleAct('upkind', ''); }
