@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.56 (Deck Builder {"build": 175, "version": "0.9.30"})
+- **Live build:** 1.0.0-rebuild.57 (Deck Builder {"build": 176, "version": "0.9.31"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 57 — 2 Nov 2026
+- Deck Builder 0.9.31 (build 176): searched cards replace by function (item 8). `bestCuts` (deck/engine/mana.js) marks cuts sharing the incoming card's jobs (`same`, why 'Also removal') and cards doing a job the deck is short of (`shortJob`); the search panel (deck/ui/cards.js) never offers a shortJob cut, ranks the same-job cuts by measured score change, and falls back to every cut when none shares the job or the deck is short of the incoming job. Item 4 checked: nothing hides Budget or Mid picks after a tier is passed (no pick is marked beaten; picks show whenever they raise the score), so no change. Tests: quick check 12, a bestCuts check on Wakanda Forever.
 
 ### Build 56 — 2 Nov 2026
 - Deck Builder 0.9.30 (build 175): swap gains shown in power (`gainTxt` in deck/ui/upgrades.js: power = score as a share of the Apex build, as the bar), on upgrade chips, the swap sheet, alternatives and Path to Apex. Item 1 (power as the only headline) was already met. Tests: quick check 12, UI-ALT-01 and UI-B78-01 (updated to read power).

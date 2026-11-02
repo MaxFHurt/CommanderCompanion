@@ -614,6 +614,12 @@ function wantHtml(d, c) {
       x.dScore = x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1);
     });
     const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9); // a card that is illegal or outside the colours always goes first
+    // by function (owner, 1 Nov): never a card doing a job the deck is short of; the best of the cards sharing the incoming
+    // card's job when there are any (unless the deck is short of that job: then the swap may fix the shortage from elsewhere)
+    const forced = cuts.filter(x => x.s <= -80),
+      ok = cuts.filter(x => x.s > -80 && !x.shortJob),
+      same = cuts.addShort ? [] : ok.filter(x => x.same && x.same.length);
+    if (ok.length) cuts = forced.concat(same.length ? same : ok);
     cuts = cuts
       .map((x, i) => [x, i])
       .sort((a, b) => key(b[0]) - key(a[0]) || a[1] - b[1])

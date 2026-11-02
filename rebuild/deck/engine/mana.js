@@ -279,7 +279,11 @@ function bestCuts(d, addName, k, o) {
     });
   const isId = c => !!(top && matchAim(c, top, ctx.tribe) >= 0.7),
     addId = !addLand && isId(add),
+    // Searched cards replace by function (owner, 1 Nov): a card sharing the incoming card's jobs is the natural cut, and a card
+    // doing a job the deck is short of is never cut (counted with the incoming card in).
+    addRoles = addLand ? [] : [...tags(add).roles].filter(r => r in A.roles),
     out = [];
+  out.addShort = addRoles.some(r => A.roles[r] < T[r]);
   for (const e of d.cards) {
     if (e.l || norm(e.n) === add._n) continue;
     const c = find(e.n);
@@ -305,6 +309,12 @@ function bestCuts(d, addName, k, o) {
       if (r in roles) s += roles[r] - 1 < T[r] ? 2.5 : 0.6;
     });
     s += 0.2 * Math.abs(c.cmc - add.cmc);
+    const same = addRoles.filter(r => tags(c).roles.has(r)),
+      shortJob = [...tags(c).roles].some(r => r in roles && !same.includes(r) && roles[r] - 1 < T[r]);
+    if (same.length && !shortJob && !addLand) {
+      s -= 3;
+      why = 'Also ' + same.map(r => JOB_WORD[r] || r).join(' and ');
+    }
     if (isId(c) && !addId) s += 2;
     if (mainType(c) !== mainType(add)) s += 1.5;
     if (!legalIn(c, d.format)) {
@@ -314,14 +324,17 @@ function bestCuts(d, addName, k, o) {
       s = -80;
       why = 'Outside your colors';
     }
-    out.push(addLand ? {n: e.n, s: s + 4, spell: true, why: [why]} : {n: e.n, s, why: [why]});
+    out.push(addLand ? {n: e.n, s: s + 4, spell: true, why: [why]} : {n: e.n, s, why: [why], same, shortJob});
   }
   if (!addLand)
     [...new Set(spareLands(d))].forEach(n =>
       out.push({n, s: 50, land: true, why: ['Spare land: ' + A.lands + ' lands, about ' + T.lands + ' needed']})
     );
-  return out.sort((a, b) => a.s - b.s).slice(0, k || 3);
+  const res = out.sort((a, b) => a.s - b.s).slice(0, k || 3);
+  res.addShort = out.addShort;
+  return res;
 }
+const JOB_WORD = {ramp: 'ramp', draw: 'card draw', removal: 'removal', wipe: 'a board wipe', protection: 'protection', tutor: 'a tutor'};
 // Player tip for a card being added by hand: how well does it fit this deck, and why?
 // sw (optional): the measured best swap for this card, {cut, dScore, gain}. The tip then leads with what the swap does to the
 // deck score, and the card's own rating (play data, fit) is kept as a separate signal instead of contradicting it.
