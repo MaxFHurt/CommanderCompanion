@@ -425,7 +425,7 @@ document.addEventListener('click', ev => {
     if (b.dataset.act !== 'undo') {
       UNDO.label = (b.getAttribute('aria-label') || b.textContent || b.dataset.act).replace(/\s+/g, ' ').trim().slice(0, 48);
     }
-    handleAct(b.dataset.act, b.dataset.v, b.dataset.n, b.dataset.p);
+    handleAct(b.dataset.act, b.dataset.v, b.dataset.n, b.dataset.p, b.dataset.cut);
   }
 });
 // Pop-up frame: the window's frame and title stay still and only the content scrolls. Every pop-up's content (all but its
@@ -453,9 +453,9 @@ function frameModal() {
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', fm);
   else fm();
 }
-function handleAct(act, v, n, pArg) {
+function handleAct(act, v, n, pArg, cutArg) {
   if (act !== 'undo') UNDO.seq++;
-  const b = {dataset: {p: pArg}},
+  const b = {dataset: {p: pArg, cut: cutArg}},   // cut: the card an upgrade row replaces (data-cut)
     d = cur();
   let changed = true;
   if (manaCheck(d, act, v, n)) return;
@@ -634,6 +634,12 @@ function handleAct(act, v, n, pArg) {
       render();
       return;
     case 'sheet-pick':
+      // tapping the tile that is already chosen opens the card (owner, 2 Nov), leading with this row's swap
+      if (n && (document.querySelector('.sheet') || {dataset: {}}).dataset.sel === v) {
+        S.rowCut = b.dataset.cut || null;
+        openCard(n);
+        return;
+      }
       S.sheetSel = v;
       render();
       return;

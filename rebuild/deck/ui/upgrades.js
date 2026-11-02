@@ -957,6 +957,7 @@ function sheetHead(d, R, L, i, si, n, sel) {
       (name ? '' : ' empty') +
       '" data-act="sheet-pick" data-v="' +
       k +
+      (name ? '" data-n="' + esc(name) + (k !== 'cut' && L.cut ? '" data-cut="' + esc(L.cut) : '') : '') +
       '" aria-pressed="' +
       (sel === k) +
       '"><small>' +

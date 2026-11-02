@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.63 (Deck Builder {"build": 182, "version": "0.9.37"})
+- **Live build:** 1.0.0-rebuild.64 (Deck Builder {"build": 183, "version": "0.9.38"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 64 — 2 Nov 2026
+- Deck Builder 0.9.38 (build 183): build 63's fix never reached the card window: handleAct rebuilds the clicked button as {dataset: {p}} so data-cut was lost (the check passed because that row's cut was also the best measured cut). The click now passes data-cut (5th handleAct argument). Sheets: tapping the tile that is already chosen opens the card, also leading with the row's swap (data-n / data-cut on .s4). Tests: quick check 12; on three Wakanda Forever rows the card window from the row and from the tile leads with that row's card (Queen Mother Ramonda, Loyal Retainers, Nakia).
 
 ### Build 63 — 2 Nov 2026
 - Deck Builder 0.9.37 (build 182): a card opened from an upgrade row leads with that row's swap (the row's card coming out, measured the same way); the other cuts follow. Upgrade buttons carry data-cut (deck.js side, alternatives a3); the card handler sets S.rowCut, wantHtml in deck/ui/cards.js puts that cut first; closing resets it. Cards opened from search or elsewhere are unchanged. Tests: quick check 12; Wakanda Forever: Dyadrine opened from its row leads with Greater Good.
