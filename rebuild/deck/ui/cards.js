@@ -179,6 +179,10 @@ function render() {
               : S.view === 'library'
                 ? viewLibrary()
                 : viewDeck();
+  // a Back button on every page (owner, 1 Nov); an open deck has its own "All decks"
+  if (S.view !== 'home' && !(S.view === 'decks' && S.open && cur()))
+    m.insertAdjacentHTML('afterbegin', '<div class="row backrow"><button class="btn sm" data-act="go-back">← Back</button></div>');
+  trackSpot();
   m.style.display = 'flex';
   m.style.flexDirection = 'column';
   m.style.gap = S.view === 'home' ? '10px' : '16px';

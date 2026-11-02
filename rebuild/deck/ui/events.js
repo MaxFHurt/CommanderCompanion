@@ -466,6 +466,14 @@ function handleAct(act, v, n, pArg) {
     case 'cc-profile':
       ccOpen('profile');
       return;
+    case 'go-back':
+      if (SPOT_N > 0) {
+        history.back();
+        return;
+      }
+      S.view = 'home';
+      S.open = false;
+      break;
     case 'nav':
       S.view = v;
       S.open = false;
@@ -2595,5 +2603,38 @@ document.addEventListener('visibilitychange', () => {
       clearTimeout(saveT);
       persist();
     }
+  }
+});
+
+// Back (owner, 1 Nov): every page and tab change is a history entry, so the Back button and the browser or phone back gesture
+// return to where the player came from. Going back also closes an open pop-up.
+var SPOT = null,
+  SPOT_N = 0,
+  RESTORING = false;   // var: render can run before this line is reached
+const spotOf = () => ({view: S.view, open: !!S.open, deckId: S.open ? S.deckId : null, tab: S.open ? S.tab || null : null});
+function trackSpot() {
+  const s = spotOf(),
+    k = JSON.stringify(s);
+  if (SPOT === k) return;
+  try {
+    if (SPOT == null || RESTORING) history.replaceState({cc: s, n: SPOT_N}, '');
+    else history.pushState({cc: s, n: ++SPOT_N}, '');
+  } catch (e) {}
+  SPOT = k;
+}
+addEventListener('popstate', ev => {
+  const s = ev.state && ev.state.cc;
+  if (!s) return;
+  SPOT_N = ev.state.n || 0;
+  $('#modal').hidden = true;
+  S.view = s.view;
+  S.open = s.open && !!s.deckId && S.profile.decks.some(d => d.id === s.deckId);
+  if (S.open) S.deckId = s.deckId;
+  S.tab = s.tab;
+  RESTORING = true;
+  try {
+    render();
+  } finally {
+    RESTORING = false;
   }
 });
