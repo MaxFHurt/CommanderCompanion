@@ -963,6 +963,7 @@ function sheetHead(d, R, L, i, si, n, sel) {
       lab +
       '</small>' +
       (c ? '<img alt="" src="' + artFor(c, e) + '">' : '<span class="noimg"></span>') +
+      (c && k !== 'cut' ? cardBadges(cur(), name) : '') +
       '<b>' +
       (c ? nameHtml(c, e, name) : esc(name || 'No pick')) +
       '</b><span class="r">' +
@@ -1210,6 +1211,7 @@ function planHtml(d) {
       esc(n) +
       '">' +
       (c ? '<img alt="" src="' + artFor(c, {pid: c.id}) + '">' : '<span></span>') +
+      cardBadges(d, n) +
       '<span><small>Add</small>' +
       (q > 1 ? q + '× ' : '') +
       esc(n) +
@@ -1449,6 +1451,7 @@ function alt3Html(d, R, rowShown, p, i, t) {
         esc(a.n) +
         '">' +
         (c ? '<img alt="" src="' + artFor(c, {pid: c.id}) + '">' : '<span></span>') +
+        cardBadges(cur(), a.n) +
         '<span>' +
         esc(a.n) +
         (a.theme ? ' <span class="chip gold">' + esc(a.theme) + '</span>' : '') +
@@ -1697,6 +1700,7 @@ function topInner(d, R, L, i) {
     esc(tp.n) +
     '">' +
     (find(tp.n) ? '<img alt="" src="' + artFor(find(tp.n), {pid: find(tp.n).id}) + '">' : '<span></span>') +
+    cardBadges(cur(), tp.n) +
     '<span><small>Add</small>' +
     esc(tp.n) +
     printTag(find(tp.n)) +
@@ -2066,6 +2070,22 @@ function bracketHtml(d, A) {
     '<p class="note" style="margin:0">' +
     note +
     ' This is a label showing where the deck stands, not a limit: nothing is blocked, and upgrades that would move the deck up a bracket are marked. Brackets 1 and 5 depend on how you intend to play, so the app does not assign them.</p></div>'
+  );
+}
+// Badges on an upgrade's card image (owner, 2 Nov): GC for every Game Changer; a green + when the card helps a health alert
+// the deck has now (ramp, card draw, removal, board wipes, or lands when it runs short), named in its tooltip.
+const HFIX = new Map();
+const HROLE = {Ramp: 'ramp', Draw: 'draw', Removal: 'removal', Wipes: 'wipe'};
+function cardBadges(d, n) {
+  const c = find(n);
+  if (!c) return '';
+  const t = tags(c),
+    ks = HFIX.get(d.id) || new Set(),
+    A = ks.has('Lands') && t.land ? analyze(d) : null,
+    fix = [...ks].filter(k => (HROLE[k] && !t.land && t.roles.has(HROLE[k])) || (k === 'Lands' && A && A.lands < A.T.lands));
+  return (
+    (c.gc ? '<b class="bdg gc" title="Game Changer">GC</b>' : '') +
+    (fix.length ? '<b class="bdg fix" title="Helps deck health: ' + esc(fix.join(', ')) + '">+</b>' : '')
   );
 }
 // Label for a Game Changer upgrade: where it leaves the deck.
@@ -2551,6 +2571,7 @@ function statsHtml(d, A, R, mode) {
     nWarn = HA.filter(x => x.s === 'warn').length,
     hs = nBad ? 'bad' : nWarn ? 'warn' : 'good',
     fixable = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]);
+  HFIX.set(d.id, new Set(HA.filter(x => x.s === 'bad' || x.s === 'warn').map(x => x.k)));
   // upgrade totals
   const sw = d.cards.filter(x => x.hist && x.hist.length),
     nSw = sw.reduce((a, x) => a + x.hist.length, 0),
@@ -3163,6 +3184,7 @@ function fixDraw(d, keys, G) {
       esc(p.add) +
       '">' +
       (a ? '<img alt="" src="' + artFor(a, {pid: a.id}) + '">' : '') +
+      cardBadges(cur(), p.add) +
       '<span><small>Add</small>' +
       esc(p.add) +
       '</span><em>' +

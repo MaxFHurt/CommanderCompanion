@@ -157,3 +157,16 @@ a { color: var(--glow); }
 .deckpop .why { display: block; color: var(--mute); font-weight: 400; margin-top: 2px; }
 .leadrow { align-items: center; gap: 8px; }
 .deckpop .note.lead { margin: 2px 0 6px !important; }
+/* Badges on upgrade card images (owner, 2 Nov): Game Changer, and a green + for a card that helps a health alert */
+.sw.in { position: relative; }
+.sw .bdg { position: absolute; top: 2px; z-index: 1; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 9px; font: 800 10.5px/1 var(--label); letter-spacing: 0.04em; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); pointer-events: none; }
+.sw .bdg.gc { left: 2px; background: rgba(80, 45, 150, 0.95); border: 1px solid var(--glow); color: #fff; }
+.sw .bdg.fix { left: 2px; background: #1f8f4e; border: 1px solid var(--good); color: #fff; font-size: 14px; }
+.sw .bdg.gc + .bdg.fix { left: 30px; }
+.s4 { position: relative; }
+.s4 .bdg { position: absolute; top: 26px; left: 10px; z-index: 1; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px;
+  border-radius: 11px; font: 800 12px/1 var(--label); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); pointer-events: none; color: #fff; }
+.s4 .bdg.gc { background: rgba(80, 45, 150, 0.95); border: 1px solid var(--glow); }
+.s4 .bdg.fix { background: #1f8f4e; border: 1px solid var(--good); font-size: 16px; }
+.s4 .bdg.gc + .bdg.fix { left: 40px; }

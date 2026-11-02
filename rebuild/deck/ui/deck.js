@@ -279,6 +279,7 @@ function upPanel(d, A, mode) {
     esc(n) +
     '">' +
     thumb(n) +
+    (kind === 'in' ? cardBadges(d, n) : '') +
     '<span><small>' +
     (kind === 'out' ? 'Remove' : 'Add') +
     '</small>' +

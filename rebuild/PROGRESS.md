@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.60 (Deck Builder {"build": 179, "version": "0.9.34"})
+- **Live build:** 1.0.0-rebuild.61 (Deck Builder {"build": 180, "version": "0.9.35"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -59,6 +59,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 61 — 2 Nov 2026
+- Deck Builder 0.9.35 (build 180): badges on upgrade card images (owner, 2 Nov). GC on every Game Changer, and a green + on a card that helps a health alert the deck has now (ramp, card draw, removal, wipes, or lands when short; tooltip names it). `cardBadges` / `HFIX` in deck/ui/upgrades.js (HFIX filled by statsHtml), used by every upgrade card renderer: rows (deck.js side), three-column rows (a3), Sheets tiles (.s4), plan rows, Highest score, swap list. Tests: quick check 12; checked on Wakanda Forever (Explore, Gleaming Splendor, Sword of Forge and Frontier get +).
 
 ### Build 60 — 2 Nov 2026
 - Deck Builder 0.9.34 (build 179): a shorter Upgrades page (owner's screenshot, 2 Nov). The stats bar is one row (the EDHREC chip moved up; the health line left it); under the power bar sit only the health line and Show all details. Path to Apex, the 'Next: Budget, N power to go' line (now leading the pop-up's Health part) and Lands helper moved into Show all details; Best by job took Lands helper's place in the toolbar row. Show by impact in the pop-up closes it. Tests: quick check 12; UI-B81, B113, B126, B165 updated and passing (B81 had been failing since 0.9.29: the Fix buttons moved into the pop-up).
