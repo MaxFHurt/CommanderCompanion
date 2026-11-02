@@ -3,6 +3,7 @@ import { listDecks } from './deck-store.js';
 import { readBuilderProfile, writeBuilderProfile, moveGameDecks } from './deck-builder.js';
 import { durableSet } from './userdata-db.js';
 import { listPlaymats } from './playmats.js';
+import { listOnlineGames, mergeOnlineGames } from '../app/online-games.js';
 const PROFILE_KEY = 'ccv07-profile';
 const DECKS_KEY = 'ccv07-decks';
 const BACKUP_FORMAT = 'commander-companion-profile';
@@ -31,7 +32,8 @@ export function buildProfileBackup() {
     profile,
     decks,                              // the Deck Builder's Commander decks as lists (older builds read these)
     deckBuilder: readBuilderProfile(),  // the Deck Builder's whole profile: decks, collection, buy lists, tablemates
-    playmats: listPlaymats()
+    playmats: listPlaymats(),
+    onlineGames: listOnlineGames()   // online games this player is in, so they show on every device
   };
 }
 export async function saveProfileBackupFile() {
@@ -97,6 +99,7 @@ export async function restoreProfileBackup(raw) {
   }
   if (!localOk && !durableOk)
     throw new Error('The profile could not be restored because this browser is not allowing local storage.');
+  mergeOnlineGames(backup.onlineGames);
   if (builder) writeBuilderProfile(builder);
   else moveGameDecks(decks, localStorage, { again: true });
   return { profile, decks, exportedAt: backup.exportedAt || null };

@@ -8,7 +8,7 @@ import { GAME_SAVE_KEY } from '../../game/save-keys.js';
 import { openJudge } from '../judge-modal.js';
 import { openSettings } from '../settings-modal.js';
 import { toast } from '../toast.js';
-import { autoSaveProfile } from '../../app/online-profile.js';
+import { syncProfileOnOpen } from '../../app/online-profile.js';
 
 /** Most recent saved session of either kind, or null. */
 async function latestSave() {
@@ -38,16 +38,19 @@ export const landingScreen = {
         <div class="landing__foot">Commander Companion • ${VERSION}</div>
       </main>`);
 
-    // Linked to an online profile: save it again if anything changed (stats after a game, deck edits).
-    autoSaveProfile().then(state => {
-      if (state === 'conflict') toast('Your online profile was saved from another device. Open Profile → Online to choose which to keep.', { ms: 6000 });
-    });
-
     let resume = null;
-    latestSave().then(save => {
+    const findResume = () => latestSave().then(save => {
       resume = save;
       const button = root.querySelector('[data-act="continue"]');
       if (button) button.disabled = !save;
+    });
+    findResume();
+
+    // Linked to an online profile: take the newer copy from another device, or save this one's changes.
+    syncProfileOnOpen().then(state => {
+      if (state === 'conflict') toast('Your online profile was saved from another device. Open Profile → Online to choose which to keep.', { ms: 6000 });
+      if (state === 'loaded') toast('Profile and decks updated from your other device.');
+      if (state === 'loaded-game') { toast('Game carried over: tap Continue.'); findResume(); }
     });
 
     return on(root, 'click', '[data-act]', (event, el) => {

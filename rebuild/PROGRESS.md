@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.52 (Deck Builder 0.9.27, build 172)
+- **Live build:** 1.0.0-rebuild.53 (Deck Builder 0.9.27, build 172)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -32,13 +32,22 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 2. **Stylesheet cleanup** (roadmap): fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel
    with `tests/style_diff.py`. Not started.
 3. **The card long tail:** about 10,770 cards of the whole catalog still need something done by hand (batches, check in every 100).
-4. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
+4. **Hosted games between devices (owner, 2 Nov: "ignore hosted games for now, but put it in our handoff").** Build 53 carries
+   only games played on one device. A hosted game (room code or QR pairing) runs on its host device and the others connect to it,
+   so moving it means handing over the host role mid-game: the old host must stop (or become a player) before the new one reopens
+   the room with the same code, and every connected device must follow. Online games ("play over time") already live on the
+   Worker and need none of this; their list now travels with the profile.
+5. **Profile sync gaps (build 53):** the Deck Builder page has no timer of its own: its changes go up when the start screen next
+   opens (or the next minute on a game screen), so edits made right before switching devices can meet "saved from another
+   device" and the player chooses. A device that declines "Continue your game?" keeps its own game and uploads it next time it
+   changes. Not yet checked on two real devices.
+6. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
    hotspot, offline after the first launch, hosted rooms between devices.
-5. **Deck Builder test UI-B145-01** (Gisa, no play data: a Zombie deck from the theme pages) fails with no theme pages loaded
+7. **Deck Builder test UI-B145-01** (Gisa, no play data: a Zombie deck from the theme pages) fails with no theme pages loaded
    (`pages: []`), on build 171 as well as 172, so it predates the iPad fix; probably the test-data branch lacks the Zombie theme
    page. The other 127 Deck Builder UI checks pass (UI-B146-02 is timing-sensitive: it failed once while other tests shared the
    machine and passed alone).
-6. **iOS app:** on hold (owner, 1 Nov: "We don't want to develop for iOS yet").
+8. **iOS app:** on hold (owner, 1 Nov: "We don't want to develop for iOS yet").
 
 ## Known limits
 
@@ -51,6 +60,12 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 53 — 2 Nov 2026 — profile sync between devices
+- Linked devices take the newer online profile when the app opens, and save it on the start screen, every minute and when put
+  away. The profile now carries the online games list and the game in progress (single-device games; asked before it is
+  continued on another device). Hosted games stay on their host (see "Paused: not finished", 4).
+- Released with minimum tests by the owner's choice (listed in HANDOFF.md). Card counts unchanged.
 
 ### Build 52 — 1 Nov 2026 — iPad fix, then paused
 - Deck Builder 0.9.27 (build 172): on iPad the header sat under the status bar and the frames ran under the screen's rounded

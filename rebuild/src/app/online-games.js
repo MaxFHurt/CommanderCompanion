@@ -20,6 +20,14 @@ export function rememberOnlineGame(row) {
   write([{ ...old, ...row, at: Date.now() }, ...listOnlineGames().filter(r => r.code !== row.code)]);
 }
 
+/** Online games joined on another device (from the online profile): added, keeping this device's own rows. */
+export function mergeOnlineGames(rows) {
+  if (!Array.isArray(rows)) return;
+  const mine = listOnlineGames(), have = new Set(mine.map(r => r.code));
+  const extra = rows.filter(r => r && typeof r.code === 'string' && !have.has(r.code));
+  if (extra.length) write([...mine, ...extra].sort((a, b) => (b.at || 0) - (a.at || 0)));
+}
+
 export function forgetOnlineGame(code) {
   write(listOnlineGames().filter(r => r.code !== code));
 }

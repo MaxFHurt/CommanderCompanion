@@ -8,7 +8,15 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.52** (1 Nov): **work paused by the owner** to fix the Deck Builder on iPad (0.9.27, build 172: the
+- Live build: **1.0.0-rebuild.53** (2 Nov): **profile sync between devices** (`src/app/online-profile.js`). A device linked to an
+  online profile takes the newer copy when the start screen opens, if it has nothing new of its own; it saves on the start screen,
+  every minute and when the app goes to the background. The backup now also carries the online games list (so online games
+  show on every device) and the game in progress when it is played on one device (`currentGame`; the other device asks
+  "Continue your game?" and never swaps it in silently). Both devices changed → nothing is overwritten, the player chooses on
+  Profile → Online, as before. Times alone (`updatedAt`) are not a change. No Worker change: profiles were already stored in
+  chunks up to 12 MB. **Released with minimum tests (owner, 2 Nov):** node game, mechanics, smoke and catalog, online_ui (38, five
+  new sync checks) and game_ui; the soaks, forge, tracker, net, challenge and Deck Builder suites were not run for this push.
+  Build 52 (1 Nov): **work paused by the owner** to fix the Deck Builder on iPad (0.9.27, build 172: the
   header sat under the status bar and frames ran under the screen's corners and home bar; every edge now keeps to the safe area,
   `rebuild/deck/cc-theme.css` end and `fitWork`'s `safeBottom()` in `deck/ui/cards.js`). Also released: the legend rule (its controller
   chooses), ward on activated abilities and ward "Pay N life", phasing, mutate, offline after the first launch (`precache.json`

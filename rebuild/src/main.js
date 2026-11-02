@@ -6,6 +6,7 @@ import { initDeckStore } from './data/deck-store.js';
 import { initProfileStore, loadProfile, saveAccountProfile } from './data/profile.js';
 import { initPlaymats } from './data/playmats.js';
 import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
+import { startProfileSync } from './app/online-profile.js';
 import { watchCardImages } from './ui/card-view.js';
 import { landingScreen } from './ui/screens/landing.js';
 import { modeSelectScreen } from './ui/screens/mode-select.js';
@@ -54,6 +55,7 @@ async function start() {
   document.getElementById('bootError').hidden = true;
   registerServiceWorker();
   startUpdateChecks();
+  startProfileSync();
 }
 
 function registerServiceWorker() {
