@@ -295,6 +295,12 @@ export function declareAttack(game, playerId, attacks = [], { override = false }
     }
     attackers.push({ playerId: p.playerId, instanceId: r.card.instanceId, defenderId: r.defender.playerId, targetId: r.target?.card.instanceId || null, blocksConfirmed: false });
     r.card.attackedTurn = game.turnNumber;
+    // Landwalk (Forestwalk, Islandwalk …): can't be blocked while the defending player controls a land of that type.
+    const walk = String(r.def?.oracleText || '').replace(/\([^()]*\)/g, '').match(/(?:^|\n|, )\s*(Plains|Island|Swamp|Mountain|Forest|Desert)walk\b/i);
+    if (walk && (r.defender.deck?.battlefield || []).some(c => new RegExp(`\\b${walk[1]}\\b`, 'i').test(defOf(game, c)?.typeLine || '')))
+      r.card.temporaryEffects = [...(r.card.temporaryEffects || []), { kind: 'combat-restriction', restriction: 'cant-be-blocked', expires: 'cleanup' }];
+    // Decayed: it is sacrificed at end of combat after it attacks.
+    if (/(?:^|\n)\s*Decayed\b/i.test(String(r.def?.oracleText || '').replace(/\([^()]*\)/g, ''))) r.card.decayedAttack = game.turnNumber;
     const what = r.target ? `${defOf(game, r.target.card)?.name || 'a permanent'} (${r.target.kind === 'battle' ? `the battle ${r.defender.displayName} protects` : `${r.defender.displayName}'s planeswalker`})` : r.defender.displayName;
     log(game, `${p.displayName} attacks ${what} with ${r.def?.name || 'a creature'}.`, { type: 'combat' });
   }
@@ -368,6 +374,11 @@ function runStep(game, step) {
   if (step.t === 'damage') return combatDamage(game);
   if (step.t === 'end-combat') {
     game.phase = 'end-combat';
+    // Decayed: sacrificed at end of combat after it attacked.
+    const ap = activePlayer(game);
+    for (const c of [...(ap.deck.battlefield || [])].filter(x => x.decayedAttack === game.turnNumber)) {
+      commit(game, { type: 'move-card', playerId: ap.playerId, instanceId: c.instanceId, to: 'graveyard', moveReason: 'sacrifice', label: `${defOf(game, c)?.name || 'A decayed creature'} is sacrificed (decayed).` });
+    }
     queueTriggers(game, { type: 'end-combat', playerId: game.activePlayerId, controllerId: game.activePlayerId });
     return;
   }

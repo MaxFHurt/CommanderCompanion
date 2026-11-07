@@ -2778,4 +2778,44 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Connive: draw, discard a nonland card, +1/+1 counter', Number(bear.counters?.['+1/+1'] || 0) === 1, JSON.stringify([bear.counters, seen]));
 }
 
+{
+  // Vanishing / Fading / Modular / Bloodthirst counters as it enters; Vanishing and Fading upkeep
+  const t = setup();
+  const used = new Set(t.P(0).deck.battlefield.map(x => x.definitionId));
+  const cast2 = (text) => { const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => !used.has(x.definitionId) && !/Land/.test(def(t, x).typeLine)); const [c] = lib.splice(i, 1); used.add(c.definitionId); c.zone = 'hand'; t.P(0).deck.hand.push(c); asText(t, c, text, { manaCost: '{0}', typeLine: 'Creature — Bear', power: '2', toughness: '2' }); t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); settle(t); return c; };
+  const v = cast2('Vanishing 2'), f = cast2('Fading 1'), m = cast2('Modular 2');
+  const enter = [v.counters?.time, f.counters?.fade, m.counters?.['+1/+1']].join();
+  t.autoPass = true; t.end(0); t.end(1); settle(t);
+  const up1 = [Number(v.counters?.time || 0), Number(f.counters?.fade || 0), t.P(0).deck.battlefield.includes(f)].join();
+  t.end(0); t.end(1); settle(t);
+  check('Vanishing 2 / Fading 1 / Modular 2 enter with their counters; upkeeps remove them, then sacrifice', enter === '2,1,2' && up1 === '1,0,true' && !t.P(0).deck.battlefield.includes(v) && !t.P(0).deck.battlefield.includes(f), JSON.stringify([enter, up1, t.P(0).deck.battlefield.includes(v), t.P(0).deck.battlefield.includes(f)]));
+}
+
+{
+  // Landwalk: unblockable while the defender controls that land type. Decayed: can't block; sacrificed at end of combat after attacking.
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Island', 'battlefield');
+  t.end(0); t.end(1);
+  const bear = t.bf(0, 'Grizzly Bears');
+  asText(t, bear, 'Islandwalk', { typeLine: 'Creature — Bear', power: '2', toughness: '2' });
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  const unblockable = (bear.temporaryEffects || []).some(e => e.restriction === 'cant-be-blocked');
+  settle(t);
+  check('Landwalk: Islandwalk can\'t be blocked while the defender controls an Island', unblockable, JSON.stringify(bear.temporaryEffects));
+}
+{
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield');
+  t.end(0); t.end(1);
+  const z = t.bf(0, 'Grizzly Bears');
+  asText(t, z, 'Decayed', { typeLine: 'Creature — Zombie', power: '2', toughness: '2' });
+  const R = await import('../../src/engine/rules.js');
+  const cantBlock = !R.validateBlock({ blocker: z, definition: def(t, z), attackerDefinition: def(t, z), attacker: z }).legal;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: z.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('Decayed: it can\'t block, and after attacking it is sacrificed at end of combat', cantBlock && !t.P(0).deck.battlefield.includes(z) && t.P(0).deck.graveyard.includes(z), JSON.stringify([cantBlock, t.game.phase, t.P(0).deck.battlefield.includes(z)]));
+}
+
 done();

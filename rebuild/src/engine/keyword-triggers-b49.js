@@ -148,6 +148,12 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
       const age = Number(card.counters?.age || 0) + 1;
       add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then ${cuAct.text.replace(/\.$/, '')} × ${age} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: `${cuAct.text.replace(/\.$/, '')} × ${age}`, doEffects: cuAct.effects, times: age }, { kind: 'sacrifice', bind: 'sourceId' }]));
     }
+    // Vanishing: remove a time counter; when the last is removed, sacrifice it. Fading: remove a fade counter; if you can't,
+    // sacrifice it.
+    if (/(?:^|\n)\s*Vanishing \d+/i.test(strip(text)) && Number(card.counters?.time || 0) > 0)
+      add('vanishing', 'Vanishing — remove a time counter; when the last is removed, sacrifice it.', '', compiled([{ kind: 'remove-counter', bind: 'sourceId', counter: 'time', amount: 1 }, { kind: 'condition', test: 'b49-own-counters', counter: 'time', skip: 1, failNote: 'Time counters remain.' }, { kind: 'sacrifice', bind: 'sourceId' }]));
+    if (/(?:^|\n)\s*Fading \d+/i.test(strip(text)))
+      add('fading', 'Fading — remove a fade counter; if you can\u2019t, sacrifice it.', '', compiled([{ kind: 'condition', test: 'b49-own-counters', counter: 'fade', atLeast: 1, negate: true, skip: 1 }, { kind: 'sacrifice', bind: 'sourceId' }, { kind: 'condition', test: 'b49-own-counters', counter: 'fade', atLeast: 1, skip: 1, failNote: 'It was sacrificed.' }, { kind: 'remove-counter', bind: 'sourceId', counter: 'fade', amount: 1 }]));
     const echo = strip(text).match(new RegExp(`(?:^|\\n)\\s*Echo ${COST}`, 'i'));
     if (echo && card.echoDone !== true && Number(card.controlSinceTurn ?? card.enteredTurn ?? 0) < Number(game.turnNumber)) {
       card.echoDone = true;

@@ -490,7 +490,7 @@ export function validateBlock({ blocker, definition, attackerDefinition, attacke
   if (combatRestriction(blocker, 'cant-block') || combatRestriction(blocker, 'cant-attack-or-block'))
     reasons.push('This creature cannot block this turn.');
   const bt = String(definition?.oracleText || ''), at = String(attackerDefinition?.oracleText || '');
-  if (/can'?t block/i.test(bt))
+  if (/can'?t block/i.test(bt) || /(?:^|\n)\s*Decayed\b/i.test(bt.replace(/\([^()]*\)/g, '')))
     reasons.push('This creature cannot block.');
   if (/can'?t be blocked/i.test(at) || combatRestriction(attacker, 'cant-be-blocked'))
     reasons.push('This attacker cannot be blocked.');

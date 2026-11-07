@@ -136,7 +136,7 @@ m('Adapt', 'action', 'Adapt N: if this has no +1/+1 counters, put N +1/+1 counte
 m('Amass', 'action', 'Amass [type] N: put N +1/+1 counters on an Army you control; if you have none, create a 0/0 Army token first.', { auto: 'auto', steps: 'No Army? Create a 0/0 Army token. Then put N +1/+1 counters on your Army.', actions: ['token', 'counter+'] });
 m('Connive', 'action', 'Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.', { auto: 'auto', steps: 'Draw, discard; nonland discarded → +1/+1 counter.', actions: ['draw', 'discard', 'counter+'] });
 m('Learn', 'action', 'You may reveal a Lesson card from outside the game and put it in your hand, or discard a card to draw a card.', { auto: 'auto', steps: 'The game asks whether to discard a card and draw a card (Lessons from outside the game need the Wishes rule and are by hand).', actions: ['discard', 'draw'] });
-m('Populate', 'action', 'Create a token that is a copy of a creature token you control.', { auto: 'manual', actions: ['copy-token'] });
+m('Populate', 'action', 'Create a token that is a copy of a creature token you control.', { auto: 'auto', actions: ['copy-token'] });
 m('Manifest', 'action', 'Put the top card of your library onto the battlefield face down as a 2/2 creature. If it is a creature card, you may turn it face up for its mana cost.', { auto: 'auto', steps: 'Put the top card face down as a 2/2. If it is a creature, it can be turned face up any time for its mana cost.', actions: ['token'] });
 m('Manifest dread', 'action', 'Look at the top two cards, manifest one, put the other into your graveyard.', { auto: 'auto', actions: ['token', 'mill'] });
 m('Cloak', 'action', 'Like manifest, but the face-down 2/2 has ward {2}.', { auto: 'manual', actions: ['token'] });
@@ -187,7 +187,7 @@ m('Bargain', 'keyword', 'As an additional cost you may sacrifice an artifact, en
 m('Battle cry', 'keyword', 'Whenever this attacks, each other attacking creature gets +1/+0 until end of turn.', { auto: 'auto', actions: ['pt'] });
 m('Bestow', 'keyword', 'Cast as an Aura for the bestow cost; if the enchanted creature leaves, it becomes a creature again.', { auto: 'auto', actions: ['attach'] });
 m('Blitz', 'keyword', 'Cast for the blitz cost: it has haste and "When this dies, draw a card", and is sacrificed at the next end step.', { auto: 'auto' });
-m('Bloodthirst', 'keyword', 'Bloodthirst N: if an opponent was dealt damage this turn, this enters with N +1/+1 counters.', { auto: 'manual', actions: ['counter+'] });
+m('Bloodthirst', 'keyword', 'Bloodthirst N: if an opponent was dealt damage this turn, this enters with N +1/+1 counters.', { auto: 'auto', actions: ['counter+'] });
 m('Boast', 'keyword', 'Activate only if this creature attacked this turn and only once each turn.', { auto: 'auto', steps: 'The game allows a boast ability only after the creature attacked this turn, once.' });
 m('Bushido', 'keyword', 'Bushido N: whenever this blocks or becomes blocked, it gets +N/+N until end of turn.', { auto: 'auto', actions: ['pt'] });
 m('Buyback', 'keyword', 'You may pay the buyback cost as you cast this; if you do, it returns to your hand as it resolves.', { auto: 'auto' });
@@ -208,7 +208,7 @@ m('Cycling', 'keyword', 'Pay the cost and discard this card from your hand: draw
 m('Landcycling', 'keyword', '[Type]cycling: pay and discard this card: search for a [type] card, reveal it, put it in your hand, then shuffle.', { auto: 'auto', detect: '\\b\\w+cycling \\{' });
 m('Dash', 'keyword', 'Cast for the dash cost: it has haste and returns to its owner\'s hand at the next end step.', { auto: 'auto' });
 m('Daybound and nightbound', 'keyword', 'Once it is day or night, it changes each turn: a player casting no spells during their own turn makes it night; casting two or more makes it day.', { auto: 'manual', detect: '\\b(?:Daybound|Nightbound)\\b', actions: ['transform', 'status'] });
-m('Decayed', 'keyword', 'Can\'t block; when it attacks, sacrifice it at end of combat.', { auto: 'manual', actions: ['sacrifice'] });
+m('Decayed', 'keyword', 'Can\'t block; when it attacks, sacrifice it at end of combat.', { auto: 'auto', actions: ['sacrifice'] });
 m('Delve', 'keyword', 'Each card you exile from your graveyard while casting this pays for {1}.', { auto: 'auto' });
 m('Demonstrate', 'keyword', 'When you cast this, you may copy it; if you do, an opponent also copies it.', { auto: 'manual' });
 m('Dethrone', 'keyword', 'Whenever this attacks the player with the most life (or tied), put a +1/+1 counter on it.', { auto: 'auto', actions: ['counter+'] });
@@ -234,7 +234,7 @@ m('Exalted', 'keyword', 'Whenever a creature you control attacks alone, it gets 
 m('Exploit', 'keyword', 'When this enters, you may sacrifice a creature.', { auto: 'auto', steps: 'As it enters the game asks which creature (if any) to sacrifice; "when it exploits" triggers follow.', actions: ['sacrifice'] });
 m('Extort', 'keyword', 'Whenever you cast a spell, you may pay {W/B}; if you do, each opponent loses 1 life and you gain that much.', { auto: 'auto', actions: ['life-loss', 'life-gain'] });
 m('Fabricate', 'keyword', 'Fabricate N: when this enters, put N +1/+1 counters on it or create N 1/1 Servo artifact creature tokens.', { auto: 'auto', actions: ['counter+', 'token'] });
-m('Fading', 'keyword', 'Enters with N fade counters; at your upkeep remove one, or sacrifice it if you can\'t.', { auto: 'manual', actions: ['counter-other', 'sacrifice'] });
+m('Fading', 'keyword', 'Enters with N fade counters; at your upkeep remove one, or sacrifice it if you can\'t.', { auto: 'auto', actions: ['counter-other', 'sacrifice'] });
 m('Fear', 'keyword', 'Can be blocked only by artifact creatures and black creatures.', { auto: 'auto' });
 m('Flanking', 'keyword', 'Whenever this becomes blocked by a creature without flanking, the blocker gets -1/-1 until end of turn.', { auto: 'auto', actions: ['pt'] });
 m('Flashback', 'keyword', 'Cast this from your graveyard for its flashback cost; then exile it.', { auto: 'auto', tricky: ['If a flashed-back spell is countered or leaves the stack any way, it is exiled.'] });
@@ -259,7 +259,7 @@ m('Ingest', 'keyword', 'Whenever this deals combat damage to a player, that play
 m('Intimidate', 'keyword', 'Can be blocked only by artifact creatures and creatures that share a color with it.', { auto: 'auto' });
 m('Jump-start', 'keyword', 'Cast this from your graveyard by discarding a card in addition to its cost; then exile it.', { auto: 'auto', actions: ['discard', 'exile'] });
 m('Kicker', 'keyword', 'You may pay an additional kicker cost as you cast this for an extra effect ("if this spell was kicked").', { auto: 'auto', tricky: ['Multikicker can be paid any number of times.', 'A copy of a kicked spell is also kicked.'] });
-m('Landwalk', 'keyword', '[Type]walk: can\'t be blocked as long as the defending player controls a land of that type.', { auto: 'manual', detect: '\\b(?:Plains|Island|Swamp|Mountain|Forest|Desert|Legendary land|Nonbasic land)walk\\b' });
+m('Landwalk', 'keyword', '[Type]walk: can\'t be blocked as long as the defending player controls a land of that type.', { auto: 'auto', detect: '\\b(?:Plains|Island|Swamp|Mountain|Forest|Desert|Legendary land|Nonbasic land)walk\\b' });
 m('Level up', 'keyword', 'Pay the level up cost: put a level counter on this (sorcery speed); its abilities change at each level band.', { auto: 'auto', actions: ['counter-other'] });
 m('Living metal', 'keyword', 'As long as it\'s your turn, this Vehicle is also an artifact creature.', { auto: 'manual' });
 m('Living weapon', 'keyword', 'When this Equipment enters, create a 0/0 black Phyrexian Germ token and attach this to it.', { auto: 'auto', actions: ['token', 'attach'] });
@@ -267,7 +267,7 @@ m('Madness', 'keyword', 'If you discard this card, you may exile it instead and 
 m('Melee', 'keyword', 'Whenever this attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.', { auto: 'auto', actions: ['pt'] });
 m('Mentor', 'keyword', 'Whenever this attacks, put a +1/+1 counter on target attacking creature with lesser power.', { auto: 'auto', actions: ['counter+'] });
 m('Miracle', 'keyword', 'If this is the first card you drew this turn, you may reveal it and cast it for its miracle cost.', { auto: 'auto', steps: 'When you draw it as your first card of the turn, the game asks whether to cast it for its miracle cost.' });
-m('Modular', 'keyword', 'Enters with N +1/+1 counters; when it dies, you may put its +1/+1 counters on target artifact creature.', { auto: 'manual', actions: ['counter+'] });
+m('Modular', 'keyword', 'Enters with N +1/+1 counters; when it dies, you may put its +1/+1 counters on target artifact creature.', { auto: 'partial', actions: ['counter+'] });
 m('More Than Meets the Eye', 'keyword', 'You may cast this converted (back face up) for its More Than Meets the Eye cost.', { auto: 'auto', actions: ['transform'] });
 m('Morph', 'keyword', 'Cast face down for {3} as a 2/2 with no name or abilities; turn face up any time for the morph cost.', { auto: 'auto', rules: ['Turning face up is a special action: no stack, can\'t be responded to.', 'Megamorph also puts a +1/+1 counter on it when turned up.'] });
 m('Megamorph', 'keyword', 'Like morph; when turned face up it also gets a +1/+1 counter.', { auto: 'auto' });
@@ -325,7 +325,7 @@ m('Undaunted', 'keyword', 'This spell costs {1} less for each opponent you have.
 m('Undying', 'keyword', 'When this dies, if it had no +1/+1 counters on it, return it with a +1/+1 counter.', { auto: 'auto' });
 m('Unearth', 'keyword', 'Return this from your graveyard with haste; exile it at the next end step or if it would leave the battlefield. Sorcery speed.', { auto: 'auto', actions: ['return-battlefield', 'exile'] });
 m('Unleash', 'keyword', 'You may have this enter with a +1/+1 counter; it can\'t block while it has one.', { auto: 'auto', actions: ['counter+'] });
-m('Vanishing', 'keyword', 'Enters with N time counters; remove one at your upkeep; when the last is removed, sacrifice it.', { auto: 'manual', actions: ['counter-other', 'sacrifice'] });
+m('Vanishing', 'keyword', 'Enters with N time counters; remove one at your upkeep; when the last is removed, sacrifice it.', { auto: 'auto', actions: ['counter-other', 'sacrifice'] });
 m('Wither', 'keyword', 'Deals damage to creatures in the form of -1/-1 counters.', { auto: 'auto' });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────

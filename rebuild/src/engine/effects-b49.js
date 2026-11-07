@@ -1428,6 +1428,8 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
   const creatures = p => (p?.deck?.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || ''));
   const pow = c => effectivePower(c, definitionFor(game, c), game);
   switch (effect.test) {
+    // this permanent's counters: atLeast N, or exactly zero (Vanishing, Fading)
+    case 'b49-own-counters': { const h = locateCardInGame(game, bindings.sourceId); if (!h || h.zone !== 'battlefield') return false; const n = Number(h.card.counters?.[effect.counter] || 0); return effect.atLeast !== undefined ? n >= effect.atLeast : n === 0; }
     case 'b49-total-power': return creatures(me).reduce((n, c) => n + Math.max(0, pow(c)), 0) >= effect.min;
     case 'b49-attacked-with': { const a = game.attackedWithTurn?.[controllerId]; return !!a && a.turn === game.turnNumber && a.n >= effect.min; }
     case 'b49-opp-dealt': return (game.players || []).some(p => p.playerId !== controllerId && game.damageTakenTurn?.[p.playerId]?.turn === game.turnNumber && game.damageTakenTurn[p.playerId].n >= effect.min);

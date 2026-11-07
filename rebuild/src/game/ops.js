@@ -1391,6 +1391,14 @@ function runResolve(game, op, ask) {
       card.counters = card.counters || {};
       card.counters.loyalty = Number(cardDef.loyalty);
     }
+    // Keyword counters as it enters: Vanishing N (time), Fading N (fade), Modular N (+1/+1), Bloodthirst N (+1/+1 if an
+    // opponent lost life this turn).
+    const kw = String(cardDef.oracleText || '').replace(/\([^()]*\)/g, '');
+    const kc = (re, counter, ok = true) => { const m = kw.match(re); if (m && ok) { card.counters = card.counters || {}; card.counters[counter] = Number(card.counters[counter] || 0) + Number(m[1]); } };
+    kc(/(?:^|\n)\s*Vanishing (\d+)/i, 'time');
+    kc(/(?:^|\n)\s*Fading (\d+)/i, 'fade');
+    kc(/(?:^|\n)\s*Modular (\d+)/i, '+1/+1');
+    kc(/(?:^|\n)\s*Bloodthirst (\d+)/i, '+1/+1', (game.players || []).some(q => q.playerId !== player.playerId && game.lostLifeTurn?.[q.playerId] === game.turnNumber));
   }
 }
 
