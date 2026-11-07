@@ -175,6 +175,13 @@ function generalMatch(game, row, t, event) {
   const extra = catalogTriggerMatch(game, row, t, event, { subjectEvent, whoMatches, eventCard, selfName: r => escRe(String(r.definition?.name || '').split(',')[0]) });
   if (extra !== undefined) return extra;
   switch (event.type) {
+    case 'door-unlocked': {
+      // Rooms (build 79): "When you unlock this door, …" — only the door that was unlocked (its own face's text).
+      if (!/^When you unlock this door\b/i.test(t)) return undefined;
+      if (event.sourceId !== row.card.instanceId) return false;
+      const face = event.face != null ? game.cardDefinitions?.[row.card.definitionId]?.cardFaces?.[event.face] : null;
+      return !face || String(face.oracleText || '').replace(/\s+/g, ' ').includes(t.replace(/\s+/g, ' ').slice(0, 40));
+    }
     case 'enters-battlefield':
       if ((m = t.match(/^Whenever (you|an opponent|a player|another player) plays? a land/i))) return !!event.played && whoMatches(m[1], event.controllerId, row);
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:enters|enter)\b(?: the battlefield)?(?: (under your control|under an opponent'?s control))?/i)))
@@ -610,6 +617,8 @@ export function queueTriggers(game, event) {
 function queueTriggersInner(game, event) {
   // Who lost life this turn (Spectacle, "if an opponent lost life this turn").
   if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) game.lostLifeTurn = { ...(game.lostLifeTurn || {}), [event.playerId]: game.turnNumber };
+  // How much (Warlock Class, build 79).
+  if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) { const was = game.lostLifeAmount?.[event.playerId]; game.lostLifeAmount = { ...(game.lostLifeAmount || {}), [event.playerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + Number(event.amount) } }; }
   // Life each player gained this turn (Ocelot Pride, Resplendent Angel; build 77).
   if (event?.type === 'life-gained' && Number(event.amount || 0) > 0 && event.playerId) { const was = game.gainedLifeTurn?.[event.playerId]; game.gainedLifeTurn = { ...(game.gainedLifeTurn || {}), [event.playerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + Number(event.amount) } }; }
   // Damage each player was dealt this turn (Spinerock Knoll) and how many creatures each player attacked with (Windbrisk Heights).
@@ -685,7 +694,7 @@ export function resolveTrigger(game, trigger, bindings = {}) {
  * card, by another of its controller's cards and by an opponent, with each common card type. A
  * trigger nothing matches is one players must remember and resolve by hand.
  */
-const PROBE_EVENTS = ['library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
+const PROBE_EVENTS = ['door-unlocked', 'library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
 const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem', 'Creature — Elemental Dragon', 'Artifact — Equipment'];
 export function triggerCanFire(definition, ability) {
   return probeTrigger(definition, ability, PROBE_TYPES, PROBE_EVENTS, [{}]) || probeTrigger(definition, ability, wideProbeTypes(ability), [...PROBE_EVENTS, ...PROBE_EXTRA_EVENTS], WIDE_VARIANTS);

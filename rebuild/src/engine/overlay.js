@@ -59,6 +59,11 @@ export function withOverlay(card, def) {
   // A mutated pile (its combined definition) or a permanent that became a copy (Thespian's Stage): kept on the card.
   if (def && card?.mutatedDef) def = card.mutatedDef;
   else if (def && card?.copyDef) def = card.copyDef;
+  // Rooms (build 79): with both doors unlocked the permanent has both halves' abilities (one door: its face, activeFaceIndex).
+  if (def && Array.isArray(card?.unlockedFaces) && card.unlockedFaces.length > 1 && (def.cardFaces || []).length > 1) {
+    const faces = card.unlockedFaces.map(i => def.cardFaces[i]).filter(Boolean);
+    def = { ...def, name: faces.map(f => f.name).join(' // '), oracleText: faces.map(f => f.oracleText || '').join('\n'), manaValue: faces.reduce((n, f) => n + Number(f.manaValue ?? f.cmc ?? 0), 0) };
+  }
   if (def && /Class|Level up/.test(`${def.typeLine}${String(def.oracleText || '').slice(0, 12)}`)) def = leveled(card, def);
   // Abilities granted in quotes by an Aura, Equipment or anthem ('Equipped creature has "{T}: …"'), kept on the card by
   // attachments.js syncAttachments.

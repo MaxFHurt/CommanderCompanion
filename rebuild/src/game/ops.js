@@ -931,6 +931,11 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'Not enough mana.');
   const payment = plan.ok ? plan.chosen : null;
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
+  if (String(kind).startsWith('unlock:')) {
+    const face = Number(kind.split(':')[1]), fname = game.cardDefinitions?.[card.definitionId]?.cardFaces?.[face]?.name || 'the door';
+    commit(game, { type: 'special-action', kind: 'unlock', face, playerId: player.playerId, instanceId: card.instanceId, payment, label: `${player.displayName} unlocks ${fname}.` });
+    return;
+  }
   if (kind === 'companion') {
     commit(game, { type: 'special-action', kind: 'companion', playerId: player.playerId, instanceId: card.instanceId, payment, label: `${player.displayName} pays {3} and puts their companion ${def.name} into their hand.` });
     return;
@@ -1284,7 +1289,16 @@ function runResolve(game, op, ask) {
     // Echo / Cumulative upkeep paid with an action: do it (once per age counter) or sacrifice the permanent.
     const pay = ask('may-pay', () => ({ ...base, kind: 'choose-one', title: `${name} — pay the cost?`, prompt: `${top.text || name}`,
       options: [{ id: 'pay', label: mayPay.doLabel || `Pay: ${mayPay.doText}` }, { id: 'no', label: 'Don\u2019t pay (sacrifice it)' }] }));
-    if (pay === 'pay') bindings.mayPaid = true;
+    if (pay === 'pay') {
+      // The cost's own choices (which creature to sacrifice, which card to discard), asked only when paying; if they can't
+      // be made, it isn't paid.
+      let paid = true;
+      if (mayPay.doReqs?.length) {
+        try { gatherRequirements(game, { player, sourceName: name, source: base.source, cancellable: false }, mayPay.doReqs, bindings, ask, 'maypay'); }
+        catch (e) { if (e instanceof NoLegalChoice) paid = false; else throw e; }
+      }
+      if (paid) bindings.mayPaid = true;
+    }
   } else if (mayPay && attachedOk) {
     const life = Number(mayPay.lifeCost || 0), energy = Number(mayPay.energy || 0);
     // Energy the same ability gives first ("you get {E}{E}, then you may pay eight {E}") counts; the energy is paid as that step

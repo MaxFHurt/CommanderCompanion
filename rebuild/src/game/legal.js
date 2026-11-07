@@ -177,6 +177,13 @@ export function specialRows(game, player, card, { running = false } = {}) {
     const power = (player.deck.battlefield || []).filter(c => c.instanceId !== card.instanceId && !c.tapped && /\bCreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, effectivePower(c, defOf(game, c), game)), 0);
     row('saddle', `Saddle ${need}`, '', [block, !sorcery && 'Only as a sorcery.', card.saddledTurn === game.turnNumber && 'Already saddled this turn.', power < need && `Untapped creatures with total power ${need} or more are needed.`]);
   }
+  // Rooms (build 79): unlock a locked door by paying its mana cost — a special action, only as a sorcery.
+  const roomBase = card.zone === 'battlefield' && game.cardDefinitions?.[card.definitionId];
+  if (roomBase && /\bRoom\b/.test(roomBase.typeLine || '') && (roomBase.cardFaces || []).length === 2) {
+    const open = card.unlockedFaces || (Number.isInteger(card.activeFaceIndex) ? [card.activeFaceIndex] : []);
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    roomBase.cardFaces.forEach((f, j) => { if (!open.includes(j) && f.manaCost) row(`unlock:${j}`, `Unlock ${f.name}`, f.manaCost, [block, !sorcery && 'Only as a sorcery.', !payable(f.manaCost) && 'Not enough mana.']); });
+  }
   // Level up {cost}: a level counter, only as a sorcery.
   const lvl = card.zone === 'battlefield' && String(text).match(/^Level up ((?:\{[^}]+\})+)/m);
   if (lvl) {

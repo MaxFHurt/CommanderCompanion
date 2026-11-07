@@ -13,6 +13,20 @@ function amounts(text, word) {
 }
 function count(text, word) { return (strip(text).match(new RegExp(`(?:^|\\n|,\\s*)\\s*${word}\\b(?! \\d)`, 'gi')) || []).length; }
 const COST = '((?:\\{[^}]+\\})+)';
+// Echo / Cumulative upkeep paid with an action ("Echo—Discard a card", "Cumulative upkeep—Sacrifice a creature"): the effects,
+// and (build 79) the choices it needs, asked only when paying. Cumulative upkeep with a choice asks once for the whole amount
+// ("Sacrifice two creatures" with two age counters). null when the action is not understood (it stays by hand).
+const CHOICE_REQS = ['card-selection', 'discard-cards'];
+const scaledAction = (t, n) => n <= 1 ? t : t.replace(/^(Sacrifice|Discard) (?:a|an|one) (.+?)\.$/i, (_, v, w) => `${v} ${n} ${w.replace(/(\w+)$/, x => /s$/.test(x) ? x : `${x}s`)}.`);
+export function upkeepActionCost(text, kw, n = 1) {
+  const m = String(text || '').replace(/\([^()]*\)/g, '').match(new RegExp(`(?:^|\\n)\\s*${kw}\\s*[—-]\\s*([A-Z][^\\n]*?\\.)\\s*(?:$|\\n)`));
+  if (!m || /^Pay /i.test(m[1])) return null;
+  const want = scaledAction(m[1], n), r = compileEffectText(want.replace(/\bthis creature\b|\bthis permanent\b/gi, 'SELFNAME'), { sourceName: 'SELFNAME' }), reqs = r.requirements || [];
+  if (!r.supported || !r.effects.length) return null;
+  if (!reqs.length) return { text: m[1], effects: r.effects, reqs: [] };
+  if (reqs.every(q => CHOICE_REQS.includes(q.kind) && (!q.scope || q.scope === 'you')) && (n <= 1 || want !== m[1])) return { text: want, effects: r.effects, reqs };
+  return null;
+}
 const compiled = effects => ({ compiled: { supported: true, requirements: [], unsupported: [], effects } });
 
 export function keywordTriggersB49(game, row, event, add, { defOf }) {
@@ -141,17 +155,17 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
   if (onField && event.type === 'upkeep' && event.playerId === me) {
     // An action cost ("Echo—Discard a card", "Cumulative upkeep—Draw a card", "…—Put a -1/-1 counter on this creature"):
     // done once per age counter when paid, if it compiles to effects that need no choice; otherwise it stays by hand.
-    const act = (kw) => { const m = strip(text).match(new RegExp(`(?:^|\\n)\\s*${kw}\\s*[—-]\\s*([A-Z][^\\n]*?\\.)\\s*(?:$|\\n)`)); if (!m || /^Pay /i.test(m[1])) return null;
-      const r = compileEffectText(m[1].replace(/\bthis creature\b|\bthis permanent\b/gi, 'SELFNAME'), { sourceName: 'SELFNAME' }); return r.supported && r.effects.length && !(r.requirements || []).length ? { text: m[1], effects: r.effects } : null; };
+    const act = (kw, n = 1) => upkeepActionCost(text, kw, n);
     const echoAct = act('Echo');
     if (echoAct && card.echoDone !== true && Number(card.controlSinceTurn ?? card.enteredTurn ?? 0) < Number(game.turnNumber)) {
       card.echoDone = true;
-      add('echo', `Echo — ${echoAct.text} Do it or sacrifice this permanent.`, '', compiled([{ kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: echoAct.text, doEffects: echoAct.effects }, { kind: 'sacrifice', bind: 'sourceId' }]));
+      add('echo', `Echo — ${echoAct.text} Do it or sacrifice this permanent.`, '', compiled([{ kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: echoAct.text, doEffects: echoAct.effects, doReqs: echoAct.reqs }, { kind: 'sacrifice', bind: 'sourceId' }]));
     }
-    const cuAct = act('Cumulative upkeep');
+    const cuAge = Number(card.counters?.age || 0) + 1, cuAct = act('Cumulative upkeep', cuAge);
     if (cuAct) {
-      const age = Number(card.counters?.age || 0) + 1;
-      add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then ${cuAct.text.replace(/\.$/, '')} × ${age} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: `${cuAct.text.replace(/\.$/, '')} × ${age}`, doEffects: cuAct.effects, times: age }, { kind: 'sacrifice', bind: 'sourceId' }]));
+      const age = cuAge, once = cuAct.reqs.length > 0;   // a choice: the scaled action once ("Sacrifice two creatures")
+      const what = once ? cuAct.text.replace(/\.$/, '') : `${cuAct.text.replace(/\.$/, '')} × ${age}`;
+      add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then ${what} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: what, doEffects: cuAct.effects, doReqs: cuAct.reqs, times: once ? 1 : age }, { kind: 'sacrifice', bind: 'sourceId' }]));
     }
     // Vanishing: remove a time counter; when the last is removed, sacrifice it. Fading: remove a fade counter; if you can't,
     // sacrifice it.
@@ -164,11 +178,12 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
       card.echoDone = true;
       add('echo', `Echo ${echo[1]} — pay it or sacrifice this permanent.`, '', compiled([{ kind: 'may-pay', cost: echo[1], lifeCost: 0, skip: 1, invert: true }, { kind: 'sacrifice', bind: 'sourceId' }]));
     }
-    const cu = strip(text).match(new RegExp(`(?:^|\\n)\\s*Cumulative upkeep(?:\\s*[—-]\\s*|\\s+)(?:${COST}|Pay (\\d+) life\\.?)\\s*(?:$|\\n)`, 'i'));
+    const cu = strip(text).match(new RegExp(`(?:^|\\n)\\s*Cumulative upkeep(?:\\s*[—-]\\s*|\\s+)(?:${COST}|Pay (\\d+) life\\.?|Pay ((?:\\{[^}]+\\})+) and (\\d+) life\\.?)\\s*(?:$|\\n)`, 'i'));
     if (cu) {
       const age = Number(card.counters?.age || 0) + 1;
+      if (cu[3]) { cu[1] = cu[3]; cu[2] = cu[4]; }   // "Pay {B} and 1 life" (Infernal Darkness, build 79)
       const cost = cu[1] ? cu[1].repeat(age) : '', life = cu[2] ? Number(cu[2]) * age : 0;
-      add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then pay ${cu[1] ? `${cu[1]} × ${age}` : `${life} life`} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: cost || '{0}', lifeCost: life, skip: 1, invert: true }, { kind: 'sacrifice', bind: 'sourceId' }]));
+      add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then pay ${[cu[1] ? `${cu[1]} × ${age}` : '', life ? `${life} life` : ''].filter(Boolean).join(' and ')} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: cost || '{0}', lifeCost: life, skip: 1, invert: true }, { kind: 'sacrifice', bind: 'sourceId' }]));
     }
   }
 }

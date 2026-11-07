@@ -461,6 +461,32 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
     return true;
   }
+  if (/^each opponent loses life equal to the life (?:they|that player) lost this turn\.?$/i.test(c)) { effects.push({ kind: 'lose-life-lost' }); return true; }
+  // Paladin Class: "until end of turn, target attacking creature gets +1/+1 for each other attacking creature and gains double strike."
+  if ((m = c.match(/^(?:until end of turn, )?(target attacking creature) gets \+1\/\+1 for each other attacking creature(?: and gains ([a-z ,]+?))?(?: until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'set-x', amount: { kind: 'count', zone: 'battlefield', filter: 'creature|attacking', minus: 1 } }, { kind: 'pump', bind, power: 'X', toughness: 'X', expires: 'cleanup' });
+    for (const k of H.KEYWORD_LIST(m[2] || '')) effects.push({ kind: 'grant-keyword', bind, keyword: k, enabled: true, expires: 'cleanup' });
+    return true;
+  }
+  // Sorcerer Class: "that spell deals damage to each opponent equal to the number of instant and sorcery spells you've cast this turn."
+  if ((m = c.match(rx(`^(?:that spell|${selfAny}|this [a-z]+) deals damage to each opponent equal to the number of (instant and sorcery|instant|sorcery|noncreature)? ?spells you'?ve cast this turn\\.?$`, 'i')))) {
+    const types = !m[1] ? null : /instant and sorcery/i.test(m[1]) ? ['Instant', 'Sorcery'] : /noncreature/i.test(m[1]) ? null : [cap(m[1].toLowerCase())];
+    if (!/noncreature/i.test(m[1] || '')) { effects.push({ kind: 'damage-each', amount: { kind: 'spells-cast-this-turn', types }, creatures: null, players: 'opponents', sourceName }); return true; }
+  }
+  // Build 79: Blacksmith's Talent: 'create a colorless Equipment artifact token named Sword with "Equipped creature gets +1/+1" and
+  // equip {2}.' (the token is an Equipment with that text and that equip cost)
+  if ((m = c.match(/^create (?:a|an) colorless Equipment artifact token named ([A-Z][A-Za-z' ]+?) with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i))) {
+    effects.push({ kind: 'create-token', amount: 1, name: m[1], typeLine: 'Token Artifact — Equipment', colors: [], oracleText: `${m[2].replace(/\.?$/, '.')}\nEquip ${m[3]}` });
+    return true;
+  }
+  // Build 79: Druid Class: "target land you control becomes a creature with haste and "This creature's power and toughness are
+  // each equal to the number of lands you control." It's still a land." (a 0/0 that counts your lands; the text is granted)
+  if ((m = c.match(/^(Target land you control) becomes a creature with haste and "(This creature's power and toughness are each equal to the number of (?:lands|creatures|artifacts) you control\.)"\.?(?: It's still a land\.?)?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'animate', bind, power: 0, toughness: 0, addTypes: ['Creature'], subtypes: [], keywords: ['Haste'], colors: null, expires: null }, { kind: 'grant-text', bind, texts: [m[2]] });
+    return true;
+  }
   // Build 77: Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." (a creature type added)
   if ((m = c.match(/^(Target [a-z ]*creature(?: you control)?) becomes? (?:a|an) ([A-Z][a-z]+) in addition to its other (?:creature )?types( until end of turn)?\.?$/)) && !/^(?:Artifact|Enchantment|Land|Creature)$/.test(m[2])) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
@@ -481,6 +507,22 @@ function compileCatalogClauseInner(c, ctx) {
   }
   // --- Classes: "{2}{U}: Level 2" (one level at a time, as a sorcery — checked in legal.js).
   if ((m = c.match(/^Level (\d+)\.?$/i))) { effects.push({ kind: 'class-level', level: Number(m[1]) }); return true; }
+  // Guide of Souls (build 79): "put two +1/+1 counters and a flying counter on target attacking creature."
+  if ((m = c.match(/^put (a|an|one|two|three|four|\d+) ([+-]1\/[+-]1|[a-z]+(?: [a-z]+)?) counters? and (a|an|one|two|three|\d+) ([+-]1\/[+-]1|[a-z]+(?: [a-z]+)?) counters? on ((?:up to one )?target [a-z ]*?(?:creature|permanent)(?: you control)?)\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[5].toLowerCase().replace(/^up to one /, ''), m[5], /^up to/i.test(m[5]) ? { optional: true } : {});
+    effects.push({ kind: 'counter', bind, counter: m[2], amount: num(m[1]) }, { kind: 'counter', bind, counter: m[4], amount: num(m[3]) });
+    return true;
+  }
+  // Time travel (build 79): for each suspended card you own and each permanent you control with a time counter, you may add or
+  // remove a time counter. "Time travel three times." repeats it. Asked card by card (gatherCatalogRequirement).
+  if ((m = c.match(/^(?:then )?(?:you )?time travel(?: (twice|three times))?\.?$/i))) {
+    const bind = `timeTravel${requirements.length}`;
+    requirements.push({ kind: 'time-travel', bind, times: !m[1] ? 1 : /twice/i.test(m[1]) ? 2 : 3, label: 'Time travel' });
+    effects.push({ kind: 'time-travel', bind });
+    return true;
+  }
+  // Flip cards (Kamigawa, build 79): "flip this creature" / "flip it" / "flip Sasaya" — it becomes its flipped half, for good.
+  if (rx(`^(?:then )?flip (?:${selfAny}|it|this creature|this permanent)\\.?$`, 'i').test(c)) { effects.push({ kind: 'flip-self' }); return true; }
   // "transform Ashling" (short name), "transform her" / "him".
   if (rx(`^transform (?:${selfAny}|him|her|it|this creature)\\.?$`, 'i').test(c)) { effects.push({ kind: 'transform', bind: 'sourceId' }); return true; }
   if ((m = c.match(/^proliferate (twice|three times)\.?$/i))) {
@@ -732,6 +774,21 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
 /** Requirement kinds added here, asked by requirements.js. Returns true when handled. */
 export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
+  if (req.kind === 'time-travel') {
+    const rows = () => [...(player.deck.exile || []).filter(c => c.suspended && Number(c.counters?.time || 0) > 0), ...(player.deck.battlefield || []).filter(c => Number(c.counters?.time || 0) > 0)];
+    const plan = {};
+    for (let k = 0; k < (req.times || 1); k++) {
+      for (const c of rows()) {
+        const now = Number(c.counters?.time || 0) + (plan[c.instanceId] || 0);
+        if (now <= 0) continue;
+        const v = ask(`${key}:${k}:${c.instanceId}`, () => ({ ...base, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — time travel${req.times > 1 ? ` (${k + 1} of ${req.times})` : ''}`, prompt: `${util.defOf(game, c)?.name || 'Card'} has ${now} time counter${now === 1 ? '' : 's'}.`, definitionId: c.definitionId,
+          options: [{ id: 'remove', label: 'Remove a time counter' }, { id: 'add', label: 'Add a time counter' }, { id: 'none', label: 'Leave it' }] }));
+        plan[c.instanceId] = (plan[c.instanceId] || 0) + (v === 'remove' ? -1 : v === 'add' ? 1 : 0);
+      }
+    }
+    bindings[req.bind] = plan;
+    return true;
+  }
   if (req.kind === 'bolster') {
     const mine = (player.deck.battlefield || []).filter(c => /\bCreature\b/i.test(util.defOf(game, c)?.typeLine || ''));
     if (!mine.length) { bindings[req.bind] = null; return true; }
@@ -1946,6 +2003,31 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
     }
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
+    case 'time-travel': {
+      const plan = bindings[effect.bind] || {}, me = controller;
+      let changed = 0;
+      for (const [id, delta] of Object.entries(plan)) {
+        if (!delta) continue;
+        const card = [...(me.deck.exile || []), ...(me.deck.battlefield || [])].find(c => c.instanceId === id);
+        if (!card) continue;
+        card.counters = card.counters || {};
+        card.counters.time = Math.max(0, Number(card.counters.time || 0) + delta);
+        changed++;
+        notes.push(`${definitionFor(game, card)?.name || 'A card'} now has ${card.counters.time} time counter${card.counters.time === 1 ? '' : 's'}.`);
+        // The last time counter removed from a suspended card: it is cast without paying its mana cost.
+        if (card.counters.time === 0 && card.suspended && card.zone === 'exile' && !game.flow?.freeCast) { delete card.counters.time; card.suspendCast = true; game.flow.freeCast = { playerId: me.playerId, instanceId: card.instanceId }; }
+      }
+      if (!changed) notes.push('No time counters change.');
+      return true;
+    }
+    case 'flip-self': {
+      const hit = permanentAt(game, bindings.sourceId), faces = hit && game.cardDefinitions?.[hit.card.definitionId]?.cardFaces;
+      if (!hit) { notes.push('It is no longer on the battlefield.'); return true; }
+      if ((faces || []).length !== 2 || hit.card.activeFaceIndex === 1) { notes.push(hit.card.activeFaceIndex === 1 ? 'It is already flipped.' : 'It has nothing to flip into.'); return true; }
+      hit.card.activeFaceIndex = 1;
+      notes.push(`${faces[0].name} flips into ${faces[1].name}.`);
+      return true;
+    }
     case 'earthbend-mark': {
       const id = H.resolveBoundId(effect, bindings);
       if (permanentAt(game, id)) game.earthbent = [...new Set([...(game.earthbent || []), id])];

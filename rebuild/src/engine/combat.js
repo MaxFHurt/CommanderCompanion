@@ -65,6 +65,12 @@ function selfScalingPt(game, card, def) {
     power += Number(row[1]) * n;
     toughness += Number(row[2]) * n;
   }
+  // "This creature's power and toughness are each equal to the number of lands you control." (Druid Class's land, build 79)
+  if ((m = text.match(/(?:This creature's|its) power and toughness are each equal to the number of (lands|creatures|artifacts|enchantments|permanents) you control/i))) {
+    const p = controllerOf(game, card), w = m[1].toLowerCase().replace(/s$/, '');
+    const n = (p?.deck?.battlefield || []).filter(c => w === 'permanent' || typeHas(definition(game, c), w)).length;
+    power += n; toughness += n;
+  }
   if ((m = text.match(/gets ([+-]\d+)\/([+-]\d+) for each card in your graveyard/i))) {
     const p = controllerOf(game, card);
     const n = p?.deck?.graveyard?.length || 0;

@@ -12,6 +12,7 @@ import { analyzeDefinitionSupport } from '../src/engine/abilities.js';
 import { MECHANICS } from '../src/data/mechanics.js';
 import { castText, effectRunsByItself, giftSpec } from '../src/game/ops.js';
 import { enchantSupported } from '../src/game/attachments.js';
+import { upkeepActionCost } from '../src/engine/keyword-triggers-b49.js';
 
 const [input, output] = process.argv.slice(2);
 if (!input) { console.error('usage: node tools/rules-audit.mjs cards.json [report.json]'); process.exit(1); }
@@ -42,8 +43,9 @@ function staticVerdict(line, def) {
   const sentences = text.replace(/\([^()]*\)/g, '').split(/(?<=\.)\s+/).map(x => x.trim()).filter(Boolean);
   if (sentences.length && sentences.every(x => STATIC_AUTO.some(r => r.test(x)))) return 'auto';
   // Echo and cumulative upkeep are automatic only for a mana cost (or "Pay N life" upkeep).
-  if (/^Cumulative upkeep/i.test(text) && !/^Cumulative upkeep(?:\s*[—-]\s*|\s+)(?:(?:\{[^}]+\})+|Pay \d+ life\.?)\s*(?:\(|$)/i.test(text)) return 'manual:Cumulative upkeep';
-  if (/^Echo\b/i.test(text) && !/^Echo\s+(?:\{[^}]+\})+\s*(?:\(|$)/i.test(text)) return 'manual:Echo';
+  // Build 79: an action cost the game can do (keyword-triggers-b49 upkeepActionCost) counts as automatic, choices included.
+  if (/^Cumulative upkeep/i.test(text) && !/^Cumulative upkeep(?:\s*[—-]\s*|\s+)(?:(?:\{[^}]+\})+|Pay \d+ life\.?|Pay (?:\{[^}]+\})+ and \d+ life\.?)\s*(?:\(|$)/i.test(text) && !(upkeepActionCost(text, 'Cumulative upkeep', 1) && upkeepActionCost(text, 'Cumulative upkeep', 2))) return 'manual:Cumulative upkeep';
+  if (/^Echo\b/i.test(text) && !/^Echo\s+(?:\{[^}]+\})+\s*(?:\(|$)/i.test(text) && !upkeepActionCost(text, 'Echo')) return 'manual:Echo';
   if (terms.every(Boolean)) {
     const worst = terms.some(t => t.automation === 'manual') ? 'manual' : terms.some(t => t.automation === 'partial') ? 'partial' : 'auto';
     return worst === 'auto' ? 'auto' : `${worst}:${terms.find(t => t.automation === worst).name}`;

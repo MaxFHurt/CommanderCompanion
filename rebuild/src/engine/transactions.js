@@ -138,6 +138,7 @@ function leaveBattlefield(card, to = 'graveyard') {
   card.temporaryEffects = [];
   delete card.attacking;
   delete card.blocking;
+  delete card.unlockedFaces;   // Room doors lock again
   clearCastState(card, to);
   return last;
 }
@@ -747,6 +748,14 @@ export function createTransactionEngine(game) {
             moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
           }
         }
+        else if (action.kind === 'unlock') {
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'battlefield') throw new Error('Unlock: the Room is no longer on the battlefield.');
+          const open = card.unlockedFaces || (Number.isInteger(card.activeFaceIndex) ? [card.activeFaceIndex] : []);
+          if (open.includes(action.face)) throw new Error('That door is already unlocked.');
+          card.unlockedFaces = [...open, action.face];
+          emit(game, { type: 'door-unlocked', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, playerId: player.playerId, face: action.face, fully: card.unlockedFaces.length >= 2 });
+        }
         else if (action.kind === 'companion') {
           const hit = locate(deck, card.instanceId);
           if (!hit || hit.z !== 'commandZone') throw new Error('Companion: it is no longer outside the game.');
@@ -903,6 +912,7 @@ export function createTransactionEngine(game) {
           card.temporaryEffects = [];
           delete card.attacking;
           delete card.blocking;
+          delete card.unlockedFaces;   // Room doors lock again
         }
         clearCastState(card, action.to);
         const wasTappedBeforeMove = !!card.tapped;

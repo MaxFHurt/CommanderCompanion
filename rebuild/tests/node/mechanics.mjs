@@ -3,6 +3,7 @@
 import { newGame, check, section, done } from './harness.mjs';
 import { MECHANICS, mechanicsIn, guidedActionsFor } from '../../src/data/mechanics.js';
 import { compileEffectText, applyEffects } from '../../src/engine/effects.js';
+import { scryfallToDefinition } from '../../src/data/card-api.js';
 
 /** Give player i enough untapped basic lands of a color to cast things (test setup). */
 function lands(t, i, name, count) { for (let k = 0; k < count; k++) t.give(i, name, 'battlefield'); }
@@ -564,6 +565,76 @@ section('more wordings (build 77)');
   t.give(0, 'Mountain', 'battlefield');
   asSpell(t, 'If you gained life this turn, create a 1/1 white Cat creature token.'); play(t, 0, 'Burst Lightning');
   check('"if you gained life this turn": no token before gaining life, a token after', none === 0 && t.P(0).deck.battlefield.filter(c => c.token).length === 1, JSON.stringify({ none, after: t.P(0).deck.battlefield.filter(c => c.token).length, g: t.game.gainedLifeTurn }));
+}
+
+section('Rooms (build 79)');
+{
+  // Bottomless Pool // Locker Room, with red costs so the lab deck can pay them.
+  const ROOM = { name: 'Bottomless Pool // Locker Room', layout: 'split', type_line: 'Enchantment — Room // Enchantment — Room', mana_cost: '{R} // {1}{R}', cmc: 3, colors: ['R'], color_identity: ['R'], legalities: { commander: 'legal' }, id: 'room-test', oracle_id: 'room-test', set: 'dsk', collector_number: '43', keywords: [],
+    card_faces: [{ name: 'Bottomless Pool', mana_cost: '{R}', type_line: 'Enchantment — Room', oracle_text: "When you unlock this door, return up to one target creature to its owner's hand." },
+      { name: 'Locker Room', mana_cost: '{1}{R}', type_line: 'Enchantment — Room', oracle_text: 'Whenever one or more creatures you control deal combat damage to a player, draw a card.' }] };
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 3);
+  t.give(1, 'Kitchen Finks', 'battlefield');
+  t.give(0, 'Burst Lightning');
+  const card = t.hand(0, 'Burst Lightning');
+  t.game.cardDefinitions[card.definitionId] = { ...scryfallToDefinition(ROOM), definitionId: card.definitionId };
+  const r = t.try(0, { type: 'play', instanceId: card.instanceId, faceIndex: 1 });
+  settleWith(t);
+  const room = t.P(0).deck.battlefield.find(c => c.instanceId === card.instanceId);
+  check('a Room: casting one half puts it onto the battlefield with that door unlocked', r.ok && room && room.activeFaceIndex === 1, JSON.stringify({ ok: r.ok, err: r.error, face: room?.activeFaceIndex }));
+  const rows = t.view(0).players[0].battlefield.find(c => c.id === card.instanceId)?.abilities || [];
+  const before = t.P(1).deck.battlefield.length;
+  const u = t.try(0, { type: 'activate', instanceId: card.instanceId, abilityId: 'special:unlock:0' });
+  settleWith(t, { target: d => (d.options || []).find(o => o.label === 'Kitchen Finks')?.id ?? d.options?.[0]?.id });
+  check('unlocking the other door (a special action, paying its cost) fires "When you unlock this door"', u.ok && JSON.stringify(room.unlockedFaces) === '[1,0]' && !!t.hand(1, 'Kitchen Finks'), JSON.stringify({ ok: u.ok, err: u.error, open: room.unlockedFaces, opp: t.names(1, 'battlefield'), log: t.game.log.slice(0, 4).map(e => e.text) }));
+  const again = t.try(0, { type: 'activate', instanceId: card.instanceId, abilityId: 'special:unlock:0' });
+  check('a door that is already unlocked cannot be unlocked again', !again.ok);
+  t.edit({ kind: 'move', instanceId: card.instanceId, to: 'hand' });
+  const back = t.P(0).deck.hand.find(c => c.instanceId === card.instanceId);
+  check('a Room that leaves the battlefield locks its doors again', back && !back.unlockedFaces, JSON.stringify(back?.unlockedFaces));
+}
+
+section('Echo and Cumulative upkeep paid with a choice (build 79)');
+{
+  const t = labGame('lab');
+  t.give(0, 'Kitchen Finks', 'battlefield'); t.give(0, 'Monastery Swiftspear', 'battlefield'); t.give(0, 'Akrasan Squire', 'battlefield');
+  const finks = t.bf(0, 'Akrasan Squire');
+  t.game.cardDefinitions[finks.definitionId] = { ...t.game.cardDefinitions[finks.definitionId], oracleText: 'Cumulative upkeep—Sacrifice a creature.' };
+  t.end(0); t.end(1);
+  let asked = null, chose = null;
+  settleWith(t, { 'may-pay': d => { asked = d; return 'pay'; }, maypay: d => { chose = d; return [d.options.find(o => o.label === 'Monastery Swiftspear').id]; } });
+  check('cumulative upkeep "Sacrifice a creature": asked to pay, then which creature; the age counter goes on', asked && chose && !t.bf(0, 'Monastery Swiftspear') && t.bf(0, 'Akrasan Squire')?.counters?.age === 1, JSON.stringify({ asked: asked?.title, chose: chose?.title, bf: t.names(0, 'battlefield'), age: t.bf(0, 'Akrasan Squire')?.counters }));
+  t.end(0); t.end(1);
+  let what = null;
+  settleWith(t, { 'may-pay': d => { what = d.options.find(o => o.id === 'pay')?.label; return 'no'; } });
+  check('the next upkeep asks for two creatures, and not paying sacrifices it', /two|2 creatures/i.test(what || '') && !t.bf(0, 'Akrasan Squire'), JSON.stringify({ what, bf: t.names(0, 'battlefield') }));
+}
+
+section('flip cards (build 79)');
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Akrasan Squire', 'battlefield');
+  const sq = t.bf(0, 'Akrasan Squire'), base = t.game.cardDefinitions[sq.definitionId];
+  t.game.cardDefinitions[sq.definitionId] = { ...base, layout: 'flip', oracleText: '{1}: Flip this creature.', cardFaces: [{ name: 'Squire Front', typeLine: 'Creature — Human', oracleText: '{1}: Flip this creature.', power: '1', toughness: '1' }, { name: 'Squire Flipped', typeLine: 'Legendary Creature — Human Knight', oracleText: 'Flying', power: '4', toughness: '4' }] };
+  const ab = t.view(0).players[0].battlefield.find(c => c.id === sq.instanceId).abilities.find(a => /Flip/i.test(a.text || ''));
+  t.do(0, { type: 'activate', instanceId: sq.instanceId, abilityId: ab.id });
+  settleWith(t);
+  const v = t.view(0).players[0].battlefield.find(c => c.id === sq.instanceId);
+  check('"flip this creature": it becomes its flipped half', t.bf(0, 'Squire Flipped')?.activeFaceIndex === 1 || sq.activeFaceIndex === 1, JSON.stringify({ face: sq.activeFaceIndex, name: v?.name }));
+}
+
+section('time travel (build 79)');
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Monastery Swiftspear', 'battlefield');
+  t.bf(0, 'Monastery Swiftspear').counters = { time: 2 };
+  t.give(0, 'Burst Lightning'); asSpell(t, 'Time travel.');
+  let asked = null;
+  play(t, 0, 'Burst Lightning', { 'time-travel': d => { asked = d; return 'remove'; }, timeTravel: d => { asked = d; return 'remove'; } });
+  check('time travel: asked for each card with time counters, and a counter is removed', asked && t.bf(0, 'Monastery Swiftspear').counters.time === 1, JSON.stringify({ asked: asked?.prompt, c: t.bf(0, 'Monastery Swiftspear').counters }));
 }
 
 section('game stats and awards');

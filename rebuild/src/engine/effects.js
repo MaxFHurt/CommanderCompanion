@@ -120,6 +120,7 @@ function resetOnZoneChange(card) {
   card.temporaryEffects = [];
   delete card.attacking;
   delete card.blocking;
+  delete card.unlockedFaces;   // Room doors lock again
 }
 export function moveCard(game, id, to, { controllerId = null, position = 'bottom', tapped = false, preserveCounters = false, onEvent = null, moveReason = null } = {}) {
   const hit = locateCardInGame(game, id);
@@ -329,6 +330,8 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const n = numberFromText(amount);
     return n == null ? 0 : n;
   }
+  if (amount.kind === 'count' && amount.minus)   // "for each other attacking creature" (Paladin Class): one fewer
+    return Math.max(0, resolveAmount(game, controllerId, { ...amount, minus: 0 }, bindings) - Number(amount.minus));
   if (amount.kind === 'count')
     return amount.all ? game.players.filter(p => !p.eliminated).reduce((n, p) => n + countCards(game, p.playerId, amount), 0) : countCards(game, amount.controllerId || controllerId, amount);
   if (amount.kind === 'opponents')
@@ -379,7 +382,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
   if (amount.kind === 'times')
     return Number(amount.n || 1) * resolveAmount(game, controllerId, amount.of, bindings);
   if (amount.kind === 'spells-cast-this-turn')
-    return (game.players.find(x => x.playerId === controllerId)?.counters?.castThisTurn || []).length;
+    return (game.players.find(x => x.playerId === controllerId)?.counters?.castThisTurn || []).filter(x => !amount.types || amount.types.some(t => new RegExp(`\\b${t}\\b`, 'i').test(x.typeLine || ''))).length;
   if (amount.kind === 'source-counters')
     return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[amount.counter] || 0);
   if (amount.kind === 'event-card-power') {
@@ -1492,6 +1495,17 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       notes.push(`${obj.label || 'Spell'} is copied${times > 1 ? ` ${times} times` : ''}.`);
       continue;
     }
+    if (effect.kind === 'lose-life-lost') {
+      // Warlock Class: "each opponent loses life equal to the life they lost this turn."
+      for (const p of game.players.filter(x => !x.eliminated && x.playerId !== controllerId)) {
+        const l = game.lostLifeAmount?.[p.playerId], n = l?.turn === game.turnNumber ? Number(l.n || 0) : 0;
+        if (!n || lifeFixed(game, p)) { notes.push(`${p.displayName} loses no life.`); continue; }
+        p.life = Math.max(0, Number(p.life || 0) - n);
+        notes.push(`${p.displayName} loses ${n} life.`);
+        emit(bindings, { type: 'life-lost', playerId: p.playerId, amount: n, sourceId: bindings.sourceId || null, controllerId });
+      }
+      continue;
+    }
     if (effect.kind === 'owners-control') {
       // Homeward Path (build 77): "Each player gains control of all creatures they own."
       const moves = game.players.flatMap(p => (p.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature') && c.ownerId && c.ownerId !== p.playerId).map(c => [c.instanceId, c.ownerId]));
@@ -1658,6 +1672,9 @@ export function parseCondition(text) {
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
+  if ((m = t.match(/^you have (\w+) or more cards in (?:your )?hand$/i))) return { test: 'hand-at-least', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
+  if (/^(?:that player|they) (?:has|have) no cards in (?:their )?hand$/i.test(t)) return { test: 'player-hand-empty' };
+  if (/^no cards are in that graveyard$/i.test(t)) return { test: 'player-graveyard-empty' };
   if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
@@ -1670,6 +1687,13 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
   if (effect.test === 'gained-life') { const g = game.gainedLifeTurn?.[controllerId]; return !!g && g.turn === game.turnNumber && g.n >= (effect.min || 1); }
   if (effect.test === 'more-than-you') { const n = p => (p?.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter)).length; const them = effect.who === 'event' ? game.players.filter(p => p.playerId === bindings.eventPlayer) : game.players.filter(p => !p.eliminated && p.playerId !== controllerId); return them.some(p => n(p) > n(me)); }
+  if (effect.test === 'hand-at-least') return (me?.deck?.hand || []).length >= effect.n;
+  if (effect.test === 'player-hand-empty' || effect.test === 'player-graveyard-empty') {
+    // "that player" / "that graveyard": the player chosen earlier, or the owner of the card chosen from a graveyard.
+    const card = ['grave0', 'target0'].map(k => bindings[k]).find(Boolean), owner = card && locateCardInGame(game, card)?.card?.ownerId;
+    const pid = bindings.player0 || owner || bindings.eventPlayer, p = game.players.find(x => x.playerId === pid);
+    return !!p && !(effect.test === 'player-hand-empty' ? p.deck.hand : p.deck.graveyard).length;
+  }
   if (effect.test === 'hand-exact') return (me?.deck?.hand || []).length === effect.n;   // Triskaidekaphile
   if (effect.test === 'library-empty') return !(me?.deck?.remainingLibrary || []).length;   // Jace, Wielder of Mysteries (build 77)
   if (effect.test === 'destroyed-this-way') return !!(bindings.lastMoved || []).length;
@@ -1998,7 +2022,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'combat-restriction', bind, restriction: 'cant-block', expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(Target creature[^.]*) can'?t be blocked this turn\.?$/i))) {
+  if ((m = c.match(/^(Target (?:[a-z]+ )?creature[^.]*) can'?t be blocked this turn\.?$/i))) {
     // Rogue's Passage, Access Tunnel ("with power 3 or less")
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'combat-restriction', bind, restriction: 'cant-be-blocked', expires: 'cleanup' });
@@ -2188,13 +2212,13 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // "Target creature gets +1/+1 and gains flying until end of turn." (the subject must not swallow "gets +1/+1 and")
-  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)(?:(?! gets? )[^.])*?) gets? ([+-](?:\d+|X))\/([+-](?:\d+|X)) and gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i)) && KEYWORD_LIST(m[4]).length) {
+  if ((m = c.match(/^(Target (?:[a-z]+ )?(?:creature|permanent)(?:(?! gets? )[^.])*?) gets? ([+-](?:\d+|X))\/([+-](?:\d+|X)) and gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i)) && KEYWORD_LIST(m[4]).length) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'pump', bind, power: /X/.test(m[2]) ? m[2].replace('+', '') : Number(m[2]), toughness: /X/.test(m[3]) ? m[3].replace('+', '') : Number(m[3]), expires: 'cleanup' });
     for (const keyword of KEYWORD_LIST(m[4])) effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: 'cleanup' });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(Target (?:creature|permanent|legendary creature)(?:(?! gets? [+-])[^.])*?) gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
+  if ((m = c.match(/^(Target (?:[a-z]+ )?(?:creature|permanent)(?:(?! gets? [+-])[^.])*?) gains? ([A-Za-z][A-Za-z ,-]+?) until end of turn\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     for (const keyword of m[2].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean))
       effects.push({ kind: 'grant-keyword', bind, keyword, enabled: true, expires: 'cleanup' });
@@ -2928,10 +2952,21 @@ function compileVote(raw, sourceName, allowGuidedFallback) {
 // cards milled, cards drawn and tokens made), which the readers below already understand.
 let EQUAL_TO_BUSY = false;
 function equalToAsX(clause) {
-  if (EQUAL_TO_BUSY || /\bX\b/.test(clause) || !/ equal to /i.test(clause)) return clause;
+  // Build 79: a clause after a trigger's comma starts lowercase ("target attacking creature gets +1/+0 …"); some readers only know
+  // the capitalised form. Tried only when the clause as written is not understood.
+  if (!EQUAL_TO_BUSY && /^[a-z]/.test(clause)) {
+    const up = clause[0].toUpperCase() + clause.slice(1);
+    EQUAL_TO_BUSY = true;
+    let use = null;
+    try { if (compileEffectTextUncached(clause, {}).unsupported.length && !compileEffectTextUncached(up, {}).unsupported.length) use = up; } catch { } finally { EQUAL_TO_BUSY = false; }
+    if (use) return use;
+  }
+  // A pronoun subject ("It deals damage equal to its power …") is read with the sentence before it; left alone.
+  if (EQUAL_TO_BUSY || /\bX\b/.test(clause) || !/ equal to /i.test(clause) || /^(?:It|They|That (?:creature|permanent))\b/.test(clause)) return clause;
   const x = clause
     .replace(/^(.*?\b(?:lose|loses|gain|gains)) life equal to ([^.,]+?)\.$/i, '$1 X life, where X is $2.')
     .replace(/^(.*?\bmills?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
+    .replace(/^(.*?\bdeals?) damage equal to (.+?) to ((?:any target|target [^.,]+?|each [^.,]+?))\.$/i, '$1 X damage to $3, where X is $2.')
     .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
     .replace(/^(.*?\bcreates?) a number of (.+? tokens(?: with [^.]+?)?) equal to ([^.,]+?)\.$/i, '$1 X $2, where X is $3.');
   if (x === clause) return clause;
@@ -2943,7 +2978,9 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   const vote = compileVote(cleanOracle(text), sourceName, allowGuidedFallback);
   if (vote) return vote;
   const raw = cleanOracle(text);
-  const clauses = splitSentences(raw).map(equalToAsX);
+  // Build 79: wordings that are two sentences in one ("you get {E}{E}, then you may pay eight {E}." — Lightning Runner).
+  const raw2 = raw.replace(/, then (you may pay [^.]+\.)/gi, '. Then $1').replace(/, and after this phase, there is an additional combat phase\./gi, '. After this phase, there is an additional combat phase.');
+  const clauses = splitSentences(raw2).map(c => c.replace(/^Then if /, 'If ').replace(/^If you pay,/i, 'If you do,')).map(equalToAsX);
   const parts = [];
   let skipNextClause = false;
   // "… at the beginning of the next turn's upkeep" / "At the beginning of your next main phase, …": the clause is
@@ -3156,7 +3193,7 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
         if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/(?<!plain)s$/i, '');
         if (!innerAlt.unsupported.length && innerAlt.effects.length) {
-          parts.push({ effects: [{ kind: 'condition', ...test, skip: innerAlt.effects.length }, ...innerAlt.effects], requirements: innerAlt.requirements, unsupported: [] });
+          parts.push({ effects: [{ kind: 'condition', ...test, skip: innerAlt.effects.length }, ...innerAlt.effects], requirements: innerAlt.requirements, unsupported: [], cond: test });   // cond: for a following "Otherwise, …" (Unholy Annex)
           continue;
         }
       }
