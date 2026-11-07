@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.71 (Deck Builder {"build": 189, "version": "0.9.44"})
+- **Live build:** 1.0.0-rebuild.72 (Deck Builder {"build": 189, "version": "0.9.44"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 72 — 2 Nov 2026
+- Stylesheet cleanup (roadmap 7.1): the last two unused rules removed with tools/css-clean.mjs; the numbered override sections had already been folded; style_diff 32/32 identical (one capture-noise screen re-captured). Glossary (src/data/mechanics.js): Manifest, Manifest dread, Clash, Gift, Monstrous, Renowned, Blood, Die rolling and Coin flips marked automatic (the engine reads them; tests cover each). ROADMAP.md: the round of 7 Nov and what is still open. Tests: every suite green (soaks 0 problems, forge 301/302).
 
 ### Build 71 — 2 Nov 2026
 - Deck Builder 0.9.44 (build 189): **card interactions** (roadmap 5.2): the card window lists the cards in the open deck it works with and why — one produces what the other's trigger waits for (creatures dying, creatures entering, life gain, card draw, +1/+1 counters, lands entering, instants and sorceries, cards going to the graveyard, sacrifices). deck/engine/library.js IX, ixOf, worksWith; display only (no score change). E.g. Blood Artist: Viscera Seer and Lightning Bolt (creatures dying), Ajani's Pridemate (life gain). Tests: Deck Builder UI 128/128, quick check 12; the main app is unchanged since build 70 (every suite passed).
