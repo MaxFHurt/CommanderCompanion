@@ -218,6 +218,7 @@ function zoneEachExtra(game, card, effect, bindings) {
     if (t && new RegExp(`\\b${t.replace(/[^A-Za-z' -]/g, '')}\\b`, 'i').test(String(d?.typeLine || '').split(/—|-/).slice(1).join(' ')) || /\bChangeling\b/i.test(d?.oracleText || '')) return false;
   }
   if (effect.maxManaValue != null && Number(d?.manaValue ?? d?.cmc ?? 0) > effect.maxManaValue) return false;
+  if (effect.notSource && card.instanceId === bindings.sourceId) return false;   // "all other creatures" (build 79)
   return true;
 }
 export function cardMatchesFilter(game, card, filter) {
@@ -1672,6 +1673,8 @@ export function parseCondition(text) {
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
+  if ((m = t.match(/^there are (\w+) or more ([a-z+\/-]+) counters on (?:this (?:creature|permanent|artifact|enchantment)|it)$/i))) return { test: 'source-counter-count', counter: m[2].toLowerCase(), min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
+  if ((m = t.match(/^(\w+) or more creatures died this turn$/i))) return { test: 'creatures-died', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   if ((m = t.match(/^you have (\w+) or more cards in (?:your )?hand$/i))) return { test: 'hand-at-least', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if (/^(?:that player|they) (?:has|have) no cards in (?:their )?hand$/i.test(t)) return { test: 'player-hand-empty' };
   if (/^no cards are in that graveyard$/i.test(t)) return { test: 'player-graveyard-empty' };
@@ -1687,6 +1690,8 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
   if (effect.test === 'gained-life') { const g = game.gainedLifeTurn?.[controllerId]; return !!g && g.turn === game.turnNumber && g.n >= (effect.min || 1); }
   if (effect.test === 'more-than-you') { const n = p => (p?.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter)).length; const them = effect.who === 'event' ? game.players.filter(p => p.playerId === bindings.eventPlayer) : game.players.filter(p => !p.eliminated && p.playerId !== controllerId); return them.some(p => n(p) > n(me)); }
+  if (effect.test === 'source-counter-count') return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[effect.counter] || 0) >= effect.min;
+  if (effect.test === 'creatures-died') return game.creaturesDied?.turn === game.turnNumber && Number(game.creaturesDied.n || 0) >= effect.min;
   if (effect.test === 'hand-at-least') return (me?.deck?.hand || []).length >= effect.n;
   if (effect.test === 'player-hand-empty' || effect.test === 'player-graveyard-empty') {
     // "that player" / "that graveyard": the player chosen earlier, or the owner of the card chosen from a graveyard.

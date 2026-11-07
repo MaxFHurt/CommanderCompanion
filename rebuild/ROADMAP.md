@@ -71,12 +71,17 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
    Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,540 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
    the answer key. Tools: `tools/rules-audit.mjs`, the Scryfall bulk file split into 4 chunks. (RULES_AUDIT.md, PROGRESS.md)
-2. **Mechanics still resolved by hand** (7 Nov audit: connive, forage, spectacle, splice and fuse have no cards left by hand;
-   Rooms 21 cards, Classes 20, flip cards and suspend wordings, Echo/Cumulative upkeep paid with a choice 21): suspend, spectacle, fuse/split, splice (other than onto Arcane), cipher,
-   attractions/stickers, banding, haunt, assist, forecast, flip cards, Rooms, Class levels, and anything the terms
-   key marks "manual" or "partial".
+2. **Mechanics still resolved by hand** (build 79 did the medium round: Rooms (doors unlock as a special action; "When you
+   unlock this door" fires; 28 Room cards, 4 left by hand), flip cards ("flip this creature", ki-counter flips), time travel,
+   Classes' and energy cards' wordings (Druid Class, Paladin, Sorcerer, Warlock, Guide of Souls, Lightning Runner …), and
+   Echo/Cumulative upkeep paid with a choice ("Sacrifice a creature", "Discard a card": asked whether to pay, then which
+   cards; Cumulative upkeep asks for one per age counter). Still by hand: Cumulative upkeep costs an opponent takes part in
+   (Wall of Shards, Sheltering Ancient, Varchild's War-Riders …, Ice Age era), suspend wordings on other cards (Delay,
+   Clockspinning, Jhoira, Taigam), flip conditions the game doesn't track (Rune-Tail's 30 life, "enchanted by two or more
+   Auras"), "you may pay any amount of {E}" (Galvanic Discharge), splice, cipher, attractions/stickers, banding, haunt,
+   assist, forecast, and anything the terms key marks "manual" or "partial".
 3. **Known rule limits (Moraug, Kardur, copied lands, Dredge, Echo/Cumulative upkeep action costs: done, build 68; Cumulative
-   upkeep and Echo costs that need a choice, such as "Sacrifice a creature", stay by hand):**
+   upkeep and Echo costs that need a choice: done, build 79, except costs an opponent takes part in):**
    - Moraug: the extra combat comes after the second main phase, not straight after the phase it triggered in.
    - Kardur: goads only the creatures it sees as it enters.
    - A land that becomes a copy (Thespian's Stage …) keeps the mana it made before.

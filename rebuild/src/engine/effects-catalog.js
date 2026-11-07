@@ -436,6 +436,14 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'zone-each', scope: 'all', filter: `permanent|anysub:${m[2]}`, to: m[1] === 'Destroy' ? 'graveyard' : 'exile', destroy: m[1] === 'Destroy' });
     return true;
   }
+  // Build 79: Sphinx of the Revelation: "you get that many {E}". Electrosiphon: "You get an amount of {E} equal to its mana value."
+  if (/^(?:you )?get that many \{E\}\s*\.?$/i.test(c)) { effects.push({ kind: 'player-counter', counter: 'energy', amount: { kind: 'binding', bind: 'eventAmount' } }); return true; }
+  if (/^(?:you )?get an amount of \{E\} equal to (?:its|that spell'?s) mana value\.?$/i.test(c)) { effects.push({ kind: 'player-counter', counter: 'energy', amount: { kind: 'binding', bind: 'counteredManaValue' } }); return true; }   // Electrosiphon counters it first
+  // Aethersquall Ancient: "Return all other creatures to their owners' hands."
+  if ((m = c.match(/^(Return|Destroy|Exile) all other (creatures|permanents|nonland permanents|artifacts)(?: to their owners'? hands)?\.?$/i)) && (/^Return/i.test(m[1]) === /hands/i.test(c))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: m[2].replace(/s$/, '').toLowerCase(), to: /^Return/i.test(m[1]) ? 'hand' : /^Exile/i.test(m[1]) ? 'exile' : 'graveyard', destroy: /^Destroy/i.test(m[1]), notSource: true });
+    return true;
+  }
   // "create that many 1/1 green Saproling creature tokens."
   if ((m = c.match(/^create that many (.+? tokens?(?: with .+)?)\.?$/i))) {
     const inner = H.compileSingleClause(ctx.restore(`Create X ${m[1]}.`), { sourceName });
