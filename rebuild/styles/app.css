@@ -906,8 +906,6 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .lobby__code small { font: 700 1.1rem var(--font-head); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
 .lobby__code b { font: 800 6rem/1 var(--font-head); letter-spacing: 0.2em; }
 .lobby__seats { overflow-y: auto; }
-.page__title { text-align: center; line-height: 1; }
-.page__title small { font: 700 0.85rem var(--font-head); letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-strong); }
 
 /* iPad: the extra height goes to the playmat and the cards. */
 @media (min-width: 1000px) and (min-height: 700px) {
@@ -1509,7 +1507,6 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 .postgame-award strong { font: 800 0.95rem/1.2 var(--font-head); color: var(--accent-strong); }
 .postgame-award span { font-weight: 700; }
 .postgame-award small { color: var(--muted); }
-
 
 /* Player toolbox (resolve a card by hand): the staged steps, then a row of tools per target */
 .toolbox__steps { margin: 6px 0 10px; }

@@ -137,8 +137,8 @@ m('Amass', 'action', 'Amass [type] N: put N +1/+1 counters on an Army you contro
 m('Connive', 'action', 'Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on this creature.', { auto: 'auto', steps: 'Draw, discard; nonland discarded → +1/+1 counter.', actions: ['draw', 'discard', 'counter+'] });
 m('Learn', 'action', 'You may reveal a Lesson card from outside the game and put it in your hand, or discard a card to draw a card.', { auto: 'auto', steps: 'The game asks whether to discard a card and draw a card (Lessons from outside the game need the Wishes rule and are by hand).', actions: ['discard', 'draw'] });
 m('Populate', 'action', 'Create a token that is a copy of a creature token you control.', { auto: 'manual', actions: ['copy-token'] });
-m('Manifest', 'action', 'Put the top card of your library onto the battlefield face down as a 2/2 creature. If it is a creature card, you may turn it face up for its mana cost.', { auto: 'manual', steps: 'Put the top card face down as a 2/2. If it is a creature, it can be turned face up any time for its mana cost.', actions: ['token'] });
-m('Manifest dread', 'action', 'Look at the top two cards, manifest one, put the other into your graveyard.', { auto: 'manual', actions: ['token', 'mill'] });
+m('Manifest', 'action', 'Put the top card of your library onto the battlefield face down as a 2/2 creature. If it is a creature card, you may turn it face up for its mana cost.', { auto: 'auto', steps: 'Put the top card face down as a 2/2. If it is a creature, it can be turned face up any time for its mana cost.', actions: ['token'] });
+m('Manifest dread', 'action', 'Look at the top two cards, manifest one, put the other into your graveyard.', { auto: 'auto', actions: ['token', 'mill'] });
 m('Cloak', 'action', 'Like manifest, but the face-down 2/2 has ward {2}.', { auto: 'manual', actions: ['token'] });
 m('Bolster', 'action', 'Bolster N: put N +1/+1 counters on the creature you control with the least toughness (choose if tied).', { auto: 'auto', actions: ['counter+'] });
 m('Support', 'action', 'Support N: put a +1/+1 counter on each of up to N other target creatures.', { auto: 'auto', actions: ['counter+'] });
@@ -146,7 +146,7 @@ m('Monstrosity', 'action', 'Monstrosity N: if this isn\'t monstrous, put N +1/+1
 m('Regenerate', 'action', 'The next time this would be destroyed this turn, instead tap it, remove all damage, and remove it from combat.', { auto: 'auto', tricky: ['Does not help against sacrifice, exile, -X/-X, or "can\'t be regenerated".'], actions: ['tap'] });
 m('Detain', 'action', 'Until your next turn, the detained permanent can\'t attack or block and its activated abilities can\'t be activated.', { auto: 'manual', actions: ['status'] });
 m('Fateseal', 'action', 'Look at the top N cards of an opponent\'s library and put any on the bottom.', { auto: 'manual', actions: [] });
-m('Clash', 'action', 'You and an opponent each reveal your top card; whoever has the higher mana value wins. Each player puts their card on the top or bottom.', { auto: 'manual', actions: [] });
+m('Clash', 'action', 'You and an opponent each reveal your top card; whoever has the higher mana value wins. Each player puts their card on the top or bottom.', { auto: 'auto', actions: [] });
 m('Planeswalk', 'action', 'Move to the next plane (Planechase).', { auto: 'manual' });
 m('Abandon', 'action', 'Turn a face-up ongoing scheme face down (Archenemy).', { auto: 'manual' });
 m('Vote', 'action', 'Each player votes, starting with you and going in turn order.', { auto: 'manual', steps: 'Each player votes in turn order; then apply the result the card describes.', actions: [] });
@@ -245,7 +245,7 @@ m('For Mirrodin!', 'keyword', 'When this Equipment enters, create a 2/2 red Rebe
 m('Freerunning', 'keyword', 'You may cast this for its freerunning cost if you dealt combat damage to a player this turn with an Assassin or commander.', { auto: 'manual' });
 m('Frenzy', 'keyword', 'Frenzy N: whenever this attacks and isn\'t blocked, it gets +N/+0 until end of turn.', { auto: 'manual', actions: ['pt'] });
 m('Fuse', 'keyword', 'Cast both halves of this split card from your hand.', { auto: 'auto', steps: 'When you cast it from your hand, choose "Both halves (fuse)": both costs are paid and both halves resolve.' });
-m('Gift', 'keyword', 'As you cast this, you may choose an opponent to get the gift (a card, Food, etc.); gifted spells get a bonus.', { auto: 'manual', actions: ['draw', 'token'] });
+m('Gift', 'keyword', 'As you cast this, you may choose an opponent to get the gift (a card, Food, etc.); gifted spells get a bonus.', { auto: 'auto', actions: ['draw', 'token'] });
 m('Graft', 'keyword', 'Enters with N +1/+1 counters; whenever another creature enters, you may move a counter onto it.', { auto: 'manual', actions: ['counter+', 'counter-'] });
 m('Gravestorm', 'keyword', 'When you cast this, copy it for each permanent put into a graveyard this turn.', { auto: 'manual' });
 m('Haunt', 'keyword', 'When this dies (or resolves, for a spell), exile it haunting target creature; when that creature dies, the haunt effect happens again.', { auto: 'manual', actions: ['exile'] });
@@ -409,8 +409,8 @@ m('Lore counters', 'counter', 'Count a Saga\'s chapters.', { auto: 'auto', detec
 m('Loyalty', 'counter', 'Planeswalkers enter with loyalty counters and spend them on abilities; one loyalty ability per planeswalker per turn, sorcery speed.', { auto: 'auto', detect: null });
 m('Defense counters', 'counter', 'Battles enter with defense counters; damage removes them; at zero the battle is defeated (Sieges are then cast transformed).', { auto: 'manual', detect: '\\bdefense counter', actions: ['damage', 'counter-other'] });
 m('Goaded', 'designation', 'See goad.', { auto: 'auto', detect: '\\bgoaded\\b' });
-m('Monstrous', 'designation', 'Set by monstrosity.', { auto: 'manual', detect: '\\bmonstrous\\b' });
-m('Renowned', 'designation', 'Set by renown.', { auto: 'manual', detect: '\\brenowned\\b' });
+m('Monstrous', 'designation', 'Set by monstrosity.', { auto: 'auto', detect: '\\bmonstrous\\b' });
+m('Renowned', 'designation', 'Set by renown.', { auto: 'auto', detect: '\\brenowned\\b' });
 m('Suspected', 'designation', 'Has menace and can\'t block.', { auto: 'manual', detect: '\\bsuspected\\b' });
 m('Saddled', 'designation', 'A Mount that was saddled this turn.', { auto: 'partial', detect: '\\bsaddled\\b', steps: 'The game tracks saddled Mounts for "attacks while saddled"; other references to the creatures that saddled it are by hand.' });
 m('Ring-bearer', 'designation', 'The creature chosen when the Ring tempts you.', { auto: 'manual', detect: '\\bRing-bearer\\b' });
@@ -439,7 +439,7 @@ m('Token', 'type', 'A permanent made by an effect. It ceases to exist outside th
 m('Treasure', 'type', 'An artifact token: "{T}, Sacrifice this: Add one mana of any color."', { auto: 'auto', detect: '\\bTreasure\\b', actions: ['token'] });
 m('Food', 'type', 'An artifact token: "{2}, {T}, Sacrifice this: You gain 3 life."', { auto: 'auto', detect: '\\bFood\\b', actions: ['token'] });
 m('Clue', 'type', 'An artifact token: "{2}, Sacrifice this: Draw a card."', { auto: 'auto', detect: '\\bClue\\b', actions: ['token'] });
-m('Blood', 'type', 'An artifact token: "{1}, {T}, Discard a card, Sacrifice this: Draw a card."', { auto: 'manual', detect: '\\bBlood token', actions: ['token'] });
+m('Blood', 'type', 'An artifact token: "{1}, {T}, Discard a card, Sacrifice this: Draw a card."', { auto: 'auto', detect: '\\bBlood token', actions: ['token'] });
 m('Map', 'type', 'An artifact token: "{1}, {T}, Sacrifice this: Target creature you control explores. Sorcery speed."', { auto: 'manual', detect: '\\bMap token', actions: ['token'] });
 m('Powerstone', 'type', 'An artifact token: "{T}: Add {C}. This mana can\'t be spent to cast a nonartifact spell." Enters tapped.', { auto: 'manual', detect: '\\bPowerstone\\b', actions: ['token'] });
 m('Incubator', 'type', 'An artifact token that transforms into a Phyrexian artifact creature.', { auto: 'manual', detect: '\\bIncubator\\b', actions: ['token', 'transform'] });
@@ -447,8 +447,8 @@ m('Dungeon', 'type', 'A card in the command zone you move through room by room w
 m('Conspiracy', 'type', 'Draft-only cards that start the game in the command zone.', { auto: 'manual', detect: null });
 m('Contraption and Attraction', 'type', 'Un-set artifact decks (Contraptions assemble; Attractions are visited on die rolls).', { auto: 'manual', detect: '\\b(?:Contraption|Attraction)\\b' });
 m('Stickers', 'type', 'Un-set: put stickers on cards to change names, abilities or power.', { auto: 'manual', detect: '\\bsticker\\b' });
-m('Die rolling', 'action', 'Roll a die with the stated number of sides; "roll a d20" etc.', { auto: 'manual', detect: '\\broll (?:a|two) d\\d+', steps: 'Roll the die (a real one, or the dice in the tools) and apply the row that matches.', actions: [] });
-m('Coin flips', 'action', 'Flip a coin; "win the flip" if it matches your call.', { auto: 'manual', detect: '\\bflip a coin\\b', actions: [] });
+m('Die rolling', 'action', 'Roll a die with the stated number of sides; "roll a d20" etc.', { auto: 'auto', detect: '\\broll (?:a|two) d\\d+', steps: 'Roll the die (a real one, or the dice in the tools) and apply the row that matches.', actions: [] });
+m('Coin flips', 'action', 'Flip a coin; "win the flip" if it matches your call.', { auto: 'auto', detect: '\\bflip a coin\\b', actions: [] });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // Lookup helpers for the engine and the guided resolution screen

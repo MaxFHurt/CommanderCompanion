@@ -15,17 +15,27 @@ of each item; this file is the list. Update it when an item is done (move it to 
 - Nothing from the corrections report is fixed without the owner's approval.
 - iOS work is on hold.
 
+**Round of 7 Nov (owner: "fix everything except the 10k rulings left"), builds 68–72 — done:** every suite run and green
+(Gisa and tracker tests fixed, seven Deck Builder tests updated, one real badge bug); Moraug, Kardur, copied-land mana, Dredge
+for every drawing player, Echo/Cumulative upkeep action costs; the player toolbox (with the Worker deployed); hosted games
+move between devices; owned and built-in precon printings; the card-data job merged with its schedule fixed; the reader
+comparison over every card, the engine's reading filling the Deck Builder's gaps (64 cards, benchmark unchanged) and card
+interactions in the card window; the stylesheet cleanup (pixel-identical); nine mechanics' glossary labels corrected.
+**Still open:** the items below not marked done — chiefly the long tail and the card-by-card handoff (set aside by the owner),
+the mechanics the glossary still marks manual (113, most rare: Connive and Forage are the common ones; Connive needs its
+discard asked after the draw), practice games with bots (5.3), online-game privacy (4.2), and the owner's questions/approvals.
+
 ---
 
 ## 1. Check first after the reset (owed from the minimum-testing week)
 
-1. **Run every suite once on the live build** (the full list above, plus `offline_ui.py`, `pair_ui.py`, and the Deck Builder
+1. **(Done, build 68.)** **Run every suite once on the live build** (the full list above, plus `offline_ui.py`, `pair_ui.py`, and the Deck Builder
    suite: `sh tools/tests/suite/setup.sh <dir>` then `sh check.sh all live` from `<dir>/proto/tests`). Fix anything red before
    new work. Builds 53–64 ran only: node game/mechanics/smoke/catalog, `online_ui.py` (40), `game_ui.py`, the Deck Builder
    quick check, and the Deck Builder tests named in each build's log.
-2. **Deck Builder test UI-B145-01** (Gisa, no play data): fails with no theme pages loaded on build 171 and later; probably the
+2. **(Done, build 68.)** **Deck Builder test UI-B145-01** (Gisa, no play data): fails with no theme pages loaded on build 171 and later; probably the
    `test-data` branch lacks the Zombie theme page. Add the page or fix the test.
-3. **`tracker_test.py` "no console errors"** fails only when the test machine has internet (Scryfall answers 404 for the
+3. **(Done, build 68.)** **`tracker_test.py` "no console errors"** fails only when the test machine has internet (Scryfall answers 404 for the
    test's made-up card). Make the test ignore that 404, so it passes either way.
 4. **Real-device checks (owner's phone and iPad):**
    - Deck Builder on iPad: safe area (portrait, landscape, home-screen app), the one-line Upgrades page, Show all details,
@@ -49,7 +59,8 @@ of each item; this file is the list. Update it when an item is done (move it to 
 2. **Mechanics still resolved by hand:** suspend, spectacle, fuse/split, splice (other than onto Arcane), cipher,
    attractions/stickers, banding, haunt, assist, companion, forecast, flip cards, Rooms, Class levels, and anything the terms
    key marks "manual" or "partial".
-3. **Known rule limits to fix:**
+3. **Known rule limits (Moraug, Kardur, copied lands, Dredge, Echo/Cumulative upkeep action costs: done, build 68; Cumulative
+   upkeep and Echo costs that need a choice, such as "Sacrifice a creature", stay by hand):**
    - Moraug: the extra combat comes after the second main phase, not straight after the phase it triggered in.
    - Kardur: goads only the creatures it sees as it enters.
    - A land that becomes a copy (Thespian's Stage …) keeps the mana it made before.
@@ -67,7 +78,7 @@ of each item; this file is the list. Update it when an item is done (move it to 
    as a source. The zip is not in the repository (25 MB); ask the owner for it again (Commander-Companion-Claude-Full-Card-
    by-Card-Handoff.zip; extract CLAUDE-CARD-HANDOFF.tar.xz and read 00-START-HERE-CLAUDE.md).
 
-## 3. Player toolbox (the next card-decisions feature)
+## 3. Player toolbox (done, build 69) (the next card-decisions feature)
 
 When a card is resolved by hand, the player gets a toolbox of steps (move a card, tap, counters, life, draw, token …),
 suggested tools first, "that card" carried from step to step, applied as one change; a remembered ruling replays its steps.
@@ -80,7 +91,7 @@ suggested tools first, "that card" carried from step to step, applied as one cha
 
 ## 4. Multiplayer and sync
 
-1. **Hosted games between devices** (owner, 2 Nov: later): moving an in-person hosted game (room code or QR pairing) to
+1. **(Done, build 70.)** **Hosted games between devices** (owner, 2 Nov: later): moving an in-person hosted game (room code or QR pairing) to
    another device means handing over the host role mid-game: the old host stops (or becomes a player), the new one reopens
    the room with the same code, every connected device follows. Single-device games already travel with the profile
    (build 53); online "play over time" games live on the Worker and their list travels with the profile.
@@ -91,7 +102,7 @@ suggested tools first, "that card" carried from step to step, applied as one cha
 
 ## 4b. Card data job
 
-1. **Merge the card-data job change into Deck-Companion `main`** (branch `claude/card-effects-fixes-rcosbu`, commit 3a9d2c0):
+1. **(Done 7 Nov; schedule moved to minute 17.)** **Merge the card-data job change into Deck-Companion `main`** (branch `claude/card-effects-fixes-rcosbu`, commit 3a9d2c0):
    the daily `cards.json.gz` then also keeps battles' defense, reprint and printed (flavor) names. The app works without it.
 2. The job runs at 4 a.m. New York time; the snapshot of 6 Nov was taken at 16:32 UTC (a manual or push run). Check the
    scheduled runs in Deck-Companion's Actions.
@@ -109,10 +120,11 @@ suggested tools first, "that card" carried from step to step, applied as one cha
    `buildIndex`, compiles Oracle text with `src/engine/effects.js` compileEffectText).
 Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`), solo mana-only practice games
 (`deck/engine/practice.js`) and a score (`deck/engine/score.js`); none of the game's rules work reaches it.
-1. **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
+1. **(First step done, build 70: lists.js ENGINE_ROLES fills cards the reader gives no role; next, use more of it once
+   benchmarked.)** **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
    rules engine understands, for better roles (ramp, draw, removal, wipes, protection, finishers) and theme tags. Biggest gain
    for the effort. Measure with the Deck Builder benchmark (`bench.js`, must not drop) before shipping.
-2. **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
+2. **(Done for display, build 71: "Works with" in the card window; scoring them is a benchmark question.)** **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
    death triggers, token makers with "whenever a creature enters", spells with cast triggers…) count as synergy, and the card
    window says which cards it works with. Builds on 1.
 3. **Real practice games:** full games with the game engine and bots (as `soak.mjs` does) to measure how a deck performs,
@@ -152,7 +164,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## 7. Look and layout
 
-1. **Stylesheet cleanup:** fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel with
+1. **(Done, build 72: the last unused rules removed; the override sections had already been folded; pixel-identical.)** **Stylesheet cleanup:** fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel with
    `tests/style_diff.py` (and the Deck Builder's `cc-theme.css` appended sections into its base rules).
 2. Anything the real-device checks in section 1.4 turn up.
 
@@ -165,6 +177,12 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 ---
 
 ## Done (recent, newest first)
+
+- Build 72: stylesheet cleanup; glossary labels for nine automatic mechanics.
+- Build 71: card interactions in the card window.
+- Build 70: hosted games move between devices; engine roles fill the Deck Builder's gaps.
+- Build 69: the player toolbox.
+- Build 68: every suite green; Moraug, Kardur, copied lands, Dredge, action upkeep costs; owned and built-in printings.
 
 - Build 67: one printing system for every card (choice, source printing, printed name, commander's set, default).
 

@@ -2755,4 +2755,5 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Cumulative upkeep with an action: draw 1, then 2 (one per age counter), then declined it is sacrificed', first === 1 && second === 2 && !t.P(0).deck.battlefield.includes(cu), JSON.stringify([first, second, t.P(0).deck.battlefield.includes(cu)]));
 }
 
+
 done();
