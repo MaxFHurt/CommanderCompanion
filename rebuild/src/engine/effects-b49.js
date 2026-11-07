@@ -101,6 +101,8 @@ export function compileB49Clause(c, ctx) {
   if (/^(?:you )?shuffle your hand and graveyard into your library\.?$/i.test(c)) { effects.push({ kind: 'shuffle-hand-graveyard' }); return true; }
   // Build 77: Kozilek, Ulamog: "its owner shuffles their graveyard into their library." Also "Shuffle your graveyard into your
   // library." and "Each player shuffles their graveyard into their library."
+  // Elixir of Immortality: "Shuffle this artifact and your graveyard into their owner's library."
+  if (/^Shuffle this (?:artifact|creature|enchantment|permanent) and your graveyard into (?:their owner'?s|your) library\.?$/i.test(c)) { effects.push({ kind: 'shuffle-graveyard', scope: 'you', withSelf: true }); return true; }
   if ((m = c.match(/^(its owner|each player|you|target player) shuffles? (?:their|your|his or her) graveyard into (?:their|your|his or her) library\.?$/i)) || /^Shuffle your graveyard into your library\.?$/i.test(c)) {
     const who = m ? m[1].toLowerCase() : 'you';
     effects.push({ kind: 'shuffle-graveyard', scope: who === 'its owner' ? 'owner' : who === 'each player' ? 'each-player' : who === 'target player' ? 'target' : 'you', ...(who === 'target player' ? { playerBind: H.playerRequirement(requirements, 'player', 'Target player') } : {}) });
@@ -657,6 +659,7 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
     case 'shuffle-graveyard': {
       const owner = effect.scope === 'owner' ? (() => { const hit = (game.players || []).find(p => ['graveyard', 'battlefield', 'exile', 'hand', 'remainingLibrary', 'commandZone'].some(z => (p.deck[z] || []).some(c => c.instanceId === bindings.sourceId))); return hit; })() : null;
       const who = effect.scope === 'each-player' ? game.players.filter(p => !p.eliminated) : effect.scope === 'owner' ? [owner].filter(Boolean) : effect.scope === 'target' ? game.players.filter(p => p.playerId === bindings[effect.playerBind]) : [controller];
+      if (effect.withSelf && (controller.deck.battlefield || []).some(c => c.instanceId === bindings.sourceId)) moveCard(game, bindings.sourceId, 'library', { onEvent: e => H.emit(bindings, e) });
       for (const p of who) {
         const moved = p.deck.graveyard.splice(0);
         for (const c of moved) { c.zone = 'library'; p.deck.remainingLibrary.push(c); }

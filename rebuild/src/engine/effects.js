@@ -274,6 +274,7 @@ export function cardMatchesFilter(game, card, filter) {
       if (c.startsWith('non:')) return !type.includes(c.slice(4));
       if (c === 'nontoken') return !card.token;
       if (c === 'nocounters') return !Object.values(card.counters || {}).some(n => Number(n) > 0);
+      if (c.startsWith('nocounter:')) return !(Number(card.counters?.[c.slice(10)] || 0) > 0);
       if (c.startsWith('noncolor:')) return !(d?.colors || []).includes(c.slice(9).toUpperCase());
       if (c.startsWith('nonsub:')) return !(rx(`\\b${c.slice(7)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text));
       if (c === 'token') return !!card.token;
@@ -1657,6 +1658,7 @@ export function parseCondition(text) {
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
+  if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
   return parseConditionB49(t);
@@ -1668,6 +1670,7 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
   if (effect.test === 'gained-life') { const g = game.gainedLifeTurn?.[controllerId]; return !!g && g.turn === game.turnNumber && g.n >= (effect.min || 1); }
   if (effect.test === 'more-than-you') { const n = p => (p?.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter)).length; const them = effect.who === 'event' ? game.players.filter(p => p.playerId === bindings.eventPlayer) : game.players.filter(p => !p.eliminated && p.playerId !== controllerId); return them.some(p => n(p) > n(me)); }
+  if (effect.test === 'hand-exact') return (me?.deck?.hand || []).length === effect.n;   // Triskaidekaphile
   if (effect.test === 'library-empty') return !(me?.deck?.remainingLibrary || []).length;   // Jace, Wielder of Mysteries (build 77)
   if (effect.test === 'destroyed-this-way') return !!(bindings.lastMoved || []).length;
   if (effect.test === 'opponent-more-lands') { const n = p => (p.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return game.players.some(p => !p.eliminated && p.playerId !== controllerId && n(p) > n(me)); }
@@ -2921,11 +2924,26 @@ function compileVote(raw, sourceName, allowGuidedFallback) {
   if (left.trim()) unsupported.push(left.trim());
   return { effects, requirements, unsupported, supported: !unsupported.length && effects.length > 0 };
 }
+// Build 77: "… life equal to this creature's power." is the same as "… X life, where X is this creature's power." (and so for
+// cards milled, cards drawn and tokens made), which the readers below already understand.
+let EQUAL_TO_BUSY = false;
+function equalToAsX(clause) {
+  if (EQUAL_TO_BUSY || /\bX\b/.test(clause) || !/ equal to /i.test(clause)) return clause;
+  const x = clause
+    .replace(/^(.*?\b(?:lose|loses|gain|gains)) life equal to ([^.,]+?)\.$/i, '$1 X life, where X is $2.')
+    .replace(/^(.*?\bmills?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
+    .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
+    .replace(/^(.*?\bcreates?) a number of (.+? tokens(?: with [^.]+?)?) equal to ([^.,]+?)\.$/i, '$1 X $2, where X is $3.');
+  if (x === clause) return clause;
+  // Only when the wording as printed is not understood and the X form is (the readers use the whole sentence).
+  EQUAL_TO_BUSY = true;
+  try { if (!compileEffectTextUncached(clause, {}).unsupported.length) return clause; return compileEffectTextUncached(x, {}).unsupported.length ? clause : x; } catch { return clause; } finally { EQUAL_TO_BUSY = false; }
+}
 function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
   const vote = compileVote(cleanOracle(text), sourceName, allowGuidedFallback);
   if (vote) return vote;
   const raw = cleanOracle(text);
-  const clauses = splitSentences(raw);
+  const clauses = splitSentences(raw).map(equalToAsX);
   const parts = [];
   let skipNextClause = false;
   // "… at the beginning of the next turn's upkeep" / "At the beginning of your next main phase, …": the clause is

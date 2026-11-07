@@ -645,6 +645,8 @@ function runPlay(game, op, ask) {
   const rebound = !permanent && card.zone === 'hand' && /(?:^|\n)\s*Rebound\b/i.test(String(def.oracleText || '')) && to === 'graveyard';
   if (rebound) to = 'exile';
   const fixed = permanent && !faceDown ? [...new Set(tapManaAbilities(def).flatMap(a => a.options))] : [];
+  // Fling, Bone Splinters (build 77): "the sacrificed creature's power" for a spell's sacrifice cost, remembered before it leaves.
+  if (sacrificeForCost) { const sac = player.deck.battlefield.find(c => c.instanceId === sacrificeForCost); if (sac) { const sd = defOf(game, sac); bindings.sacrificedPower = Math.max(0, effectivePower(sac, sd, game)); bindings.sacrificedToughness = Math.max(0, Number(sd?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(sd?.manaValue ?? sd?.cmc ?? 0); } }
   const stackId = newId('stack');
   const where = commander ? ' from the command zone' : card.zone === 'graveyard' ? ' from the graveyard' : card.zone === 'exile' ? ' from exile' : '';
   const shown = faceDown ? 'a face-down creature' : def.name;

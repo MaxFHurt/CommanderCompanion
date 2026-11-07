@@ -401,6 +401,13 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'bounce-selection', bind });
     return true;
   }
+  // Wave Goodbye: "Return each creature without a +1/+1 counter on it to its owner's hand."
+  if ((m = c.match(/^Return each creature without an? ([+-]1\/[+-]1|[a-z]+) counter on it to its owner'?s hand\.?$/i))) { effects.push({ kind: 'zone-each', scope: 'all', filter: `creature|nocounter:${m[1]}`, to: 'hand' }); return true; }
+  // In Garruk's Wake: "Destroy all creatures you don't control and all planeswalkers you don't control."
+  if ((m = c.match(/^Destroy all (creatures|artifacts|enchantments|planeswalkers) you don'?t control and all (creatures|artifacts|enchantments|planeswalkers) you don'?t control\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'opponents', filter: `${m[1].replace(/s$/, '')} or ${m[2].replace(/s$/, '')}`, to: 'graveyard', destroy: true });
+    return true;
+  }
   // Build 77: wipes with qualifiers: "Destroy all nontoken creatures." (Hour of Reckoning), "Destroy all creatures with no counters
   // on them." (Damning Verdict), "Destroy all nonartifact creatures.", "Destroy all non-Dragon creatures.", "Exile all nonland
   // permanents your opponents control." Each qualifier becomes a filter condition; an unknown word leaves the card by hand.
@@ -1530,7 +1537,7 @@ function compileRound3(c, ctx, subjectBind) {
   // "the sacrificed creature's power" (a sacrifice cost): Greater Good, Altar of Dementia.
   if (/the sacrificed (?:creature|permanent|artifact)'s (power|toughness|mana value)/i.test(c)) {
     const stat = /power/i.test(c) ? 'sacrificedPower' : /toughness/i.test(c) ? 'sacrificedToughness' : 'sacrificedManaValue';
-    const inner = H.compileSingleClause(ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life')), { sourceName });
+    const inner = H.compileSingleClause(ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life').replace(/damage equal to X\b/i, 'X damage')), { sourceName });
     if (!inner.unsupported.length && inner.effects.length) {
       effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: stat } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')));
       return true;
