@@ -1015,3 +1015,64 @@ const FAST_MANA = new Set(
     'Gemstone Caverns'
   ].map(n => norm(n))
 );
+
+// ----- card interactions (owner, 7 Nov; roadmap 5.2): what a card's effects produce and what its triggers wait for -----
+// A pair "works together" when one card produces what the other's trigger waits for (a sacrifice outlet and a death trigger,
+// a token maker and "whenever a creature enters", lifelink and "whenever you gain life"). Shown in the card window; it does not
+// change any score.
+const IX = [
+  {k: 'dies', label: 'creatures dying',
+    gives: /\bsacrifices? (?:a|another|one|two|three|X|any number of)\b[^.]*\bcreatures?\b|\bdestroy (?:target|all|each)\b[^.]*\bcreatures?\b|\bdeals? (?:\d+|X) damage to (?:each|target|any)\b/i,
+    wants: /\bwhenever\b[^.]*?\bcreatures?\b[^.,]*?\b(?:die|dies|is put into a graveyard from the battlefield)\b/i},
+  {k: 'enters', label: 'creatures entering',
+    gives: /\bcreates? [^.]*\b(?:creature )?tokens?\b|\breturn[^.]*creature cards?[^.]* to the battlefield\b|\bput[^.]*creature cards?[^.]* onto the battlefield\b/i,
+    wants: /\bwhenever (?:a|another|one or more)(?: nontoken)? creatures?(?: tokens?)?(?: you control)? enters?\b|\bwhenever (?:a|one or more) tokens? (?:you control )?enters?\b/i},
+  {k: 'life', label: 'life gain',
+    gives: /\byou gain (?:\d+|X|that much) life\b|\bgains? (?:\d+|X) life\b|\blifelink\b/i,
+    wants: /\bwhenever you gain life\b|\bwhenever you gain \d+ or more life\b/i},
+  {k: 'draw', label: 'card draw',
+    gives: /\bdraws? (?:a|an|one|two|three|four|X|\d+) (?:additional )?cards?\b/i,
+    wants: /\bwhenever you draw (?:a|your second) card\b|\bwhenever a player draws a card\b/i},
+  {k: 'counters', label: '+1/+1 counters',
+    gives: /\bput (?:a|an|one|two|three|X|\d+|that many) \+1\/\+1 counters?\b/i,
+    wants: /\bwhenever (?:one or more )?\+1\/\+1 counters? (?:are|is) put\b/i},
+  {k: 'lands', label: 'lands entering',
+    gives: /\bsearch your library for [^.]*\bland cards?[^.]* onto the battlefield\b|\bput (?:a|up to \w+) land cards?[^.]* onto the battlefield\b|\bplay an additional land\b/i,
+    wants: /\bwhenever a land (?:you control )?enters\b|\blandfall\b/i},
+  {k: 'spells', label: 'instants and sorceries',
+    type: /\b(?:Instant|Sorcery)\b/,
+    wants: /\bwhenever you cast (?:an? )?(?:instant|sorcery|noncreature)\b|\bmagecraft\b|\bprowess\b/i},
+  {k: 'graveyard', label: 'cards going to the graveyard',
+    gives: /\bmills? (?:a|one|two|three|four|X|\d+)\b|\bdiscards? (?:a|one|two|X|\d+|that) cards?\b|\bput the top [^.]* into (?:your|their) graveyard\b/i,
+    wants: /\bwhenever (?:one or more )?(?:cards?|creature cards?)[^.]* (?:is|are) put into your graveyard\b|\bwhenever you discard\b/i},
+  {k: 'sacrifice', label: 'sacrifices',
+    gives: /\bsacrifice (?:a|another|one or more)\b/i,
+    wants: /\bwhenever you sacrifice\b/i}
+];
+function ixOf(c) {
+  if (c._ix) return c._ix;
+  const o = String(c.o || '').replace(/\([^)]*\)/g, ''),
+    t = frontType(c),
+    gives = new Set(),
+    wants = new Set();
+  for (const x of IX) {
+    if ((x.gives && x.gives.test(o)) || (x.type && x.type.test(t))) gives.add(x.k);
+    if (x.wants.test(o)) wants.add(x.k);
+  }
+  return (c._ix = {gives, wants});
+}
+/** Cards in deck d that work with card c: c feeds their triggers or they feed c's. [{n, why}], at most `max`. */
+function worksWith(d, c, max) {
+  if (!d || !c) return [];
+  const me = ixOf(c),
+    out = [];
+  for (const e of d.cards || []) {
+    const x = find(e.n);
+    if (!x || x._n === c._n) continue;
+    const ix = ixOf(x),
+      why = IX.filter(r => (me.gives.has(r.k) && ix.wants.has(r.k)) || (ix.gives.has(r.k) && me.wants.has(r.k))).map(r => r.label);
+    if (why.length) out.push({n: x.n, why});
+    if (out.length >= (max || 8)) break;
+  }
+  return out;
+}

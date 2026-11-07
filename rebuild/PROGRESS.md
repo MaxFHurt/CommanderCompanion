@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.70 (Deck Builder {"build": 188, "version": "0.9.43"})
+- **Live build:** 1.0.0-rebuild.71 (Deck Builder {"build": 189, "version": "0.9.44"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 71 — 2 Nov 2026
+- Deck Builder 0.9.44 (build 189): **card interactions** (roadmap 5.2): the card window lists the cards in the open deck it works with and why — one produces what the other's trigger waits for (creatures dying, creatures entering, life gain, card draw, +1/+1 counters, lands entering, instants and sorceries, cards going to the graveyard, sacrifices). deck/engine/library.js IX, ixOf, worksWith; display only (no score change). E.g. Blood Artist: Viscera Seer and Lightning Bolt (creatures dying), Ajani's Pridemate (life gain). Tests: Deck Builder UI 128/128, quick check 12; the main app is unchanged since build 70 (every suite passed).
 
 ### Build 70 — 2 Nov 2026
 - **Hosted games move between devices** (roadmap 4.1): Host tools → Move hosting to another device. The host sends the whole game to a connected player's device (seats relabelled: that device's seat is played on it directly, the old host's seat from the old host as a client), which reopens the room under the same code (session.js takeOverHosting, retried); the old host drops its saved copy and rejoins (handOverHosting); everyone else's reconnect loop finds the new host and gets their seats back. Only when each player has their own device. room.js handover/online, joinRoom onHandover. net_ui 30 (hosting moves, the old host rejoins as a client, the new host's edit reaches the other player). Deck Builder 0.9.43 (build 188): **the game engine's reading fills gaps** (roadmap 5.1, first step): lists.js ENGINE_ROLES (64 nonland cards the Deck Builder's reader gave no role; ramp, draw, removal, wipe, counter; written by tools/role-compare.mjs --lists, which no longer counts your own permanents as removal targets) is used only when the reader finds no role. Benchmark unchanged (agreement@5 0.252, weighted 0.281). Tests: every suite (online_ui 40 when run alone; it timed out once while the benchmark shared the machine), Deck Builder UI 128/128.

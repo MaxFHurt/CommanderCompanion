@@ -1305,10 +1305,19 @@ function openCard(name, pid) {
           .join('<br>') +
         '</dd>'
       : '') +
+    (() => {
+      // what this card feeds or is fed by in the open deck (roadmap 5.2)
+      const w = d && d.cards && d.cards.length ? worksWith(d, c, 8) : [];
+      return w.length
+        ? '<dt>Works with</dt><dd>' +
+            w.map(x => '<button class="btn sm" data-act="card" data-n="' + esc(x.n) + '">' + esc(x.n) + '</button> <small class="note">' + esc(x.why.join(', ')) + '</small>').join('<br>') +
+            '</dd>'
+        : '';
+    })() +
     '<dt>Fits</dt><dd>' +
     (th.join(', ') || 'No specific mechanic') +
     '</dd><dt>Source</dt><dd>' +
-    (c.src === 'starter' ? 'Starter library' : 'Scryfall file, ' + DBINFO.when) +
+    (c.src === 'starter' ? 'Starter library' : 'Card data, ' + DBINFO.when) +
     '</dd></dl>' +
     considerBox(c) +
     wantBox(c) +
