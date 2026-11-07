@@ -103,6 +103,7 @@ function unregisterManaSource(player, card, { wasTapped = null } = {}) {
 }
 function emit(game, event) {
   if (event?.type === 'dies') game.creatureDiedTurn = Number(game.turnNumber || 0);   // morbid
+  if (event?.type === 'dies' && /\bCreature\b/i.test(event.typeLine || '')) game.creaturesDied = { turn: Number(game.turnNumber || 0), n: (game.creaturesDied?.turn === Number(game.turnNumber || 0) ? game.creaturesDied.n : 0) + 1 };   // "for each creature that died this turn" (build 77)
   if (event?.type === 'tapped') {
     const hit = locateCardInGame(game, event.sourceId);
     if (hit?.card) {

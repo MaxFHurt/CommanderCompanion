@@ -273,6 +273,9 @@ export function cardMatchesFilter(game, card, filter) {
       if (c.startsWith('type:')) return type.includes(c.slice(5));
       if (c.startsWith('non:')) return !type.includes(c.slice(4));
       if (c === 'nontoken') return !card.token;
+      if (c === 'nocounters') return !Object.values(card.counters || {}).some(n => Number(n) > 0);
+      if (c.startsWith('noncolor:')) return !(d?.colors || []).includes(c.slice(9).toUpperCase());
+      if (c.startsWith('nonsub:')) return !(rx(`\\b${c.slice(7)}s?\\b`, 'i').test(d?.typeLine || '') || /changeling/i.test(text));
       if (c === 'token') return !!card.token;
       if (c === 'entered') return card.enteredTurn === game.turnNumber;
       if (c.startsWith('color:')) return (d?.colors || []).includes(c.slice(6).toUpperCase());
@@ -365,6 +368,8 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
   }
   if (amount.kind === 'binding')
     return Math.max(0, Number(bindings[amount.bind] || 0));
+  if (amount.kind === 'died-this-turn')
+    return game.creaturesDied?.turn === game.turnNumber ? Number(game.creaturesDied.n || 0) : 0;
   if (amount.kind === 'devotion') {
     // Mana symbols of that color among the mana costs of permanents you control (hybrid counts once).
     const p = game.players.find(x => x.playerId === controllerId);
@@ -640,6 +645,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'may-pay') {
       // Paid (or not) as the stack object resolved, in ops.js.
       // "Sacrifice this creature unless you pay {2}": paying skips what follows instead.
+      // Energy paid now, after any energy this ability gave first (ops.js checked there would be enough).
+      if (effect.energy && bindings.mayPaid) {
+        const c = game.players.find(p => p.playerId === controllerId); c.counters = c.counters || {};
+        if (Number(c.counters.energy || 0) >= effect.energy) { c.counters.energy = Number(c.counters.energy || 0) - effect.energy; notes.push(`${c.displayName} pays ${effect.energy} energy.`); }
+        else bindings.mayPaid = false;
+      }
       if (effect.doEffects && bindings.mayPaid) for (let k = 0; k < Math.max(1, Number(effect.times || 1)); k++) notes.push(...applyEffectsUnsafe(game, controllerId, effect.doEffects, bindings));
       if (effect.invert ? bindings.mayPaid : !bindings.mayPaid) { bindings.skipEffects = effect.skip || 0; notes.push(effect.invert ? 'It was paid for.' : 'Nothing was paid.'); }
       continue;
@@ -847,6 +858,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           emit(bindings, { type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
         }
         notes.push(`${p.displayName} discards ${need} card${need === 1 ? '' : 's'}.`);
+        bindings.discardedThisWay = Number(bindings.discardedThisWay || 0) + need;   // "draw a card for each card discarded this way"
       }
       continue;
     }
@@ -922,14 +934,17 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'return-self') {
       // Undying / persist: the card returns from the graveyard with a counter.
       const hit = locateCardInGame(game, bindings.sourceId);
-      if (!hit || hit.zone !== 'graveyard') {
-        notes.push('The card is no longer in the graveyard, so it does not return.');
+      if (!hit || !(effect.from || ['graveyard']).includes(hit.zone)) {
+        notes.push(`The card is no longer in the ${(effect.from || ['graveyard']).join(' or ')}, so it does not return.`);
         continue;
       }
       const moved = moveCard(game, hit.card.instanceId, 'battlefield', { controllerId: hit.card.ownerId, onEvent: e => emit(bindings, e) });
-      moved.card.counters = moved.card.counters || {};
-      moved.card.counters[effect.counter] = Number(moved.card.counters[effect.counter] || 0) + 1;
-      notes.push(`${cardName(game, moved.card)} returns to the battlefield with a ${effect.counter} counter.`);
+      if (effect.tapped) moved.card.tapped = true;   // earthbend: it returns tapped
+      if (effect.counter) {
+        moved.card.counters = moved.card.counters || {};
+        moved.card.counters[effect.counter] = Number(moved.card.counters[effect.counter] || 0) + 1;
+      }
+      notes.push(`${cardName(game, moved.card)} returns to the battlefield${effect.tapped ? ' tapped' : ''}${effect.counter ? ` with a ${effect.counter} counter` : ''}.`);
       continue;
     }
     if (effect.kind === 'designation') {
@@ -975,7 +990,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     }
     if (effect.kind === 'damage-each') {
       // "deals N damage to each creature [you don't control] [and each opponent/player]".
-      const creatureOwners = effect.creatures === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.creatures ? game.players.filter(p => !p.eliminated) : [];
+      const creatureOwners = effect.creatures === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.creatures === 'bound' ? game.players.filter(p => p.playerId === bindings[effect.creaturesBind]) : effect.creatures ? game.players.filter(p => !p.eliminated) : [];
       const ids = creatureOwners.flatMap(p => (p.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature')).map(c => c.instanceId));
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
@@ -1476,6 +1491,13 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       notes.push(`${obj.label || 'Spell'} is copied${times > 1 ? ` ${times} times` : ''}.`);
       continue;
     }
+    if (effect.kind === 'owners-control') {
+      // Homeward Path (build 77): "Each player gains control of all creatures they own."
+      const moves = game.players.flatMap(p => (p.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter || 'creature') && c.ownerId && c.ownerId !== p.playerId).map(c => [c.instanceId, c.ownerId]));
+      for (const [id, owner] of moves) changeControl(game, id, owner, { bindings });
+      notes.push(moves.length ? `${moves.length} creature${moves.length === 1 ? '' : 's'} go${moves.length === 1 ? 'es' : ''} back to ${moves.length === 1 ? 'its owner' : 'their owners'}.` : 'Every creature is already controlled by its owner.');
+      continue;
+    }
     if (effect.kind === 'gain-control') {
       const targetId = resolveBoundId(effect, bindings);
       changeControl(game, targetId, effect.controllerId || controllerId, { untilEndOfTurn: !!effect.untilEndOfTurn, bindings });
@@ -1635,6 +1657,8 @@ export function parseCondition(text) {
   if (/^it'?s your turn$/i.test(t)) return { test: 'your-turn' };
   if (/^it'?s not your turn$/i.test(t)) return { test: 'not-your-turn' };
   if (/^a creature died this turn$/i.test(t)) return { test: 'creature-died' };
+  if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
+  if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
   return parseConditionB49(t);
 }
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
@@ -1642,6 +1666,10 @@ function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
   if (effect.test === 'distinct-lands') return new Set((me?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => definitionFor(game, c)?.name)).size >= (effect.min || 1);
   if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
+  if (effect.test === 'gained-life') { const g = game.gainedLifeTurn?.[controllerId]; return !!g && g.turn === game.turnNumber && g.n >= (effect.min || 1); }
+  if (effect.test === 'more-than-you') { const n = p => (p?.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, effect.filter)).length; const them = effect.who === 'event' ? game.players.filter(p => p.playerId === bindings.eventPlayer) : game.players.filter(p => !p.eliminated && p.playerId !== controllerId); return them.some(p => n(p) > n(me)); }
+  if (effect.test === 'library-empty') return !(me?.deck?.remainingLibrary || []).length;   // Jace, Wielder of Mysteries (build 77)
+  if (effect.test === 'destroyed-this-way') return !!(bindings.lastMoved || []).length;
   if (effect.test === 'opponent-more-lands') { const n = p => (p.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length; return game.players.some(p => !p.eliminated && p.playerId !== controllerId && n(p) > n(me)); }
   if (effect.test === 'opponent-more-life') return game.players.some(p => !p.eliminated && p.playerId !== controllerId && Number(p.life || 0) > Number(me?.life || 0));
   if (effect.test === 'event-power') { const h = locateCardInGame(game, bindings.eventCard || bindings.sourceId); return !!h && effectivePower(h.card, definitionFor(game, h.card), game) >= (effect.min || 0); }
@@ -3040,11 +3068,20 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       if (inner.supported) { parts.push({ effects: [{ kind: 'may-pay', cost: '', lifeCost: numberFromText(lifePay[1]) || 0, skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] }); skipNextClause = true; continue; }
     }
     const selfPay = nextDo && clause.match(/^(?:Then )?you may pay ((?:\{[^}]+\})+)(?: and (\d+|one|two|three|four) life)?\.?$/i);
-    if (selfPay) {
-      const inner = compileEffectText(nextDo[1], { sourceName });
-      if (inner.supported) {
-        parts.push({ effects: [{ kind: 'may-pay', cost: selfPay[1], lifeCost: numberFromText(selfPay[2] || '0') || 0, skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] });
+    // Energy (build 77): "you may pay {E}{E}{E}" / "you may pay eight {E}". When you do, …" (Guide of Souls, Lightning Runner).
+    // The sentences right after that speak of the same thing ("It becomes an Angel …") belong to the payment too.
+    const energyWords = nextDo && clause.match(/^(?:Then )?you may pay (\w+) \{E\}\.?$/i);
+    if (selfPay || energyWords) {
+      const at = clauseIndex + 2, more = [];
+      for (let k = at; k < clauses.length && /^(?:It|They|That creature|Then it)\b/.test(clauses[k]) && !/^Then you\b/i.test(clauses[k]); k++) more.push(clauses[k]);
+      const all = selfPay ? selfPay[1] : '';
+      const energy = energyWords ? numberFromText(energyWords[1]) || 0 : (all.match(/\{E\}/gi) || []).length;
+      const cost = all.replace(/\{E\}/gi, '');
+      const inner = (energy || selfPay) && compileEffectText([nextDo[1], ...more].join(' '), { sourceName });
+      if (inner && inner.supported && (!energyWords || energy)) {
+        parts.push({ effects: [{ kind: 'may-pay', cost, lifeCost: numberFromText(selfPay?.[2] || '0') || 0, ...(energy ? { energy } : {}), skip: inner.effects.length }, ...inner.effects], requirements: inner.requirements, unsupported: [] });
         skipNextClause = true;
+        if (more.length) skipMore = more.length;
         continue;
       }
     }

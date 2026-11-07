@@ -610,6 +610,8 @@ export function queueTriggers(game, event) {
 function queueTriggersInner(game, event) {
   // Who lost life this turn (Spectacle, "if an opponent lost life this turn").
   if (['life-lost', 'damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) game.lostLifeTurn = { ...(game.lostLifeTurn || {}), [event.playerId]: game.turnNumber };
+  // Life each player gained this turn (Ocelot Pride, Resplendent Angel; build 77).
+  if (event?.type === 'life-gained' && Number(event.amount || 0) > 0 && event.playerId) { const was = game.gainedLifeTurn?.[event.playerId]; game.gainedLifeTurn = { ...(game.gainedLifeTurn || {}), [event.playerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + Number(event.amount) } }; }
   // Damage each player was dealt this turn (Spinerock Knoll) and how many creatures each player attacked with (Windbrisk Heights).
   if (['damage-player', 'combat-damage-player'].includes(event?.type) && Number(event.amount || 0) > 0 && event.playerId) { const was = game.damageTakenTurn?.[event.playerId]; game.damageTakenTurn = { ...(game.damageTakenTurn || {}), [event.playerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + Number(event.amount) } }; }
   if (event?.type === 'attackers-declared' && event.controllerId) { const was = game.attackedWithTurn?.[event.controllerId]; game.attackedWithTurn = { ...(game.attackedWithTurn || {}), [event.controllerId]: { turn: game.turnNumber, n: (was?.turn === game.turnNumber ? was.n : 0) + (event.attackers || []).length } }; }
@@ -618,8 +620,20 @@ function queueTriggersInner(game, event) {
     const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
     game.pendingTriggers = game.pendingTriggers || [];
     game.pendingTriggers.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: event.playerId, sourceId: event.sourceId || null, sourceDefinitionId: src?.definitionId || null, sourceName: defFor(game, src)?.name || 'Ability',
-      abilityId: `special-${event.special}`, abilityText: event.special === 'venture' ? 'Venture into the dungeon.' : 'You take the initiative.', effectText: '', special: event.special, modal: null, compiled: { supported: true, effects: [], requirements: [], unsupported: [] }, event: null, createdAt: new Date().toISOString() });
+      abilityId: `special-${event.special}`, abilityText: event.special === 'venture' ? 'Venture into the dungeon.' : event.special === 'discover' ? `Discover ${event.amount}.` : 'You take the initiative.', effectText: '', special: event.special, amount: event.amount ?? null, modal: null, compiled: { supported: true, effects: [], requirements: [], unsupported: [] }, event: null, createdAt: new Date().toISOString() });
     return [];
+  }
+  // Earthbend (build 77): a land that was earthbent returns to the battlefield tapped when it dies or is exiled (a trigger of the
+  // ability that earthbent it, controlled by that land's controller).
+  if (event?.type === 'leaves-battlefield' && !['graveyard', 'exile'].includes(event.destination) && (game.earthbent || []).includes(event.sourceId)) game.earthbent = game.earthbent.filter(id => id !== event.sourceId);
+  if ((event?.type === 'dies' || (event?.type === 'leaves-battlefield' && event.destination === 'exile')) && (game.earthbent || []).includes(event.sourceId)) {
+    game.earthbent = game.earthbent.filter(id => id !== event.sourceId);
+    if (!event.token) {
+      game.pendingTriggers = game.pendingTriggers || [];
+      game.pendingTriggers.push({ id: `trigger:${Date.now()}:${Math.random()}`, controllerId: event.controllerId, sourceId: event.sourceId, sourceDefinitionId: event.definitionId || null, sourceName: 'Earthbend',
+        abilityId: 'earthbend-return', abilityText: 'Earthbend — return this land to the battlefield tapped.', effectText: '', modal: null,
+        compiled: { supported: true, effects: [{ kind: 'return-self', tapped: true, from: ['graveyard', 'exile'] }], requirements: [], unsupported: [] }, event: structuredClone(event), createdAt: new Date().toISOString() });
+    }
   }
   // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
   if (event?.type === 'leaves-battlefield' && event.sourceId) {

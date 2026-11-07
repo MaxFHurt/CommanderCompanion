@@ -464,6 +464,108 @@ section('blitz, exalted');
   check('exalted: a creature attacking alone gets +1/+1', t.P(1).life === life - 2, `${life} -> ${t.P(1).life}`);
 }
 
+section('energy payments, discover and earthbend inside an effect (build 77)');
+const asSpell = (t, text) => { const c = t.hand(0, 'Burst Lightning'); t.game.cardDefinitions[c.definitionId] = { ...t.game.cardDefinitions[c.definitionId], oracleText: text }; };
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 2);
+  t.give(0, 'Burst Lightning');
+  asSpell(t, 'You get {E}{E}{E}. Then you may pay {E}{E}. If you do, draw a card.');
+  const hand = t.P(0).deck.hand.length;
+  let asked = null;
+  play(t, 0, 'Burst Lightning', { 'may-pay': d => { asked = d; return 'pay'; } });
+  check('"you may pay {E}{E}": the player is asked, pays the energy and the rest happens', asked && t.P(0).counters.energy === 1 && t.P(0).deck.hand.length === hand, JSON.stringify({ energy: t.P(0).counters, hand: t.P(0).deck.hand.length - hand, title: asked?.title }));
+  t.edit({ kind: 'move', instanceId: t.P(0).deck.graveyard.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Burst Lightning').instanceId, to: 'hand' });
+  asSpell(t, 'You may pay eight {E}. If you do, draw a card.');
+  let off = null;
+  play(t, 0, 'Burst Lightning', { 'may-pay': d => { off = d.options.find(o => o.id === 'pay'); return 'no'; } });
+  check('"you may pay eight {E}" with too little energy: paying is offered but not possible', off?.disabled && t.P(0).counters.energy === 1, JSON.stringify(off));
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Burst Lightning');
+  asSpell(t, 'Create a Treasure token, then discover 4.');
+  let hit = null;
+  play(t, 0, 'Burst Lightning', { 'discover:cast': d => { hit = d; return 'no'; } });
+  check('discover in the middle of an effect: the Treasure is made, then discover runs with its choice', hit && t.P(0).deck.battlefield.some(c => c.token && t.game.cardDefinitions[c.definitionId]?.name === 'Treasure'), JSON.stringify({ hit: hit?.title, bf: t.names(0, 'battlefield') }));
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 2);
+  t.give(0, 'Forest', 'battlefield');
+  t.give(0, 'Burst Lightning');
+  asSpell(t, 'Earthbend 2. (Target land you control becomes a 0/0 creature with haste that\'s still a land. Put two +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped.)');
+  const forest = t.bf(0, 'Forest');
+  play(t, 0, 'Burst Lightning', { target: forest.instanceId, guided0: forest.instanceId });
+  const v = t.view(0).players[0].battlefield.find(c => c.id === forest.instanceId);
+  check('earthbend: the land becomes a creature with haste and two +1/+1 counters', forest.counters['+1/+1'] === 2 && (forest.temporaryEffects || []).some(e => e.kind === 'animate' && e.keywords.includes('Haste')) && v, JSON.stringify({ counters: forest.counters, fx: forest.temporaryEffects }));
+  t.edit({ kind: 'move', instanceId: forest.instanceId, to: 'graveyard' });
+  settleWith(t);
+  const back = t.bf(0, 'Forest');
+  check('earthbend: when it dies it returns to the battlefield tapped, a land again', back && back.tapped && !Number(back.counters?.['+1/+1'] || 0) && !(back.temporaryEffects || []).length, JSON.stringify({ back: !!back, tapped: back?.tapped, gy: gyNames(t, 0) }));
+}
+
+section('more wordings (build 77)');
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Monastery Swiftspear', 'battlefield'); t.give(1, 'Young Wolf', 'battlefield'); t.give(1, 'Kitchen Finks', 'battlefield');
+  t.bf(1, 'Kitchen Finks').counters = { '+1/+1': 1 };
+  t.give(0, 'Burst Lightning'); asSpell(t, 'Destroy all creatures with no counters on them.');
+  play(t, 0, 'Burst Lightning');
+  check('"destroy all creatures with no counters on them": the creature with a counter stays (Young Wolf dies and returns by undying)', !t.bf(0, 'Monastery Swiftspear') && t.bf(1, 'Young Wolf')?.counters['+1/+1'] === 1 && !!t.bf(1, 'Kitchen Finks') && t.bf(1, 'Kitchen Finks').counters['+1/+1'] === 1, JSON.stringify([t.names(0, 'battlefield'), t.names(1, 'battlefield')]));
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(1, 'Kitchen Finks', 'battlefield');
+  t.give(0, 'Burst Lightning'); asSpell(t, 'Destroy target creature. If a creature is destroyed this way, you gain life equal to its toughness.');
+  const life = t.P(0).life, finks = t.bf(1, 'Kitchen Finks');
+  play(t, 0, 'Burst Lightning', { target: finks.instanceId, guided0: finks.instanceId });
+  check('"if a creature is destroyed this way, you gain life equal to its toughness"', t.P(0).life === life + 2 + 0 || t.P(0).life === life + 2, `${life} -> ${t.P(0).life}`);
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 3);
+  t.give(0, 'Burst Lightning'); asSpell(t, 'For each land you control, create a Treasure token.');
+  play(t, 0, 'Burst Lightning');
+  const n = t.P(0).deck.battlefield.filter(c => c.token).length;
+  check('"for each land you control, create a Treasure token"', n === 3, String(n));
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Kitchen Finks', 'graveyard');
+  t.give(0, 'Burst Lightning'); asSpell(t, 'Return target creature card from your graveyard to the battlefield with a +1/+1 counter on it.');
+  play(t, 0, 'Burst Lightning');
+  const finks = t.bf(0, 'Kitchen Finks');
+  check('return from the graveyard "with a +1/+1 counter on it"', finks && finks.counters['+1/+1'] === 1, JSON.stringify(finks?.counters));
+}
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 1);
+  t.give(0, 'Kitchen Finks', 'graveyard'); t.give(0, 'Young Wolf', 'graveyard');
+  t.give(0, 'Burst Lightning'); asSpell(t, 'Shuffle your graveyard into your library.');
+  const lib = t.P(0).deck.remainingLibrary.length;
+  play(t, 0, 'Burst Lightning');
+  check('"shuffle your graveyard into your library" (the spell itself goes to the graveyard after)', gyNames(t, 0).join() === 'Burst Lightning' && t.P(0).deck.remainingLibrary.length === lib + 2, JSON.stringify(gyNames(t, 0)));
+}
+
+{
+  const t = labGame('lab');
+  lands(t, 0, 'Mountain', 2);
+  t.give(0, 'Burst Lightning'); asSpell(t, 'If you gained life this turn, create a 1/1 white Cat creature token.');
+  play(t, 0, 'Burst Lightning');
+  const none = t.P(0).deck.battlefield.filter(c => c.token).length;
+  t.edit({ kind: 'move', instanceId: t.P(0).deck.graveyard.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Burst Lightning').instanceId, to: 'hand' });
+  asSpell(t, 'You gain 2 life.'); play(t, 0, 'Burst Lightning');
+  t.edit({ kind: 'move', instanceId: t.P(0).deck.graveyard.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Burst Lightning').instanceId, to: 'hand' });
+  t.give(0, 'Mountain', 'battlefield');
+  asSpell(t, 'If you gained life this turn, create a 1/1 white Cat creature token.'); play(t, 0, 'Burst Lightning');
+  check('"if you gained life this turn": no token before gaining life, a token after', none === 0 && t.P(0).deck.battlefield.filter(c => c.token).length === 1, JSON.stringify({ none, after: t.P(0).deck.battlefield.filter(c => c.token).length, g: t.game.gainedLifeTurn }));
+}
+
 section('game stats and awards');
 {
   const t = labGame('lab');

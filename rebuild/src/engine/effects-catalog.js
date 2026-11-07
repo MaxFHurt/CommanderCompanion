@@ -104,6 +104,43 @@ function compileCatalogClauseInner(c, ctx) {
     const inner = H.compileSingleClause(ctx.restore(c.replace(/^You create a number of (.+?) tokens? equal to the result\.?$/i, 'Create X $1 tokens.').replace(/ equal to the result/i, ' X')), { sourceName });
     if (!inner.unsupported.length && inner.effects.length) { effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: 'dieResult' } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X'))); return true; }
   }
+  if (/^Each player gains control of all creatures they own\.?$/i.test(c)) { effects.push({ kind: 'owners-control', filter: 'creature' }); return true; }
+  // Build 77: Persist (the card): "Return target nonlegendary creature card from your graveyard to the battlefield with a -1/-1
+  // counter on it." The return as usual, then the counter on the returned card (the same card).
+  if ((mt = c.match(/^(Return target .+? from (?:your|a) graveyard to the battlefield(?: tapped)?(?: under your control)?) with (a|an|one|two|three|\d+) ([+-]1\/[+-]1|shield|indestructible|flying|lifelink) counters? on it\.?$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(`${mt[1]}.`), { sourceName });
+    const ret = inner.effects.find(e => e.kind === 'return-from-graveyard' && e.to === 'battlefield');
+    if (!inner.unsupported.length && ret) { effects.push(...inner.effects, { kind: 'counter', bind: ret.bind, counter: mt[3], amount: num(mt[2]) }); requirements.push(...inner.requirements); return true; }
+  }
+  // Build 77: Jace, Wielder of Mysteries: "Then if your library has no cards in it, you win the game."
+  if ((mt = c.match(/^(?:Then )?if (?:your library has no cards in it|you have no cards in your library|there are no cards in your library), (.+)$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(cap(mt[1])), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) { effects.push({ kind: 'condition', test: 'library-empty', skip: inner.effects.length, failNote: 'Your library still has cards in it.' }, ...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
+  // Noxious Gearhulk: "If a creature is destroyed this way, you gain life equal to its toughness."
+  if ((mt = c.match(/^If (?:a|that) (?:creature|permanent) (?:is|was) destroyed this way, (.+)$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(cap(mt[1])), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) { effects.push({ kind: 'condition', test: 'destroyed-this-way', skip: inner.effects.length, failNote: 'Nothing was destroyed.' }, ...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
+  // Mesmeric Orb: "that permanent's controller mills a card." / "Its controller mills two cards."
+  if ((mt = c.match(/^(?:its|that permanent'?s|that creature'?s) controller (mills|draws|discards) (.+)$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(`You ${mt[1].replace(/s$/, '')} ${mt[2]}`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length && inner.effects.every(e => (!e.scope || e.scope === 'you') && !e.forPlayerBind && !e.bind)) { effects.push(...inner.effects.map(e => ({ ...e, forPlayerBind: '__thatController' }))); requirements.push(...inner.requirements); return true; }
+  }
+  // Mahadi, Emporium Master: "create a Treasure token for each creature that died this turn."
+  if ((mt = c.match(/^create (?:a|an) (.+? token\b.*?) for each creature that died this turn\.?$/i))) {
+    const inner = H.compileSingleClause(ctx.restore(`Create a ${mt[1]}.`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length === 1 && inner.effects[0].kind === 'create-token' && inner.effects[0].amount === 1) { effects.push({ ...inner.effects[0], amount: { kind: 'died-this-turn' } }); requirements.push(...inner.requirements); return true; }
+  }
+  // Build 77: "For each land you control, create a Treasure token." (Brass's Bounty) / "Create a Treasure token for each artifact you
+  // control." — one token made as many times as you control those permanents.
+  if ((mt = c.match(/^For each (land|creature|artifact|enchantment|planeswalker|permanent|nonland permanent) you control, create (?:a|an) (.+? tokens?\b.*?)\.?$/i) || c.match(/^Create (?:a|an) (.+? token\b.*?) for each (land|creature|artifact|enchantment|planeswalker|permanent|nonland permanent) you control\.?$/i))) {
+    const [what, tok] = /^For each/i.test(c) ? [mt[1], mt[2]] : [mt[2], mt[1]];
+    const inner = H.compileSingleClause(ctx.restore(`Create a ${tok}.`), { sourceName });
+    if (!inner.unsupported.length && inner.effects.length === 1 && inner.effects[0].kind === 'create-token' && inner.effects[0].amount === 1) {
+      effects.push({ ...inner.effects[0], amount: { kind: 'count', zone: 'battlefield', filter: what.toLowerCase() } }); requirements.push(...inner.requirements); return true;
+    }
+  }
   // "another target creature": the same instruction, and this permanent can't be chosen.
   if (/\banother target\b/i.test(c) && !requirements.length) {
     const inner = H.compileSingleClause(ctx.restore(c.replace(/\banother target\b/i, 'target')), { sourceName });
@@ -364,6 +401,29 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'bounce-selection', bind });
     return true;
   }
+  // Build 77: wipes with qualifiers: "Destroy all nontoken creatures." (Hour of Reckoning), "Destroy all creatures with no counters
+  // on them." (Damning Verdict), "Destroy all nonartifact creatures.", "Destroy all non-Dragon creatures.", "Exile all nonland
+  // permanents your opponents control." Each qualifier becomes a filter condition; an unknown word leaves the card by hand.
+  if ((m = c.match(/^(Destroy|Exile) all ((?:[A-Za-z-]+ )*?)(creatures|artifacts|enchantments|planeswalkers|permanents|lands)( with no counters on them| you don't control| your opponents control| you control)?\.?$/)) && (m[2] || m[4])) {
+    const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }, conds = [];
+    let ok = true;
+    for (const w of m[2].trim().split(/\s+/).filter(Boolean)) {
+      const lw = w.toLowerCase();
+      if (lw === 'nontoken' || lw === 'token' || lw === 'tapped' || lw === 'untapped' || lw === 'attacking' || lw === 'blocking') conds.push(lw);
+      else if (/^non(artifact|creature|land|enchantment|planeswalker|legendary)$/.test(lw)) conds.push(`non:${lw.slice(3)}`);
+      else if (/^(artifact|enchantment|legendary)$/.test(lw)) conds.push(`type:${lw}`);
+      else if (COL[lw]) conds.push(`color:${COL[lw]}`);
+      else if (/^non(white|blue|black|red|green)$/.test(lw)) conds.push(`noncolor:${COL[lw.slice(3)]}`);
+      else if (/^non-[A-Z][a-z]+$/.test(w)) conds.push(`nonsub:${w.slice(4)}`);
+      else { ok = false; break; }
+    }
+    if (ok) {
+      if (/no counters/.test(m[4] || '')) conds.push('nocounters');
+      const scope = /you don't control|your opponents control/.test(m[4] || '') ? 'opponents' : /you control/.test(m[4] || '') ? 'you' : 'all';
+      effects.push({ kind: 'zone-each', scope, filter: [m[3].replace(/s$/, ''), ...conds].join('|'), to: m[1] === 'Destroy' ? 'graveyard' : 'exile', destroy: m[1] === 'Destroy' });
+      return true;
+    }
+  }
   // "Destroy all Islands." / "Destroy all Goblins."
   if ((m = c.match(/^(Destroy|Exile) all ([A-Z][a-z]+?)s\.?$/)) && !/^(?:Creature|Artifact|Enchantment|Land|Permanent|Planeswalker)$/.test(m[2])) {
     effects.push({ kind: 'zone-each', scope: 'all', filter: `permanent|anysub:${m[2]}`, to: m[1] === 'Destroy' ? 'graveyard' : 'exile', destroy: m[1] === 'Destroy' });
@@ -392,6 +452,12 @@ function compileCatalogClauseInner(c, ctx) {
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {
     effects.push({ kind: 'animate-each', scope: 'you', filter: 'creature', power: m[1], toughness: m[2], addTypes: [], subtypes: [], keywords: m[3] ? ['Changeling'] : [], colors: null, expires: 'cleanup', typeOnly: false });
+    return true;
+  }
+  // Build 77: Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." (a creature type added)
+  if ((m = c.match(/^(Target [a-z ]*creature(?: you control)?) becomes? (?:a|an) ([A-Z][a-z]+) in addition to its other (?:creature )?types( until end of turn)?\.?$/)) && !/^(?:Artifact|Enchantment|Land|Creature)$/.test(m[2])) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'animate', bind, power: null, toughness: null, addTypes: [], subtypes: [m[2]], keywords: [], colors: null, expires: m[3] ? 'cleanup' : null, typeOnly: true, subtypeOnly: true });
     return true;
   }
   // Liquimetal Torque: "Target nonland permanent becomes an artifact in addition to its other types until end of turn."
@@ -561,6 +627,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         if (effect.expires) fx.expires = effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : effect.expires;
         hit.card.temporaryEffects.push(fx);
         if (effect.subtypeBind) { notes.push(`${name(hit.card)} becomes a ${fx.subtypes[0] || 'creature'} until end of turn.`); continue; }
+        if (effect.subtypeOnly) { notes.push(`${name(hit.card)} is also ${/^[AEIOU]/.test(fx.subtypes[0] || '') ? 'an' : 'a'} ${fx.subtypes[0]}${effect.expires ? ' until end of turn' : ''}.`); continue; }
         notes.push(effect.typeOnly ? `${name(hit.card)} is also ${/^[AEIOU]/.test(effect.addTypes[0]) ? 'an' : 'a'} ${effect.addTypes[0].toLowerCase()}${effect.expires ? ' until end of turn' : ''}.` : `${name(hit.card)} becomes ${fx.power != null ? `a ${fx.power}/${fx.toughness} ` : 'a '}creature${effect.expires ? ' until end of turn' : ''}.`);
       }
       return true;
@@ -1436,6 +1503,30 @@ function compileRound3(c, ctx, subjectBind) {
   // "venture into the dungeon" inside a longer ability: the venture choice is asked as its own step.
   if (/^(?:you )?venture into the dungeon\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'venture' }); return true; }
   if (/^(?:you )?take the initiative\.?$/i.test(c)) { effects.push({ kind: 'request-special', special: 'initiative' }); return true; }
+  // Build 77: Syphon Mind: "Each other player discards a card." / "You draw a card for each card discarded this way."
+  if ((m = c.match(/^Each other player discards (a|one|two|three|\d+) cards?\.?$/i))) {
+    const inner = H.compileSingleClause(`Each opponent discards ${m[1]} card${/^(a|one|1)$/i.test(m[1]) ? '' : 's'}.`, { sourceName });
+    if (!inner.unsupported.length && inner.effects.length) { effects.push(...inner.effects); requirements.push(...inner.requirements); return true; }
+  }
+  if (/^(?:Then )?(?:you )?draws? a card for each card discarded this way\.?$/i.test(c)) { effects.push({ kind: 'draw', scope: 'you', amount: { kind: 'binding', bind: 'discardedThisWay' } }); return true; }
+  // Balefire Dragon: "it deals that much damage to each creature that player controls." (also a number, or a target player)
+  if ((m = c.match(rx(`^(?:${selfAny}|this creature|it) deals (\\d+|X|that much) damage to each creature (that player|target player|target opponent) controls\\.?$`, 'i')))) {
+    const pb = /^target/i.test(m[2]) ? H.playerRequirement(requirements, /opponent/i.test(m[2]) ? 'opponent' : 'player', m[2]) : 'eventPlayer';
+    effects.push({ kind: 'damage-each', amount: /that much/i.test(m[1]) ? { kind: 'binding', bind: 'eventAmount' } : num(m[1]), filter: 'creature', creatures: 'bound', creaturesBind: pb, players: null, sourceName });
+    return true;
+  }
+  // Razorkin Needlehead: "this creature deals 1 damage to them." (the player the trigger is about)
+  if ((m = c.match(rx(`^(?:${selfAny}|this creature|it) deals (\\d+|X) damage to them\\.?$`, 'i')))) { effects.push({ kind: 'damage', amount: num(m[1]), bind: 'eventPlayer', sourceName }); return true; }
+  // Earthbend N (build 77): "Target land you control becomes a 0/0 creature with haste that's still a land. Put N +1/+1 counters
+  // on it. When it dies or is exiled, return it to the battlefield tapped." The return is watched in triggers.js (game.earthbent).
+  if ((m = c.match(/^(?:then )?earthbend (\d+|one|two|three|four|five)\.?$/i))) {
+    const bind = H.targetRequirement(requirements, 'target land you control', 'Target land you control (earthbend)');
+    effects.push({ kind: 'animate', bind, power: 0, toughness: 0, addTypes: ['Creature'], subtypes: [], keywords: ['Haste'], colors: null, expires: null },
+      { kind: 'counter', bind, counter: '+1/+1', amount: num(m[1]) }, { kind: 'earthbend-mark', bind });
+    return true;
+  }
+  // "Discover 4." in the middle of an ability (Hit the Mother Lode, Hidden Nursery): its own step right after, with the choices.
+  if ((m = c.match(/^(?:then )?discover (\d+|X)\.?$/i)) && /^\d+$/.test(m[1])) { effects.push({ kind: 'request-special', special: 'discover', amount: Number(m[1]) }); return true; }
   // "the sacrificed creature's power" (a sacrifice cost): Greater Good, Altar of Dementia.
   if (/the sacrificed (?:creature|permanent|artifact)'s (power|toughness|mana value)/i.test(c)) {
     const stat = /power/i.test(c) ? 'sacrificedPower' : /toughness/i.test(c) ? 'sacrificedToughness' : 'sacrificedManaValue';
@@ -1848,7 +1939,12 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
     }
     case 'roll-die': { const r = 1 + Math.floor(Math.random() * Math.max(1, effect.sides || 20)); bindings.dieResult = r; emit({ type: 'die-rolled', playerId: controllerId, controllerId, result: r, sides: effect.sides }); notes.push(`${controller.displayName} rolls a d${effect.sides}: ${r}.`); return true; }
     case 'keep-mana': controller.keepManaTurn = game.turnNumber; notes.push(`${controller.displayName} keeps this mana until end of turn.`); return true;
-    case 'request-special': emit({ type: 'special-request', special: effect.special, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;
+    case 'earthbend-mark': {
+      const id = H.resolveBoundId(effect, bindings);
+      if (permanentAt(game, id)) game.earthbent = [...new Set([...(game.earthbent || []), id])];
+      return true;
+    }
+    case 'request-special': emit({ type: 'special-request', special: effect.special, amount: effect.amount ?? null, playerId: controllerId, controllerId, sourceId: bindings.sourceId }); return true;
     case 'untap-those': {
       const ids = effect.ids || (bindings.lastMoved?.length ? bindings.lastMoved : []);
       for (const id of ids) { const hit = permanentAt(game, id); if (hit && hit.card.tapped && H.setTapped(hit.card, false)) { emit({ type: 'untapped', sourceId: id, controllerId: hit.card.controllerId }); } }

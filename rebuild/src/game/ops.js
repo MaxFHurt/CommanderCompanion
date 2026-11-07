@@ -1284,14 +1284,18 @@ function runResolve(game, op, ask) {
       options: [{ id: 'pay', label: mayPay.doLabel || `Pay: ${mayPay.doText}` }, { id: 'no', label: 'Don\u2019t pay (sacrifice it)' }] }));
     if (pay === 'pay') bindings.mayPaid = true;
   } else if (mayPay && attachedOk) {
-    const life = Number(mayPay.lifeCost || 0);
-    const plan = planMana(playerManaAvailability(player, game), mayPay.cost, 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
-    const can = plan.ok && Number(player.life || 0) >= life;
-    const what = [mayPay.cost, life ? `${life} life` : ''].filter(Boolean).join(' and ');
+    const life = Number(mayPay.lifeCost || 0), energy = Number(mayPay.energy || 0);
+    // Energy the same ability gives first ("you get {E}{E}, then you may pay eight {E}") counts; the energy is paid as that step
+    // resolves (effects.js), after the energy is gained.
+    const fx = top.effects || [], gain = fx.slice(0, fx.indexOf(mayPay)).filter(e => e.kind === 'player-counter' && e.counter === 'energy' && (!e.scope || e.scope === 'you') && typeof e.amount === 'number').reduce((a, e) => a + e.amount, 0);
+    const haveE = Number(player.counters?.energy || 0) + gain;
+    const plan = planMana(playerManaAvailability(player, game), mayPay.cost || '{0}', 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
+    const can = plan.ok && Number(player.life || 0) >= life && haveE >= energy;
+    const what = [mayPay.cost, energy ? `${energy} energy (you will have ${haveE})` : '', life ? `${life} life` : ''].filter(Boolean).join(' and ');
     const pay = ask('may-pay', () => ({ ...base, kind: 'choose-one', title: `${name} — pay ${what}?`, prompt: `${top.text || name}`,
       options: [{ id: 'pay', label: `Pay ${what}`, disabled: !can, sub: can ? '' : 'You cannot pay this now.' }, { id: 'no', label: 'Don\u2019t pay' }] }));
     if (pay === 'pay' && can) {
-      commit(game, { type: 'pay-mana', playerId: player.playerId, payment: plan.chosen, lifeCost: life, label: `${player.displayName} pays ${what}.` });
+      commit(game, { type: 'pay-mana', playerId: player.playerId, payment: plan.chosen, lifeCost: life, label: `${player.displayName} pays ${what.replace(/ \(you will have \d+\)/, '')}.` });
       bindings.mayPaid = true;
     }
   }

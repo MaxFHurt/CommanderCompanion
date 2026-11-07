@@ -37,7 +37,7 @@ export function compileB49Clause(c, ctx) {
     return true;
   }
   // Consumed by Greed: "Target opponent sacrifices a creature with the greatest power among creatures they control."
-  if ((m = c.match(/^(Target opponent|Target player|Each opponent) sacrifices an? (creature|[a-z]+ creature) with the greatest (power|toughness|mana value) among (?:creatures|[a-z]+ creatures) they control\.?$/i))) {
+  if ((m = c.match(/^(Target opponent|Target player|Each opponent) sacrifices an? (creature or planeswalker|creature|[a-z]+ creature) with the greatest (power|toughness|mana value) among (?:creatures and planeswalkers|creatures|[a-z]+ creatures) (?:they control|that player controls)\.?$/i))) {   // Soul Shatter, Crackling Doom (build 77)
     const each = /^each/i.test(m[1]);
     const pb = each ? null : H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]);
     const bind = `greatest${requirements.length}`;
@@ -99,6 +99,13 @@ export function compileB49Clause(c, ctx) {
   }
   // Midnight Clock, Timetwister-style: "Shuffle your hand and graveyard into your library"
   if (/^(?:you )?shuffle your hand and graveyard into your library\.?$/i.test(c)) { effects.push({ kind: 'shuffle-hand-graveyard' }); return true; }
+  // Build 77: Kozilek, Ulamog: "its owner shuffles their graveyard into their library." Also "Shuffle your graveyard into your
+  // library." and "Each player shuffles their graveyard into their library."
+  if ((m = c.match(/^(its owner|each player|you|target player) shuffles? (?:their|your|his or her) graveyard into (?:their|your|his or her) library\.?$/i)) || /^Shuffle your graveyard into your library\.?$/i.test(c)) {
+    const who = m ? m[1].toLowerCase() : 'you';
+    effects.push({ kind: 'shuffle-graveyard', scope: who === 'its owner' ? 'owner' : who === 'each player' ? 'each-player' : who === 'target player' ? 'target' : 'you', ...(who === 'target player' ? { playerBind: H.playerRequirement(requirements, 'player', 'Target player') } : {}) });
+    return true;
+  }
   // Scrap Trawler: "Return to your hand target artifact card in your graveyard with lesser mana value."
   if ((m = c.match(/^Return to your hand target ([a-z]+) card in your graveyard with lesser mana value\.?$/i))) {
     const bind = `lesser${requirements.length}`;
@@ -222,7 +229,9 @@ export function compileB49Clause(c, ctx) {
   }
   // "you may <instruction>." when nothing more specific read it: asked as it resolves.
   if ((m = c.match(/^you may (.+)$/i)) && !/\btarget\b/i.test(m[1])) {
-    const inner = compile(cap(m[1]), sourceName);
+    // "you may have that player lose 1 life" (Suture Priest): the same as "That player loses 1 life", asked first.
+    const what = m[1].replace(/^have (that player|them|that opponent) (lose|discard|mill|draw|sacrifice|create|gain)\b/i, (_, w, v) => `${/^them$/i.test(w) ? 'that player' : w} ${v}s`);
+    const inner = compile(cap(what), sourceName);
     if (ok(inner) && !inner.requirements.length) { const bind = `mayDo${requirements.length}`; requirements.push({ kind: 'yes-no', bind, label: `${cap(m[1]).replace(/\.$/, '')}?` }); effects.push({ kind: 'condition', test: 'chosen', bind, skip: inner.effects.length }, ...inner.effects); return true; }
   }
   // Bilbo's Gambit: "Players can't cast spells this turn." (everyone, the caster too)
@@ -643,6 +652,17 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       copy.fromZone = null;
       game.stack.push(copy);
       notes.push(`${controller.displayName} copies ${obj.label || 'the spell'}.`);
+      return true;
+    }
+    case 'shuffle-graveyard': {
+      const owner = effect.scope === 'owner' ? (() => { const hit = (game.players || []).find(p => ['graveyard', 'battlefield', 'exile', 'hand', 'remainingLibrary', 'commandZone'].some(z => (p.deck[z] || []).some(c => c.instanceId === bindings.sourceId))); return hit; })() : null;
+      const who = effect.scope === 'each-player' ? game.players.filter(p => !p.eliminated) : effect.scope === 'owner' ? [owner].filter(Boolean) : effect.scope === 'target' ? game.players.filter(p => p.playerId === bindings[effect.playerBind]) : [controller];
+      for (const p of who) {
+        const moved = p.deck.graveyard.splice(0);
+        for (const c of moved) { c.zone = 'library'; p.deck.remainingLibrary.push(c); }
+        H.shuffle(p.deck.remainingLibrary);
+        notes.push(`${p.displayName} shuffles ${moved.length} card${moved.length === 1 ? '' : 's'} from their graveyard into their library.`);
+      }
       return true;
     }
     case 'shuffle-hand-graveyard': {
