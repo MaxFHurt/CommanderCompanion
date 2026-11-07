@@ -269,7 +269,9 @@ function tags(c) {
         only = fx && !real && fx.some(e => e.kind === 'filter' || (e.kind === 'draw' && e.symmetric));
       // Rules audit (Build 141): cycling ("Discard this card: Draw a card", in its reminder text) replaces itself, so it is not card draw;
       // "target player draws" can target you (Peer into the Abyss)
-      const rd = ro.replace(/\([^()]*discard this card: draw a card\.?\)/gi, ''),
+      // 0.9.48: a trigger on drawing ("Whenever you draw a card, you gain 2 life" — Sheoldred, Chasm Skulker, Underworld Dreams)
+      // is not card draw; only what the ability itself does counts.
+      const rd = ro.replace(/\([^()]*discard this card: draw a card\.?\)/gi, '').replace(/\b(?:whenever|when|if) (?:you|an opponent|a player|each player|another player|that player|target player|an? (?:opponent|player))(?: would)? draws? (?:a|an|one or more|your first|their first|their second|a second)? ?cards?(?: [^,.]*)?,/gi, ','),
         rd2 = UP.nmh ? rd.replace(/you have no maximum hand size\.?/gi, '') : rd;
       if (
         (real && (rd === ro || THEMES.draw.re.test(rd2) || /you become the monarch|take the initiative/i.test(rd2))) ||
@@ -284,8 +286,12 @@ function tags(c) {
     const parts = ro
       .replace(/exile[^.]*\.?( then,?)? ?return[^.]*(to|onto) the battlefield[^.]*\./gi, '')
       .split(/(?<=\.)\s+|•|\n/);
-    if (parts.some(x => ROLE_RE.wipe.test(x)) || (/\bOverload\b/.test(ro) && ROLE_RE.wipe.test(ro))) roles.add('wipe'); // overload: one target, or all of them
-    if (parts.some(x => ROLE_RE.removal.test(x) && !ROLE_RE.wipe.test(x))) roles.add('removal');
+    // 0.9.48: "exile all other cards revealed this way" (Demonic Consultation) is not a wipe; a target you own or control ("Destroy
+    // target permanent you own" — Staff of Compleation) is not removal.
+    const notWipe = x => /\bexile (?:all|each) other cards\b|\bcards? (?:revealed|exiled) this way\b/i.test(x),
+      yoursOnly = x => /\btarget [a-z ,/-]*?(?:permanent|creature|artifact|enchantment|land)s? you (?:own|control)\b/i.test(x) && !/\byou don'?t control\b|\ban opponent controls\b/i.test(x);
+    if (parts.some(x => ROLE_RE.wipe.test(x) && !notWipe(x)) || (/\bOverload\b/.test(ro) && ROLE_RE.wipe.test(ro))) roles.add('wipe'); // overload: one target, or all of them
+    if (parts.some(x => ROLE_RE.removal.test(x) && !ROLE_RE.wipe.test(x) && !yoursOnly(x))) roles.add('removal');
     if (ROLE_RE.counter.test(ro)) roles.add('counter');
     if (ROLE_RE.tutor.test(ro) && !roles.has('ramp')) roles.add('tutor');
     if (ROLE_RE.protect.test(ro) || (/\bInstant\b/.test(t) && ROLE_RE.blink.test(ro))) roles.add('protect'); // an instant-speed blink saves a creature; a blink engine does not count

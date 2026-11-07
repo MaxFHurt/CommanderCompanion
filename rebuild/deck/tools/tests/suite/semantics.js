@@ -54,6 +54,22 @@ ok('Leonardo: any token counts (not only creature tokens)', needs('Leonardo, the
   ok('Chatterfang and Divine Visitation are token cards', th('Chatterfang, Squirrel General').tokens === 1 && th('Divine Visitation').tokens === 1); ok('Gratuitous Violence is an attack card', th('Gratuitous Violence').aggro === 1);
   ok('Fiery Emancipation is a burn card', th('Fiery Emancipation').burn === 1); ok('Unnatural Growth is an attack card', th('Unnatural Growth').aggro === 1);
   ok('Counterspells are not counters cards', th('Counterspell').counters !== 1 && th('Mana Leak').counters !== 1); }
+// 0.9.48 (role check against the game engine's reading, roadmap 5.1): a trigger on drawing is not card draw; a target you own or
+// control is not removal; "exile all other cards revealed this way" is not a wipe.
+// Sheoldred, the Apocalypse — "Whenever you draw a card, you gain 2 life. / Whenever an opponent draws a card, they lose 2 life."
+ok('Sheoldred, the Apocalypse is not card draw', !roles('Sheoldred, the Apocalypse').includes('draw'), roles('Sheoldred, the Apocalypse'));
+// Orcish Bowmasters — "… whenever an opponent draws a card except the first one …, this creature deals 1 damage to any target."
+ok('Orcish Bowmasters is removal, not card draw', roles('Orcish Bowmasters').includes('removal') && !roles('Orcish Bowmasters').includes('draw'), roles('Orcish Bowmasters'));
+// Rhystic Study — "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}."
+ok('Rhystic Study is still card draw', roles('Rhystic Study').includes('draw'), roles('Rhystic Study'));
+// Demonic Consultation — "… Put that card into your hand and exile all other cards revealed this way."
+ok('Demonic Consultation is not a board wipe', !roles('Demonic Consultation').includes('wipe'), roles('Demonic Consultation'));
+// Staff of Compleation — "{T}, Pay 1 life: Destroy target permanent you own."
+ok('Staff of Compleation is not removal', !roles('Staff of Compleation').includes('removal'), roles('Staff of Compleation'));
+// Restoration Angel — "you may exile target non-Angel creature you control, then return that card to the battlefield …"
+ok('Restoration Angel protects; it is not removal', roles('Restoration Angel').includes('protect') && !roles('Restoration Angel').includes('removal'), roles('Restoration Angel'));
+// Swords to Plowshares and Cyclonic Rift keep their roles.
+ok('Swords to Plowshares is still removal; Cyclonic Rift still a wipe', roles('Swords to Plowshares').includes('removal') && roles('Cyclonic Rift').includes('wipe'), [roles('Swords to Plowshares'), roles('Cyclonic Rift')]);
 // Unknown text stays unknown: coverage over the five retail decks
 { let n = 0, unk = 0; const seen = new Set(); for (const s of ['avengers-assemble', 'doom-prevails', 'tramplesaurus-rex', 'turtle-power', 'wakanda-forever']) H.retail(s).cards.forEach(e => { const c = X.find(e.n); if (!c || seen.has(c.n) || run('tags')(c).land) return; seen.add(c.n); n++; if (fx(c.n).unknown.length) unk++; });
   console.log('coverage: ' + (n - unk) + ' of ' + n + ' distinct spells in the five retail decks have every sentence read; ' + unk + ' keep some text marked unknown (never given a role from it)'); }

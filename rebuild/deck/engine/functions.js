@@ -117,7 +117,8 @@ function fnOf(c, oldRoles) {
     // ---- what it does ----
     for (const e of effects) {
       const w = e.what || (e.target && e.target.what) || e.all || '',
-        theirs = fnIsTarget(e) || (e.all && !FN_YOURS.test(e.all));
+        // 0.9.48: a target you control or own (a blink, Restoration Angel; Staff of Compleation) is not someone else's
+        theirs = (fnIsTarget(e) && !(/\byou (?:control|own)\b/i.test(w) && !/\byou don'?t control\b/i.test(w))) || (e.all && !FN_YOURS.test(e.all));
       switch (e.do) {
         case 'add-mana':
           makes.add('mana');
