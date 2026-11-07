@@ -7,7 +7,7 @@ import { toast } from './toast.js';
 import { saveOutcome, storedOutcomes } from '../net/outcomes.js';
 
 /** card: the card's name; oracle: its rules text; steps: what was done by hand (one line each). */
-export function openStoreOutcome({ card, oracle = '', steps = [], override = null } = {}) {
+export function openStoreOutcome({ card, oracle = '', steps = [], moves = [], override = null } = {}) {
   const existing = storedOutcomes()[card] || null;
   const lines = (steps.length ? steps : existing?.steps || []).join('\n');
   openModal({
@@ -29,6 +29,8 @@ export function openStoreOutcome({ card, oracle = '', steps = [], override = nul
       { label: 'Save ruling', kind: 'confirm', onClick: async ({ close, el }) => send(el, close, {
         card, oracle, ruling: el.querySelector('#rulingText').value.trim(),
         steps: el.querySelector('#rulingSteps').value.split('\n').map(x => x.trim()).filter(Boolean),
+        // the toolbox steps, so the app replays this ruling next time (staged for the player to confirm)
+        moves: (moves.length ? moves : existing?.moves || []),
         override: el.querySelector('#rulingOverride').checked
       }) }
     ]
@@ -38,7 +40,7 @@ export function openStoreOutcome({ card, oracle = '', steps = [], override = nul
 async function send(el, close, rec) {
   const pin = el.querySelector('#rulingPin').value.trim(), status = el.querySelector('#rulingStatus');
   if (!/^\d{4,8}$/.test(pin)) { status.textContent = 'Enter your dev PIN (4 to 8 digits).'; return; }
-  if (!rec.remove && !rec.ruling && !rec.steps?.length) { status.textContent = 'Write the ruling or the steps first.'; return; }
+  if (!rec.remove && !rec.ruling && !rec.steps?.length && !rec.moves?.length) { status.textContent = 'Write the ruling or the steps first.'; return; }
   status.textContent = 'Saving…';
   try {
     const r = await saveOutcome(pin, rec);

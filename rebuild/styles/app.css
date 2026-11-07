@@ -1510,3 +1510,9 @@ body::before { height: max(100lvh, var(--cc-screen-h, 0px)); }
 .postgame-award span { font-weight: 700; }
 .postgame-award small { color: var(--muted); }
 
+
+/* Player toolbox (resolve a card by hand): the staged steps, then a row of tools per target */
+.toolbox__steps { margin: 6px 0 10px; }
+.toolbox__steps ol { margin: 4px 0 0; padding-left: 22px; }
+.toolbox__steps li { margin: 2px 0; }
+.toolbox__more { min-height: 32px; border-radius: 8px; background: rgba(8, 5, 16, 0.85); color: inherit; border: 1px solid rgba(160, 125, 255, 0.4); padding: 2px 6px; }

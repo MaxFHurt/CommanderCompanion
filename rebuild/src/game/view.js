@@ -1,3 +1,4 @@
+import { rankTools, stepLabel } from './toolbox.js';
 // What one viewer is allowed to see. The game screen renders only from this, and the host
 // sends exactly this to remote devices, so hidden cards never leave the host.
 
@@ -121,7 +122,10 @@ function promptFor(game, viewerId, defs, viewer) {
       const text = top.guidedResolution?.oracleText || top.text || '';
       const cardName = (top.card?.definitionId || top.sourceDefinitionId) ? game.cardDefinitions?.[top.card?.definitionId || top.sourceDefinitionId]?.name || '' : '';
       return { kind: 'guided', stackId: top.id, name: top.name || top.label, cardName, ruling: game.storedOutcomes?.[cardName] || null, steps: [...(f.guided.steps || [])], text, notes: top.guidedResolution?.unsupported || [], controllerId: top.controllerId,
-        targets: guidedTargetsView(game, top.guidedResolution?.targets), actions: guidedActionsFor(text), hint: guidedHintFor(text) };
+        targets: guidedTargetsView(game, top.guidedResolution?.targets), actions: guidedActionsFor(text), hint: guidedHintFor(text),
+        // The toolbox: tools in suggested order, the staged steps, and the steps used for this card before.
+        toolbox: { order: rankTools(`${(top.guidedResolution?.unsupported || []).join(' ')} ${text}`), staged: [...(f.guided.staged || [])], labels: (f.guided.staged || []).map(x => stepLabel(x)),
+          remembered: game.rememberedOutcomes?.[cardName] || null, multi: game.deviceMode === 'multi-device', voters: game.players.filter(p => !p.eliminated && p.playerId !== top.controllerId).map(p => p.displayName) } };
     }
     return waiting(top?.controllerId, `Waiting for ${name(top?.controllerId)} to resolve ${top?.name || 'an effect'} by hand.`);
   }

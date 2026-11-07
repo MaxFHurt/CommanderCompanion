@@ -498,7 +498,13 @@ export function settle(game) {
       if (stepPriority(game)) return;
       f.priority = null;
       applyOwnerRuling(game, top);
-      if (top.guidedResolution) { f.guided = { stackId: top.id }; continue; }
+      if (top.guidedResolution) {
+        // A stored outcome (owner ruling) or the steps used last time for this card are staged, ready to confirm.
+        const name = stackCardName(game, top);
+        const replay = game.storedOutcomes?.[name]?.moves || null;
+        f.guided = { stackId: top.id, staged: Array.isArray(replay) ? structuredClone(replay) : [] };
+        continue;
+      }
       startOp(game, 'resolve', top.controllerId, { stackId: top.id }, { system: true });
       continue;
     }

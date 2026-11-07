@@ -92,8 +92,19 @@ async def guided(browser):
     check('unsupported card asks to RESOLVE by hand', jewel == 'RESOLVE', jewel)
     await page.click('.jewel'); await page.wait_for_selector('.guided__steps')
     await page.screenshot(path=f'{OUT}phone-guided.png')
-    await page.click('.modal .btn--confirm'); await page.wait_for_timeout(300)
-    check('by-hand card finished', 'applied by hand' in await page.locator('.glog__list').text_content())
+    # the toolbox: stage "gain 2 life" for you, then Done; on one device the table is asked to agree
+    life0 = await page.evaluate("window.__cc?.session?.view?.()?.players?.find(p => p.isYou)?.life ?? null")
+    await page.click('[data-tb-tool="life-gain"][data-tb-ref="you"]')
+    await page.wait_for_selector('.stepper [data-step="1"]')
+    await page.locator('.stepper [data-step="1"]').last.click()   # 1 → 2
+    await page.locator('.modal .btn--confirm').last.click(); await page.wait_for_timeout(200)
+    check('toolbox: the step is staged and listed', await page.locator('.toolbox__steps li').count() == 1, await page.locator('.toolbox__steps').text_content())
+    await page.screenshot(path=f'{OUT}phone-toolbox.png')
+    await page.locator('.modal .btn--confirm').last.click(); await page.wait_for_timeout(300)
+    if await page.locator('text=Does everyone agree?').count():
+        await page.locator('.modal .btn--confirm').last.click(); await page.wait_for_timeout(300)
+    log = await page.locator('.glog__list').text_content()
+    check('by-hand card finished with the toolbox step (gains 2 life, applied by hand)', 'gains 2 life' in log and 'applied by hand' in log, log[:200])
     # Stack / log / card id / chat popups open
     for act, sel in (('log', '.glog__list--full'), ('stack', 'text=The stack is empty'), ('card-id', '[data-q]'), ('help', '#judgeSearch'), ('profile', 'text=Commander damage taken')):
         await page.click(f'[data-act="{act}"]'); await page.wait_for_selector(sel); await page.click('.modal [data-modal-back]')

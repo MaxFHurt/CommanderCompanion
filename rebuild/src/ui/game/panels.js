@@ -14,6 +14,7 @@ import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
 import { openStoreOutcome } from '../ruling-modal.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
 import { openCardDetail, openTable, pickNumber, pickText } from './card-modals.js';
+import { TOOLS, TOKEN_KINDS, stepLabel } from '../../game/toolbox.js';
 
 const me = view => view.players.find(p => p.playerId === view.you);
 
@@ -80,84 +81,82 @@ export function openDiscard(ctx, need, { minimize } = {}) {
   return modal.close;
 }
 
-// ── Resolve a card by hand ──────────────────────────────────────────────────────
-// Short instruction, the chosen targets with the actions the card's words call for, and Done.
-const ACTION_LABEL = {
-  destroy: 'Destroy', exile: 'Exile', bounce: 'To hand', tap: 'Tap', untap: 'Untap', 'counter+': '+1/+1 counter', 'counter-': '−1/−1 counter',
-  'counter-other': 'Other counter…', damage: 'Damage…', 'gain-control': 'Gain control', sacrifice: 'Sacrifice', 'return-hand': 'To hand',
-  'return-battlefield': 'To battlefield', 'life-gain': 'Gain life…', 'life-loss': 'Lose life…', draw: 'Draw…', discard: 'Discard…', mill: 'Mill…',
-  poison: 'Poison…', 'counter-spell': 'Counter it', pt: 'P/T change…', transform: 'Transform', shuffle: 'Shuffle', token: 'Create token…'
+// Which tools fit what a step acts on (toolbox.js TOOLS[].on).
+const TOOL_FITS = {
+  permanent: ['permanent', 'any-card', 'permanent-or-player'], card: ['any-card', 'card'], player: ['player', 'permanent-or-player'],
+  stack: ['stack'], that: ['permanent', 'any-card', 'card', 'permanent-or-player']
 };
-const FOR_KIND = {
-  permanent: ['destroy', 'exile', 'bounce', 'sacrifice', 'tap', 'untap', 'counter+', 'counter-', 'counter-other', 'damage', 'pt', 'gain-control', 'transform'],
-  player: ['damage', 'life-loss', 'life-gain', 'draw', 'discard', 'mill', 'poison'],
-  stack: ['counter-spell'],
-  card: ['return-hand', 'return-battlefield', 'exile']
-};
-const FOR_YOU = ['draw', 'life-gain', 'life-loss', 'mill', 'token', 'shuffle'];
+const TOOL_BY_ID = Object.fromEntries(TOOLS.map(t => [t.id, t]));
 
+/**
+ * Resolve a card by hand with the player toolbox (owner: every choice a card gives a player is asked of that player). The
+ * resolving player stages steps — a tool done to a target, to "that card" (what the last step moved or made), to themself or
+ * to each opponent — with the tools the card's unread text calls for first. Done applies them all at once: on several devices
+ * the other players accept first (a table proposal); on one device the screen asks the table. The steps are remembered for
+ * this card and offered next time. Host Tools stays for anything the toolbox cannot do.
+ */
 export function openGuided(ctx) {
-  const view = ctx.view, p = view.prompt;
+  const view = ctx.view, p = view.prompt, tb = p.toolbox || { order: TOOLS.map(t => t.id), staged: [], multi: false, voters: [] };
   const top = view.stack.find(s => s.id === p.stackId);
   const def = top?.def ? view.defs[top.def] : null;
-  const wanted = new Set(p.actions || []);
-  const pick = (kind) => { const all = FOR_KIND[kind] || []; const hit = all.filter(a => wanted.has(a)); return hit.length ? hit : all; };
-  const you = view.players.find(x => x.playerId === p.controllerId);
-  const selfActions = FOR_YOU.filter(a => wanted.has(a));
-  const steps = p.targets?.length ? 'Tap what the card does to each target, then Done.' : 'Do what the card says with the buttons or Host Tools, then Done.';
+  let steps = [...(tb.staged || [])];
+  const names = Object.fromEntries((p.targets || []).map((t, i) => [`target:${i}`, t.name]));
+  const subjects = [
+    ...(p.targets || []).map((t, i) => ({ ref: `target:${i}`, kind: t.kind, label: t.label, name: t.name, gone: t.kind === 'gone' })),
+    { ref: 'that', kind: 'that', label: 'That card', name: 'what the last step moved or made' },
+    { ref: 'you', kind: 'player', label: 'You', name: view.players.find(x => x.playerId === p.controllerId)?.name || 'You' },
+    { ref: 'each-opponent', kind: 'player', label: 'Each opponent', name: 'every opponent' }
+  ];
+  const toolsFor = kind => { const fits = TOOL_FITS[kind] || []; return (tb.order || []).map(id => TOOL_BY_ID[id]).filter(t => t && fits.includes(t.on)); };
+  const ask = (tool, done) => {
+    if (tool.amount && !tool.counter) return pickNumber(`${tool.label.replace(/…$/, '')}: how many?`, 1, v => done({ amount: Number(v) }), { min: 0, max: 999 });
+    if (tool.counter) return pickText('Which counter?', 'charge, loyalty, shield, stun…', c => c && pickNumber(`How many ${c} counters?`, 1, v => done({ counter: c, amount: Number(v) }), { min: 0, max: 999 }));
+    if (tool.keyword) return pickText('Which keyword?', 'flying, haste, trample, hexproof…', k => k && done({ keyword: k.trim().toLowerCase() }));
+    if (tool.pt) return pickText('Power/toughness change', '+2/+2 or -3/-0', v => { const m = String(v).match(/([+-]?\d+)\s*\/\s*([+-]?\d+)/); if (!m) return toast('Write it like +2/+2.'); done({ power: Number(m[1]), toughness: Number(m[2]) }); });
+    if (tool.tokenPick) return pickText(`Which token? (${TOKEN_KINDS.join(', ')})`, TOKEN_KINDS[0] || 'Treasure', k => { const kind = TOKEN_KINDS.find(x => x.toLowerCase() === String(k || '').trim().toLowerCase()); if (!kind) return toast(`Choose one of: ${TOKEN_KINDS.join(', ')}.`); pickNumber(`How many ${kind} tokens?`, 1, v => done({ token: kind, amount: Number(v) }), { min: 1, max: 99 }); });
+    return done({});
+  };
+  const body = () => html`
+    <div class="toolbox__steps guided__steps"><b>Steps</b>${steps.length ? html`<ol>${steps.map((st, i) => html`<li>${stepLabel(st, names)} <button type="button" class="btn btn--small" data-tb-del="${i}" aria-label="Remove this step">✕</button></li>`)}</ol>`
+      : html`<p class="muted">No steps yet. Choose what the card does below, in order, then Done.</p>`}
+      ${!steps.length && tb.remembered?.length ? html`<button type="button" class="btn btn--small" data-tb-replay>Use last time's steps: ${tb.remembered.map(x => stepLabel(x, names)).join(' → ')}</button>` : ''}</div>
+    ${subjects.map(sub => { const tools = toolsFor(sub.kind); if (sub.gone || !tools.length) return ''; const first = tools.slice(0, 6), more = tools.slice(6);
+      return html`<div class="guided__target"><span class="guided__who"><small>${sub.label}</small><b>${sub.name}</b></span>
+        <span class="guided__acts">${first.map(t => html`<button type="button" class="btn btn--small" data-tb-tool="${t.id}" data-tb-ref="${sub.ref}">${t.label}</button>`)}
+        ${more.length ? html`<select class="toolbox__more" data-tb-more="${sub.ref}" aria-label="More tools for ${sub.label}"><option value="">More tools…</option>${more.map(t => html`<option value="${t.id}">${t.label}</option>`)}</select>` : ''}</span></div>`; })}`;
   const modal = openModal({
     title: `${p.name} — resolve by hand`, size: 'wide',
     body: html`
       ${def ? cardDetailHtml(def, top.face) : html`<p class="card-detail__oracle">${oracleHtml(p.text)}</p>`}
       ${p.ruling ? html`<p class="card-detail__why"><b>Owner ruling:</b> ${p.ruling.ruling || ''}${p.ruling.steps?.length ? html`<br><small>Steps: ${p.ruling.steps.join(' → ')}</small>` : ''}</p>` : ''}
-      <p class="guided__steps"><b>${steps}</b>${p.hint ? html` <span>${p.hint.name}: ${p.hint.steps}</span>` : ''}</p>
-      ${(p.targets || []).map((t, i) => html`<div class="guided__target">
-        <span class="guided__who"><small>${t.label}</small><b>${t.name}</b>${t.owner ? html`<small>${t.owner}</small>` : ''}</span>
-        <span class="guided__acts">${t.kind === 'gone' ? html`<small class="muted">Left its zone — nothing to do to it.</small>` : pick(t.kind).map(a => html`<button type="button" class="btn btn--small" data-act-guided="${a}" data-t="${i}">${ACTION_LABEL[a] || a}</button>`)}</span>
-      </div>`)}
-      ${selfActions.length ? html`<div class="guided__target"><span class="guided__who"><small>You</small><b>${you?.name || 'You'}</b></span>
-        <span class="guided__acts">${selfActions.map(a => html`<button type="button" class="btn btn--small" data-act-guided="${a}" data-t="you">${ACTION_LABEL[a]}</button>`)}</span></div>` : ''}`,
+      ${p.hint ? html`<p class="guided__steps"><span>${p.hint.name}: ${p.hint.steps}</span></p>` : ''}
+      <div data-tb>${body()}</div>`,
     actions: [
-      { label: 'Store outcome', kind: 'plain', onClick: () => openStoreOutcome({ card: p.cardName || p.name, oracle: p.text, steps: ctx.view.prompt?.steps || p.steps || [] }) },
+      { label: 'Store outcome', kind: 'plain', onClick: () => openStoreOutcome({ card: p.cardName || p.name, oracle: p.text, steps: steps.map(x => stepLabel(x, names)), moves: steps }) },
       { label: 'Host Tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } },
-      { label: 'Done', kind: 'confirm', onClick: async ({ close }) => { const r = await ctx.send({ type: 'guided-done' }); if (r.ok) close(); } }
+      { label: 'Done', kind: 'confirm', onClick: async ({ close }) => {
+        if (steps.length) {
+          const st = await ctx.send({ type: 'guided-stage', steps });
+          if (!st.ok) return;
+          if (!tb.multi && (tb.voters || []).length) {
+            const ok = await confirmDialog({ title: 'Does everyone agree?', message: `${tb.voters.join(', ')}: resolve ${p.name} like this? ${steps.map(x => stepLabel(x, names)).join(' → ')}`, confirmLabel: 'Everyone agrees' });
+            if (!ok) return;
+          }
+        }
+        const r = await ctx.send({ type: 'guided-done' });
+        if (r.ok) { close(); if (steps.length && tb.multi && (tb.voters || []).length) toast('Sent to the table: the others accept before it happens.'); }
+      } }
     ],
     onMount(el) {
-      on(el, 'click', '[data-act-guided]', (event, b) => runGuidedAction(ctx, b.dataset.actGuided, b.dataset.t === 'you' ? { id: p.controllerId, kind: 'player' } : p.targets[Number(b.dataset.t)], p.controllerId));
+      const redraw = () => setHtml(el.querySelector('[data-tb]'), body());
+      const add = (toolId, ref) => { const tool = TOOL_BY_ID[toolId]; if (!tool) return; ask(tool, extra => { steps = [...steps, { tool: toolId, ref, ...extra }]; redraw(); }); };
+      on(el, 'click', '[data-tb-tool]', (event, b) => add(b.dataset.tbTool, b.dataset.tbRef));
+      on(el, 'change', '[data-tb-more]', (event, s) => { if (s.value) add(s.value, s.dataset.tbMore); s.value = ''; });
+      on(el, 'click', '[data-tb-del]', (event, b) => { steps = steps.filter((x, i) => i !== Number(b.dataset.tbDel)); redraw(); });
+      on(el, 'click', '[data-tb-replay]', () => { steps = structuredClone(tb.remembered || []); redraw(); });
     }
   });
   return modal.close;
-}
-
-function runGuidedAction(ctx, action, target, controllerId) {
-  const edit = e => ctx.send({ type: 'edit', edit: e }).then(r => { if (r.ok) toast(`${ACTION_LABEL[action] || action} — done.`); return r; });
-  const n = (title, fn, start = 1) => pickNumber(title, start, fn, { min: 0, max: 999 });
-  const id = target?.id;
-  switch (action) {
-    case 'destroy': case 'sacrifice': return edit({ kind: 'move', instanceId: id, to: 'graveyard' });
-    case 'exile': return edit({ kind: 'move', instanceId: id, to: 'exile' });
-    case 'bounce': case 'return-hand': return edit({ kind: 'move', instanceId: id, to: 'hand' });
-    case 'return-battlefield': return edit({ kind: 'move', instanceId: id, to: 'battlefield', controllerId });
-    case 'tap': return edit({ kind: 'tap', instanceId: id, tapped: true });
-    case 'untap': return edit({ kind: 'tap', instanceId: id, tapped: false });
-    case 'counter+': return edit({ kind: 'card-counter', instanceId: id, counter: '+1/+1', delta: 1 });
-    case 'counter-': return edit({ kind: 'card-counter', instanceId: id, counter: '-1/-1', delta: 1 });
-    case 'counter-other': return pickText('Counter name', 'loyalty, charge, shield, stun…', name => n(`${name} counters to add (negative removes)`, v => edit({ kind: 'card-counter', instanceId: id, counter: name, delta: v })));
-    case 'damage': return n('How much damage?', v => edit({ kind: 'damage', targetId: id, amount: v }), 2);
-    case 'pt': return pickText('Power/toughness change', '+2/+2 or -3/-0', v => { const m = String(v).match(/([+-]?\d+)\s*\/\s*([+-]?\d+)/); if (!m) return toast('Write it like +2/+2.'); edit({ kind: 'pt', instanceId: id, power: Number(m[1]), toughness: Number(m[2]) }); });
-    case 'gain-control': return edit({ kind: 'control', instanceId: id, playerId: controllerId });
-    case 'transform': return edit({ kind: 'transform', instanceId: id });
-    case 'life-gain': return n('Gain how much life?', v => edit({ kind: 'life', playerId: id, delta: v }), 1);
-    case 'life-loss': return n('Lose how much life?', v => edit({ kind: 'life', playerId: id, delta: -v }), 1);
-    case 'draw': return n('Draw how many?', v => v && edit({ kind: 'draw', playerId: id, count: v }), 1);
-    case 'mill': return n('Mill how many?', v => v && edit({ kind: 'mill', playerId: id, count: v }), 1);
-    case 'poison': return n('Poison counters to add', v => edit({ kind: 'poison', playerId: id, delta: v }), 1);
-    case 'discard': return toast(`${ctx.view.players.find(x => x.playerId === id)?.name || 'That player'} chooses the card to discard — use their hand in Host Tools.`);
-    case 'counter-spell': return edit({ kind: 'counter-stack', stackId: id });
-    case 'shuffle': return edit({ kind: 'shuffle', playerId: id });
-    case 'token': return openHostTools(ctx);
-    default: return openHostTools(ctx);
-  }
 }
 
 export function openVote(ctx) {

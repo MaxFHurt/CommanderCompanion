@@ -236,7 +236,10 @@ export class GameStore {
       const card = String(body.card || '').trim().slice(0, 200);
       if (!card) return fail(400, 'Which card?');
       if (body.remove) { await this.storage.delete(`out:${card}`); return json({ ok: true, removed: true }); }
-      const rec = { card, ruling: String(body.ruling || '').slice(0, 2000), steps: (Array.isArray(body.steps) ? body.steps : []).map(x => String(x).slice(0, 300)).slice(0, 30), override: !!body.override, oracle: String(body.oracle || '').slice(0, 3000), updatedAt: new Date().toISOString() };
+      // moves: the toolbox steps (general moves the app can replay): { tool, ref, amount, counter, keyword, token, power, toughness }.
+      const clean = m => { const o = {}; for (const k of ['tool', 'ref', 'counter', 'keyword']) if (m?.[k] !== undefined) o[k] = String(m[k]).slice(0, 60); for (const k of ['amount', 'power', 'toughness']) if (m?.[k] !== undefined) o[k] = Math.max(-99, Math.min(99, Number(m[k]) || 0)); if (m?.token !== undefined) o.token = typeof m.token === 'string' ? m.token.slice(0, 40) : { name: String(m.token?.name || 'Token').slice(0, 40), type: String(m.token?.type || '').slice(0, 40), power: Number(m.token?.power) || 0, toughness: Number(m.token?.toughness) || 0 }; return o; };
+      const moves = (Array.isArray(body.moves) ? body.moves : []).filter(m => m && typeof m.tool === 'string').slice(0, 30).map(clean);
+      const rec = { card, ruling: String(body.ruling || '').slice(0, 2000), steps: (Array.isArray(body.steps) ? body.steps : []).map(x => String(x).slice(0, 300)).slice(0, 30), moves, override: !!body.override, oracle: String(body.oracle || '').slice(0, 3000), updatedAt: new Date().toISOString() };
       await this.storage.put(`out:${card}`, rec);
       return json({ ok: true, outcome: rec });
     }

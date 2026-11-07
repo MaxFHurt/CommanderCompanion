@@ -12,14 +12,16 @@ import {
 import { applyEdit } from './edits.js';
 import { commit } from './ops.js';
 import { timingBlock, stackTop, playCheck, abilityRows, splitSecondOnStack } from './legal.js';
+import { TOOLS, applyToolSteps, stepLabel, stackCardName } from './toolbox.js';
+const TOOL_IDS = new Set(TOOLS.map(t => t.id));
 import { phaseLabel } from '../engine/phase.js';
 import { buildView, actorId } from './view.js';
 
 const MAX_UNDO = 30;
-const NO_UNDO = new Set(['answer', 'cancel', 'chat', 'vote', 'vote-request', 'undo', 'ask-undo', 'challenge', 'propose-correction', 'cancel-correction', 'propose-rules', 'answer-proposal', 'seen-notice']);
+const NO_UNDO = new Set(['guided-stage', 'answer', 'cancel', 'chat', 'vote', 'vote-request', 'undo', 'ask-undo', 'challenge', 'propose-correction', 'cancel-correction', 'propose-rules', 'answer-proposal', 'seen-notice']);
 // Plays the judge sees and can reverse: everything a person decides except passing priority
 // and answering the questions inside a play (those belong to the play that asked them).
-const PLAYS = new Set(['mulligan', 'keep', 'play', 'activate', 'attack', 'block', 'discard', 'next-phase', 'end-turn', 'edit', 'concede', 'end-game', 'guided-done']);
+const PLAYS = new Set(['mulligan', 'keep', 'play', 'activate', 'attack', 'block', 'discard', 'next-phase', 'end-turn', 'edit', 'concede', 'end-game', 'guided-done']);   // guided-stage only stages: not a play
 const MAX_REVERSE = 120;
 const MAX_PLAYS = 300;
 
@@ -141,10 +143,26 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
       correctionSnap = null;
       log(game, 'Everyone accepted the correction.', { type: 'vote' });
       notify(pr.requesterId, 'Correction accepted.');
+    } else if (pr.kind === 'manual-resolution') {
+      const top = stackTop(game);
+      if (top && top.id === pr.data.stackId && game.flow.guided?.stackId === top.id) { log(game, 'Everyone agreed to the manual resolution.', { type: 'vote' }); applyStaged(top); }
     } else if (pr.kind === 'rules') {
       applyEdit(game, { kind: 'rules', patch: pr.data.rules }, requester?.displayName || 'Table');
       log(game, 'Everyone agreed to the rule change.', { type: 'vote' });
     }
+  }
+
+  /** Run the staged toolbox steps, remember them for this card, and finish the by-hand resolution. */
+  function applyStaged(top) {
+    const g = game.flow.guided, steps = g.staged || [];
+    const targets = (top.guidedResolution?.targets || []).map(t => ({ id: t.id, kind: playerById(game, t.id) ? 'player' : (game.stack || []).some(x => x.id === t.id) ? 'stack' : 'card' }));
+    const notes = applyToolSteps(game, top, steps, targets);
+    g.steps = [...(g.steps || []), ...steps.map(x => stepLabel(x))];
+    const name = stackCardName(game, top);
+    game.rememberedOutcomes = { ...(game.rememberedOutcomes || {}), [name]: steps };
+    if (notes.length) log(game, `${top.name || 'Effect'}: ${notes.join(' ')}`);
+    g.staged = [];
+    finishGuided(game, top.controllerId, { override: true });
   }
 
   function rejectCorrection(text) {
@@ -213,7 +231,30 @@ export function createController(game, { onChange = () => {}, checkpoints: saved
       case 'attack': declareAttack(game, who.playerId, intent.attacks || [], { override: force }); break;
       case 'block': declareBlocks(game, who.playerId, intent.assignments || [], { override: force }); break;
       case 'discard': discardCards(game, who.playerId, intent.ids || [], { override }); break;
-      case 'guided-done': finishGuided(game, who.playerId, { override: isJudge(actor) }); break;
+      case 'guided-stage': {
+        // The resolving player's toolbox steps (staged; nothing changes until Done and the table agrees).
+        const g = game.flow.guided, top = stackTop(game);
+        if (!g || !top || top.id !== g.stackId) throw new GameError('Nothing is waiting to be resolved by hand.');
+        if (top.controllerId !== who.playerId && !isJudge(actor)) throw new GameError('Only the player resolving this card uses the toolbox.');
+        g.staged = (Array.isArray(intent.steps) ? intent.steps : []).filter(x => x && TOOL_IDS.has(x.tool)).slice(0, 40);
+        break;
+      }
+      case 'guided-done': {
+        const g = game.flow.guided, top = stackTop(game);
+        if (g?.staged?.length && top && top.id === g.stackId) {
+          if (top.controllerId !== who.playerId && !isJudge(actor)) throw new GameError('The player who controls this effect finishes it.');
+          const requester = playerById(game, top.controllerId);
+          // Every other player confirms a manual resolution before it applies (on one device, the screen asked them all).
+          if (game.deviceMode === 'multi-device' && voters(requester.playerId).length && !isJudge(actor)) {
+            propose(requester, 'manual-resolution', `Resolve ${top.name || 'the effect'} by hand: ${g.staged.map(x => stepLabel(x)).join(' → ')}`, top.text || '', { stackId: top.id });
+            break;
+          }
+          applyStaged(top);
+          break;
+        }
+        finishGuided(game, who.playerId, { override: isJudge(actor) });
+        break;
+      }
       case 'edit': {
         if (!canEdit(actor)) throw new GameError(game.deviceMode === 'multi-device' ? 'Use Challenge to ask the table to correct a play.' : 'Only the host can change the game directly in Guided Play.');
         const name = actor.isHost && !playerById(game, actor.playerId) ? 'Host' : (playerById(game, actor.playerId)?.displayName || 'Host');
