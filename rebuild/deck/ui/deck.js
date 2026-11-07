@@ -1130,6 +1130,73 @@ async function openUpgradeAsk() {
     '<div class="row"><button class="btn pri" data-act="ua-done">Show my upgrades</button></div></div>';
   $('#modal').hidden = false;
 }
+// A precon's cards in the printings it actually contains (owner, 2 Nov: the Hatsune Miku precon showed the original printings
+// of its reskinned cards). EDHREC lists each card's set and collector number; one Scryfall collection request per 75 cards
+// returns those printings, and each deck entry is pinned to its own (art, set, rarity, printed name, price). The commander's
+// printing goes into the themed-printing map. Offline or refused: the deck keeps the default printings, as before.
+async function pinPrecPrints(d, prints, cmds) {
+  const all = prints.concat(cmds);
+  if (!all.length) return;
+  const got = new Map();
+  try {
+    for (let i = 0; i < all.length; i += 75) {
+      const ids = all.slice(i, i + 75).map(([, set, cn]) => ({set, collector_number: cn}));
+      const r = await fetch('https://api.scryfall.com/cards/collection', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({identifiers: ids})});
+      if (!r.ok) return;
+      ((await r.json()).data || []).forEach(o => got.set(o.set + '|' + o.collector_number, o));
+    }
+  } catch (e) {
+    return;
+  }
+  const rec = o => ({
+    id: o.id,
+    set: o.set_name || '',
+    rar: o.rarity || '',
+    fn: o.flavor_name || ((o.card_faces || [])[0] || {}).flavor_name || o.printed_name || '',
+    p: priceOf(o),
+    sc: o.set,
+    cn: o.collector_number
+  });
+  let n = 0;
+  for (const [name, set, cn] of prints) {
+    const o = got.get(set + '|' + cn),
+      e = o && entryOf(d, o.name);
+    if (!e || e.pid) continue;
+    setPrint(e, rec(o));
+    n++;
+  }
+  for (const [, set, cn] of cmds) {
+    const o = got.get(set + '|' + cn),
+      c = o && find(o.name);
+    if (!c) continue;
+    const x = rec(o);
+    if (PRINT.key && PRINT.key === (d.cmdSet || c.sc)) PRINT.map.set(c._n, x);
+    const k = 'dc.theme3.' + (d.cmdSet || c.sc),
+      cache = lsGet(k);
+    if (cache) lsSet(k, cache.filter(r => r[0] !== c._n).concat([[c._n, x]]));
+  }
+  if (n) {
+    touch();
+    render();
+  }
+}
+// Precon decks loaded before 0.9.39 kept default printings: once per deck, look the precon up again by its name and pin its
+// printings (entries already given a printing are left alone).
+async function repairPrecPrints(d) {
+  if (!d || d.src !== 'precon' || d.pinTried) return;
+  d.pinTried = 1;
+  persistSoon();
+  try {
+    await loadPreIndex();
+    const row = PRE.list.find(x => norm(x[0]) === norm(d.name));
+    if (!row) return;
+    const dk = (await (await fetch('https://json.edhrec.com/pages/precon/' + row[3] + '.json')).json()).deck || {},
+      prints = [];
+    Object.values(dk.cards || {}).forEach(arr => (arr || []).forEach(t => t && t[0] && t[2] && t[3] && prints.push([t[0], t[2], String(t[3])])));
+    const cmds = (dk.commander_v2 || []).filter(v => v && v[0] && v[2] && v[3]).map(v => [v[0], v[2], String(v[3])]);
+    await pinPrecPrints(d, prints, cmds);
+  } catch (e) {}
+}
 async function loadPreconLive(slug, label) {
   toast('Loading ' + label + '…');
   try {
@@ -1148,15 +1215,18 @@ async function loadPreconLive(slug, label) {
         map.set(k, e);
       }
     };
+    const prints = [];   // [name, set code, collector number]: the exact printing EDHREC lists for each card
     Object.values(dk.cards || {}).forEach(arr =>
       (arr || []).forEach(t => {
         if (t && t[0]) put(t[0], +t[1] || 1);
+        if (t && t[0] && t[2] && t[3]) prints.push([t[0], t[2], String(t[3])]);
       })
     );
     cmds.slice(2).forEach(n => put(n, 1));
     if (cmds[1] && !(find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1])))) put(cmds[1], 1);
     if (!map.size) throw new Error('empty');
     const d = newDeck({name: dk.name || label, format: 'commander', cards: [...map.values()], src: 'precon'});
+    d.pinTried = 1;   // pinned just below (pinPrecPrints)
     if (cmds[0]) {
       setCommander(d, cmds[0]);
       if (cmds[1] && find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1]))) setPartner(d, cmds[1]);
@@ -1166,6 +1236,8 @@ async function loadPreconLive(slug, label) {
     if (d.aims.length) d.auto = 'precon';
     touch();
     render();
+    const v2c = (dk.commander_v2 || []).filter(v => v && v[0] && v[2] && v[3]).map(v => [v[0], v[2], String(v[3])]);
+    pinPrecPrints(d, prints, v2c);
     if (!S.noAsk) openUpgradeAsk();
     const unk = d.cards.filter(e => !find(e.n)).length;
     toast(

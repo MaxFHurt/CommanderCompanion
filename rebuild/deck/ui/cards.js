@@ -146,6 +146,7 @@ function pushDeckEdits() {
 }
 function render() {
   if (deckWasOpen && !S.open) pushDeckEdits();
+  if (S.open && cur()) repairPrecPrints(cur());
   deckWasOpen = !!S.open;
   // Scroll positions survive a redraw. If the list is briefly shorter (still being worked out), the wanted position is
   // carried for a few redraws until the full list is back.

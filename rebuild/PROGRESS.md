@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.64 (Deck Builder {"build": 183, "version": "0.9.38"})
+- **Live build:** 1.0.0-rebuild.65 (Deck Builder {"build": 184, "version": "0.9.39"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 65 — 2 Nov 2026
+- Deck Builder 0.9.39 (build 184): precons load in the printings they actually contain (owner: the Hatsune Miku precon showed the original printings of its reskinned cards). EDHREC lists each card's set and collector number; `pinPrecPrints` (deck/ui/deck.js) fetches those printings from Scryfall's collection endpoint (75 per request) and pins each entry (art, set, rarity, printed name, price) and the commander's printing. Precon decks loaded before this are repaired once when opened (`repairPrecPrints`, looked up by name in EDHREC's catalogue). Tests: quick check 12; Hatsune Miku: 87 of 87 entries pinned, reskins named (Shalai → Miku, Voice Over All), and an old-style copy repaired on opening.
 
 ### Build 64 — 2 Nov 2026
 - Deck Builder 0.9.38 (build 183): build 63's fix never reached the card window: handleAct rebuilds the clicked button as {dataset: {p}} so data-cut was lost (the check passed because that row's cut was also the best measured cut). The click now passes data-cut (5th handleAct argument). Sheets: tapping the tile that is already chosen opens the card, also leading with the row's swap (data-n / data-cut on .s4). Tests: quick check 12; on three Wakanda Forever rows the card window from the row and from the tile leads with that row's card (Queen Mother Ramonda, Loyal Retainers, Nakia).
