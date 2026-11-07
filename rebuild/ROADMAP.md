@@ -1,7 +1,7 @@
 # Commander Companion — the whole roadmap
 
-Every change still open across the app, in one place (written 2 Nov 2026, live build 1.0.0-rebuild.64, Deck Builder 0.9.38
-build 183). Each section lists its items in the suggested order. Details and history stay in the documents named at the end
+Every change still open across the app, in one place (written 2 Nov 2026, updated 7 Nov: live build 1.0.0-rebuild.66, Deck
+Builder 0.9.40 build 185). Each section lists its items in the suggested order. Details and history stay in the documents named at the end
 of each item; this file is the list. Update it when an item is done (move it to "Done" at the bottom with its build).
 
 **Owner's rules for all of it** (full list in HANDOFF.md section 2):
@@ -31,6 +31,9 @@ of each item; this file is the list. Update it when an item is done (move it to 
    - Deck Builder on iPad: safe area (portrait, landscape, home-screen app), the one-line Upgrades page, Show all details,
      health badges (GC and green +; the Mana and Win routes + were not seen on screen), the Back button and swipe back, the
      card window leading with the row's swap (from a row and from the chosen Sheets tile).
+   - Precon printings: load the Hatsune Miku precon (and reopen a Miku deck loaded before build 65): reskins should show
+     their Miku art and names.
+   - Card data: a fresh Deck Builder load should fill from the daily file in seconds (no "Downloading cards from Scryfall").
    - Profile sync between two linked devices: newer profile taken on open, "Continue your game?", Deck Builder edits sent
      when a deck is closed or the app is put away, the "saved from another device" choice.
    - QR pairing over a phone or iPad hotspot without internet; offline use after the first launch.
@@ -55,6 +58,15 @@ of each item; this file is the list. Update it when an item is done (move it to 
    - Cached card definitions from before build 28 keep the old mana cost for split/adventure cards until re-validated.
 4. **Measure which cards real decks resolve by hand most** (from played games) and automate those first.
 
+5. **The card-by-card handoff (owner, 7 Nov; set aside for now: "except the card data work"):** a zip of machine-assisted
+   requirements for all 39,287 cards (42,678 faces, 67,471 ability clauses, 151,838 acceptance contracts, 25,900 audit
+   warnings, 13,923 unverified rule lines), with ledgers (CARD-INDEX, CONFIRMATION, ABILITY, WARNING-CONFIRMATION,
+   INTERPRETATION-CHECKS) and CARD-BY-CARD.jsonl. Its request: confirm each card against current Oracle text and rulings,
+   reproduce, implement confirmed gaps, record real test results; start with Commander-legal flagged and unverified cards;
+   document false positives. It is a requirements draft, not proven bugs. The owner also points to TCGplayer's card rulings
+   as a source. The zip is not in the repository (25 MB); ask the owner for it again (Commander-Companion-Claude-Full-Card-
+   by-Card-Handoff.zip; extract CLAUDE-CARD-HANDOFF.tar.xz and read 00-START-HERE-CLAUDE.md).
+
 ## 3. Player toolbox (the next card-decisions feature)
 
 When a card is resolved by hand, the player gets a toolbox of steps (move a card, tap, counters, life, draw, token …),
@@ -77,8 +89,24 @@ suggested tools first, "that card" carried from step to step, applied as one cha
 3. **Native iOS wrapper with Multipeer Connectivity** (true Bluetooth): on hold (owner, 1 Nov). Needs an Apple Developer
    account and a Mac.
 
+## 4b. Card data job
+
+1. **Merge the card-data job change into Deck-Companion `main`** (branch `claude/card-effects-fixes-rcosbu`, commit 3a9d2c0):
+   the daily `cards.json.gz` then also keeps battles' defense, reprint and printed (flavor) names. The app works without it.
+2. The job runs at 4 a.m. New York time; the snapshot of 6 Nov was taken at 16:32 UTC (a manual or push run). Check the
+   scheduled runs in Deck-Companion's Actions.
+
 ## 5. Deck Builder × game engine (owner, 2 Nov: add all three)
 
+0. **First: compare the two readers properly.** Quick pass done 7 Nov (top 1,000, instants and sorceries only, a rough
+   effect-to-role mapping): the game engine compiles 148 of the 229 spells (65%); where both readers see one of ramp, draw,
+   removal or wipes they mostly agree (removal 31, wipes 12, draw 14, ramp 5). Most disagreements came from the rough mapping
+   (rituals, Nature's Lore and cantrips count as ramp/draw in the Deck Builder; counterspells are its "Interaction", not
+   removal). Real Deck Builder misreads found: Demonic Consultation tagged as a board wipe, Curse of the Swine as single
+   removal. So basic spell roles are mostly right already; the gain from item 1 is in permanents, triggers, counters and
+   cards the Deck Builder reads as nothing. Next: a proper effect-to-role mapping, then the same comparison over every card
+   (permanents included), listing each disagreement. Script: scratch `cmp.mjs` (loads `deck/engine.min.js` in Node with
+   `buildIndex`, compiles Oracle text with `src/engine/effects.js` compileEffectText).
 Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`), solo mana-only practice games
 (`deck/engine/practice.js`) and a score (`deck/engine/score.js`); none of the game's rules work reaches it.
 1. **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
@@ -133,6 +161,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 ---
 
 ## Done (recent, newest first)
+
+- Build 66: the Deck Builder's cards come from the daily card-data file, not Scryfall's paged search (fallback only).
+- Build 65: precons load in their exact printings (Hatsune Miku reskins); older precon decks repaired once on opening.
 
 - Build 64: the card window leads with the upgrade row's swap (row and chosen Sheets tile).
 - Builds 61–62: GC and green + health badges on upgrade card images (ramp, draw, removal, wipes, lands, curve, mana, win routes).
