@@ -2433,6 +2433,7 @@ section('round 51: the last top-1,000 cards');
   const now = withOverlay(stage, t.game.cardDefinitions[stage.definitionId]);
   const d2 = (await import('../../src/engine/effects.js')).definitionFor(t.game, stage);
   check("Thespian's Stage: it becomes an Island and keeps its copy ability", d2.name === 'Island' && /becomes a copy of target land/.test(d2.oracleText), JSON.stringify([d2.name]));
+  check("…and it makes the Island's blue mana, not its old colourless", (stage.manaCapacityOptions || []).join() === 'U' && stage.manaCapacityColor === 'U', JSON.stringify([stage.manaCapacityOptions, stage.manaCapacityColor]));
 }
 {
   const t = setup();
@@ -2615,6 +2616,15 @@ section('round 51: the last top-1,000 cards');
   settle(t, [[d => d.key === 'dredge', d => d.options.find(o => o.id !== 'draw').id]]);
   check('…and in the draw step the player is asked to draw or dredge', t.P(0).deck.hand.some(c => c.instanceId === loam.instanceId));
 }
+{
+  // Dredge on another player's draw effect: "Each player draws a card." asks the opponent too, and the opponent answers
+  const t = setup();
+  t.give(1, 'Divination', 'graveyard');
+  const loam = t.P(1).deck.graveyard.find(c => def(t, c).name === 'Divination'); asText(t, loam, 'Dredge 2', { typeLine: 'Sorcery' });
+  const asked = [];
+  cast(t, 'Opt', 'Each player draws a card.', [[d => d.key.startsWith('dredge'), d => { asked.push(d.playerId); return d.options.find(o => o.id !== 'draw').id; }]], { manaCost: '{U}' });
+  check('Dredge: another player\'s "each player draws" offers it to the opponent, who is asked themself', t.P(1).deck.hand.some(c => c.instanceId === loam.instanceId) && asked.includes(t.P(1).playerId), JSON.stringify([asked, t.P(1).playerId]));
+}
 
 {
   const t = setup();
@@ -2689,6 +2699,60 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Mutate: on top it is a 4/4 with the bear\'s trample, its own reach, and it drew a card', d.name === 'Colossal Dreadmaw' && power(t, host) === 4 && /Trample/.test(d.oracleText) && /Reach/.test(d.oracleText) && t.P(0).deck.hand.length === hand, JSON.stringify([d.name, power(t, host), t.P(0).deck.hand.length - hand]));
   cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => host.instanceId]], { manaCost: '{G}' });
   check('…when it dies, both cards go to the graveyard', t.names(0, 'graveyard').includes('Grizzly Bears') && t.names(0, 'graveyard').includes('Colossal Dreadmaw'), JSON.stringify(t.names(0, 'graveyard')));
+}
+
+{
+  // Moraug: an extra combat granted in the first main phase comes straight after it (two combats, then the second main phase)
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Forest', 'battlefield');
+  t.end(0); t.end(1);
+  const bear = t.bf(0, 'Grizzly Bears');
+  const H = await import('../../src/engine/effects-catalog.js');
+  const phase0 = t.game.phase;
+  H.applyCatalogEffect ? H.applyCatalogEffect(t.game, t.P(0).playerId, { kind: 'extra-combat' }, {}, []) : (t.game.extraBeforeMain2 = 1);
+  const queued = Number(t.game.extraBeforeMain2 || 0) === 1 && !Number(t.game.extraCombats || 0);
+  t.game.rulesConfig = { ...(t.game.rulesConfig || {}), autoSkip: false };   // the bear stays tapped here (Moraug would untap it)
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  const afterFirst = t.game.phase;
+  bear.tapped = false;
+  const life1 = t.P(1).life;
+  if (afterFirst === 'combat' || afterFirst === 'begin-combat') { t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] }); settle(t); }
+  check('Moraug: an extra combat from the first main phase comes before the second main phase', phase0 === 'precombat-main' && queued && (afterFirst === 'combat' || afterFirst === 'begin-combat') && t.P(1).life === life1 - 2 && t.game.phase === 'postcombat-main', JSON.stringify([phase0, queued, afterFirst, life1 - t.P(1).life, t.game.phase]));
+}
+
+{
+  // Kardur: the goad covers creatures the opponents get later, until Kardur's controller's next turn
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  const E = await import('../../src/engine/effects.js'), R = await import('../../src/engine/rules.js');
+  E.applyEffects(t.game, t.P(0).playerId, [{ kind: 'goad-each', scope: 'opponents' }], {}, []);
+  t.give(1, 'Grizzly Bears', 'battlefield');
+  const late = t.bf(1, 'Grizzly Bears');
+  const now = R.goadersOf(t.game, late, t.P(1).playerId).has(t.P(0).playerId);
+  t.end(0);
+  const req = R.validateRequiredAttackers({ game: t.game, player: t.P(1), draft: [] });
+  t.end(1);
+  const after = R.goadersOf(t.game, late, t.P(1).playerId).size;
+  check('Kardur: a creature the opponent gets later is goaded too, until Kardur\'s controller\'s next turn', now && after === 0, JSON.stringify([now, req.reasons, after]));
+}
+
+{
+  // Echo / Cumulative upkeep paid with an action: done once per age counter, or the permanent is sacrificed
+  const t = setup();
+  const cu = onField(t, 'Grizzly Bears', 'Cumulative upkeep—Draw a card. (At the beginning of your upkeep, put an age counter on this permanent, then you may pay its upkeep cost for each age counter on it. If you don\'t, sacrifice it.)');
+  t.autoPass = true; t.end(0); t.end(1);
+  const h0 = t.P(0).deck.hand.length;
+  settle(t, [[d => d.key === 'may-pay', 'pay']]);
+  const past = () => !['untap', 'upkeep'].includes(t.game.phase) ? 1 : 0;   // the draw step's own card, when it has come
+  const first = t.P(0).deck.hand.length - h0 - past();
+  t.end(0); t.end(1);
+  const h1 = t.P(0).deck.hand.length;
+  settle(t, [[d => d.key === 'may-pay', 'pay']]);
+  const second = t.P(0).deck.hand.length - h1 - past();
+  t.end(0); t.end(1);
+  settle(t, [[d => d.key === 'may-pay', 'no']]);
+  check('Cumulative upkeep with an action: draw 1, then 2 (one per age counter), then declined it is sacrificed', first === 1 && second === 2 && !t.P(0).deck.battlefield.includes(cu), JSON.stringify([first, second, t.P(0).deck.battlefield.includes(cu)]));
 }
 
 done();

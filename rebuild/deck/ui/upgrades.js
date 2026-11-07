@@ -2094,8 +2094,8 @@ function cardBadges(d, n) {
     A = ks.has('Lands') && t.land ? analyze(d) : null,
     fix = [...ks].filter(k => (HROLE[k] && !t.land && t.roles.has(HROLE[k])) || (k === 'Lands' && A && A.lands < A.T.lands) || fixesMore(d, k, c, t));
   return (
-    (c.gc ? '<b class="bdg gc" title="Game Changer">GC</b>' : '') +
-    (fix.length ? '<b class="bdg fix" title="Helps deck health: ' + esc(fix.join(', ')) + '">+</b>' : '')
+    (c.gc ? '<span class="bdg gc" title="Game Changer">GC</span>' : '') +
+    (fix.length ? '<span class="bdg fix" title="Helps deck health: ' + esc(fix.join(', ')) + '">+</span>' : '')
   );
 }
 // Curve: a cheap spell (2 mana or less). Win routes: a finisher. Mana: a land making two or more of the deck's colours (one in
@@ -2703,7 +2703,7 @@ function statsHtml(d, A, R, mode) {
       (d.format === 'commander' && find(d.commander)
         ? '<div class="row"><button class="btn sm" data-act="lands-open">Lands helper</button></div>'
         : '') +
-      (mode === 'compact' ? apexTips(d, A, R, e, HA, lvl) : '') +
+      (mode === 'compact' ? apexTips(d, A, R, e, HA, lvl, true) : '') +
       popHealthHtml(H, ign, fixable, pw != null ? leadLine(lvl, pwr, pctOf(T0.budget), pctOf(T0.mid)) : '')
   );
   const strip =
@@ -2837,7 +2837,7 @@ const FIX_WHY = {
 // combos it is one card away from, and mana trouble. Each tip has a button that does or shows it.
 const isTutor = c => tags(c).roles.has('tutor'),
   isFast = c => typeof FAST_MANA !== 'undefined' && FAST_MANA.has(c._n);
-function apexTips(d, A, R, e, HA, lvl) {
+function apexTips(d, A, R, e, HA, lvl, noHealth) {   // noHealth: in Show all details, whose Health part follows
   if (!e || !R || R.pending || (lvl === 'Apex' && !HA.some(x => x.s === 'bad')))
     return lvl === 'Apex' ? '<div class="tip good"><b><small>Path to Apex</small>This deck is at Apex level</b></div>' : '';
   const T = [],
@@ -2895,7 +2895,7 @@ function apexTips(d, A, R, e, HA, lvl) {
     });
   }
   const hb = HA.filter(x => x.s !== 'good' && FIX_OF[x.k]);
-  if (hb.length)
+  if (hb.length && !noHealth)
     T.push({
       w: 1.5 * hb.length,
       h: '<b>Health:</b> ' + hb.map(x => x.k).join(', ') + (hb.length === 1 ? ' needs' : ' need') + ' attention.',

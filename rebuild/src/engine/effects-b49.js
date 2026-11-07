@@ -3,6 +3,7 @@
 // sentences around it (and the parts compiled so far); applyB49 runs the effect kinds made here and gatherB49 asks the
 // resolve-time questions. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, moveCard, definitionFor, resolveAmount, parseCondition, checkCondition, catalogHelpers as H } from './effects.js';
+import { refreshManaSource } from './transactions.js';
 import { effectivePower, effectiveToughness } from './combat.js';
 import { cardFitsWords } from './effects-catalog.js';
 
@@ -888,6 +889,7 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       const base = definitionFor(game, t.card);
       src.card.copyDef = { ...base, definitionId: src.card.definitionId, oracleText: [base.oracleText, keep].filter(Boolean).join('\n') };
       if (effect.until === 'turn') src.card.copyUntilTurn = game.turnNumber; else delete src.card.copyUntilTurn;
+      refreshManaSource(game, game.players.find(p => (p.deck?.battlefield || []).includes(src.card)), src.card);   // a copied land makes the copied land's mana
       notes.push(`${game.cardDefinitions?.[src.card.definitionId]?.name} becomes a copy of ${definitionFor(game, t.card)?.name}${effect.until === 'turn' ? ' until end of turn' : ''}.`);
       return true;
     }

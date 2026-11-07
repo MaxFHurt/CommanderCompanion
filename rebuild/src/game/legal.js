@@ -3,7 +3,7 @@
 
 import {
   validatePlay, validateAttack, validateBlock, parseActivatedAbilities, validateActivatedAbilityFull, planMana,
-  effectiveManaOptionsForSource, playerManaAvailability, blockerCapacity
+  effectiveManaOptionsForSource, playerManaAvailability, blockerCapacity, goadersOf
 } from '../engine/rules.js';
 import { defOf, definitionsMap, faceDefinition, isLand, isInstantSpeed, opponentsOf, playerById, alivePlayers, attackablePermanents } from './helpers.js';
 import { candidatesFor } from './requirements.js';
@@ -372,7 +372,7 @@ export function attackOptions(game, player) {
   for (const card of player.deck?.battlefield || []) {
     const def = defOf(game, card);
     const legal = defenders.filter(d => validateAttack({ game: view, attackerId: player.playerId, defenderId: d.playerId, instance: card, definition: def }).legal);
-    const goaded = (card.temporaryEffects || []).some(e => e?.kind === 'goad');
+    const goaded = goadersOf(game, card, player.playerId).size > 0;
     const mustAttack = goaded || (card.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack');
     // Encore tokens: "attacks that opponent this turn if able" — offered first.
     const mustPlayer = (card.temporaryEffects || []).find(e => e?.kind === 'combat-restriction' && e.restriction === 'must-attack' && e.playerId)?.playerId;

@@ -18,7 +18,10 @@ function libAdd(name, q) {
   const L = lib(),
     k = Object.keys(L).find(x => norm(x) === norm(n)) || n;
   L[k] = Math.max(0, (L[k] || 0) + q);
-  if (!L[k]) delete L[k];
+  if (!L[k]) {
+    delete L[k];
+    delete libPrints()[k];
+  }
   S.libV = (S.libV || 0) + 1;
   return 1;
 }
@@ -240,8 +243,28 @@ function libAddList(cards, cmd) {
   if (cmd) k += libAdd(cmd, 1);
   cards.forEach(x => {
     k += libAdd(x.n, x.q || 1);
+    if (x.psc && x.pcn) libNotePrint(x.n, x.psc, x.pcn);
   });
   return k;
+}
+// The printing of each owned card, when it is known (owner, 7 Nov): a library list with "(SET) 123" lines, or a deck added
+// with its printings. pinPrints shows that printing for a deck card with no printing of its own and no printed name.
+function libPrints() {
+  const P = S.profile;
+  if (!P.libPrint || typeof P.libPrint !== 'object') P.libPrint = {};
+  return P.libPrint;
+}
+function libNotePrint(name, psc, pcn) {
+  const c = find(name),
+    n = c ? c.n : String(name || '').trim(),
+    k = Object.keys(lib()).find(x => norm(x) === norm(n));
+  if (k && !libPrints()[k]) libPrints()[k] = {psc: String(psc).toLowerCase(), pcn: String(pcn)};
+}
+function libPrintOf(name) {
+  const c = find(name),
+    n = c ? c.n : name,
+    k = Object.keys(libPrints()).find(x => norm(x) === norm(n));
+  return k ? libPrints()[k] : null;
 }
 function libRows(q) {
   const L = lib(),

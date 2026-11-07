@@ -641,7 +641,7 @@ function wantHtml(d, c) {
   const rc = S.rowCut && d.cards.find(x => norm(x.n) === norm(S.rowCut));
   if (rc) {
     const x0 = cuts0.find(y => norm(y.n) === norm(rc.n)) || cuts.find(y => norm(y.n) === norm(rc.n)) || {n: rc.n, s: 0};
-    const x = Object.assign({}, x0, {why: ['The swap this upgrade suggests']});
+    const x = Object.assign({why: ['Chosen for this upgrade']}, x0, {row: true});
     if (x.dScore == null && e && e.exact != null) x.dScore = swapScore(d, e, ar, x.n, c.n, 1);
     cuts = [x].concat(cuts.filter(y => norm(y.n) !== norm(x.n))).slice(0, 3);
   }
@@ -702,7 +702,9 @@ function wantHtml(d, c) {
     '<span class="arrow" aria-hidden="true">→</span>' +
     side(c.n, 'in', 'Put in') +
     '</div>' +
-    '<div class="row"><span class="chip good">Best swap</span>' +
+    '<div class="row"><span class="chip good">' +
+    (b.row ? 'This upgrade’s swap' : 'Best swap') +
+    '</span>' +
     wantChip(b.dScore) +
     '<span class="chip">' +
     esc(b.why[0]) +

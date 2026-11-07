@@ -144,7 +144,8 @@ async def main():
         locked = await page.locator('.mat-slot.is-locked').count()
         check('one playmat slot open, five locked', locked == 5, f'{locked} locked')
         await page.screenshot(path=f'{OUT}phone-playmats.png')
-        real = [e for e in page.errors if 'ERR_FAILED' not in e]  # blocked card lookups are expected offline
+        # blocked card lookups are expected offline; online, Scryfall answers a made-up card name with 404 (not a page error)
+        real = [e for e in page.errors if 'ERR_FAILED' not in e and 'status of 404' not in e]
         check('no console errors', not real, str(real[:5]))
 
         # Layout: nothing overflows its card at any player count, on phone and iPad.

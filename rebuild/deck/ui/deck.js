@@ -955,15 +955,23 @@ function viewSearch() {
     '</div></section>'
   );
 }
+// One built-in precon line: "16 Forest@khm#398" = quantity, name, and the printing the precon contains (set#number,
+// added 7 Nov 2026 from EDHREC; pinPrints shows it).
+function preconEntry(x) {
+  const [body, pr] = String(x).split('@'),
+    m = /^(\d+) (.+)$/.exec(body),
+    n = m ? m[2] : body,
+    c = find(n),
+    e = {n: c ? c.n : n, q: m ? +m[1] : 1, l: false};
+  if (c && norm(n) !== c._n && altName(n)) e.pn = n;
+  if (pr && pr.includes('#')) {
+    e.psc = pr.split('#')[0].toLowerCase();
+    e.pcn = pr.split('#')[1];
+  }
+  return e;
+}
 function loadPrecon(p) {
-  const cards = PRECON_LISTS[p.name].split(';').map(x => {
-    const m = /^(\d+) (.+)$/.exec(x),
-      n = m ? m[2] : x,
-      c = find(n),
-      e = {n: c ? c.n : n, q: m ? +m[1] : 1, l: false};
-    if (c && norm(n) !== c._n && altName(n)) e.pn = n;
-    return e;
-  });
+  const cards = PRECON_LISTS[p.name].split(';').map(preconEntry);
   const d = newDeck({
     name: p.name,
     format: 'commander',
@@ -1133,8 +1141,8 @@ async function openUpgradeAsk() {
 // ---------- printings: every card in the printing its source says (owner, 7 Nov 2026) ----------
 // A card is shown in the first of: 1. the player's own choice (the printing picker; pid set, never replaced); 2. the exact
 // printing its source lists (psc + pcn: a precon, a pasted "(SET) 123" line, a share link); 3. the name it was listed under
-// (pn: a reskin's printed name, e.g. "Miku, Voice Over All" for Shalai); 4. the commander's set (themed printings, shown
-// only); 5. the card's default printing. Every way into a deck stores those hints; pinPrints turns hints into printings
+// (pn: a reskin's printed name, e.g. "Miku, Voice Over All" for Shalai); 4. the printing the player owns (library, when
+// known: libPrintOf); 5. the commander's set (themed printings, shown only); 6. the card's default printing. Every way into a deck stores those hints; pinPrints turns hints into printings
 // (pid, set, rarity, printed name, price), 75 cards per Scryfall request, and runs on import, precon load, share links and
 // once per deck per session when a deck opens, so decks saved before this get fixed too.
 function printRec(o) {
@@ -1151,6 +1159,12 @@ function printRec(o) {
 const PIN_SEEN = new Set();
 async function pinPrints(d) {
   if (!d || !d.cards) return 0;
+  // a card with no printing from its source and no printed name: the printing the player owns, when known
+  for (const e of d.cards)
+    if (!e.pid && !e.psc && !e.pn) {
+      const lp = libPrintOf(e.n);
+      if (lp) Object.assign(e, {psc: lp.psc, pcn: lp.pcn});
+    }
   const bySrc = d.cards.filter(e => !e.pid && e.psc),
     byName = d.cards.filter(e => !e.pid && !e.psc && e.pn),
     cmdWant = !!(d.commander && !d.cmdPid && d.cmdSet && d.cmdCn);

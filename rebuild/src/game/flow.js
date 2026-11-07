@@ -199,7 +199,7 @@ function autoAdvance(game) {
     case 'begin-combat':
       if (game.rulesConfig?.autoSkip !== false && !attackOptions(game, p).length) {
         log(game, `${p.displayName} has no creature that can attack — combat is skipped.`);
-        setPhase(game, 'postcombat-main', { noAttackCombat: true });
+        toAfterCombat(game, { noAttackCombat: true });
         return true;
       }
       return false;
@@ -241,7 +241,7 @@ export function nextPhase(game, playerId, { override = false, endTurn: toEnd = f
       const required = validateRequiredAttackers({ game, player: p, draft: [] });
       if (!required.legal && game.mode !== 'freeplay' && !override) throw new GameError(required.reasons[0]);
       log(game, `${p.displayName} does not attack.`);
-      return setPhase(game, 'postcombat-main', { noAttackCombat: true });
+      return toAfterCombat(game, { noAttackCombat: true });
     }
     case 'postcombat-main':
       // "After this phase, there is an additional combat phase" (Aurelia, Relentless Assault).
@@ -371,7 +371,20 @@ function runStep(game, step) {
     queueTriggers(game, { type: 'end-combat', playerId: game.activePlayerId, controllerId: game.activePlayerId });
     return;
   }
-  if (step.t === 'main2') return setPhase(game, 'postcombat-main');
+  if (step.t === 'main2') return toAfterCombat(game);
+}
+
+/** After a combat: an extra combat granted before the second main phase (Moraug) comes first, else the second main phase. */
+function toAfterCombat(game, opts) {
+  if (Number(game.extraBeforeMain2 || 0) > 0) {
+    const p = activePlayer(game);
+    game.extraBeforeMain2 -= 1;
+    p.confirmations = { ...(p.confirmations || {}), attackers: false };
+    game.combatState = { attackers: [], defenders: [], blocks: {}, damage: [], waitingFor: null, resolved: false };
+    log(game, `${p.displayName} begins an additional combat phase.`);
+    return setPhase(game, 'combat');
+  }
+  return setPhase(game, 'postcombat-main', opts);
 }
 
 // ---------------------------------------------------------------------------------------------

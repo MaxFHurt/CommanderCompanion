@@ -79,6 +79,13 @@ function registerManaSource(game, player, card) {
   else
     card.manaCapacityColor = null;
 }
+/** A permanent that became a copy (Thespian's Stage) or stopped being one makes the copied card's mana: register it again. */
+export function refreshManaSource(game, player, card) {
+  if (!player || !card) return;
+  unregisterManaSource(player, card);
+  delete card.manaCapacityOptions; delete card.manaCapacityAmount; delete card.manaCapacityColor; card.manaCapacityRegistered = false;
+  registerManaSource(game, player, card);
+}
 function unregisterManaSource(player, card, { wasTapped = null } = {}) {
   if (!player || !card || !card.manaCapacityRegistered)
     return;

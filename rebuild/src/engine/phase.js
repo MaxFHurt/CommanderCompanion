@@ -1,4 +1,5 @@
 import { expirePlayPermissions } from './effects-catalog.js';
+import { refreshManaSource } from './transactions.js';
 export const TURN_STEPS = ['untap', 'upkeep', 'draw', 'precombat-main', 'combat', 'postcombat-main', 'end-step', 'cleanup'];
 const LABELS = {
   untap: 'Untap', upkeep: 'Upkeep', draw: 'Draw', 'precombat-main': 'Main 1', combat: 'Combat', 'postcombat-main': 'Main 2', 'end-step': 'End Step', cleanup: 'Cleanup',
@@ -57,7 +58,7 @@ export function requiredGatesForPhase(game, phase, player) {
 export function configurePhaseGates(game, phase = game.phase) { const p = game.players?.find(x => x.playerId === game.activePlayerId) || game.players?.[0]; game.phaseGates = requiredGatesForPhase(game, phase, p); return game.phaseGates; }
 function cleanupTemporaryEffects(game) {
   // "… becomes a copy of … until end of turn" (Shifting Woodland) ends.
-  for (const p of game.players || []) for (const c of p.deck?.battlefield || []) if (c.copyUntilTurn !== undefined) { delete c.copyDef; delete c.copyUntilTurn; }
+  for (const p of game.players || []) for (const c of p.deck?.battlefield || []) if (c.copyUntilTurn !== undefined) { delete c.copyDef; delete c.copyUntilTurn; refreshManaSource(game, p, c); }
   // Restore temporary control changes before removing temporary effects.
   const moves = [];
   for (const p of game.players || [])
@@ -117,6 +118,7 @@ export function advanceTurn(game) {
   }
   game.turnNumber++;
   game.extraCombats = 0;
+  game.extraBeforeMain2 = 0;
   // Werewolves: "if no spells were cast last turn" / "if a player cast two or more spells last turn".
   game.lastTurnSpells = { total: Number(game.spellsCastThisTurn || 0), most: Math.max(0, ...(game.players || []).map(p => Number(p.counters?.spellsCastThisTurn || 0))) };
   game.spellsCastThisTurn = 0;
@@ -130,6 +132,7 @@ export function advanceTurn(game) {
   if (next.protectionFromEverything) delete next.protectionFromEverything;
   if (next.lifeLocked) delete next.lifeLocked;
   // "Until your next turn" effects (goad, some dungeon rooms) end as that player's turn begins.
+  if (game.goadEach) game.goadEach = game.goadEach.filter(g => g.by !== next.playerId);
   for (const p of game.players || [])
     for (const c of p.deck?.battlefield || [])
       if ((c.temporaryEffects || []).some(e => e?.expires === `turn-start:${next.playerId}`))

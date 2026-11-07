@@ -2,6 +2,7 @@
 // sends exactly this to remote devices, so hidden cards never leave the host.
 
 import { phaseLabel } from '../engine/phase.js';
+import { goadersOf } from '../engine/rules.js';
 import { effectivePower, effectiveToughness } from '../engine/combat.js';
 import { activePlayer, defOf, isCreature, isLand, playerById } from './helpers.js';
 import {
@@ -171,7 +172,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       }
       if (c.castMode && c.castMode !== 'normal') extra.castMode = c.castMode;
       if (c.kicked) extra.kicked = Number(c.kickCount || 1);
-      if ((c.temporaryEffects || []).some(e => e?.kind === 'goad')) extra.goaded = true;
+      if (goadersOf(game, c, p.playerId).size) extra.goaded = true;
       if (inCombat && attacking.has(c.instanceId)) extra.attacking = attacking.get(c.instanceId);
       if (inCombat && blocking.has(c.instanceId)) extra.blocking = blocking.get(c.instanceId);
       if (own) {

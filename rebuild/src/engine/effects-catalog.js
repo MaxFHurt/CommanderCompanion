@@ -1922,7 +1922,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       H.applyEffectsUnsafe(game, controllerId, [{ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'exile-ids', ids: [hit.card.instanceId] }], requirements: [] }], bindings);
       return true;
     }
-    case 'extra-combat': game.extraCombats = Number(game.extraCombats || 0) + 1; notes.push('There is an additional combat phase this turn.'); return true;
+    case 'extra-combat':
+      // "after this phase": granted in the first main phase or in combat, the extra combat comes before the second main phase
+      // (Moraug); granted in the second main phase it follows it (Relentless Assault, Aurelia).
+      if (['precombat-main', 'combat', 'begin-combat', 'end-combat'].includes(game.phase)) game.extraBeforeMain2 = Number(game.extraBeforeMain2 || 0) + 1;
+      else game.extraCombats = Number(game.extraCombats || 0) + 1;
+      notes.push('There is an additional combat phase this turn.');
+      return true;
     case 'copy-of': {
       const id = H.resolveBoundId(effect, bindings);
       const hit = locateCardInGame(game, id);

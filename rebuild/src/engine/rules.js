@@ -471,7 +471,7 @@ export function validateAttack({ game, attackerId, defenderId, instance, definit
   if (instanceKeyword(instance, definition, 'Defender') && !/can attack as though it didn'?t have defender/i.test(definition?.oracleText || ''))
     reasons.push('A creature with defender cannot attack.');
   // Goaded: it attacks a player other than the goading player(s) if it can.
-  const goaders = new Set((instance?.temporaryEffects || []).filter(e => e?.kind === 'goad').map(e => e.by));
+  const goaders = goadersOf(game, instance, attackerId);
   if (goaders.has(defenderId) && (game.players || []).some(p => !p.eliminated && p.playerId !== attackerId && !goaders.has(p.playerId)))
     reasons.push('This creature is goaded: it must attack a player who did not goad it.');
   const haste = instanceKeyword(instance, definition, 'Haste');
@@ -911,6 +911,17 @@ export function entersBattlefieldTapped({ definition, battlefield = [], definiti
     return true;
   return true;
 }
+/**
+ * Who goads this creature: goad on the creature itself, plus game-wide goads ("creatures your opponents control attack each
+ * combat if able …", Kardur) from a player other than its controller. A game-wide goad also covers creatures that player's
+ * opponents get later (it is a rule about attacking, not a change to the creatures; rule 611.2c).
+ */
+export function goadersOf(game, card, controllerId) {
+  const by = new Set((card?.temporaryEffects || []).filter(e => e?.kind === 'goad').map(e => e.by));
+  if (/Creature/i.test(game?.cardDefinitions?.[card?.definitionId]?.typeLine || ''))
+    for (const g of game?.goadEach || []) if (g.by !== controllerId) by.add(g.by);
+  return by;
+}
 export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
   const reasons = [];
   if (!game || !player)
@@ -918,7 +929,7 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
   const chosen = new Set((draft || []).map(x => x.instanceId));
   const opponents = (game.players || []).filter(p => p.playerId !== player.playerId && !p.eliminated);
   for (const c of player.deck?.battlefield || []) {
-    const goaded = (c.temporaryEffects || []).some(e => e?.kind === 'goad');
+    const goaded = goadersOf(game, c, player.playerId).size > 0;
     if (!combatRestriction(c, 'must-attack') && !goaded)
       continue;
     const d = game.cardDefinitions?.[c.definitionId];

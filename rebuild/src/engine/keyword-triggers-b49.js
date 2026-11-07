@@ -2,6 +2,7 @@
 // Battle cry, Annihilator, Dethrone, Melee, Mentor, Training, Evolve, Fabricate, Renown, Soulshift, Living weapon, Extort,
 // Echo and Cumulative upkeep. Called from keyword-triggers.js with its `add(id, text, effectText, extra)`.
 import { effectivePower, effectiveToughness } from './combat.js';
+import { compileEffectText } from './effects.js';
 
 const strip = text => String(text || '').replace(/\([^()]*\)/g, '');
 const WORD = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
@@ -133,6 +134,20 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
 
   // --- Your upkeep: Echo (the first upkeep after it came under your control), Cumulative upkeep.
   if (onField && event.type === 'upkeep' && event.playerId === me) {
+    // An action cost ("Echo—Discard a card", "Cumulative upkeep—Draw a card", "…—Put a -1/-1 counter on this creature"):
+    // done once per age counter when paid, if it compiles to effects that need no choice; otherwise it stays by hand.
+    const act = (kw) => { const m = strip(text).match(new RegExp(`(?:^|\\n)\\s*${kw}\\s*[—-]\\s*([A-Z][^\\n]*?\\.)\\s*(?:$|\\n)`)); if (!m || /^Pay /i.test(m[1])) return null;
+      const r = compileEffectText(m[1].replace(/\bthis creature\b|\bthis permanent\b/gi, 'SELFNAME'), { sourceName: 'SELFNAME' }); return r.supported && r.effects.length && !(r.requirements || []).length ? { text: m[1], effects: r.effects } : null; };
+    const echoAct = act('Echo');
+    if (echoAct && card.echoDone !== true && Number(card.controlSinceTurn ?? card.enteredTurn ?? 0) < Number(game.turnNumber)) {
+      card.echoDone = true;
+      add('echo', `Echo — ${echoAct.text} Do it or sacrifice this permanent.`, '', compiled([{ kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: echoAct.text, doEffects: echoAct.effects }, { kind: 'sacrifice', bind: 'sourceId' }]));
+    }
+    const cuAct = act('Cumulative upkeep');
+    if (cuAct) {
+      const age = Number(card.counters?.age || 0) + 1;
+      add('cumulative-upkeep', `Cumulative upkeep — put an age counter on it, then ${cuAct.text.replace(/\.$/, '')} × ${age} or sacrifice it.`, '', compiled([{ kind: 'counter', bind: 'sourceId', counter: 'age', amount: 1 }, { kind: 'may-pay', cost: '', lifeCost: 0, skip: 1, invert: true, doText: `${cuAct.text.replace(/\.$/, '')} × ${age}`, doEffects: cuAct.effects, times: age }, { kind: 'sacrifice', bind: 'sourceId' }]));
+    }
     const echo = strip(text).match(new RegExp(`(?:^|\\n)\\s*Echo ${COST}`, 'i'));
     if (echo && card.echoDone !== true && Number(card.controlSinceTurn ?? card.enteredTurn ?? 0) < Number(game.turnNumber)) {
       card.echoDone = true;

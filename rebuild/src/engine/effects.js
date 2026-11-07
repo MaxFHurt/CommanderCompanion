@@ -640,6 +640,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'may-pay') {
       // Paid (or not) as the stack object resolved, in ops.js.
       // "Sacrifice this creature unless you pay {2}": paying skips what follows instead.
+      if (effect.doEffects && bindings.mayPaid) for (let k = 0; k < Math.max(1, Number(effect.times || 1)); k++) notes.push(...applyEffectsUnsafe(game, controllerId, effect.doEffects, bindings));
       if (effect.invert ? bindings.mayPaid : !bindings.mayPaid) { bindings.skipEffects = effect.skip || 0; notes.push(effect.invert ? 'It was paid for.' : 'Nothing was paid.'); }
       continue;
     }
@@ -708,6 +709,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const p of game.players.filter(x => x.playerId !== controllerId && !x.eliminated))
         for (const c of p.deck?.battlefield || [])
           if (cardMatchesFilter(game, c, 'creature')) { c.temporaryEffects = c.temporaryEffects || []; c.temporaryEffects.push({ kind: 'goad', by: controllerId, expires: `turn-start:${controllerId}` }); n++; }
+      // and the creatures they get before then (goadersOf)
+      game.goadEach = [...(game.goadEach || []).filter(g => g.by !== controllerId), { by: controllerId }];
       notes.push(`${n} creature${n === 1 ? ' is' : 's are'} goaded.`);
       continue;
     }

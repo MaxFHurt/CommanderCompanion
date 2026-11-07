@@ -1251,7 +1251,12 @@ function runResolve(game, op, ask) {
   const mayPay = (top.effects || []).find(e => e.kind === 'may-pay');
   // Springheart Nantuko: "you may pay {1}{G} if this permanent is attached to a creature you control" — not asked otherwise.
   const attachedOk = !mayPay?.onlyIfAttached || (() => { const src = (game.players || []).flatMap(p => p.deck.battlefield || []).find(c => c.instanceId === bindings.sourceId); const host = src?.attachedTo && player.deck.battlefield.find(c => c.instanceId === src.attachedTo); return !!host && /\bCreature\b/.test(defOf(game, host)?.typeLine || ''); })();
-  if (mayPay && attachedOk) {
+  if (mayPay && attachedOk && mayPay.doText) {
+    // Echo / Cumulative upkeep paid with an action: do it (once per age counter) or sacrifice the permanent.
+    const pay = ask('may-pay', () => ({ ...base, kind: 'choose-one', title: `${name} — pay the cost?`, prompt: `${top.text || name}`,
+      options: [{ id: 'pay', label: mayPay.doLabel || `Pay: ${mayPay.doText}` }, { id: 'no', label: 'Don\u2019t pay (sacrifice it)' }] }));
+    if (pay === 'pay') bindings.mayPaid = true;
+  } else if (mayPay && attachedOk) {
     const life = Number(mayPay.lifeCost || 0);
     const plan = planMana(playerManaAvailability(player, game), mayPay.cost, 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - life) });
     const can = plan.ok && Number(player.life || 0) >= life;
@@ -1264,16 +1269,27 @@ function runResolve(game, op, ask) {
     }
   }
 
-  // Dredge: for each card its controller would draw from this, they may dredge instead (asked now, done as it resolves).
-  const draws = (top.effects || []).filter(e => e.kind === 'draw' && ['you', 'each-player', 'all'].includes(e.scope || 'you') && !e.forPlayerBind && !e.bind).reduce((n, e) => n + (typeof e.amount === 'number' ? e.amount : 0), 0);
-  const plan = [];
-  for (let k = 0; k < Math.min(draws, 10); k++) {
-    const options = dredgeOptions(game, player).filter(o => !plan.some(x => x.id === o.id));
-    if (!options.length) break;
-    const v = ask(`dredge:${k}`, () => ({ ...base, kind: 'choose-one', title: `${name} — draw ${k + 1}`, prompt: 'Draw the card, or dredge instead (mill and return the dredge card to your hand)?', options: [{ id: 'draw', label: 'Draw' }, ...options.map(o => ({ id: o.id, label: `Dredge ${o.name} (mill ${o.n})` }))] }));
-    plan.push(v === 'draw' ? null : options.find(o => o.id === v));
+  // Dredge: for each card a player would draw from this, that player may dredge instead (asked of that player now, done as it
+  // resolves): the controller ("draw two"), every player ("each player draws"), the opponents, or the target player.
+  const drawsFor = new Map();
+  for (const e of (top.effects || []).filter(x => x.kind === 'draw' && !x.forPlayerBind && typeof x.amount === 'number')) {
+    const sc = e.scope || 'you', alive = (game.players || []).filter(p => !p.eliminated);
+    const who = sc === 'you' ? [player] : ['each-player', 'all'].includes(sc) ? alive : sc === 'opponents' ? alive.filter(p => p.playerId !== player.playerId)
+      : (e.bind || e.playerId) ? [playerById(game, e.playerId || bindings[e.bind])].filter(Boolean) : [];
+    for (const p of who) drawsFor.set(p.playerId, (drawsFor.get(p.playerId) || 0) + e.amount);
   }
-  if (plan.some(Boolean)) bindings.dredgePlan = { [player.playerId]: plan };
+  const dredgePlan = {};
+  for (const [pid, draws] of drawsFor) {
+    const who = playerById(game, pid), plan = [];
+    for (let k = 0; k < Math.min(draws, 10); k++) {
+      const options = dredgeOptions(game, who).filter(o => !plan.some(x => x.id === o.id));
+      if (!options.length) break;
+      const v = ask(pid === player.playerId ? `dredge:${k}` : `dredge:${pid}:${k}`, () => ({ ...base, playerId: pid, kind: 'choose-one', title: `${name} — draw ${k + 1}`, prompt: 'Draw the card, or dredge instead (mill and return the dredge card to your hand)?', options: [{ id: 'draw', label: 'Draw' }, ...options.map(o => ({ id: o.id, label: `Dredge ${o.name} (mill ${o.n})` }))] }));
+      plan.push(v === 'draw' ? null : options.find(o => o.id === v));
+    }
+    if (plan.some(Boolean)) dredgePlan[pid] = plan;
+  }
+  if (Object.keys(dredgePlan).length) bindings.dredgePlan = dredgePlan;
 
   // Everything is answered: apply.
   if (top.search) {

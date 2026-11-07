@@ -1118,10 +1118,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         nm = val.slice(2);
         const pc = PRECONS.find(y => y.name === nm);
         k = libAddList(
-          PRECON_LISTS[nm].split(';').map(x => {
-            const m = /^(\d+) (.+)$/.exec(x);
-            return {n: m ? m[2] : x, q: m ? +m[1] : 1};
-          }),
+          PRECON_LISTS[nm].split(';').map(preconEntry),
           (pc && (pc.cmd || pc.commander)) || ''
         );
       }
