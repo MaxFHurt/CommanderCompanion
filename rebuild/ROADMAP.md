@@ -25,6 +25,16 @@ interactions in the card window; the stylesheet cleanup (pixel-identical); nine 
 the mechanics the glossary still marks manual (113, most rare: Connive and Forage are the common ones; Connive needs its
 discard asked after the draw), practice games with bots (5.3), online-game privacy (4.2), and the owner's questions/approvals.
 
+**Round of 7 Nov, part 2 (owner: "do them all"), build 75 — done:** Modular moves its counters when it dies (the
+controller is asked, onto a target artifact creature); Companion (a deck's companion sits outside the game, {3}: put it in
+hand as a special action, once; imported from a "Companion" section and set in the Deck Builder); voting (Will of the council,
+Council's dilemma: every player asked in turn order); Suspect, Devour, Sunburst and Awaken. **Rare old mechanics** (banding,
+haunt, cipher, assist, forecast, attractions) stay by hand: each needs its own rules work for a handful of cards.
+**Online-game privacy, feasibility (step 0):** the rules engine bundles to 819 KB (228 KB compressed), under the Worker size
+limit. One action plus every player's view takes 7 ms (median) on this machine, 14 ms at p90, 24 ms at p99. The free plan's
+10 ms CPU per request is exceeded by about 28% of actions, so the Worker would need the paid plan ($5/month, 30 s CPU). A
+4-player game is about 170 KB of state, which the existing SQLite Durable Object can hold. Owner's decision before building.
+
 ---
 
 ## 1. Check first after the reset (owed from the minimum-testing week)
@@ -57,7 +67,7 @@ discard asked after the draw), practice games with bots (5.3), online-game priva
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
    the answer key. Tools: `tools/rules-audit.mjs`, the Scryfall bulk file split into 4 chunks. (RULES_AUDIT.md, PROGRESS.md)
 2. **Mechanics still resolved by hand:** suspend, spectacle, fuse/split, splice (other than onto Arcane), cipher,
-   attractions/stickers, banding, haunt, assist, companion, forecast, flip cards, Rooms, Class levels, and anything the terms
+   attractions/stickers, banding, haunt, assist, forecast, flip cards, Rooms, Class levels, and anything the terms
    key marks "manual" or "partial".
 3. **Known rule limits (Moraug, Kardur, copied lands, Dredge, Echo/Cumulative upkeep action costs: done, build 68; Cumulative
    upkeep and Echo costs that need a choice, such as "Sacrifice a creature", stay by hand):**
@@ -96,7 +106,8 @@ suggested tools first, "that card" carried from step to step, applied as one cha
    the room with the same code, every connected device follows. Single-device games already travel with the profile
    (build 53); online "play over time" games live on the Worker and their list travels with the profile.
 2. **Online games privacy:** each device holds the whole game (it runs the rules), so someone using developer tools could
-   read other hands. Fine between friends; a fix would need the Worker to hold hidden information.
+   read other hands. Fine between friends; a fix would need the Worker to hold hidden information. Feasibility checked
+   7 Nov (top of this file): it fits, but needs the paid Workers plan for CPU time.
 3. **Native iOS wrapper with Multipeer Connectivity** (true Bluetooth): on hold (owner, 1 Nov). Needs an Apple Developer
    account and a Mac.
 
