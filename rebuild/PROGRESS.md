@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.73 (Deck Builder {"build": 190, "version": "0.9.45"})
+- **Live build:** 1.0.0-rebuild.74 (Deck Builder {"build": 190, "version": "0.9.45"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 74 — 2 Nov 2026
+- Mechanics: **Suspect** (menace and can't block while suspected), **Devour** (as it enters, sacrifice any number of creatures; N +1/+1 counters each), **Sunburst** (a counter per colour of mana spent; the spell records colorsSpent), **Awaken** (a cast mode that adds the land animation). Glossary labels updated. Still by hand, each a sizeable piece: Companion (a companion slot in decks and import, the outside-the-game zone, the {3} action; conditions per card), Vote / Council's dilemma (per-card outcomes), Modular's dies transfer, and the rare old mechanics (Banding, Haunt, Cipher, Assist …). Tests: every suite (catalog 378).
 
 ### Build 73 — 2 Nov 2026
 - Mechanics: **Forage** as a cost (exile three graveyard cards or sacrifice a Food, the player chooses), **Vanishing**, **Fading**, **Modular** and **Bloodthirst** counters as it enters, Vanishing and Fading upkeep (new condition b49-own-counters), **Landwalk** (attack-time cant-be-blocked), **Decayed** (can't block; sacrificed at end of combat after attacking). Connive, Explore and Populate were already automatic: Connive and Populate are now labelled so (Connive tested). Modular's dies-transfer stays by hand (glossary: partial). Deck Builder 0.9.45 (build 190): ENGINE_ROLES also adds the removal, draw or ramp the game engine reads on cards the Deck Builder reads only partly (69 cards; role-compare now measures the Deck Builder's own reader); benchmark unchanged. Tests: every suite (catalog 374), Deck Builder UI 128/128. Practice games with bots: held by the owner (7 Nov).
