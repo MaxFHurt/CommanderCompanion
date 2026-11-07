@@ -1,4 +1,4 @@
-// An online game ("play over time"): every player's device runs the game, and the shared copy
+// An online game ("play over time"). Games made before build 76: every player's device runs the game, and the shared copy
 // lives online (src/net/online.js). After each of this player's actions the device saves; while it
 // waits it checks every few seconds for the other players' moves. If someone else saved first,
 // this device takes their copy and repeats its own actions on top, so no move is lost.
@@ -8,8 +8,8 @@ import { sendCorrections } from '../net/corrections.js';
 import { attachOutcomes } from '../net/outcomes.js';
 import { createController } from '../game/controller.js';
 import { saveRecord, loadRecord } from '../data/store.js';
-import { fetchOnlineGame, saveOnlineGame } from '../net/online.js';
-import { rememberOnlineGame } from './online-games.js';
+import { fetchOnlineGame, saveOnlineGame, fetchServerGame, actServerGame } from '../net/online.js';
+import { rememberOnlineGame, onlineGame } from './online-games.js';
 import { toast } from '../ui/toast.js';
 
 const localKey = code => `cc-online:${code}`;
@@ -178,5 +178,98 @@ function onlineSession({ code, rev, game, seatId, lastJson, offline }) {
   mount(game);
   document.addEventListener('visibilitychange', onVisible);
   if (lastJson === '') save(); else schedule();
+  return session;
+}
+
+// ── Games on the rules server (build 76) ──────────────────────────────────────────────────────────────────────────
+// The device holds only its own player's view, like a device that joined a hosted room. Each move goes to the server,
+// which checks it with the rules and answers with the new view; while waiting the device checks for the others' moves.
+
+/**
+ * Open a game on the rules server with this seat's key. Returns { session }, { lobby: { rev, lobby, you } } while seats
+ * are filling, or { noSeat: true, seats } when this device has no key for a seat. Throws OnlineError (404: not there).
+ */
+export async function openServerGame(code, { key = '' } = {}) {
+  const got = await fetchServerGame(code, key);
+  if (got.phase === 'lobby') return { lobby: got };
+  if (!got.view) return { noSeat: true, seats: got.seats || [] };
+  const row = onlineGame(code) || {};
+  rememberOnlineGame({ code, key, server: true, playerId: got.view.you, name: got.view.players.find(p => p.playerId === got.view.you)?.name || row.name, names: got.view.players.map(p => p.name), mode: got.view.mode || row.mode });
+  return { session: serverSession({ code, key, rev: got.rev, view: got.view }) };
+}
+
+function serverSession({ code, key, rev, view: first }) {
+  const listeners = new Set(), defs = {};
+  const merge = v => { Object.assign(defs, v.defs || {}); return { ...v, defs }; };
+  let view = merge(first), state = 'saved', closed = false, timer = null, sending = 0, lastActivity = Date.now();
+  const emit = () => { for (const fn of listeners) fn(); };
+  const myMove = () => !!view && view.status !== 'complete' && view.prompt?.kind !== 'waiting';
+
+  function take(next, nextRev) {
+    const before = myMove();
+    view = merge(next); rev = nextRev;
+    emit();
+    if (!before && myMove()) toast('Your move.');
+  }
+
+  function setState(next) {
+    if (next === state) return;
+    const was = state;
+    state = next;
+    if (next === 'offline') toast('No connection: your moves wait until it is back.', { bad: true, ms: 4500 });
+    else if (was === 'offline') toast('Back online.');
+    emit();
+  }
+
+  async function poll() {
+    if (closed) return;
+    if (!sending) {
+      try {
+        const latest = await fetchServerGame(code, key, rev);
+        setState('saved');
+        if (latest?.view && !closed && !sending) { lastActivity = Date.now(); take(latest.view, latest.rev); }
+      } catch (error) { if (!error.status) setState('offline'); }
+    }
+    schedule();
+  }
+
+  function schedule() {
+    clearTimeout(timer);
+    if (closed) return;
+    const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+    timer = setTimeout(poll, hidden ? HIDDEN : Date.now() - lastActivity < QUIET_AFTER ? FAST : SLOW);
+  }
+  const onVisible = () => { if (document.visibilityState === 'visible') { lastActivity = Date.now(); clearTimeout(timer); poll(); } };
+
+  const session = {
+    role: 'online', isHost: false, code, server: true,
+    viewerId: () => view?.you || null,
+    view: () => view,
+    async send(intent) {
+      sending++;
+      lastActivity = Date.now();
+      try {
+        const done = await actServerGame(code, intent, key);
+        setState('saved');
+        if (done.view) take(done.view, done.rev);
+        return done.result || { ok: false, error: 'The online game service did not answer.' };
+      } catch (error) {
+        if (!error.status) setState('offline');
+        return { ok: false, error: error.message || 'The move did not go through. Try again.' };
+      } finally { sending--; }
+    },
+    onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    status: () => state,
+    myMove: () => myMove(),
+    saveNow: () => {},
+    close() {
+      closed = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+      listeners.clear();
+    }
+  };
+  document.addEventListener('visibilitychange', onVisible);
+  schedule();
   return session;
 }

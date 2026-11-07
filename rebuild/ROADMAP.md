@@ -30,10 +30,13 @@ controller is asked, onto a target artifact creature); Companion (a deck's compa
 hand as a special action, once; imported from a "Companion" section and set in the Deck Builder); voting (Will of the council,
 Council's dilemma: every player asked in turn order); Suspect, Devour, Sunburst and Awaken. **Rare old mechanics** (banding,
 haunt, cipher, assist, forecast, attractions) stay by hand: each needs its own rules work for a handful of cards.
-**Online-game privacy, feasibility (step 0):** the rules engine bundles to 819 KB (228 KB compressed), under the Worker size
-limit. One action plus every player's view takes 7 ms (median) on this machine, 14 ms at p90, 24 ms at p99. The free plan's
-10 ms CPU per request is exceeded by about 28% of actions, so the Worker would need the paid plan ($5/month, 30 s CPU). A
-4-player game is about 170 KB of state, which the existing SQLite Durable Object can hold. Owner's decision before building.
+**Online-game privacy — done, build 76 (owner: "pass turns to a player offline… but I cannot pay"):** new online games run
+on a rules server, a Supabase Edge Function on the owner's free Supabase project (2 s CPU per request; one move takes about
+35 ms cold). The game is dealt there and lives only there; each device sends its moves and gets only its own player's view,
+so no device ever holds another player's hand or library. Seats have private keys (the server keeps their hashes); the
+online profile carries them to the player's other devices; a device with only the code gets names, never a view. Moves
+need a connection (offline moves are refused, not queued). Games made before build 76 carry on the old way on the Worker.
+Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so it was not safe to rely on.
 
 ---
 
@@ -106,8 +109,8 @@ suggested tools first, "that card" carried from step to step, applied as one cha
    the room with the same code, every connected device follows. Single-device games already travel with the profile
    (build 53); online "play over time" games live on the Worker and their list travels with the profile.
 2. **Online games privacy:** each device holds the whole game (it runs the rules), so someone using developer tools could
-   read other hands. Fine between friends; a fix would need the Worker to hold hidden information. Feasibility checked
-   7 Nov (top of this file): it fits, but needs the paid Workers plan for CPU time.
+   read other hands. **Done for online games, build 76** (top of this file): they run on the free Supabase rules server.
+   Still true for hosted live games: the host device holds the game (a device nobody plays on avoids it).
 3. **Native iOS wrapper with Multipeer Connectivity** (true Bluetooth): on hold (owner, 1 Nov). Needs an Apple Developer
    account and a Mac.
 

@@ -108,13 +108,13 @@ async def main():
             for pg in (a, b):
                 await pg.wait_for_selector('text=opening hand', timeout=15000)
             check('each player sees their own 7 cards', await a.locator('.modal .card').count() == 7 and await b.locator('.modal .card').count() == 7)
-            same = await asyncio.gather(*(session_eval(pg, "return JSON.stringify(s.game.players.map(p => p.deck.remainingLibrary.map(c => c.instanceId)))") for pg in (a, b)))
-            check('both devices start from the same shuffled table', same[0] == same[1])
+            held = await asyncio.gather(*(session_eval(pg, "return [s.server === true, s.game === undefined, JSON.stringify(s.view()).includes('remainingLibrary')]") for pg in (a, b)))
+            check('the game is dealt and run on the server: no device holds the whole game', all(h == [True, True, False] for h in held), str(held))
             hidden = await session_eval(b, "const v = s.view(); return { opp: v.players.find(p => p.playerId !== v.you).hand, lib: JSON.stringify(v).includes('remainingLibrary') };")
             check('Lex cannot see Aaron\'s hand', hidden['opp'] is None and not hidden['lib'], str(hidden))
 
             await a.click('#keepHand')
-            await b.wait_for_function("(async () => { const { getSession } = await import('./src/app/session.js'); const g = getSession().game; return g.flow.opening[g.players[0].playerId].kept; })()", timeout=15000)
+            await b.wait_for_function("(async () => { const { getSession } = await import('./src/app/session.js'); return getSession().view().log.some(e => /Aaron keeps/.test(e.text)); })()", timeout=15000)
             check('Aaron keeping reaches Lex', True)
             await b.click('#keepHand')
             await a.wait_for_function("document.querySelectorAll('.zone--hand .card').length === 8", timeout=15000)
@@ -122,30 +122,30 @@ async def main():
             check('Lex is waiting on Aaron', 'Aaron' in await b.locator('.tip').text_content())
 
             # Refused: acting for the other player, host powers.
-            r = await session_eval(b, "return [await s.send({ type: 'pass', as: s.game.players[0].playerId }), await s.send({ type: 'edit', edit: { kind: 'life', playerId: s.view().you, delta: 50 } })];")
+            r = await session_eval(b, "return [await s.send({ type: 'pass', as: s.view().players.find(p => p.playerId !== s.view().you).playerId }), await s.send({ type: 'edit', edit: { kind: 'life', playerId: s.view().you, delta: 50 } })];")
             check('an online device cannot act for another player or edit the game', all(not x['ok'] for x in r), str(r))
 
             # Aaron plays a land; Lex sees it.
             land = a.locator('.zone--hand .card.is-playable').first
             if await land.count():
                 await land.click(); await a.click('.modal .btn--confirm')
-                ok = await b.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); const g = getSession().game; return g.players[0].deck.battlefield.length === 1; }""", timeout=15000)
+                ok = await b.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); const v = getSession().view(); return v.players.find(p => p.playerId !== v.you).battlefield.length === 1; }""", timeout=15000)
                 check('Aaron\'s land reaches Lex\'s device', bool(ok))
 
-            # Both chat at the same moment: the second save is refused, catches up and repeats its message.
+            # Both chat at the same moment: the server plays the second one again on the newer game.
             await asyncio.gather(session_eval(a, "return s.send({ type: 'chat', text: 'from Aaron' });"), session_eval(b, "return s.send({ type: 'chat', text: 'from Lex' });"))
             for pg in (a, b):
-                await pg.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); const t = getSession().game.chat.map(c => c.text); return t.includes('from Aaron') && t.includes('from Lex'); }""", timeout=20000)
+                await pg.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); const t = getSession().view().chat.map(c => c.text); return t.includes('from Aaron') && t.includes('from Lex'); }""", timeout=20000)
             check('two moves at the same time both survive', True)
 
-            # Offline: Lex's chat waits on the device, then saves when the connection is back.
+            # Offline: the move is not made (the server checks every move) and the device says so; it works again once back.
             await b.route(WORKER, lambda r: r.abort())
-            await session_eval(b, "return s.send({ type: 'chat', text: 'offline hello' });")
-            await b.wait_for_timeout(600)
-            check('offline device says so', (await session_eval(b, "return s.status();")) == 'offline')
+            off = await session_eval(b, "return s.send({ type: 'chat', text: 'offline hello' });")
+            check('offline: the move is refused and the device says so', not off['ok'] and (await session_eval(b, "return s.status();")) == 'offline', str(off))
             await b.unroute(WORKER)
-            await a.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); return getSession().game.chat.some(c => c.text === 'offline hello'); }""", timeout=30000)
-            check('the move saves when the connection is back', True)
+            back = await session_eval(b, "return s.send({ type: 'chat', text: 'back hello' });")
+            await a.wait_for_function("""async () => { const { getSession } = await import('./src/app/session.js'); return getSession().view().chat.some(c => c.text === 'back hello'); }""", timeout=30000)
+            check('moves go through again when the connection is back', back['ok'] and (await session_eval(b, "return s.status();")) == 'saved')
 
             # Aaron closes the app and opens the game again later.
             await a.reload(); await a.wait_for_function('window.__ccReady === true')
@@ -158,12 +158,17 @@ async def main():
             await a.wait_for_selector('.game', timeout=15000)
             check('reopened game has the same table', await a.locator('.zone--hand .card').count() >= 7)
 
-            # A third device that never played here picks a seat.
+            # A third device with only the code gets no seat (and no view); with Lex's games list (the online profile) it is Lex.
             c = await new_page(browser, PHONE, Q)
             await open_online(c)
             await c.fill('[data-code]', code); await c.click('[data-act="join-code"]')
-            await c.wait_for_selector('text=Which player are you?')
-            await c.click('[data-act="pick-seat"] >> text=Lex')
+            await c.wait_for_selector('text=no seat in this game')
+            check('a device with only the code cannot open a seat', await c.locator('.game').count() == 0)
+            rows = await b.evaluate("localStorage.getItem('cc-online-games')")
+            await c.evaluate(f"localStorage.setItem('cc-online-games', {repr(rows)})")
+            await c.reload(); await c.wait_for_function('window.__ccReady === true')
+            await open_online(c)
+            await c.click(f'[data-act="open"][data-code="{code}"]')
             await c.wait_for_selector('.game', timeout=15000)
             check('a new device can carry on as Lex', (await session_eval(c, "return s.view().you;")) == (await session_eval(b, "return s.view().you;")))
 

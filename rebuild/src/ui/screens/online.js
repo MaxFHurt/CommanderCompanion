@@ -11,9 +11,10 @@ import { seatFormHtml, readSeatForm, handleSeatAction } from '../seat-form.js';
 import { prepareSeats, buildGame } from '../../app/start-game.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
 import { deviceClientId } from '../../net/room.js';
-import { fetchOnlineGame, takeOnlineSeat, saveOnlineGame, onlineSummary, onlineSeat, newCodeOk } from '../../net/online.js';
-import { listOnlineGames, rememberOnlineGame, forgetOnlineGame } from '../../app/online-games.js';
-import { openOnlineGame } from '../../app/online-session.js';
+import { fetchOnlineGame, takeOnlineSeat, saveOnlineGame, onlineSummary, onlineSeat, newCodeOk, fetchServerGame, takeServerSeat, serverSummary, newSeatKey } from '../../net/online.js';
+import { listOnlineGames, rememberOnlineGame, forgetOnlineGame, onlineGame } from '../../app/online-games.js';
+import { openOnlineGame, openServerGame } from '../../app/online-session.js';
+import { recordDeckSelection } from '../../data/profile.js';
 import { useSession } from '../../app/session.js';
 import { settle } from '../../game/flow.js';
 import { actorId } from '../../game/view.js';
@@ -26,6 +27,7 @@ export const onlineScreen = {
     const clientId = deviceClientId();
     const mode = params.mode || 'fully-tracked';
     let stage = 'list', code = '', lobby = null, rev = 0, busy = false, left = false, timer = null;
+    let server = false;   // this game is on the rules server (build 76); false: a Worker game from before
     let seat = emptySeat(accountSetupDefaults().displayName || '');
     const summaries = new Map();   // code → summary from the server
 
@@ -119,7 +121,7 @@ export const onlineScreen = {
 
     async function refreshSummaries() {
       for (const r of listOnlineGames()) {
-        try { summaries.set(r.code, (await onlineSummary(r.code)).summary); }
+        try { summaries.set(r.code, (await (r.server ? serverSummary(r.code) : onlineSummary(r.code))).summary); }
         catch (error) { summaries.set(r.code, { error: error.status === 404 ? 'No longer online' : 'Offline' }); }
         if (left) return;
         if (stage === 'list') draw();
@@ -132,7 +134,24 @@ export const onlineScreen = {
       code = String(target || '').trim().toUpperCase();
       if (!newCodeOk(code)) return toast('Enter the six-letter game code.');
       busy = true;
+      const row = onlineGame(code);
       try {
+        // Games on the rules server first; a code it does not know may be a game from before build 76.
+        if (!row || row.server) {
+          try {
+            const result = await openServerGame(code, { key: row?.key || '' });
+            if (left) return result.session?.close();
+            server = true;
+            if (result.session) { useSession(result.session); left = true; return go('game'); }
+            if (result.noSeat) return toast('This device has no seat in this game. Open it on the device you joined with, or load your online profile on this one.', { bad: true, ms: 6000 });
+            lobby = result.lobby.lobby; rev = result.lobby.rev;
+            if (result.lobby.you >= 0) { stage = 'wait'; draw(); return waitLoop(); }
+            if (lobby.seats.length >= lobby.seatsWanted) return toast('All seats in this game are taken.', { bad: true });
+            stage = 'join'; draw();
+            return;
+          } catch (error) { if (error.status !== 404 || row?.server) throw error; }
+        }
+        server = false;
         const result = await openOnlineGame(code, { clientId, playerId });
         if (left) return result.session?.close();
         if (result.session) { useSession(result.session); left = true; return go('game'); }
@@ -154,8 +173,18 @@ export const onlineScreen = {
       try {
         const rows = await prepareSeats([seat], { mode: lobby.mode, rules: lobby.rules || {} });
         if (!rows || left) return;
-        const done = await takeOnlineSeat(code, onlineSeat(rows[0].seat, clientId));
-        rememberOnlineGame({ code, clientId, name: seat.name.trim(), names: [...lobby.seats.map(s => s.name), seat.name.trim()], mode: lobby.mode });
+        const names = [...lobby.seats.map(s => s.name), seat.name.trim()];
+        let done;
+        if (server) {
+          const key = newSeatKey();
+          done = await takeServerSeat(code, onlineSeat(rows[0].seat, clientId), key);
+          rememberOnlineGame({ code, clientId, key, server: true, name: seat.name.trim(), names, mode: lobby.mode });
+          const s0 = rows[0].seat;
+          recordDeckSelection({ playerName: s0.name, deckId: s0.deckId, deckName: s0.deckName, commander1: s0.commanderNames?.[0] || '', commander2: s0.commanderNames?.[1] || '', source: s0.sourceType }).catch(() => {});
+        } else {
+          done = await takeOnlineSeat(code, onlineSeat(rows[0].seat, clientId));
+          rememberOnlineGame({ code, clientId, name: seat.name.trim(), names, mode: lobby.mode });
+        }
         rev = done.rev;
         busy = false;
         await open(code);
@@ -169,6 +198,15 @@ export const onlineScreen = {
       clearTimeout(timer);
       if (left || stage !== 'wait') return;
       try {
+        if (server) {
+          // The server deals the game when the last seat is taken.
+          const latest = await fetchServerGame(code, onlineGame(code)?.key || '', rev);
+          if (left) return;
+          if (latest?.phase === 'playing') return open(code);
+          if (latest) { lobby = latest.lobby; rev = latest.rev; draw(); }
+          timer = setTimeout(waitLoop, WAIT_POLL);
+          return;
+        }
         const latest = await fetchOnlineGame(code, rev);
         if (left) return;
         if (latest?.game) return open(code);

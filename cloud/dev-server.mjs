@@ -4,6 +4,7 @@
 
 import http from 'node:http';
 import worker, { GameStore } from './worker.js';
+import { rulesServer, memoryStore } from './rules-server.mjs';
 
 const port = Number(process.argv[2] || 8787);
 
@@ -43,12 +44,19 @@ const env = {
   }
 };
 
+// The rules server for online games (live on Supabase) under /rules: /rules/games/... here, /functions/v1/games/... live.
+const rules = rulesServer({
+  store: memoryStore(),
+  outcomes: async () => (await (await worker.fetch(new Request(`http://127.0.0.1:${port}/outcomes`), env)).json()).outcomes || {},
+  corrections: async records => worker.fetch(new Request(`http://127.0.0.1:${port}/corrections`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ records }) }), env)
+});
+
 http.createServer(async (req, res) => {
   const chunks = [];
   for await (const c of req) chunks.push(c);
   const body = chunks.length ? Buffer.concat(chunks) : undefined;
   const request = new Request(`http://127.0.0.1:${port}${req.url}`, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body });
-  const out = await worker.fetch(request, env);
+  const out = req.url.startsWith('/rules') ? await rules(request) : await worker.fetch(request, env);
   res.writeHead(out.status, Object.fromEntries(out.headers));
   res.end(Buffer.from(await out.arrayBuffer()));
 }).listen(port, '127.0.0.1', () => console.log(`Online games test server on http://127.0.0.1:${port}`));

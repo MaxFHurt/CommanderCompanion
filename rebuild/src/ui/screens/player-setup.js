@@ -4,14 +4,14 @@
 import { html, setHtml, on, $ } from '../dom.js';
 import { go } from '../../app/router.js';
 import { toast } from '../toast.js';
-import { accountSetupDefaults, loadProfile } from '../../data/profile.js';
+import { accountSetupDefaults, loadProfile, recordDeckSelection } from '../../data/profile.js';
 import { listDecks } from '../../data/deck-store.js';
 import { emptySeat } from '../../app/seat-setup.js';
 import { seatFormHtml, readSeatForm, handleSeatAction } from '../seat-form.js';
 import { prepareSeats, confirmSeats, chooseRules, buildGame } from '../../app/start-game.js';
 import { startLocalSession } from '../../app/session.js';
 import { deviceClientId } from '../../net/room.js';
-import { createOnlineGame, onlineSeat } from '../../net/online.js';
+import { createServerGame, onlineSeat, newSeatKey } from '../../net/online.js';
 import { rememberOnlineGame } from '../../app/online-games.js';
 import { PLAYER_COLORS } from '../../game/setup.js';
 import { openDeckBuilder } from '../../data/deck-builder.js';
@@ -93,8 +93,14 @@ export const playerSetupScreen = {
       if (!choice) return;
       toast('Creating the game…');
       const clientId = deviceClientId();
-      const made = await createOnlineGame({ mode, rules: { ...choice.rules, priorityTimer: 0 }, firstPlayer: choice.firstPlayer, seatsWanted: 1 + remote, seats: [onlineSeat(prepared[0].seat, clientId)] });
-      rememberOnlineGame({ code: made.code, clientId, name: prepared[0].seat.name, names: [prepared[0].seat.name], mode });
+      // On the rules server (build 76): the game is dealt and run there, so no device holds another player's hand.
+      const key = newSeatKey();
+      let made;
+      try { made = await createServerGame({ mode, rules: { ...choice.rules, priorityTimer: 0 }, firstPlayer: choice.firstPlayer, seatsWanted: 1 + remote, seats: [onlineSeat(prepared[0].seat, clientId)] }, key); }
+      catch (error) { return toast(error.message || 'The online game could not be created.', { bad: true, ms: 4500 }); }
+      rememberOnlineGame({ code: made.code, clientId, key, server: true, name: prepared[0].seat.name, names: [prepared[0].seat.name], mode });
+      const s0 = prepared[0].seat;
+      recordDeckSelection({ playerName: s0.name, deckId: s0.deckId, deckName: s0.deckName, commander1: s0.commanderNames?.[0] || '', commander2: s0.commanderNames?.[1] || '', source: s0.sourceType }).catch(() => {});
       go('online', { mode, code: made.code });
     }
 

@@ -189,6 +189,16 @@ what each part does, the owner's rules, open notes, and the roadmap.
   Deploy the Worker: `sh cloud/deploy.sh` (needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, set in the
   cloud environment). Games nobody opens for 120 days are deleted. Free Cloudflare plan: 100,000 requests a
   day, far more than a few games need.
+  **Build 76: new online games run on the rules server** (`cloud/rules-server.mjs`), so no device holds another
+  player's hand. Live: the Supabase Edge Function `games` on the owner's free project `wdngytwilqxcdoqtefgg`
+  (`https://wdngytwilqxcdoqtefgg.supabase.co/functions/v1/games`), games in the table `public.cc_games` (row level
+  security on, no policies; only the function's service key touches it). The server deals the game when the last seat
+  is taken, checks every move with the rules and answers with that seat's view (`src/game/view.js`, as a hosted room).
+  Seat keys: made on the device (`newSeatKey`), kept in the online games list (carried by the online profile); the
+  server stores SHA-256 hashes. Device side: `openServerGame`/`serverSession` in `src/app/online-session.js`, calls in
+  `src/net/online.js`. Tests: `tests/node/rules-server.mjs`, and `tests/online_ui.py` runs it inside
+  `cloud/dev-server.mjs` under `/rules`. Deploy: `sh cloud/deploy-games.sh` (the Supabase access token is a network
+  secret for api.supabase.com in the cloud environment). Games made before build 76 still use the Worker path.
 - **Online profile** (build 32): Profile → Online. The profile backup (same as Save Profile) is kept by the
   same Worker under a private 12-letter key (`/profiles/KEY`, kept 2 years after last use). A linked device saves
   again by itself when the start screen opens and the profile changed (`src/app/online-profile.js`); if
