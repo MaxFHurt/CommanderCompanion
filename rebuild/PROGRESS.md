@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.75 (Deck Builder {"build": 191, "version": "0.9.46"})
+- **Live build:** 1.0.0-rebuild.76 (Deck Builder {"build": 191, "version": "0.9.46"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 76 — 2 Nov 2026
+- Build 76: new online games run on a free rules server (Supabase), so no device holds another player's hand
 
 ### Build 75 — 2 Nov 2026
 - Build 75: Modular dies transfer, Companion, voting (Will of the council, Council's dilemma); Deck Builder 0.9.46
