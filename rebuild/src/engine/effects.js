@@ -1510,6 +1510,15 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       emit(bindings, { type: 'suspected', sourceId: hit.card.instanceId, controllerId });
       continue;
     }
+    if (effect.kind === 'vote-branch' || effect.kind === 'vote-repeat') {
+      const v = bindings.votes || {};
+      if (effect.kind === 'vote-branch') {
+        const win = Number(v[effect.win] || 0) > Number(v[effect.tieTo] || 0);
+        notes.push(`The vote: ${Object.entries(v).map(([k, n]) => `${k} ${n}`).join(', ')}.`);
+        notes.push(...applyEffectsUnsafe(game, controllerId, win ? effect.ifWin : effect.ifNot, bindings));
+      } else for (let k = 0; k < Number(v[effect.option] || 0); k++) notes.push(...applyEffectsUnsafe(game, controllerId, effect.effects, bindings));
+      continue;
+    }
     if (effect.kind === 'surveil') {
       const p = targetPlayers(game, controllerId, effect.scope || 'you', effect.playerId || bindings[effect.playerBind])[0] || controller;
       applySurveil(game, p, effect, bindings, notes);
@@ -2860,7 +2869,33 @@ export function compileEffectText(text, opts = {}) {
   }
   return structuredClone(hit);
 }
+// Voting (Will of the council, Council's dilemma): "Starting with you, each player votes for A or B." then "If A gets more votes,
+// X. If B gets more votes or the vote is tied, Y." and/or "For each A vote, X." Each player is asked their own vote
+// (requirements.js 'vote'); outcomes that need further choices are left unsupported (by hand).
+function compileVote(raw, sourceName, allowGuidedFallback) {
+  const m = raw.match(/^(?:[A-Z][^—\n]*—\s*)?starting with you, each player votes for (\w+) or (\w+)\.\s*([\s\S]+)$/i);
+  if (!m) return null;
+  const [, a, b, rest] = m, effects = [], requirements = [{ kind: 'vote', bind: 'votes', options: [a.toLowerCase(), b.toLowerCase()], label: `vote for ${a} or ${b}` }], unsupported = [];
+  const sub = t => { const r = compileEffectTextUncached(t, { sourceName, allowGuidedFallback }); return r.supported && !(r.requirements || []).length ? r.effects : null; };
+  let left = rest.trim();
+  const more = /^If (\w+) gets more votes, ([^.]+)\.\s*If (\w+) gets more votes or the vote is tied, ([^.]+)\.\s*/i.exec(left);
+  if (more) {
+    const e1 = sub(`${more[2]}.`), e2 = sub(`${more[4]}.`);
+    if (!e1 || !e2) return { effects: [], requirements, unsupported: [left], supported: false };
+    effects.push({ kind: 'vote-branch', win: more[1].toLowerCase(), tieTo: more[3].toLowerCase(), ifWin: e1, ifNot: e2 });
+    left = left.slice(more[0].length);
+  }
+  for (let f; (f = /^For each (\w+) vote, ([^.]+)\.\s*/i.exec(left)); left = left.slice(f[0].length)) {
+    const e = sub(`${f[2]}.`);
+    if (!e) { unsupported.push(f[0].trim()); continue; }
+    effects.push({ kind: 'vote-repeat', option: f[1].toLowerCase(), effects: e });
+  }
+  if (left.trim()) unsupported.push(left.trim());
+  return { effects, requirements, unsupported, supported: !unsupported.length && effects.length > 0 };
+}
 function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
+  const vote = compileVote(cleanOracle(text), sourceName, allowGuidedFallback);
+  if (vote) return vote;
   const raw = cleanOracle(text);
   const clauses = splitSentences(raw);
   const parts = [];

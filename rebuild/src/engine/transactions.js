@@ -746,6 +746,14 @@ export function createTransactionEngine(game) {
             moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
           }
         }
+        else if (action.kind === 'companion') {
+          const hit = locate(deck, card.instanceId);
+          if (!hit || hit.z !== 'commandZone') throw new Error('Companion: it is no longer outside the game.');
+          hit.a.splice(hit.i, 1);
+          card.zone = 'hand';
+          deck.hand.push(card);
+          player.companionUsed = true;
+        }
         else if (action.kind === 'suspend') {
           const hit = locate(deck, card.instanceId);
           if (!hit || hit.z !== 'hand')

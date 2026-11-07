@@ -121,6 +121,11 @@ export function specialRows(game, player, card, { running = false } = {}) {
   const block = running ? null : timingBlock(game, player.playerId);
   const payable = cost => planMana(playerManaAvailability(player, game), cost, 0, { lifeAvailable: Number(player.life || 0) }).ok;
   const row = (id, label, cost, reasons) => rows.push({ ability: { id: `special:${id}`, text: `${label} ${cost}`.trim(), cost, effect: label, manaAbility: false, special: id }, legal: !reasons.filter(Boolean).length, reasons: reasons.filter(Boolean), fromHand: card.zone === 'hand' });
+  // Companion (outside the game): once per game, any time you could cast a sorcery, pay {3} to put it into your hand.
+  if (card.zone === 'command' && card.companion) {
+    const sorcery = game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length;
+    row('companion', 'Companion — put it into your hand', '{3}', [block, player.companionUsed && 'Already used this game.', !sorcery && 'Only when you could cast a sorcery.', !payable('{3}') && 'Not enough mana.']);
+  }
   if (card.zone === 'hand') {
     const cyc = keywordCost(text, 'Cycling');
     if (cyc) row('cycling', 'Cycling', cyc, [block, !payable(cyc) && 'Not enough mana.']);

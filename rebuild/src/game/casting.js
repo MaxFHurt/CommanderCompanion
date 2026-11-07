@@ -193,7 +193,7 @@ export function castModes(game, player, card, def, base = null) {
   const zone = card.zone;
   const modes = [];
   const graveyardPermission = (player.temporaryPermissions || []).some(x => x?.kind === 'cast-from-zone' && x?.zone === 'graveyard');
-  if (zone === 'hand' || zone === 'command' || (zone === 'graveyard' && graveyardPermission)) {
+  if (zone === 'hand' || (zone === 'command' && !card.companion) || (zone === 'graveyard' && graveyardPermission)) {   // a companion is put into hand first
     if (def?.manaCost || isLand(def)) modes.push({ id: 'normal', cost: def.manaCost || '' });
   }
   if (zone === 'hand') {

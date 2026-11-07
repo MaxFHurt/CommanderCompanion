@@ -67,7 +67,8 @@ export function toGameDeck(d) {
     name: d.name || 'Untitled deck',
     commander1: d.commander || '',
     commander2: d.partner || '',
-    deckList: lines.join('\n'),
+    companion: d.companion || '',   // outside the 100 (seat-setup.js)
+    deckList: lines.filter(l => !d.companion || l.slice(l.indexOf(' ') + 1) !== d.companion).join('\n'),
     updatedAt: Number.isFinite(new Date(d.updatedAt).getTime()) ? new Date(d.updatedAt).toISOString() : null,
     owner: d.player || '',
     source: 'deck-builder'

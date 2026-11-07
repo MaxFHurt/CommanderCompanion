@@ -581,7 +581,12 @@ function aimPanel(d, ctx) {
           ? ''
           : '<button class="btn sm" data-act="clear-cmd">Change</button><button class="btn sm" data-act="cmd-find">Find a commander</button>') +
         '</div></div></div>' +
-        partnerBox(d, lock);
+        partnerBox(d, lock) +
+        (d.companion
+          ? '<div class="row"><span class="chip gold">Companion</span> <button class="btn sm" data-act="card" data-n="' + esc(d.companion) + '">' + esc(d.companion) + '</button>' +
+            (lock ? '' : '<button class="btn sm" data-act="set-companion" data-n="">Remove</button>') +
+            '<span class="note">Outside the 100: in a game, put it into your hand once for {3}.</span></div>'
+          : '');
       h +=
         '<div class="row">' +
         (ctx.cmdThemes.length

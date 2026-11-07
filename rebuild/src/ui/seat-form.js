@@ -56,9 +56,9 @@ export function readSeatForm(root, seat) {
   }
 }
 
-function applyDeck(seat, { name, list, commander1 = '', commander2 = '', id = '', sourceType = 'custom' }) {
+function applyDeck(seat, { name, list, commander1 = '', commander2 = '', companion = '', id = '', sourceType = 'custom' }) {
   seat.deckName = name; seat.deckList = list; seat.deckId = id; seat.sourceType = sourceType;
-  seat.commander1 = commander1; seat.commander2 = commander2;
+  seat.commander1 = commander1; seat.commander2 = commander2; seat.companion = companion;
 }
 
 /** Handle a [data-seat-act] click. Calls redraw() after the seat changed. */
@@ -77,7 +77,7 @@ export function handleSeatAction(act, el, seat, redraw) {
       onMount(m, { close }) {
         on(m, 'click', '[data-deck]', (e, b) => {
           const d = decks[Number(b.dataset.deck)];
-          applyDeck(seat, { name: d.name || 'Saved deck', list: d.deckList || '', commander1: d.commander1 || '', commander2: d.commander2 || '', id: d.id, sourceType: 'saved-deck' });
+          applyDeck(seat, { name: d.name || 'Saved deck', list: d.deckList || '', commander1: d.commander1 || '', commander2: d.commander2 || '', companion: d.companion || '', id: d.id, sourceType: 'saved-deck' });
           close(); redraw();
         });
       }

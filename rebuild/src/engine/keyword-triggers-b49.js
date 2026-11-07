@@ -120,6 +120,11 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
   // --- Ingest: whenever it deals combat damage to a player, that player exiles the top card of their library.
   if (onField && self && event.type === 'combat-damage-player' && count(text, 'Ingest'))
     add('ingest', 'Ingest — that player exiles the top card of their library.', '', compiled([{ kind: 'exile-top-of', playerBind: 'eventPlayer' }]));
+  // --- Dies: Modular — you may put its +1/+1 counters (as it died) on target artifact creature.
+  if (self && event.type === 'dies' && /(?:^|\n)\s*Modular \d/i.test(strip(text))) {
+    const n = Number(event.last?.counters?.['+1/+1'] || 0);
+    if (n > 0) add('modular', `Modular — you may put its ${n} +1/+1 counter${n === 1 ? '' : 's'} on target artifact creature.`, `You may put ${n} +1/+1 counter${n === 1 ? '' : 's'} on target artifact creature.`);
+  }
   // --- Dies: Soulshift N (return a Spirit card with mana value N or less).
   if (self && event.type === 'dies')
     for (const [k, s] of amounts(text, 'Soulshift').entries())

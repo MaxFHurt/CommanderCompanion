@@ -22,7 +22,7 @@ export function createGame({ mode = 'fully-tracked', deviceMode = 'single-device
     const playerId = `p${i + 1}-${newId('x').split(':').pop()}`;
     const deck = normalizeDeck({
       ownerId: playerId, sourceType: p.sourceType || 'custom', sourceId: p.deckId || null,
-      sourceName: p.deckName || 'Deck', manifest: p.manifest, commanderDefinitionIds: p.commanderIds || []
+      sourceName: p.deckName || 'Deck', manifest: p.manifest, commanderDefinitionIds: p.commanderIds || [], companionDefinitionIds: p.companionIds || []
     });
     shuffleLibrary(deck);
     if (deck.remainingLibrary.length >= 7) drawOpeningHand(deck, 7);

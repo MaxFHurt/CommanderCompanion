@@ -879,6 +879,12 @@ function handleAct(act, v, n, pArg, cutArg) {
       delete d.cmdPid;
       delete d.cmdSet;
       break;
+    case 'set-companion':
+      // the companion sits outside the 100: taken out of the list if it was in it
+      d.companion = n || '';
+      if (n) d.cards = d.cards.filter(e => norm(e.n) !== norm(n));
+      toast(n ? n + ' is this deck\u2019s companion (outside the 100; put into your hand once per game for {3}).' : 'Companion removed.');
+      break;
     case 'set-cmd':
       if (d.commander && d.commander !== n) d.prevCmd = d.commander;
       delete d.cmdPid;
@@ -2285,6 +2291,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         if (fmt === 'commander' && !hadCmd && r.commander) setPartner(t, r.partner);
         else addCard(t, r.partner, 1);
       }
+      if (fmt === 'commander' && r.companion && !t.companion) t.companion = (find(r.companion) || {n: r.companion}).n;   // a "Companion" section
       if (fmt === 'standard' && !t.colors.length) {
         const s = new Set();
         t.cards.forEach(e => {

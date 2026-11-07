@@ -1326,6 +1326,9 @@ function openCard(name, pid) {
     (d && d.format === 'commander' && legend && !d.aimLocked
       ? '<button class="btn" data-act="set-cmd" data-n="' + esc(c.n) + '">Make commander</button>'
       : '') +
+    (d && d.format === 'commander' && /(?:^|\n)\s*Companion\s*[—-]/.test(c.o || '') && d.companion !== c.n
+      ? '<button class="btn" data-act="set-companion" data-n="' + esc(c.n) + '">Make companion</button>'
+      : '') +
     '<a class="btn" href="https://scryfall.com/search?q=' +
     encodeURIComponent('!"' + c.n + '"') +
     '" target="_blank" rel="noopener">Scryfall page</a></div></div></div></div>';

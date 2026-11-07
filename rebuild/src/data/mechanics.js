@@ -149,7 +149,7 @@ m('Fateseal', 'action', 'Look at the top N cards of an opponent\'s library and p
 m('Clash', 'action', 'You and an opponent each reveal your top card; whoever has the higher mana value wins. Each player puts their card on the top or bottom.', { auto: 'auto', actions: [] });
 m('Planeswalk', 'action', 'Move to the next plane (Planechase).', { auto: 'manual' });
 m('Abandon', 'action', 'Turn a face-up ongoing scheme face down (Archenemy).', { auto: 'manual' });
-m('Vote', 'action', 'Each player votes, starting with you and going in turn order.', { auto: 'manual', steps: 'Each player votes in turn order; then apply the result the card describes.', actions: [] });
+m('Vote', 'action', 'Each player votes, starting with you and going in turn order.', { auto: 'partial', steps: 'Each player votes in turn order; then apply the result the card describes.', actions: [] });
 m('Assemble', 'action', 'Put Contraptions from your Contraption deck onto the battlefield (Un-sets).', { auto: 'manual' });
 m('Meld', 'action', 'Exile two specific cards you own and control and put them onto the battlefield combined as one permanent.', { auto: 'manual' });
 m('Open an Attraction', 'action', 'Put the top card of your Attraction deck onto the battlefield (Un-sets).', { auto: 'manual' });
@@ -197,7 +197,7 @@ m('Champion', 'keyword', 'When this enters, sacrifice it unless you exile anothe
 m('Changeling', 'keyword', 'This is every creature type (in every zone).', { auto: 'auto' });
 m('Cipher', 'keyword', 'After this resolves, you may exile it encoded on a creature you control; whenever that creature deals combat damage to a player, you may cast a copy free.', { auto: 'manual' });
 m('Cleave', 'keyword', 'Cast for the cleave cost and remove the words in square brackets.', { auto: 'manual' });
-m('Companion', 'keyword', 'If your deck meets the condition, you may start with this outside the game; once per game pay {3} to put it in your hand.', { auto: 'manual' });
+m('Companion', 'keyword', 'If your deck meets the condition, you may start with this outside the game; once per game pay {3} to put it in your hand.', { auto: 'partial' });
 m('Compleated', 'keyword', 'Phyrexian mana in this planeswalker\'s cost can be paid with life; it enters with two fewer loyalty for each one paid that way.', { auto: 'manual' });
 m('Conspire', 'keyword', 'As you cast this, you may tap two untapped creatures you control that share a color with it; if you do, copy it.', { auto: 'manual', actions: ['tap'] });
 m('Convoke', 'keyword', 'Each creature you tap while casting this pays for {1} or one mana of that creature\'s color.', { auto: 'auto' });
@@ -267,7 +267,7 @@ m('Madness', 'keyword', 'If you discard this card, you may exile it instead and 
 m('Melee', 'keyword', 'Whenever this attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.', { auto: 'auto', actions: ['pt'] });
 m('Mentor', 'keyword', 'Whenever this attacks, put a +1/+1 counter on target attacking creature with lesser power.', { auto: 'auto', actions: ['counter+'] });
 m('Miracle', 'keyword', 'If this is the first card you drew this turn, you may reveal it and cast it for its miracle cost.', { auto: 'auto', steps: 'When you draw it as your first card of the turn, the game asks whether to cast it for its miracle cost.' });
-m('Modular', 'keyword', 'Enters with N +1/+1 counters; when it dies, you may put its +1/+1 counters on target artifact creature.', { auto: 'partial', actions: ['counter+'] });
+m('Modular', 'keyword', 'Enters with N +1/+1 counters; when it dies, you may put its +1/+1 counters on target artifact creature.', { auto: 'auto', actions: ['counter+'] });
 m('More Than Meets the Eye', 'keyword', 'You may cast this converted (back face up) for its More Than Meets the Eye cost.', { auto: 'auto', actions: ['transform'] });
 m('Morph', 'keyword', 'Cast face down for {3} as a 2/2 with no name or abilities; turn face up any time for the morph cost.', { auto: 'auto', rules: ['Turning face up is a special action: no stack, can\'t be responded to.', 'Megamorph also puts a +1/+1 counter on it when turned up.'] });
 m('Megamorph', 'keyword', 'Like morph; when turned face up it also gets a +1/+1 counter.', { auto: 'auto' });

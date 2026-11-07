@@ -25,7 +25,7 @@ function seatFromDefaults(index, defaults) {
   const preferredId = index === 0 && defaults.favoriteDeckId ? defaults.favoriteDeckId
     : row ? Object.values(row.decks || {}).sort((a, b) => String(b.lastSelectedAt || b.lastPlayedAt || '').localeCompare(String(a.lastSelectedAt || a.lastPlayedAt || '')))[0]?.id : '';
   const deck = preferredId ? listDecks().find(d => d.id === preferredId) : null;
-  if (deck) Object.assign(seat, { deckId: deck.id, deckName: deck.name, deckList: deck.deckList || '', commander1: deck.commander1 || '', commander2: deck.commander2 || '', sourceType: 'saved-deck' });
+  if (deck) Object.assign(seat, { deckId: deck.id, deckName: deck.name, deckList: deck.deckList || '', commander1: deck.commander1 || '', commander2: deck.commander2 || '', companion: deck.companion || '', sourceType: 'saved-deck' });
   return seat;
 }
 

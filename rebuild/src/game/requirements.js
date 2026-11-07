@@ -7,7 +7,7 @@
 
 import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catalog.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
-import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural } from './helpers.js';
+import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
 import { cardMatchesFilter, resolveAmount } from '../engine/effects.js';
 
@@ -372,6 +372,16 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
     if (req.kind === 'yes-no') {
       bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'confirm', title: `${sourceName}`, prompt: req.label, yesLabel: 'Yes', noLabel: 'No' }));
+      return;
+    }
+    if (req.kind === 'vote') {
+      // each player votes, starting with the controller, in turn order; each is asked their own vote
+      const counts = Object.fromEntries(req.options.map(o => [o, 0]));
+      for (const q of turnOrderFrom(game, player.playerId).filter(x => !x.eliminated)) {
+        const pick = ask(`${key}:${q.playerId}`, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-one', title: `${sourceName} — vote`, prompt: `${q.displayName}: vote for ${req.options.join(' or ')}.`, options: req.options.map(o => ({ id: o, label: o[0].toUpperCase() + o.slice(1) })) }));
+        if (pick in counts) counts[pick]++;
+      }
+      bindings[req.bind] = counts;
       return;
     }
     if (req.kind === 'scry' || req.kind === 'surveil') {

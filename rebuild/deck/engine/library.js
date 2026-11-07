@@ -520,7 +520,7 @@ function parseDeckText(txt) {
           : h === 'about'
             ? 'about'
             : h === 'companion'
-              ? 'side'
+              ? 'companion'
               : 'main';
       continue;
     }
@@ -566,6 +566,11 @@ function parseDeckText(txt) {
     }
     if (c) name = c.n;
     const pn = c && norm(typed) !== c._n && altName(typed) ? typed : ''; // printed under another name (Humongous Fungus is Corpsejack Menace)
+    if (section === 'companion') {
+      // the companion (outside the 100; Commander Companion offers it once per game for {3})
+      if (!out.companion) out.companion = name;
+      continue;
+    }
     if ((section === 'commander' || isCmd) && !out.commander) {
       out.commander = name;
       continue;

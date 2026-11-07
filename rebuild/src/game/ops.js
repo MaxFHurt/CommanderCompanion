@@ -929,6 +929,10 @@ function runSpecialAction(game, op, ask, player, card, def, force) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'Not enough mana.');
   const payment = plan.ok ? plan.chosen : null;
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
+  if (kind === 'companion') {
+    commit(game, { type: 'special-action', kind: 'companion', playerId: player.playerId, instanceId: card.instanceId, payment, label: `${player.displayName} pays {3} and puts their companion ${def.name} into their hand.` });
+    return;
+  }
   if (kind === 'transmute') {
     // Transmute: discard it (a cost) to search for a card with the same mana value. Only as a sorcery.
     const mv = Number(def.manaValue ?? def.cmc ?? 0);

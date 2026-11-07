@@ -1,6 +1,6 @@
 import { createDeckState } from './schema.js';
 import { expandManifest } from './cards.js';
-export function normalizeDeck({ ownerId, sourceType = 'custom', sourceId = null, sourceName = '', manifest = [], commanderDefinitionIds = [] }) {
+export function normalizeDeck({ ownerId, sourceType = 'custom', sourceId = null, sourceName = '', manifest = [], commanderDefinitionIds = [], companionDefinitionIds = [] }) {
   const fullManifest = manifest.map(e => ({ definitionId: e.definitionId, quantity: Number(e.quantity ?? e.qty ?? 1) }));
   const all = expandManifest(fullManifest, ownerId);
   const commanderInstances = [];
@@ -11,6 +11,16 @@ export function normalizeDeck({ ownerId, sourceType = 'custom', sourceId = null,
       throw new Error(`Commander ${definitionId} is not present in deck manifest`);
     const [card] = remaining.splice(idx, 1);
     card.zone = 'command';
+    commanderInstances.push(card);
+  }
+  // Companion: starts outside the game, kept beside the commander (flagged; it can't be cast from there, only put into hand
+  // with the companion action, legal.js specialRows).
+  for (const definitionId of companionDefinitionIds) {
+    const idx = remaining.findIndex(c => c.definitionId === definitionId);
+    if (idx < 0) continue;
+    const [card] = remaining.splice(idx, 1);
+    card.zone = 'command';
+    card.companion = true;
     commanderInstances.push(card);
   }
   return createDeckState({ sourceType, sourceId, sourceName, complete: true, expectedSize: all.length, fullManifest, remainingLibrary: remaining, commandZone: commanderInstances, zoneAccounting: { library: remaining.length, hand: 0, battlefield: 0, graveyard: 0, exile: 0, command: commanderInstances.length } });

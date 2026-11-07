@@ -2859,4 +2859,36 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Awaken: the land gets two +1/+1 counters and is a creature; the spell still draws', Number(land.counters?.['+1/+1'] || 0) === 2 && /Creature/.test(d2.typeLine || '') && /Land/.test(d2.typeLine || ''), JSON.stringify([land.counters, d2.typeLine, t.P(0).deck.hand.length - hand]));
 }
 
+{
+  // Modular: when it dies, its +1/+1 counters may go onto target artifact creature
+  const t = setup();
+  const host = onField(t, 'Fog Bank', '', { typeLine: 'Artifact Creature — Construct', power: '0', toughness: '2' });
+  const mod = onField(t, 'Grizzly Bears', 'Modular 2', { typeLine: 'Artifact Creature — Construct', power: '0', toughness: '0' });
+  mod.counters = { '+1/+1': 2 };
+  const pick = () => (t.P(0).deck.battlefield.includes(mod) ? mod.instanceId : host.instanceId);
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, pick], [d => d.kind === 'confirm', true]], { manaCost: '{0}' });
+  settle(t, [[d => d.targeting, pick], [d => d.kind === 'confirm', true]]);
+  check('Modular: dying, its two +1/+1 counters go onto the chosen artifact creature', Number(host.counters?.['+1/+1'] || 0) === 2 && !t.P(0).deck.battlefield.includes(mod), JSON.stringify([host.counters, t.P(0).deck.battlefield.includes(mod)]));
+}
+
+{
+  // Companion: outside the game beside the commander; once per game, as a sorcery, {3}: put it into your hand
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => /Creature/.test(def(t, x).typeLine));
+  const [comp] = lib.splice(i, 1); comp.zone = 'command'; comp.companion = true; t.P(0).deck.commandZone.push(comp);
+  asText(t, comp, 'Companion \u2014 Each permanent card in your starting deck has mana value 2 or less.', { typeLine: 'Creature — Cat Nightmare' });
+  const cast = t.ctl.dispatch({ type: 'play', instanceId: comp.instanceId }, t.as(0));
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: comp.instanceId, abilityId: 'special:companion' }, t.as(0)); settle(t);
+  const inHand = t.P(0).deck.hand.some(c => c.instanceId === comp.instanceId);
+  check('Companion: it can\'t be cast from outside the game; {3} puts it into your hand once', !cast.ok && r.ok && inHand && t.P(0).companionUsed === true, JSON.stringify([cast.ok, r.ok, r.error, inHand]));
+}
+
+{
+  // Voting: each player is asked their own vote; a tie goes to the "or the vote is tied" option
+  const t = setup();
+  const voters = [], hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Will of the council \u2014 Starting with you, each player votes for time or knowledge. If time gets more votes, take an extra turn after this one. If knowledge gets more votes or the vote is tied, draw three cards.', [[d => /vote/i.test(d.title || ''), d => { voters.push(d.playerId); return d.playerId === t.P(0).playerId ? 'knowledge' : 'time'; }]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Voting: both players vote (each asked); 1–1 is tied, so knowledge: draw three', voters.includes(t.P(0).playerId) && voters.includes(t.P(1).playerId) && t.P(0).deck.hand.length === hand + 3, JSON.stringify([voters.length, t.P(0).deck.hand.length - hand]));
+}
+
 done();
