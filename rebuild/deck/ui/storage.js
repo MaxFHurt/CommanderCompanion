@@ -1100,6 +1100,50 @@ const cleanRows = rows =>
     delete x._ft;
     return x;
   });
+// Card data from the daily snapshot (owner, 7 Nov: no Scryfall download in the app). The card-data job (Deck-Companion
+// .github/workflows/card-data.yml, 4 a.m. New York time) saves every Commander- or Standard-legal card, cheapest printing,
+// as cards.json.gz on the card-data branch. The app downloads that one file (about 5 MB) instead of about 185 pages of
+// Scryfall's search, and looks once a day at meta.json (a few hundred bytes) for new cards. The paged search below is
+// only the fallback when the file cannot be reached.
+const CARDS_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/cards.json.gz',
+  META_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/meta.json';
+async function snapMeta() {
+  const r = await fetch(META_URL, {cache: 'no-cache'});
+  if (!r.ok) throw new Error('card data index ' + r.status);
+  const m = await r.json();
+  return m && m.cardsAt && m.cards ? {cards: m.cards, at: m.cardsAt} : null;
+}
+async function snapshotUpdate() {
+  if (typeof DecompressionStream === 'undefined') throw new Error('this browser cannot unpack the card file');
+  setStatus('Downloading card data…');
+  const r = await fetch(CARDS_URL, {cache: 'no-cache'});
+  if (!r.ok) throw new Error('card file ' + r.status);
+  const size = +r.headers.get('content-length') || 0;
+  let got = 0;
+  const counted = r.body.pipeThrough(
+    new TransformStream({
+      transform(ch, ctl) {
+        got += ch.byteLength;
+        if (size) setStatus('Downloading card data… ' + Math.min(99, Math.round((got * 100) / size)) + '%');
+        ctl.enqueue(ch);
+      }
+    })
+  );
+  const arr = await new Response(counted.pipeThrough(new DecompressionStream('gzip'))).json(),
+    rows = [];
+  for (const o of arr || []) {
+    const c = fromScryfall(o);
+    if (c) rows.push(c);
+  }
+  if (rows.length < 10000) throw new Error('the card file had only ' + rows.length + ' cards');
+  let m = null;
+  try {
+    m = await snapMeta();
+  } catch (e) {}
+  const at = (m && Date.parse(m.at)) || Date.now();
+  if (m) lsSet('dc.snapMeta', m);
+  return finalize(rows, new Date(at).toISOString().slice(0, 10), at);
+}
 async function pagedUpdate() {
   // Scryfall's search service, 175 cards a page, most-played first. Progress is saved as it goes, so a dropped
   // connection, a closed tab or a reload picks up where it stopped instead of starting over. It keeps retrying until done.
@@ -1221,6 +1265,16 @@ async function releaseSignature() {
 async function checkReleases() {
   try {
     if (Date.now() - (lsGet('dc.relCheck') || 0) < 20 * 3600e3) return;
+    // The daily snapshot: download again when it is newer and holds a different number of cards (new cards).
+    try {
+      const m = await snapMeta(),
+        sv = lsGet('dc.snapMeta');
+      if (m && !sv) lsSet('dc.snapMeta', m);
+      else if (m && Date.parse(m.at) > Date.parse(sv.at) && m.cards !== sv.cards) {
+        lsSet('dc.relCheck', Date.now());
+        return autoUpdate(null, 'New cards in the daily card data (' + m.cards.toLocaleString() + ' cards)');
+      }
+    } catch (e) {}
     const sig = await releaseSignature(),
       saved = lsGet('dc.relSig');
     lsSet('dc.relCheck', Date.now());
@@ -1249,8 +1303,13 @@ async function autoUpdate(sig, reason) {
   DBINFO.err = '';
   let n = 0,
     why = [];
-  setStatus('Checking Scryfall for card updates…');
-  // The card search is used (not Scryfall's daily file) because it can return each card's cheapest printing.
+  setStatus('Checking for card updates…');
+  // The daily snapshot first (one file); Scryfall's paged card search only when the snapshot cannot be reached.
+  try {
+    n = await snapshotUpdate();
+  } catch (e) {
+    why.push('card data file: ' + ((e && e.message) || e));
+  }
   if (!n)
     try {
       n = await pagedUpdate();
@@ -1258,7 +1317,7 @@ async function autoUpdate(sig, reason) {
       why.push('card search: ' + ((e && e.message) || e));
     }
   if (n) {
-    toast(n.toLocaleString() + ' cards updated from Scryfall.');
+    toast(n.toLocaleString() + ' cards updated.');
     lsSet('dc.dlAt', Date.now());
     try {
       lsSet('dc.relSig', sig && sig.latest ? sig : await releaseSignature());
@@ -1273,7 +1332,7 @@ async function autoUpdate(sig, reason) {
       PROF.dirty = true;
       persist();
     } catch (e) {}
-  } else toast('Scryfall refused the card download. Open Profile for details.');
+  } else toast('The card data could not be downloaded. Open Profile for details.');
   DBINFO.err = n ? '' : why.join(' · ');
   autoUpdate.busy = false;
   if (n && COMBO_RAW) useCombos(COMBO_RAW.j);
