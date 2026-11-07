@@ -66,10 +66,13 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## 2. Game rules engine (cards in play)
 
-1. **The card long tail:** 21,001 of 31,770 Commander-legal cards run by themselves (top 1,000: all). About 10,770 still need
+1. **The card long tail:** about 21,240 of 31,776 Commander-legal cards run by themselves (top 1,000: all; build 78 added 171,
+   most-played first: Earthbend, Discover and energy payments inside effects, wipes with qualifiers, "equal to" amounts,
+   Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,540 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
    the answer key. Tools: `tools/rules-audit.mjs`, the Scryfall bulk file split into 4 chunks. (RULES_AUDIT.md, PROGRESS.md)
-2. **Mechanics still resolved by hand:** suspend, spectacle, fuse/split, splice (other than onto Arcane), cipher,
+2. **Mechanics still resolved by hand** (7 Nov audit: connive, forage, spectacle, splice and fuse have no cards left by hand;
+   Rooms 21 cards, Classes 20, flip cards and suspend wordings, Echo/Cumulative upkeep paid with a choice 21): suspend, spectacle, fuse/split, splice (other than onto Arcane), cipher,
    attractions/stickers, banding, haunt, assist, forecast, flip cards, Rooms, Class levels, and anything the terms
    key marks "manual" or "partial".
 3. **Known rule limits (Moraug, Kardur, copied lands, Dredge, Echo/Cumulative upkeep action costs: done, build 68; Cumulative
@@ -80,7 +83,9 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
    - Dredge is not offered for draws another player's effect gives ("target player draws").
    - Cumulative upkeep and Echo are automatic only for mana costs and "Pay N life".
    - Cached card definitions from before build 28 keep the old mana cost for split/adventure cards until re-validated.
-4. **Measure which cards real decks resolve by hand most** (from played games) and automate those first.
+4. **Measure which cards real decks resolve by hand most** (from played games) and automate those first. No data yet: the shared rulings store
+   is empty (7 Nov), and the app sends nothing else about hand resolutions. Recording that would mean sending play data, so it
+   needs the owner's say. Until then the order is EDHREC popularity (`tools/rules-audit.mjs` on the Scryfall file).
 
 5. **The card-by-card handoff (owner, 7 Nov; set aside for now: "except the card data work"):** a zip of machine-assisted
    requirements for all 39,287 cards (42,678 faces, 67,471 ability clauses, 151,838 acceptance contracts, 25,900 audit
@@ -196,6 +201,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 78: 171 more cards run by themselves (the long tail, most-played first).
 - Build 77 (Deck Builder 0.9.47, build 192): the green + follows the Fix menus' rules; the card-data job keeps the free
   rules server awake; the job's schedule checked.
 - Build 76: online games on the free Supabase rules server; no device holds another player's hidden cards.
