@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.66 (Deck Builder {"build": 185, "version": "0.9.40"})
+- **Live build:** 1.0.0-rebuild.67 (Deck Builder {"build": 186, "version": "0.9.41"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 67 — 2 Nov 2026
+- Deck Builder 0.9.41 (build 186): **one printing system for every card** (owner, 7 Nov: "all cards follow the right printing"). Order: 1 the player's choice (printing picker; never replaced), 2 the source's exact printing (psc + pcn: precon, pasted "(SET) 123" line, share link), 3 the name it was listed under (pn: a reskin's printed name), 4 the commander's set (themed printings, shown only), 5 the default printing. Every way into a deck stores those hints; `pinPrints` (deck/ui/deck.js) turns them into printings 75 per Scryfall collection request (printed-name-only cards: one exact-name search each), on import, precon load, share links and once per deck per session on opening, so older decks are fixed too. It replaces the precon-only pinning and the one-request-per-card import lookup (which dropped printed names). Share links now carry each card's set and number and the commander's printing. A code that resolves to a different card is ignored. Tests: quick check 12; Hatsune Miku precon 87/87 and commander; a pasted list with set codes and a printed name only; a share-link round trip; an old precon repaired on opening; a player's choice left alone.
 
 ### Build 66 — 2 Nov 2026
 - Deck Builder 0.9.40 (build 185): no Scryfall card download in the app (owner, 7 Nov). Cards come from the daily snapshot `cards.json.gz` on the Deck-Companion card-data branch (one ~5 MB file, written every day at 4 a.m. New York time by card-data.yml); once a day the app reads `meta.json` and downloads again only when the snapshot is newer with a different card count (new cards). Scryfall's paged search stays only as the fallback. `snapshotUpdate`, `snapMeta` and the checkReleases change in deck/ui/storage.js. The job's file now also keeps defense, reprint and flavor names (Deck-Companion branch claude/card-effects-fixes-rcosbu, commit 3a9d2c0; takes effect when merged to Deck-Companion main). Tests: quick check 12; a fresh load with Scryfall's API blocked fills all 32,183 cards from the snapshot.

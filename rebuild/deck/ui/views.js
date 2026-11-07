@@ -1607,35 +1607,6 @@ function exportRows(d, what) {
     });
   return rows;
 }
-// "(SET) number" for a line: the printing chosen for that card in this deck, else the card's default (cheapest) printing.
-async function resolvePrints(d) {
-  const todo = d.cards.filter(x => x.psc && !x.pid).slice(0, 150);
-  if (!todo.length) return;
-  let done = 0;
-  for (const en of todo) {
-    try {
-      const r = await sfetch(
-        'https://api.scryfall.com/cards/' + encodeURIComponent(en.psc) + (en.pcn ? '/' + encodeURIComponent(en.pcn) : '')
-      );
-      if (!r.ok) continue;
-      const o = await r.json();
-      if (!o || !o.id || norm(String(o.name || '').split(' // ')[0]) !== norm(en.n.split(' // ')[0])) continue;
-      setPrint(en, {id: o.id, set: o.set_name, sc: o.set, cn: o.collector_number, rar: o.rarity, p: priceOf(o)});
-      done++;
-      if (done % 10 === 0) {
-        persistSoon();
-        render();
-      }
-    } catch (err) {
-      break;
-    }
-  }
-  if (done) {
-    persistSoon();
-    render();
-    toast('Matched ' + done + ' card' + (done === 1 ? '' : 's') + ' to the printings in your list.');
-  }
-}
 // Regenerate: drop the held picks, refresh the commander's play data, and weigh every option again. Reports what changed.
 function picksOf(d) {
   const o = [];

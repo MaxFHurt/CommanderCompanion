@@ -244,7 +244,9 @@ async function shareCode(d) {
     const x = d[k];
     if (x != null && x !== '' && !(Array.isArray(x) && !x.length) && x !== false) o[k] = x;
   });
-  o.cards = d.cards.map(e => (e.q > 1 ? [e.n, e.q] : e.n));
+  // each card's printing goes with it (set + number), so the copy shows the same printings
+  o.cards = d.cards.map(e => (e.psc && e.pcn ? [e.n, e.q, e.psc, e.pcn] : e.q > 1 ? [e.n, e.q] : e.n));
+  if (d.cmdSet && d.cmdCn) Object.assign(o, {cmdSet: d.cmdSet, cmdCn: d.cmdCn});
   const raw = new TextEncoder().encode(JSON.stringify(o));
   if (window.CompressionStream) {
     try {
@@ -337,7 +339,13 @@ function saveShared() {
       q = Array.isArray(x) ? x[1] : 1,
       c = find(n);
     addCard(d, c ? c.n : n, q);
+    if (Array.isArray(x) && x[2] && x[3]) {
+      const e = entryOf(d, c ? c.n : n);
+      if (e) Object.assign(e, {psc: String(x[2]), pcn: String(x[3])});
+    }
   });
+  if (o.cmdSet && o.cmdCn) Object.assign(d, {cmdSet: o.cmdSet, cmdCn: o.cmdCn});
+  pinPrints(d);
   d.custom = true;
   S.profile.decks.unshift(d);
   S.draft = null;

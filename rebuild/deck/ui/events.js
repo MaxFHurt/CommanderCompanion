@@ -2301,7 +2301,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       }
       const unk = t.cards.filter(e => !find(e.n)).length;
       $('#modal').hidden = true;
-      resolvePrints(t);
+      pinPrints(t);
       toast(
         'Imported ' +
           total +
