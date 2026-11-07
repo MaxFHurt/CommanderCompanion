@@ -1,4 +1,5 @@
 import { pairNearbyDevice } from '../share-code.js';
+import { handOverHosting } from '../../app/session.js';
 // Host / Free Play tools: change anything about the game by hand. Every change is logged.
 
 import { html, on, $, setHtml } from '../dom.js';
@@ -40,6 +41,7 @@ export function openHostTools(ctx) {
         <button type="button" class="btn btn--small" data-tool="active">Set active player…</button>
         <button type="button" class="btn btn--small" data-tool="rules">Table rules…</button>
         ${ctx.session?.net?.pairOffer ? html`<button type="button" class="btn btn--small" data-tool="pair">Pair a nearby device…</button>` : ''}
+        ${ctx.session?.net?.online?.().length ? html`<button type="button" class="btn btn--small" data-tool="handover">Move hosting to another device…</button>` : ''}
       </div>
       <h4 class="section-title">Stack (${view.stack.length})</h4>
       <div class="row row--wrap">
@@ -72,7 +74,18 @@ export function openHostTools(ctx) {
         if (tool === 'token') return choosePlayer('Who gets the token?', playerId => openTokenPicker(ctx, playerId, close));
         if (tool === 'add-card') return choosePlayer('Add a card for…', playerId => openAddCard(ctx, playerId, close));
         if (tool === 'rules') return openRulesEdit(ctx, close);
-        if (tool === 'pair') { close(); return pairNearbyDevice(ctx.session.net); }   // a QR-paired player who dropped, or a new watcher
+        if (tool === 'pair') { close(); return pairNearbyDevice(ctx.session.net); }
+        if (tool === 'handover') {
+          const devs = ctx.session.net.online();
+          return pickOne('Move hosting to which device?', devs.map(d => [d.clientId, d.name]), async id => {
+            const ok = await confirmDialog({ title: 'Move hosting', message: `${devs.find(d => d.clientId === id)?.name}'s device hosts the game from now on; this device rejoins as a player. The others reconnect by themselves.`, confirmLabel: 'Move hosting' });
+            if (!ok) return;
+            close();
+            toast('Moving the game…');
+            const r = await handOverHosting(id);
+            if (!r.ok) toast(r.error, { bad: true, ms: 5000 });
+          });
+        }   // a QR-paired player who dropped, or a new watcher
       });
     }
   });

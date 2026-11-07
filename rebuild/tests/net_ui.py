@@ -121,6 +121,17 @@ async def main():
         await a.fill('[data-code]', code); await a.click('[data-act="watch"]')
         await a.wait_for_selector('.game .rail-life__value', timeout=15000)
         check('player gets seat back after reload', (await a.locator('.rail-name strong').text_content()).strip() == 'Aaron' and await a.locator('.zone--hand .card:not(.card--back)').count() >= 7)
+        # Move hosting to Lex's device: it hosts under the same code, Aaron's device follows, the table device rejoins to watch.
+        await host.click('[data-act="tools"]'); await host.click('[data-tool="handover"]')
+        await host.click('.modal [data-choice]:has-text("Lex")'); await host.locator('.modal .btn--confirm').last.click()
+        await b.wait_for_function("import('./src/app/session.js').then(m => m.getSession()?.isHost === true)", timeout=30000)
+        check('hosting moves to the chosen device', True)
+        await host.wait_for_function("import('./src/app/session.js').then(m => m.getSession()?.role === 'client')", timeout=40000)
+        check('the old host rejoins as a client', True)
+        r = await b.evaluate("""async () => { const s = (await import('./src/app/session.js')).getSession(); const aaron = s.game.players.find(p => p.displayName === 'Aaron'); return s.controller.dispatch({ type: 'edit', edit: { kind: 'life', playerId: aaron.playerId, delta: -5 } }, { playerId: null, isHost: true, judge: true }); }""")
+        check('the new host can still change the game (host edit)', r.get('ok'), str(r))
+        await a.wait_for_function("document.querySelector('.rail-life__value').textContent === '25'", timeout=60000)
+        check('the other player reconnects to the new host and sees its edit', True)
         for pg, n in ((host, 'host'), (a, 'a'), (b, 'b')):
             check(f'no console errors ({n})', not pg.errors, str(pg.errors[:3]))
         await browser.close()

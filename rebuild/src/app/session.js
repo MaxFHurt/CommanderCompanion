@@ -12,7 +12,8 @@ import { debounce } from '../ui/dom.js';
 import { checkpointStore } from './checkpoints.js';
 import { sendCorrections } from '../net/corrections.js';
 import { attachOutcomes } from '../net/outcomes.js';
-import { hostRoom } from '../net/room.js';
+import { hostRoom, joinRoom, deviceClientId } from '../net/room.js';
+import { go } from './router.js';
 
 let current = null;
 
@@ -103,6 +104,7 @@ export function startClientSession(link) {
   if (view) view = merge(view);
   link.onView(v => { view = merge(v); for (const fn of listeners) fn(); });
   link.onStatus(() => { for (const fn of listeners) fn(); });
+  link.onHandover(msg => takeOverHosting(msg).catch(error => console.warn('Hosting handover failed', error)));
   current = {
     role: 'client', isHost: false, link,
     viewerId: () => view?.you || null,
@@ -113,6 +115,57 @@ export function startClientSession(link) {
     close() { link.close(); listeners.clear(); }
   };
   return current;
+}
+
+/** Open a room under a code another device is giving up: it may take a moment to be free. */
+async function reopenRoom(code, known) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    try { return await hostRoom(code, { remoteSeats: 0, known }); }
+    catch { await new Promise(r => setTimeout(r, 1500)); }
+  }
+  return null;
+}
+
+/** The host handed this game to this device: host it from here under the same room code. */
+async function takeOverHosting(msg) {
+  const game = msg.game;
+  const known = game.players.filter(p => p.ownership?.clientId).map(p => ({ clientId: p.ownership.clientId, name: p.displayName }));
+  const net = await reopenRoom(msg.code, known);
+  if (!net) {
+    // The room could not be reopened: carry on here, this device takes over the remote seats (as after a failed resume).
+    game.deviceMode = 'single-device';
+    for (const p of game.players) p.ownership = { local: true, clientId: null };
+    startLocalSession(game);
+  } else startHostSession(game, { seatId: msg.seatId, net });
+  settle(game);
+  go('game');
+}
+
+/**
+ * The host hands hosting to the device `clientId` (owner, 7 Nov: hosted games between devices). This device sends the game,
+ * closes its room and rejoins as a player (or as a watcher for a table display). Its own saved copy is dropped, so only the new
+ * host restores the game. Returns { ok, error }.
+ */
+export async function handOverHosting(clientId) {
+  const s = current;
+  if (!s?.isHost || !s.net) return { ok: false, error: 'This device is not hosting a room.' };
+  const game = s.game, hostSeat = s.role === 'host-player' ? s.viewerId() : null;
+  const localSeats = game.players.filter(p => !p.eliminated && p.ownership?.local && p.playerId !== hostSeat);
+  if (localSeats.length) return { ok: false, error: 'More than one player is playing on this device: hand over only when each player has their own device.' };
+  const me = deviceClientId(), code = s.net.code, name = game.players.find(p => p.playerId === hostSeat)?.displayName || 'Table';
+  if (!s.net.handover(clientId, game, { hostClientId: me, hostSeat })) return { ok: false, error: 'That device is not connected.' };
+  await new Promise(r => setTimeout(r, 800));
+  endSession({ keepSave: false });   // the new host saves it from now on
+  await deleteRecord(GAME_SAVE_KEY).catch(() => {});
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      const link = await joinRoom(code, { clientId: me, name });
+      startClientSession(link);
+      go('game');
+      return { ok: true };
+    } catch { await new Promise(r => setTimeout(r, 1500)); }
+  }
+  return { ok: false, error: 'The new host did not open the room. Join it again with the code.' };
 }
 
 /**

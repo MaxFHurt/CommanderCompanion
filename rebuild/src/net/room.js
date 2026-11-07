@@ -114,6 +114,24 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
     },
     cancelRules() { if (rulesVote) { const v = rulesVote; rulesVote = null; v.resolve({ ok: false, cancelled: true }); } },
     /** QR pairing with a nearby device (no internet): the QR text to show, then the answer it shows back. */
+    /**
+     * Hand hosting to a joined device (owner, 7 Nov: hosted games between devices). It gets the whole game with the seats
+     * relabelled — its own seat played on it directly, this device's seat (hostSeat) played from this device as a client —
+     * and reopens this room under the same code; everyone else's reconnect finds it. Returns false if it is not connected.
+     */
+    handover(clientId, game, { hostClientId, hostSeat = null } = {}) {
+      const c = clients.get(clientId);
+      if (!c?.online || !c.playerId) return false;
+      const g = structuredClone(game);
+      for (const p of g.players) {
+        if (p.ownership?.clientId === clientId) p.ownership = { local: true, clientId: null };
+        else if (hostSeat && p.playerId === hostSeat) p.ownership = { local: false, clientId: hostClientId };
+      }
+      g.deviceMode = 'multi-device';
+      transport.send(clientId, { type: 'handover', game: g, seatId: c.playerId, code });
+      return true;
+    },
+    online: () => [...clients.entries()].filter(([, c]) => c.online && c.playerId).map(([clientId, c]) => ({ clientId, name: c.name, playerId: c.playerId })),
     pairOffer: () => transport.local.offer(),
     pairAccept: text => transport.local.accept(text),
     close() { transport.close(); }
@@ -123,12 +141,12 @@ export async function hostRoom(code, { remoteSeats = 0, known = [] } = {}) {
 /** Client side. Resolves once the host has accepted the join. */
 export async function joinRoom(code, { clientId, seat = null, name = '', local = null }) {
   let transport = await openClientTransport(code, clientId, local);
-  const view = emitter(), status = emitter(), lobby = emitter(), rulesEv = emitter();
+  const view = emitter(), status = emitter(), lobby = emitter(), rulesEv = emitter(), handoverEv = emitter();
   const pending = new Map();
   let state = 'online', next = 1, lastLobby = null;
   const link = {
     code, clientId, lastView: null, seated: false, reason: '',
-    onView: view.on, onStatus: status.on, onLobby: lobby.on, lobby: () => lastLobby, onRules: rulesEv.on, pendingRules: null,
+    onView: view.on, onStatus: status.on, onLobby: lobby.on, lobby: () => lastLobby, onRules: rulesEv.on, onHandover: handoverEv.on, pendingRules: null,
     answerRules(id, accept) { link.pendingRules = null; transport.send({ type: 'rules-answer', id, accept: !!accept }); },
     status: () => state,
     request(intent) {
@@ -149,6 +167,7 @@ export async function joinRoom(code, { clientId, seat = null, name = '', local =
       else if (msg.type === 'lobby') { lastLobby = msg.lobby; lobby.emit(msg.lobby); }
       else if (msg.type === 'rules') { link.pendingRules = msg; rulesEv.emit(msg); }
       else if (msg.type === 'refused') { state = 'closed'; link.reason = msg.reason; status.emit(state); }
+      else if (msg.type === 'handover' && msg.game) { state = 'closed'; handoverEv.emit(msg); }   // this device hosts from now on
     });
     transport.onClose(async () => {
       if (state === 'closed') return;
