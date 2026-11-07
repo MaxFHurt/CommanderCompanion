@@ -136,14 +136,18 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    - Should alternatives be matched to the card going out rather than to the pick? (guide blind spots: Sheoldred and Yawgmoth
      for Doom, Swords to Plowshares for Turtle Power, Brightglass Gearhulk for Wakanda)
    - EDHREC land count: the app uses its own land formula; the tests use EDHREC's average (a land apart). Align them?
-3. **Upgrades page polish (from this week):**
+3. **Printings (build 67 system), still open:** owned cards (the library keeps names only, so "the printing I own" cannot
+   win yet: store set + number when cards are added to the library, then make it rule 2b); built-in precons (lists.js) get
+   their printings only through the by-name EDHREC lookup on opening (store set + number in lists.js instead); generated
+   decks and upgrade swaps use the commander's set or the default printing by design.
+4. **Upgrades page polish (from this week):**
    - The card window's lead swap shows no reason line; add "The swap this upgrade suggests" when opened from a row.
    - Path to Apex inside Show all details repeats the health list below it; fold the two together.
    - The green + is decided from card tags; check its picks against the Fix menus (which measure each swap) and use the same
      rule if they disagree.
-4. **Known limits:** checking upgrades takes about 1 s more per deck (2–3 s on a phone); opening a card for a full deck takes
+5. **Known limits:** checking upgrades takes about 1 s more per deck (2–3 s on a phone); opening a card for a full deck takes
    about half a second; deck history records only changes made through the app's buttons.
-5. **Suite speed:** the full UI suite is about 435 s on 3 browsers; a real cut needs less work per test (fewer practice games
+6. **Suite speed:** the full UI suite is about 435 s on 3 browsers; a real cut needs less work per test (fewer practice games
    in tests, a smaller card library for screen-only tests).
 
 ## 7. Look and layout
@@ -161,6 +165,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 ---
 
 ## Done (recent, newest first)
+
+- Build 67: one printing system for every card (choice, source printing, printed name, commander's set, default).
 
 - Build 66: the Deck Builder's cards come from the daily card-data file, not Scryfall's paged search (fallback only).
 - Build 65: precons load in their exact printings (Hatsune Miku reskins); older precon decks repaired once on opening.
