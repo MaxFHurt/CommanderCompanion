@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.72 (Deck Builder {"build": 189, "version": "0.9.44"})
+- **Live build:** 1.0.0-rebuild.73 (Deck Builder {"build": 190, "version": "0.9.45"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 73 — 2 Nov 2026
+- Mechanics: **Forage** as a cost (exile three graveyard cards or sacrifice a Food, the player chooses), **Vanishing**, **Fading**, **Modular** and **Bloodthirst** counters as it enters, Vanishing and Fading upkeep (new condition b49-own-counters), **Landwalk** (attack-time cant-be-blocked), **Decayed** (can't block; sacrificed at end of combat after attacking). Connive, Explore and Populate were already automatic: Connive and Populate are now labelled so (Connive tested). Modular's dies-transfer stays by hand (glossary: partial). Deck Builder 0.9.45 (build 190): ENGINE_ROLES also adds the removal, draw or ramp the game engine reads on cards the Deck Builder reads only partly (69 cards; role-compare now measures the Deck Builder's own reader); benchmark unchanged. Tests: every suite (catalog 374), Deck Builder UI 128/128. Practice games with bots: held by the owner (7 Nov).
 
 ### Build 72 — 2 Nov 2026
 - Stylesheet cleanup (roadmap 7.1): the last two unused rules removed with tools/css-clean.mjs; the numbered override sections had already been folded; style_diff 32/32 identical (one capture-noise screen re-captured). Glossary (src/data/mechanics.js): Manifest, Manifest dread, Clash, Gift, Monstrous, Renowned, Blood, Die rolling and Coin flips marked automatic (the engine reads them; tests cover each). ROADMAP.md: the round of 7 Nov and what is still open. Tests: every suite green (soaks 0 problems, forge 301/302).
