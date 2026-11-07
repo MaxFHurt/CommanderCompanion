@@ -18,6 +18,8 @@ const { compileEffectText } = await import(here + 'src/engine/effects.js');
 const ctx = vm.createContext({ console, Math, JSON, Set, Map, Date, RegExp, Object, Array, String, Number, Infinity, isNaN, parseFloat, parseInt, setTimeout, clearTimeout, Promise });
 vm.runInContext(fs.readFileSync(here + 'deck/engine.min.js', 'utf8'), ctx, { filename: 'engine.min.js' });
 ctx.__raw = JSON.parse(zlib.gunzipSync(fs.readFileSync(snap)));
+// the Deck Builder's own reading only: the engine list it ships with is emptied first
+vm.runInContext(`if (typeof ENGINE_ROLES !== 'undefined') for (const k of Object.keys(ENGINE_ROLES)) delete ENGINE_ROLES[k];`, ctx);
 vm.runInContext(`{const rows=[];for(const o of __raw){const c=fromScryfall(o);if(c)rows.push(c);} buildIndex(rows);}`, ctx);
 const deckRoles = name => { ctx.__n = name; return vm.runInContext(`(()=>{const c=find(__n);return c?[...tags(c).roles]:null})()`, ctx); };
 
@@ -93,6 +95,12 @@ if (li > 0) {
     if (!r.read || r.deck.length || /\bLand\b/.test(rawBy.get(r.name)?.type_line || '')) continue;
     const roles = r.engine.filter(x => ['ramp', 'draw', 'removal', 'wipe', 'counter'].includes(x));
     if (roles.length) er[r.name] = roles;
+  }
+  // and the removal, draw or ramp the engine reads on a nonland card the Deck Builder reads only partly
+  for (const r of rows) {
+    if (!r.read || !r.deck.length || /\bLand\b/.test(rawBy.get(r.name)?.type_line || '')) continue;
+    const extra = r.engine.filter(x => ['removal', 'draw', 'ramp'].includes(x) && !r.deck.includes(x));
+    if (extra.length) er[r.name] = extra;
   }
   const file = process.argv[li + 1], src = fs.readFileSync(file, 'utf8').replace(/\n\/\/ Engine roles[\s\S]*$/, '');
   fs.writeFileSync(file, src.trimEnd() + '\n// Engine roles (tools/role-compare.mjs --lists): the game engine\'s reading of nonland cards the Deck Builder\'s own reader\n// gives no role (ramp, draw, removal, wipe, counter). Regenerate after card or engine changes.\nconst ENGINE_ROLES = ' + JSON.stringify(er) + ';\n');

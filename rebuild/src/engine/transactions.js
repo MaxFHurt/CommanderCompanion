@@ -390,7 +390,7 @@ function putSpellOnStack(game, player, action, deck) {
 function payAbilityCosts(game, player, action, deck) {
   for (const id of action.costExileIds || []) {
     const h = locateCardInGame(game, id);
-    if (!h || h.zone !== 'battlefield') throw new Error('The card chosen to exile is gone.');
+    if (!h || !['battlefield', 'graveyard'].includes(h.zone)) throw new Error('The card chosen to exile is gone.');   // graveyard: forage
     moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
   }
   const hit = locate(deck, action.instanceId);

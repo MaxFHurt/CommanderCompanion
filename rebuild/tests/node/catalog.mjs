@@ -2756,4 +2756,26 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
 }
 
 
+{
+  // Forage as a cost: exile three cards from your graveyard (chosen) or sacrifice a Food
+  const t = setup();
+  const src = onField(t, 'Fog Bank', '{1}, Forage: Draw a card.', { typeLine: 'Artifact' });
+  for (let k = 0; k < 3; k++) { const c = t.P(0).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); }
+  const gy = t.P(0).deck.graveyard.slice(-3).map(c => c.instanceId), hand = t.P(0).deck.hand.length;
+  const ab = parseActivatedAbilities(def(t, src)).find(a => /Forage/i.test(a.cost || ''));
+  t.ctl.dispatch({ type: 'activate', instanceId: src.instanceId, abilityId: ab.id }, t.as(0));
+  settle(t, [['cost:forage-exile', () => gy]]);
+  check('Forage: three chosen graveyard cards are exiled, then the ability resolves', gy.every(id => t.P(0).deck.exile.some(c => c.instanceId === id)) && t.P(0).deck.hand.length === hand + 1, JSON.stringify([t.P(0).deck.exile.length, t.P(0).deck.hand.length - hand]));
+}
+
+{
+  // Connive: draw, then discard (the card about to be drawn can be the one); a nonland discard gives a +1/+1 counter
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Divination');
+  const seen = [];
+  cast(t, 'Opt', 'Target creature you control connives.', [[d => d.targeting, () => bear.instanceId], [d => { seen.push(d.title); return /Discard/i.test(d.title || ''); }, d => [d.options.find(o => /Divination/.test(o.label || ''))?.id].filter(Boolean)]], { manaCost: '{U}' });
+  check('Connive: draw, discard a nonland card, +1/+1 counter', Number(bear.counters?.['+1/+1'] || 0) === 1, JSON.stringify([bear.counters, seen]));
+}
+
 done();

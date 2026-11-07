@@ -796,6 +796,19 @@ function runActivate(game, op, ask) {
     if (!rows.length && !force) throw new GameError(`You need a ${words} to exile.`);
     if (rows.length) costExileIds.push(ask('cost:exile', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words} to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) })));
   }
+  // Forage: "exile three cards from your graveyard or sacrifice a Food" (the player chooses which, and which cards).
+  if (/\bForage\b/i.test(ability.cost || '')) {
+    const gy = player.deck.graveyard || [], foods = player.deck.battlefield.filter(c => /\bFood\b/.test(defOf(game, c)?.typeLine || ''));
+    const opts = [...(gy.length >= 3 ? [{ id: 'exile', label: 'Exile three cards from your graveyard' }] : []), ...foods.map(c => ({ id: c.instanceId, label: `Sacrifice ${defOf(game, c)?.name || 'a Food'}` }))];
+    if (!opts.length && !force) throw new GameError('To forage, exile three cards from your graveyard or sacrifice a Food: you have neither.');
+    if (opts.length) {
+      const how = opts.length === 1 ? opts[0].id : ask('cost:forage', () => ({ ...base, kind: 'choose-one', title: `${def.name} — forage`, prompt: 'Exile three cards from your graveyard, or sacrifice a Food?', options: opts }));
+      if (how === 'exile') {
+        const picked = ask('cost:forage-exile', () => ({ ...base, kind: 'choose-many', title: `${def.name} — forage`, prompt: 'Choose three cards in your graveyard to exile.', min: 3, max: 3, options: gy.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card' })) }));
+        costExileIds.push(...(picked || []).slice(0, 3));
+      } else costMoveIds.push(how);
+    }
+  }
   if (ability.discardCount && fromZone !== 'hand') {
     const rows = player.deck.hand;
     if (!rows.length) throw new GameError('You have no card to discard.');

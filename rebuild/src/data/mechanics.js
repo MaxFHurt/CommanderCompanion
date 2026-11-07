@@ -156,7 +156,7 @@ m('Open an Attraction', 'action', 'Put the top card of your Attraction deck onto
 m('Roll to visit', 'action', 'Roll a six-sided die; Attractions with that number lit visit (Un-sets).', { auto: 'manual' });
 m('Time travel', 'action', 'For each permanent you control and suspended card you own with a time counter, you may add or remove a time counter.', { auto: 'manual', actions: ['counter+', 'counter-other'] });
 m('Discover', 'action', 'Discover N: exile cards from the top until a nonland card with mana value N or less; cast it free or put it in your hand. The rest go to the bottom in a random order.', { auto: 'auto', detect: '\\bDiscover \\d+' });
-m('Forage', 'action', 'Exile three cards from your graveyard or sacrifice a Food.', { auto: 'manual', actions: ['exile', 'sacrifice'] });
+m('Forage', 'action', 'Exile three cards from your graveyard or sacrifice a Food.', { auto: 'auto', actions: ['exile', 'sacrifice'] });
 m('Collect evidence', 'action', 'Collect evidence N: exile any number of cards from your graveyard with total mana value N or more.', { auto: 'manual', actions: ['exile'] });
 m('Suspect', 'action', 'A suspected creature has menace and can\'t block.', { auto: 'manual', actions: ['status'] });
 m('Incubate', 'action', 'Incubate N: create an Incubator artifact token with N +1/+1 counters and "{2}: Transform this artifact" (back: 0/0 Phyrexian artifact creature).', { auto: 'partial', actions: ['token', 'counter+'] });

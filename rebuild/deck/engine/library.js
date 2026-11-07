@@ -292,7 +292,8 @@ function tags(c) {
   }
   // The game engine's reading (lists.js ENGINE_ROLES, tools/role-compare.mjs): only for a nonland card this reader gives no role
   // (owner, 7 Nov: "use the game engine's card reading in the Deck Builder"; roadmap 5.1).
-  if (!roles.size && typeof ENGINE_ROLES !== 'undefined' && ENGINE_ROLES[c.n]) ENGINE_ROLES[c.n].forEach(r => roles.add(r));
+  // (and the removal, draw or ramp it reads on a card this reader reads only partly; the list holds only what this reader lacks)
+  if (typeof ENGINE_ROLES !== 'undefined' && ENGINE_ROLES[c.n]) ENGINE_ROLES[c.n].forEach(r => roles.add(r));
   // engine v2: a card's jobs come from its rules reading (engine/functions.js) as well as, or instead of, the text patterns above
   // UP.v2 1: the reading's jobs replace the patterns'; 2: both; UP.v2r: the jobs taken from the reading (the rest keep the patterns')
   // (only removal, wipes and card draw are taken from the reading: a card with no removal words and no 0.9.3 removal is left unread, the same
