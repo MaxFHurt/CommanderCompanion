@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.67 (Deck Builder {"build": 186, "version": "0.9.41"})
+- **Live build:** 1.0.0-rebuild.68 (Deck Builder {"build": 187, "version": "0.9.42"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 68 — 2 Nov 2026
+- **All suites pass again** (owner, 7 Nov: "fix everything except the 10k rulings left"): node suites, three soaks with 0 problems, forge 301/302, every Playwright suite, the full Deck Builder UI suite 128/128. Fixed tests: UI-B145-01 (EDHREC theme pages now kept in deck/tools/tests/suite/tags/), tracker_test (Scryfall's 404 for a made-up card), and seven Deck Builder tests that read the old layout and labels (B162 was a real bug: the badges were <b> like the Sheets names; now <span>). Rules: Moraug's extra combat comes before the second main phase (game.extraBeforeMain2, flow.js toAfterCombat); Kardur's goad covers creatures the opponents get later (game.goadEach, rules.js goadersOf; rule 611.2c); a land that becomes a copy makes the copied mana (transactions.js refreshManaSource); Dredge is offered for every player a resolving draw affects, asked of that player; Echo and Cumulative upkeep paid with an action that needs no choice (keyword-triggers-b49.js, may-pay doEffects). Deck Builder 0.9.42 (build 187): owned printings (profile.libPrint) and the 16 built-in precons' printings (lists.js Name@set#number); the card window says "This upgrade's swap"; Path to Apex in Show all details no longer repeats the health list. Card data job (Deck-Companion main): defense, reprint and flavor names kept; schedule at minute 17 (on-the-hour runs started 7-8 hours late). New tools/role-compare.mjs: the Deck Builder's roles against the game engine's reading for every card.
 
 ### Build 67 — 2 Nov 2026
 - Deck Builder 0.9.41 (build 186): **one printing system for every card** (owner, 7 Nov: "all cards follow the right printing"). Order: 1 the player's choice (printing picker; never replaced), 2 the source's exact printing (psc + pcn: precon, pasted "(SET) 123" line, share link), 3 the name it was listed under (pn: a reskin's printed name), 4 the commander's set (themed printings, shown only), 5 the default printing. Every way into a deck stores those hints; `pinPrints` (deck/ui/deck.js) turns them into printings 75 per Scryfall collection request (printed-name-only cards: one exact-name search each), on import, precon load, share links and once per deck per session on opening, so older decks are fixed too. It replaces the precon-only pinning and the one-request-per-card import lookup (which dropped printed names). Share links now carry each card's set and number and the commander's printing. A code that resolves to a different card is ignored. Tests: quick check 12; Hatsune Miku precon 87/87 and commander; a pasted list with set codes and a printed name only; a share-link round trip; an old precon repaired on opening; a player's choice left alone.
