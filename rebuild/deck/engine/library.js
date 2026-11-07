@@ -290,6 +290,9 @@ function tags(c) {
     if (ROLE_RE.tutor.test(ro) && !roles.has('ramp')) roles.add('tutor');
     if (ROLE_RE.protect.test(ro) || (/\bInstant\b/.test(t) && ROLE_RE.blink.test(ro))) roles.add('protect'); // an instant-speed blink saves a creature; a blink engine does not count
   }
+  // The game engine's reading (lists.js ENGINE_ROLES, tools/role-compare.mjs): only for a nonland card this reader gives no role
+  // (owner, 7 Nov: "use the game engine's card reading in the Deck Builder"; roadmap 5.1).
+  if (!roles.size && typeof ENGINE_ROLES !== 'undefined' && ENGINE_ROLES[c.n]) ENGINE_ROLES[c.n].forEach(r => roles.add(r));
   // engine v2: a card's jobs come from its rules reading (engine/functions.js) as well as, or instead of, the text patterns above
   // UP.v2 1: the reading's jobs replace the patterns'; 2: both; UP.v2r: the jobs taken from the reading (the rest keep the patterns')
   // (only removal, wipes and card draw are taken from the reading: a card with no removal words and no 0.9.3 removal is left unread, the same

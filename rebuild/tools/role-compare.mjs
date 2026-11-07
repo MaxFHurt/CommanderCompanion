@@ -44,7 +44,7 @@ function engineRoles(o) {
     read++;
     const all = /\b(all|each)\b[^.]*\b(creatures?|permanents?|nonland|artifacts?|enchantments?|planeswalkers?)\b/i.test(effect);
     // a target that is a permanent or creature (not a player, a graveyard or a spell)
-    const tgt = bind => { const q = (r.requirements || []).find(x => x.bind === bind); return !!q && q.kind === 'target' && /creature|permanent|artifact|enchantment|planeswalker|battle|\bland\b|any target/i.test(q.scope || q.label || '') && !/graveyard|spell|player\b(?!')/i.test(q.scope || ''); };
+    const tgt = bind => { const q = (r.requirements || []).find(x => x.bind === bind); return !!q && q.kind === 'target' && /creature|permanent|artifact|enchantment|planeswalker|battle|\bland\b|any target/i.test(q.scope || q.label || '') && !/graveyard|spell|player\b(?!')|you control|you own/i.test(q.scope || ''); };
     const LANDWORD = /\b(land|Forest|Island|Swamp|Mountain|Plains)\b[^.]*onto the battlefield/i;
     const fetchland = act && /Sacrifice SELFNAME/i.test(act[1]) && /\bLand\b/.test(type);   // Evolving Wilds swaps itself for a land: not ramp
     for (const e of r.effects) {
@@ -84,6 +84,20 @@ for (const role of ROLES) {
 }
 sum.deckNoneEngineSome = rows.filter(r => r.read && !r.deck.length && r.engine.length).map(r => `${r.name} [${r.engine.join(', ')}]`);
 if (outFile) fs.writeFileSync(outFile, JSON.stringify({ at: new Date().toISOString(), ...sum, rows }, null, 1));
+// --lists <deck/lists.js>: write ENGINE_ROLES (the engine's confident roles for nonland cards the Deck Builder reads as nothing)
+const li = process.argv.indexOf('--lists');
+if (li > 0) {
+  const rawBy = new Map(ctx.__raw.map(o => [o.name, o]));
+  const er = {};
+  for (const r of rows) {
+    if (!r.read || r.deck.length || /\bLand\b/.test(rawBy.get(r.name)?.type_line || '')) continue;
+    const roles = r.engine.filter(x => ['ramp', 'draw', 'removal', 'wipe', 'counter'].includes(x));
+    if (roles.length) er[r.name] = roles;
+  }
+  const file = process.argv[li + 1], src = fs.readFileSync(file, 'utf8').replace(/\n\/\/ Engine roles[\s\S]*$/, '');
+  fs.writeFileSync(file, src.trimEnd() + '\n// Engine roles (tools/role-compare.mjs --lists): the game engine\'s reading of nonland cards the Deck Builder\'s own reader\n// gives no role (ramp, draw, removal, wipe, counter). Regenerate after card or engine changes.\nconst ENGINE_ROLES = ' + JSON.stringify(er) + ';\n');
+  console.log('ENGINE_ROLES:', Object.keys(er).length, 'cards written to', file);
+}
 console.log(`cards ${sum.cards}; the engine reads at least one ability line of ${sum.engineRead}`);
 for (const role of ROLES) { const x = sum.roles[role]; console.log(`${role.padEnd(8)} both ${String(x.both).padStart(5)}  deck only ${String(x.deckOnly.length).padStart(5)}  engine only ${String(x.engineOnly.length).padStart(5)}   e.g. deck only: ${x.deckOnly.slice(0, 4).join('; ')} | engine only: ${x.engineOnly.slice(0, 4).join('; ')}`); }
 console.log(`the Deck Builder gives no role, the engine does: ${sum.deckNoneEngineSome.length}, e.g. ${sum.deckNoneEngineSome.slice(0, 8).join('; ')}`);
