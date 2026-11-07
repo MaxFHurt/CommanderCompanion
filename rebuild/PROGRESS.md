@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.77 (Deck Builder {"build": 192, "version": "0.9.47"})
+- **Live build:** 1.0.0-rebuild.78 (Deck Builder {"build": 192, "version": "0.9.47"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 78 — 2 Nov 2026
+- Build 78: 171 more cards run by themselves, most-played first (long tail): Earthbend; Discover and optional energy payments inside effects (energy paid as the step resolves, counting energy the ability gave first); wipes with qualifiers (nontoken, nonartifact, non-Dragon, no counters, you don't control); 'equal to' amounts read as X; Syphon Mind, Noxious Gearhulk, Jace Wielder of Mysteries, Kozilek/Ulamog graveyard shuffles, Soul Shatter, Homeward Path, Balefire Dragon, Mahadi, Persist, Brass's Bounty, Wave Goodbye, Fling, Elixir of Immortality and others; life gained this turn tracked. Tests: mechanics 73.
 
 ### Build 77 — 2 Nov 2026
 - Build 77: Deck Builder 0.9.47 (build 192): the green + on upgrades follows the Fix menus' rules (no always-tapped lands, lands only when they make a deck colour, the missing card of a winning combo counts for Win routes; ui/upgrades.js fixesMore, comboWins; test UI-B192-01). The Deck-Companion card-data job pings the free Supabase rules server on every run so the project never pauses (commit db48c60); its new schedule checked (first run at minute 17: 8 Nov 09:17 UTC).
