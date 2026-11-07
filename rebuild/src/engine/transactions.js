@@ -383,6 +383,8 @@ function putSpellOnStack(game, player, action, deck) {
   // "The next spell you cast this turn has improvise / cascade": used up by this spell (its cascade was queued as it was cast).
   for (let k = perms.length - 1; k >= 0; k--) if (perms[k]?.kind === 'next-spell-keyword' && !(perms[k].noncreature && /\bCreature\b/.test(castDef?.typeLine || ''))) perms.splice(k, 1);
   game.stack.push(stackObject);
+  // the colours of mana spent on it (Sunburst)
+  stackObject.colorsSpent = [...new Set([...Object.entries(action.payment || {}).filter(([k, v]) => /^[WUBRG]$/.test(k) && Number(v) > 0).map(([k]) => k), ...(action.payment?.__sourceAssignments || []).map(a => a.color).filter(c => /^[WUBRG]$/.test(c))])];
   const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
   emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
@@ -570,6 +572,17 @@ function resolveStackTop(game) {
       if (obj.asEntersChoices?.plusCounters) {
         card.counters = card.counters || {};
         card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);
+      }
+      if (obj.asEntersChoices?.devour?.length) {
+        // Devour: the chosen creatures still there are sacrificed; counters for each one sacrificed
+        let n = 0;
+        for (const id of obj.asEntersChoices.devour) {
+          const h = locateCardInGame(game, id);
+          if (!h || h.zone !== 'battlefield' || id === card.instanceId) continue;
+          moveCard(game, id, 'graveyard', { moveReason: 'sacrifice', onEvent: e => emit(game, e) });
+          n++;
+        }
+        if (n) { card.counters = card.counters || {}; card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + n * Number(obj.asEntersChoices.devourEach || 1); }
       }
       if (obj.asEntersChoices?.haste)
         card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }];

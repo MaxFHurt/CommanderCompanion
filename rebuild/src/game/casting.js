@@ -163,7 +163,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
+  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', awaken: 'Awaken', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -231,6 +231,10 @@ export function castModes(game, player, card, def, base = null) {
   // Surge {cost}: instead of its mana cost, if you've cast another spell this turn.
   const surge = zone === 'hand' ? keywordCost(text, 'Surge') : null;
   if (surge && Number(player.counters?.spellsCastThisTurn || 0) > 0) modes.push({ id: 'surge', cost: surge });
+  // Awaken N—{cost}: instead of its mana cost; it also puts N +1/+1 counters on a land you control, which becomes a 0/0
+  // Elemental creature with haste (ops.js castText adds that sentence).
+  const awk = zone === 'hand' && strip(text).match(/(?:^|\n)\s*Awaken (\d+)\s*[—-]\s*((?:\{[^}]+\})+)/i);
+  if (awk && player.deck.battlefield.some(c => /\bLand\b/.test(defOf(game, c)?.typeLine || ''))) modes.push({ id: 'awaken', cost: awk[2], awaken: Number(awk[1]) });
   // Spectacle {cost}: instead of its mana cost, if an opponent lost life this turn.
   const spectacle = zone === 'hand' ? keywordCost(text, 'Spectacle') : null;
   if (spectacle && game.players.some(p => p.playerId !== player.playerId && game.lostLifeTurn?.[p.playerId] === game.turnNumber)) modes.push({ id: 'spectacle', cost: spectacle });

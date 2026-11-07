@@ -1499,6 +1499,17 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       applyScry(game, p, effect, bindings, notes);
       continue;
     }
+    if (effect.kind === 'suspect') {
+      const id = effect.bind === 'sourceId' ? bindings.sourceId : effect.bind === 'lastTarget' ? (bindings.lastTargetId || bindings.target0) : bindings[effect.bind];
+      const hit = id ? locateCardInGame(game, id) : null;
+      if (!hit || hit.zone !== 'battlefield') { notes.push('Nothing is suspected.'); continue; }
+      hit.card.suspected = true;
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []).filter(e => !e?.suspect),
+        { kind: 'keyword', keyword: 'menace', enabled: true, suspect: true }, { kind: 'combat-restriction', restriction: 'cant-block', suspect: true }];
+      notes.push(`${cardName(game, hit.card)} is suspected (menace, and it can\u2019t block).`);
+      emit(bindings, { type: 'suspected', sourceId: hit.card.instanceId, controllerId });
+      continue;
+    }
     if (effect.kind === 'surveil') {
       const p = targetPlayers(game, controllerId, effect.scope || 'you', effect.playerId || bindings[effect.playerBind])[0] || controller;
       applySurveil(game, p, effect, bindings, notes);
@@ -2287,6 +2298,15 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   if ((m = c.match(/^Gain control of (target .+?) until end of turn\. Untap it\. It gains haste until end of turn\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'gain-control', bind, untilEndOfTurn: true, untap: true, haste: true });
+    return { effects, requirements, unsupported };
+  }
+  // Suspect: "Suspect target creature." / "Suspect it." / "suspect SELFNAME" — it has menace and can't block for as long as it
+  // is suspected (until it leaves the battlefield).
+  if ((m = c.match(/^(?:you may )?suspect (target creature(?: an opponent controls| you control)?|up to one target creature|it|that creature|SELFNAME)\.?$/i))) {
+    let bind = 'sourceId';
+    if (/target/i.test(m[1])) { bind = `target${requirements.length}`; requirements.push({ kind: 'target', bind, scope: m[1].replace(/^up to one /i, ''), label: m[1], ...( /^up to one/i.test(m[1]) ? { optional: true } : {}) }); }
+    else if (/^(it|that creature)$/i.test(m[1])) bind = 'lastTarget';
+    effects.push({ kind: 'suspect', bind });
     return { effects, requirements, unsupported };
   }
   // Scry / surveil.

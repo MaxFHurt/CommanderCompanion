@@ -158,7 +158,7 @@ m('Time travel', 'action', 'For each permanent you control and suspended card yo
 m('Discover', 'action', 'Discover N: exile cards from the top until a nonland card with mana value N or less; cast it free or put it in your hand. The rest go to the bottom in a random order.', { auto: 'auto', detect: '\\bDiscover \\d+' });
 m('Forage', 'action', 'Exile three cards from your graveyard or sacrifice a Food.', { auto: 'auto', actions: ['exile', 'sacrifice'] });
 m('Collect evidence', 'action', 'Collect evidence N: exile any number of cards from your graveyard with total mana value N or more.', { auto: 'manual', actions: ['exile'] });
-m('Suspect', 'action', 'A suspected creature has menace and can\'t block.', { auto: 'manual', actions: ['status'] });
+m('Suspect', 'action', 'A suspected creature has menace and can\'t block.', { auto: 'auto', actions: ['status'] });
 m('Incubate', 'action', 'Incubate N: create an Incubator artifact token with N +1/+1 counters and "{2}: Transform this artifact" (back: 0/0 Phyrexian artifact creature).', { auto: 'partial', actions: ['token', 'counter+'] });
 m('The Ring tempts you', 'action', 'Choose a Ring-bearer; your Ring gains its next ability (legendary, can\'t be blocked by greater power; loot on attack; opponents lose 3 on block; each opponent loses 3 on combat damage).', { auto: 'partial', detect: '\\bthe Ring tempts you\\b', actions: ['status'] });
 m('Villainous choice', 'action', 'An opponent chooses one of two outcomes that both hurt them.', { auto: 'manual', steps: 'The named opponent picks one of the two options; apply it.', actions: [] });
@@ -179,7 +179,7 @@ m('Annihilator', 'keyword', 'Annihilator N: whenever this attacks, defending pla
 m('Ascend', 'keyword', 'If you control ten or more permanents, you get the city\'s blessing for the rest of the game.', { auto: 'auto', actions: ['status'] });
 m('Assist', 'keyword', 'Another player can pay any amount of this spell\'s generic mana.', { auto: 'manual' });
 m('Aura swap', 'keyword', 'Exchange this Aura with an Aura card in your hand.', { auto: 'manual' });
-m('Awaken', 'keyword', 'Cast for the awaken cost: also put N +1/+1 counters on target land you control; it becomes a 0/0 Elemental creature with haste.', { auto: 'manual', actions: ['counter+'] });
+m('Awaken', 'keyword', 'Cast for the awaken cost: also put N +1/+1 counters on target land you control; it becomes a 0/0 Elemental creature with haste.', { auto: 'auto', actions: ['counter+'] });
 m('Backup', 'keyword', 'Backup N: when this enters, put N +1/+1 counters on target creature; if that\'s another creature, it gains this creature\'s other abilities until end of turn.', { auto: 'auto', actions: ['counter+'] });
 m('Banding', 'keyword', 'Creatures with banding can attack or block as a group; their controller assigns combat damage dealt to the band.', { auto: 'manual' });
 m('Bands with others', 'keyword', 'A narrower form of banding.', { auto: 'manual' });
@@ -213,7 +213,7 @@ m('Delve', 'keyword', 'Each card you exile from your graveyard while casting thi
 m('Demonstrate', 'keyword', 'When you cast this, you may copy it; if you do, an opponent also copies it.', { auto: 'manual' });
 m('Dethrone', 'keyword', 'Whenever this attacks the player with the most life (or tied), put a +1/+1 counter on it.', { auto: 'auto', actions: ['counter+'] });
 m('Devoid', 'keyword', 'This card has no color.', { auto: 'auto' });
-m('Devour', 'keyword', 'Devour N: as this enters, you may sacrifice any number of creatures; it enters with N +1/+1 counters for each.', { auto: 'manual', actions: ['sacrifice', 'counter+'] });
+m('Devour', 'keyword', 'Devour N: as this enters, you may sacrifice any number of creatures; it enters with N +1/+1 counters for each.', { auto: 'auto', actions: ['sacrifice', 'counter+'] });
 m('Disguise', 'keyword', 'Cast face down for {3} as a 2/2 with ward {2}; turn face up any time for the disguise cost.', { auto: 'auto' });
 m('Disturb', 'keyword', 'Cast this card transformed from your graveyard for the disturb cost; if it would leave the battlefield later, exile it.', { auto: 'auto', actions: ['transform', 'exile'] });
 m('Double team', 'keyword', 'When this attacks, if it isn\'t a token, conjure a duplicate into your hand; both lose double team (Alchemy).', { auto: 'manual' });
@@ -312,7 +312,7 @@ m('Split second', 'keyword', 'While this is on the stack, players can\'t cast sp
 m('Spree', 'keyword', 'Choose one or more modes, paying each chosen mode\'s additional cost.', { auto: 'auto' });
 m('Squad', 'keyword', 'Pay the squad cost any number of times as you cast this; when it enters, create that many token copies.', { auto: 'auto', actions: ['copy-token'] });
 m('Storm', 'keyword', 'When you cast this, copy it for each spell cast before it this turn. Copies may choose new targets.', { auto: 'auto' });
-m('Sunburst', 'keyword', 'Enters with a +1/+1 counter (or charge counter if not a creature) for each color of mana spent to cast it.', { auto: 'manual', actions: ['counter+', 'counter-other'] });
+m('Sunburst', 'keyword', 'Enters with a +1/+1 counter (or charge counter if not a creature) for each color of mana spent to cast it.', { auto: 'auto', actions: ['counter+', 'counter-other'] });
 m('Surge', 'keyword', 'You may cast this for its surge cost if you or a teammate cast another spell this turn.', { auto: 'auto' });
 m('Suspend', 'keyword', 'Pay the suspend cost and exile this from your hand with N time counters; remove one each upkeep; when the last is removed, cast it free (creatures get haste).', { auto: 'auto', steps: 'Use Suspend from your hand; the game removes a time counter each upkeep and casts it for free (with haste) when the last one goes. Suspend X and cards that give suspend are by hand.', actions: ['exile', 'counter-other'] });
 m('Toxic', 'keyword', 'Toxic N: combat damage this deals to a player also gives them N poison counters.', { auto: 'auto' });

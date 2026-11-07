@@ -2782,7 +2782,7 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   // Vanishing / Fading / Modular / Bloodthirst counters as it enters; Vanishing and Fading upkeep
   const t = setup();
   const used = new Set(t.P(0).deck.battlefield.map(x => x.definitionId));
-  const cast2 = (text) => { const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => !used.has(x.definitionId) && !/Land/.test(def(t, x).typeLine)); const [c] = lib.splice(i, 1); used.add(c.definitionId); c.zone = 'hand'; t.P(0).deck.hand.push(c); asText(t, c, text, { manaCost: '{0}', typeLine: 'Creature — Bear', power: '2', toughness: '2' }); t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); settle(t); return c; };
+  const cast2 = (text) => { const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => !used.has(x.definitionId) && /Creature/.test(def(t, x).typeLine) && !t.P(0).deck.hand.some(h => h.definitionId === x.definitionId)); const [c] = lib.splice(i, 1); used.add(c.definitionId); c.zone = 'hand'; t.P(0).deck.hand.push(c); asText(t, c, text, { manaCost: '{0}', typeLine: 'Creature — Bear', power: '2', toughness: '2' }); t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); settle(t); return c; };
   const v = cast2('Vanishing 2'), f = cast2('Fading 1'), m = cast2('Modular 2');
   const enter = [v.counters?.time, f.counters?.fade, m.counters?.['+1/+1']].join();
   t.autoPass = true; t.end(0); t.end(1); settle(t);
@@ -2816,6 +2816,47 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   t.do(0, { type: 'attack', attacks: [{ instanceId: z.instanceId, defenderId: t.P(1).playerId }] });
   settle(t);
   check('Decayed: it can\'t block, and after attacking it is sacrificed at end of combat', cantBlock && !t.P(0).deck.battlefield.includes(z) && t.P(0).deck.graveyard.includes(z), JSON.stringify([cantBlock, t.game.phase, t.P(0).deck.battlefield.includes(z)]));
+}
+
+{
+  // Suspect: menace and can't block while suspected
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Suspect target creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{U}' });
+  const R = await import('../../src/engine/rules.js');
+  check('Suspect: the creature has menace and can\'t block', bear.suspected && R.attackerMinimumBlockers(def(t, bear), bear) === 2 && !R.validateBlock({ blocker: bear, definition: def(t, bear), attackerDefinition: def(t, bear), attacker: bear }).legal, JSON.stringify(bear.temporaryEffects));
+}
+
+{
+  // Devour 2: two creatures sacrificed as it enters → four +1/+1 counters
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Fog Bank', '', { typeLine: 'Creature — Wall' });
+  const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => /Creature/.test(def(t, x).typeLine) && x.definitionId !== a.definitionId && x.definitionId !== b.definitionId);
+  const [c] = lib.splice(i, 1); c.zone = 'hand'; t.P(0).deck.hand.push(c);
+  asText(t, c, 'Devour 2', { manaCost: '{0}', typeLine: 'Creature — Dragon', power: '1', toughness: '1' });
+  t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0));
+  settle(t, [['enters:devour', () => [a.instanceId, b.instanceId]]]);
+  check('Devour 2: the chosen creatures are sacrificed and it gets 4 +1/+1 counters', Number(c.counters?.['+1/+1'] || 0) === 4 && !t.P(0).deck.battlefield.includes(a) && !t.P(0).deck.battlefield.includes(b), JSON.stringify([c.counters, t.P(0).deck.battlefield.includes(a)]));
+}
+
+{
+  // Sunburst: a counter for each colour of mana spent ({G}{U} → two)
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(x => /Creature/.test(def(t, x).typeLine) && !t.P(0).deck.hand.some(h => h.definitionId === x.definitionId) && !t.P(0).deck.battlefield.some(h => h.definitionId === x.definitionId));
+  const [c] = lib.splice(i, 1); c.zone = 'hand'; t.P(0).deck.hand.push(c);
+  asText(t, c, 'Sunburst', { manaCost: '{G}{U}', typeLine: 'Artifact Creature — Construct', power: '0', toughness: '0' });
+  t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); settle(t);
+  check('Sunburst: {G}{U} spent → two +1/+1 counters', Number(c.counters?.['+1/+1'] || 0) === 2, JSON.stringify(c.counters));
+}
+
+{
+  // Awaken 2: cast for its awaken cost, a land you control gets two +1/+1 counters and becomes a 0/0 Elemental creature with haste
+  const t = setup();
+  const land = t.P(0).deck.battlefield.find(c => /Land/.test(def(t, c).typeLine));
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.\nAwaken 2\u2014{U} (If you cast this spell for {U}, also put two +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It\'s still a land.)', [['castMode', 'awaken'], [d => d.targeting, () => land.instanceId]], { manaCost: '{3}{U}', typeLine: 'Sorcery' });
+  const d2 = (await import('../../src/engine/effects.js')).definitionFor(t.game, land);
+  check('Awaken: the land gets two +1/+1 counters and is a creature; the spell still draws', Number(land.counters?.['+1/+1'] || 0) === 2 && /Creature/.test(d2.typeLine || '') && /Land/.test(d2.typeLine || ''), JSON.stringify([land.counters, d2.typeLine, t.P(0).deck.hand.length - hand]));
 }
 
 done();

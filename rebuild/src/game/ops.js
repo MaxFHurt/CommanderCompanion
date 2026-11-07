@@ -155,6 +155,14 @@ function askAsEnters(game, player, def, ask, source) {
     const pick = ask('enters:riot', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — riot`, kind: 'choose-one', prompt: 'It enters with your choice of a +1/+1 counter or haste.', options: [{ id: 'counter', label: 'A +1/+1 counter' }, { id: 'haste', label: 'Haste' }] }));
     return pick === 'haste' ? { haste: true } : { plusCounters: 1 };
   }
+  // Devour N: as it enters, sacrifice any number of other creatures; N +1/+1 counters for each (transactions.js).
+  const dev = !spec && kwText.match(/(?:^|\n)\s*Devour (\d+)/i);
+  if (dev) {
+    const rows = (player.deck.battlefield || []).filter(c => /\bCreature\b/.test(defOf(game, c)?.typeLine || ''));
+    if (!rows.length) return null;
+    const picks = [].concat(ask('enters:devour', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — devour ${dev[1]}`, kind: 'choose-many', prompt: `Sacrifice any number of creatures: ${def.name} enters with ${dev[1]} +1/+1 counter${dev[1] === '1' ? '' : 's'} for each.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature' })) })) || []);
+    return picks.length ? { devour: picks, devourEach: Number(dev[1]) } : null;
+  }
   if (!spec && /(?:^|\n)\s*Unleash\b/i.test(kwText)) {
     const pick = ask('enters:unleash', () => ({ playerId: player.playerId, cancellable: true, source, title: `${def.name} — unleash`, kind: 'choose-one', prompt: 'You may have it enter with a +1/+1 counter. It can\u2019t block as long as it has one.', options: [{ id: 'counter', label: 'Enter with a +1/+1 counter' }, { id: 'no', label: 'No counter' }] }));
     return pick === 'counter' ? { plusCounters: 1 } : null;
@@ -209,8 +217,8 @@ function giftText(t, gift) {
   return t.replace(/^\s+/, '');
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -232,6 +240,8 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   if (/surge cost was paid/i.test(t)) t = giftText(t.replace(/If this spell'?s surge cost was paid, /gi, 'If the gift was promised, '), surged);
   // Bargain: "If this spell was bargained, …" works like the gift sentences.
   if (/\bwas bargained\b/i.test(t)) t = giftText(t.replace(/If this spell was bargained, /gi, 'If the gift was promised, ').replace(/If this spell wasn'?t bargained, /gi, "If the gift wasn't promised, "), bargained);
+  // Awaken: cast for its awaken cost, it also animates a land you control
+  if (awaken) t = `${t.trim()}\nPut ${awaken} +1/+1 counters on target land you control. It becomes a 0/0 Elemental creature with haste. It's still a land.`;
   return t.trim();
 }
 
@@ -434,7 +444,7 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge' }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge', awaken: mode.id === 'awaken' ? Number(mode.awaken || 0) : 0 }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
   const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
@@ -1398,6 +1408,8 @@ function runResolve(game, op, ask) {
     kc(/(?:^|\n)\s*Vanishing (\d+)/i, 'time');
     kc(/(?:^|\n)\s*Fading (\d+)/i, 'fade');
     kc(/(?:^|\n)\s*Modular (\d+)/i, '+1/+1');
+    // Sunburst: a +1/+1 counter (a creature) or a charge counter for each colour of mana spent to cast it.
+    if (/(?:^|\n)\s*Sunburst\b/i.test(kw) && (top.colorsSpent || []).length) { card.counters = card.counters || {}; const k = /\bCreature\b/.test(cardDef.typeLine || '') ? '+1/+1' : 'charge'; card.counters[k] = Number(card.counters[k] || 0) + top.colorsSpent.length; }
     kc(/(?:^|\n)\s*Bloodthirst (\d+)/i, '+1/+1', (game.players || []).some(q => q.playerId !== player.playerId && game.lostLifeTurn?.[q.playerId] === game.turnNumber));
   }
 }
