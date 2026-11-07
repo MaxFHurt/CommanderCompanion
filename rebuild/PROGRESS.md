@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.78 (Deck Builder {"build": 192, "version": "0.9.47"})
+- **Live build:** 1.0.0-rebuild.79 (Deck Builder {"build": 192, "version": "0.9.47"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 79 — 2 Nov 2026
+- Build 79: the medium rules round, 269 more cards run by themselves: Rooms (unlock a door as a special action paying its cost, only as a sorcery; 'When you unlock this door' fires for that door; both doors' abilities once both are unlocked; the doors lock again when it leaves), flip cards (flip this creature; ki-counter flips), time travel, Echo/Cumulative upkeep paid with a choice (asked whether to pay, then which cards; one per age counter), 'Pay {B} and 1 life' upkeep, Druid/Paladin/Sorcerer/Warlock Class, Hunter's/Gossip's/Blacksmith's Talent, Guide of Souls, Lightning Runner, Sphinx of the Revelation, Electrosiphon, Unholy Annex and other Rooms, 'damage equal to' amounts, life lost this turn tracked. Tests: mechanics 81.
 
 ### Build 78 — 2 Nov 2026
 - Build 78: 171 more cards run by themselves, most-played first (long tail): Earthbend; Discover and optional energy payments inside effects (energy paid as the step resolves, counting energy the ability gave first); wipes with qualifiers (nontoken, nonartifact, non-Dragon, no counters, you don't control); 'equal to' amounts read as X; Syphon Mind, Noxious Gearhulk, Jace Wielder of Mysteries, Kozilek/Ulamog graveyard shuffles, Soul Shatter, Homeward Path, Balefire Dragon, Mahadi, Persist, Brass's Bounty, Wave Goodbye, Fling, Elixir of Immortality and others; life gained this turn tracked. Tests: mechanics 73.

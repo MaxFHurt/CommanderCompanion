@@ -66,9 +66,9 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## 2. Game rules engine (cards in play)
 
-1. **The card long tail:** about 21,240 of 31,776 Commander-legal cards run by themselves (top 1,000: all; build 78 added 171,
+1. **The card long tail:** about 21,500 of 31,776 Commander-legal cards run by themselves (top 1,000: all; build 78 added 171 and build 79 269,
    most-played first: Earthbend, Discover and energy payments inside effects, wipes with qualifiers, "equal to" amounts,
-   Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,540 still need
+   Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,270 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
    the answer key. Tools: `tools/rules-audit.mjs`, the Scryfall bulk file split into 4 chunks. (RULES_AUDIT.md, PROGRESS.md)
 2. **Mechanics still resolved by hand** (build 79 did the medium round: Rooms (doors unlock as a special action; "When you
@@ -206,6 +206,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 79: Rooms, flip cards, time travel, Echo/Cumulative upkeep paid with a choice, Class and energy wordings (269 more cards).
 - Build 78: 171 more cards run by themselves (the long tail, most-played first).
 - Build 77 (Deck Builder 0.9.47, build 192): the green + follows the Fix menus' rules; the card-data job keeps the free
   rules server awake; the job's schedule checked.
