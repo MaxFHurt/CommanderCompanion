@@ -1533,6 +1533,24 @@ const b162 = await page.evaluate(async () => { const out = {};
   $('#modal').hidden = true; PRINT.map = new Map(); PRINT.key = ''; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B162-01', 'Version 0.9.17: a card shown in a printing that carries another name is named by that printing, then its real name, on the upgrade sheet and in the card window', b162.sheetOk && b162.cardOk, JSON.stringify(b162));
 } catch (e) { QUIET = false; T('UI-B162-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B192-01')) { try { if (SHARD) await RESET();
+// Build 192: the green + on an upgrade follows the alert's Fix menu. Every land the Mana fix offers is marked; a land that always
+// enters tapped never is (the Fix menus take those out); a card that completes a winning combo counts for Win routes.
+const b192 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  const id = ctxOf(d).ident, cols = c => [...landColors(c)].filter(z => id.includes(z)).length, inDeck = new Set(d.cards.map(e => keyOf(e.n)));
+  HFIX.set(d.id, new Set(['Mana', 'Lands', 'Win routes']));
+  const plus = c => /bdg fix/.test(cardBadges(d, c.n));
+  const tapped = LIB.filter(c => tags(c).land && landSpeed(c) === 'tapped' && cols(c) >= 2 && c.ci.every(z => id.includes(z))).slice(0, 20);
+  out.tapped = tapped.length; out.tappedPlus = tapped.filter(plus).map(c => c.n);
+  const e = evalFor(d), adds = manaAdds(d, 8, manaStarved(d, e));
+  out.adds = adds.length; out.addsMissing = adds.filter(c => !fixesMore(d, 'Mana', c, tags(c))).map(c => c.n);
+  out.wins = [...comboWins(d)].length;
+  const w = [...comboWins(d)].map(k => LIB.find(c => c._k === k)).filter(c => c && !tags(c).land);
+  out.winsMissing = w.filter(c => !fixesMore(d, 'Win routes', c, tags(c))).map(c => c.n);
+  HFIX.delete(d.id); S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-B192-01', 'Build 192: the green + follows the Fix menus: every land the Mana fix offers is marked, no land that always enters tapped is, and a card completing a winning combo counts for Win routes', b192.tapped > 0 && !b192.tappedPlus.length && b192.adds > 0 && !b192.addsMissing.length && !b192.winsMissing.length, JSON.stringify(b192));
+} catch (e) { QUIET = false; T('UI-B192-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

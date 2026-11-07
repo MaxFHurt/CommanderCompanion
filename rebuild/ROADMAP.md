@@ -118,8 +118,10 @@ suggested tools first, "that card" carried from step to step, applied as one cha
 
 1. **(Done 7 Nov; schedule moved to minute 17.)** **Merge the card-data job change into Deck-Companion `main`** (branch `claude/card-effects-fixes-rcosbu`, commit 3a9d2c0):
    the daily `cards.json.gz` then also keeps battles' defense, reprint and printed (flavor) names. The app works without it.
-2. The job runs at 4 a.m. New York time; the snapshot of 6 Nov was taken at 16:32 UTC (a manual or push run). Check the
-   scheduled runs in Deck-Companion's Actions.
+2. **(Checked 7 Nov, build 77.)** Every run since the schedule change succeeded (the push runs of 7 Nov 10:58 UTC); the first
+   run at the new time is 8 Nov 09:17 UTC (4:17 a.m. New York). Before the change the scheduled runs started 7-8 hours late.
+3. **(Done, build 77.)** The job also asks the online-games rules server for a code that does not exist (a read of the games
+   table) on every run, so the free Supabase project is used every day and never pauses for a week without use.
 
 ## 5. Deck Builder × game engine (owner, 2 Nov: add all three)
 
@@ -162,15 +164,17 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    - Should alternatives be matched to the card going out rather than to the pick? (guide blind spots: Sheoldred and Yawgmoth
      for Doom, Swords to Plowshares for Turtle Power, Brightglass Gearhulk for Wakanda)
    - EDHREC land count: the app uses its own land formula; the tests use EDHREC's average (a land apart). Align them?
-3. **Printings (build 67 system), still open:** owned cards (the library keeps names only, so "the printing I own" cannot
+3. **(Done, build 68.)** **Printings (build 67 system):** owned cards (the library keeps names only, so "the printing I own" cannot
    win yet: store set + number when cards are added to the library, then make it rule 2b); built-in precons (lists.js) get
    their printings only through the by-name EDHREC lookup on opening (store set + number in lists.js instead); generated
    decks and upgrade swaps use the commander's set or the default printing by design.
-4. **Upgrades page polish (from this week):**
+4. **(Done: the first two in build 68, the third in build 77.)** **Upgrades page polish (from this week):**
    - The card window's lead swap shows no reason line; add "The swap this upgrade suggests" when opened from a row.
    - Path to Apex inside Show all details repeats the health list below it; fold the two together.
    - The green + is decided from card tags; check its picks against the Fix menus (which measure each swap) and use the same
-     rule if they disagree.
+     rule if they disagree. Build 77: they disagreed on lands (the + marked lands that always enter tapped, which the Fix menus
+     take out, and lands making none of the deck's colours) and on Win routes (the fix also offers the missing card of a
+     winning combo). The + now uses the Fix menus' rules (ui/upgrades.js fixesMore, comboWins); test UI-B192-01.
 5. **Known limits:** checking upgrades takes about 1 s more per deck (2–3 s on a phone); opening a card for a full deck takes
    about half a second; deck history records only changes made through the app's buttons.
 6. **Suite speed:** the full UI suite is about 435 s on 3 browsers; a real cut needs less work per test (fewer practice games
@@ -192,6 +196,10 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 77 (Deck Builder 0.9.47, build 192): the green + follows the Fix menus' rules; the card-data job keeps the free
+  rules server awake; the job's schedule checked.
+- Build 76: online games on the free Supabase rules server; no device holds another player's hidden cards.
+- Build 75: Modular, Companion, voting, Suspect, Devour, Sunburst, Awaken.
 - Build 72: stylesheet cleanup; glossary labels for nine automatic mechanics.
 - Build 71: card interactions in the card window.
 - Build 70: hosted games move between devices; engine roles fill the Deck Builder's gaps.

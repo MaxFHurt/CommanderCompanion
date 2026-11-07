@@ -2084,6 +2084,9 @@ function bracketHtml(d, A) {
 }
 // Badges on an upgrade's card image (owner, 2 Nov): GC for every Game Changer; a green + when the card helps a health alert
 // the deck has now (ramp, card draw, removal, board wipes, lands when it runs short, curve, mana, win routes), named in its tooltip.
+// Build 77: the + follows the same rule as the alert's Fix menu, so a card marked + is one that menu could offer: no lands that
+// always enter tapped (the Fix menus take those out), lands only when they make a deck colour, and for Win routes also the
+// card that completes a winning combo the deck is one card short of.
 const HFIX = new Map();
 const HROLE = {Ramp: 'ramp', Draw: 'draw', Removal: 'removal', Wipes: 'wipe'};
 function cardBadges(d, n) {
@@ -2091,24 +2094,42 @@ function cardBadges(d, n) {
   if (!c) return '';
   const t = tags(c),
     ks = HFIX.get(d.id) || new Set(),
-    A = ks.has('Lands') && t.land ? analyze(d) : null,
-    fix = [...ks].filter(k => (HROLE[k] && !t.land && t.roles.has(HROLE[k])) || (k === 'Lands' && A && A.lands < A.T.lands) || fixesMore(d, k, c, t));
+    fix = [...ks].filter(k => (HROLE[k] && !t.land && t.roles.has(HROLE[k])) || fixesMore(d, k, c, t));
   return (
     (c.gc ? '<span class="bdg gc" title="Game Changer">GC</span>' : '') +
     (fix.length ? '<span class="bdg fix" title="Helps deck health: ' + esc(fix.join(', ')) + '">+</span>' : '')
   );
 }
-// Curve: a cheap spell (2 mana or less). Win routes: a finisher. Mana: a land making two or more of the deck's colours (one in
-// a single-colour deck); when the deck runs out of lands rather than colours (practice games), any land.
+// Lands: an untapped land making a deck colour, while the deck runs short of lands (as the Lands fix adds). Curve: a cheap
+// spell (2 mana or less). Win routes: a finisher, or the missing card of a winning combo (as the Win routes fix adds). Mana:
+// an untapped land making two or more of the deck's colours (one in a single-colour deck); when the deck is short of mana
+// (manaStarved, as the Mana fix decides), any untapped land making a deck colour.
 function fixesMore(d, k, c, t) {
   if (k === 'Curve') return !t.land && c.cmc <= 2 && !/\{X\}/.test(c.m || '');   // an X spell costs more than its 0
-  if (k === 'Win routes') return !t.land && isFinisher(c);
-  if (k !== 'Mana' || !t.land) return false;
+  if (k === 'Win routes') return !t.land && (isFinisher(c) || comboWins(d).has(c._k || keyOf(c.n)));
+  if ((k !== 'Mana' && k !== 'Lands') || !t.land || landSpeed(c) === 'tapped') return false;
   const id = ctxOf(d).ident,
     n = [...landColors(c)].filter(z => id.includes(z)).length;
+  if (k === 'Lands') {
+    const A = analyze(d);
+    return A.lands < A.T.lands && (n >= 1 || !id.length);
+  }
+  if (isBasic(c.n) || monoJunkLand(c, id)) return false;
   if (n >= Math.min(2, id.length)) return true;
-  const m = (evalFor(d) || {}).sim;
-  return !!(m && m.screwT5 > m.colourStuck);
+  return n >= 1 && manaStarved(d, evalFor(d));
+}
+// The cards that would complete a winning combo the deck is one card short of, kept until the deck changes.
+const CWIN = new Map();
+function comboWins(d) {
+  const sig = d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + d.commander + '#' + (d.partner || '') + '#' + COMBOS.list.length,
+    h = CWIN.get(d.id);
+  if (h && h.sig === sig) return h.set;
+  let set = new Set();
+  try {
+    if (COMBOS.list.length) set = new Set(combosOf(d, ctxOf(d).ident).near.filter(x => x.x.win).map(x => keyOf(x.miss)));
+  } catch (e) {}
+  CWIN.set(d.id, {sig, set});
+  return set;
 }
 // Label for a Game Changer upgrade: where it leaves the deck.
 function gcChip(p, R) {
