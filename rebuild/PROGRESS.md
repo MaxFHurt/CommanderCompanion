@@ -9,8 +9,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 - **Live build:** 1.0.0-rebuild.85 (Deck Builder {"build": 198, "version": "0.9.53"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
-  commonest remaining wordings cover only a few dozen cards each.
+- **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, measured 8 Nov on the claude/commander-
+  companion-roadmap-ilkx1o branch, not live yet); about 10,160 still need something done by hand. It is a long tail: the
+  commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
 
@@ -53,11 +54,24 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 ## Known limits
 
 - Moraug, Kardur, copied lands, Dredge for other players' draws and Echo/Cumulative upkeep action costs: done (build 68);
-  costs that need a choice (build 79); costs an opponent takes part in (build 84).
+  costs that need a choice (build 79); costs an opponent takes part in (build 85).
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
 
+### Build 86 (ready on the branch, not live) — 8 Nov 2026
+- Roadmap round, smallest first; 148 more cards run by themselves (21,529 → 21,677 of 31,836), none lost. Galvanic
+  Discharge (pay any amount of {E}); suspend from Delay, Jhoira of the Ghitu and Taigam; Cumulative upkeep costs an opponent
+  takes part in (Wall of Shards, Varchild's War-Riders, Sheltering Ancient: chosen again per age counter); card data cached
+  before build 28 repaired on load; "Activate no more than twice each turn"; Lairs and Visions karoos ("sacrifice it unless
+  you return a non-Lair land / an untapped Island"), Quickling, Mistbind Clique; spells to the bottom of their library;
+  Bontu's Last Reckoning's untap skip; Scorching Dragonfire; Blackmail-style "reveals three cards and you choose one" (the
+  revealing player picks the three); Traumatic Revelation, Perish the Thought, Stinging Vitriol; "unless {G} was spent to
+  cast it" (Plaxmanta); Disallow, Rebuff the Wicked; The Scarab/Locust/Scorpion God's return; Pestilence; damage equal to a
+  land count (Spitting Earth and about 40 more); Corrupt's life gain; Marrow Shards; Oust.
+- Tests: node game 254, mechanics 85, catalog 401, smoke 6, tracker 20, forge 301/302, soak 40 (0 problems); Playwright
+  game_ui 28, flows_ui 29, challenge_ui 13, tracker_test 40, net_ui 30, offline_ui 5, pair_ui 5, tracker_net_ui 44,
+  online_ui 41 (timed out once in the full run, passed alone). Not run: soak ×3, the Deck Builder suite (deck/ unchanged).
 ### Build 85 — 2 Nov 2026
 - Build 85: Deck Builder 0.9.53 (build 198): card search finds cards by their printed (flavor) names (owner, 8 Nov: 'The search function can't find newly renamed printings'). The card-data job's alt.json (every printed name with its real card, written daily) is downloaded once a day and kept in the browser; names the built-in list lacks are added to the name index (library.js addAltNames; storage.js loadAltNames), so new reskins resolve in search, imports and decklists. Search matches printed names and shows the one it matched (quick search: printed name with the real name; card search: a chip). 617 names live (561 built in). Tests: UI-B198-01 new; UI suite 133; benchmark unchanged.
 

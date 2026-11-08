@@ -468,7 +468,7 @@ declarations; verify with `tests/style_diff.py` (build 28 cleanup was pixel-iden
   are tested only in one browser, not on real hardware.
 - **iPad home-screen black strip** (iPadOS 26 WebKit bug 301108): build 22 switched the status bar
   style to `black`; the owner must delete and re-add the home-screen icon. Not yet confirmed.
-- (Fixed, build 84.) Cached card definitions from builds before 28 had both halves' costs on split/adventure cards; the
+- (Fixed, build 85, on the branch.) Cached card definitions from builds before 28 had both halves' costs on split/adventure cards; the
   card cache and createGame repair them.
 - `styles/app.css` still has appended override sections (16–32); folding them into their base
   rules is optional cleanup (verify with `style_diff.py`).

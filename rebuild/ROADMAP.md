@@ -66,7 +66,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## 2. Game rules engine (cards in play)
 
-1. **The card long tail:** about 21,500 of 31,776 Commander-legal cards run by themselves (top 1,000: all; build 78 added 171 and build 79 269,
+1. **The card long tail:** 21,677 of 31,836 Commander-legal cards run by themselves (build 85, 8 Nov, on the branch; was about 21,500) (top 1,000: all; build 78 added 171 and build 79 269,
    most-played first: Earthbend, Discover and energy payments inside effects, wipes with qualifiers, "equal to" amounts,
    Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,270 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
@@ -75,7 +75,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
    unlock this door" fires; 28 Room cards, 4 left by hand), flip cards ("flip this creature", ki-counter flips), time travel,
    Classes' and energy cards' wordings (Druid Class, Paladin, Sorcerer, Warlock, Guide of Souls, Lightning Runner …), and
    Echo/Cumulative upkeep paid with a choice ("Sacrifice a creature", "Discard a card": asked whether to pay, then which
-   cards; Cumulative upkeep asks for one per age counter). Build 84: Cumulative upkeep costs an opponent takes part in (Wall
+   cards; Cumulative upkeep asks for one per age counter). Build 85: Cumulative upkeep costs an opponent takes part in (Wall
    of Shards, Varchild's War-Riders, Sheltering Ancient: the opponent chosen again for each age counter), suspend given by
    other cards (Delay, Jhoira of the Ghitu, Taigam), "you may pay any amount of {E}" (Galvanic Discharge). Still by hand:
    Herald of Leshrac and Jötun Grunt's upkeep costs, Clockspinning, flip conditions the game doesn't track (Rune-Tail's 30
@@ -83,7 +83,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
    anything the terms key marks "manual" or "partial".
 3. **(Done.)** **Known rule limits:** Moraug, Kardur, copied lands, Dredge for other players' draws, Echo/Cumulative upkeep
    action costs (build 68); costs that need a choice (build 79); costs an opponent takes part in, and card data cached before
-   build 28 (split/adventure costs repaired on load; build 84).
+   build 28 (split/adventure costs repaired on load; build 85).
 4. **Measure which cards real decks resolve by hand most** (from played games) and automate those first. No data yet: the shared rulings store
    is empty (7 Nov), and the app sends nothing else about hand resolutions. Recording that would mean sending play data, so it
    needs the owner's say. Until then the order is EDHREC popularity (`tools/rules-audit.mjs` on the Scryfall file).
@@ -213,6 +213,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 86 (on the branch, not live): 148 more cards (21,677 of 31,836): Galvanic Discharge, suspend from Delay/Jhoira/
+  Taigam, Cumulative upkeep costs with an opponent, old cached split/adventure costs repaired, and long-tail wordings (Lairs,
+  Blackmail, Disallow, Scarab God, Pestilence, damage equal to a land count …; PROGRESS.md).
 - Build 86: Galvanic Discharge, suspend from Delay/Jhoira/Taigam, Cumulative upkeep costs with an opponent, old cached
   split/adventure costs repaired.
 - Build 85 (Deck Builder 0.9.53, build 198): search finds cards by printed (flavor) names, including ones published after the build.
