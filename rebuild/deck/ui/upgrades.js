@@ -2391,7 +2391,9 @@ function scoreHtml(d, A) {
     qLine = qq.pending
       ? '<p class="note think" style="margin:-2px 0 4px">Thinking… measuring card quality against this deck’s Apex build</p>'
       : e.qShow
-        ? '<p class="note" style="margin:-2px 0 4px">Card quality: ' + e.qShow.pct + '% of the way to the Apex build, by what the cards do for this deck (synergy, balance, ways to win, mana), not how popular they are</p>'
+        ? '<p class="note" style="margin:-2px 0 4px">Card quality: ' + e.qShow.pct + '% of the way to the Apex build, by what the cards do for this deck (synergy, balance, ways to win, mana), not how popular they are' +
+          (qq.tier ? ' · ' + qq.tier.pct + '% of the best build with every card under $' + (qq.tier.tier === 'budget' ? 3 : 12) : '') +
+          '</p>'
       : '<p class="note" style="margin:-2px 0 4px">Card quality: ' +
         qq.vsApex +
         '% of the Apex build (the best cards for this deck at any price)' +
