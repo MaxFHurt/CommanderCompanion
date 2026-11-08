@@ -213,6 +213,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 91 (Deck Builder 0.9.57, build 202): pop-ups on iPhone and iPad keep every part in their scrolling body (the card
+  window's details were squeezed to nothing on a phone held sideways); a search's list of cards stays open through background
+  redraws, so a tapped result is not missed; a tap outside a search closes its list (owner, 8 Nov).
 - Build 90 (Deck Builder 0.9.56, build 201): card quality shown as the deck's rating against its Apex build by what the cards
   do (synergy, balance, ways to win, mana), not popularity; upgrade picks unchanged.
 - Build 89: 18 more cards (21,695 of 31,836): triggers that never fired (Niv-Mizzet, Visionary; Glaring Fleshraker; Argent
