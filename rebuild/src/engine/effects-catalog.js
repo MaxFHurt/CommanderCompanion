@@ -1433,6 +1433,24 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'move-zone', bind, to: 'library', position: 'bottom' });
     return true;
   }
+  // Oust: "Put target creature into its owner's library second from the top."
+  if ((m = c.match(/^Put (target [^.]+?) into its owner'?s library (second|third|fourth|fifth) from the top\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'to-library', bind, position: 'nth', nth: { second: 2, third: 3, fourth: 4, fifth: 5 }[m[2].toLowerCase()] });
+    return true;
+  }
+  // The Scarab God: "When ~ dies, return it to its owner's hand at the beginning of the next end step."
+  if (/^return it to its owner'?s hand at the beginning of the next end step\.?$/i.test(c)) {
+    effects.push({ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'move-zone', bind: 'eventCard', to: 'hand', fromZone: 'graveyard' }], requirements: [] });
+    return true;
+  }
+  // Corrupt, Syphon Soul: "You gain life equal to the damage dealt this way."
+  if (/^You gain life equal to the damage dealt this way\.?$/i.test(c)) { effects.push({ kind: 'life', scope: 'you', amount: { kind: 'binding', bind: 'damageDealt' }, deltaSign: 1 }); return true; }
+  // Spitting Earth, Ground Assault: "~ deals damage to target creature equal to the number of Mountains you control."
+  if ((m = c.match(/^(.+?) deals damage to (target [^.]+?|any target) equal to (.+?)\.?$/i))) {
+    const r = compileEffectText(`${m[1]} deals damage equal to ${m[3]} to ${m[2]}.`, { sourceName });
+    if (r.supported && r.effects.length) { effects.push(...r.effects); requirements.push(...r.requirements); return true; }
+  }
   if ((m = c.match(/^Put (target [^.]+?) on (top|the bottom) of its owner'?s library\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'to-library', bind, position: /top/i.test(m[2]) ? 'top' : 'bottom' });
@@ -2251,7 +2269,13 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
         const hit = locateCardInGame(game, id);
         if (!hit || !['battlefield', 'graveyard', 'hand', 'exile'].includes(hit.zone)) continue;
         const owner = playerById(game, hit.card.ownerId);
-        moveCard(game, id, 'library', { position: effect.position === 'top' ? 'top' : 'bottom', onEvent: emit });
+        moveCard(game, id, 'library', { position: effect.position === 'top' || effect.position === 'nth' ? 'top' : 'bottom', onEvent: emit });
+        if (effect.position === 'nth' && owner) {   // Oust: second from the top
+          const lib = owner.deck.remainingLibrary, at = lib.findIndex(c => c.instanceId === id);
+          if (at >= 0) { const [c] = lib.splice(at, 1); lib.splice(Math.min(lib.length, Number(effect.nth || 1) - 1), 0, c); }
+          notes.push(`${name(hit.card)} is put into its owner's library ${['', 'first', 'second', 'third', 'fourth', 'fifth'][effect.nth] || `#${effect.nth}`} from the top.`);
+          continue;
+        }
         if (effect.position === 'shuffle' && owner) H.shuffle(owner.deck.remainingLibrary);
         notes.push(`${name(hit.card)} is put ${effect.position === 'top' ? 'on top of' : effect.position === 'shuffle' ? 'into' : 'on the bottom of'} its owner's library${effect.position === 'shuffle' ? ', which is shuffled' : ''}.`);
       }

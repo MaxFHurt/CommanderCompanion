@@ -1459,6 +1459,7 @@ export function parseConditionB49(t) {
   let m;
   if (/^(?:it|this creature|this permanent|this spell) was bargained$/i.test(t)) return { test: 'b49-bargained' };
   if (/^you have the city'?s blessing$/i.test(t)) return { test: 'b49-blessing' };
+  if (/^(?:there are )?no creatures are on the battlefield$|^there are no creatures on the battlefield$/i.test(t)) return { test: 'b49-no-creatures' };
   // Taigam, Master Opportunist: "if it's the second spell you've cast this turn"
   if ((m = t.match(/^it'?s the (second|third|fourth|fifth) spell you'?ve cast this turn$/i))) return { test: 'b49-nth-spell', n: { second: 2, third: 3, fourth: 4, fifth: 5 }[m[1].toLowerCase()] };
   if (/^its surge cost was paid$/i.test(t)) return { test: 'b49-surged' };
@@ -1522,6 +1523,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
       return !!me?.citysBlessing;
     }
     case 'b49-tribute-unpaid': return locateCardInGame(game, bindings.sourceId)?.card?.tributePaid === false;
+    case 'b49-no-creatures': return !(game.players || []).some(p => creatures(p).length);
     case 'b49-no-spell-cast': return !Number(me?.counters?.spellsCastThisTurn || 0);
     case 'b49-nth-spell': return Number(me?.counters?.spellsCastThisTurn || 0) === Number(effect.n);
     case 'b49-same-name-artifacts': {

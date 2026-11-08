@@ -68,6 +68,7 @@ function responseRelevant(game, def, holder) {
   const text = String(def?.oracleText || '').toLowerCase();
   const top = stackTop(game);
   const topDef = top ? game.cardDefinitions?.[top.sourceDefinitionId || top.card?.definitionId] : null;
+  if (/counter target spell, activated ability, or triggered ability/.test(text)) return !!top && ['spell', 'ability', 'trigger'].includes(top.kind);   // Disallow
   if (/counter target spell/.test(text)) return !!top && top.kind === 'spell';
   if (/counter target (?:activated|triggered) ability/.test(text)) return !!top && (top.kind === 'ability' || top.kind === 'trigger');
   if (/copy target (?:instant|sorcery) spell/.test(text)) return !!top && top.kind === 'spell' && /Instant|Sorcery/i.test(topDef?.typeLine || '');

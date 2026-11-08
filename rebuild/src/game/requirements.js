@@ -189,6 +189,8 @@ export function candidatesFor(game, req, player, source = null) {
       .filter(x => !req.abilityKind || x.kind === req.abilityKind)
       .filter(x => !req.yours || x.controllerId === player.playerId)
       .filter(x => !req.notYours || x.controllerId !== player.playerId)
+      // Rebuff the Wicked: "spell that targets a permanent you control" (its chosen targets include one of yours)
+      .filter(x => !req.targetsYours || Object.values(x.effectBindings || {}).flat().some(id => typeof id === 'string' && (player.deck?.battlefield || []).some(c => c.instanceId === id)))
       .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)) || (req.orAbility && (x.kind === 'ability' || x.kind === 'trigger')))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }

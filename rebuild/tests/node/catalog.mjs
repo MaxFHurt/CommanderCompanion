@@ -4,7 +4,7 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
-import { canTarget, canTargetPlayer } from '../../src/game/requirements.js';
+import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
@@ -3005,6 +3005,79 @@ section('long tail, build 84');
   t.give(1, 'Grizzly Bears'); const bear = t.hand(1, 'Grizzly Bears');
   cast(t, 'Opt', 'Target opponent reveals their hand. You choose a card from it. That player shuffles that card into their library.', [[d => /hand/.test(d.title || '') && d.kind === 'choose-many', () => [bear.instanceId]]], { manaCost: '{U}', typeLine: 'Sorcery' });
   check('Perish the Thought: the chosen card goes into its owner\'s library', t.P(1).deck.remainingLibrary.includes(bear) && !t.P(1).deck.hand.includes(bear), JSON.stringify(bear.zone));
+}
+
+{
+  // Disallow: an activated ability, and (separately) a spell
+  const t = setup();
+  t.give(0, 'Opt'); const dis = asText(t, t.hand(0, 'Opt'), 'Counter target spell, activated ability, or triggered ability.', { typeLine: 'Instant', manaCost: '{U}' });
+  const tim = onField(t, 'Llanowar Elves', '{T}: Draw a card.', {}, 1);
+  t.autoPass = true; t.end(0); t.autoPass = false;
+  const hand = t.P(1).deck.hand.length;
+  t.ctl.dispatch({ type: 'activate', instanceId: tim.instanceId, abilityId: parseActivatedAbilities(def(t, tim))[0].id }, t.as(1));
+  if (t.game.flow.priority?.holderId === t.P(1).playerId) t.ctl.dispatch({ type: 'pass' }, t.as(1));
+  const r = t.ctl.dispatch({ type: 'play', instanceId: dis.instanceId }, t.as(0));
+  settle(t, [[d => d.targeting || /ability/i.test(d.prompt + d.title), d => d.options[0].id]]);
+  check('Disallow: counters an activated ability', r.ok && t.P(1).deck.hand.length === hand, JSON.stringify([r.error, t.P(1).deck.hand.length - hand]));
+}
+{
+  // Disallow on a spell, and Rebuff the Wicked only offered a spell targeting your permanent
+  const t = setup();
+  t.give(1, 'Opt'); const foe = t.hand(1, 'Opt');
+  t.P(1).deck.hand.splice(t.P(1).deck.hand.indexOf(foe), 1); foe.zone = 'stack';
+  const mine = onField(t, 'Grizzly Bears', '');
+  t.give(1, 'Divination'); const other = t.hand(1, 'Divination');
+  t.P(1).deck.hand.splice(t.P(1).deck.hand.indexOf(other), 1); other.zone = 'stack';
+  t.game.stack = [{ id: 'not-mine', kind: 'spell', controllerId: t.P(1).playerId, card: other, label: 'Divination', effectBindings: {} }, { id: 'at-mine', kind: 'spell', controllerId: t.P(1).playerId, card: foe, label: 'Opt', effectBindings: { target0: mine.instanceId } }];
+  let offered = null;
+  const cands = candidatesFor(t.game, { kind: 'stack-target', scope: 'spell', targetsYours: true }, t.P(0)).map(o => o.id);
+  t.give(0, 'Counterspell'); const rb = asText(t, t.hand(0, 'Counterspell'), 'Counter target spell that targets a permanent you control.', { manaCost: '{W}'.replace('W', 'U') });
+  t.ctl.dispatch({ type: 'play', instanceId: rb.instanceId }, t.as(0));
+  settle(t, [[d => d.targeting, d => { offered = d.options.map(o => o.id); return 'at-mine'; }]]);
+  check('Rebuff the Wicked: only the spell targeting your permanent can be chosen; it is countered', (offered === null || JSON.stringify(offered) === '["at-mine"]') && t.P(1).deck.graveyard.includes(foe) && JSON.stringify(cands) === '["at-mine"]', JSON.stringify([offered, foe.zone, cands]));
+  t.game.stack = [];
+}
+{
+  // The Scarab God: when it dies, it returns to its owner's hand at the beginning of the next end step
+  const t = setup();
+  const god = onField(t, 'Grizzly Bears', "When this creature dies, return it to its owner's hand at the beginning of the next end step.");
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => god.instanceId]], { manaCost: '{U}', typeLine: 'Instant' });
+  const inYard = t.P(0).deck.graveyard.includes(god);
+  t.autoPass = true; t.end(0); settle(t);
+  check('The Scarab God: dies, then returns to hand at the next end step', inYard && t.P(0).deck.hand.includes(god), JSON.stringify([inYard, god.zone]));
+}
+{
+  // Pestilence: "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment."
+  const t = setup();
+  for (const p of t.game.players) for (const c of [...p.deck.battlefield]) if (/Creature/.test(def(t, c).typeLine)) t.edit({ kind: 'move', instanceId: c.instanceId, to: 'graveyard' });
+  const pest = onField(t, 'Grizzly Bears', 'At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.', { typeLine: 'Enchantment' });
+  t.autoPass = true; t.end(0); settle(t);
+  check('Pestilence: sacrificed at the end step with no creatures on the battlefield', t.P(0).deck.graveyard.includes(pest), JSON.stringify(pest.zone));
+}
+{
+  // Spitting Earth (damage equal to Forests here), Corrupt's life gain, Marrow Shards, Oust
+  const t = setup();
+  const big = onField(t, 'Grizzly Bears', '', { power: '9', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Opt deals damage to target creature equal to the number of Forests you control.', [[d => d.targeting, () => big.instanceId]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Spitting Earth: damage equal to the lands of that type you control (4)', Number(big.damageMarked || 0) === 4, JSON.stringify(big.damageMarked));
+  const life = t.P(0).life;
+  cast(t, 'Divination', 'Divination deals damage equal to the number of Islands you control to any target. You gain life equal to the damage dealt this way.', [[d => d.targeting, () => t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Corrupt: you gain life equal to the damage dealt', t.P(0).life === life + 4, JSON.stringify([life, t.P(0).life]));
+}
+{
+  const t = setup();
+  const att = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1), home = onField(t, 'Llanowar Elves', '', {}, 1);
+  t.game.combatState = { ...(t.game.combatState || {}), attackers: [{ instanceId: att.instanceId }] };
+  cast(t, 'Opt', 'Opt deals 1 damage to each attacking creature.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Marrow Shards: only attacking creatures are dealt damage', Number(att.damageMarked || 0) === 1 && !Number(home.damageMarked || 0), JSON.stringify([att.damageMarked, home.damageMarked]));
+  t.game.combatState = null;
+}
+{
+  const t = setup();
+  const vic = onField(t, 'Grizzly Bears', '', {}, 1);
+  const life = t.P(1).life;
+  cast(t, 'Opt', "Put target creature into its owner's library second from the top. Its controller gains 3 life.", [[d => d.targeting, () => vic.instanceId]], { manaCost: '{W}'.replace('W', 'U'), typeLine: 'Sorcery' });
+  check('Oust: second from the top of its owner\'s library; its controller gains 3 life', t.P(1).deck.remainingLibrary[1]?.instanceId === vic.instanceId && t.P(1).life === life + 3, JSON.stringify([t.P(1).deck.remainingLibrary.findIndex(c => c.instanceId === vic.instanceId), t.P(1).life - life]));
 }
 
 done();

@@ -916,6 +916,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const victimCard = locateCardInGame(game, targetId);
       const boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
       const dealt = preventDamage(game, targetId, boosted);
+      bindings.damageDealt = dealt;   // "You gain life equal to the damage dealt this way" (Corrupt)
       const prevented = boosted - dealt;
       const p = game.players.find(x => x.playerId === targetId);
       if (p) {
@@ -1391,8 +1392,11 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'move-zone') {
       const targetId = resolveBoundId(effect, bindings);
       const hit = locateCardInGame(game, targetId);
+      if (!hit && effect.fromZone) continue;
       if (!hit)
         throw new Error('The selected card is no longer in a tracked zone.');
+      // The Scarab God: "return it to its owner's hand at the beginning of the next end step" — only if it is still there.
+      if (effect.fromZone && hit.zone !== effect.fromZone) { notes.push(`${cardName(game, hit.card)} is no longer in the ${effect.fromZone}.`); continue; }
       const n = cardName(game, hit.card);
       moveCard(game, targetId, effect.to, { controllerId: effect.controllerId || controllerId, position: effect.position || 'bottom', tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
       notes.push(`${n} moves to ${effect.to}.`);
@@ -1576,6 +1580,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (i < 0 || !['ability', 'trigger'].includes(game.stack[i].kind)) { notes.push('The ability is no longer on the stack.'); continue; }
       const [obj] = game.stack.splice(i, 1);
       notes.push(`${obj.label || 'The ability'} is countered.`);
+      continue;
+    }
+    if (effect.kind === 'counter-any') {
+      const obj = (game.stack || []).find(x => x.id === (effect.stackId || bindings[effect.bind]));
+      if (!obj) throw new Error('The targeted spell or ability is no longer on the stack.');
+      notes.push(...applyEffectsUnsafe(game, controllerId, [{ ...effect, kind: obj.kind === 'spell' ? 'counter-spell' : 'counter-ability' }], bindings));
       continue;
     }
     if (effect.kind === 'counter-spell') {
@@ -2491,6 +2501,12 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'zone-each', scope: m[3] ? 'opponents' : 'all', filter, to: verb === 'exile' ? 'exile' : verb === 'return' ? 'hand' : 'graveyard', destroy: verb === 'destroy' });
     return { effects, requirements, unsupported };
   }
+  // Marrow Shards, Sandstorm: "deals 1 damage to each attacking creature."
+  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (attacking|blocking|attacking or blocking|tapped|untapped) creature\.?$/i))) {
+    const conds = m[2].toLowerCase().split(' or ');
+    effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: conds.map(k => `creature|${k}`).join(' or '), creatures: 'all', players: null, sourceName });
+    return { effects, requirements, unsupported };
+  }
   if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: /planeswalker/i.test(m[2]) ? 'creature or planeswalker' : 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
     return { effects, requirements, unsupported };
@@ -2808,6 +2824,20 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
   if ((m = c.match(/^Counter target spell with mana value (\d+) or less\.?$/i))) {
     const bind = `stack${requirements.length}`;
     requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target spell with mana value ${m[1]} or less`, spellFilter: `mv<=${m[1]}` });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  // Disallow, Voidslime: "Counter target spell, activated ability, or triggered ability."
+  if (/^Counter target spell, activated ability, or triggered ability\.?$/i.test(c)) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'any', label: 'target spell, activated ability, or triggered ability' });
+    effects.push({ kind: 'counter-any', bind });
+    return true;
+  }
+  // Rebuff the Wicked, Turn Aside: "Counter target spell that targets a permanent you control."
+  if (/^Counter target spell that targets a permanent you control\.?$/i.test(c)) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', targetsYours: true, label: 'target spell that targets a permanent you control' });
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
