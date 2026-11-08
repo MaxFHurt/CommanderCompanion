@@ -214,6 +214,11 @@ export function compileB49Clause(c, ctx) {
     const inner = compile(cap(m[2]), sourceName);
     if (ok(inner)) { effects.push({ kind: 'condition', ...parseConditionB49(m[1].trim()), skip: inner.effects.length }, ...inner.effects); requirements.push(...inner.requirements); return true; }
   }
+  // Plaxmanta, Azorius Herald: "sacrifice it unless {G} was spent to cast it."
+  if ((m = c.match(/^sacrifice (?:SELFNAME|it|this (?:creature|permanent)) unless \{([WUBRG])\} was spent to cast it\.?$/i))) {
+    effects.push({ kind: 'condition', test: 'b49-color-spent', color: m[1].toUpperCase(), negate: true, skip: 1 }, { kind: 'sacrifice', bind: 'sourceId' });
+    return true;
+  }
   // The Soul Stone: "Harness The Soul Stone." — its ∞ abilities work from now on.
   if (/^Harness (?:SELFNAME|this (?:artifact|permanent))\.?$/i.test(c)) { effects.push({ kind: 'harness' }); return true; }
   // The Gitrog Monster: "sacrifice The Gitrog Monster unless you sacrifice a land."
@@ -1492,7 +1497,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-hand': return (me?.deck?.hand || []).length >= effect.min;
     case 'b49-power-at-least': return creatures(me).some(c => pow(c) >= effect.min);
     case 'b49-different-powers': return new Set(creatures(me).map(pow)).size >= effect.min;
-    case 'b49-bound': return !!bindings[effect.bind];
+    case 'b49-bound': return effect.picked ? [].concat(bindings[effect.bind] || []).length > 0 : !!bindings[effect.bind];
     case 'b49-text-is': return bindings[effect.bind] === effect.value;
     case 'b49-not-source': return !!bindings[effect.bind] && bindings[effect.bind] !== bindings.sourceId;
     case 'b49-event-counters': return Object.values(bindings.eventCounters || {}).some(v => Number(v) > 0);
@@ -1503,6 +1508,7 @@ export function conditionHoldsB49(game, controllerId, effect, bindings = {}) {
     case 'b49-not-event-players-turn': return !!bindings.eventPlayer && game.activePlayerId !== bindings.eventPlayer;
     case 'b49-opp-cast-color': return (game.players || []).some(p => p.playerId !== controllerId && (p.counters?.castThisTurn || []).some(x => (x.colors || []).some(c => effect.colors.includes(c))));
     case 'b49-no-mana-spent': return bindings.eventManaSpent === 0;
+    case 'b49-color-spent': return (locateCardInGame(game, bindings.sourceId)?.card?.colorsSpent || []).includes(effect.color);
     case 'b49-approach': {
       // Cast from hand, and another spell with this name was cast earlier this game (this one is the last entry).
       const list = me?.castNamesGame || [], last = list[list.length - 1];

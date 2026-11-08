@@ -2966,4 +2966,45 @@ section('long tail, build 84');
   check("Bontu's Last Reckoning: the tapped lands stay tapped for one untap step only", before === 3 && after1 === 3 && tapped() === 0, JSON.stringify([before, after1, tapped()]));
 }
 
+{
+  // Plaxmanta: "When this creature enters, sacrifice it unless {G} was spent to cast it."
+  const t = setup();
+  cast(t, 'Grizzly Bears', 'When this creature enters, sacrifice it unless {G} was spent to cast it.', [], { manaCost: '{G}' });
+  const kept = !!t.bf(0, 'Grizzly Bears');
+  cast(t, 'Llanowar Elves', 'When this creature enters, sacrifice it unless {G} was spent to cast it.', [], { manaCost: '{U}' });
+  check('"sacrifice it unless {G} was spent to cast it": kept when {G} was spent, sacrificed when it was not', kept && !t.bf(0, 'Llanowar Elves') && t.names(0, 'graveyard').includes('Llanowar Elves'), JSON.stringify([kept, t.names(0, 'battlefield')]));
+}
+
+{
+  // Blackmail: the target player chooses three cards to reveal; you choose one of them; it is discarded
+  const t = setup();
+  for (const n of ['Forest', 'Island', 'Opt', 'Divination', 'Grizzly Bears']) t.give(1, n);
+  const handBefore = t.P(1).deck.hand.length;
+  let revealAsked = null, pickAsked = null;
+  cast(t, 'Opt', 'Target player reveals three cards from their hand and you choose one of them. That player discards that card.', [
+    [d => d.kind === 'choose-one' && d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId],
+    [d => /reveal 3/.test(d.title || ''), d => { revealAsked = d; return t.P(1).deck.hand.filter(c => ['Opt', 'Divination', 'Grizzly Bears'].includes(def(t, c).name)).map(c => c.instanceId); }],
+    [d => /hand/.test(d.title || '') && d.kind === 'choose-many', d => { pickAsked = d; return [d.options.filter(o => !o.disabled).find(o => o.label === 'Divination').id]; }]
+  ], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Blackmail: the revealing player picks the three; you choose among those only; that card is discarded', revealAsked?.playerId === t.P(1).playerId && pickAsked && pickAsked.options.filter(o => !o.disabled).length === 3 && t.names(1, 'graveyard').includes('Divination') && t.P(1).deck.hand.length === handBefore - 1, JSON.stringify([revealAsked?.playerId === t.P(1).playerId, pickAsked?.options.filter(o => !o.disabled).map(o => o.label), t.names(1, 'graveyard')]));
+}
+{
+  // Traumatic Revelation: "You may choose a creature or battle card from it. If you do, that player discards that card. If you don't, incubate 3."
+  const t = setup();
+  t.give(1, 'Grizzly Bears');
+  const text = "Target opponent reveals their hand. You may choose a creature or battle card from it. If you do, that player discards that card. If you don't, incubate 3.";
+  cast(t, 'Opt', text, [[d => /hand/.test(d.title || '') && d.kind === 'choose-many', d => [d.options.find(o => o.label === 'Grizzly Bears').id]]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const noTokenFirst = !t.P(0).deck.battlefield.some(c => /Incubator/.test(def(t, c).name || ''));
+  t.give(1, 'Llanowar Elves');
+  cast(t, 'Divination', text, [[d => /hand/.test(d.title || '') && d.kind === 'choose-many', () => []]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Traumatic Revelation: a chosen card is discarded; choosing none incubates instead', noTokenFirst && t.names(1, 'graveyard').includes('Grizzly Bears') && t.P(0).deck.battlefield.some(c => /Incubator/.test(def(t, c).name || '')), JSON.stringify([noTokenFirst, t.names(1, 'graveyard'), t.names(0, 'battlefield')]));
+}
+{
+  // Perish the Thought: the chosen card is shuffled into its owner's library
+  const t = setup();
+  t.give(1, 'Grizzly Bears'); const bear = t.hand(1, 'Grizzly Bears');
+  cast(t, 'Opt', 'Target opponent reveals their hand. You choose a card from it. That player shuffles that card into their library.', [[d => /hand/.test(d.title || '') && d.kind === 'choose-many', () => [bear.instanceId]]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Perish the Thought: the chosen card goes into its owner\'s library', t.P(1).deck.remainingLibrary.includes(bear) && !t.P(1).deck.hand.includes(bear), JSON.stringify(bear.zone));
+}
+
 done();

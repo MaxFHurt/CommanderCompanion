@@ -5,7 +5,7 @@
 // compileCatalogClause(c, ctx) is tried after the older readers in effects.js; applyCatalogEffect runs the effect
 // kinds it creates. Both use helpers from effects.js (the two modules import each other; nothing runs at load time).
 import {
-  numberFromText, locateCardInGame, moveCard, definitionFor, cardMatchesFilter, resolveAmount, whereXExpr,
+  numberFromText, locateCardInGame, moveCard, definitionFor, cardMatchesFilter, resolveAmount, whereXExpr, compileEffectText,
   catalogHelpers as H
 } from './effects.js';
 import { effectiveToughness, effectivePower } from './combat.js';
@@ -1035,12 +1035,22 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     }
   }
   // Hand disruption: "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card."
-  if ((m = c0.match(/^(Target opponent|Target player|Each opponent) reveals (?:their|his or her) hand\.?$/i))) {
+  // Blackmail, Pulse of the Dross, Cabal Interrogator: "Target player reveals three cards from their hand and you choose one of
+  // them." The revealing player chooses which cards to reveal (all of them with that many or fewer).
+  const some = c0.match(/^(Target opponent|Target player|That player) reveals (one|two|three|four|X) cards from their hand and you choose one of them\.?$/i);
+  if (some && /^That player discards that card\.?$/i.test(next(1))) {
+    const bindPlayer = /^that/i.test(some[1]) ? 'eventPlayer' : `player${i}`, shown = `handShown${i}`, pick = `handPick${i}`;
+    const requirements = /^that/i.test(some[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(some[1]) ? 'opponent' : 'player', label: some[1].toLowerCase() }];
+    requirements.push({ kind: 'b49-reveal-some', bind: shown, playerBind: bindPlayer, amount: /^x$/i.test(some[2]) ? 'X' : num(some[2]) }, { kind: 'hand-pick', bind: pick, playerBind: bindPlayer, amongBind: shown, filter: '', min: 1, max: 1, label: 'one of the revealed cards' });
+    return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to: 'graveyard' }], requirements, unsupported: [] }, consumed: 2 };
+  }
+  if ((m = c0.match(/^(Target opponent|Target player|Each opponent|That player) reveals (?:their|his or her) hand\.?$/i))) {
     const ch = next(1).match(/^You (?:may )?choose (a|an|up to (?:one|two|three|\d+)|one|two|three|any number of) ([a-z ,/'-]+? )?cards? from (?:it|their hand|among them|those cards)(?: with mana value (\d+) or (less|greater))?\.?$/i);
-    const fin = next(2).match(/^(?:That player|They|Its owner) (discards? (?:that card|those cards|the chosen cards?|it)|exiles? (?:that card|it)|puts? (?:that card|it) on the bottom of their library)\.?$/i)
-      || next(2).match(/^Exile (?:that card|it|those cards)( until (?:this creature|SELFNAME|this artifact|this enchantment) leaves the battlefield)?\.?$/i);
-    const bindPlayer = `player${i}`;
-    const requirements = /^each/i.test(m[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }];
+    // "If you do, that player discards that card." (Binding Negotiation, Reckoner Shakedown, Nightsnare)
+    const fin = next(2).match(/^(?:If you do, )?(?:that player|they|its owner) (discards? (?:that card|those cards|the chosen cards?|it)|exiles? (?:that card|it)|puts? (?:that card|it) on the bottom of their library|shuffles? (?:that card|it) into their library)\.?$/i)
+      || next(2).match(/^(?:If you do, )?exile (?:that card|it|those cards)( until (?:this creature|SELFNAME|this artifact|this enchantment) leaves the battlefield)?\.?$/i);
+    const bindPlayer = /^that/i.test(m[1]) ? 'eventPlayer' : `player${i}`;
+    const requirements = /^(?:each|that)/i.test(m[1]) ? [] : [{ kind: 'player', bind: bindPlayer, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() }];
     if (!ch || !fin || /^each/i.test(m[1])) {
       if (ch) return null;
       return { part: { effects: [{ kind: 'reveal-hand', playerBind: /^each/i.test(m[1]) ? null : bindPlayer, scope: /^each/i.test(m[1]) ? 'each-opponent' : null }], requirements, unsupported: [] }, consumed: 1 };
@@ -1050,8 +1060,15 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const filter = `${(ch[2] || '').trim()}${ch[3] ? ` with mana value ${ch[3]} or ${ch[4]}` : ''}`;
     const pick = `handPick${i}`;
     requirements.push({ kind: 'hand-pick', bind: pick, playerBind: bindPlayer, filter, min, max, label: `${count} ${filter || ''} card from their hand`.replace(/\s+/g, ' ') });
-    const to = /exile/i.test(fin[0]) ? 'exile' : /bottom/i.test(fin[0]) ? 'bottom' : 'graveyard';
-    return { part: { effects: [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to, untilLeaves: !!fin[1] && /^Exile/i.test(fin[0]) }], requirements, unsupported: [] }, consumed: 3 };
+    const to = /exile/i.test(fin[0]) ? 'exile' : /bottom/i.test(fin[0]) ? 'bottom' : /shuffle/i.test(fin[0]) ? 'shuffle' : 'graveyard';
+    const effects = [{ kind: 'hand-pick-move', playerBind: bindPlayer, cardsBind: pick, to, untilLeaves: !!fin[1] && /exile/i.test(fin[0]) && !/^that|^they|^its/i.test(fin[0].replace(/^If you do, /i, '')) }];
+    // "If you don't, incubate 3." (Traumatic Revelation): when nothing was chosen. Left by hand when it is about "that player".
+    const no = min === 0 && next(3).match(/^(?:If you don'?t|Otherwise), (.+)$/i);
+    if (no && !/\b(?:that player|they|their|them)\b/i.test(no[1])) {
+      const r = compileEffectText(no[1].replace(/^\w/, ch => ch.toUpperCase()), { sourceName });
+      if (r.supported && r.effects.length) return { part: { effects: [...effects, { kind: 'condition', test: 'b49-bound', bind: pick, picked: true, skip: r.effects.length, negate: true }, ...r.effects], requirements: [...requirements, ...r.requirements], unsupported: [] }, consumed: 4 };
+    }
+    return { part: { effects, requirements, unsupported: [] }, consumed: 3 };
   }
   return null;
 }
@@ -1062,6 +1079,7 @@ function moveTo(game, id, dest, emit, controllerId) {
   if (dest.to === 'graveyard') return moveCard(game, id, 'graveyard', { onEvent: emit });
   if (dest.to === 'exile' || dest.to === 'exile-play') return moveCard(game, id, 'exile', { onEvent: emit });
   if (dest.to === 'bottom') return moveCard(game, id, 'library', { position: 'bottom', onEvent: emit });
+  if (dest.to === 'shuffle') return moveCard(game, id, 'library', { position: 'top', onEvent: emit });
   if (dest.to === 'top') return moveCard(game, id, 'library', { position: 'top', onEvent: emit });
   return null;
 }
@@ -1191,7 +1209,8 @@ export function applyCatalogSequenceEffect(game, controllerId, effect, bindings,
         // "until this creature leaves the battlefield": it goes back to its owner's hand then (triggers.js).
         const src = effect.untilLeaves ? locateCardInGame(game, bindings.sourceId) : null;
         if (src?.zone === 'battlefield') src.card.untilLeavesExileHand = [...(src.card.untilLeavesExileHand || []), id];
-        notes.push(`${name} is ${effect.to === 'exile' ? 'exiled' : 'put on the bottom of its owner’s library'}.`);
+        if (effect.to === 'shuffle') H.shuffle(p.deck.remainingLibrary || []);
+        notes.push(`${name} is ${effect.to === 'exile' ? 'exiled' : effect.to === 'shuffle' ? 'shuffled into its owner’s library' : 'put on the bottom of its owner’s library'}.`);
       }
     }
     if (!ids.length) notes.push(`${p.displayName} reveals their hand; nothing is chosen.`);
@@ -1252,13 +1271,23 @@ export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, 
     bindings[req.bind] = { groups, rest };
     return true;
   }
+  if (req.kind === 'b49-reveal-some') {
+    // The revealing player chooses which cards to show (privately); with that many or fewer, the whole hand.
+    const q = util.playerById(game, bindings[req.playerBind]);
+    const hand = q?.deck?.hand || [], n = Math.max(0, req.amount === 'X' ? Number(bindings.X || 0) : Number(req.amount || 0));
+    bindings[req.bind] = !q || !n ? [] : hand.length <= n ? hand.map(c => c.instanceId)
+      : [].concat(ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, private: true, kind: 'choose-many', title: `${ctx.sourceName} — reveal ${n}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your hand to reveal.`, options: hand.map(c => util.cardOption(game, c, q, util.defOf(game, c)?.typeLine || '')), min: n, max: n })) || []);
+    return true;
+  }
   if (req.kind === 'hand-pick') {
     const q = util.playerById(game, bindings[req.playerBind]);
     if (!q) { bindings[req.bind] = []; return true; }
     const hand = q.deck.hand || [];
-    const fits = hand.filter(c => cardFitsWords(util.defOf(game, c), req.filter));
+    const among = req.amongBind ? [].concat(bindings[req.amongBind] || []) : null;
+    const fits = hand.filter(c => (!among || among.includes(c.instanceId)) && cardFitsWords(util.defOf(game, c), req.filter));
     const max = Math.min(req.max, fits.length), min = Math.min(req.min, max);
     if (!max) { bindings[req.bind] = []; return true; }
+    if (among && fits.length === 1) { bindings[req.bind] = [fits[0].instanceId]; return true; }
     bindings[req.bind] = ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — ${q.displayName}'s hand`,
       prompt: `${q.displayName} reveals their hand. Choose ${min === max ? max : `up to ${max}`}${req.filter ? ` ${req.filter}` : ''} card${max === 1 ? '' : 's'}.`,
       options: hand.map(c => ({ ...util.cardOption(game, c, q, util.defOf(game, c)?.typeLine || ''), disabled: !fits.includes(c) })), min, max }));

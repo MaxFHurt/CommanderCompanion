@@ -1444,6 +1444,8 @@ function runResolve(game, op, ask) {
     kc(/(?:^|\n)\s*Vanishing (\d+)/i, 'time');
     kc(/(?:^|\n)\s*Fading (\d+)/i, 'fade');
     kc(/(?:^|\n)\s*Modular (\d+)/i, '+1/+1');
+    // "sacrifice it unless {G} was spent to cast it" (Plaxmanta): the colours spent stay with the permanent while it stays.
+    if (top.colorsSpent) card.colorsSpent = [...top.colorsSpent];
     // Sunburst: a +1/+1 counter (a creature) or a charge counter for each colour of mana spent to cast it.
     if (/(?:^|\n)\s*Sunburst\b/i.test(kw) && (top.colorsSpent || []).length) { card.counters = card.counters || {}; const k = /\bCreature\b/.test(cardDef.typeLine || '') ? '+1/+1' : 'charge'; card.counters[k] = Number(card.counters[k] || 0) + top.colorsSpent.length; }
     kc(/(?:^|\n)\s*Bloodthirst (\d+)/i, '+1/+1', (game.players || []).some(q => q.playerId !== player.playerId && game.lostLifeTurn?.[q.playerId] === game.turnNumber));
