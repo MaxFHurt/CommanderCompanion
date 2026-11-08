@@ -18,6 +18,31 @@ Items marked "discuss first" need the owner's decision before they are built; th
    - *Tested by:* screenshots on real devices of every main screen.
 
 
+### Medium
+
+4. **Health pop-up: the fixes on the first screen** (owner, 8 November 2026)
+   - *Owner's words:* "Clean up the health explanation in the pop up. Simplify and stream it. Show players vertical sections
+     that show the fix directly in the first pop up. There needs to be a few options and alternate solutions. If a player
+     doesn't have the card to fix the problem they need a solution that may not be as good but makes it better until they
+     can get the real replacement, just like an apex suggestion."
+   - *You'll see:* the Health pop-up as one stacked section per problem (Lands, Ramp, Draw, Removal, Mana and so on), top to
+     bottom. Each section has a one-line reason in plain words and the fix right there, with no second menu to open:
+     - the **best fix** (the swap that helps the deck most, like an Apex pick);
+     - **two or three other options**, each a cut → add with its gain and price;
+     - a **"for now" option**: a card the player owns, or a cheap one, that is not as good but makes the deck better until
+       they get the real card. It is marked as a stand-in, and the best fix stays listed so they know what to get later.
+     - Ignore stays on each section; the long explanation text is cut down to one line (more on tap).
+   - *Today:* the pop-up lists each problem with a paragraph of why and a Fix button that opens a separate swap menu.
+   - *Builds on:* the health checks, the fix menus (`fixList`), owned cards (collection), the Budget / Mid / Apex picks and
+     the card strength scores (item 3), if those are live by then.
+   - *Size:* Medium. *Upgrades engine:* no (it reuses the fix lists; picking the "for now" card is new and is shown to the
+     owner before it ships).
+   - *Risks:* the pop-up gets long with many problems (sections start folded after the first two); working out every fix
+     when the pop-up opens must stay quick on a phone.
+   - *Tested by:* the UI suite (health pop-up, Fix, Ignore, Show all), a new check that every problem section shows a best
+     fix, at least one other option and a "for now" option when one exists, phone and desktop screenshots.
+
+
 ### Large
 
 3. **Smarter deck score**
