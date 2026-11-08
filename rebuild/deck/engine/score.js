@@ -501,6 +501,41 @@ function evaluateDeck(d, opt) {
       top = a[1] > a[0] ? 60 + (25 * (raw[k] - a[0])) / (a[1] - a[0]) : 0;
     return Math.max(0, top - 100);
   };
+  // Card quality by what the cards do (owner, 8 Nov: "Card quality is an odd metric … even budget style cards can provide a huge
+  // boost … maybe measured by the deck's current rating vs Apex"; UP.qEff): the deck's rating on the other parts (synergy, balance,
+  // win routes, mana and curve) placed between the same rating for random playable cards (0%) and for the Apex build (100%), both
+  // worked out once per Apex reference. Not how widely a card is played.
+  const peOf = k =>
+    SU[k] ? 100 * Math.min(1, raw[k] / SU[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);
+  let other = 0, ow = 0;
+  for (const k in EVW) if (k !== 'quality' && !(k === 'mana' && !S)) { other += peOf(k) * EVW[k]; ow += EVW[k]; }
+  other = ow ? other / ow : 0;
+  // Shown, not scored (owner, 8 Nov, after the benchmark: ranking upgrades this way lowered agreement with expert lists from
+  // 0.280/0.317/0.334 to 0.221/0.203/0.287): the Card quality the player sees is this; the deck score and the swap gains keep
+  // the card-value measure below. UP.qEff 1 would score it too.
+  let qShow = null;
+  if (!opt.noQEff && opt.apex && opt.apex.cards && opt.apex.key === apexKey(d)) {
+    const AR = opt.apex, lands = d.cards.filter(e => { const c = find(e.n); return c && tags(c).land; }), sig = lands.map(e => e.n + e.q).join('|') + '#' + !!S;
+    if (!AR.eff || AR.eff.sig !== sig) {
+      const as = (list) => evaluateDeck(Object.assign({}, d, {cards: list}), {apex: null, noQEff: true, partial: !S, games: opt.games, seed: opt.seed}).other;
+      // the Apex build is a whole deck (its lands included); random playable cards: this deck's lands and as many spells from the
+      // random sample as the deck has, so both are compared at the deck's own size
+      const apexList = (AR.cards.apex || []).some(e => { const c = find(e.n); return c && tags(c).land; }) ? AR.cards.apex : lands.concat(AR.cards.apex || []),
+        nSpells = d.cards.reduce((n, e) => { const c = find(e.n); return n + (c && !tags(c).land ? e.q : 0); }, 0);
+      AR.eff = {sig, apex: as(apexList), floor: as(lands.concat((AR.cards.floor || []).slice(0, nSpells)))};
+    }
+    const lo = AR.eff.floor, hi = AR.eff.apex;
+    if (hi > lo) {
+      const ex = Math.max(0, Math.min(100, (100 * (other - lo)) / (hi - lo)));
+      qShow = {pct: Math.round(ex), why: Math.round(ex) + '% of the way from random playable cards to the Apex build, by what the cards do (synergy, balance, ways to win, mana and curve), not how popular they are'};
+      if (UP.qEff) {
+        qExact = ex;
+        qOver = Math.max(0, (100 * (other - lo)) / (hi - lo) - 100);
+        qPct = Math.round(ex);
+        why.quality = qShow.why;
+      }
+    }
+  }
   let wsum = 0,
     exact = 0;
   const contrib = {};
@@ -571,6 +606,8 @@ function evaluateDeck(d, opt) {
       : [];
   return {
     total: Math.round(total),
+    qShow,
+    other: +other.toFixed(3),
     exact: +exact.toFixed(3),
     cmp: +cmp.toFixed(3),
     parts,

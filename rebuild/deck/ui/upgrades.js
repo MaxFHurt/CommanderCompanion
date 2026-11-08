@@ -2333,8 +2333,11 @@ function scoreHtml(d, A) {
   const e = evalFor(d);
   if (!e) return '';
   const L = {synergy: 'Synergy', balance: 'Balance', quality: 'Card quality', routes: 'Win routes', mana: 'Mana and curve'};
+  // Card quality as shown (owner, 8 Nov): the deck's rating against the Apex build by what the cards do (e.qShow), not popularity
+  const shownPart = k => (k === 'quality' && e.qShow ? e.qShow.pct : e.parts[k]),
+    shownWhy = k => (k === 'quality' && e.qShow ? e.qShow.why : e.why[k]);
   const bar = k => {
-    const v = e.parts[k],
+    const v = shownPart(k),
       cls = v >= 75 ? 'good' : v >= 50 ? 'warn' : 'bad';
     return (
       '<div class="meter ' +
@@ -2355,7 +2358,7 @@ function scoreHtml(d, A) {
   let more =
     '<p class="note" style="margin:0">' +
     Object.keys(L)
-      .map(k => '<b>' + L[k] + '</b> (' + EV_W[k] + '% of the score): ' + esc(e.why[k]))
+      .map(k => '<b>' + L[k] + '</b> (' + EV_W[k] + '% of the score): ' + esc(shownWhy(k)))
       .join('<br>') +
     '</p>' +
     '<p class="note" style="margin:0">60 is like a typical real deck for its commander; 85 is like the best tenth. Mana and curve come from ' +
@@ -2387,6 +2390,8 @@ function scoreHtml(d, A) {
   const qq = e.quality || {},
     qLine = qq.pending
       ? '<p class="note think" style="margin:-2px 0 4px">Thinking… measuring card quality against this deck’s Apex build</p>'
+      : e.qShow
+        ? '<p class="note" style="margin:-2px 0 4px">Card quality: ' + e.qShow.pct + '% of the way to the Apex build, by what the cards do for this deck (synergy, balance, ways to win, mana), not how popular they are</p>'
       : '<p class="note" style="margin:-2px 0 4px">Card quality: ' +
         qq.vsApex +
         '% of the Apex build (the best cards for this deck at any price)' +
