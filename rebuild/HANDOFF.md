@@ -8,7 +8,8 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.89** (8 Nov): Build 89: rules, 18 more cards run by themselves (21,695 of 31,836): triggers
+- Live build: **1.0.0-rebuild.90** (2 Nov): Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
+  Build 89 (8 Nov): Build 89: rules, 18 more cards run by themselves (21,695 of 31,836): triggers
   that never fired (a source you control dealing noncombat damage: Niv-Mizzet, Visionary; colorless creatures entering;
   one/two or more creatures attacking; "your commander"), creature tokens carry their colours, Planar Genesis's "If you
   don't" pick, Peer into the Abyss, Ad Nauseam (asked after each card). Deck Builder unchanged (0.9.55).

@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.89 (Deck Builder {"build": 200, "version": "0.9.55"})
+- **Live build:** 1.0.0-rebuild.90 (Deck Builder {"build": 201, "version": "0.9.56"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 90 — 2 Nov 2026
+- Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
 
 ### Build 89 — 8 Nov 2026
 - 18 more cards run by themselves (21,677 → 21,695 of 31,836), none lost: "Whenever a source you control deals noncombat
