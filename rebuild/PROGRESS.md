@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.87 (Deck Builder {"build": 199, "version": "0.9.54"})
+- **Live build:** 1.0.0-rebuild.88 (Deck Builder {"build": 200, "version": "0.9.55"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 86, measured 8 Nov); about 10,160 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,16 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 88 — 8 Nov 2026
+- Deck Builder 0.9.55 (build 200), roadmap known limits: deck history keeps the cards from before a change that arrives from
+  another window or device (labelled, once; UI-HIST-02); a card's window for a full Commander deck opens at once and fills in
+  its swaps when measured (the same swaps; UI-CW-01). The measuring itself is unchanged (faster needs an engine change).
+  No rules change; whole catalog still 21,677 of 31,836.
+- Tests: Deck Builder live suite: UI 136/136, benchmark 0.280 / 0.317 / 0.334 (unchanged), accept 39 ×2, cisweep 0, edge 0,
+  scheck bad 2, claims 41 and semantics 2 failures (as builds 83-87); node game 254, mechanics 85 (the Room test now lets the
+  setup's stack resolve first: it failed 1 run in 15; 25/25 after), catalog 401, smoke 6, tracker 20, forge 301/302, soak 40
+  three times (0 problems); every Playwright suite (online_ui 41).
 
 ### Build 87 — 2 Nov 2026
 - Build 87: Deck Builder 0.9.54 (build 199): each active health alert (yellow or red, not ignored) shows its best two swaps from its Fix menu at the top of the upgrade list, marked 'Fixes <alert>', with a Swap button that keeps the upgrade list (owner, 8 Nov: 'Why are deck health fixes not shown as upgrades?'). Worked out in the background one alert at a time, only while that deck's Upgrades tab is open, its list finished and its Apex reference made, and stopped when that changes; never redrawn over an open window (build 84's first try broke deck generation and See alternatives: UI-B81-02, UI-ALT-01). Rebased onto the other session's build 86; every suite run on the combined code (game 254, mechanics 85, catalog 401, soaks 0 problems, every Playwright suite) and the Deck Builder suite (UI 134, benchmark unchanged).

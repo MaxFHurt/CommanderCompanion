@@ -579,6 +579,7 @@ section('Rooms (build 79)');
   t.give(0, 'Burst Lightning');
   const card = t.hand(0, 'Burst Lightning');
   t.game.cardDefinitions[card.definitionId] = { ...scryfallToDefinition(ROOM), definitionId: card.definitionId };
+  settleWith(t); t.passAll();   // anything the setup left on the stack resolves first: a Room is cast only with the stack empty
   const r = t.try(0, { type: 'play', instanceId: card.instanceId, faceIndex: 1 });
   settleWith(t);
   const room = t.P(0).deck.battlefield.find(c => c.instanceId === card.instanceId);

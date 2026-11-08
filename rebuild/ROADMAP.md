@@ -213,6 +213,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 88 (Deck Builder 0.9.55, build 200): deck history across devices and windows; the card window opens at once.
 - Build 87 (Deck Builder 0.9.54, build 199): health fixes shown at the top of the upgrade list.
 - Build 86: 148 more cards (21,677 of 31,836): Galvanic Discharge, suspend from Delay/Jhoira/
   Taigam, Cumulative upkeep costs with an opponent, old cached split/adventure costs repaired, and long-tail wordings (Lairs,
