@@ -32,7 +32,11 @@ Items marked "discuss first" need the owner's decision before they are built; th
      - a **"for now" option**: a card the player owns, or a cheap one, that is not as good but makes the deck better until
        they get the real card. It is marked as a stand-in, and the best fix stays listed so they know what to get later.
      - Ignore stays on each section; the long explanation text is cut down to one line (more on tap).
-   - *Today:* the pop-up lists each problem with a paragraph of why and a Fix button that opens a separate swap menu.
+   - *Status (8 November):* built on the branch, not live. The sections reuse the health fixes the Upgrades tab already picks
+     (`UPFIX`, else `fixList`), filled one section at a time once the pop-up opens (about 0.1 s for the first on a desktop).
+     Options that would lower the score are dropped. The "for now" card is the best owned card that does the job, else
+     the best one under $1, and is offered only when the best fix's card isn't owned and costs over $1. "More options" still
+     opens the full swap menu. New UI check UI-HPOP-01.
    - *Builds on:* the health checks, the fix menus (`fixList`), owned cards (collection), the Budget / Mid / Apex picks and
      the card strength scores (item 3), if those are live by then.
    - *Size:* Medium. *Upgrades engine:* no (it reuses the fix lists; picking the "for now" card is new and is shown to the

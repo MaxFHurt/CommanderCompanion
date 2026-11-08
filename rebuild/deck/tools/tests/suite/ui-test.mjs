@@ -754,10 +754,30 @@ const b102 = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRe
   sc.scrollTop = Math.max(0, b.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 200);   /* Build 135: measured on the page, not inside its card */ const y0 = sc.scrollTop, R0 = recsFor(d), n = b.dataset.n; b.click(); await new Promise(r => setTimeout(r, 400));
   const sc2 = document.querySelector('#upscroll'); out.y0 = y0; out.y1 = sc2.scrollTop; out.kept = y0 > 100 && Math.abs(sc2.scrollTop - y0) < 5; out.sameList = recsFor(d) === R0; out.added = wantOf(d).some(x => x.n === n);
   const k = wantOf(d).findIndex(x => x.n === n); if (k >= 0) wantOf(d).splice(k, 1);
-  S.tab = 'stats'; render(); openDeckPop('health'); const hb = [...document.querySelectorAll('#modal [data-act="h-fix"]')].map(x => x.textContent.trim()); out.labels = hb; out.showLabels = hb.length > 0 && hb.every(t => /^(Fix|Show all \(\d+\))$/.test(t)) && !/Fix this|Fix all/.test(document.body.textContent); $('#modal').hidden = true;   /* 0.9.29: in Show all details */
+  S.tab = 'stats'; render(); openDeckPop('health'); const hb = [...document.querySelectorAll('#modal [data-act="h-fix"]')].map(x => x.textContent.trim()); out.labels = hb; out.showLabels = hb.length > 0 && hb.every(t => /^(Fix|More options|Show all \(\d+\))$/.test(t)) && !/Fix this|Fix all/.test(document.body.textContent); $('#modal').hidden = true;   /* 0.9.29: in Show all details */
   S.syncRecs = keep; render(); return out; });
 T('UI-B102-01', 'Adding to the buy list from Upgrades keeps the scroll position and does not rework the list; health buttons read Show / Show all', b102.kept && b102.sameList && b102.added && b102.showLabels, JSON.stringify(b102));
 } catch (e) { QUIET = false; T('UI-B102-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-HPOP-01')) { try { if (SHARD) await RESET();
+// Owner, 8 Nov: the Health pop-up shows each problem as its own section with the fixes right there (best fix, other options,
+// a "for now" card), filled in one section at a time; Swap there makes the swap and the pop-up comes back.
+const hp = await page.evaluate(async () => { const keep = S.syncRecs; S.syncRecs = false; const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  for (let i = 0; i < 150 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
+  S.tab = 'stats'; render(); openDeckPop('health'); const out = {};
+  const B = () => [...document.querySelectorAll('#modal .hsw')];
+  out.secs = B().length; out.thinkAtOpen = B().filter(b => b.querySelector('.think')).length;
+  for (let i = 0; i < 400 && B().some(b => b.querySelector('.think')); i++) await new Promise(r => setTimeout(r, 50));
+  out.done = B().every(b => !b.querySelector('.think'));
+  out.each = B().map(b => ({k: b.dataset.k, best: !!b.querySelector('.hopt.best [data-act="pfix-swap"]'), none: /No swap raises/.test(b.textContent), n: b.querySelectorAll('.hopt').length, now: /For now/.test(b.textContent)}));
+  out.ok = out.each.every(x => x.best || x.none);
+  out.noLosers = [...POPFIX.G.values()].every(g => g.L.every(p => p.dScore == null || p.dScore >= 0));
+  const sw = document.querySelector('#modal .hopt.best [data-act="pfix-swap"]');
+  if (sw) { const [k, i] = sw.dataset.v.split('|'), p = POPFIX.G.get(k).L[+i]; out.p = p.cut + ' -> ' + p.add; sw.click(); await new Promise(r => setTimeout(r, 300));
+    out.swapped = !entryOf(d, p.cut) && !!entryOf(d, p.add); out.back = !$('#modal').hidden && !!document.querySelector('#modal .deckpop');
+    doSwap(d, {cut: p.add, add: p.cut, q: 1}, 0); touch(); }
+  $('#modal').hidden = true; S.syncRecs = keep; render(); return out; });
+T('UI-HPOP-01', 'Health pop-up: one section per problem with its fixes in place (best fix, options, for now), Swap works there', hp.secs > 0 && hp.done && hp.ok && hp.noLosers && (hp.p ? hp.swapped && hp.back : true), JSON.stringify(hp).slice(0, 900));
+} catch (e) { QUIET = false; T('UI-HPOP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B103-01')) { try { if (SHARD) await RESET();
 // 54. Build 103: the Upgrades list takes spare lands only when the deck runs more than its target, one row per extra land
 // (3 over = up to 3 land swaps), each measured with fresh games; every row can show its Highest score card, with its own Swap.

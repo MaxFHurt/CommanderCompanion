@@ -3043,6 +3043,7 @@ function openDeckPop(focus) {
   $('#modal').hidden = false;
   const h = focus === 'health' && $('#modal .pop-h');
   if (h) h.scrollIntoView({block: 'start'});
+  popFixFill(d);
 }
 // The pop-up's health part: every alert that isn't good, with its numbers, why it matters and how to fix it (or Ignore), then
 // the healthy ones briefly, so the player sees what is going well.
@@ -3061,36 +3062,147 @@ function popHealthHtml(H, ign, fixable, lead) {
 function healthFixHtml(H, ign, fixable, why) {
   const bad = H.filter(x => x.s !== 'good');
   if (!bad.length) return '';
+  // Owner, 8 Nov: one section per problem, stacked, each with a one-line reason and its fixes right there (filled in as they
+  // are worked out: the best swap, other options, and a "for now" card the player owns or can get cheaply). Ignored alerts
+  // sit at the bottom on one line each.
+  const live = bad.filter(x => !ign.has(x.k)),
+    off = bad.filter(x => ign.has(x.k));
+  const sec = x =>
+    '<div class="hsec ' + x.s + '"><div class="row" style="gap:6px"><span class="hi ' + x.s + '" style="flex:1;min-width:0"><i></i><b>' +
+    x.k + '</b> ' + esc(x.t) + '</span>' +
+    (!FIX_OF[x.k] && x.k === 'Legal' && /open slot/.test(x.t) ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>' : '') +
+    (FIX_OF[x.k] && why ? '<button class="btn sm" data-act="h-fix" data-v="' + esc(x.k) + '">More options</button>' : '') +
+    '<button class="btn sm" data-act="h-ignore" data-v="' + esc(x.k) + '">Ignore</button></div>' +
+    (why && FIX_OF[x.k] && FIX_WHY[FIX_OF[x.k]] ? '<small class="why">' + FIX_WHY[FIX_OF[x.k]] + '</small>' : '') +
+    (FIX_OF[x.k]
+      ? why
+        ? '<div class="hsw" data-k="' + esc(x.k) + '"><p class="note think" style="margin:0">Finding fixes…</p></div>'
+        : '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">Show</button></div>'
+      : '') +
+    '</div>';
   return (
     '<div class="hfix"><span class="lab" style="margin:0">Needs attention</span>' +
-    bad
+    live.map(sec).join('') +
+    off
       .map(
         x =>
-          '<div class="row" style="gap:6px"><span class="hi ' +
-          (ign.has(x.k) ? 'ign' : x.s) +
-          '" style="flex:1;min-width:0"><i></i><b>' +
-          x.k +
-          '</b> ' +
-          esc(x.t) +
-          (why && FIX_OF[x.k] && FIX_WHY[FIX_OF[x.k]] ? '<small class="why">' + FIX_WHY[FIX_OF[x.k]] + '</small>' : '') +
-          '</span>' +
-          (ign.has(x.k)
-            ? '<button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button>'
-            : (FIX_OF[x.k]
-                ? '<button class="btn pri sm" data-act="h-fix" data-v="' + esc(x.k) + '">' + (why ? 'Fix' : 'Show') + '</button>'
-                : x.k === 'Legal' && /open slot/.test(x.t)
-                  ? '<button class="btn pri sm" data-act="tab" data-v="up">Fill slots</button>'
-                  : '') +
-              '<button class="btn sm" data-act="h-ignore" data-v="' +
-              esc(x.k) +
-              '">Ignore</button>') +
-          '</div>'
+          '<div class="row" style="gap:6px"><span class="hi ign" style="flex:1;min-width:0"><i></i><b>' + x.k + '</b> ' + esc(x.t) +
+          '</span><button class="btn sm" data-act="h-unignore" data-v="' + esc(x.k) + '">Stop ignoring</button></div>'
       )
       .join('') +
     (fixable.length > 1
-      ? '<div class="row"><button class="btn pri sm" data-act="h-fix" data-v="*">Show all (' + fixable.length + ')</button></div>'
+      ? '<div class="row"><button class="btn sm" data-act="h-fix" data-v="*">Show all (' + fixable.length + ')</button></div>'
       : '') +
     '</div>'
+  );
+}
+// The Health pop-up's fixes (owner, 8 Nov), worked out one alert at a time once the pop-up is open, so the first section fills
+// at once and the rest follow. The lists are the Upgrades tab's own health fixes (UPFIX) when it has them for this deck as it
+// stands, else fixList's. Kept until the deck changes.
+const POPFIX = {sig: '', G: new Map(), tok: 0};
+const popSig = d => d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|');
+// A "for now" card: one the player owns (else one under $1) that does the same job. Not as good as the best fix, but it makes
+// the deck better until the player gets that card; it is only offered when the best fix's card is not already owned.
+function fixStandIn(d, key, L) {
+  let kind = FIX_OF[key];
+  if (!kind || !L.length) return null;
+  if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp';
+  if (key === 'Lands') {
+    const A0 = analyze(d);
+    if (A0.lands > A0.T.lands) kind = 'landsDown';
+  }
+  const own = ownSet(),
+    best = L[0];
+  const bc = find(best.add);
+  if (own.has(norm(best.add)) || !bc || (bc.p != null && bc.p <= 1)) return null;
+  const taken = new Set(L.map(p => norm(p.add)));
+  const e = evalFor(d),
+    ar = apexFor(d),
+    R = recsFor(d),
+    score = e && e.exact != null && !['landsUp', 'landsDown', 'mana'].includes(kind) ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
+  const tryWith = (only, how) => {
+    try {
+      const S2 = fixSwaps(d, kind, {n: 3, val: R && R.valOf, score, only: c => !taken.has(norm(c.n)) && only(c)}).filter(
+        p => !hasCard(d, p.add) && (p.dScore == null || p.dScore > 0)
+      );
+      return S2.length ? Object.assign(S2[0], {now: how}) : null;
+    } catch (err) {
+      return null;
+    }
+  };
+  return (own.size ? tryWith(c => own.has(norm(c.n)), 'own') : null) || tryWith(c => c.p != null && c.p <= 1, 'cheap');
+}
+// a fix worth showing: it doesn't lower the deck score, and its cut is still in the deck and its card not yet
+const helps = d => p => (p.dScore == null || p.dScore >= 0) && entryOf(d, p.cut) && !entryOf(d, p.add);
+function popFixFill(d) {
+  const box = () => [...document.querySelectorAll('#modal .deckpop .hsw[data-k]')];
+  if (!box().length) return;
+  const sig = popSig(d);
+  if (POPFIX.sig !== sig) {
+    POPFIX.sig = sig;
+    POPFIX.G = new Map();
+  }
+  // the Upgrades tab's lists for the same deck are reused as they are
+  if (UPFIX.sig && UPFIX.sig.startsWith(sig + '#'))
+    UPFIX.G.forEach(g => {
+      if (!POPFIX.G.has(g.k)) POPFIX.G.set(g.k, {L: g.L.filter(helps(d)), now: undefined});
+    });
+  const tok = ++POPFIX.tok;
+  const alive = () => tok === POPFIX.tok && !$('#modal').hidden && $('#modal .deckpop') && cur() === d && popSig(d) === sig;
+  const draw = k => {
+    const el = box().find(x => x.dataset.k === k),
+      g = POPFIX.G.get(k);
+    if (el && g) el.innerHTML = popFixRows(d, k, g);
+  };
+  const todo = box().map(x => x.dataset.k);
+  todo.forEach(k => POPFIX.G.has(k) && POPFIX.G.get(k).now !== undefined && draw(k));
+  const step = () => {
+    if (!alive()) return;
+    const k = todo.find(x => !POPFIX.G.has(x) || POPFIX.G.get(x).now === undefined);
+    if (!k) return;
+    let g = POPFIX.G.get(k);
+    if (!g) {
+      let L = [];
+      try {
+        L = fixList(d, k).filter(helps(d));
+      } catch (err) {}
+      g = {L, now: undefined};
+      POPFIX.G.set(k, g);
+    }
+    g.now = fixStandIn(d, k, g.L);
+    draw(k);
+    setTimeout(step, 0);
+  };
+  setTimeout(step, 30);
+}
+// One section's fixes: the best swap, up to two other options, and the "for now" card, each with its own Swap button.
+function popFixRows(d, k, g) {
+  const L = g.L.slice(0, 3),
+    own = ownSet();
+  if (!L.length) return '<p class="note" style="margin:0">No swap raises the deck score for this right now.</p>';
+  const one = (p, i, lab) => {
+    const a = find(p.add);
+    return (
+      '<div class="hopt' + (i === 0 ? ' best' : '') + '"><span class="hl">' + lab + '</span>' +
+      '<span class="hsx"><button class="lnk" data-act="card" data-n="' + esc(p.cut) + '">' + esc(p.cut) + '</button> → ' +
+      '<button class="lnk" data-act="card" data-n="' + esc(p.add) + '"><b>' + esc(p.add) + '</b></button>' +
+      ' <em>' + money(a) + '</em>' + (own.has(norm(p.add)) ? ' <span class="chip good">You own this</span>' : '') +
+      (p.dScore != null ? ' ' + scoreChip(p.dScore) : '') + '</span>' +
+      '<button class="btn ' + (i === 0 ? 'pri ' : '') + 'sm" data-act="pfix-swap" data-v="' + esc(k) + '|' + i + '">Swap</button></div>'
+    );
+  };
+  const n = g.now;
+  return (
+    L.map((p, i) => one(p, i, i === 0 ? 'Best fix' : 'Option ' + (i + 1))).join('') +
+    (n
+      ? one(n, 'now', n.now === 'own' ? 'For now' : 'For now · cheap') +
+        '<small class="why">' +
+        (n.dScore != null && L[0].dScore != null && n.dScore >= L[0].dScore
+          ? 'Does about as much as ' + esc(L[0].add) + (n.now === 'own' ? ', and you already own it.' : ' for less.')
+          : 'Not as good as ' + esc(L[0].add) + ', but better than ' + esc(n.cut) + ' until you get it.') +
+        '</small>'
+      : '') +
+    ''
   );
 }
 // The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.

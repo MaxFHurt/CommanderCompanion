@@ -155,6 +155,17 @@ a { color: var(--glow); }
 .deckpop .pop-h { font-size: 16px; margin-top: 6px; }
 .deckpop .hfix .row { align-items: flex-start; }
 .deckpop .why { display: block; color: var(--mute); font-weight: 400; margin-top: 2px; }
+.deckpop .hsec { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--ink) 4%, transparent); border-left: 3px solid var(--warn); }
+.deckpop .hsec.bad { border-left-color: var(--bad); }
+.deckpop .hsw { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.deckpop .hopt { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.deckpop .hopt .hl { font: 600 11px var(--label); letter-spacing: .05em; text-transform: uppercase; color: var(--mute); }
+.deckpop .hopt.best .hl { color: var(--good); }
+.deckpop .hopt .hsx { min-width: 0; overflow-wrap: anywhere; }
+.deckpop .hopt .lnk { background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.deckpop .hopt .lnk:hover { text-decoration: underline; }
+.deckpop .hopt em { font-style: normal; color: var(--mute); white-space: nowrap; }
+@media (max-width: 560px) { .deckpop .hopt { grid-template-columns: minmax(0, 1fr) auto; } .deckpop .hopt .hl { grid-column: 1 / -1; } .deckpop .hsec > .row { flex-wrap: wrap; justify-content: flex-end; } .deckpop .hsec > .row .hi { flex: 1 1 100% !important; } }
 .leadrow { align-items: center; gap: 8px; }
 .deckpop .note.lead { margin: 2px 0 6px !important; }
 /* Badges on upgrade card images (owner, 2 Nov): Game Changer, and a green + for a card that helps a health alert */

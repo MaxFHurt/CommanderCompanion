@@ -29,7 +29,8 @@ function fixSwaps(d, kind, o) {
     legalIn(c, d.format) &&
     c.ci.every(z => ctx.ident.includes(z)) &&
     mustOk(c, d) &&
-    priceOk(c);
+    priceOk(c) &&
+    (!o.only || o.only(c));
   const short = j => (A.roles[j] || 0) <= (T[j] || 0); // a job at or below its target is not given up
   const spells = d.cards
     .map(e => ({e, c: find(e.n)}))
@@ -44,7 +45,7 @@ function fixSwaps(d, kind, o) {
     return (e && e.inc >= 0.05) || (c.r && c.r < 3000);
   };
   const best = (f, k) =>
-    LIB.filter(c => addOk(c) && f(c) && evid(c))
+    LIB.filter(c => addOk(c) && f(c) && (o.only || evid(c)))
       .map(c => ({c, v: val(c)}))
       .sort((a, b) => b.v - a.v)
       .slice(0, k);

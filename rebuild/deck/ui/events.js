@@ -1925,6 +1925,19 @@ function handleAct(act, v, n, pArg, cutArg) {
       d.ignoreH = (d.ignoreH || []).filter(x => x !== v);
       toast('The ' + v + ' alert is back on.');
       break;
+    case 'pfix-swap': {
+      // a fix from the Health pop-up (owner, 8 Nov): the swap, then the pop-up again with the deck as it now stands
+      const [k, i] = String(v).split('|'),
+        g = POPFIX.G.get(k),
+        p = g && (i === 'now' ? g.now : g.L[+i]);
+      if (!d || !p) return;
+      keepRecs(d, p, 'apex', -1);
+      if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + ' (' + k + (i === 'now' ? ', for now' : '') + ').');
+      touch();
+      render();
+      if (S.deckPop) setTimeout(() => openDeckPop('health'), 0);
+      return;
+    }
     case 'upfix-swap': {
       // a health fix from the upgrade list: the swap, and the upgrade list kept (the rows lose the card that went out)
       const [k, i] = String(v).split('|'),
