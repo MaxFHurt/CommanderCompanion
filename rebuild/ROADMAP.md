@@ -66,7 +66,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## 2. Game rules engine (cards in play)
 
-1. **The card long tail:** 21,677 of 31,836 Commander-legal cards run by themselves (build 86, 8 Nov; was about 21,500) (top 1,000: all; build 78 added 171 and build 79 269,
+1. **The card long tail:** 21,695 of 31,836 Commander-legal cards run by themselves (build 89, 8 Nov; was about 21,500) (top 1,000: all; build 78 added 171 and build 79 269,
    most-played first: Earthbend, Discover and energy payments inside effects, wipes with qualifiers, "equal to" amounts,
    Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,270 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are
@@ -213,6 +213,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 89: 18 more cards (21,695 of 31,836): triggers that never fired (Niv-Mizzet, Visionary; Glaring Fleshraker; Argent
+  Dais; Tome of Legends), token colours, Planar Genesis, Peer into the Abyss, Ad Nauseam.
 - Build 88 (Deck Builder 0.9.55, build 200): deck history across devices and windows; the card window opens at once.
 - Build 87 (Deck Builder 0.9.54, build 199): health fixes shown at the top of the upgrade list.
 - Build 86: 148 more cards (21,677 of 31,836): Galvanic Discharge, suspend from Delay/Jhoira/

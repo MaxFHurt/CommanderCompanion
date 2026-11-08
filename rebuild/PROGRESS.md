@@ -7,9 +7,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.88 (Deck Builder {"build": 200, "version": "0.9.55"})
+- **Live build:** 1.0.0-rebuild.89 (Deck Builder {"build": 200, "version": "0.9.55"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 86, measured 8 Nov); about 10,160 still need something done by hand. It is a long tail: the
+- **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
@@ -57,6 +57,15 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 89 — 8 Nov 2026
+- 18 more cards run by themselves (21,677 → 21,695 of 31,836), none lost: "Whenever a source you control deals noncombat
+  damage to an opponent" (Niv-Mizzet, Visionary; Chandra's Incinerator, Chandra's Pyreling) with "that many" read as the
+  damage; "another colorless creature you control enters" (Glaring Fleshraker, Flayer Drone, Dust Stalker); "Whenever one /
+  two or more creatures attack" (Argent Dais); "your commander" as a trigger subject (Tome of Legends); creature tokens carry
+  the colours their text names; Planar Genesis's "If you don't, put a card into your hand"; Peer into the Abyss; Ad Nauseam.
+- Tests: catalog 409 (+8), game 254, mechanics 85, smoke 6, tracker 20, forge 301/302, soak 40 three times (0 problems), every
+  Playwright suite (online_ui 41). Deck Builder unchanged since build 88 (its live suite ran then).
 
 ### Build 88 — 8 Nov 2026
 - Deck Builder 0.9.55 (build 200), roadmap known limits: deck history keeps the cards from before a change that arrives from
