@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.82 (Deck Builder {"build": 195, "version": "0.9.50"})
+- **Live build:** 1.0.0-rebuild.83 (Deck Builder {"build": 196, "version": "0.9.51"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 83 — 2 Nov 2026
+- Build 83: Deck Builder 0.9.51 (build 196): the tokens a deck makes are listed at the very bottom of the decklist, not counted in the 100 (owner, 8 Nov). Read from rules text (library.js tokenKindsOf/deckTokens): 'create two 1/1 green Saproling creature tokens' is a 1/1 green Saproling, Treasure/Food/Clue …, keywords that make tokens (investigate, afterlife, fabricate, amass, incubate, living weapon, mobilize), copies; one per card per kind; doublers (Doubling Season) add none. Also: a carried upgrade list applies only to the refresh its own swap causes (a Regenerate in between drops it). Tests: semantics +5, UI-B196-01 new; UI-B84/B81/B146 leave the token rows out; UI-B135-01 waits for the page to settle (it failed the same way on build 82's code once the test order changed). UI suite 131; online_ui timed out once in the full run and passed 41/41 alone.
 
 ### Build 82 — 2 Nov 2026
 - Build 82: Deck Builder 0.9.50 (build 195): the upgrade list stays after a swap (owner, 8 Nov, replacing 31 Oct's 'all upgrades should be regenerated': 'Apex suggestions should not change based on an upgrade I made of a mid or budget quality'). The row you swapped on keeps its higher tiers, now replacing the card you put in; that card shows in its tier as In your deck; the card you took out is shown with a big red Replaced chip; the other rows stay (library.js keepRecs/carryRecs, upgrades.js rowCols, deck.js). The list is worked out again on Regenerate or another change. Tests: UI-B195-01 (new), UI-B156-01 updated; UI suite 130; benchmark unchanged.

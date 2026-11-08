@@ -217,6 +217,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 83 (Deck Builder 0.9.51, build 196): tokens the deck makes listed at the bottom of the decklist, not counted in the 100.
 - Build 82 (Deck Builder 0.9.50, build 195): the upgrade list stays after a swap; the row shows Replaced and In your deck.
 - Build 81 (Deck Builder 0.9.49, build 194): upgrades say how many cards in the deck they work with (measured: not scored).
 - Build 80 (Deck Builder 0.9.48, build 193): 129 card-role misreads fixed (draw triggers, own-permanent targets, Demonic Consultation).

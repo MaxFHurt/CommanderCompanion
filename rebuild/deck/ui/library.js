@@ -683,13 +683,14 @@ function dropHolds(d) {
 // as they were (a card now in the deck is no longer offered elsewhere). The list is worked out again only when asked
 // (Regenerate) or when the deck or its settings change some other way.
 function keepRecs(d, p, t, i) {
-  recsFor.carry = recsFor.v && !recsFor.v.pending ? {id: d.id, R: recsFor.v, cut: p.cut, add: p.add, t: t || 'apex', i} : null;
+  // prevKey: the list is carried only into the refresh this swap causes; a Regenerate (or any forced refresh) in between drops it
+  recsFor.carry = recsFor.v && !recsFor.v.pending ? {id: d.id, R: recsFor.v, cut: p.cut, add: p.add, t: t || 'apex', i, prevKey: recsFor.k} : null;
   if (!recsFor.carry) recDrop(d);
 }
 function carryRecs(d, key) {
   const cy = recsFor.carry;
   recsFor.carry = null;
-  if (!cy || cy.id !== d.id || cy.R !== recsFor.v) return null;
+  if (!cy || cy.id !== d.id || cy.R !== recsFor.v || !cy.prevKey || recsFor.k !== cy.prevKey) return null;
   const R = cy.R,
     rank = t => ['budget', 'mid', 'apex'].indexOf(t),
     row = Number.isInteger(+cy.i) && R.paths[+cy.i] && norm(R.paths[+cy.i].cut) === norm(cy.cut) ? R.paths[+cy.i] : R.paths.find(L => norm(L.cut) === norm(cy.cut));
