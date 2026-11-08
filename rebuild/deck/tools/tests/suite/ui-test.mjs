@@ -1634,6 +1634,18 @@ const b1972 = await page.evaluate(async () => { const out = {}; const sy = S.syn
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
 T('UI-B197-02', 'Build 197: active health alerts show their best swaps at the top of the upgrade list, marked with the alert; a swap there keeps the list', !b1972.alerts.length || (b1972.rows > 0 && b1972.chips.every(c => /^Fixes /.test(c)) && b1972.swapped && b1972.kept), JSON.stringify(b1972));
 } catch (e) { QUIET = false; T('UI-B197-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-CW-01')) { try { if (SHARD) await RESET();
+// Card window (roadmap known limit, 8 Nov): a spell going into a full Commander deck opens at once with a "Thinking" line; the
+// best swap (the same as measured directly) replaces it as soon as it is weighed.
+const cw1 = await page.evaluate(async () => { const d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander) && analyze(x).size >= analyze(x).T.size); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  const c = LIB.find(x => !x.gc && x.cmd && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r < 500); const out = {card: c.n};
+  openCard(c.n); out.thinking = !!document.querySelector('#want-think .think') && !document.querySelector('#modal .swaphero');
+  for (let i = 0; i < 100 && document.querySelector('#want-think'); i++) await new Promise(r => setTimeout(r, 50));
+  const hero = document.querySelector('#modal .swaphero'); out.filled = !!hero && !document.querySelector('#want-think');
+  out.same = !!hero && hero.innerHTML === ((new DOMParser().parseFromString('<div>' + wantHtml(d, c) + '</div>', 'text/html').querySelector('.swaphero')) || {}).innerHTML;
+  $('#modal').hidden = true; return out; });
+T('UI-CW-01', 'Card window: a spell for a full Commander deck opens at once ("Thinking…"), then shows the same best swap as measured directly', cw1.thinking && cw1.filled && cw1.same, JSON.stringify(cw1));
+} catch (e) { QUIET = false; T('UI-CW-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-HIST-02')) { try { if (SHARD) await RESET();
 // Deck history (roadmap known limit): a change that arrives from another window or device keeps the cards from before it as a
 // version, once (not again when that device already kept the same version).

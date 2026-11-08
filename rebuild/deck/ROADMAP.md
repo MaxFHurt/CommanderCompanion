@@ -871,7 +871,9 @@ like players choices."
   alternatives are measured; the list shows "checking" meanwhile. Decks over their
   land target take a few seconds more (spare-land swaps need fresh practice games).
 - Opening a card's window to put it in a full deck takes about half a second (it is
-  weighed against every card it could replace).
+  weighed against every card it could replace). Since 8 Nov the window opens at once with "Thinking…" and the swaps fill
+  in when measured (ui/cards.js wantSoon; test UI-CW-01); the measuring itself is unchanged (about 4.6 ms a swap in Node,
+  nearly all in evaluateDeck; making it faster would change the upgrades engine, so it waits for the owner).
 - Deck history records changes saved through the app's buttons, and (8 Nov) changes that arrive from another window or
   device (the cards from before them are kept as a version; storage.js versionCarry; test UI-HIST-02). That version is saved
   with the window's next change, since taking a newer copy never writes it back.
