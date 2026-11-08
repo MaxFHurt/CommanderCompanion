@@ -7,10 +7,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.85 (Deck Builder {"build": 198, "version": "0.9.53"})
+- **Live build:** 1.0.0-rebuild.86 (Deck Builder {"build": 198, "version": "0.9.53"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, measured 8 Nov on the claude/commander-
-  companion-roadmap-ilkx1o branch, not live yet); about 10,160 still need something done by hand. It is a long tail: the
+- **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 86, measured 8 Nov); about 10,160 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
@@ -54,12 +53,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 ## Known limits
 
 - Moraug, Kardur, copied lands, Dredge for other players' draws and Echo/Cumulative upkeep action costs: done (build 68);
-  costs that need a choice (build 79); costs an opponent takes part in (build 85).
+  costs that need a choice (build 79); costs an opponent takes part in (build 86).
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
 
-### Build 86 (ready on the branch, not live) — 8 Nov 2026
+### Build 86 — 8 Nov 2026
 - Roadmap round, smallest first; 148 more cards run by themselves (21,529 → 21,677 of 31,836), none lost. Galvanic
   Discharge (pay any amount of {E}); suspend from Delay, Jhoira of the Ghitu and Taigam; Cumulative upkeep costs an opponent
   takes part in (Wall of Shards, Varchild's War-Riders, Sheltering Ancient: chosen again per age counter); card data cached
@@ -71,7 +70,11 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
   land count (Spitting Earth and about 40 more); Corrupt's life gain; Marrow Shards; Oust.
 - Tests: node game 254, mechanics 85, catalog 401, smoke 6, tracker 20, forge 301/302, soak 40 (0 problems); Playwright
   game_ui 28, flows_ui 29, challenge_ui 13, tracker_test 40, net_ui 30, offline_ui 5, pair_ui 5, tracker_net_ui 44,
-  online_ui 41 (timed out once in the full run, passed alone). Not run: soak ×3, the Deck Builder suite (deck/ unchanged).
+  online_ui 41 (its two Deck Builder sync waits raised from 10 s to 30 s: the push takes about 11 s on this
+  test machine with builds 83, 84 and 85 alike, so it timed out; 41/41 twice with the longer wait). Release checks (8 Nov, on top of build 85): soak 40 three times, 0 problems each; Deck Builder live suite on build 84's
+  Deck Builder (unchanged here): UI 132/132, benchmark 0.280 / 0.317 / 0.334, accept 39 ×2, cisweep 0, edge 0, scheck bad 2
+  (build 83: 1; Doom Prevails' Stilt-Man for Taskmaster measures 0 and Avengers' Tome of Legends -0.02, after build 84's
+  practice-game change), claims 41 unrecognised and semantics 2 failures as on build 83.
 ### Build 85 — 2 Nov 2026
 - Build 85: Deck Builder 0.9.53 (build 198): card search finds cards by their printed (flavor) names (owner, 8 Nov: 'The search function can't find newly renamed printings'). The card-data job's alt.json (every printed name with its real card, written daily) is downloaded once a day and kept in the browser; names the built-in list lacks are added to the name index (library.js addAltNames; storage.js loadAltNames), so new reskins resolve in search, imports and decklists. Search matches printed names and shows the one it matched (quick search: printed name with the real name; card search: a chip). 617 names live (561 built in). Tests: UI-B198-01 new; UI suite 133; benchmark unchanged.
 

@@ -220,16 +220,17 @@ async def main():
             await e.wait_for_selector('text=Saved from another device')
             check('saving over a newer copy from another device asks first', True)
             await e.click('.modal .btn--cancel:text-is("Cancel")')
-            # closing a deck in the Deck Builder sends the edits to the online copy straight away
+            # closing a deck in the Deck Builder sends the edits to the online copy straight away (reading the stores on that page
+            # takes about 11 s on a loaded test machine, so these waits allow 30 s)
             before = await d.evaluate("JSON.parse(localStorage.getItem('cc-online-profile')).rev")
             await d.goto(d.url.split('/index.html')[0].split('?')[0].rstrip('/') + '/deck/index.html' + Q); await d.wait_for_timeout(1500)
             await d.evaluate("() => { const x = S.profile.decks[0]; S.deckId = x.id; S.view = 'decks'; S.open = true; render(); x.name = 'Synced Deck'; PROF.dirty = true; S.open = false; render(); }")
-            await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=10000)
+            await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=30000)
             online = await d.evaluate(f"fetch('http://127.0.0.1:{PORT}/profiles/' + JSON.parse(localStorage.getItem('cc-online-profile')).key).then(r => r.json()).then(j => (j.backup.deckBuilder?.decks || []).map(x => x.name))")
             check('closing a deck in the Deck Builder sends it to the online profile', 'Synced Deck' in online, str(online))
             before = await d.evaluate("JSON.parse(localStorage.getItem('cc-online-profile')).rev")
             await d.evaluate("() => { const x = S.profile.decks[0]; S.deckId = x.id; S.view = 'decks'; S.open = true; render(); x.name = 'Hidden Deck'; touch(); Object.defineProperty(document, 'hidden', {configurable: true, get: () => true}); document.dispatchEvent(new Event('visibilitychange')); }")
-            await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=10000)
+            await d.wait_for_function(f"JSON.parse(localStorage.getItem('cc-online-profile')).rev > {before}", timeout=30000)
             online = await d.evaluate(f"fetch('http://127.0.0.1:{PORT}/profiles/' + JSON.parse(localStorage.getItem('cc-online-profile')).key).then(r => r.json()).then(j => (j.backup.deckBuilder?.decks || []).map(x => x.name))")
             check('putting the app away with a deck open sends the edits too', 'Hidden Deck' in online, str(online))
             for name, pg in (('a', a), ('b', b), ('c', c), ('d', d), ('e', e)):
