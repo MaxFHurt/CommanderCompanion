@@ -780,7 +780,7 @@ const SCORE_DESC = {
   balance:
     'Whether the deck has enough of each job: lands, ramp, card draw, removal, board wipes and protection, measured against a typical Commander deck. 25% of the score.',
   quality:
-    'How strong your spells are compared with the best possible build for this commander (the Apex build = 100%) and with random playable cards (0%). 20% of the score.',
+    'How far your deck is from random playable cards (0%) to the best possible build for this commander (the Apex build = 100%), judged by what the cards do for this deck (synergy, balance, ways to win, mana), not by how popular they are. 20% of the score.',
   routes: 'How the deck wins: finishers (cards that end a game quickly) and complete combos. 15% of the score.',
   mana: 'From 300 practice games the app plays out alone: how often the deck has the right colours and enough lands on time, and how smoothly it spends its mana. 10% of the score.'
 };
@@ -956,7 +956,7 @@ async function openAnalysis() {
           : '') +
         Object.keys(L)
           .map(k => {
-            const x = e.parts[k];
+            const x = k === 'quality' && e.qShow ? e.qShow.pct : e.parts[k];   // card quality as shown: by what the cards do (owner, 8 Nov)
             if (x == null) return '<p class="note" style="margin:0"><b>' + L[k] + ':</b> ' + esc(e.why[k]) + '.</p>';
             const cls = x >= 75 ? 'good' : x >= 50 ? 'warn' : 'bad';
             return (
@@ -973,7 +973,7 @@ async function openAnalysis() {
                 SCORE_DESC[k]
               ) +
               '<p class="note" style="margin:-2px 0 4px">' +
-              esc(e.why[k]) +
+              esc(k === 'quality' && e.qShow ? e.qShow.why : e.why[k]) +
               '</p>'
             );
           })
