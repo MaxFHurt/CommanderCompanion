@@ -716,6 +716,7 @@ function probeTrigger(definition, ability, types, events, variants) {
   // Probe cards: every common type; the Elemental Dragon is big, black and flying, for "with power 4 or greater" and similar.
   const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
+  me.commanders = types.map((_, i) => ({ cardId: `probe-${i}` }));   // "your commander" (Tome of Legends): the probe cards are this player's commanders
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };
   for (const variant of variants) for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
     game.activePlayerId = variant.oppTurn ? 'opp' : 'me';

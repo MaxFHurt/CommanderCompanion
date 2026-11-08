@@ -8,7 +8,11 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.88** (8 Nov): Build 88: Deck Builder 0.9.55 (build 200): deck history keeps the cards from
+- Live build: **1.0.0-rebuild.89** (8 Nov): Build 89: rules, 18 more cards run by themselves (21,695 of 31,836): triggers
+  that never fired (a source you control dealing noncombat damage: Niv-Mizzet, Visionary; colorless creatures entering;
+  one/two or more creatures attacking; "your commander"), creature tokens carry their colours, Planar Genesis's "If you
+  don't" pick, Peer into the Abyss, Ad Nauseam (asked after each card). Deck Builder unchanged (0.9.55).
+  Build 88 (8 Nov): Build 88: Deck Builder 0.9.55 (build 200): deck history keeps the cards from
   before a change that arrives from another window or device (storage.js versionCarry; UI-HIST-02); a card's window for a
   full Commander deck opens at once with "Thinking…" and its swaps fill in when measured (cards.js wantSoon; UI-CW-01).
   Mechanics test for Rooms lets the setup's stack resolve before casting (it failed about 1 run in 15).

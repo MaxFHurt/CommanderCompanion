@@ -24,6 +24,11 @@ const WORD_NUMBERS = Object.freeze({
 });
 const PLAYER_ZONES = ['remainingLibrary', 'hand', 'battlefield', 'graveyard', 'exile', 'tokens', 'attachments', 'commandZone'];
 const COLOR_NAMES = Object.freeze({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' });
+/** The colours named in a token's description ("1/1 red Goblin", "white and blue Bird"); none for colorless. */
+export function tokenColors(words) {
+  const W = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  return [...new Set((String(words || '').toLowerCase().match(/\b(?:white|blue|black|red|green)\b/g) || []).map(w => W[w]))];
+}
 export function numberFromText(value) {
   const s = String(value ?? '').trim().toLowerCase();
   return /^\d+$/.test(s) ? Number(s) : (WORD_NUMBERS[s] ?? null);
@@ -371,8 +376,8 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const hit = locateCardInGame(game, amount.sourceId || bindings.sourceId);
     return hit ? effectiveToughness(hit.card, definitionFor(game, hit.card), game) : 0;
   }
-  if (amount.kind === 'binding')
-    return Math.max(0, Number(bindings[amount.bind] || 0));
+  if (amount.kind === 'binding')   // "that many" with nothing counted first is the trigger's amount (Niv-Mizzet, Visionary: the damage dealt)
+    return Math.max(0, Number((amount.bind === 'thatMany' && bindings.thatMany === undefined ? bindings.eventAmount : bindings[amount.bind]) || 0));
   if (amount.kind === 'died-this-turn')
     return game.creaturesDied?.turn === game.turnNumber ? Number(game.creaturesDied.n || 0) : 0;
   if (amount.kind === 'devotion') {
@@ -2317,19 +2322,19 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   // Tokens.
   if ((m = c.match(/^For each opponent, create a (\d+)\/(\d+) ([^.]*?) creature token\.?$/i))) {
     const typeWords = m[3].trim(), subtype = (typeWords.match(/(?:white|blue|black|red|green|colorless)?\s*([A-Z][A-Za-z'-]+)(?:\s+creature)?$/i) || [])[1] || 'Creature';
-    effects.push({ kind: 'create-token', amount: { kind: 'opponents' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}` });
+    effects.push({ kind: 'create-token', amount: { kind: 'opponents' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}`, colors: tokenColors(typeWords) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create a (\d+)\/(\d+) ([^.]*?) creature token for each (.+)\.?$/i))) {
     const typeWords = m[3].trim(), subtype = (typeWords.match(/(?:white|blue|black|red|green|colorless)?\s*([A-Z][A-Za-z'-]+)(?:\s+creature)?$/i) || [])[1] || 'Creature';
-    effects.push({ kind: 'create-token', amount: countExprFromPhrase(m[4]), power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}` });
+    effects.push({ kind: 'create-token', amount: countExprFromPhrase(m[4]), power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}`, colors: tokenColors(typeWords) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (\d+)\/(\d+) ([^.]*?) creature tokens?(?: with ([^.]+))?\.?$/i))) {
     const typeWords = m[4].trim();
     const subtype = (typeWords.match(/(?:white|blue|black|red|green|colorless)?\s*([A-Z][A-Za-z'-]+)(?:\s+creature)?$/i) || [])[1] || 'Creature';
     const kws = (m[5] || '').split(/,| and /).map(x => x.trim()).filter(Boolean);
-    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: `Token Creature — ${subtype}`, keywords: kws });
+    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: `Token Creature — ${subtype}`, keywords: kws, colors: tokenColors(typeWords) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create (a|an|one|two|three|four|five|\d+) (Treasure|Food|Clue|Blood|Map) tokens?\.?$/i))) {
@@ -2799,7 +2804,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
   // Tokens: "a number of … equal to Krenko's power", "that many Treasure tokens", "a Food token or a Treasure token".
   if ((m = c.match(/^Create a number of (\d+)\/(\d+) ([^.]*?) creature tokens equal to (?:its|this creature'?s|[A-Z][^']*'s) power\.?$/i))) {
     const subtype = (m[3].match(/([A-Z][A-Za-z'-]+)$/) || [])[1] || 'Creature';
-    effects.push({ kind: 'create-token', amount: { kind: 'source-power' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}` });
+    effects.push({ kind: 'create-token', amount: { kind: 'source-power' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}`, colors: tokenColors(m[3]) });
     return true;
   }
   if ((m = c.match(/^Create that many (Treasure|Food|Clue) tokens\.?$/i))) {

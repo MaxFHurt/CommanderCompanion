@@ -963,6 +963,10 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
       if (one) { const d = DEST(one[4]); if (!d) break; picks.push({ min: one[3] ? 0 : 1, max: 1, filter: `${one[1]}${one[2] || ''}`, ...d }); continue; }
       const jace = amount === 1 && !picks.length && s.match(/^You may put (?:that card|it) on the bottom of (?:that player's|your|its owner's) library\.?$/i);
       if (jace) { picks.push({ min: 0, max: 1, filter: '', to: 'bottom' }); continue; }
+      // Planar Genesis: "If you don't, put a card from among them into your hand." — a second pick, only when the first took none.
+      const ifNone = picks.length && s.match(/^If you don'?t(?: put a [a-z ]+ card onto the battlefield this way)?, (.+)$/i);
+      const alt = ifNone && parsePick(ifNone[1].replace(/^\w/, ch => ch.toUpperCase()));
+      if (alt && !alt.rest) { picks.push({ ...alt.pick, ifNone: true }); continue; }
       const otherwise = picks.length && s.match(rx(`^(?:Otherwise|If you don'?t(?: put it into your hand| reveal it)?|If you don'?t put it [^,]+),? (?:you may )?put (?:it|that card) ${DEST_RE}\\.?$`, 'i'));
       if (otherwise) { rest = DEST(otherwise[1]); k++; break; }
       const r = picks.length || amount > 1 ? parseRest(s) : null;
@@ -1248,6 +1252,7 @@ export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, 
     }
     const left = [...cards], groups = [];
     req.picks.forEach((p, g) => {
+      if (p.ifNone && groups.some(x => x.length)) { groups.push([]); return; }   // "If you don't, …": only when nothing was picked before
       const chosenType = locateCardInGame(game, bindings.sourceId)?.card?.chosenCreatureType || '';
       const words = String(p.filter || '').replace(/\bX\b/, String(bindings.X ?? 0)).replace(/\bof the chosen type\b/i, chosenType ? `${chosenType}` : 'NO-CHOSEN-TYPE');
       const fits = left.filter(c => cardFitsWords(util.defOf(game, c), words) && (p.to !== 'cast-free' || !/\bLand\b/.test(util.defOf(game, c)?.typeLine || '')));
