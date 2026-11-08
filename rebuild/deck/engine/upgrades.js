@@ -186,6 +186,13 @@ function baseScore(c, d, ctx) {
       why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
     }
   }
+  // 0.9.49 (roadmap 5.2): the card feeds or is fed by cards already in the deck (the card window's "Works with": creatures dying,
+  // entering, life gain, card draw … — library.js IX). Said as a reason only: adding it to the value (0.1 to 1 per card, capped at
+  // 2 or 6) never raised agreement with the expert lists and at 0.3+ lowered it (8 Nov: tuneall 0.280 → 0.277 / 0.265).
+  if (d.cards && d.cards.length) {
+    const n = ixDeckMatches(d, c);
+    if (n >= 3) why.push('Works with ' + n + ' cards in the deck');
+  }
   // engine v2 (UP.syn): the card makes what the commander uses, or uses what it makes (engine/functions.js)
   if (UP.syn && ctx.cmd && d.format === 'commander') {
     const y = fnSynergy(c, ctx.cmd);

@@ -1074,6 +1074,34 @@ function ixOf(c) {
   return (c._ix = {gives, wants});
 }
 /** Cards in deck d that work with card c: c feeds their triggers or they feed c's. [{n, why}], at most `max`. */
+// How many cards in the deck this card works with (feeds, or is fed by), counted from the deck's totals per interaction (kept
+// until the deck's list changes), so each candidate costs a few set lookups, not a pass over the deck.
+const IXD = new Map();
+function ixDeckMatches(d, c) {
+  const sig = (d.cards || []).map(e => e.n).join('|'), k = d.id || sig;
+  let t = IXD.get(k);
+  if (!t || t.sig !== sig) {
+    const gives = {}, wants = {};
+    for (const e of d.cards || []) {
+      const x = find(e.n);
+      if (!x) continue;
+      const ix = ixOf(x);
+      for (const r of IX) { if (ix.gives.has(r.k)) gives[r.k] = (gives[r.k] || 0) + 1; if (ix.wants.has(r.k)) wants[r.k] = (wants[r.k] || 0) + 1; }
+    }
+    t = {sig, gives, wants};
+    IXD.set(k, t);
+  }
+  const me = ixOf(c), inDeck = (d.cards || []).some(e => e.n === c.n);
+  let n = 0;
+  // matches per interaction (a card that both feeds and wants the same thing counts on each side); a card already in the deck
+  // leaves itself out of the totals
+  for (const r of IX) {
+    const g = me.gives.has(r.k), w = me.wants.has(r.k);
+    if (g) n += Math.max(0, (t.wants[r.k] || 0) - (inDeck && w ? 1 : 0));
+    if (w) n += Math.max(0, (t.gives[r.k] || 0) - (inDeck && g ? 1 : 0));
+  }
+  return n;
+}
 function worksWith(d, c, max) {
   if (!d || !c) return [];
   const me = ixOf(c),

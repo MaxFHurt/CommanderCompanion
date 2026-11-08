@@ -155,7 +155,11 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    Earlier (build 70): lists.js ENGINE_ROLES fills cards the reader gives no role. **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
    rules engine understands, for better roles (ramp, draw, removal, wipes, protection, finishers) and theme tags. Biggest gain
    for the effort. Measure with the Deck Builder benchmark (`bench.js`, must not drop) before shipping.
-2. **(Done for display, build 71: "Works with" in the card window; scoring them is a benchmark question.)** **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
+2. **(Done, build 81: measured, kept as a reason only.)** Counting the cards in the deck an upgrade works with (library.js
+   ixDeckMatches, the card window's "Works with" interactions) at 0.1–1 per card, capped at 2 or 6, never raised agreement
+   with the expert lists (tuneall 0.280 → 0.277 at 0.3, 0.265 at 1; test and holdout the same or lower), as with synergy
+   with the commander (UP.syn) before. An upgrade that works with 3+ cards in the deck now says so ("Works with N cards in
+   the deck"); the score is unchanged. Earlier (build 71): "Works with" in the card window. **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
    death triggers, token makers with "whenever a creature enters", spells with cast triggers…) count as synergy, and the card
    window says which cards it works with. Builds on 1.
 3. **Real practice games:** full games with the game engine and bots (as `soak.mjs` does) to measure how a deck performs,
@@ -211,6 +215,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 81 (Deck Builder 0.9.49, build 194): upgrades say how many cards in the deck they work with (measured: not scored).
 - Build 80 (Deck Builder 0.9.48, build 193): 129 card-role misreads fixed (draw triggers, own-permanent targets, Demonic Consultation).
 - Build 79: Rooms, flip cards, time travel, Echo/Cumulative upkeep paid with a choice, Class and energy wordings (269 more cards).
 - Build 78: 171 more cards run by themselves (the long tail, most-played first).
