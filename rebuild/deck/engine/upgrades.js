@@ -2046,7 +2046,7 @@ function tierCols(O, skip) {
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
-  str: 0, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov): off until benchmarked
+  str: 1, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov): on from 0.9.58 (owner: ship it)
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
   strExp: 2, // its curve: strong cards count for more than several weak ones
   strInc: 0.5, // Budget and Mid picks: weight of this commander's EDHREC play rate (benchmark: Mid 0.190/0.268, Budget 0.170/0.221 against 0.188/0.185 and 0.119/0.108)

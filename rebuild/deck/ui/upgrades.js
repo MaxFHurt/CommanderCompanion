@@ -2741,7 +2741,16 @@ function statsHtml(d, A, R, mode) {
   // everything else about where the deck stands, in the Show all details pop-up (owner, 1 Nov: one line on the page, the
   // full picture a tap away)
   const popTop =
-    pw != null
+    SP
+      ? '<p class="note" style="margin:0">Power <b>' +
+        Math.round(pwr) +
+        '</b> by card strength, where this deck’s Apex build is 100. The best all-under-$3 build reaches ' +
+        Math.round(SP.budget) +
+        ', all-under-$12 ' +
+        Math.round(SP.mid) +
+        '.</p>' +
+        (e && T0r ? gapHtml(e, T0r, lvl) : '')
+      : pw != null
       ? '<p class="note" style="margin:0">Power <b>' +
             Math.round(pwr) +
             '</b>, that is ' +
@@ -2775,7 +2784,7 @@ function statsHtml(d, A, R, mode) {
         ? '<div class="row"><button class="btn sm" data-act="lands-open">Lands helper</button></div>'
         : '') +
       (mode === 'compact' ? apexTips(d, A, R, e, HA, lvl, true) : '') +
-      popHealthHtml(H, ign, fixable, pw != null ? leadLine(lvl, pwr, pctOf(T0.budget), pctOf(T0.mid)) : '')
+      popHealthHtml(H, ign, fixable, pw != null ? leadLine(lvl, pwr, mk.budget, mk.mid) : '')
   );
   const strip =
     '<div class="statbar" role="status" aria-live="polite"><span>' +
@@ -2847,9 +2856,9 @@ function statsHtml(d, A, R, mode) {
       ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '')
       : '') +
     '</div>' +
-    '<div><small>Card quality</small><b>' +
-    (qp == null ? '—' : qp + '%') +
-    '</b><span class="note">of Apex</span></div>' +
+    (SP
+      ? '<div><small>Power</small><b>' + Math.round(SP.power) + '</b><span class="note">Apex 100</span></div>'
+      : '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>') +
     '<div><small>Bracket</small><b>' +
     (A.ctx.bracket || '—') +
     '</b><span class="note">' +
