@@ -8,7 +8,8 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Repo: `MaxFHurt/CommanderCompanion`, branch `main`. The app is the `rebuild/` folder; the repo root only
   forwards to it. The Deck Builder (formerly Deck Companion) is `rebuild/deck/` — see README.md, Deck Builder.
 - Live: https://maxfhurt.github.io/CommanderCompanion/rebuild/ (GitHub Pages, serves `main`).
-- Live build: **1.0.0-rebuild.86** (8 Nov): Build 86: rules, 148 more cards run by themselves (21,529 → 21,677 of 31,836):
+- Live build: **1.0.0-rebuild.87** (2 Nov): Build 87: Deck Builder 0.9.54 (build 199): each active health alert (yellow or red, not ignored) shows its best two swaps from its Fix menu at the top of the upgrade list, marked 'Fixes <alert>', with a Swap button that keeps the upgrade list (owner, 8 Nov: 'Why are deck health fixes not shown as upgrades?'). Worked out in the background one alert at a time, only while that deck's Upgrades tab is open, its list finished and its Apex reference made, and stopped when that changes; never redrawn over an open window (build 84's first try broke deck generation and See alternatives: UI-B81-02, UI-ALT-01). Rebased onto the other session's build 86; every suite run on the combined code (game 254, mechanics 85, catalog 401, soaks 0 problems, every Playwright suite) and the Deck Builder suite (UI 134, benchmark unchanged).
+  Build 86 (8 Nov): Build 86: rules, 148 more cards run by themselves (21,529 → 21,677 of 31,836):
   Galvanic Discharge, suspend from Delay/Jhoira/Taigam, Cumulative upkeep costs with an opponent, cached split/adventure
   costs repaired, Lairs and karoos, Blackmail-style reveals, Disallow, Rebuff the Wicked, the Scarab God's return,
   Pestilence, damage equal to a land count, Oust and more (PROGRESS.md). Deck Builder unchanged (0.9.53).

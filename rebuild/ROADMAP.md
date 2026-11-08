@@ -213,13 +213,14 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 87 (Deck Builder 0.9.54, build 199): health fixes shown at the top of the upgrade list.
 - Build 86: 148 more cards (21,677 of 31,836): Galvanic Discharge, suspend from Delay/Jhoira/
   Taigam, Cumulative upkeep costs with an opponent, old cached split/adventure costs repaired, and long-tail wordings (Lairs,
   Blackmail, Disallow, Scarab God, Pestilence, damage equal to a land count …; PROGRESS.md).
 - Build 85 (Deck Builder 0.9.53, build 198): search finds cards by printed (flavor) names, including ones published after the build.
 - Build 84 (Deck Builder 0.9.52, build 197): mana stuck only when nothing could be cast for colour; health warnings red only
   when severely short; a reskinned commander (the Miku precon) shown under its printing's name and art everywhere.
-  Open from this round (owner, 8 Nov): health fixes in the upgrade list (built, taken out: wip/health-fixes-in-upgrades.md);
+  Open from this round (owner, 8 Nov): health fixes in the upgrade list (done, build 87);
   card quality by what the cards do, not popularity (switch built, not benchmarked: wip/card-quality-qEff.patch); card search
   finding newly renamed printings (done, build 85).
 - Build 83 (Deck Builder 0.9.51, build 196): tokens the deck makes listed at the bottom of the decklist, not counted in the 100.

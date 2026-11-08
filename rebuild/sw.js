@@ -7,7 +7,7 @@
 // - Card data and deck-site lookups (Scryfall, EDHREC, Commander Spellbook) go to the network first; the last answer
 //   is kept for offline use. Saved decks keep their own card data on the device (card-cache.js).
 
-const CACHE = 'commander-companion-v86';
+const CACHE = 'commander-companion-v87';
 const ASSETS = 'commander-companion-assets-v1';   // kept across releases
 const DATA = 'commander-companion-data-v1';
 const ASSET_HOSTS = /(^|\.)(cards\.scryfall\.io|svgs\.scryfall\.io|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|cdn\.jsdelivr\.net)$/;

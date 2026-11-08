@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.86 (Deck Builder {"build": 198, "version": "0.9.53"})
+- **Live build:** 1.0.0-rebuild.87 (Deck Builder {"build": 199, "version": "0.9.54"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,677 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 86, measured 8 Nov); about 10,160 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 87 — 2 Nov 2026
+- Build 87: Deck Builder 0.9.54 (build 199): each active health alert (yellow or red, not ignored) shows its best two swaps from its Fix menu at the top of the upgrade list, marked 'Fixes <alert>', with a Swap button that keeps the upgrade list (owner, 8 Nov: 'Why are deck health fixes not shown as upgrades?'). Worked out in the background one alert at a time, only while that deck's Upgrades tab is open, its list finished and its Apex reference made, and stopped when that changes; never redrawn over an open window (build 84's first try broke deck generation and See alternatives: UI-B81-02, UI-ALT-01). Rebased onto the other session's build 86; every suite run on the combined code (game 254, mechanics 85, catalog 401, soaks 0 problems, every Playwright suite) and the Deck Builder suite (UI 134, benchmark unchanged).
 
 ### Build 86 — 8 Nov 2026
 - Roadmap round, smallest first; 148 more cards run by themselves (21,529 → 21,677 of 31,836), none lost. Galvanic
