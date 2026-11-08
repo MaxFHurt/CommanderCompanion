@@ -1578,6 +1578,23 @@ const b195 = await page.evaluate(async () => { const out = {};
 if (process.env.SHOT) { await page.evaluate(() => document.querySelector('.sheet')?.scrollIntoView()); await page.screenshot({ path: process.env.SHOT, fullPage: false }); await page.evaluate(() => { const d = window.__shotDeck; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); }); }
 T('UI-B195-01', 'Build 195: a Budget swap keeps the upgrade list: the row now holds the Budget card (in your deck), the old card is marked Replaced, the Apex pick is the same card and now replaces the Budget one, and the other rows are unchanged', b195.found && b195.inDeck && b195.sameList && b195.row && b195.othersKept && b195.chip && b195.applied, JSON.stringify(b195));
 } catch (e) { QUIET = false; T('UI-B195-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B196-01')) { try { if (SHARD) await RESET();
+// Build 196 (owner, 8 Nov): the tokens a deck makes are listed at the very bottom of the decklist, one per card that makes each
+// kind, and they don't count toward the deck's 100.
+if (process.env.SHOT) await page.evaluate(() => { window.__shot = true; });
+const b196 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+  S.view = 'decks'; S.open = true; S.tab = 'list'; S.deckQ = ''; S.listRole = ''; render();
+  const tk = deckTokens(d); out.kinds = tk.length; out.total = tk.reduce((n, x) => n + x.q, 0);
+  const rows = document.querySelector('#rows'), groups = rows ? [...rows.children].filter(x => x.querySelector && x.querySelector('.gh')) : [];
+  out.last = groups.length ? groups[groups.length - 1].className : '';
+  out.shown = document.querySelectorAll('.tokgrp .dl.tok').length;
+  out.size = analyze(d).size;
+  if (window.__shot) { document.querySelector('.tokgrp')?.scrollIntoView({block: 'center'}); window.__shotDeck = d; return out; }
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+if (process.env.SHOT) { await page.screenshot({ path: process.env.SHOT }); await page.evaluate(() => { const d = window.__shotDeck; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); window.__shot = false; }); }
+T('UI-B196-01', 'Build 196: the tokens the deck makes are listed at the very bottom of the decklist and the deck still counts 100', b196.kinds > 0 && b196.shown === b196.kinds && /tokgrp/.test(b196.last) && b196.size === 100, JSON.stringify(b196));
+} catch (e) { QUIET = false; T('UI-B196-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

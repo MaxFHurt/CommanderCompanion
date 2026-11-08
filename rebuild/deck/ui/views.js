@@ -995,6 +995,30 @@ function listRows(d, q) {
       '</span></div><p class="note" style="margin:6px 0">These stay in your list but can’t be analyzed until the full card data has loaded.</p>' +
       unknown.map(e => rowH(e, null)).join('') +
       '</div>';
+  // Tokens the deck makes (owner, 8 Nov): at the very bottom, one per card that makes each kind, not counted in the deck's size.
+  const tk = lq || lr ? [] : deckTokens(d);
+  if (tk.length)
+    h +=
+      '<div class="tokgrp"><div class="gh"><span>Tokens <small class="note">not counted in the ' +
+      (d.format === 'commander' ? '100' : 'deck') +
+      '</small></span><span>' +
+      tk.reduce((n, x) => n + x.q, 0) +
+      '</span></div>' +
+      tk
+        .map(
+          x =>
+            '<div class="dl tok" title="Made by ' +
+            esc(x.from.join(', ')) +
+            '"><span></span><span class="q">' +
+            x.q +
+            '×</span><span class="nm">' +
+            esc(x.n) +
+            ' <small class="note">' +
+            esc(x.from.slice(0, 3).join(', ') + (x.from.length > 3 ? ' +' + (x.from.length - 3) : '')) +
+            '</small></span><span class="cost"></span><span class="lk"></span><span class="pr"></span></div>'
+        )
+        .join('') +
+      '</div>';
   return h;
 }
 // A card's colour group (the buy list's rule): its colour identity, one colour or Multicolor; colourless; lands on their own.

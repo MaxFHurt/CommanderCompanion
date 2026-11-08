@@ -70,6 +70,18 @@ ok('Staff of Compleation is not removal', !roles('Staff of Compleation').include
 ok('Restoration Angel protects; it is not removal', roles('Restoration Angel').includes('protect') && !roles('Restoration Angel').includes('removal'), roles('Restoration Angel'));
 // Swords to Plowshares and Cyclonic Rift keep their roles.
 ok('Swords to Plowshares is still removal; Cyclonic Rift still a wipe', roles('Swords to Plowshares').includes('removal') && roles('Cyclonic Rift').includes('wipe'), [roles('Swords to Plowshares'), roles('Cyclonic Rift')]);
+// 0.9.51 (owner, 8 Nov): the tokens a card makes, read from its rules text, one of each kind.
+const tk = n => run('tokenKindsOf')(X.find(n)) || [];
+// Swan Song — "… Its controller creates a 2/2 blue Bird creature token with flying."
+ok('Swan Song makes a 2/2 blue Bird with flying', tk('Swan Song').join() === '2/2 blue Bird with flying', tk('Swan Song'));
+// Smothering Tithe — "… If the player doesn't, you create a Treasure token."
+ok('Smothering Tithe makes a Treasure', tk('Smothering Tithe').join() === 'Treasure', tk('Smothering Tithe'));
+// Wurmcoil Engine — "… a 3/3 … Wurm artifact creature token with deathtouch and a 3/3 … with lifelink."
+ok('Wurmcoil Engine makes two kinds of Wurm', tk('Wurmcoil Engine').length === 2, tk('Wurmcoil Engine'));
+// Doubling Season — "If an effect would create one or more tokens …": none of its own.
+ok('Doubling Season makes no token of its own', !tk('Doubling Season').length, tk('Doubling Season'));
+// Tireless Tracker — "Landfall — Whenever a land you control enters, investigate." (a Clue)
+ok('Tireless Tracker makes a Clue', tk('Tireless Tracker').includes('Clue'), tk('Tireless Tracker'));
 // Unknown text stays unknown: coverage over the five retail decks
 { let n = 0, unk = 0; const seen = new Set(); for (const s of ['avengers-assemble', 'doom-prevails', 'tramplesaurus-rex', 'turtle-power', 'wakanda-forever']) H.retail(s).cards.forEach(e => { const c = X.find(e.n); if (!c || seen.has(c.n) || run('tags')(c).land) return; seen.add(c.n); n++; if (fx(c.n).unknown.length) unk++; });
   console.log('coverage: ' + (n - unk) + ' of ' + n + ' distinct spells in the five retail decks have every sentence read; ' + unk + ' keep some text marked unknown (never given a role from it)'); }

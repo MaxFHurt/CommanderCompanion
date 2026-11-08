@@ -1074,6 +1074,62 @@ function ixOf(c) {
   return (c._ix = {gives, wants});
 }
 /** Cards in deck d that work with card c: c feeds their triggers or they feed c's. [{n, why}], at most `max`. */
+// Tokens a deck needs (owner, 8 Nov: "If tokens are required for a deck they should be added to the deck list but not counted
+// against the deck's 100. Each card that mentions creating a token should add 1 token to the deck list of the required type.
+// Tokens should show at the very bottom of a deck"). Read from the rules text: "create two 1/1 green Saproling creature tokens"
+// is a 1/1 green Saproling; Treasure, Food, Clue …; the keywords that make tokens (investigate a Clue, afterlife a Spirit,
+// fabricate a Servo …); "a token that's a copy" is a Copy. Each card adds one of each kind it makes.
+const TOKEN_KW = [
+  [/\binvestigates?\b/i, 'Clue'],
+  [/\bAfterlife \d/i, '1/1 white and black Spirit with flying'],
+  [/\bFabricate \d/i, '1/1 colorless Servo artifact'],
+  [/\bamass (?:\w+ )?(\d+|X)\b/i, '0/0 black Army'],
+  [/\bincubate\b/i, 'Incubator'],
+  [/\bLiving weapon\b/i, '0/0 black Phyrexian Germ'],
+  [/\b(?:Embalm|Eternalize|Encore|Myriad|Offspring|populate|Squad)\b/i, 'Copy'],
+  [/\bMobilize \d/i, '1/1 red Warrior'],
+  [/\bthe Ring tempts you\b/i, ''],
+  [/\bExplores?\b.*\bMap token\b/i, 'Map']
+];
+function tokenKindsOf(c) {
+  if (!c) return [];
+  const o = String(c.o || '').replace(/\([^)]*\)/g, ' '),
+    out = new Set();
+  const COUNT = '(?:a number of|twice that many|three times that many|any number of|one or more|that many|an|a|one|two|three|four|five|six|seven|eight|nine|ten|x|\\d+)';
+  const re = new RegExp(`\\bcreates? (?:${COUNT}\\s+)?(?:(?:tapped|untapped)\\s+)?(?:(?:and\\s+)?attacking\\s+)?(.{1,90}?)\\s+tokens?\\b`, 'gi');
+  for (const m of o.matchAll(re)) {
+    // "If an effect would create one or more tokens" (Doubling Season), "Whenever you create or sacrifice a token": none made here
+    if (/\bwould\s*$/i.test(o.slice(Math.max(0, m.index - 8), m.index)) || /^or\b/i.test(m[1].trim())) continue;
+    let desc = m[1].trim();
+    if (new RegExp(`^${COUNT}$`, 'i').test(desc)) { if (/\bcop(?:y|ies)\b/i.test(o.slice(m.index, m.index + m[0].length + 40))) out.add('Copy'); continue; }   // "create two tokens that are copies" (Saw in Half)
+    if (/^(?:a|an)?\s*$/i.test(desc) || /\bcopy\b/i.test(desc) || /^token that'?s a copy/i.test(m[0].slice(m[0].indexOf(desc)))) { out.add('Copy'); continue; }
+    if (/that'?s a copy|copy of/i.test(o.slice(m.index, m.index + m[0].length + 30)) && /^(?:a|an|the)?\s*$/i.test(desc)) { out.add('Copy'); continue; }
+    const named = desc.match(/^([A-Z][^,]+?),\s+(?:a|an)\s+/);   // "Marit Lage, a legendary 20/20 black Avatar"
+    if (named) { out.add(named[1]); continue; }
+    desc = desc.replace(/^(?:twice|three times)\s+x\s+/i, '').replace(/^(?:legendary|snow)\s+/i, '').replace(/\s*\bcreature\b/i, '').replace(/\s+/g, ' ').trim();
+    if (!desc || desc.length > 60 || /^(?:tapped|untapped|attacking|token)$/i.test(desc) || /\b(?:your|their|its|that|those|this|each|for)\b/i.test(desc)) continue;
+    const after = (o.slice(m.index + m[0].length).match(/^\s+with\s+([a-z ,]+?)(?=[.;"]|\s+(?:and (?:a|an|that|they|it|put|attach|gain|you)|for|that|where|until|under|attached|tapped|equal)\b|$)/i) || [])[1];
+    const kw = (after || '').split(/,\s*|\s+and\s+/).map(x => x.trim()).filter(x => /^(?:flying|haste|vigilance|trample|lifelink|deathtouch|menace|reach|first strike|double strike|indestructible|hexproof|defender|decayed|ward \d|prowess)$/i.test(x));
+    out.add(desc + (kw.length ? ' with ' + kw.join(', ') : ''));
+  }
+  // a second kind in the same sentence: "… token with deathtouch and a 3/3 colorless Phyrexian Wurm artifact creature token with
+  // lifelink" (Wurmcoil Engine)
+  for (const sen of o.split(/(?<=\.)\s+/).filter(x => /\bcreates?\b/i.test(x)))
+    for (const m of sen.matchAll(/\band (?:a|an|one|two) (\d+\/\d+ [^.]*?) tokens?\b(?:\s+with\s+([a-z ,]+?))?(?=[.;,]|\s+and\b|$)/gi)) {
+      const desc = m[1].replace(/\s*\bcreature\b/i, '').replace(/\s+/g, ' ').trim();
+      const kw = (m[2] || '').split(/,\s*|\s+and\s+/).map(x => x.trim()).filter(Boolean);
+      if (desc.length <= 60) out.add(desc + (kw.length ? ' with ' + kw.join(', ') : ''));
+    }
+  for (const [rx, name] of TOKEN_KW) if (name && rx.test(o)) out.add(name);
+  return [...out];
+}
+function deckTokens(d) {
+  const by = new Map(),
+    add = (n, q, from) => tokenKindsOf(find(n)).forEach(k => { const x = by.get(k) || {n: k, q: 0, from: []}; x.q += q; if (!x.from.includes(from)) x.from.push(from); by.set(k, x); });
+  [d.commander, d.partner].filter(Boolean).forEach(n => add(n, 1, n));
+  (d.cards || []).forEach(e => add(e.n, e.q || 1, e.n));
+  return [...by.values()].sort((a, b) => b.q - a.q || a.n.localeCompare(b.n));
+}
 // How many cards in the deck this card works with (feeds, or is fed by), counted from the deck's totals per interaction (kept
 // until the deck's list changes), so each candidate costs a few set lookups, not a pass over the deck.
 const IXD = new Map();
