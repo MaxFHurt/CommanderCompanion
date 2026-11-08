@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.84 (Deck Builder {"build": 197, "version": "0.9.52"})
+- **Live build:** 1.0.0-rebuild.85 (Deck Builder {"build": 198, "version": "0.9.53"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 85 — 2 Nov 2026
+- Build 85: Deck Builder 0.9.53 (build 198): card search finds cards by their printed (flavor) names (owner, 8 Nov: 'The search function can't find newly renamed printings'). The card-data job's alt.json (every printed name with its real card, written daily) is downloaded once a day and kept in the browser; names the built-in list lacks are added to the name index (library.js addAltNames; storage.js loadAltNames), so new reskins resolve in search, imports and decklists. Search matches printed names and shows the one it matched (quick search: printed name with the real name; card search: a chip). 617 names live (561 built in). Tests: UI-B198-01 new; UI suite 133; benchmark unchanged.
 
 ### Build 84 — 2 Nov 2026
 - Build 84: Deck Builder 0.9.52 (build 197). Mana stuck (owner, 8 Nov: 'strictly … a player cannot play anything from their hand due to the mana being completely wrong'): a turn counts only when nothing was cast and a spell the sources could pay for by amount needs a colour none of them makes (practice.js); Avengers 15% to 8%, Doom 13% to 6%, Turtle Power 13% to 8%, Wakanda 7% to 5%; the alert reads 'Nothing castable for lack of a colour'. Health warnings: red only when 2+ short and at half the target or less (lands: 4+ short); other shortfalls yellow. Miku precon: the commander in a reskinned printing shows that printing's name and art in the decklist, deck panel, deck tiles and card window (d.cmdPn; kept from EDHREC's listing or the pinned printing's flavor name; older decks fill it in once). Not shipped: health fixes in the upgrade list (its background work broke UI-B81-02 and UI-ALT-01; wip/health-fixes-in-upgrades.md) and card quality by effect (wip/card-quality-qEff.patch). Tests: UI suite 132, UI-B197-01 new, UI-B93-01 new wording; benchmark unchanged.
