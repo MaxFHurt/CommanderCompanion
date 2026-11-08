@@ -3340,7 +3340,7 @@ function manaText(m) {
   const st = Math.round(m.colourStuck * 100),
     sh = Math.round(m.screwT5 * 100);
   return (
-    'Stuck without a colour in ' + st + '% of practice games' + (m.screwT5 >= 0.08 ? ' · ran out of lands in ' + sh + '%' : '')
+    'Nothing castable for lack of a colour in ' + st + '% of practice games' + (m.screwT5 >= 0.08 ? ' · ran out of lands in ' + sh + '%' : '')
   );
 }
 function manaWhy(d) {
@@ -3353,7 +3353,7 @@ function manaWhy(d) {
     lands = A.lands > A.T.lands;
   // One short line (owner, 30 Oct: health advice "extremely repetitive and needs to be simplified").
   return (
-    'Stuck without a colour in ' +
+    'Nothing castable for lack of a colour in ' +
     st +
     '% of practice games, out of lands by turn 5 in ' +
     sh +

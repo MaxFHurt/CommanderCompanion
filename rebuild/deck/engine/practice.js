@@ -349,7 +349,8 @@ function simulate(d, games, seed) {
           }
         }
         if (!pick) {
-          // stuck on colour: enough mana sources for a spell, but a colour it needs is made by none of them
+          // stuck on colour (owner, 8 Nov: "strictly … a player cannot play anything from their hand due to the mana being completely
+          // wrong"): nothing was cast this turn, and a spell the mana sources could pay for by amount needs a colour none of them makes
           const have = new Set(bf.filter(z => z.mana).flatMap(z => (z.cols.length ? z.cols : ['C']))),
             nSrc = bf.filter(z => z.mana).reduce((a, z) => a + z.mana, 0);
           if (
@@ -358,7 +359,7 @@ function simulate(d, games, seed) {
               return !x.land && c.cmc <= nSrc && Object.keys(x.pips).some(k => !k.split('/').some(z => have.has(z)));
             })
           )
-            stuckAny = stuckAny || turn <= 6;
+            stuckAny = stuckAny || (turn <= 6 && !spent);
           break;
         }
         use.forEach((u, j) => {
@@ -611,7 +612,8 @@ function practiceGames(d, games, seed) {
           }
         }
         if (!pick) {
-          // stuck on colour: enough mana sources for a spell, but a colour it needs is made by none of them
+          // stuck on colour (owner, 8 Nov: "strictly … a player cannot play anything from their hand due to the mana being completely
+          // wrong"): nothing was cast this turn, and a spell the mana sources could pay for by amount needs a colour none of them makes
           const have = new Set(bf.filter(z => z.mana).flatMap(z => (z.cols.length ? z.cols : ['C']))),
             nSrc = bf.filter(z => z.mana).reduce((a, z) => a + z.mana, 0);
           if (
@@ -620,7 +622,7 @@ function practiceGames(d, games, seed) {
               return !x.land && c.cmc <= nSrc && Object.keys(x.pips).some(k => !k.split('/').some(z => have.has(z)));
             })
           )
-            stuckAny = stuckAny || turn <= 6;
+            stuckAny = stuckAny || (turn <= 6 && !spent);
           break;
         }
         use.forEach((u, j) => {
