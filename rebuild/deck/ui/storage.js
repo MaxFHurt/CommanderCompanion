@@ -401,6 +401,24 @@ async function loadStrength(force) {
     render();
   } catch (e) {}
 }
+// one commander's bracket data (strength/<EDHREC page name>.json, about 6 KB), when a deck with that commander is opened
+const STR_CMD_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/strength/';
+async function loadStrengthCmd(name) {
+  if (!UP.str || typeof useStrengthCmd !== 'function' || !name) return;
+  const slug = strSlug(name);
+  if (!slug || STRENGTH.cmd.has(slug)) return;
+  try {
+    const v = await idb('readonly', st => st.get('str:' + slug));
+    if (v && v.j) useStrengthCmd(slug, v.j);
+    if (v && Date.now() - v.ts < 7 * 864e5) return render();
+    const r = await fetch(STR_CMD_URL + encodeURIComponent(slug) + '.json', {cache: 'no-cache'});
+    if (!r.ok) return; // a commander without enough decks: the ratings across all commanders still apply
+    const j = await r.json();
+    useStrengthCmd(slug, j);
+    idb('readwrite', st => st.put({j, ts: Date.now()}, 'str:' + slug)).catch(() => {});
+    render();
+  } catch (e) {}
+}
 const COMBO_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/combos.json.gz';
 let COMBO_RAW = null;
 async function loadCombos(force) {

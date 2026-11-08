@@ -618,6 +618,7 @@ function upBadge(c) {
 }
 async function loadEdh(name) {
   if (!name) return;
+  if (typeof loadStrengthCmd === 'function') loadStrengthCmd(name); // UP.str: this commander's bracket data
   if (EDH.key === name && EDH.state) return EDH.wait;
   EDH = {key: name, map: null, decks: 0, state: 'loading', pre: null, tags: [], tmap: {}};
   const mine = EDH;
