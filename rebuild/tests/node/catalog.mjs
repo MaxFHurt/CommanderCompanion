@@ -3128,7 +3128,7 @@ section('triggers that never fired (build 89)');
     const t = setup();
     const lib = t.P(0).deck.remainingLibrary;
     const pickOut = f => lib.splice(lib.findIndex(f), 1)[0];
-    const land = pickOut(c => /Land/.test(def(t, c).typeLine)), spells = [0, 1, 2].map(() => pickOut(c => !/Land/.test(def(t, c).typeLine)));
+    const land = pickOut(c => /Land/.test(def(t, c).typeLine)), spells = [0, 1, 2].map(() => pickOut(c => !/Land/.test(def(t, c).typeLine) && def(t, c).name !== 'Opt'));   // the Opt cast below comes from the library
     lib.unshift(land, ...spells);   // the top four: a land and three spells, so both branches are tested every run
     const top = lib.slice(0, 4), spell = spells[0];
     const hand = t.P(0).deck.hand.length, bf = t.P(0).deck.battlefield.length; let second = null;
@@ -3149,7 +3149,9 @@ section('triggers that never fired (build 89)');
 {
   // Ad Nauseam: asked after each card; stops when the player says so; life lost is the mana values taken
   const t = setup();
-  const lib = t.P(0).deck.remainingLibrary, first3 = lib.slice(0, 3), mv = first3.reduce((a, c) => a + Number(def(t, c).manaValue ?? 0), 0);
+  const lib = t.P(0).deck.remainingLibrary;
+  for (const c of lib.filter(c => def(t, c).name === 'Opt')) { lib.splice(lib.indexOf(c), 1); lib.push(c); }   // the Opt cast below comes from the library
+  const first3 = lib.slice(0, 3), mv = first3.reduce((a, c) => a + Number(def(t, c).manaValue ?? 0), 0);
   const life = t.P(0).life; let asks = 0;
   cast(t, 'Opt', 'Reveal the top card of your library and put that card into your hand. You lose life equal to its mana value. You may repeat this process any number of times.', [[d => /Repeat\?/.test(d.prompt || ''), () => ++asks < 3 ? 'yes' : 'no']], { manaCost: '{U}', typeLine: 'Instant' });
   check('Ad Nauseam: asked each time; three cards taken, life lost equal to their mana values', asks === 3 && first3.every(c => c.zone === 'hand') && t.P(0).life === life - mv, JSON.stringify([asks, first3.map(c => c.zone), life - t.P(0).life, mv]));
