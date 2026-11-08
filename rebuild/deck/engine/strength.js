@@ -346,7 +346,8 @@ function strengthPaths(d, R) {
   }
   const by = L => new Map(L.map(s => [s.cut, s.add])),
     T = {apex: by(P.apex), mid: by(P.mid), budget: by(P.budget)};
-  const cuts = [...new Set(P.apex.map(s => s.cut).concat([...held.keys()]))];
+  // a row for every card any of the three builds replaces (and every held pick's slot)
+  const cuts = [...new Set(P.apex.concat(P.mid, P.budget).map(s => s.cut).concat([...held.keys()]))];
   let rows = cuts
     .map(cut => {
       const H = held.get(cut) || {},
@@ -368,8 +369,17 @@ function strengthPaths(d, R) {
       return {cut, opts: o, none: false, gain: o.apex ? o.apex.dScore : 0, str: true, ranked: true};
     })
     .filter(L => L.opts.apex || L.opts.mid || L.opts.budget);
-  rows.sort((a, b) => (b.opts.apex ? 1 : 0) - (a.opts.apex ? 1 : 0) || b.gain - a.gain);
-  rows = rows.slice(0, UP.strRows);
+  // each tier ranks rows by its own pick's gain as that tier values cards (Mid and Budget: the casual rating with this
+  // commander's play rate), so a Mid deck's list leads with the Mid build's biggest swaps; the deck's own tier sets the order
+  const tierOf = t => (TIERS[t] ? t : 'apex'),
+    showP = (L, t) => (t === 'apex' ? L.opts.apex : t === 'mid' ? L.opts.mid || L.opts.budget : L.opts.budget),
+    keyT = (L, t) => {
+      const p = showP(L, t);
+      if (!p) return -1e9;
+      return t === 'apex' ? p.dScore : strValue(find(p.add), d, true) - strValue(find(p.cut), d, true);
+    },
+    dt = tierOf(d.tier);
+  rows.sort((a, b) => keyT(b, dt) - keyT(a, dt));
   // no card on two rows: a row whose pick is already on a stronger row takes the next best card for its slot instead
   const used = new Map(); // card -> its row
   rows.forEach(L => Object.values(L.opts).forEach(p => p.held && used.set(p.add, L))); // a held pick keeps its card
@@ -416,6 +426,19 @@ function strengthPaths(d, R) {
     L.gain = L.opts.apex ? L.opts.apex.dScore : Math.max(...Object.values(L.opts).map(p => p.dScore));
   });
   rows = rows.filter(L => L.opts.apex || L.opts.mid || L.opts.budget);
+  // the list: each tier's strongest UP.strRows rows, in the deck's own tier order
+  {
+    const keep = new Set();
+    for (const t of ['apex', 'mid', 'budget'])
+      rows
+        .filter(L => showP(L, t))
+        .sort((a, b) => keyT(b, t) - keyT(a, t))
+        .slice(0, UP.strRows)
+        .forEach(L => keep.add(L));
+    rows = rows.filter(L => keep.has(L));
+    rows.forEach(L => (L.rk = {apex: keyT(L, 'apex'), mid: keyT(L, 'mid'), budget: keyT(L, 'budget')}));
+    rows.sort((a, b) => b.rk[dt] - a.rk[dt]);
+  }
   // alternatives: the next strongest cards for the slot at each tier's price, up to three, each keeping at least half the
   // pick's gain; the strongest card measured for the slot is the row's Highest score card
   rows.forEach(L => {

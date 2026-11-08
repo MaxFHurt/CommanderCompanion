@@ -484,7 +484,11 @@ function upPanel(d, A, mode) {
     // Sort: by how much each upgrade raises the deck score (the default), the engine's own ranking, or cheapest first.
     {
       const so = S.upSort || 'impact',
-        imp = L => Math.max(...Object.values(L.opts).map(p => (p && p.dScore != null ? p.dScore : -1e9))),
+        // with card strength (UP.str) each row carries its rank at every tier: the deck's own tier orders the list
+        imp = L =>
+          R.str && L.rk && L.rk[d.tier || 'apex'] != null
+            ? L.rk[d.tier || 'apex']
+            : Math.max(...Object.values(L.opts).map(p => (p && p.dScore != null ? p.dScore : -1e9))),
         cost = L => {
           const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0],
             c = p && find(p.add);
