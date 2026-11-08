@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.79 (Deck Builder {"build": 192, "version": "0.9.47"})
+- **Live build:** 1.0.0-rebuild.80 (Deck Builder {"build": 193, "version": "0.9.48"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 80 — 2 Nov 2026
+- Build 80: Deck Builder 0.9.48 (build 193): card roles checked against the game engine's reading (roadmap 5.1); 129 misreads fixed: a trigger on drawing is not card draw (Sheoldred, Orcish Bowmasters, Smothering Tithe, Psychosis Crawler …; library.js), a target you own or control is not removal (blinks such as Restoration Angel and Felidar Guardian, Staff of Compleation; library.js and functions.js), 'exile all other cards revealed this way' is not a wipe (Demonic Consultation). Benchmark: holdout 0.325 to 0.334, test unchanged, tuneall 0.281 to 0.280 (owner: ship it). Tests: semantics 56 (+7; the 2 failures are older, cards missing from the test data), UI suite 129.
 
 ### Build 79 — 2 Nov 2026
 - Build 79: the medium rules round, 269 more cards run by themselves: Rooms (unlock a door as a special action paying its cost, only as a sorcery; 'When you unlock this door' fires for that door; both doors' abilities once both are unlocked; the doors lock again when it leaves), flip cards (flip this creature; ki-counter flips), time travel, Echo/Cumulative upkeep paid with a choice (asked whether to pay, then which cards; one per age counter), 'Pay {B} and 1 life' upkeep, Druid/Paladin/Sorcerer/Warlock Class, Hunter's/Gossip's/Blacksmith's Talent, Guide of Souls, Lightning Runner, Sphinx of the Revelation, Electrosiphon, Unholy Annex and other Rooms, 'damage equal to' amounts, life lost this turn tracked. Tests: mechanics 81.

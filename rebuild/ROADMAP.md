@@ -146,8 +146,13 @@ suggested tools first, "that card" carried from step to step, applied as one cha
    `buildIndex`, compiles Oracle text with `src/engine/effects.js` compileEffectText).
 Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`), solo mana-only practice games
 (`deck/engine/practice.js`) and a score (`deck/engine/score.js`); none of the game's rules work reaches it.
-1. **(First step done, build 70: lists.js ENGINE_ROLES fills cards the reader gives no role; next, use more of it once
-   benchmarked.)** **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
+1. **(Done, build 80.)** Rebuilt with build 79's engine, the engine list adds only 2 cards, both wrong (Chainer and Goblin
+   Pyromancer destroy their own Nightmares/Goblins), so it was kept as it was. The engine's wipe and protect readings were
+   mostly wrong (Maelstrom Pulse as a wipe, self-hexproof as protection). The comparison's real use was the other way: 129
+   Deck Builder misreads fixed (0.9.48) — draw triggers ("Whenever you draw a card, …": Sheoldred, Bowmasters, Smothering
+   Tithe) are not card draw; a target you own or control (blinks, Staff of Compleation) is not removal; Demonic Consultation
+   is not a wipe. Benchmark: holdout 0.325 → 0.334, test 0.317 = 0.317, tuneall 0.281 → 0.280 (owner: ship it, 8 Nov).
+   Earlier (build 70): lists.js ENGINE_ROLES fills cards the reader gives no role. **Use the game engine's card reading in the Deck Builder:** feed it the game side's compiled effects for every card the
    rules engine understands, for better roles (ramp, draw, removal, wipes, protection, finishers) and theme tags. Biggest gain
    for the effort. Measure with the Deck Builder benchmark (`bench.js`, must not drop) before shipping.
 2. **(Done for display, build 71: "Works with" in the card window; scoring them is a benchmark question.)** **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
@@ -206,6 +211,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 80 (Deck Builder 0.9.48, build 193): 129 card-role misreads fixed (draw triggers, own-permanent targets, Demonic Consultation).
 - Build 79: Rooms, flip cards, time travel, Echo/Cumulative upkeep paid with a choice, Class and energy wordings (269 more cards).
 - Build 78: 171 more cards run by themselves (the long tail, most-played first).
 - Build 77 (Deck Builder 0.9.47, build 192): the green + follows the Fix menus' rules; the card-data job keeps the free
