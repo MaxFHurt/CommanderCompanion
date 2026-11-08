@@ -1646,6 +1646,26 @@ const cw1 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   $('#modal').hidden = true; return out; });
 T('UI-CW-01', 'Card window: a spell for a full Commander deck opens at once ("Thinking…"), then shows the same best swap as measured directly', cw1.thinking && cw1.filled && cw1.same, JSON.stringify(cw1));
 } catch (e) { QUIET = false; T('UI-CW-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
+// Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
+// instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing
+// in the background leaves an open search list (the upgrades tab's "Add a card") alone, so a tapped result is not missed.
+await page.setViewportSize({width:844, height:390});
+const pop1 = await page.evaluate(async () => { const d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander) && analyze(x).size >= analyze(x).T.size); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  const c = LIB.find(x => !x.gc && x.cmd && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r < 500); const out = {card: c.n};
+  openCard(c.n); for (let i = 0; i < 100 && document.querySelector('#want-think'); i++) await new Promise(r => setTimeout(r, 50)); await new Promise(r => setTimeout(r, 100));
+  const p = document.querySelector('#modal > .panel'), mb = p && p.querySelector(':scope > .mbody');
+  out.kids = p ? [...p.children].map(x => x.className) : []; out.body = mb ? Math.round(mb.getBoundingClientRect().height) : 0;
+  out.more = !!(mb && [...mb.querySelectorAll('.lab')].some(x => /Or take out instead/.test(x.textContent)));
+  $('#modal').hidden = true; render();
+  const q = $('#add-q'); q.value = 'Sol'; q.dispatchEvent(new Event('input', {bubbles: true}));
+  out.listOpen = !$('#add-res').hidden; render(); await new Promise(r => setTimeout(r, 50)); out.afterBg = !!$('#add-res') && !$('#add-res').hidden && $('#add-q').value === 'Sol';
+  return out; });
+await page.mouse.click(5, 385); await page.waitForTimeout(500);
+pop1.closedOutside = await page.evaluate(() => !$('#add-res') || $('#add-res').hidden);
+await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { const q = $('#add-q'); if (q) q.value = ''; render(); });
+T('UI-POP-01', 'Pop-ups on a phone held sideways: a card window keeps everything in its scrolling body (the card details are not squeezed away); a background redraw leaves an open search list alone; a tap outside closes it', pop1.kids.join() === 'ph,mbody' && pop1.body > 150 && pop1.more && pop1.listOpen && pop1.afterBg && pop1.closedOutside, JSON.stringify(pop1));
+} catch (e) { QUIET = false; T('UI-POP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-HIST-02')) { try { if (SHARD) await RESET();
 // Deck history (roadmap known limit): a change that arrives from another window or device keeps the cards from before it as a
 // version, once (not again when that device already kept the same version).

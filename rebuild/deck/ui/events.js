@@ -390,6 +390,10 @@ function confirmDone(yes) {
   if (P.act !== 'undo') UNDO.label = P.label;
   handleAct(P.act, P.v, P.n, P.p);
 }
+// a tap anywhere outside a search closes its list of cards (pointerdown: iPhone and iPad send no click for a tap on plain text)
+document.addEventListener('pointerdown', ev => {
+  if (ev.target && ev.target.closest && !ev.target.closest('.dd')) document.querySelectorAll('#main .ddl').forEach(x => (x.hidden = true));
+});
 document.addEventListener('click', ev => {
   if (ev.target.id === 'confirm') {
     confirmDone(false);
@@ -434,7 +438,19 @@ function frameModal() {
   const m = $('#modal');
   if (!m || m.hidden) return;
   const p = m.querySelector(':scope > .panel');
-  if (!p || p.classList.contains('full') || p.classList.contains('framed')) return;
+  if (!p || p.classList.contains('full')) return;
+  // a part added after the window opened (its swaps measured later, its printings, "Or take out instead") goes into the
+  // scrolling body too: left beside it, it took a fixed share of the window and squeezed the card's details to nothing on a
+  // phone held sideways (owner, 8 Nov, iPhone and iPad)
+  const mb = p.querySelector(':scope > .mbody');
+  if (mb) {
+    const kids = [...p.children].filter(x => x !== mb && !x.classList.contains('ph'));
+    if (!kids.length) return;
+    const first = mb.firstChild;
+    kids.forEach(x => (x.compareDocumentPosition(mb) & Node.DOCUMENT_POSITION_FOLLOWING ? mb.insertBefore(x, first) : mb.appendChild(x)));
+    return;
+  }
+  if (p.classList.contains('framed')) return;
   p.classList.add('framed');
   if (p.querySelector(':scope > .mscroll')) return;
   const kids = [...p.children].filter(x => !x.classList.contains('ph'));
@@ -448,7 +464,7 @@ function frameModal() {
   const fm = () => {
     const m = $('#modal');
     if (m && typeof MutationObserver !== 'undefined')
-      new MutationObserver(frameModal).observe(m, {childList: true, attributes: true, attributeFilter: ['hidden']});
+      new MutationObserver(frameModal).observe(m, {childList: true, subtree: true, attributes: true, attributeFilter: ['hidden']});
   };
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', fm);
   else fm();

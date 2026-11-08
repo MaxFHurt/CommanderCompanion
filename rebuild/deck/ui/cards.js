@@ -145,6 +145,18 @@ function pushDeckEdits() {
     .catch(() => {});   // offline: the start screen sends it next time
 }
 function render() {
+  // A redraw from work finishing in the background (upgrades measured, health fixes found, prices) waits while a search's
+  // list of cards is open: redrawing then closed the list under the finger, so a tapped card was missed or the tap landed
+  // on what was underneath (owner, 8 Nov, iPhone and iPad). A redraw from a tap or a key goes ahead at once.
+  clearTimeout(render.wait);
+  if (!window.event && [...document.querySelectorAll('#main .ddl')].some(x => !x.hidden)) {
+    render.since = render.since || Date.now();
+    if (Date.now() - render.since < 15000) {
+      render.wait = setTimeout(render, 400);
+      return;
+    }
+  }
+  render.since = 0;
   if (deckWasOpen && !S.open) pushDeckEdits();
   if (S.open && cur()) {
     repairPrecPrints(cur());
