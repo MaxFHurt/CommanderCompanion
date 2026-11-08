@@ -382,6 +382,25 @@ function cardLogHtml() {
 // Combos: Commander Spellbook's list, trimmed by the weekly card-data job (tools/build-combos.mjs) and served from the repo's
 // card-data branch. Saved in this browser and refreshed after a week. Without it, everything works; decks just don't
 // show combos or finishing routes.
+// Card strength (UP.str, roadmap 6.1): what every EDHREC bracket of ~950 commanders plays (tools/strength), served from the
+// card-data branch and kept in this browser for a week. Only fetched while UP.str is on; without it the app is unchanged.
+const STRENGTH_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/strength.json.gz';
+async function loadStrength(force) {
+  if (!UP.str || typeof useStrength !== 'function') return;
+  try {
+    let v = await idb('readonly', st => st.get('strength'));
+    if (v && v.j) useStrength(v.j);
+    if (!force && v && Date.now() - v.ts < 7 * 864e5) return;
+    if (typeof DecompressionStream === 'undefined') return;
+    const r = await fetch(STRENGTH_URL, {cache: 'no-cache'});
+    if (!r.ok) throw new Error('status ' + r.status);
+    const j = await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).json();
+    if (!j || !j.cards) throw new Error('empty');
+    useStrength(j);
+    idb('readwrite', st => st.put({j, ts: Date.now()}, 'strength')).catch(() => {});
+    render();
+  } catch (e) {}
+}
 const COMBO_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/combos.json.gz';
 let COMBO_RAW = null;
 async function loadCombos(force) {
@@ -441,6 +460,7 @@ async function loadSavedLibrary() {
     autoUpdate(null, hadRows ? 'Saved card data was from an older version of the app' : 'No card data was saved in this browser');
   else checkReleases();
   loadCombos();
+  loadStrength();
   loadPrices();
   loadAltNames();
   bracketTags();

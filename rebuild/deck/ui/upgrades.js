@@ -1632,8 +1632,19 @@ function scoreChip(v) {
         '</span>';
 }
 function upChip(L, t) {
-  const p = L.opts[t];
+  const p = L.opts[t],
+    d = cur();
+  if (p && d && typeof strengthOn === 'function' && strengthOn(d)) return strChip(strengthGain(d, p.cut, p.add, p.q));
   return p ? scoreChip(p.dScore) : '';
+}
+// UP.str: a swap's change in deck power on the strength scale (engine/strength.js)
+function strChip(v) {
+  if (v == null) return '';
+  const a = Math.abs(v),
+    txt = (v >= 0 ? '+' : '−') + (a >= 10 ? Math.round(a) : a.toFixed(1)) + ' power';
+  return a < 0.05
+    ? '<span class="chip" title="This swap keeps the deck’s power the same; it can still suit your plan or budget better">Power unchanged</span>'
+    : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck’s power if you make this swap (card strength)">' + (v >= 1.5 ? 'Major upgrade · ' : v >= 0.75 ? 'Strong upgrade · ' : v > 0 ? 'Small upgrade · ' : '') + txt + '</span>';
 }
 // What applying a whole tier does to the deck's jobs and curve (from the engine's package check).
 function packLine(R, t, n) {
@@ -2653,22 +2664,33 @@ function statsHtml(d, A, R, mode) {
   // tier meter: the deck's cards between random playable cards (0) and the Apex build (100), with the best Budget and Mid builds marked
   // Apex progress is deck power: the deck's whole score against the Budget, Mid and Apex reference builds scored the same way
   // (Apex = 100). Card quality alone could put a strong deck below Budget. Before the references are scored, card quality stands in.
+  // UP.str (roadmap 6.1): power by card strength, from replacement level (0) to this deck's Apex build (100), with its own
+  // Budget and Mid builds marked (engine/strength.js)
+  const SP = typeof strengthOn === 'function' && strengthOn(d) ? strengthPower(d) : null;
   const T0r = (apexFor(d) || {}).tot,
     T0 = refOrder(T0r),
-    pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+    pw = SP ? SP.power : e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
     // the apex deck's power"; "appear to make progress, not be a belittling or demeaning stat", and no false information).
     // The Budget and Mid builds are marked the same way. (Before: Budget 70, Mid 85, Apex 100 with a steep curve below Budget.)
     pwr = pw,
     pctOf = v => (T0 && T0.apex > 0 ? (100 * v) / T0.apex : null),
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
-  const mk = pw != null ? {budget: pctOf(T0.budget), mid: pctOf(T0.mid)} : q.marks,
+  const mk = SP ? {budget: SP.budget, mid: SP.mid} : pw != null ? {budget: pctOf(T0.budget), mid: pctOf(T0.mid)} : q.marks,
     qp = pw != null ? pc(pwr) : q.vsApex;
   // the level compares unrounded scores (0.9.3 fix: 95.6% of Apex and a Budget mark at 95.74% both rounded to 96 read as Budget)
   const lvl =
     qp == null || !mk
       ? ''
-      : pw != null
+      : SP
+        ? pw >= 99.5
+          ? 'Apex'
+          : pw >= SP.mid
+            ? 'Mid'
+            : pw >= SP.budget
+              ? 'Budget'
+              : 'Starter'
+        : pw != null
         ? pw >= 99.5
           ? 'Apex'
           : e.exact >= T0.mid
@@ -2698,7 +2720,7 @@ function statsHtml(d, A, R, mode) {
           qp,
           mk,
           lvl,
-          pw != null ? {you: Math.round(pwr), budget: Math.round(pctOf(T0.budget)), mid: Math.round(pctOf(T0.mid)), apex: 100} : null,
+          SP ? {you: Math.round(pwr), budget: Math.round(SP.budget), mid: Math.round(SP.mid), apex: 100} : pw != null ? {you: Math.round(pwr), budget: Math.round(pctOf(T0.budget)), mid: Math.round(pctOf(T0.mid)), apex: 100} : null,
           pw != null
         ) +
         (pw != null
