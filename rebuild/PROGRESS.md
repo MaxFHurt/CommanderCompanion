@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.81 (Deck Builder {"build": 194, "version": "0.9.49"})
+- **Live build:** 1.0.0-rebuild.82 (Deck Builder {"build": 195, "version": "0.9.50"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,001 of 31,770 (about 66%); about 10,770 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each.
@@ -61,6 +61,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
 
 ## Log
+
+### Build 82 — 2 Nov 2026
+- Build 82: Deck Builder 0.9.50 (build 195): the upgrade list stays after a swap (owner, 8 Nov, replacing 31 Oct's 'all upgrades should be regenerated': 'Apex suggestions should not change based on an upgrade I made of a mid or budget quality'). The row you swapped on keeps its higher tiers, now replacing the card you put in; that card shows in its tier as In your deck; the card you took out is shown with a big red Replaced chip; the other rows stay (library.js keepRecs/carryRecs, upgrades.js rowCols, deck.js). The list is worked out again on Regenerate or another change. Tests: UI-B195-01 (new), UI-B156-01 updated; UI suite 130; benchmark unchanged.
 
 ### Build 81 — 2 Nov 2026
 - Build 81: Deck Builder 0.9.49 (build 194): an upgrade that works with three or more cards already in the deck says so ('Works with N cards in the deck'; library.js ixDeckMatches, the card window's interactions). Scoring it was measured and not kept: 0.1 to 1 per card, capped at 2 or 6, never raised agreement with the expert lists (tuneall 0.280 to 0.277 at 0.3, 0.265 at 1). Benchmark unchanged; UI suite 129.
