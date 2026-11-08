@@ -195,8 +195,9 @@ function strBuild(d, cap, casual, pool, core) {
       }
     }
     if (!best) break;
-    list[list.indexOf(best.cut)] = best.add;
-    done.push({cut: best.cut.n, add: best.add.n});
+    const at = list.indexOf(best.cut);
+    list[at] = best.add;
+    done.push({cut: best.cut.n, add: best.add.n, i: at});
   }
   return {list, done};
 }
@@ -251,11 +252,13 @@ function strengthGain(d, cut, add, q) {
 // put in and later replaced again is not a swap).
 function strNet(d, B) {
   const orig = strSlots(d),
-    out = [];
+    first = new Map(); // slot -> when the build first changed it (its biggest swaps come first)
+  B.done.forEach((s, k) => s.i != null && !first.has(s.i) && first.set(s.i, k));
+  const out = [];
   B.list.forEach((c, i) => {
-    if (orig[i] && c !== orig[i] && c.n !== orig[i].n) out.push({cut: orig[i].n, add: c.n});
+    if (orig[i] && c !== orig[i] && c.n !== orig[i].n) out.push({cut: orig[i].n, add: c.n, k: first.has(i) ? first.get(i) : 1e6});
   });
-  return out;
+  return out.sort((a, b) => a.k - b.k);
 }
 // What an upgrade pick may be for this deck: legal, in its colours, not a basic, not already in it (any printing), not ruled
 // out by the player (excluded), and inside its own rules (card sets, creature types, keywords marked as must).
@@ -372,13 +375,17 @@ function strengthPaths(d, R) {
   // each tier ranks rows by its own pick's gain as that tier values cards (Mid and Budget: the casual rating with this
   // commander's play rate), so a Mid deck's list leads with the Mid build's biggest swaps; the deck's own tier sets the order
   const tierOf = t => (TIERS[t] ? t : 'apex'),
-    showP = (L, t) => (t === 'apex' ? L.opts.apex : t === 'mid' ? L.opts.mid || L.opts.budget : L.opts.budget),
+    showP = (L, t) => tierPick(L, t), // the card the row shows at that tier
+    ord = {},
     keyT = (L, t) => {
+      // the build's own order first (its biggest swaps lead), then any other row by its gain
       const p = showP(L, t);
       if (!p) return -1e9;
-      return t === 'apex' ? p.dScore : strValue(find(p.add), d, true) - strValue(find(p.cut), d, true);
+      const k = ord[t].get(L.cut + '>' + p.add);
+      return k != null ? 1000 - k : t === 'apex' ? p.dScore : strValue(find(p.add), d, true) - strValue(find(p.cut), d, true);
     },
     dt = tierOf(d.tier);
+  for (const t of ['apex', 'mid', 'budget']) ord[t] = new Map(P[t].map((x, k) => [x.cut + '>' + x.add, k]));
   rows.sort((a, b) => keyT(b, dt) - keyT(a, dt));
   // no card on two rows: a row whose pick is already on a stronger row takes the next best card for its slot instead
   const used = new Map(); // card -> its row
@@ -393,16 +400,20 @@ function strengthPaths(d, R) {
     }
     return b && pick(L.cut, b.c.n, t);
   };
-  rows.forEach(L => {
-    for (const t of ['apex', 'mid', 'budget']) {
+  const tOrder = [dt].concat(['apex', 'mid', 'budget'].filter(t => t !== dt));
+  // tier by tier, the deck's own tier first: every row keeps its pick at that tier before the other tiers claim cards
+  for (const t of tOrder)
+    rows.forEach(L => {
       const p = L.opts[t];
-      if (!p) continue;
+      if (!p) return;
       if (!p.held && used.has(p.add) && used.get(p.add) !== L) {
         const r = nextFor(L, t, new Set([p.add]));
         if (r) L.opts[t] = r;
         else delete L.opts[t];
       }
-    }
+      if (L.opts[t]) used.set(L.opts[t].add, L);
+    });
+  rows.forEach(L => {
     // one card per row: a cheaper tier showing the Apex card falls back to it (the row shows each card once); a pick that
     // would lower power on this scale (a casual pick can) takes the next best card or leaves the tier to the one above
     for (const t of ['mid', 'budget']) {
