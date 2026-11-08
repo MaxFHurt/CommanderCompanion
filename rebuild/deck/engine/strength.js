@@ -229,3 +229,63 @@ function strengthGain(d, cut, add, q) {
     dv = (strValue(find(add), d, false) - strValue(find(cut), d, false)) * (q || 1);
   return (100 * (dv / n)) / (R.top - R.floor);
 }
+// The upgrade list from the strength builds (UP.str): one row per card the Apex build replaces, biggest gain first (at most
+// UP.strRows), each with that row's Apex pick and, where the Mid and Budget builds replace the same card, their picks.
+// A pick's dScore is its change in deck power on this scale, so the chips and sheets read it as power.
+function strengthPaths(d, R) {
+  const SR = strengthRef(d);
+  if (!SR || !R) return R;
+  const rate = n => {
+    const c = find(n),
+      v = c && STRENGTH.cards.get(c._n);
+    return v ? v[0] : strIsNew(c) ? null : 0;
+  };
+  const pick = (s, t) => {
+    const r = rate(s.add),
+      g = strengthGain(d, s.cut, s.add, 1);
+    return {
+      cut: s.cut,
+      add: s.add,
+      q: 1,
+      t,
+      gain: g,
+      dScore: g,
+      str: true,
+      why: [r == null ? 'New card: too new for play data; read by what it does' : 'Card strength ' + r + ' of 100 (how often strong decks that could play it do)'],
+      cutWhy: ['Card strength ' + (rate(s.cut) ?? 0) + ' of 100' + (SR.core.has(s.cut) ? '' : ', not part of this deck’s core')],
+      gc: false,
+      gcOut: false,
+      own: false,
+      smart: true
+    };
+  };
+  const by = t => new Map(SR[t].done.map(s => [s.cut, s])),
+    mid = by('mid'),
+    budget = by('budget'),
+    seen = new Set(),
+    rows = [];
+  for (const s of SR.apex.done) {
+    if (seen.has(s.cut)) continue;
+    seen.add(s.cut);
+    const opts = {apex: pick(s, 'apex')};
+    if (mid.has(s.cut)) opts.mid = pick(mid.get(s.cut), 'mid');
+    if (budget.has(s.cut)) opts.budget = pick(budget.get(s.cut), 'budget');
+    rows.push({cut: s.cut, opts, none: false, gain: opts.apex.gain, str: true});
+  }
+  rows.sort((a, b) => b.gain - a.gain);
+  R.paths = rows.slice(0, UP.strRows);
+  // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale
+  const seenObj = new Set(),
+    walk = o => {
+      if (!o || typeof o !== 'object' || seenObj.has(o)) return;
+      seenObj.add(o);
+      if (typeof o.cut === 'string' && typeof o.add === 'string' && !o.str) {
+        o.dScore = strengthGain(d, o.cut, o.add, o.q || 1);
+        o.str = true;
+      }
+      for (const v of Array.isArray(o) ? o : Object.values(o)) walk(v);
+    };
+  for (const k of ['fixes', 'fills', 'drops', 'smart']) walk(R[k]);
+  R.str = true;
+  return R;
+}

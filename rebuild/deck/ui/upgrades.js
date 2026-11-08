@@ -1613,6 +1613,11 @@ function pcChip(p) {
 // Swap gains in power, not raw score points (owner, 1 Nov): the same mapping as the power bar (power = score as a share of this
 // deck's Apex build), so the swaps visibly add up to the next build. Falls back to score before the Apex build is scored.
 function gainTxt(v) {
+  // UP.str: gains are already in power on the strength scale
+  if (typeof strengthOn === 'function' && strengthOn(cur())) {
+    const a = Math.abs(v);
+    return (v >= 0 ? '+' : '−') + (a >= 10 ? Math.round(a) : a.toFixed(1)) + ' power';
+  }
   const d = cur(),
     T = d && (apexFor(d) || {}).tot,
     p = T && T.apex > 0 ? (100 * v) / T.apex : null,

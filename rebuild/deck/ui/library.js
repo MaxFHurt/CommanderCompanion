@@ -669,6 +669,7 @@ function recsKey(d) {
     Object.keys(EDH.tmap || {}).length,
     S.libV || 0,
     libCount(),
+    UP.str && typeof STRENGTH !== 'undefined' ? [STRENGTH.date, STRENGTH.cmd.size] : 0,
     BTAGS.v
   ]);
 }
@@ -818,6 +819,7 @@ function recsFor(d) {
             const b = evalFor(d);
             if (b) scoreCheck(d, R, {apex: apexFor(d), base: b});
             stickTheme(d, R);
+            if (typeof strengthOn === 'function' && strengthOn(d)) strengthPaths(d, R); // UP.str: the rows from the strength builds
           } catch (e) {
             console.error(e);
           }
