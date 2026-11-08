@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.91 (Deck Builder {"build": 202, "version": "0.9.57"})
+- **Live build:** 1.0.0-rebuild.92 (Deck Builder {"build": 203, "version": "0.9.58"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 92 — 8 Nov 2026
+- Deck Builder 0.9.58 (build 203): the Health pop-up shows each problem as its own section with the fix in place: the best swap, up to two other options and a 'for now' card (one you own, else one under $1) when the best card isn't owned, each with Swap; the long explanations are cut to one line. Card strength (roadmap 6.1) is in the build but off (UP.str 0): with the hosted data its picks broke 15 UI checks (set rules, excluded cards, repeats), so it waits for those fixes. Rules unchanged (game 254, mechanics 85, catalog 409 passed).
 
 ### Build 91 — 2 Nov 2026
 - Deck Builder 0.9.57 (build 202): pop-ups on iPhone and iPad keep every part in their scrolling body (parts added after a window opened, like the card window's 'Or take out instead', had squeezed its details to nothing on a phone held sideways); background redraws wait (up to 15 s) while a search's list of cards is open, so a tapped result is not missed; a tap outside a search closes its list. Test UI-POP-01.

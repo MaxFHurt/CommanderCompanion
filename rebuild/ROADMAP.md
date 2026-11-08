@@ -213,6 +213,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 92 (Deck Builder 0.9.58, build 203): Health pop-up with the fixes in place, one section per problem (best fix,
+  options, a 'for now' card); card strength built but off until its picks follow the deck rules (owner, 8 Nov).
 - Build 91 (Deck Builder 0.9.57, build 202): pop-ups on iPhone and iPad keep every part in their scrolling body (the card
   window's details were squeezed to nothing on a phone held sideways); a search's list of cards stays open through background
   redraws, so a tapped result is not missed; a tap outside a search closes its list (owner, 8 Nov).
