@@ -118,9 +118,9 @@ function strFit(c, d) {
   (d.aims || []).slice(0, 5).forEach((a, i) => {
     const m = isEdhAim(a) && E && E.tmap && E.tmap[a.slice(4)],
       y = m && edhOf(m, c);
-    if (y) f = Math.max(f, UP.strAim * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn)));
+    if (y) f = Math.max(f, Math.min(1, UP.strAim * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn))));
     // a mechanic the card does (or a theme whose page isn't loaded) counts too, a little less
-    else if (matchAim(c, a, d.tribe) >= 0.7) f = Math.max(f, UP.strAim * STR_AIM_W[i] * 0.5);
+    else if (matchAim(c, a, d.tribe) >= 0.7) f = Math.max(f, Math.min(1, UP.strAim * STR_AIM_W[i] * 0.5));
   });
   return f;
 }
@@ -372,6 +372,7 @@ function strengthPaths(d, R) {
   rows = rows.slice(0, UP.strRows);
   // no card on two rows: a row whose pick is already on a stronger row takes the next best card for its slot instead
   const used = new Map(); // card -> its row
+  rows.forEach(L => Object.values(L.opts).forEach(p => p.held && used.set(p.add, L))); // a held pick keeps its card
   const nextFor = (L, t, avoid) => {
     const cutC = find(L.cut);
     let b = null;
@@ -392,12 +393,6 @@ function strengthPaths(d, R) {
         else delete L.opts[t];
       }
     }
-    // Apex stays the strongest after a replacement
-    const ap = L.opts.apex;
-    for (const t of ['mid', 'budget']) {
-      const p = L.opts[t];
-      if (p && ap && !ap.held && p.dScore > ap.dScore) L.opts.apex = Object.assign({}, p, {t: 'apex'});
-    }
     // one card per row: a cheaper tier showing the Apex card falls back to it (the row shows each card once); a pick that
     // would lower power on this scale (a casual pick can) takes the next best card or leaves the tier to the one above
     for (const t of ['mid', 'budget']) {
@@ -408,6 +403,12 @@ function strengthPaths(d, R) {
         if (r) L.opts[t] = r;
         else delete L.opts[t];
       }
+    }
+    // Apex stays the strongest after every replacement
+    for (const t of ['mid', 'budget']) {
+      const p = L.opts[t],
+        ap = L.opts.apex;
+      if (p && (!ap || (!ap.held && p.dScore > ap.dScore))) L.opts.apex = Object.assign({}, p, {t: 'apex'});
     }
     if (L.opts.mid && L.opts.apex && L.opts.mid.add === L.opts.apex.add && !L.opts.mid.held) delete L.opts.mid;
     if (L.opts.budget && [L.opts.apex, L.opts.mid].some(x => x && x.add === L.opts.budget.add) && !L.opts.budget.held) delete L.opts.budget;
@@ -446,7 +447,13 @@ function strengthPaths(d, R) {
       });
       return L;
     })
-    .filter(L => Object.values(L.opts).every(p => p.dScore >= SCORE_MIN));
+    .filter(L => {
+      // a card already picked on another row is not offered here too
+      for (const t of Object.keys(L.opts)) if (used.has(L.opts[t].add)) delete L.opts[t];
+      const ps = Object.values(L.opts);
+      ps.forEach(p => used.set(p.add, L));
+      return ps.length && ps.every(p => p.dScore >= SCORE_MIN);
+    });
   R.paths = rows.concat(spare);
   // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale; one that would lower
   // deck power is not offered as an upgrade (fixes the deck needs anyway, like an illegal card, stay)
@@ -462,6 +469,11 @@ function strengthPaths(d, R) {
     };
   for (const k of ['fixes', 'fills', 'drops', 'smart']) walk(R[k]);
   for (const k of ['fills', 'smart']) if (Array.isArray(R[k])) R[k] = R[k].filter(p => !p || typeof p.dScore !== 'number' || p.dScore >= 0);
+  // Stick to the theme (a deck setting): each row's pick becomes its strongest on-theme card that still raises power
+  if (d.stick && typeof stickTheme === 'function')
+    try {
+      stickTheme(d, R);
+    } catch (e) {}
   R.str = true;
   return R;
 }
