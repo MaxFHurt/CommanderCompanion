@@ -1207,8 +1207,12 @@ function openCard(name, pid) {
   const legend = canLead(c),
     isCmd = d && d.format === 'commander' && (d.commander === c.n || d.partner === c.n),
     wantOn = !inDeck && d && !isCmd && S.view === 'decks' && S.open,
-    wantLater = wantOn && !offColor(d, c) && tags(c).land && d.format === 'commander'; // a land is measured with fresh practice games (a few seconds): the window opens at once and says it is thinking
+    wantLater = wantOn && !offColor(d, c) && tags(c).land && d.format === 'commander', // a land is measured with fresh practice games (a few seconds): the window opens at once and says it is thinking
+    // a spell going into a full Commander deck is weighed against every card it could replace (about half a second, more on a
+    // phone): the window opens at once too, and the swaps fill in as soon as they are measured (roadmap known limit, 8 Nov)
+    wantSoon = wantOn && !wantLater && !offColor(d, c) && d.format === 'commander' && (() => { const A = analyze(d); return A.size >= 90 && A.T.size - A.size <= 0; })();
   S.modalCard = c.n;
+  if (wantLater || wantSoon) S.wantMore = ''; // filled when the deferred swaps are measured, never left over from another card
   S.prints = null;
   S.face = 0;
   S.pick = c.id ? {n: c.n, id: pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
@@ -1228,11 +1232,13 @@ function openCard(name, pid) {
     (inDeck
       ? '<div class="grp" id="ctl">' + ctlHtml(inDeck.n) + '</div>'
       : wantOn
-        ? wantLater
+        ? wantLater || wantSoon
           ? '<div class="grp" id="want-think"><span class="lab">Put this card in ' +
             esc(d.name) +
             overCap(d, c) +
-            '</span><p class="note think" role="status" style="margin:0">Thinking… playing practice games with this land in each place it could go</p></div>'
+            '</span><p class="note think" role="status" style="margin:0">' +
+            (wantLater ? 'Thinking… playing practice games with this land in each place it could go' : 'Thinking… weighing it against every card it could replace') +
+            '</p></div>'
           : wantHtml(d, c)
         : '') +
     '<div class="detail">' +
@@ -1349,7 +1355,7 @@ function openCard(name, pid) {
   // the other cards it could replace come last, after the card details and its printings
   if (!inDeck && S.wantMore && d && !isCmd && S.view === 'decks' && S.open)
     $('#modal .panel').insertAdjacentHTML('beforeend', S.wantMore);
-  if (wantLater)
+  if (wantLater || wantSoon)
     setTimeout(() => {
       const el = $('#want-think');
       if (!el || S.modalCard !== c.n || $('#modal').hidden) return;
