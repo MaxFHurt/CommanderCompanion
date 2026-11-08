@@ -1,5 +1,6 @@
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
-import { newGame, check, section, done } from './harness.mjs';
+import { newGame, check, section, done, DEFS, playerSetup } from './harness.mjs';
+import { createGame } from '../../src/game/setup.js';
 import { effectivePower, cardHasKeyword } from '../../src/engine/combat.js';
 import { candidatesFor } from '../../src/game/requirements.js';
 
@@ -1352,4 +1353,16 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
 
 
 }
+section('old cached card data: split and adventure costs');
+{
+  const { repairCardDefinition } = await import('../../src/engine/schema.js');
+  const old = { definitionId: 'old-bonecrusher', name: 'Bonecrusher Giant', manaCost: '{2}{R} // {1}{R}', typeLine: 'Creature — Giant', oracleText: '', cardFaces: [{ manaCost: '{2}{R}' }, { manaCost: '{1}{R}' }] };
+  const fixed = repairCardDefinition(old);
+  check('a pre-build-28 split/adventure cost becomes the main face\'s', fixed.manaCost === '{2}{R}' && old.manaCost.includes('//'), fixed.manaCost);
+  const plain = { definitionId: 'x', manaCost: '{1}{G}' };
+  check('other definitions are left alone', repairCardDefinition(plain) === plain);
+  const g = createGame({ players: [playerSetup('A', 'white'), playerSetup('B', 'simic')], definitions: { ...Object.fromEntries(DEFS.map(d => [d.definitionId, d])), [old.definitionId]: old }, firstPlayer: 0 });
+  check('a game started from old saved data uses the repaired cost', g.cardDefinitions['old-bonecrusher'].manaCost === '{2}{R}');
+}
+
 done();

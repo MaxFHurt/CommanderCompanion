@@ -132,6 +132,16 @@ export function createCardDefinition(overrides = {}) {
     ...overrides
   };
 }
+/**
+ * Card data saved before build 28 gave split and adventure cards both costs ("{2}{R} // {1}{R}") as their
+ * mana cost. Returns the definition with the main face's cost (a copy; the same object when nothing changes).
+ */
+export function repairCardDefinition(def) {
+  if (!def || typeof def.manaCost !== 'string' || !def.manaCost.includes('//')) return def;
+  const face = Array.isArray(def.cardFaces) ? def.cardFaces[0] : null;
+  const main = face && typeof face.manaCost === 'string' ? face.manaCost : def.manaCost.split('//')[0].trim();
+  return { ...def, manaCost: main };
+}
 export function isCardDefinitionComplete(card) {
   if (!card || typeof card !== 'object')
     return false;

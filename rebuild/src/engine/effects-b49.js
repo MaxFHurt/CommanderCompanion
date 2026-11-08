@@ -264,6 +264,13 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       return { part: { effects: [{ kind: 'damage', amount: num(m[1]), bind: as, sourceName }], requirements: [], unsupported: [] }, consumed: 1 };
     }
   }
+  // Galvanic Discharge: "You get {E}{E}{E}, then you may pay any amount of {E}. ~ deals that much damage to that permanent."
+  // The amount is asked as it resolves, counting the energy given just before.
+  if (/^(?:Then )?you may pay any amount of \{E\}\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^(?:.+? )?deals that much damage to that (creature|permanent|planeswalker|creature or planeswalker)\.?$/i))) {
+    const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target');
+    const plus = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'player-counter' && e.counter === 'energy' && typeof e.amount === 'number' && (e.scope || 'you') === 'you').reduce((n, e) => n + e.amount, 0);
+    if (earlier) return { part: { effects: [{ kind: 'pay-energy-any', bind: 'energyAny', as: 'energyAnyPaid' }, { kind: 'damage', amount: { kind: 'binding', bind: 'energyAnyPaid' }, bind: earlier.bind, sourceName }], requirements: [{ kind: 'b49-energy-any', bind: 'energyAny', plus }], unsupported: [] }, consumed: 2 };
+  }
   // Smuggler's Buggy: "You may cast the exiled card without paying its mana cost. If you do, return this Vehicle to its owner's hand."
   const after = String(clauses[i + 1] || '').match(/^If you do,\s*(.+)$/i);
   if (after && /you may (?:play|cast) the exiled card without paying its mana cost/i.test(c0)) {
@@ -724,6 +731,14 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       game.spellLibraryNth = { id: bindings.sourceId, n: effect.n };
       notes.push(`${nameOf(game, bindings.sourceId)} goes into its owner's library ${effect.n === 7 ? 'seventh' : `#${effect.n}`} from the top.`);
       return true;
+    case 'pay-energy-any': {
+      controller.counters = controller.counters || {};
+      const have = Number(controller.counters.energy || 0), paid = Math.max(0, Math.min(have, Number(bindings[effect.bind] || 0)));
+      controller.counters.energy = have - paid;
+      bindings[effect.as] = paid;
+      notes.push(paid ? `${controller.displayName} pays ${paid} energy.` : `${controller.displayName} pays no energy.`);
+      return true;
+    }
     case 'torment': {
       // Each round, in order: what each opponent chose (sacrifice, discard, or lose life).
       const emit = e => H.emit(bindings, e);
@@ -1315,6 +1330,12 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
       keep[p.playerId] = rows.length === 1 ? rows[0].instanceId : ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: 'Choose a creature to keep (it gets a vow counter); the rest are sacrificed.', options: rows.map(c => util.cardOption(game, c, p)) }));
     }
     bindings[req.bind] = keep;
+    return true;
+  }
+  if (req.kind === 'b49-energy-any') {
+    // "You may pay any amount of {E}": what the player has now plus what this effect gives before the payment.
+    const max = Number(player.counters?.energy || 0) + Number(req.plus || 0);
+    bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'number', title, prompt: `Pay how much energy? (you will have ${max})`, min: 0, max })) : 0;
     return true;
   }
   if (req.kind === 'b49-split-mana') {

@@ -2891,4 +2891,14 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Voting: both players vote (each asked); 1–1 is tied, so knowledge: draw three', voters.includes(t.P(0).playerId) && voters.includes(t.P(1).playerId) && t.P(0).deck.hand.length === hand + 3, JSON.stringify([voters.length, t.P(0).deck.hand.length - hand]));
 }
 
+{
+  // Galvanic Discharge: three energy, then pay any amount of it (asked as it resolves) for that much damage
+  const t = setup();
+  t.P(0).counters = { ...(t.P(0).counters || {}), energy: 2 };
+  const ogre = onField(t, 'Grizzly Bears', '', { power: '7', toughness: '7' }, 1);
+  let asked = null;
+  cast(t, 'Opt', 'Choose target creature or planeswalker. You get {E}{E}{E} (three energy counters), then you may pay any amount of {E}. Galvanic Discharge deals that much damage to that permanent.', [[d => d.kind === 'target' || /target/i.test(d.prompt || ''), d => d.options.find(o => o.id === ogre.instanceId)?.id], [d => d.kind === 'number', d => { asked = d; return 4; }]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Galvanic Discharge: asked how much energy (2 held + 3 given), pays 4, 4 damage to the target', asked?.max === 5 && Number(t.P(0).counters.energy) === 1 && Number(t.bf(1, 'Grizzly Bears')?.damageMarked || 0) === 4, JSON.stringify([asked?.max, t.P(0).counters, t.bf(1, 'Grizzly Bears')?.damageMarked]));
+}
+
 done();

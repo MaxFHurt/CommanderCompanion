@@ -4,6 +4,7 @@
 import { initializeGame } from '../engine/state.js';
 import { normalizeDeck, shuffleLibrary, drawOpeningHand, sync } from '../engine/deck.js';
 import { normalizeRulesConfig } from '../engine/rules.js';
+import { repairCardDefinition } from '../engine/schema.js';
 import { GameError, emptyMana, log, newId, playerById, plural } from './helpers.js';
 
 export const PLAYER_COLORS = ['#c9a227', '#4f8fd6', '#b8433f', '#4c9a55', '#8a5cc2', '#c97a2b'];
@@ -15,7 +16,7 @@ export const PLAYER_COLORS = ['#c9a227', '#4f8fd6', '#b8433f', '#4c9a55', '#8a5c
  */
 export function createGame({ mode = 'fully-tracked', deviceMode = 'single-device', rules = {}, players = [], definitions = [], firstPlayer = 'random', hostSeat = true } = {}) {
   if (players.length < 2 || players.length > 6) throw new GameError('Commander games need 2 to 6 players.');
-  const defs = Array.isArray(definitions) ? Object.fromEntries(definitions.map(d => [d.definitionId, d])) : { ...definitions };
+  const defs = Object.fromEntries((Array.isArray(definitions) ? definitions : Object.values(definitions)).map(repairCardDefinition).map(d => [d.definitionId, d]));
   const rulesConfig = normalizeRulesConfig(rules);
 
   const seats = players.map((p, i) => {

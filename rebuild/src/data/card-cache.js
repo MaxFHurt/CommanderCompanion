@@ -2,6 +2,7 @@
 // Scryfall the first time and is kept on the device so later games start instantly and offline.
 
 import { durableGet, durableSet } from './userdata-db.js';
+import { repairCardDefinition } from '../engine/schema.js';
 import { parseDeckList, resolveCollection, resolveNamedCard } from './card-api.js';
 
 const KEY = 'card-cache-v1';
@@ -10,6 +11,10 @@ let cache = null;
 async function load() {
   if (cache) return cache;
   try { cache = (await durableGet(KEY)) || {}; } catch { cache = {}; }
+  // Definitions saved before build 28 carry both halves' costs on split and adventure cards: repair them once.
+  let repaired = false;
+  for (const [k, d] of Object.entries(cache)) { const r = repairCardDefinition(d); if (r !== d) { cache[k] = r; repaired = true; } }
+  if (repaired) durableSet(KEY, cache).catch(() => {});
   return cache;
 }
 
