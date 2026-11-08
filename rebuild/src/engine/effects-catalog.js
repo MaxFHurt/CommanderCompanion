@@ -462,7 +462,9 @@ function compileCatalogClauseInner(c, ctx) {
   if (/^It gains suspend\.?$/i.test(c)) return true;
   if (rx(`^(?:${selfAny}|this creature|it) assigns no combat damage this turn\\.?$`, 'i').test(c)) { effects.push({ kind: 'no-combat-damage' }); return true; }
   // The Tenth Doctor: "Put three time counters on it. If it doesn't have suspend, it gains suspend." (the exiled card)
-  if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|that card)\\.?$`, 'i')))) { effects.push({ kind: 'time-counters-recent', amount: num(m[1]) }); return true; }
+  // Taigam: "Then counter the original spell, exile it with four time counters on it, and it gains suspend."
+  if ((m = c.match(rx(`^(?:Then )?counter the original spell, exile it with ${N} time counters? on it, and it gains suspend\\.?$`, 'i')))) { effects.push({ kind: 'counter-spell', bind: 'eventStackId', exile: true, time: num(m[1]), suspend: true }); return true; }
+  if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|that card|the exiled card)\\.?$`, 'i')))) { effects.push({ kind: 'time-counters-recent', amount: num(m[1]) }); return true; }
   if (/^If it doesn'?t have suspend, it gains suspend\.?$/i.test(c)) { effects.push({ kind: 'suspend-recent' }); return true; }
   // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
   if ((m = c.match(/^Until end of turn, creatures you control have base power and toughness (\d+|X)\/(\d+|X)( and gain all creature types)?\.?$/i))) {

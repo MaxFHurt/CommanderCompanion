@@ -2901,4 +2901,40 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   check('Galvanic Discharge: asked how much energy (2 held + 3 given), pays 4, 4 damage to the target', asked?.max === 5 && Number(t.P(0).counters.energy) === 1 && Number(t.bf(1, 'Grizzly Bears')?.damageMarked || 0) === 4, JSON.stringify([asked?.max, t.P(0).counters, t.bf(1, 'Grizzly Bears')?.damageMarked]));
 }
 
+section('suspend given by other cards: Delay, Jhoira, Taigam');
+{
+  // Delay: the countered spell is exiled with three time counters and gains suspend
+  const t = setup();
+  t.give(1, 'Opt'); const foeSpell = t.hand(1, 'Opt');
+  t.P(1).deck.hand.splice(t.P(1).deck.hand.indexOf(foeSpell), 1); foeSpell.zone = 'stack';
+  t.game.stack = [{ id: 'delay-target', kind: 'spell', controllerId: t.P(1).playerId, card: foeSpell, label: 'Opt' }];
+  t.give(0, 'Counterspell'); const dl = asText(t, t.hand(0, 'Counterspell'), "Counter target spell. If the spell is countered this way, exile it with three time counters on it instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend.", { manaCost: '{1}{U}' });
+  t.ctl.dispatch({ type: 'play', instanceId: dl.instanceId }, t.as(0));
+  settle(t, [[d => d.targeting, () => 'delay-target']]);
+  check('Delay: the spell is exiled with three time counters and is suspended', foeSpell.zone === 'exile' && foeSpell.suspended && foeSpell.counters?.time === 3 && t.P(1).deck.exile.includes(foeSpell), JSON.stringify([foeSpell.zone, foeSpell.suspended, foeSpell.counters]));
+  t.game.stack = [];
+}
+{
+  // Jhoira: exile a nonland card from your hand (the cost), four time counters on it, it gains suspend; it is cast when the last comes off
+  const t = setup();
+  const jh = onField(t, 'Llanowar Elves', '{2}, Exile a nonland card from your hand: Put four time counters on the exiled card. If it doesn\'t have suspend, it gains suspend.');
+  t.give(0, 'Grizzly Bears'); const bear = t.hand(0, 'Grizzly Bears');
+  activate(t, jh, 0, [[d => d.options?.some(o => o.id === bear.instanceId), d => d.kind === 'choose-many' ? [bear.instanceId] : bear.instanceId]]);
+  check('Jhoira: the exiled card gets four time counters and suspend', bear.zone === 'exile' && bear.suspended && bear.counters?.time === 4, JSON.stringify([bear.zone, bear.suspended, bear.counters]));
+  t.autoPass = true;
+  for (let k = 0; k < 4; k++) { t.end(0); t.end(1); settle(t); }
+  check('…and is cast for free when the last time counter comes off', !!t.bf(0, 'Grizzly Bears'), JSON.stringify([bear.zone, bear.counters]));
+}
+
+{
+  // Taigam: copy the spell, then counter the original, exile it with four time counters, and it gains suspend
+  const t = setup();
+  onField(t, 'Llanowar Elves', "Whenever you cast a spell, if it's the second spell you've cast this turn, copy that spell. You may choose new targets for the copy. Then counter the original spell, exile it with four time counters on it, and it gains suspend.");
+  cast(t, 'Opt', 'Draw a card.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  const hand = t.P(0).deck.hand.length;
+  t.give(0, 'Divination'); const dv = asText(t, t.hand(0, 'Divination'), 'Draw two cards.', { manaCost: '{U}', typeLine: 'Sorcery' });
+  t.ctl.dispatch({ type: 'play', instanceId: dv.instanceId }, t.as(0)); settle(t);
+  check('Taigam: the copy resolves (two cards), the original is exiled with four time counters, suspended', t.P(0).deck.hand.length === hand + 2 && dv.zone === 'exile' && dv.suspended && dv.counters?.time === 4, JSON.stringify([t.P(0).deck.hand.length - hand, dv.zone, dv.suspended, dv.counters]));
+}
+
 done();

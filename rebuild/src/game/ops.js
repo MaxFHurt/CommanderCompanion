@@ -808,6 +808,17 @@ function runActivate(game, op, ask) {
     if (!rows.length && !force) throw new GameError(`You need a ${words} to exile.`);
     if (rows.length) costExileIds.push(ask('cost:exile', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words} to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) })));
   }
+  // Jhoira of the Ghitu: "Exile a nonland card from your hand" as the cost; "the exiled card" is that card.
+  const exHand = String(ability.cost || '').match(/Exile an? ([a-z ]*?)card from your hand/i);
+  if (exHand && fromZone !== 'hand') {
+    const words = exHand[1].trim().toLowerCase();
+    const rows = player.deck.hand.filter(c => !words || cardFitsWords(defOf(game, c), words));
+    if (!rows.length && !force) throw new GameError(`You need a ${words ? `${words} ` : ''}card in your hand to exile.`);
+    if (rows.length) {
+      const id = ask('cost:exile-hand', () => ({ ...base, private: true, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words ? `${words} ` : ''}card in your hand to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+      costExileIds.push(id); bindings.lastMoved = [id];
+    }
+  }
   // Forage: "exile three cards from your graveyard or sacrifice a Food" (the player chooses which, and which cards).
   if (/\bForage\b/i.test(ability.cost || '')) {
     const gy = player.deck.graveyard || [], foods = player.deck.battlefield.filter(c => /\bFood\b/.test(defOf(game, c)?.typeLine || ''));

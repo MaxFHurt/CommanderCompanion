@@ -21,11 +21,29 @@ const scaledAction = (t, n) => n <= 1 ? t : t.replace(/^(Sacrifice|Discard) (?:a
 export function upkeepActionCost(text, kw, n = 1) {
   const m = String(text || '').replace(/\([^()]*\)/g, '').match(new RegExp(`(?:^|\\n)\\s*${kw}\\s*[—-]\\s*([A-Z][^\\n]*?\\.)\\s*(?:$|\\n)`));
   if (!m || /^Pay /i.test(m[1])) return null;
+  const opp = opponentAction(m[1], n);
+  if (opp) return opp;
   const want = scaledAction(m[1], n), r = compileEffectText(want.replace(/\bthis creature\b|\bthis permanent\b/gi, 'SELFNAME'), { sourceName: 'SELFNAME' }), reqs = r.requirements || [];
   if (!r.supported || !r.effects.length) return null;
   if (!reqs.length) return { text: m[1], effects: r.effects, reqs: [] };
   if (reqs.every(q => CHOICE_REQS.includes(q.kind) && (!q.scope || q.scope === 'you')) && (n <= 1 || want !== m[1])) return { text: want, effects: r.effects, reqs };
   return null;
+}
+// Costs an opponent takes part in (Wall of Shards, Varchild's War-Riders, Sheltering Ancient): done once per age counter, and
+// each time the payer chooses the opponent (or the opponent's creature) again. "An opponent" is a choice, not a target.
+function opponentAction(t, times) {
+  let m, one = null;
+  if ((m = t.match(/^An opponent gains (\w+) life\.$/i)) && n(m[1]))
+    one = k => ({ req: { kind: 'player', bind: `cuOpp${k}`, scope: 'opponent', notTargeted: true, label: 'an opponent to gain the life' }, effects: [{ kind: 'life', scope: 'you', amount: n(m[1]), deltaSign: 1, bind: `cuOpp${k}` }] });
+  else if ((m = t.match(/^Have an opponent create (an? .+? tokens?)\.$/i))) {
+    const r = compileEffectText(`Target opponent creates ${m[1]}.`, { sourceName: 'SELFNAME' });
+    const fx = r.supported && r.effects.length && r.effects.every(e => e.kind === 'create-token' && e.forPlayerBind) ? r.effects : null;
+    if (fx) one = k => ({ req: { kind: 'player', bind: `cuOpp${k}`, scope: 'opponent', notTargeted: true, label: 'an opponent to create the token' }, effects: fx.map(e => ({ ...e, forPlayerBind: `cuOpp${k}` })) });
+  } else if ((m = t.match(/^Put an? ([+-]\d+\/[+-]\d+) counter on a creature an opponent controls\.$/i)))
+    one = k => ({ req: { kind: 'choose-permanent', bind: `cuOppCreature${k}`, scope: 'creature an opponent controls', label: `a creature an opponent controls to get the counter` }, effects: [{ kind: 'counter', bind: `cuOppCreature${k}`, counter: m[1], amount: 1 }] });
+  if (!one) return null;
+  const k = Math.max(1, times), rows = Array.from({ length: k }, (_, i) => one(i));
+  return { text: k > 1 ? `${t.replace(/\.$/, '')} × ${k}.` : t, effects: rows.flatMap(r => r.effects), reqs: rows.map(r => r.req) };
 }
 const compiled = effects => ({ compiled: { supported: true, requirements: [], unsupported: [], effects } });
 

@@ -1598,6 +1598,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       obj.card.controllerId = owner.playerId;
       owner.deck[where].push(obj.card);
       notes.push(`${obj.label || cardName(game, obj.card)} is countered.`);
+      if (where === 'exile') bindings.lastMoved = [obj.card.instanceId];   // "If it doesn't have suspend, it gains suspend" (Delay)
+      if (where === 'exile' && effect.time) {
+        obj.card.counters = { ...(obj.card.counters || {}), time: Number(obj.card.counters?.time || 0) + Number(effect.time) };
+        if (effect.suspend) obj.card.suspended = true;
+        notes.push(`It is exiled with ${effect.time} time counters${effect.suspend ? ' (suspended)' : ''}.`);
+      }
       emit(bindings, { type: 'spell-countered', sourceId: obj.card.instanceId, definitionId: obj.card.definitionId, controllerId: obj.controllerId });
       continue;
     }
@@ -3204,9 +3210,11 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       }
     }
     // Force of Negation: "If that spell is countered this way, exile it instead of putting it into its owner's graveyard."
-    if (/^If that spell is countered this way, exile it instead of putting it into its owner'?s graveyard\.?$/i.test(clause)) {
+    // Delay: "If the spell is countered this way, exile it with three time counters on it instead of …" (then "it gains suspend").
+    const fon = clause.match(/^If (?:that|the) spell is countered this way, exile it( with (\w+) time counters? on it)? instead of putting it into its owner'?s graveyard\.?$/i);
+    if (fon && (!fon[1] || numberFromText(fon[2]))) {
       const cs = [...parts].reverse().flatMap(p => p.effects).find(e => e.kind === 'counter-spell');
-      if (cs) { cs.exile = true; continue; }
+      if (cs) { cs.exile = true; if (fon[1]) cs.time = numberFromText(fon[2]); continue; }
     }
     // Growth Spiral: "You may put a land card from your hand onto the battlefield." (the card just drawn counts too)
     if (/^You may put a land card from your hand onto the battlefield\.?$/i.test(clause)) {

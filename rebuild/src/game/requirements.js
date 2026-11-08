@@ -163,7 +163,7 @@ export function candidatesFor(game, req, player, source = null) {
   const out = [];
   if (req.kind === 'player') {
     const rows = scope === 'opponent' ? opponentsOf(game, player.playerId) : alivePlayers(game);
-    return rows.filter(q => canTargetPlayer(game, q, player, source)).map(playerOption);
+    return rows.filter(q => req.notTargeted || canTargetPlayer(game, q, player, source)).map(playerOption);   // "an opponent" (not "target") ignores hexproof
   }
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
@@ -429,7 +429,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     let rows = candidatesFor(game, req, player, ctx.source || null);
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
     if (req.notSource && bindings.sourceId) rows = rows.filter(r => r.id !== bindings.sourceId);   // "another"
-    if (req.kind === 'choose-permanent' && rows.length === 1) { bindings[req.bind] = rows[0].id; return; }   // only one choice: no question
+    if ((req.kind === 'choose-permanent' || (req.kind === 'player' && req.notTargeted)) && rows.length === 1) { bindings[req.bind] = rows[0].id; return; }   // only one choice: no question
     if (!rows.length) {
       if (req.optional) { bindings[req.bind] = null; return; }
       throw new NoLegalChoice(`No legal choice is available for "${req.label || req.scope || 'this effect'}".`);

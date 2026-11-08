@@ -611,6 +611,29 @@ section('Echo and Cumulative upkeep paid with a choice (build 79)');
   check('the next upkeep asks for two creatures, and not paying sacrifices it', /two|2 creatures/i.test(what || '') && !t.bf(0, 'Akrasan Squire'), JSON.stringify({ what, bf: t.names(0, 'battlefield') }));
 }
 
+section('Cumulative upkeep costs an opponent takes part in');
+{
+  const t = newGame(['lab', 'white', 'simic']); t.keepAll();
+  t.give(0, 'Akrasan Squire', 'battlefield'); t.give(0, 'Kitchen Finks', 'battlefield'); t.give(0, 'Monastery Swiftspear', 'battlefield');
+  t.give(2, 'Llanowar Elves', 'battlefield');
+  const asText = (c, text) => { t.game.cardDefinitions[c.definitionId] = { ...t.game.cardDefinitions[c.definitionId], oracleText: text }; };
+  asText(t.bf(0, 'Akrasan Squire'), 'Cumulative upkeep—An opponent gains 1 life.');
+  asText(t.bf(0, 'Kitchen Finks'), 'Cumulative upkeep—Have an opponent create a 1/1 red Survivor creature token.');
+  asText(t.bf(0, 'Monastery Swiftspear'), 'Cumulative upkeep—Put a +1/+1 counter on a creature an opponent controls.');
+  const l1 = t.P(1).life, l2 = t.P(2).life;
+  t.end(0); t.end(1); t.end(2);
+  const asked = [];
+  settleWith(t, { 'may-pay': 'pay', maypay: d => { asked.push(d.prompt); return d.options.find(o => o.id === t.P(2).playerId)?.id ?? d.options[0].id; } });
+  const survivors = t.P(2).deck.battlefield.filter(c => /Survivor/.test(t.game.cardDefinitions[c.definitionId]?.name || '')).length;
+  check('Wall of Shards: the chosen opponent gains 1 life (not targeted, asked of the payer)', t.P(2).life === l2 + 1 && t.P(1).life === l1, JSON.stringify([t.P(1).life - l1, t.P(2).life - l2, asked]));
+  check("Varchild's War-Riders: the chosen opponent creates the Survivor token", survivors === 1, JSON.stringify(t.names(2, 'battlefield')));
+  check('Sheltering Ancient: a +1/+1 counter on the only creature an opponent controls (no question)', t.bf(2, 'Llanowar Elves')?.counters?.['+1/+1'] === 1, JSON.stringify(t.bf(2, 'Llanowar Elves')?.counters));
+  t.end(0); t.end(1); t.end(2);
+  const picks = [];
+  settleWith(t, { 'may-pay': 'pay', maypay: d => { const id = d.options[picks.length % d.options.length].id; picks.push(id); return id; } });
+  check('two age counters: the opponent is chosen again for each (here one life to each opponent)', t.P(1).life === l1 + 1 && t.P(2).life === l2 + 2, JSON.stringify([t.P(1).life - l1, t.P(2).life - l2, picks.length]));
+}
+
 section('flip cards (build 79)');
 {
   const t = labGame('lab');
