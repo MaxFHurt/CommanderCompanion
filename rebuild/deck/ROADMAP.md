@@ -872,7 +872,9 @@ like players choices."
   land target take a few seconds more (spare-land swaps need fresh practice games).
 - Opening a card's window to put it in a full deck takes about half a second (it is
   weighed against every card it could replace).
-- Deck history records changes saved through the app's buttons.
+- Deck history records changes saved through the app's buttons, and (8 Nov) changes that arrive from another window or
+  device (the cards from before them are kept as a version; storage.js versionCarry; test UI-HIST-02). That version is saved
+  with the window's next change, since taking a newer copy never writes it back.
 
 ## Standing rules from the owner
 

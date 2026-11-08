@@ -95,7 +95,7 @@ function adoptProfile(p, draft) {
   PROF.rev = p.saveRev || 0;
   PROF.dirty = false;
   if (draft !== undefined) S.draft = draft && Array.isArray(draft.cards) ? draft : null;
-  VLAST.clear();
+  versionCarry();
   UNDO.base = null;
   undoMark();
   versionMark();
@@ -121,7 +121,7 @@ function mergeProfile(theirs) {
     if (!seen.has(d.id)) out.splice(Math.min(i, out.length), 0, d);
   });
   S.profile.decks = out;
-  VLAST.clear();
+  versionCarry();
   versionMark();
 }
 // Other windows of this app: take their saves as they happen (when this one has nothing waiting to be saved).
@@ -186,6 +186,20 @@ function wantInstalled(d, prev) {
     if (add > 0 && d.want.some(x => keyOf(x.n) === k)) got.push(e.n);
   });
   if (got.length) setTimeout(() => askConfirm('want-installed', d.id, got.join('|')), 0);
+}
+// A change that arrives from another window or device (adoptProfile, mergeProfile): the deck's cards from before it are kept
+// as a version too, unless that window or device already kept the same one.
+function versionCarry() {
+  S.profile.decks.forEach(d => {
+    const old = VLAST.get(d.id);
+    if (old == null || old === cardsSig(d)) return;
+    const V = d.versions || [],
+      last = V[V.length - 1];
+    if (last && JSON.stringify(last.cards.map(e => [e.n, e.q])) === old) return;
+    (d.versions = V).push({at: Date.now(), cards: JSON.parse(old).map(([n, q]) => ({n, q})), label: 'Before a change from another device or window'});
+    if (d.versions.length > 25) d.versions.shift();
+  });
+  VLAST.clear();
 }
 function versionMark() {
   S.profile.decks.forEach(d => {

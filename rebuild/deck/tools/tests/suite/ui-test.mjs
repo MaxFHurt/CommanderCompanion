@@ -1634,6 +1634,22 @@ const b1972 = await page.evaluate(async () => { const out = {}; const sy = S.syn
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
 T('UI-B197-02', 'Build 197: active health alerts show their best swaps at the top of the upgrade list, marked with the alert; a swap there keeps the list', !b1972.alerts.length || (b1972.rows > 0 && b1972.chips.every(c => /^Fixes /.test(c)) && b1972.swapped && b1972.kept), JSON.stringify(b1972));
 } catch (e) { QUIET = false; T('UI-B197-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-HIST-02')) { try { if (SHARD) await RESET();
+// Deck history (roadmap known limit): a change that arrives from another window or device keeps the cards from before it as a
+// version, once (not again when that device already kept the same version).
+const hist2 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+  const n0 = (d.versions || []).length, before = JSON.stringify(d.cards.map(e => [e.n, e.q])), nm = d.cards.find(e => !isBasic(e.n)).n;
+  const there = JSON.parse(JSON.stringify(S.profile)); const td = there.decks.find(x => x.id === d.id); td.cards = td.cards.filter(e => e.n !== nm); td.updatedAt = Date.now() + 1000;
+  adoptProfile(there);
+  const nd = S.profile.decks.find(x => x.id === d.id), V = nd.versions || [];
+  out.kept = V.length === n0 + 1 && JSON.stringify(V[V.length - 1].cards.map(e => [e.n, e.q])) === before; out.label = (V[V.length - 1] || {}).label;
+  const again = JSON.parse(JSON.stringify(S.profile)); const ad = again.decks.find(x => x.id === d.id); ad.versions = (ad.versions || []).concat({at: Date.now(), cards: ad.cards.map(e => ({n: e.n, q: e.q})), label: 'kept there'}); ad.cards = ad.cards.slice(1);
+  adoptProfile(again);
+  const V2 = S.profile.decks.find(x => x.id === d.id).versions || []; out.once = V2.length === V.length + 1 && V2[V2.length - 1].label === 'kept there';
+  S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); S.view = 'home'; touch(); render(); return out; });
+T('UI-HIST-02', 'Deck history: a change from another window or device keeps the earlier cards as a version, and not twice when that device kept it', hist2.kept && hist2.once && /another device/.test(hist2.label || ''), JSON.stringify(hist2));
+} catch (e) { QUIET = false; T('UI-HIST-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.
