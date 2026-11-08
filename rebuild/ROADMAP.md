@@ -213,6 +213,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 90 (Deck Builder 0.9.56, build 201): card quality shown as the deck's rating against its Apex build by what the cards
+  do (synergy, balance, ways to win, mana), not popularity; upgrade picks unchanged.
 - Build 89: 18 more cards (21,695 of 31,836): triggers that never fired (Niv-Mizzet, Visionary; Glaring Fleshraker; Argent
   Dais; Tome of Legends), token colours, Planar Genesis, Peer into the Abyss, Ad Nauseam.
 - Build 88 (Deck Builder 0.9.55, build 200): deck history across devices and windows; the card window opens at once.
@@ -220,13 +222,11 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 - Build 86: 148 more cards (21,677 of 31,836): Galvanic Discharge, suspend from Delay/Jhoira/
   Taigam, Cumulative upkeep costs with an opponent, old cached split/adventure costs repaired, and long-tail wordings (Lairs,
   Blackmail, Disallow, Scarab God, Pestilence, damage equal to a land count …; PROGRESS.md).
-- Build 89 (Deck Builder 0.9.56, build 201): card quality shown as the deck's rating against its Apex build by what the cards
-  do (synergy, balance, ways to win, mana), not popularity; upgrade picks unchanged.
 - Build 85 (Deck Builder 0.9.53, build 198): search finds cards by printed (flavor) names, including ones published after the build.
 - Build 84 (Deck Builder 0.9.52, build 197): mana stuck only when nothing could be cast for colour; health warnings red only
   when severely short; a reskinned commander (the Miku precon) shown under its printing's name and art everywhere.
   Open from this round (owner, 8 Nov): health fixes in the upgrade list (done, build 87);
-  card quality by what the cards do, not popularity (done, build 89: shown, not scored; scoring picks by it lowered the
+  card quality by what the cards do, not popularity (done, build 90: shown, not scored; scoring picks by it lowered the
   benchmark to 0.221/0.203/0.287, so the owner chose display only, and UP.qEff stays off); card search
   finding newly renamed printings (done, build 85).
 - Build 83 (Deck Builder 0.9.51, build 196): tokens the deck makes listed at the bottom of the decklist, not counted in the 100.
