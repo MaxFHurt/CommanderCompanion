@@ -685,7 +685,7 @@ export function parseActivatedAbilities(definition) {
         abilities.push(current);
       current = { text: line, continuations: [] };
     }
-    else if (current && (/^[•—-]/.test(line) || /^Choose\b/i.test(line) || /^Activate only\b/i.test(line) || /^This ability\b/i.test(line))) {
+    else if (current && (/^[•—-]/.test(line) || /^Choose\b/i.test(line) || /^Activate (?:only|no more than)\b/i.test(line) || /^This ability\b/i.test(line))) {
       current.continuations.push(line);
     }
     else if (current) {

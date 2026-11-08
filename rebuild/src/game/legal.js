@@ -273,6 +273,9 @@ export function activationRules(text) {
     }
     else return null;
   }
+  // "Activate no more than twice each turn." (Fire-Belly Changeling, Vampire Bats)
+  for (const m of String(text || '').matchAll(/Activate (?:this ability )?no more than (twice|three times|four times) each turn\./gi))
+    rules.push({ kind: 'max', n: { twice: 2, 'three times': 3, 'four times': 4 }[m[1].toLowerCase()] });
   return rules;
 }
 /** Why the ability cannot be used right now because of its "Activate only …" text, or null. */
@@ -285,6 +288,7 @@ export function activationBlock(game, player, card, ability) {
   const rules = activationRules(ability?.text) || [];
   for (const r of rules) {
     if (r.kind === 'once' && card?.activatedTurn?.[ability.id] === game.turnNumber) return 'Only once each turn.';
+    if (r.kind === 'max' && card?.activatedCount?.[ability.id]?.turn === game.turnNumber && card.activatedCount[ability.id].n >= r.n) return `No more than ${r.n === 2 ? 'twice' : `${r.n} times`} each turn.`;
     if (r.kind === 'your-turn' && game.activePlayerId !== player.playerId) return 'Only during your turn.';
     if (r.kind === 'combat' && !/combat|attackers|blockers|damage/.test(String(game.phase || ''))) return 'Only during combat.';
     if (r.kind === 'upkeep' && !(game.activePlayerId === player.playerId && game.phase === 'upkeep')) return 'Only during your upkeep.';

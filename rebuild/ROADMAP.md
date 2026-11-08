@@ -75,19 +75,15 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
    unlock this door" fires; 28 Room cards, 4 left by hand), flip cards ("flip this creature", ki-counter flips), time travel,
    Classes' and energy cards' wordings (Druid Class, Paladin, Sorcerer, Warlock, Guide of Souls, Lightning Runner …), and
    Echo/Cumulative upkeep paid with a choice ("Sacrifice a creature", "Discard a card": asked whether to pay, then which
-   cards; Cumulative upkeep asks for one per age counter). Still by hand: Cumulative upkeep costs an opponent takes part in
-   (Wall of Shards, Sheltering Ancient, Varchild's War-Riders …, Ice Age era), suspend wordings on other cards (Delay,
-   Clockspinning, Jhoira, Taigam), flip conditions the game doesn't track (Rune-Tail's 30 life, "enchanted by two or more
-   Auras"), "you may pay any amount of {E}" (Galvanic Discharge), splice, cipher, attractions/stickers, banding, haunt,
-   assist, forecast, and anything the terms key marks "manual" or "partial".
-3. **Known rule limits (Moraug, Kardur, copied lands, Dredge, Echo/Cumulative upkeep action costs: done, build 68; Cumulative
-   upkeep and Echo costs that need a choice: done, build 79, except costs an opponent takes part in):**
-   - Moraug: the extra combat comes after the second main phase, not straight after the phase it triggered in.
-   - Kardur: goads only the creatures it sees as it enters.
-   - A land that becomes a copy (Thespian's Stage …) keeps the mana it made before.
-   - Dredge is not offered for draws another player's effect gives ("target player draws").
-   - Cumulative upkeep and Echo are automatic only for mana costs and "Pay N life".
-   - Cached card definitions from before build 28 keep the old mana cost for split/adventure cards until re-validated.
+   cards; Cumulative upkeep asks for one per age counter). Build 84: Cumulative upkeep costs an opponent takes part in (Wall
+   of Shards, Varchild's War-Riders, Sheltering Ancient: the opponent chosen again for each age counter), suspend given by
+   other cards (Delay, Jhoira of the Ghitu, Taigam), "you may pay any amount of {E}" (Galvanic Discharge). Still by hand:
+   Herald of Leshrac and Jötun Grunt's upkeep costs, Clockspinning, flip conditions the game doesn't track (Rune-Tail's 30
+   life, "enchanted by two or more Auras"), splice, cipher, attractions/stickers, banding, haunt, assist, forecast, and
+   anything the terms key marks "manual" or "partial".
+3. **(Done.)** **Known rule limits:** Moraug, Kardur, copied lands, Dredge for other players' draws, Echo/Cumulative upkeep
+   action costs (build 68); costs that need a choice (build 79); costs an opponent takes part in, and card data cached before
+   build 28 (split/adventure costs repaired on load; build 84).
 4. **Measure which cards real decks resolve by hand most** (from played games) and automate those first. No data yet: the shared rulings store
    is empty (7 Nov), and the app sends nothing else about hand resolutions. Recording that would mean sending play data, so it
    needs the owner's say. Until then the order is EDHREC popularity (`tools/rules-audit.mjs` on the Scryfall file).
@@ -217,6 +213,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 86: Galvanic Discharge, suspend from Delay/Jhoira/Taigam, Cumulative upkeep costs with an opponent, old cached
+  split/adventure costs repaired.
 - Build 85 (Deck Builder 0.9.53, build 198): search finds cards by printed (flavor) names, including ones published after the build.
 - Build 84 (Deck Builder 0.9.52, build 197): mana stuck only when nothing could be cast for colour; health warnings red only
   when severely short; a reskinned commander (the Miku precon) shown under its printing's name and art everywhere.

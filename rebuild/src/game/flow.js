@@ -145,6 +145,8 @@ function untapStep(game) {
     if (!c.tapped) continue;
     if (/doesn['’]t untap during your untap step/i.test(defOf(game, c)?.oracleText || '')) continue;
     if ((c.temporaryEffects || []).some(e => e?.kind === 'combat-restriction' && e?.restriction === 'no-untap')) continue;
+    // "Lands you control don't untap during your next untap step" (Bontu's Last Reckoning): this is that step.
+    if ((p.skipNextUntap || []).some(f => f === 'permanent' || new RegExp(`\\b${f}\\b`, 'i').test(defOf(game, c)?.typeLine || ''))) continue;
     // "… doesn't untap during its controller's next untap step": this is that step; it stays tapped once.
     if ((c.temporaryEffects || []).some(e => e?.kind === 'skip-next-untap')) { c.temporaryEffects = c.temporaryEffects.filter(e => e?.kind !== 'skip-next-untap'); continue; }
     // A stun counter: instead of untapping, one stun counter is removed.
@@ -153,6 +155,7 @@ function untapStep(game) {
     count += 1;
     queueTriggers(game, { type: 'untapped', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, untapStep: true });
   }
+  delete p.skipNextUntap;
   log(game, `Turn ${game.turnNumber} — ${p.displayName}. ${count ? `${plural(count, 'permanent')} untapped.` : 'Nothing to untap.'}`, { type: 'turn', playerId: p.playerId });
   setPhase(game, 'upkeep');
 }

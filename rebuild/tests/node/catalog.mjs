@@ -2937,4 +2937,33 @@ section('suspend given by other cards: Delay, Jhoira, Taigam');
   check('Taigam: the copy resolves (two cards), the original is exiled with four time counters, suspended', t.P(0).deck.hand.length === hand + 2 && dv.zone === 'exile' && dv.suspended && dv.counters?.time === 4, JSON.stringify([t.P(0).deck.hand.length - hand, dv.zone, dv.suspended, dv.counters]));
 }
 
+section('long tail, build 84');
+{
+  // Ever After / Seasons Past: the spell goes to the bottom of its owner's library
+  const t = setup();
+  t.give(0, 'Divination'); const dv = asText(t, t.hand(0, 'Divination'), "Draw two cards. Put Divination on the bottom of its owner's library.", { manaCost: '{U}', typeLine: 'Sorcery' });
+  t.ctl.dispatch({ type: 'play', instanceId: dv.instanceId }, t.as(0)); settle(t);
+  const lib = t.P(0).deck.remainingLibrary;
+  check('"Put ~ on the bottom of its owner\'s library": the spell is the bottom card', lib[lib.length - 1]?.instanceId === dv.instanceId && !t.P(0).deck.graveyard.includes(dv), JSON.stringify([dv.zone, lib.length]));
+}
+{
+  // Scorching Dragonfire: "If that creature or planeswalker would die this turn, exile it instead."
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Opt deals 3 damage to target creature or planeswalker. If that creature or planeswalker would die this turn, exile it instead.', [[d => d.targeting, d => d.options.find(o => o.id === bear.instanceId)?.id]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Scorching Dragonfire: the creature is exiled instead of dying', t.P(1).deck.exile.some(c => c.instanceId === bear.instanceId) && !t.P(1).deck.graveyard.some(c => c.instanceId === bear.instanceId), JSON.stringify(bear.zone));
+}
+
+{
+  // Bontu's Last Reckoning: "Lands you control don't untap during your next untap step."
+  const t = setup();
+  cast(t, 'Divination', "Destroy all creatures. Lands you control don't untap during your next untap step.", [], { manaCost: '{2}{U}', typeLine: 'Sorcery' });
+  const tapped = () => t.P(0).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine) && c.tapped).length;
+  const before = tapped();
+  t.autoPass = true; t.end(0); t.end(1); settle(t);
+  const after1 = tapped();
+  t.end(0); t.end(1); settle(t);
+  check("Bontu's Last Reckoning: the tapped lands stay tapped for one untap step only", before === 3 && after1 === 3 && tapped() === 0, JSON.stringify([before, after1, tapped()]));
+}
+
 done();

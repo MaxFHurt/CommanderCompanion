@@ -892,6 +892,20 @@ section('trigger effects: unless that player pays, that much life, that player, 
     settle(t, { resolve: d => { asked = d; return island.instanceId; } });
     check('bounce lands ask which land to return', asked && t.P(0).deck.hand.some(c => c.instanceId === island.instanceId), JSON.stringify(asked && asked.title));
   }
+  // Lairs: "When this land enters, sacrifice it unless you return a non-Lair land you control to its owner's hand."
+  for (const keep of [true, false]) {
+    const t = newGame(['simic', 'simic']);
+    t.keepAll();
+    t.give(0, 'Island', 'battlefield'); t.give(0, 'Forest');
+    const lair = t.hand(0, 'Forest'), island = t.bf(0, 'Island');
+    t.game.cardDefinitions[lair.definitionId] = { ...t.game.cardDefinitions[lair.definitionId], name: 'Test Lair', typeLine: 'Land — Lair', oracleText: "When this land enters, sacrifice it unless you return a non-Lair land you control to its owner's hand.\n{T}: Add {G}." };
+    t.autoPass = false;
+    t.ctl.dispatch({ type: 'play', instanceId: lair.instanceId }, t.as(0));
+    let asked = null;
+    settle(t, { resolve: d => { asked = d; return keep ? island.instanceId : 'self'; } });
+    const lairOn = t.P(0).deck.battlefield.some(c => c.instanceId === lair.instanceId), islandHome = t.P(0).deck.hand.some(c => c.instanceId === island.instanceId);
+    check(keep ? 'Lair: returning a non-Lair land keeps it (the Lair itself is not offered)' : 'Lair: choosing not to return a land sacrifices it', keep ? lairOn && islandHome && !asked.options.some(o => o.id === lair.instanceId) : !lairOn && !islandHome, JSON.stringify([asked?.prompt, lairOn, islandHome]));
+  }
 }
 section("activated abilities: Rogue's Passage, cycling reminder text");
 {
@@ -1340,6 +1354,14 @@ section('build 38: more card wording (mass pumps, looting, sacrifices, X counts,
     const ab = () => t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).abilities.find(a => /counter/.test(a.text));
     t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: ab().id }, t.as(0)); answerAll(t, first);
     check('"Activate only once each turn"', c.counters?.['+1/+1'] === 1 && !ab().legal && !t.try(0, { type: 'activate', instanceId: c.instanceId, abilityId: ab().id }).ok);
+  }
+  {
+    const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield');
+    const c = asText(t, t.bf(0, 'Llanowar Elves'), '{0}: This creature gets +1/+1 until end of turn. Activate no more than twice each turn.');
+    const ab = () => t.view(0).players[0].battlefield.find(x => x.id === c.instanceId).abilities.find(a => /\+1\/\+1/.test(a.text));
+    for (let k = 0; k < 2; k++) { t.ctl.dispatch({ type: 'activate', instanceId: c.instanceId, abilityId: ab().id }, t.as(0)); answerAll(t, first); }
+    const third = t.try(0, { type: 'activate', instanceId: c.instanceId, abilityId: ab().id });
+    check('"Activate no more than twice each turn": two uses, the third refused', (c.temporaryEffects || []).filter(e => e.kind === 'pump' || e.power).length >= 2 && !ab().legal && !third.ok, JSON.stringify([c.temporaryEffects, third.error]));
   }
   {
     const t = setup(); t.give(0, 'Llanowar Elves', 'battlefield'); t.give(0, 'Grizzly Bears');

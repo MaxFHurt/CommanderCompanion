@@ -52,13 +52,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Known limits
 
-- Moraug: the extra combat comes after the second main phase, not straight after the phase it triggered in.
-- Kardur: goads the opponents' creatures it sees as it enters; creatures they get later are not affected.
-- A land that becomes a copy (Thespian's Stage …) keeps the mana it made before.
-- Dredge is offered in the draw step and for the controller's own draws from a resolving spell or ability; not for draws another
-  player's effect gives them ("target player draws").
-- Cumulative upkeep and Echo are automatic only for mana costs (and "Pay N life" upkeep).
-- Still by hand: Banding, Haunt, Assist, Companion, Forecast, and most of the long tail.
+- Moraug, Kardur, copied lands, Dredge for other players' draws and Echo/Cumulative upkeep action costs: done (build 68);
+  costs that need a choice (build 79); costs an opponent takes part in (build 84).
+- Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
 

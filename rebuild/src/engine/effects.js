@@ -1857,7 +1857,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
   let c = stripReminderText(normalizeClause(clause));
   if (!c)
     return { effects, requirements, unsupported };
-  if (/^(?:Activate only|This ability|Cast this spell|Play this ability|Do this only)\b/i.test(c))
+  if (/^(?:Activate only|Activate no more than|This ability|Cast this spell|Play this ability|Do this only)\b/i.test(c))
     return { effects, requirements, unsupported };
   if (/^Choose (?:one|two|three|four|five|any number|one or more)\s*[—-]/i.test(c))
     return { effects, requirements, unsupported: [c] };

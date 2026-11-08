@@ -214,6 +214,8 @@ function compileCatalogClauseInner(c, ctx) {
   if (rx(`^Exile ${selfAny}\\.?$`, 'i').test(c) || /^Exile this spell\.?$/i.test(c)) { effects.push({ kind: 'exile-self' }); return true; }
   if (rx(`^Return (?:this card|${selfAny}) from your graveyard to your hand\\.?$`, 'i').test(c)) { effects.push({ kind: 'return-self-hand' }); return true; }
   if (rx(`^Put (?:this card|${selfAny}) from your graveyard on top of your library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-graveyard-to-library' }); return true; }
+  // Seasons Past, Ever After: "Put Seasons Past on the bottom of its owner's library." (the resolving spell goes there)
+  if (rx(`^Put (?:this card|this spell|${selfAny}) on the bottom of its owner'?s library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-library-nth', n: 9999 }); return true; }
   if (rx(`^Shuffle (?:this card|${selfAny}) into its owner'?s library\\.?$`, 'i').test(c) || rx(`^(?:This card's|${selfAny}'s) owner shuffles it into their library\\.?$`, 'i').test(c)) { effects.push({ kind: 'self-shuffle-into-library' }); return true; }
   if (rx(`^Put (?:${selfAny}|it) on top of its owner'?s library\\.?$`, 'i').test(c)) { effects.push({ kind: 'source-to-library-top' }); return true; }
 
@@ -1342,13 +1344,15 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'skip-untap', bind });
     return true;
   }
+  // Bontu's Last Reckoning: "Lands you control don't untap during your next untap step." (whatever you control then)
+  if ((m = c.match(/^(Lands|Creatures|Artifacts|Permanents) you control don'?t untap during your next untap step\.?$/i))) { effects.push({ kind: 'skip-untap-yours', filter: m[1].toLowerCase().replace(/s$/, '') }); return true; }
   if ((m = c.match(/^Tap (target [^.]+?)\. It doesn'?t untap during its controller'?s next untap step\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'tap', bind }, { kind: 'skip-untap', bind });
     return true;
   }
   // "If that creature would die this turn, exile it instead." / "If a creature dealt damage this way would die this turn, exile it instead."
-  if (/^If (?:that creature|it|a creature dealt damage this way|a creature dealt damage this turn by [^,]+|that permanent) would die this turn, exile it instead\.?$/i.test(c)) {
+  if (/^If (?:that creature(?: or planeswalker)?|that planeswalker|it|a creature dealt damage this way|a creature dealt damage this turn by [^,]+|that permanent) would die this turn, exile it instead\.?$/i.test(c)) {
     effects.push({ kind: 'exile-if-dies', bind: /dealt damage/i.test(c) ? '__damaged' : 'lastTarget' });
     return true;
   }
@@ -2189,6 +2193,10 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       }
       return true;
     }
+    case 'skip-untap-yours':
+      controller.skipNextUntap = [...new Set([...(controller.skipNextUntap || []), effect.filter])];
+      notes.push(`${effect.filter === 'permanent' ? 'Permanents' : `${effect.filter[0].toUpperCase()}${effect.filter.slice(1)}s`} ${controller.displayName} controls don't untap during their next untap step.`);
+      return true;
     case 'skip-untap':
     case 'skip-untap-recent': {
       const list = effect.kind === 'skip-untap-recent' ? [...new Set([...(bindings.lastMoved || []), ...[].concat(bindings[effect.bind] || [])])] : ids();

@@ -217,9 +217,12 @@ export function compileB49Clause(c, ctx) {
   // The Soul Stone: "Harness The Soul Stone." — its ∞ abilities work from now on.
   if (/^Harness (?:SELFNAME|this (?:artifact|permanent))\.?$/i.test(c)) { effects.push({ kind: 'harness' }); return true; }
   // The Gitrog Monster: "sacrifice The Gitrog Monster unless you sacrifice a land."
-  if ((m = c.match(/^sacrifice (?:SELFNAME|this (?:creature|permanent|enchantment|artifact)) unless you sacrifice (?:a|an) ([a-z]+)\.?$/i))) {
-    requirements.push({ kind: 'b49-sac-or-self', bind: 'sacOrSelf', filter: m[1].toLowerCase() });
-    effects.push({ kind: 'sac-or-self', bind: 'sacOrSelf' });
+  // Lairs, Visions karoos, Quickling, Mistbind Clique: "sacrifice it unless you return a non-Lair land you control to its owner's
+  // hand" / "… an untapped Island you control …" / "… unless you exile another Faerie you control".
+  if ((m = c.match(/^sacrifice (?:SELFNAME|it|this (?:creature|permanent|enchantment|artifact|land)) unless you (sacrifice|return|exile) (?:a|an|another) ([A-Za-z -]+?)(?: you control)?( to its owner'?s hand)?\.?$/i)) && (m[1].toLowerCase() === 'return') === !!m[3]) {
+    const untapped = /\buntapped\b/i.test(m[2]);
+    requirements.push({ kind: 'b49-sac-or-self', bind: 'sacOrSelf', filter: m[2].replace(/\buntapped\b/i, '').trim().toLowerCase(), untapped, verb: m[1].toLowerCase() });
+    effects.push({ kind: 'sac-or-self', bind: 'sacOrSelf', verb: m[1].toLowerCase() });
     return true;
   }
   // Bloodchief Ascension: "you may have that player lose 2 life. If you do, you gain 2 life."
@@ -729,7 +732,7 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
     }
     case 'self-library-nth':
       game.spellLibraryNth = { id: bindings.sourceId, n: effect.n };
-      notes.push(`${nameOf(game, bindings.sourceId)} goes into its owner's library ${effect.n === 7 ? 'seventh' : `#${effect.n}`} from the top.`);
+      notes.push(effect.n >= 9999 ? `${nameOf(game, bindings.sourceId)} goes to the bottom of its owner's library.` : `${nameOf(game, bindings.sourceId)} goes into its owner's library ${effect.n === 7 ? 'seventh' : `#${effect.n}`} from the top.`);
       return true;
     case 'pay-energy-any': {
       controller.counters = controller.counters || {};
@@ -1055,8 +1058,12 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
     }
     case 'sac-or-self': {
       const id = bindings[effect.bind], h = id && locateCardInGame(game, id);
-      const target = h?.zone === 'battlefield' ? id : bindings.sourceId;
-      if (locateCardInGame(game, target)?.zone === 'battlefield') { moveCard(game, target, 'graveyard', { moveReason: 'sacrifice', onEvent: e => H.emit(bindings, e) }); notes.push(`${controller.displayName} sacrifices ${nameOf(game, target)}.`); }
+      const chosen = h?.zone === 'battlefield', target = chosen ? id : bindings.sourceId, verb = chosen ? effect.verb || 'sacrifice' : 'sacrifice';
+      if (locateCardInGame(game, target)?.zone !== 'battlefield') return true;
+      const name = nameOf(game, target);
+      if (verb === 'return') { moveCard(game, target, 'hand', { onEvent: e => H.emit(bindings, e) }); notes.push(`${controller.displayName} returns ${name} to its owner's hand.`); }
+      else if (verb === 'exile') { moveCard(game, target, 'exile', { onEvent: e => H.emit(bindings, e) }); notes.push(`${controller.displayName} exiles ${name}.`); }
+      else { moveCard(game, target, 'graveyard', { moveReason: 'sacrifice', onEvent: e => H.emit(bindings, e) }); notes.push(`${controller.displayName} sacrifices ${name}.`); }
       return true;
     }
     case 'living-weapon': {
@@ -1363,8 +1370,9 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
     return true;
   }
   if (req.kind === 'b49-sac-or-self') {
-    const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
-    const v = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: `Sacrifice a ${req.filter}, or this is sacrificed.`, options: [{ id: 'self', label: `Sacrifice ${ctx.sourceName}` }, ...rows.map(c => util.cardOption(game, c, player))] })) : 'self';
+    const rows = (player.deck.battlefield || []).filter(c => c.instanceId !== bindings.sourceId && (!req.untapped || !c.tapped) && cardFitsWords(util.defOf(game, c), req.filter));
+    const verb = { return: 'Return', exile: 'Exile' }[req.verb] || 'Sacrifice', what = `${req.untapped ? 'an untapped ' : 'a '}${req.filter}${req.verb === 'return' ? ' to its owner\u2019s hand' : ''}`;
+    const v = rows.length ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: `${verb} ${what}, or this is sacrificed.`, options: [{ id: 'self', label: `Sacrifice ${ctx.sourceName}` }, ...rows.map(c => util.cardOption(game, c, player))] })) : 'self';
     bindings[req.bind] = v === 'self' ? null : v;
     return true;
   }
