@@ -217,6 +217,11 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 84 (Deck Builder 0.9.52, build 197): mana stuck only when nothing could be cast for colour; health warnings red only
+  when severely short; a reskinned commander (the Miku precon) shown under its printing's name and art everywhere.
+  Open from this round (owner, 8 Nov): health fixes in the upgrade list (built, taken out: wip/health-fixes-in-upgrades.md);
+  card quality by what the cards do, not popularity (switch built, not benchmarked: wip/card-quality-qEff.patch); card search
+  can't find newly renamed printings (not started).
 - Build 83 (Deck Builder 0.9.51, build 196): tokens the deck makes listed at the bottom of the decklist, not counted in the 100.
 - Build 82 (Deck Builder 0.9.50, build 195): the upgrade list stays after a swap; the row shows Replaced and In your deck.
 - Build 81 (Deck Builder 0.9.49, build 194): upgrades say how many cards in the deck they work with (measured: not scored).

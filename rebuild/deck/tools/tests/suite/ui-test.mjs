@@ -1608,21 +1608,6 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
-if (RUN('UI-B197-02')) { try { if (SHARD) await RESET();
-// Build 197 (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active health alert's best swaps are shown
-// at the top of the upgrade list, marked with the alert, and swapping one keeps the upgrade list.
-const b1972 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = true;
-  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
-  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
-  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
-  out.alerts = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k]);
-  for (let i = 0; i < 400 && UPFIX.busy; i++) await new Promise(r => setTimeout(r, 50));
-  render(); const rows = [...document.querySelectorAll('.upfix .fixsw')]; out.rows = rows.length; out.chips = rows.map(r => (r.querySelector('.chip.warn') || {}).textContent);
-  const R = recsFor(d), b = document.querySelector('.upfix [data-act="upfix-swap"]');
-  if (b) { const [k, i] = b.dataset.v.split('|'), p = UPFIX.G.find(x => x.k === k).L[+i]; b.click(); await new Promise(r => setTimeout(r, 200)); out.swapped = hasCard(d, p.add) && !hasCard(d, p.cut); out.kept = recsFor(d) === R; }
-  S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
-T('UI-B197-02', 'Build 197: active health alerts show their best swaps at the top of the upgrade list, marked with the alert; a swap there keeps the list', !b1972.alerts.length || (b1972.rows > 0 && b1972.chips.every(c => /^Fixes /.test(c)) && b1972.swapped && b1972.kept), JSON.stringify(b1972));
-} catch (e) { QUIET = false; T('UI-B197-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

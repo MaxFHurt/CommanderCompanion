@@ -2049,7 +2049,6 @@ const UP = {
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
   v2r: ['removal', 'wipe+', 'draw+'], // removal from the reading, wipes and card draw added from it: no benchmark number below 0.9.3 (ROADMAP)
   syn: 0, // engine v2: weight of synergy with the commander (fnSynergy)
-  qEff: 0, // 0.9.52 (owner, 8 Nov): card quality from the deck's rating against the Apex build's (evaluateDeck), not popularity
   optW: 0, // engine v2: weight of what the commander's bracket 4 decks run more than its decks overall (EDHREC optimized page)
   optN: 100,
   optMin: 30,
