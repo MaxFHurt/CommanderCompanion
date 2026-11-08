@@ -2046,6 +2046,10 @@ function tierCols(O, skip) {
 // Tuning carried over from Build 72/73 unchanged (wi: play rate, ws: synergy, wf: fit with the build, wd/wk: jobs lost/gained,
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
+  str: 0, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov): off until benchmarked
+  strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
+  strExp: 2, // its curve: strong cards count for more than several weak ones
+  strLand: 0.5, // lands count at half: a dual land helps the mana, not as much as a top spell
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
   v2r: ['removal', 'wipe+', 'draw+'], // removal from the reading, wipes and card draw added from it: no benchmark number below 0.9.3 (ROADMAP)
   syn: 0, // engine v2: weight of synergy with the commander (fnSynergy)

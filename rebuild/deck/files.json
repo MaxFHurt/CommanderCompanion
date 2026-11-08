@@ -14,7 +14,8 @@
   "engine/library.js",
   "engine/upgrades.js",
   "engine/mana.js",
-  "engine/generator.js"
+  "engine/generator.js",
+  "engine/strength.js"
  ],
  "ui": [
   "ui/base.js",

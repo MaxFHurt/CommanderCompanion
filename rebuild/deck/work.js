@@ -13,7 +13,7 @@ const V = self.location.search || '',
   ROLE = /role=help/.test(V) ? 'help' : 'build',
   VS = V.replace(/[?&]role=help/, '').replace(/^&/, '?');
 // the engine: the minified bundle (tools/build.sh), or with dev=1 the readable files (index.html's DEV_FILES, data and engine)
-importScripts(...(/[?&]dev=1(&|$)/.test(V) ? ["data.js", "lists.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js"] : ['engine.min.js']).map(f => f + VS));
+importScripts(...(/[?&]dev=1(&|$)/.test(V) ? ["data.js", "lists.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js", "engine/strength.js"] : ['engine.min.js']).map(f => f + VS));
 
 // ----- helper -----
 if (ROLE === 'help') {
