@@ -995,7 +995,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       }
       const ap0 = rowCols(d, recsFor(d), L, +i).apex,
         top = !!ap0 && ap0.p.add === p.add;
-      keepRecs(d, p);
+      keepRecs(d, p, top ? 'apex' : t, +i);
       doSwap(d, p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(t) + 1));
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;
@@ -1966,7 +1966,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.');
         return;
       }
-      keepRecs(d, p);
+      keepRecs(d, p, 'apex', +v);
       doSwap(d, p, TIER_KEYS.length);
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;
@@ -2063,7 +2063,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.');
         return;
       }
-      keepRecs(d, p);
+      keepRecs(d, p, t, +i);
       doSwap(d, p, TIER_KEYS.indexOf(t) + 1);
       toast('Swapped ' + p.cut + ' for ' + p.add + '.');
       break;

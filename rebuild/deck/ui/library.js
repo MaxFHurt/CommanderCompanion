@@ -676,26 +676,45 @@ function recsKey(d) {
 function dropHolds(d) {
   for (const k in d.recP || {}) if (!d.recP[k] || !d.recP[k].chosen) delete d.recP[k];
 }
-// After a swap the whole upgrade list is worked out again (owner, 31 Oct: "every swap should trigger a save and all upgrades
-// should be regenerated"; it replaces 24 Oct's "only its own slot"): one card changes what every other slot needs (curve,
-// roles, the commander's plan, combos), so the old list is not kept. carryRecs stays for a list carried on purpose.
-function keepRecs(d, p) {
-  recsFor.carry = null;
-  recDrop(d);
+// After a swap the upgrade list is kept (owner, 8 Nov, replacing 31 Oct's "all upgrades should be regenerated"): "Apex suggestions
+// should not change based on an upgrade I made of a mid or budget quality … It should just update to the current card while
+// still showing the old cards with a red big replaced chip." The row you swapped on keeps its higher tiers, now replacing the card
+// you put in; its own card is shown as the one in the deck; the card you took out is shown, marked Replaced. The other rows stay
+// as they were (a card now in the deck is no longer offered elsewhere). The list is worked out again only when asked
+// (Regenerate) or when the deck or its settings change some other way.
+function keepRecs(d, p, t, i) {
+  recsFor.carry = recsFor.v && !recsFor.v.pending ? {id: d.id, R: recsFor.v, cut: p.cut, add: p.add, t: t || 'apex', i} : null;
+  if (!recsFor.carry) recDrop(d);
 }
 function carryRecs(d, key) {
   const cy = recsFor.carry;
   recsFor.carry = null;
   if (!cy || cy.id !== d.id || cy.R !== recsFor.v) return null;
-  const R = cy.R;
-  R.paths = R.paths.filter(L => norm(L.cut) !== norm(cy.cut) || entryOf(d, L.cut));
+  const R = cy.R,
+    rank = t => ['budget', 'mid', 'apex'].indexOf(t),
+    row = Number.isInteger(+cy.i) && R.paths[+cy.i] && norm(R.paths[+cy.i].cut) === norm(cy.cut) ? R.paths[+cy.i] : R.paths.find(L => norm(L.cut) === norm(cy.cut));
+  if (row && !entryOf(d, row.cut)) {
+    // the row you swapped on: what was there is kept (Replaced), the card you put in is now the row's card, and the tiers above
+    // the one you used still offer to replace it
+    row.orig = row.orig || row.cut;
+    row.applied = {t: cy.t, n: cy.add, opt: row.opts[cy.t] && norm(row.opts[cy.t].add) === norm(cy.add) ? row.opts[cy.t] : {add: cy.add, cut: cy.cut, q: 1}};
+    row.cut = cy.add;
+    for (const t of Object.keys(row.opts)) {
+      const o = row.opts[t];
+      if (!o || norm(o.add) === norm(cy.add) || rank(t) <= rank(cy.t)) delete row.opts[t];
+      else o.cut = cy.add;
+    }
+    delete row.top;   // its "Highest score" was measured against the old card
+  }
+  R.paths = R.paths.filter(L => L === row || norm(L.cut) !== norm(cy.cut) || entryOf(d, L.cut));
   R.paths.forEach(L => {
+    if (L === row) return;
     for (const t of Object.keys(L.opts)) {
-      const p = L.opts[t];
-      if (p && norm(p.add) === norm(cy.add) && !isBasic(p.add) && hasCard(d, p.add)) delete L.opts[t];
+      const o = L.opts[t];
+      if (o && norm(o.add) === norm(cy.add) && !isBasic(o.add) && hasCard(d, o.add)) delete L.opts[t];
     }
   });
-  R.paths = R.paths.filter(L => Object.values(L.opts).some(Boolean));
+  R.paths = R.paths.filter(L => L.applied || Object.values(L.opts).some(Boolean));
   ROWC.k = null;
   recsFor.k = key;
   recsFor.done(d);

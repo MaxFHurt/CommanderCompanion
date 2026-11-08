@@ -175,7 +175,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 2. **Open questions for the owner** (deck/WORK_SESSION_HANDOFF.md section 0):
    - The Apex rule against players: keep, or review the biggest score finds (Archpriest of Shadows, Evolution Witness,
      The Soul Stone…) in case the score overrates them.
-   - Progress bar and budget plan: marks as the deck with a tier's swaps applied, frozen until settings change?
+   - (Answered 8 Nov, build 82.) The upgrade list is kept after a swap (owner: "Apex suggestions should not change based on an
+     upgrade I made of a mid or budget quality"): the row keeps its higher tiers, shows the card you put in (In your deck)
+     and the card you took out (a red Replaced chip); the list is worked out again only on Regenerate or another change.
    - Speed: keep each card's reading between launches; send the card library to the background core once at launch.
    - Plans the engine can't see yet: fliers, defenders/toughness, goad, untap, opponents' cards, keyword counters — which
      to add (section 5.1 may cover several).
@@ -215,6 +217,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 82 (Deck Builder 0.9.50, build 195): the upgrade list stays after a swap; the row shows Replaced and In your deck.
 - Build 81 (Deck Builder 0.9.49, build 194): upgrades say how many cards in the deck they work with (measured: not scored).
 - Build 80 (Deck Builder 0.9.48, build 193): 129 card-role misreads fixed (draw triggers, own-permanent targets, Demonic Consultation).
 - Build 79: Rooms, flip cards, time travel, Echo/Cumulative upkeep paid with a choice, Class and energy wordings (269 more cards).

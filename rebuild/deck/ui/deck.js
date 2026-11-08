@@ -499,9 +499,9 @@ function upPanel(d, A, mode) {
       const fz = S.upOrd.m[ok];
       if (fz) {
         const pos = new Map(fz.map((c, i) => [c, i])),
-          at = x => (pos.has(x[0].cut) ? pos.get(x[0].cut) : 1e6);
+          at = x => (pos.has(x[0].orig || x[0].cut) ? pos.get(x[0].orig || x[0].cut) : 1e6);   // an upgraded row keeps its place
         PV.sort((a, b) => at(a) - at(b));
-      } else if (!R.pending) S.upOrd.m[ok] = PV.map(([L]) => L.cut);
+      } else if (!R.pending) S.upOrd.m[ok] = PV.map(([L]) => L.orig || L.cut);
     }
     const sheet = (S.upView || 'sheet') === 'sheet' && PV.length > 0,
       si = sheet ? (S.sheetI = Math.max(0, Math.min(PV.length - 1, S.sheetI || 0))) : 0,
@@ -537,7 +537,7 @@ function upPanel(d, A, mode) {
           // the explanation shares the swap-history row, so every card keeps the same 7 rows and lines up with its neighbours
           return (
             '<div class="path">' +
-            side('out', L.cut, 1) +
+            (L.orig ? side('out', L.orig, 1).replace('class="sw out', 'class="sw out was').replace('<small>Remove</small>', '<small>Your card</small>').replace(/<\/button>$/, '<span class="chip bad replaced" aria-label="Replaced by ' + esc(L.cut) + '">Replaced</span></button>') : side('out', L.cut, 1)) +
             '<div class="cutwhy">' +
             (cw.length ? '<p class="note" style="margin:0">Why it can go: ' + esc(cw.join(' · ')) + '</p>' : '') +
             histHtml(en) +
@@ -590,6 +590,16 @@ function upPanel(d, A, mode) {
                   '</span><p>' +
                   esc((col && col.note) || (L.none && L.none[t]) || 'No ' + TIERS[t].label + ' pick for this slot') +
                   '</p></div>'
+                );
+              if (col.kind === 'applied')
+                return (
+                  '<div class="opt applied" data-t="' +
+                  t +
+                  '"><span class="chip gold">' +
+                  TIERS[t].label +
+                  '</span>' +
+                  side('in', p.add, p.q).replace('<small>Add</small>', '<small>In your deck</small>') +
+                  '<div class="row"><span class="chip good">In your deck</span></div></div>'
                 );
               const inh =
                 col.kind === 'moved' && t === 'apex'

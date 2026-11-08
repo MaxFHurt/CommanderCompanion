@@ -1448,14 +1448,14 @@ const b156 = await page.evaluate(async () => { const out = {}; const sy = S.sync
   out.order = R.paths.every((L, i) => { const c = rowCols(d, R, L, i), s = t => c[t] && c[t].p ? c[t].p.dScore : null; return s('budget') == null || s('mid') == null || s('budget') <= s('mid'); });
   out.btn = [...document.querySelectorAll('.tierbtn span')].map(x => x.textContent).every(x => /^(\d+ cards? · \$\d+ to buy|No worthwhile upgrades)$/.test(x));
   const b = document.querySelector('.paths [data-act="swap"]'); out.swapped = !!b; if (b) { b.click(); await new Promise(r => setTimeout(r, 300)); }
-  const R2 = recsFor(d); out.kept = R2 !== R; // 0.9.23 (owner, 31 Oct): after a swap the whole list is worked out again
+  const R2 = recsFor(d); out.kept = R2 === R && R2.paths.some(L => L.orig); // 0.9.50 (owner, 8 Nov, replacing 31 Oct's "worked out again"): the list is kept and the row shows the card it replaced
   S.tab = 'buy'; render(); out.snap = !!(d.buySnap && d.buySnap.groups.length); const g = document.querySelector('[data-act="buy-got"]'); if (g) { const n = g.dataset.n; g.click(); await new Promise(r => setTimeout(r, 200)); out.got = (d.bought || []).includes(n); }
   out.refresh = !!document.querySelector('[data-act="buy-refresh"]');
   S.gen = {cmd:'', partner:'', sets:[], setsMust:false}; openGenerate(); handleAct('gen-pick', '', 'Heroes in a Half Shell'); out.confirm = !!document.querySelector('#modal .gconfirm [data-act="gen-pick-ok"]');
   handleAct('gen-pick-back', '', ''); out.back = !!document.querySelector('#gen-q');
   genBuilding(find('Heroes in a Half Shell')); setStatus('Thinking… test'); out.building = /Thinking… test/.test((document.querySelector('#genbuild-msg') || {}).textContent || ''); setStatus(''); $('#modal').hidden = true;
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
-T('UI-B156-01', 'Version 0.9.11: no held picks; Budget never scores above Mid on a row; tier buttons say what the new cards cost; one swap works the whole list out again; buy suggestions kept with Bought marks and Refresh; Generate asks before using a commander and keeps a Building window up', b156.rows > 0 && !b156.holds && b156.order && b156.btn && b156.swapped && b156.kept && b156.snap && b156.got && b156.refresh && b156.confirm && b156.back && b156.building, JSON.stringify(b156));
+T('UI-B156-01', 'Version 0.9.11: no held picks; Budget never scores above Mid on a row; tier buttons say what the new cards cost; a swap keeps the list (0.9.50); buy suggestions kept with Bought marks and Refresh; Generate asks before using a commander and keeps a Building window up', b156.rows > 0 && !b156.holds && b156.order && b156.btn && b156.swapped && b156.kept && b156.snap && b156.got && b156.refresh && b156.confirm && b156.back && b156.building, JSON.stringify(b156));
 } catch (e) { QUIET = false; T('UI-B156-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B157-01')) { try { if (SHARD) await RESET();
 // Version 0.9.12 (owner, 24 Oct): every row has an Apex card (the slot's best card, even a cheap one: it is not shown as Budget),
@@ -1551,6 +1551,33 @@ const b192 = await page.evaluate(async () => { const out = {};
   HFIX.delete(d.id); S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B192-01', 'Build 192: the green + follows the Fix menus: every land the Mana fix offers is marked, no land that always enters tapped is, and a card completing a winning combo counts for Win routes', b192.tapped > 0 && !b192.tappedPlus.length && b192.adds > 0 && !b192.addsMissing.length && !b192.winsMissing.length, JSON.stringify(b192));
 } catch (e) { QUIET = false; T('UI-B192-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B195-01')) { try { if (SHARD) await RESET();
+// Build 195 (owner, 8 Nov: "Apex suggestions should not change based on an upgrade I made of a mid or budget quality … It should
+// just update to the current card while still showing the old cards with a red big replaced chip"): a Budget swap keeps the
+// list; its row now holds the Budget card, shows the old card as Replaced, and still offers the same Apex card.
+if (process.env.SHOT) await page.evaluate(() => { window.__shot = true; });
+const b195 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'sheet'; recsFor.k = null; render(); await recsReady(d); render();
+  const R = recsFor(d), i = R.paths.findIndex(L => L.opts.budget && L.opts.apex && norm(L.opts.budget.add) !== norm(L.opts.apex.add));
+  out.found = i >= 0; if (i < 0) return out;
+  const L = R.paths[i], cut = L.cut, budget = L.opts.budget.add, apex = L.opts.apex.add, others = R.paths.filter(x => x !== L).map(x => x.cut + '>' + (x.opts.apex && x.opts.apex.add)).join('|');
+  handleAct('swap', i + '|budget'); await new Promise(r => setTimeout(r, 300));
+  if (!$('#modal').hidden && $('#modal [data-act="mana-skip"]')) { $('#modal [data-act="mana-skip"]').click(); await new Promise(r => setTimeout(r, 300)); }
+  out.inDeck = hasCard(d, budget) && !hasCard(d, cut);
+  const R2 = recsFor(d), L2 = R2.paths.find(x => x.orig && norm(x.orig) === norm(cut));
+  out.sameList = R2 === R;
+  out.row = !!L2 && norm(L2.cut) === norm(budget) && !!L2.opts.apex && norm(L2.opts.apex.add) === norm(apex) && norm(L2.opts.apex.cut) === norm(budget);
+  out.othersKept = R2.paths.filter(x => x !== L2).map(x => x.cut + '>' + (x.opts.apex && x.opts.apex.add)).join('|') === others;
+  S.upView = 'list'; render();
+  out.chip = [...document.querySelectorAll('.chip.replaced')].length > 0;
+  out.applied = [...document.querySelectorAll('.opt.applied')].some(x => x.textContent.includes(budget));
+  if (window.__shot) { S.upView = 'sheet'; const PVi = [...document.querySelectorAll('.path')].length; render(); for (let k = 0; k < 40; k++) { if (document.querySelector('.s4.was')) break; handleAct('sheet-go', String(k + 1)); } window.__shotDeck = d; return out; }
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+if (process.env.SHOT) { await page.evaluate(() => document.querySelector('.sheet')?.scrollIntoView()); await page.screenshot({ path: process.env.SHOT, fullPage: false }); await page.evaluate(() => { const d = window.__shotDeck; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); }); }
+T('UI-B195-01', 'Build 195: a Budget swap keeps the upgrade list: the row now holds the Budget card (in your deck), the old card is marked Replaced, the Apex pick is the same card and now replaces the Budget one, and the other rows are unchanged', b195.found && b195.inDeck && b195.sameList && b195.row && b195.othersKept && b195.chip && b195.applied, JSON.stringify(b195));
+} catch (e) { QUIET = false; T('UI-B195-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

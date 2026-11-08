@@ -170,3 +170,12 @@ a { color: var(--glow); }
 .s4 .bdg.gc { background: rgba(80, 45, 150, 0.95); border: 1px solid var(--glow); }
 .s4 .bdg.fix { background: #1f8f4e; border: 1px solid var(--good); font-size: 16px; }
 .s4 .bdg.gc + .bdg.fix { left: 40px; }
+
+/* 0.9.50 (owner, 8 Nov): an upgraded slot keeps the card you took out, marked with a big red Replaced chip across its middle */
+.s4.was, .sw.out.was { position: relative; }
+.s4.was img, .sw.out.was img { opacity: 0.5; filter: grayscale(0.4); }
+.chip.replaced { position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%) rotate(-8deg); z-index: 2;
+  background: #c8102e; color: #fff; border: 2px solid #fff; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 6px 14px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); pointer-events: none; }
+.opt.applied { outline: 2px solid rgba(60, 200, 120, 0.6); outline-offset: -2px; }
+

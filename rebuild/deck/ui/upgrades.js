@@ -1003,11 +1003,14 @@ function sheetHead(d, R, L, i, si, n, sel) {
     (si + 1 < n ? '' : ' disabled') +
     ' aria-label="Next upgrade">Next ›</button></div>' +
     '<div class="sheet4">' +
-    slot('cut', 'Your card', L.cut, 'In the deck', en && en.pp != null ? '$' + en.pp.toFixed(2) : money(find(L.cut))) +
+    (L.orig
+      ? slot('cut', 'Your card', L.orig, '<span class="chip bad replaced">Replaced</span>', money(find(L.orig))).replace('class="s4', 'class="s4 was')
+      : slot('cut', 'Your card', L.cut, 'In the deck', en && en.pp != null ? '$' + en.pp.toFixed(2) : money(find(L.cut)))) +
     ['budget', 'mid', 'apex']
       .map(t => {
         const p = RC[t] && RC[t].p;
-        return slot(t, TIERS[t].label, p ? p.add : '', p ? sc(p) : 'None for this slot', p ? money(find(p.add)) : '');
+        if (p && RC[t].kind === 'applied') return slot(t, TIERS[t].label, p.add, '<span class="chip good">In your deck</span>', money(find(p.add)));
+        return slot(t, TIERS[t].label, p ? p.add : '', p ? sc(p) : (RC[t] && RC[t].note) || 'None for this slot', p ? money(find(p.add)) : '');
       })
       .join('') +
     '</div>'
@@ -1440,6 +1443,16 @@ function rowCols(d, R, L, i) {
                   : '');
         })()
       };
+  }
+  // A row you already upgraded on (owner, 8 Nov): the tier you used shows the card you put in, marked as in your deck; the tiers
+  // below it are passed; the ones above still offer to replace it.
+  if (L.applied) {
+    const at = ['budget', 'mid', 'apex'].indexOf(L.applied.t);
+    ['budget', 'mid', 'apex'].forEach((t, k) => {
+      if (k === at) out[t] = {p: L.applied.opt, src: t, kind: 'applied'};
+      else if (k < at) out[t] = {p: null, note: 'You upgraded past ' + TIERS[t].label + ' on this slot.'};
+    });
+    shown.add(norm(L.applied.n));
   }
   out.shown = shown;
   ROWC.m.set(i, out);
