@@ -130,6 +130,8 @@ export function catalogTriggerMatch(game, row, t, event, H) {
         const at = (event.attacks || []).filter(a => a.defenderId === me || (/planeswalkers you control/i.test(t) && a.targetId && mine.has(a.targetId))).length;
         return at >= 2;
       }
+      // Duelist's Heritage, Argent Dais: "Whenever one or more (two or more) creatures attack" — any player's attack.
+      if ((m = t.match(/^Whenever (one|two|three|four) or more creatures attack(?:,|$)/i))) return (event.attackers || []).length >= { one: 1, two: 2, three: 3, four: 4 }[m[1].toLowerCase()];
       if ((m = t.match(/^Whenever (.+?) and at least (one|two|three|four) other creatures attack/i))) {
         const n = { one: 1, two: 2, three: 3, four: 4 }[m[2].toLowerCase()];
         return (event.attackers || []).includes(self) && (event.attackers || []).length >= n + 1;
@@ -180,6 +182,7 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       if ((m = t.match(/^Whenever (.+?) deals noncombat damage to (an opponent|a player|one or more opponents)/i))) {
         if (event.type !== 'damage-player' || event.combat) return false;
         if (/opponent/i.test(m[2]) && event.playerId === me) return false;
+        if (/^a source you control$/i.test(m[1])) return event.controllerId === me;   // Niv-Mizzet, Visionary; Chandra's Incinerator
         return H.subjectEvent(game, row, m[1], event);
       }
       if ((m = t.match(/^Whenever (.+?) deals damage(?:,|$)/i)) && event.type === 'damage-player' && !event.combat) return H.subjectEvent(game, row, m[1], event);

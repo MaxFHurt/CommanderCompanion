@@ -3080,4 +3080,45 @@ section('long tail, build 84');
   check('Oust: second from the top of its owner\'s library; its controller gains 3 life', t.P(1).deck.remainingLibrary[1]?.instanceId === vic.instanceId && t.P(1).life === life + 3, JSON.stringify([t.P(1).deck.remainingLibrary.findIndex(c => c.instanceId === vic.instanceId), t.P(1).life - life]));
 }
 
+section('triggers that never fired (build 89)');
+{
+  // Niv-Mizzet, Visionary: "Whenever a source you control deals noncombat damage to an opponent, you draw that many cards."
+  const t = setup();
+  onField(t, 'Llanowar Elves', 'Whenever a source you control deals noncombat damage to an opponent, you draw that many cards.');
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Opt deals 2 damage to target player.', [[d => d.targeting, () => t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Niv-Mizzet, Visionary: noncombat damage to an opponent from your spell draws that many', t.P(0).deck.hand.length === hand + 2, JSON.stringify(t.P(0).deck.hand.length - hand));
+}
+{
+  // Glaring Fleshraker: "Whenever another colorless creature you control enters, …"; a coloured token does not count
+  const t = setup();
+  onField(t, 'Llanowar Elves', 'Whenever another colorless creature you control enters, you gain 1 life.');
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'Create a 1/1 green Saproling creature token.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  const afterGreen = t.P(0).life;
+  cast(t, 'Divination', 'Create a 1/1 colorless Eldrazi Scion creature token.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"another colorless creature you control enters": a colorless token counts, a green one does not', afterGreen === life && t.P(0).life === life + 1, JSON.stringify([life, afterGreen, t.P(0).life]));
+}
+{
+  // Argent Dais: "Whenever two or more creatures attack, put an oil counter on this artifact."
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(0, 'Llanowar Elves', 'battlefield'); t.give(0, 'Sol Ring', 'battlefield');
+  const dais = t.bf(0, 'Sol Ring'); asText(t, dais, 'Whenever two or more creatures attack, put an oil counter on this artifact.', { typeLine: 'Artifact' });
+  t.end(0); t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [t.bf(0, 'Grizzly Bears'), t.bf(0, 'Llanowar Elves')].map(c => ({ instanceId: c.instanceId, defenderId: t.P(1).playerId })) });
+  settle(t);
+  check('Argent Dais: two creatures attacking puts an oil counter on it', Number(dais.counters?.oil || 0) === 1, JSON.stringify(dais.counters));
+}
+{
+  // Tome of Legends: "Whenever your commander enters or attacks, put a page counter on this artifact."
+  const t = setup();
+  const tome = onField(t, 'Sol Ring', 'Whenever your commander enters or attacks, put a page counter on this artifact.', { typeLine: 'Artifact' });
+  const cmd = t.P(0).deck.commandZone[0];
+  t.edit({ kind: 'move', instanceId: cmd.instanceId, to: 'battlefield' }); settle(t);
+  const afterCmd = Number(tome.counters?.page || 0);
+  onField(t, 'Grizzly Bears', ''); t.edit({ kind: 'move', instanceId: t.bf(0, 'Grizzly Bears').instanceId, to: 'hand' }); t.edit({ kind: 'move', instanceId: t.hand(0, 'Grizzly Bears').instanceId, to: 'battlefield' }); settle(t);
+  check('Tome of Legends: your commander entering adds a page counter; another creature does not', afterCmd === 1 && Number(tome.counters?.page || 0) === 1, JSON.stringify([afterCmd, tome.counters]));
+}
+
 done();

@@ -37,8 +37,10 @@ function isSelfPhrase(phrase, definition) {
 /** Read a subject phrase into a filter. Returns null if the words are not understood. */
 export function parseSubject(phrase, definition) {
   let s = String(phrase || '').trim().replace(/\s+/g, ' ');
-  const out = { self: false, orSelf: false, another: false, equipped: false, enchanted: false, token: null, types: [], allTypes: [], nonTypes: [], colors: [], controller: null, power: null, manaValue: null, keywords: [], attacking: false, blocking: false, modified: false, chosenType: false };
+  const out = { self: false, orSelf: false, another: false, equipped: false, enchanted: false, token: null, types: [], allTypes: [], nonTypes: [], colors: [], controller: null, power: null, manaValue: null, keywords: [], attacking: false, blocking: false, modified: false, chosenType: false, colorless: false, multicolored: false };
   if (isSelfPhrase(s, definition)) { out.self = true; return out; }
+  // Tome of Legends: "your commander" (a commander you own); "a commander you control" reads the same way, controlled by you.
+  if (/^(?:your commander|a commander you control|one or more commanders you control)$/i.test(s)) { out.commander = true; out.controller = /you control/i.test(s) ? 'you' : null; out.ownCommander = /^your/i.test(s); out.types.push('*'); return out; }
   // "Omnath or another Elemental you control"
   const orSelf = s.match(/^(.+?) or (another .+)$/i);
   if (orSelf && isSelfPhrase(orSelf[1], definition)) { out.orSelf = true; s = orSelf[2]; }
@@ -62,6 +64,8 @@ export function parseSubject(phrase, definition) {
     for (const adj of words) {
       const a = adj.toLowerCase();
       if (COLORS[a]) out.colors.push(COLORS[a]);
+      else if (a === 'colorless') out.colorless = true;   // Glaring Fleshraker, Eldrazi Mimic
+      else if (a === 'multicolored') out.multicolored = true;
       else if (a === 'nontoken') out.token = false;
       else if (a === 'token') out.token = true;
       else if (a === 'attacking') out.attacking = true;
@@ -108,6 +112,13 @@ export function subjectMatches(game, row, subject, card, def, controllerId) {
   if (subject.allTypes.some(t => !has(t))) return false;
   if (subject.nonTypes.some(t => typeWord(typeLine, t))) return false;
   if (subject.colors.length && !subject.colors.some(c => (def?.colors || []).includes(c))) return false;
+  if (subject.commander) {
+    const owner = (game.players || []).find(p => p.playerId === (card.ownerId || controllerId));
+    if (!owner || !(owner.commanders || []).some(c => c.cardId === card.definitionId)) return false;
+    if (subject.ownCommander && owner.playerId !== row.player.playerId) return false;
+  }
+  if (subject.colorless && (def?.colors || []).length) return false;
+  if (subject.multicolored && (def?.colors || []).length < 2) return false;
   if (subject.power) {
     const p = Number(effectivePower(card, def, game));
     if (subject.power.op === 'greater' ? p < subject.power.n : p > subject.power.n) return false;
