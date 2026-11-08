@@ -957,6 +957,7 @@ function poolGo(d, R, k) {
         poolApply(Q, r.vals);
         poolFree(d, poolPromote(Q, d));
         stickTheme(d, R);
+        if (R.str) strengthPaths(d, R); // the strength list stays the list: the search's finds don't replace its picks
         ROWC.k = null;
         R.poolDone = true;
         R.poolMs = r.ms;
@@ -991,6 +992,7 @@ function poolSlices(d, R, Q) {
     // every row's Highest score appears at once, when the search is done: nothing shifts while it runs
     poolFree(d, poolPromote(Q, d));
     stickTheme(d, R);
+    if (R.str) strengthPaths(d, R); // the strength list stays the list: the search's finds don't replace its picks
     ROWC.k = null;
     R.poolDone = true;
     recSave(d, R);

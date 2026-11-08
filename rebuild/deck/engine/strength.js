@@ -113,12 +113,14 @@ function strFit(c, d) {
   const E = strCtx(d).E,
     x = E && E.map && edhOf(E.map, c),
     f0 = x ? Math.max(0, Math.min(1, 3 * x.syn)) : 0;
-  if (!UP.strAim || !E || !E.tmap) return f0;
+  if (!UP.strAim || !(d.aims || []).length) return f0;
   let f = f0;
   (d.aims || []).slice(0, 5).forEach((a, i) => {
-    const m = isEdhAim(a) && E.tmap[a.slice(4)],
+    const m = isEdhAim(a) && E && E.tmap && E.tmap[a.slice(4)],
       y = m && edhOf(m, c);
     if (y) f = Math.max(f, UP.strAim * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn)));
+    // a mechanic the card does (or a theme whose page isn't loaded) counts too, a little less
+    else if (matchAim(c, a, d.tribe) >= 0.7) f = Math.max(f, UP.strAim * STR_AIM_W[i] * 0.5);
   });
   return f;
 }
@@ -396,6 +398,19 @@ function strengthPaths(d, R) {
       const p = L.opts[t];
       if (p && ap && !ap.held && p.dScore > ap.dScore) L.opts.apex = Object.assign({}, p, {t: 'apex'});
     }
+    // one card per row: a cheaper tier showing the Apex card falls back to it (the row shows each card once); a pick that
+    // would lower power on this scale (a casual pick can) takes the next best card or leaves the tier to the one above
+    for (const t of ['mid', 'budget']) {
+      const p = L.opts[t];
+      if (!p || p.held) continue;
+      if (p.dScore < SCORE_MIN) {
+        const r = nextFor(L, t, new Set(Object.values(L.opts).map(x => x.add)));
+        if (r) L.opts[t] = r;
+        else delete L.opts[t];
+      }
+    }
+    if (L.opts.mid && L.opts.apex && L.opts.mid.add === L.opts.apex.add && !L.opts.mid.held) delete L.opts.mid;
+    if (L.opts.budget && [L.opts.apex, L.opts.mid].some(x => x && x.add === L.opts.budget.add) && !L.opts.budget.held) delete L.opts.budget;
     for (const t of ['apex', 'mid', 'budget']) if (L.opts[t]) used.set(L.opts[t].add, L);
     L.gain = L.opts.apex ? L.opts.apex.dScore : Math.max(...Object.values(L.opts).map(p => p.dScore));
   });

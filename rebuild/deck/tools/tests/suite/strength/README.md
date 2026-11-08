@@ -1,0 +1,1 @@
+Card strength data for the UI tests: copied from the card-data branch of MaxFHurt/Deck-Companion (commit in SOURCE.txt), the ratings and the commander files the tests open. ui-test.mjs serves it in place of the download (STRHOST=<folder> serves another copy).
