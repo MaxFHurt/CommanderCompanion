@@ -101,10 +101,26 @@ function cardStrength(c, d, casual) {
     l = X.local.get(c._n);
   return Math.min(1, Math.max(g, l ? (0.8 * l.num) / X.den : 0));
 }
+// fit with the commander's plan: EDHREC synergy on its page, or with the deck's chosen themes (their EDHREC theme pages; the
+// first theme counts most, so reordering them steers the picks)
+const STR_AIM_W = [1, 0.8, 0.6, 0.5, 0.4];
+// how many of the deck's theme pages are loaded (they arrive after the commander's page)
+function strTm(d) {
+  const E = strCtx(d).E;
+  return E && E.tmap ? (d.aims || []).filter(a => isEdhAim(a) && E.tmap[a.slice(4)]).length : 0;
+}
 function strFit(c, d) {
   const E = strCtx(d).E,
-    x = E && E.map && edhOf(E.map, c);
-  return x ? Math.max(0, Math.min(1, 3 * x.syn)) : 0;
+    x = E && E.map && edhOf(E.map, c),
+    f0 = x ? Math.max(0, Math.min(1, 3 * x.syn)) : 0;
+  if (!UP.strAim || !E || !E.tmap) return f0;
+  let f = f0;
+  (d.aims || []).slice(0, 5).forEach((a, i) => {
+    const m = isEdhAim(a) && E.tmap[a.slice(4)],
+      y = m && edhOf(m, c);
+    if (y) f = Math.max(f, UP.strAim * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn)));
+  });
+  return f;
 }
 function strInc(c, d) {
   const E = strCtx(d).E,
@@ -116,7 +132,7 @@ function strInc(c, d) {
 function strValue(c, d, casual) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc;
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strAim + '|' + (UP.strAim ? (d.aims || []).join(',') + ':' + strTm(d) : '');
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
@@ -187,7 +203,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strAim, strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
@@ -206,7 +222,7 @@ function strengthRef(d) {
     slots = strSlots(d),
     nS = slots.filter(c => !tags(c).land).length,
     floor = slots.length ? (nS * r0) / slots.length : 0;
-  const R = {key: k, core, apex, mid, budget, floor, top: strMean(d, apex.list)};
+  const R = {key: k, core, pool, apex, mid, budget, floor, top: strMean(d, apex.list)};
   STR_REF.set(k, R);
   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
   return R;
@@ -229,52 +245,196 @@ function strengthGain(d, cut, add, q) {
     dv = (strValue(find(add), d, false) - strValue(find(cut), d, false)) * (q || 1);
   return (100 * (dv / n)) / (R.top - R.floor);
 }
+// The swaps a build makes, against the deck as it stands: slot by slot, what went out and what is there now (a card a build
+// put in and later replaced again is not a swap).
+function strNet(d, B) {
+  const orig = strSlots(d),
+    out = [];
+  B.list.forEach((c, i) => {
+    if (orig[i] && c !== orig[i] && c.n !== orig[i].n) out.push({cut: orig[i].n, add: c.n});
+  });
+  return out;
+}
+// What an upgrade pick may be for this deck: legal, in its colours, not a basic, not already in it (any printing), not ruled
+// out by the player (excluded), and inside its own rules (card sets, creature types, keywords marked as must).
+function strOk(d) {
+  const ctx = ctxOf(d),
+    dis = new Set((d.dismissed || []).map(keyOf)),
+    inD = new Set(
+      d.cards
+        .map(e => keyOf(e.n))
+        .concat(d.cards.map(e => find(e.n)).filter(Boolean).map(c => keyOf(c.n)), [keyOf(d.commander)], d.partner ? [keyOf(d.partner)] : [])
+    );
+  return c =>
+    !!c && legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && !isBasic(c.n) && !dis.has(c._k) && !dis.has(keyOf(c.n)) && !inD.has(c._k) && !inD.has(keyOf(c.n)) && mustOk(c, d);
+}
+// The pick builds: the reference builds when nothing rules a card out, else the same builds from the allowed cards only
+// (the power scale stays the reference builds').
+function strPicks(d, SR) {
+  const ok = strOk(d),
+    k = SR.key + '|' + JSON.stringify([d.dismissed || [], d.sets || [], !!d.setsMust, d.types || [], !!d.typesMust, d.keys || [], !!d.keysMust]);
+  if (SR.picks && SR.picks.k === k) return SR.picks;
+  const pool = SR.pool.filter(ok),
+    same = pool.length === SR.pool.length;
+  const B = same
+    ? {apex: SR.apex, mid: SR.mid, budget: SR.budget}
+    : {apex: strBuild(d, null, false, pool, SR.core), mid: strBuild(d, 12, true, pool, SR.core), budget: strBuild(d, 3, true, pool, SR.core)};
+  SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
+  return SR.picks;
+}
 // The upgrade list from the strength builds (UP.str): one row per card the Apex build replaces, biggest gain first (at most
 // UP.strRows), each with that row's Apex pick and, where the Mid and Budget builds replace the same card, their picks.
-// A pick's dScore is its change in deck power on this scale, so the chips and sheets read it as power.
+// The Apex pick is the strongest of the row's picks, Mid the stronger of Mid and Budget; no card is picked on two rows (the
+// next best card for the slot takes its place); held picks (a chosen alternative) are kept; each tier lists up to three
+// alternatives that keep at least half its pick's gain. A pick's dScore is its change in deck power on this scale, so the
+// chips and sheets read it as power. Spare-land rows from the regular list stay, measured the same way.
 function strengthPaths(d, R) {
   const SR = strengthRef(d);
   if (!SR || !R) return R;
+  const P = strPicks(d, SR),
+    ok = strOk(d),
+    A0 = analyze(d),
+    E = strCtx(d).E;
   const rate = n => {
     const c = find(n),
       v = c && STRENGTH.cards.get(c._n);
     return v ? v[0] : strIsNew(c) ? null : 0;
   };
-  const pick = (s, t) => {
-    const r = rate(s.add),
-      g = strengthGain(d, s.cut, s.add, 1);
+  const gain = (cut, add) => strengthGain(d, cut, add, 1);
+  const inc = c => {
+    const x = E && E.map && edhOf(E.map, c);
+    return x ? +x.inc.toFixed(3) : 0;
+  };
+  const priceOk = (c, t) => t === 'apex' || (c.p != null && underCap(c.p, t));
+  // a card may take a slot if it is a land for a land, and it doesn't drop a job (ramp, draw, removal, wipes) below what the
+  // deck needs
+  const fits = (cutC, c) => {
+    if (!cutC || !c || !!tags(cutC).land !== !!tags(c).land) return false;
+    return !STR_ROLES.some(r => tags(cutC).roles.has(r) && !tags(c).roles.has(r) && A0.roles[r] - 1 < Math.min(A0.T[r], A0.roles[r]));
+  };
+  const pick = (cut, add, t, held) => {
+    const r = rate(add),
+      g = gain(cut, add);
     return {
-      cut: s.cut,
-      add: s.add,
+      cut,
+      add,
       q: 1,
       t,
       gain: g,
       dScore: g,
       str: true,
+      held: !!held,
       why: [r == null ? 'New card: too new for play data; read by what it does' : 'Card strength ' + r + ' of 100 (how often strong decks that could play it do)'],
-      cutWhy: ['Card strength ' + (rate(s.cut) ?? 0) + ' of 100' + (SR.core.has(s.cut) ? '' : ', not part of this deck’s core')],
-      gc: false,
-      gcOut: false,
+      cutWhy: ['Card strength ' + (rate(cut) ?? 0) + ' of 100' + (SR.core.has(cut) ? '' : ', not part of this deck’s core')],
+      gc: !!(find(add) || {}).gc,
+      gcOut: !!(find(cut) || {}).gc,
       own: false,
       smart: true
     };
   };
-  const by = t => new Map(SR[t].done.map(s => [s.cut, s])),
-    mid = by('mid'),
-    budget = by('budget'),
-    seen = new Set(),
-    rows = [];
-  for (const s of SR.apex.done) {
-    if (seen.has(s.cut)) continue;
-    seen.add(s.cut);
-    const opts = {apex: pick(s, 'apex')};
-    if (mid.has(s.cut)) opts.mid = pick(mid.get(s.cut), 'mid');
-    if (budget.has(s.cut)) opts.budget = pick(budget.get(s.cut), 'budget');
-    rows.push({cut: s.cut, opts, none: false, gain: opts.apex.gain, str: true});
+  // held picks: a chosen alternative stays that tier's pick while its slot card is in the deck and it may still go in
+  const held = new Map();
+  for (const k in d.recP || {}) {
+    const r = d.recP[k],
+      p = r && r.pair;
+    if (!p || !TIERS[r.t] || !entryOf(d, p.cut) || !ok(find(p.add))) continue;
+    const cut = entryOf(d, p.cut).n;
+    if (!held.has(cut)) held.set(cut, {});
+    held.get(cut)[r.t] = p.add;
   }
-  rows.sort((a, b) => b.gain - a.gain);
-  R.paths = rows.slice(0, UP.strRows);
-  // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale
+  const by = L => new Map(L.map(s => [s.cut, s.add])),
+    T = {apex: by(P.apex), mid: by(P.mid), budget: by(P.budget)};
+  const cuts = [...new Set(P.apex.map(s => s.cut).concat([...held.keys()]))];
+  let rows = cuts
+    .map(cut => {
+      const H = held.get(cut) || {},
+        o = {};
+      for (const t of ['apex', 'mid', 'budget']) {
+        const n = H[t] || T[t].get(cut);
+        if (n && find(n)) o[t] = pick(cut, n, t, !!H[t]);
+      }
+      // Apex is the row's strongest pick, Mid the stronger of Mid and Budget (each within its price)
+      const best = (ts, t) => ts.map(x => o[x]).filter(p => p && priceOk(find(p.add), t)).sort((a, b) => b.dScore - a.dScore)[0];
+      if (!H.apex) {
+        const b = best(['apex', 'mid', 'budget'], 'apex');
+        if (b) o.apex = Object.assign({}, b, {t: 'apex'});
+      }
+      if (!H.mid) {
+        const b = best(['mid', 'budget'], 'mid');
+        if (b) o.mid = Object.assign({}, b, {t: 'mid'});
+      }
+      return {cut, opts: o, none: false, gain: o.apex ? o.apex.dScore : 0, str: true, ranked: true};
+    })
+    .filter(L => L.opts.apex || L.opts.mid || L.opts.budget);
+  rows.sort((a, b) => (b.opts.apex ? 1 : 0) - (a.opts.apex ? 1 : 0) || b.gain - a.gain);
+  rows = rows.slice(0, UP.strRows);
+  // no card on two rows: a row whose pick is already on a stronger row takes the next best card for its slot instead
+  const used = new Map(); // card -> its row
+  const nextFor = (L, t, avoid) => {
+    const cutC = find(L.cut);
+    let b = null;
+    for (const c of P.pool) {
+      if (avoid.has(c.n) || (used.has(c.n) && used.get(c.n) !== L) || !priceOk(c, t) || !fits(cutC, c)) continue;
+      const g = gain(L.cut, c.n);
+      if (g > SCORE_MIN && (!b || g > b.g)) b = {c, g};
+    }
+    return b && pick(L.cut, b.c.n, t);
+  };
+  rows.forEach(L => {
+    for (const t of ['apex', 'mid', 'budget']) {
+      const p = L.opts[t];
+      if (!p) continue;
+      if (!p.held && used.has(p.add) && used.get(p.add) !== L) {
+        const r = nextFor(L, t, new Set([p.add]));
+        if (r) L.opts[t] = r;
+        else delete L.opts[t];
+      }
+    }
+    // Apex stays the strongest after a replacement
+    const ap = L.opts.apex;
+    for (const t of ['mid', 'budget']) {
+      const p = L.opts[t];
+      if (p && ap && !ap.held && p.dScore > ap.dScore) L.opts.apex = Object.assign({}, p, {t: 'apex'});
+    }
+    for (const t of ['apex', 'mid', 'budget']) if (L.opts[t]) used.set(L.opts[t].add, L);
+    L.gain = L.opts.apex ? L.opts.apex.dScore : Math.max(...Object.values(L.opts).map(p => p.dScore));
+  });
+  rows = rows.filter(L => L.opts.apex || L.opts.mid || L.opts.budget);
+  // alternatives: the next strongest cards for the slot at each tier's price, up to three, each keeping at least half the
+  // pick's gain; the strongest card measured for the slot is the row's Highest score card
+  rows.forEach(L => {
+    const cutC = find(L.cut),
+      names = new Set(Object.values(L.opts).map(p => p.add)),
+      C = P.pool
+        .filter(c => fits(cutC, c))
+        .map(c => ({c, g: gain(L.cut, c.n)}))
+        .filter(x => x.g > SCORE_MIN)
+        .sort((a, b) => b.g - a.g);
+    L.alts = {apex: [], mid: [], budget: []};
+    for (const t of ['apex', 'mid', 'budget']) {
+      const tp = L.opts[t] || L.opts.mid || L.opts.apex;
+      if (!tp) continue;
+      L.alts[t] = C.filter(x => !names.has(x.c.n) && priceOk(x.c, t) && x.g >= 0.5 * tp.dScore && x.g <= tp.dScore + 1e-9)
+        .slice(0, 3)
+        .map(x => ({n: x.c.n, p: x.c.p, dScore: x.g, inc: inc(x.c), vs: tp.add, vsScore: tp.dScore, str: true}));
+    }
+    const top = C[0];
+    L.top = top ? {n: top.c.n, p: top.c.p, dScore: top.g, inc: inc(top.c)} : null;
+  });
+  // spare lands (a deck over its land target) come from the regular list, measured on this scale
+  const spare = (R.paths || [])
+    .filter(L => L.spare && !rows.some(x => x.cut === L.cut))
+    .map(L => {
+      Object.values(L.opts).forEach(p => {
+        p.dScore = gain(p.cut || L.cut, p.add);
+        p.str = true;
+      });
+      return L;
+    })
+    .filter(L => Object.values(L.opts).every(p => p.dScore >= SCORE_MIN));
+  R.paths = rows.concat(spare);
+  // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale; one that would lower
+  // deck power is not offered as an upgrade (fixes the deck needs anyway, like an illegal card, stay)
   const seenObj = new Set(),
     walk = o => {
       if (!o || typeof o !== 'object' || seenObj.has(o)) return;
@@ -286,6 +446,7 @@ function strengthPaths(d, R) {
       for (const v of Array.isArray(o) ? o : Object.values(o)) walk(v);
     };
   for (const k of ['fixes', 'fills', 'drops', 'smart']) walk(R[k]);
+  for (const k of ['fills', 'smart']) if (Array.isArray(R[k])) R[k] = R[k].filter(p => !p || typeof p.dScore !== 'number' || p.dScore >= 0);
   R.str = true;
   return R;
 }

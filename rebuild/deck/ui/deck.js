@@ -498,6 +498,13 @@ function upPanel(d, A, mode) {
       if (!S.upOrd || S.upOrd.id !== d.id) S.upOrd = {id: d.id, m: {}};
       const fz = S.upOrd.m[ok];
       if (fz) {
+        // rows the memo doesn't know yet (the list was remade, e.g. when the strength data arrived) join it at the end, in the
+        // order they have now, so they too keep their place from here on
+        const kn = new Set(fz);
+        PV.forEach(([L]) => {
+          const c = L.orig || L.cut;
+          if (!kn.has(c) && !R.pending) (fz.push(c), kn.add(c));
+        });
         const pos = new Map(fz.map((c, i) => [c, i])),
           at = x => (pos.has(x[0].orig || x[0].cut) ? pos.get(x[0].orig || x[0].cut) : 1e6);   // an upgraded row keeps its place
         PV.sort((a, b) => at(a) - at(b));

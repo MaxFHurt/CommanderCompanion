@@ -4,6 +4,8 @@ import { createRequire } from 'module'; const require = createRequire(import.met
 const { chromium } = require(process.env.PW); const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const here = path.dirname(new URL(import.meta.url).pathname), SNAP = path.resolve(here, '../snapshot'), OUT = path.resolve(here, '../out');
 const port = process.argv[2] || '8765', label = process.argv[3] || 'ui';
+// the card strength data the app downloads (Deck-Companion card-data branch), pinned for the tests in strength/ next to this file
+const STRDIR = process.env.STRHOST || path.join(here, 'strength');
 const cards = zlib.gunzipSync(fs.readFileSync(SNAP + '/cards.json.gz')).toString(), RAWJ = JSON.parse(cards), tags = fs.readFileSync(SNAP + '/tags.json', 'utf8');
 // FAST=1: skip the heaviest tests nothing later depends on (while working; the full run, without FAST, goes live).
 // SHARD=k/N with SHARDPLAN=<file> (ui-par.mjs): run only this group's tests; the two tests that make the decks the others use
@@ -33,6 +35,8 @@ await ctx.route('**/*', route => { const u = route.request().url();
   if (/api\.scryfall\.com\/sets$/.test(u)) return route.fulfill({status:200, contentType:'application/json', body:JSON.stringify({data:[{code:'msc', name:'Marvel Super Heroes Commander', released_at:'2026-09-26', set_type:'commander', card_count:300, digital:false}, {code:'msh', name:'Marvel Super Heroes', released_at:'2026-09-26', set_type:'expansion', card_count:300, digital:false}, {code:'blb', name:'Bloomburrow', released_at:'2024-08-02', set_type:'expansion', card_count:280, digital:false}]})});
   if (/raw\.githubusercontent\.com\/MaxFHurt\/Deck-Companion\/card-data\/combos\.json\.gz/.test(u)) return route.fulfill({status:200, contentType:'application/octet-stream', body:fs.readFileSync(path.resolve(here, '../data2/spellbook/combos.json.gz'))});
   if (/fonts\.(googleapis|gstatic)\.com/.test(u)) return route.fulfill({status:200, contentType:'text/css', body:''});
+  if (/card-data\/strength\.json\.gz/.test(u)) { const f = path.join(STRDIR, 'strength.json.gz'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/octet-stream', body:fs.readFileSync(f)}) : route.abort(); }
+  if (/card-data\/strength\/[a-z0-9-]+\.json/.test(u)) { const sl = /strength\/([a-z0-9-]+)\.json/.exec(u)[1], f = path.join(STRDIR, 'strength', sl + '.json'); if (process.env.STRLOG) fs.appendFileSync(process.env.STRLOG, sl + '\n'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
   return route.abort(); });
 await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await page.waitForTimeout(1200);
 // Full card data from the snapshot, loaded the way the app loads its own download.
@@ -123,6 +127,8 @@ await mctx.route('**/*', route => { const u = route.request().url(); if (u.start
   if ((m = /json\.edhrec\.com\/pages\/tags\/([a-z0-9/-]+)\.json/.exec(u))){ const t = m[1].replace(/\//g, '_') + '.json', f = [path.resolve(here, '../data2/tags/' + t), path.resolve(here, 'tags/' + t)].find(x => fs.existsSync(x)) || ''; /* the suite's own tags/ when test-data lacks the page */ return f && fs.statSync(f).size > 500 ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:403, body:''}); }   // Build 145: theme pages for commanders without play data
   if ((m = /json\.edhrec\.com\/pages\/commanders\/([a-z0-9-]+)\/([a-z0-9-]+)\.json/.exec(u))){ const f = path.resolve(here, '../data2/themes/' + m[1] + '__' + m[2] + '.json'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
   if ((m = /json\.edhrec\.com\/pages\/commanders\/([a-z0-9-]+)\.json/.exec(u)) && fs.existsSync(SNAP + '/edhrec/' + m[1] + '.json')) return route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(SNAP + '/edhrec/' + m[1] + '.json')});
+  if (/card-data\/strength\.json\.gz/.test(u)) { const f = path.join(STRDIR, 'strength.json.gz'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/octet-stream', body:fs.readFileSync(f)}) : route.abort(); }
+  if (/card-data\/strength\/[a-z0-9-]+\.json/.test(u)) { const sl = /strength\/([a-z0-9-]+)\.json/.exec(u)[1], f = path.join(STRDIR, 'strength', sl + '.json'); if (process.env.STRLOG) fs.appendFileSync(process.env.STRLOG, sl + '\n'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
   if (/fonts\.(googleapis|gstatic)\.com/.test(u)) return route.fulfill({status:200, contentType:'text/css', body:''}); return route.abort(); });
 const mp = await mctx.newPage(); mp.on('pageerror', e => errs.push('mobile pageerror: ' + e.message));
 await mp.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await mp.waitForTimeout(1000);
