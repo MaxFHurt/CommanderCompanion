@@ -652,7 +652,7 @@ const b93 = await page.evaluate(async () => { const out = {}; await loadPreconLi
   await loadEdh(d.commander); for (let i = 0; i < 80 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100)); render(); await recsReady(d); render();
   openFix(['Mana']); for (let i = 0; i < 300 && ((S.fixG || []).find(x => x.k === 'Mana') || {}).busy; i++) await new Promise(r => setTimeout(r, 50));   /* Version 0.9.2: the Mana list fills in land by land */ const m = document.querySelector('#modal'); out.menu = /Fix: Mana/.test(m.textContent); const g = (S.fixG || [])[0] || {L:[]}; out.swaps = g.L.length;
   out.allLands = g.L.every(p => tags(find(p.add)).land); out.kinds = g.L.map(p => (tags(find(p.cut)).land ? 'land' : 'spell') + '>' + p.add + ' ' + p.dScore); out.noneLower = g.L.every(p => p.dScore != null && p.dScore >= SCORE_MIN); out.scored = g.L.every(p => p.dScore != null);
-  out.why = /without a colour in \d+% of practice games, out of lands by turn 5 in \d+%/.test(m.textContent);
+  out.why = /for lack of a colour in \d+% of practice games, out of lands by turn 5 in \d+%/.test(m.textContent); /* 0.9.52 wording */
   out.noUpkindBtn = !document.querySelector('.hfix [data-act="upkind"]'); $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); return out; });
 T('UI-B93-01', 'Mana alert: Fix this says which problem it is (colour or missing lands) and offers swaps that each add a land (better land, or a land for a spare spell), measured with fresh practice games, every one raising the score', b93.menu && b93.swaps > 0 && b93.allLands && b93.noneLower && b93.scored && b93.why && b93.noUpkindBtn, JSON.stringify(b93));
 } catch (e) { QUIET = false; T('UI-B93-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1595,6 +1595,34 @@ const b196 = await page.evaluate(async () => { const out = {};
 if (process.env.SHOT) { await page.screenshot({ path: process.env.SHOT }); await page.evaluate(() => { const d = window.__shotDeck; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); window.__shot = false; }); }
 T('UI-B196-01', 'Build 196: the tokens the deck makes are listed at the very bottom of the decklist and the deck still counts 100', b196.kinds > 0 && b196.shown === b196.kinds && /tokgrp/.test(b196.last) && b196.size === 100, JSON.stringify(b196));
 } catch (e) { QUIET = false; T('UI-B196-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B197-01')) { try { if (SHARD) await RESET();
+// Build 197 (owner, 8 Nov: "The Miku precon is still showing wrong card names and images"): a commander in a reskinned printing
+// (Miku, Song of the People for Trostani) shows that printing's name and art in the decklist, the deck panel and its card window.
+const b197 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+  d.cmdPn = 'Printed Commander Name'; const c = find(d.commander); d.cmdPid = c.id;
+  S.view = 'decks'; S.open = true; S.tab = 'list'; S.deckQ = ''; S.listRole = ''; render();
+  out.row = (document.querySelector('.cmdrow .nm') || {}).textContent || '';
+  out.panel = (document.querySelector('.cmdbox b') || {}).textContent || '';
+  handleAct('card', '', d.commander); await new Promise(r => setTimeout(r, 200)); out.win = (document.querySelector('#modal h2') || {}).textContent || ''; $('#modal').hidden = true;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
+} catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B197-02')) { try { if (SHARD) await RESET();
+// Build 197 (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active health alert's best swaps are shown
+// at the top of the upgrade list, marked with the alert, and swapping one keeps the upgrade list.
+const b1972 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = true;
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
+  out.alerts = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k]);
+  for (let i = 0; i < 400 && UPFIX.busy; i++) await new Promise(r => setTimeout(r, 50));
+  render(); const rows = [...document.querySelectorAll('.upfix .fixsw')]; out.rows = rows.length; out.chips = rows.map(r => (r.querySelector('.chip.warn') || {}).textContent);
+  const R = recsFor(d), b = document.querySelector('.upfix [data-act="upfix-swap"]');
+  if (b) { const [k, i] = b.dataset.v.split('|'), p = UPFIX.G.find(x => x.k === k).L[+i]; b.click(); await new Promise(r => setTimeout(r, 200)); out.swapped = hasCard(d, p.add) && !hasCard(d, p.cut); out.kept = recsFor(d) === R; }
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
+T('UI-B197-02', 'Build 197: active health alerts show their best swaps at the top of the upgrade list, marked with the alert; a swap there keeps the list', !b1972.alerts.length || (b1972.rows > 0 && b1972.chips.every(c => /^Fixes /.test(c)) && b1972.swapped && b1972.kept), JSON.stringify(b1972));
+} catch (e) { QUIET = false; T('UI-B197-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

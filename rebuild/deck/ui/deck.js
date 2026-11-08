@@ -526,6 +526,7 @@ function upPanel(d, A, mode) {
           (upT() ? ' of that card type' : '') +
           '.</p>'
         : '') +
+      upFixHtml(d) +
       (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') +
       '<div class="paths">' +
       (sheet ? [PV[si]] : PV.slice(0, show))
@@ -1177,7 +1178,7 @@ async function pinPrints(d) {
     }
   const bySrc = d.cards.filter(e => !e.pid && e.psc),
     byName = d.cards.filter(e => !e.pid && !e.psc && e.pn),
-    cmdWant = !!(d.commander && !d.cmdPid && d.cmdSet && d.cmdCn);
+    cmdWant = !!(d.commander && d.cmdSet && d.cmdCn && (!d.cmdPid || d.cmdPn === undefined));   // once more for decks saved before the printed name was kept
   if (!bySrc.length && !byName.length && !cmdWant) return 0;
   const ids = bySrc.map(e =>
     e.pcn ? {set: e.psc, collector_number: String(e.pcn)} : {name: e.n.split(' // ')[0], set: e.psc}
@@ -1209,6 +1210,8 @@ async function pinPrints(d) {
     const o = atNum.get(d.cmdSet + '|' + d.cmdCn);
     if (o && keyOf(o.name) === keyOf(d.commander)) {
       d.cmdPid = o.id;
+      const fn = o.flavor_name || ((o.card_faces || [])[0] || {}).flavor_name;
+      d.cmdPn = fn || d.cmdPn || '';   // the name this printing carries (Miku, Song of the People); '' = none, asked once
       n++;
     }
   }
@@ -1297,6 +1300,7 @@ async function loadPreconLive(slug, label) {
     if (cmds[0]) {
       setCommander(d, cmds[0]);
       if (cmds[1] && find(cmds[0]) && find(cmds[1]) && canPair(find(cmds[0]), find(cmds[1]))) setPartner(d, cmds[1]);
+      if (find(cmds[0]) && norm(cmds[0]) !== find(cmds[0])._n) d.cmdPn = cmds[0];   // listed under its printed name (a reskin)
       const v2 = (dk.commander_v2 || [])[0];
       if (v2 && v2[2] && find(cmds[0])) d.cmdSet = v2[2];
       if (v2 && v2[3] && find(cmds[0])) d.cmdCn = String(v2[3]);

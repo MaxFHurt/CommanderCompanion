@@ -2555,7 +2555,10 @@ function statsHtml(d, A, R, mode) {
     B = d.base;
   // health: each indicator is good, warn or bad
   const H = [],
-    st = (have, want) => (have >= want ? 'good' : have >= want * 0.7 ? 'warn' : 'bad');
+    // owner, 8 Nov: "lighten up on the 'needs fixed now' health warnings. If a deck is 1 short on a subject that isn't severely
+    // deficient": red only when 2 or more short and at half the target or less (1 of 3 wipes, 5 of 10 ramp); any other shortfall is
+    // yellow. (It was red below 70% of the target, so 2 of 3 wipes was red.)
+    st = (have, want) => (have >= want ? 'good' : want - have >= 2 && have <= want * 0.5 ? 'bad' : 'warn');
   const v = validateDeck(d),
     open = Math.max(0, T.size - A.size);
   H.push({
@@ -2572,7 +2575,7 @@ function statsHtml(d, A, R, mode) {
     const over = A.lands - T.lands;
     H.push({
       k: 'Lands',
-      s: over >= 6 ? 'bad' : over >= 3 ? 'warn' : st(A.lands, T.lands),
+      s: over >= 6 ? 'bad' : over >= 3 ? 'warn' : A.lands >= T.lands ? 'good' : T.lands - A.lands >= 4 ? 'bad' : 'warn',   // lands: red only 4+ short
       t: A.lands + ' / ' + T.lands + (over >= 3 ? ' · ' + over + ' more than needed' : '')
     });
   }
@@ -3376,6 +3379,92 @@ function manaNone(d) {
         esc(planText(mp)) +
         '</button></div>'
       : '')
+  );
+}
+// Health fixes in the upgrade list (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active alert (yellow or
+// red, not ignored) shows its best two swaps from its Fix menu at the top of the list, worked out in the background one alert at a
+// time and kept until the deck changes.
+const UPFIX = {sig: '', G: [], busy: false, t: null};
+function upFixHtml(d) {
+  if (!d || d.format !== 'commander' || !d.cards.length) return '';
+  const ign = new Set(d.ignoreH || []),
+    keys = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k] && !ign.has(k));
+  if (!keys.length) return '';
+  const sig = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + keys.join(',');
+  if (UPFIX.sig !== sig) {
+    UPFIX.sig = sig;
+    UPFIX.G = [];
+    UPFIX.busy = true;
+    clearTimeout(UPFIX.t);
+    const todo = keys.slice(),
+      step = () => {
+        if (UPFIX.sig !== sig) return;
+        const k = todo.shift();
+        if (k) {
+          try {
+            UPFIX.G.push({k, L: fixList(d, k)});
+          } catch (e) {}
+          UPFIX.t = setTimeout(step, 0);
+        } else {
+          UPFIX.busy = false;
+          if (cur() === d && S.tab === 'up') render();
+        }
+      };
+    UPFIX.t = setTimeout(step, 40);
+  }
+  const usedCut = new Set(),
+    usedAdd = new Set(),
+    rows = [];
+  UPFIX.G.forEach(g => {
+    g.L.map((p, i) => ({p, i}))
+      .filter(x => (x.p.dScore == null || x.p.dScore >= 0) && !usedCut.has(norm(x.p.cut)) && !usedAdd.has(norm(x.p.add)) && entryOf(d, x.p.cut) && !entryOf(d, x.p.add))
+      .slice(0, 2)
+      .forEach(x => {
+        usedCut.add(norm(x.p.cut));
+        usedAdd.add(norm(x.p.add));
+        rows.push({g, p: x.p, i: x.i});
+      });
+  });
+  const sw = ({g, p, i}) => {
+    const a = find(p.add),
+      c = find(p.cut);
+    return (
+      '<div class="opt fixsw"><span class="chip warn">Fixes ' +
+      esc(g.k) +
+      '</span><button class="sw out" data-act="card" data-n="' +
+      esc(p.cut) +
+      '">' +
+      (c ? '<img alt="" src="' + artFor(c, entryOf(d, p.cut)) + '">' : '<span></span>') +
+      '<span><small>Cut</small>' +
+      esc(p.cut) +
+      '</span><em>' +
+      money(c) +
+      '</em></button><button class="sw in" data-act="card" data-n="' +
+      esc(p.add) +
+      '">' +
+      (a ? '<img alt="" src="' + artFor(a, {pid: a.id}) + '">' : '') +
+      cardBadges(d, p.add) +
+      '<span><small>Add</small>' +
+      esc(p.add) +
+      '</span><em>' +
+      money(a) +
+      '</em></button><div class="row">' +
+      (p.dScore != null ? scoreChip(p.dScore) : '') +
+      (p.why ? '<span class="chip">' + esc(p.why) + '</span>' : '') +
+      '<button class="btn pri sm" data-act="upfix-swap" data-v="' +
+      esc(g.k) +
+      '|' +
+      i +
+      '" style="margin-left:auto">Swap</button></div></div>'
+    );
+  };
+  return (
+    '<div class="grp upfix"><span class="lab">Fixes for health alerts</span>' +
+    (rows.length
+      ? rows.map(sw).join('')
+      : '<p class="note' + (UPFIX.busy ? ' think' : '') + '" style="margin:0">' + (UPFIX.busy ? 'Thinking… finding the best swaps for ' + keys.join(', ') : 'No swap raises the deck score for ' + keys.join(', ') + ' right now.') + '</p>') +
+    (UPFIX.busy && rows.length ? '<p class="note think" style="margin:0">Thinking… more alerts to check</p>' : '') +
+    '</div>'
   );
 }
 function fixApply(d, list) {

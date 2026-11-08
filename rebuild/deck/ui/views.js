@@ -59,7 +59,7 @@ function continueHtml() {
     '<section class="continue phone-only"><button class="tile" data-act="open-deck" data-v="' +
     d0.id +
     '"><img alt="" src="' +
-    artFor(c0 || {n: d0.name, t: 'Enchantment', o: '', ci: d0.colors || []}) +
+    artFor(c0 || {n: d0.name, t: 'Enchantment', o: '', ci: d0.colors || []}, c0 && d0.cmdPid ? {pid: d0.cmdPid} : undefined) +
     '"><div class="tb"><small class="lab" style="margin:0">Continue</small><h3>' +
     esc(d0.name) +
     '</h3><p>' +
@@ -245,7 +245,7 @@ function viewDecks() {
         '<div class="tilewrap"><button class="tile" data-act="open-deck" data-v="' +
         d.id +
         '"><img alt="" src="' +
-        artFor(c || {n: d.name, t: 'Enchantment', o: '', ci: d.colors || []}) +
+        artFor(c || {n: d.name, t: 'Enchantment', o: '', ci: d.colors || []}, c && d.cmdPid && c.n === (find(d.commander) || {}).n ? {pid: d.cmdPid} : undefined) +
         '"><div class="tb"><h3>' +
         esc(d.name) +
         (d.player ? ' <span class="chip gold">' + esc(d.player) + '</span>' : '') +
@@ -506,7 +506,7 @@ function aimPanel(d, ctx) {
         ? '<div class="cmdbox"><img alt="" src="' +
           artFor(ctx.cmd, {pid: d.cmdPid}) +
           '"><div><b>' +
-          esc(ctx.cmd.n) +
+          cmdNameHtml(d, ctx.cmd) +
           '</b><span>' +
           pips(ctx.cmd.m) +
           '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' +
@@ -571,7 +571,7 @@ function aimPanel(d, ctx) {
         '<div class="cmdbox"><img alt="" src="' +
         artFor(ctx.cmd, {pid: d.cmdPid}) +
         '"><div><b>' +
-        esc(ctx.cmd.n) +
+        cmdNameHtml(d, ctx.cmd) +
         '</b><span>' +
         pips(ctx.cmd.m) +
         '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' +
@@ -852,6 +852,11 @@ const GROUPS = [
 // The name printed on the player's copy when it differs from the card's own name (a reskinned reprint: the TMNT precon's
 // "Humongous Fungus" is Corpsejack Menace). Kept from the list the deck came from; for precon decks saved before Build 119, read
 // from the precon's own list (EDHREC, already loaded for the open deck).
+// The commander under the name its printing carries (a reskin: "Miku, Song of the People" for Trostani; owner, 8 Nov: the Miku precon
+// showed Trostani's name and art), then its own name, as the decklist shows other reskins.
+function cmdNameHtml(d, c) {
+  return d.cmdPn && norm(d.cmdPn) !== norm(c.n) ? esc(d.cmdPn) + ' <span class="pnm" title="The card’s own name (this printing carries another name)">' + esc(c.n) + '</span>' : esc(c.n);
+}
 function printedName(d, e, c) {
   if (e.pn) return e.pn;
   if (!c || d.src !== 'precon' || !EDH.pre || !EDH.pre.list || EDH.key !== d.commander) return '';
@@ -948,9 +953,9 @@ function listRows(d, q) {
               '<button class="dl cmdrow" data-act="card" data-n="' +
               esc(c.n) +
               '">' +
-              (c.id ? '<img alt="" src="' + artFor(c, {}) + '">' : '<span></span>') +
+              (c.id ? '<img alt="" src="' + artFor(c, c.n === (find(d.commander) || {}).n && d.cmdPid ? {pid: d.cmdPid} : {}) + '">' : '<span></span>') +
               '<span class="q">1×</span><span class="nm">' +
-              esc(c.n) +
+              (c.n === (find(d.commander) || {}).n ? cmdNameHtml(d, c) : esc(c.n)) +
               ' <span class="chip gold">Commander</span></span><span class="cost">' +
               (c.m ? pips(c.m) : '') +
               '</span><span class="lk"></span><span class="pr">' +

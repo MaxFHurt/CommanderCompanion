@@ -385,6 +385,7 @@ function ctlHtml(n) {
 function switchCommander(d, n) {
   const old = d.commander;
   delete d.cmdPid;
+  delete d.cmdPn;
   delete d.cmdSet;
   const keepAims = d.aims.slice(),
     keepTribe = d.tribe;
@@ -1213,7 +1214,7 @@ function openCard(name, pid) {
   S.pick = c.id ? {n: c.n, id: pid || (isCmd && d.cmdPid) || pidOf(c, inDeck)} : null;
   // a card not in the deck (an upgrade pick) shown in a printing with another name says so too (owner, 25 Oct)
   const sfn = !inDeck ? (shownPrint(c, pid ? {pid} : null) || {}).fn : '',
-    pnm = inDeck ? printedName(d, inDeck, c) : sfn && norm(sfn) !== c._n ? sfn : '';
+    pnm = isCmd && d.commander === c.n && d.cmdPn && norm(d.cmdPn) !== c._n ? d.cmdPn : inDeck ? printedName(d, inDeck, c) : sfn && norm(sfn) !== c._n ? sfn : '';   // the commander's printed name too (Miku)
   $('#modal').innerHTML =
     '<div class="panel" role="dialog" aria-label="' +
     esc(c.n) +
