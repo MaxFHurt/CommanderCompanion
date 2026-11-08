@@ -526,6 +526,7 @@ function upPanel(d, A, mode) {
           (upT() ? ' of that card type' : '') +
           '.</p>'
         : '') +
+      upFixHtml(d) +
       (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') +
       '<div class="paths">' +
       (sheet ? [PV[si]] : PV.slice(0, show))

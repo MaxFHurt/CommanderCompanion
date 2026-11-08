@@ -3381,6 +3381,99 @@ function manaNone(d) {
       : '')
   );
 }
+// Health fixes in the upgrade list (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active alert (yellow or
+// red, not ignored) shows its best two swaps from its Fix menu at the top of the list, worked out in the background one alert at a
+// time and kept until the deck changes.
+const UPFIX = {sig: '', G: [], busy: false, t: null};
+function upFixHtml(d) {
+  if (!d || d.format !== 'commander' || !d.cards.length) return '';
+  const ign = new Set(d.ignoreH || []),
+    keys = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k] && !ign.has(k));
+  if (!keys.length) return '';
+  const sig = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|') + '#' + keys.join(',');
+  // Build 199: worked out only while this deck's Upgrades tab is open, its list is finished and its Apex reference made, and
+  // stopped the moment that changes. (Run for another deck, fixList's recsFor/apexFor replaced the one list and reference the
+  // rest of the page uses: generating a deck and See alternatives went wrong — UI-B81-02, UI-ALT-01.)
+  const here = () => cur() === d && S.view === 'decks' && S.open && S.tab === 'up' && recsFor.v && !recsFor.v.pending && recsFor.k === recsKey(d) && !!apexFor(d);
+  if (UPFIX.sig !== sig && !here()) return '';
+  if (UPFIX.sig !== sig) {
+    UPFIX.sig = sig;
+    UPFIX.G = [];
+    UPFIX.busy = true;
+    clearTimeout(UPFIX.t);
+    const todo = keys.slice(),
+      step = () => {
+        if (UPFIX.sig !== sig) return;
+        if (!here()) { UPFIX.sig = ''; UPFIX.busy = false; return; }   // left the tab or the list changed: start again next time
+        const k = todo.shift();
+        if (k) {
+          try {
+            UPFIX.G.push({k, L: fixList(d, k)});
+          } catch (e) {}
+          UPFIX.t = setTimeout(step, 0);
+        } else {
+          UPFIX.busy = false;
+          // shown at once unless a window is open (a redraw then would replace it: See alternatives, a card); else next redraw
+          if (cur() === d && S.tab === 'up' && $('#modal').hidden) render();
+        }
+      };
+    UPFIX.t = setTimeout(step, 40);
+  }
+  const usedCut = new Set(),
+    usedAdd = new Set(),
+    rows = [];
+  UPFIX.G.forEach(g => {
+    g.L.map((p, i) => ({p, i}))
+      .filter(x => (x.p.dScore == null || x.p.dScore >= 0) && !usedCut.has(norm(x.p.cut)) && !usedAdd.has(norm(x.p.add)) && entryOf(d, x.p.cut) && !entryOf(d, x.p.add))
+      .slice(0, 2)
+      .forEach(x => {
+        usedCut.add(norm(x.p.cut));
+        usedAdd.add(norm(x.p.add));
+        rows.push({g, p: x.p, i: x.i});
+      });
+  });
+  const sw = ({g, p, i}) => {
+    const a = find(p.add),
+      c = find(p.cut);
+    return (
+      '<div class="opt fixsw"><span class="chip warn">Fixes ' +
+      esc(g.k) +
+      '</span><button class="sw out" data-act="card" data-n="' +
+      esc(p.cut) +
+      '">' +
+      (c ? '<img alt="" src="' + artFor(c, entryOf(d, p.cut)) + '">' : '<span></span>') +
+      '<span><small>Cut</small>' +
+      esc(p.cut) +
+      '</span><em>' +
+      money(c) +
+      '</em></button><button class="sw in" data-act="card" data-n="' +
+      esc(p.add) +
+      '">' +
+      (a ? '<img alt="" src="' + artFor(a, {pid: a.id}) + '">' : '') +
+      cardBadges(d, p.add) +
+      '<span><small>Add</small>' +
+      esc(p.add) +
+      '</span><em>' +
+      money(a) +
+      '</em></button><div class="row">' +
+      (p.dScore != null ? scoreChip(p.dScore) : '') +
+      (p.why ? '<span class="chip">' + esc(p.why) + '</span>' : '') +
+      '<button class="btn pri sm" data-act="upfix-swap" data-v="' +
+      esc(g.k) +
+      '|' +
+      i +
+      '" style="margin-left:auto">Swap</button></div></div>'
+    );
+  };
+  return (
+    '<div class="grp upfix"><span class="lab">Fixes for health alerts</span>' +
+    (rows.length
+      ? rows.map(sw).join('')
+      : '<p class="note' + (UPFIX.busy ? ' think' : '') + '" style="margin:0">' + (UPFIX.busy ? 'Thinking… finding the best swaps for ' + keys.join(', ') : 'No swap raises the deck score for ' + keys.join(', ') + ' right now.') + '</p>') +
+    (UPFIX.busy && rows.length ? '<p class="note think" style="margin:0">Thinking… more alerts to check</p>' : '') +
+    '</div>'
+  );
+}
 function fixApply(d, list) {
   let k = 0;
   list.forEach(p => {

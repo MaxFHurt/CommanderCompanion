@@ -1909,6 +1909,18 @@ function handleAct(act, v, n, pArg, cutArg) {
       d.ignoreH = (d.ignoreH || []).filter(x => x !== v);
       toast('The ' + v + ' alert is back on.');
       break;
+    case 'upfix-swap': {
+      // a health fix from the upgrade list: the swap, and the upgrade list kept (the rows lose the card that went out)
+      const [k, i] = String(v).split('|'),
+        g = (UPFIX.G || []).find(x => x.k === k),
+        p = g && g.L[+i];
+      if (!d || !p) return;
+      keepRecs(d, p, 'apex', -1);
+      if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + ' (' + k + ').');
+      touch();
+      render();
+      return;
+    }
     case 'fix-swap': {
       const [k, i] = String(v).split('|'),
         g = (S.fixG || []).find(x => x.k === k),
