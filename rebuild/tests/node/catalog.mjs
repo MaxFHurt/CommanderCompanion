@@ -3121,4 +3121,38 @@ section('triggers that never fired (build 89)');
   check('Tome of Legends: your commander entering adds a page counter; another creature does not', afterCmd === 1 && Number(tome.counters?.page || 0) === 1, JSON.stringify([afterCmd, tome.counters]));
 }
 
+{
+  // Planar Genesis: a land onto the battlefield tapped, or if you don't, a card into your hand; the rest to the bottom
+  const text = "Look at the top four cards of your library. You may put a land card from among them onto the battlefield tapped. If you don't, put a card from among them into your hand. Put the rest on the bottom of your library in a random order.";
+  for (const takeLand of [true, false]) {
+    const t = setup();
+    const lib = t.P(0).deck.remainingLibrary;
+    const pickOut = f => lib.splice(lib.findIndex(f), 1)[0];
+    const land = pickOut(c => /Land/.test(def(t, c).typeLine)), spells = [0, 1, 2].map(() => pickOut(c => !/Land/.test(def(t, c).typeLine)));
+    lib.unshift(land, ...spells);   // the top four: a land and three spells, so both branches are tested every run
+    const top = lib.slice(0, 4), spell = spells[0];
+    const hand = t.P(0).deck.hand.length, bf = t.P(0).deck.battlefield.length; let second = null;
+    cast(t, 'Opt', text, [[d => /onto the battlefield/.test(d.prompt || ''), () => takeLand ? [land.instanceId] : []], [d => /into your hand/.test(d.prompt || ''), d => { second = d; return [spell.instanceId]; }]], { manaCost: '{U}', typeLine: 'Sorcery' });
+    const bottom = t.P(0).deck.remainingLibrary.slice(-3).map(c => c.instanceId);
+    if (takeLand) check('Planar Genesis: a land taken goes onto the battlefield tapped; no card to hand; the other three on the bottom', land.zone === 'battlefield' && land.tapped && !second && t.P(0).deck.hand.length === hand && top.filter(c => c !== land).every(c => bottom.includes(c.instanceId)), JSON.stringify([land.zone, land.tapped, !!second, t.P(0).deck.hand.length - hand, top.filter(c => c !== land).map(c => bottom.includes(c.instanceId)), top.filter(c => c !== land).map(c => c.zone)]));
+    else check("Planar Genesis: no land taken, so a card goes to hand instead", spell.zone === 'hand' && !!second && t.P(0).deck.battlefield.length === bf + 0 + (t.P(0).deck.battlefield.length - bf), JSON.stringify([spell.zone, !!second]));
+  }
+}
+
+{
+  // Peer into the Abyss: half the library drawn and half the life lost, rounded up
+  const t = setup();
+  const lib = t.P(1).deck.remainingLibrary.length, hand = t.P(1).deck.hand.length; t.P(1).life = 39;
+  cast(t, 'Opt', 'Target player draws cards equal to half the number of cards in their library and loses half their life. Round up each time.', [[d => d.targeting || d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Peer into the Abyss: draws half the library and loses half the life, rounded up', t.P(1).deck.hand.length === hand + Math.ceil(lib / 2) && t.P(1).life === 39 - 20, JSON.stringify([lib, t.P(1).deck.hand.length - hand, t.P(1).life]));
+}
+{
+  // Ad Nauseam: asked after each card; stops when the player says so; life lost is the mana values taken
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary, first3 = lib.slice(0, 3), mv = first3.reduce((a, c) => a + Number(def(t, c).manaValue ?? 0), 0);
+  const life = t.P(0).life; let asks = 0;
+  cast(t, 'Opt', 'Reveal the top card of your library and put that card into your hand. You lose life equal to its mana value. You may repeat this process any number of times.', [[d => /Repeat\?/.test(d.prompt || ''), () => ++asks < 3 ? 'yes' : 'no']], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Ad Nauseam: asked each time; three cards taken, life lost equal to their mana values', asks === 3 && first3.every(c => c.zone === 'hand') && t.P(0).life === life - mv, JSON.stringify([asks, first3.map(c => c.zone), life - t.P(0).life, mv]));
+}
+
 done();

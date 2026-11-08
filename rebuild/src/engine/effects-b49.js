@@ -369,6 +369,13 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const n = { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8 }[m2[1].toLowerCase()];
     if (n) return { part: { effects: [{ kind: 'condition', test: 'b49-approach', name: m[1], skip: 1 }, { kind: 'game-result', win: true }, { kind: 'condition', test: 'b49-approach', name: m[1], negate: true, skip: 2 }, { kind: 'self-library-nth', n }, { kind: 'life', scope: 'you', amount: num(m2[2]), deltaSign: 1 }], requirements: [], unsupported: [] }, consumed: 2 };
   }
+  // Peer into the Abyss: "Target player draws cards equal to half the number of cards in their library and loses half their life. Round up each time."
+  if (/^Target player draws cards equal to half the number of cards in their library and loses half their life\.?$/i.test(c0) && /^Round up each time\.?$/i.test(String(clauses[i + 1] || '')))
+    return { part: { effects: [{ kind: 'peer-abyss', playerBind: 'peerPlayer' }], requirements: [{ kind: 'player', bind: 'peerPlayer', scope: 'player', label: 'target player' }], unsupported: [] }, consumed: 2 };
+  // Ad Nauseam: "Reveal the top card of your library and put that card into your hand. You lose life equal to its mana value. You
+  // may repeat this process any number of times." The player is asked after each card (with the card and their life shown).
+  if (/^Reveal the top card of your library and put that card into your hand\.?$/i.test(c0) && /^You lose life equal to its mana value\.?$/i.test(String(clauses[i + 1] || '')) && /^You may repeat this process any number of times\.?$/i.test(String(clauses[i + 2] || '')))
+    return { part: { effects: [{ kind: 'ad-nauseam', bind: 'adNauseam' }], requirements: [{ kind: 'b49-ad-nauseam', bind: 'adNauseam' }], unsupported: [] }, consumed: 3 };
   // Torment of Hailfire: "Repeat the following process X times. Each opponent loses 3 life unless that player sacrifices a nonland permanent of their choice or discards a card."
   if (/^Repeat the following process X times\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^Each opponent loses (\w+) life unless that player sacrifices a nonland permanent of their choice or discards a card\.?$/i)))
     return { part: { effects: [{ kind: 'torment', bind: 'torment', loss: num(m[1]) }], requirements: [{ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }, { kind: 'b49-torment', bind: 'torment', loss: num(m[1]) }], unsupported: [] }, consumed: 2 };
@@ -745,6 +752,28 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       controller.counters.energy = have - paid;
       bindings[effect.as] = paid;
       notes.push(paid ? `${controller.displayName} pays ${paid} energy.` : `${controller.displayName} pays no energy.`);
+      return true;
+    }
+    case 'peer-abyss': {
+      const p = playerById(game, bindings[effect.playerBind]);
+      if (!p || p.eliminated) return true;
+      const n = Math.ceil((p.deck.remainingLibrary || []).length / 2), loss = Math.ceil(Number(p.life || 0) / 2);
+      notes.push(...H.applyEffectsUnsafe(game, p.playerId, [{ kind: 'draw', scope: 'you', amount: n }, { kind: 'life', scope: 'you', amount: loss, deltaSign: -1 }], bindings));
+      return true;
+    }
+    case 'ad-nauseam': {
+      // The number of cards the player chose to take (asked one at a time in gatherB49); each goes to hand, its mana value in life.
+      const k = Math.max(0, Number(bindings[effect.bind] || 0)), emit = e => H.emit(bindings, e);
+      let lost = 0;
+      for (let j = 0; j < k; j++) {
+        const top = (controller.deck.remainingLibrary || [])[0];
+        if (!top) break;
+        const mv = Number(definitionFor(game, top)?.manaValue ?? 0);
+        moveCard(game, top.instanceId, 'hand', { onEvent: emit });
+        notes.push(`${controller.displayName} reveals ${nameOf(game, top.instanceId)} and puts it into their hand.`);
+        lost += mv;
+      }
+      if (lost) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'life', scope: 'you', amount: lost, deltaSign: -1 }], bindings));
       return true;
     }
     case 'torment': {
@@ -1342,6 +1371,20 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
       keep[p.playerId] = rows.length === 1 ? rows[0].instanceId : ask(`${key}:${p.playerId}`, () => ({ ...base, playerId: p.playerId, cancellable: false, kind: 'choose-one', title, prompt: 'Choose a creature to keep (it gets a vow counter); the rest are sacrificed.', options: rows.map(c => util.cardOption(game, c, p)) }));
     }
     bindings[req.bind] = keep;
+    return true;
+  }
+  if (req.kind === 'b49-ad-nauseam') {
+    // The first card always; then "Repeat?" after each, with the card revealed and the life it leaves.
+    const lib = player.deck.remainingLibrary || [];
+    let k = 0, life = Number(player.life || 0);
+    while (k < lib.length) {
+      const c = lib[k], mv = Number(util.defOf(game, c)?.manaValue ?? 0);
+      k++; life -= mv;
+      if (k >= lib.length) break;
+      const again = ask(`${key}:${k}`, () => ({ ...base, cancellable: false, private: true, kind: 'choose-one', title, prompt: `You reveal ${util.defOf(game, c)?.name} (mana value ${mv}) and put it into your hand: you will be at ${life} life. Repeat?`, options: [{ id: 'yes', label: 'Repeat: reveal the next card' }, { id: 'no', label: 'Stop' }] }));
+      if (again !== 'yes') break;
+    }
+    bindings[req.bind] = k;
     return true;
   }
   if (req.kind === 'b49-energy-any') {
