@@ -1608,6 +1608,17 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-B198-01')) { try { if (SHARD) await RESET();
+// Build 198 (owner, 8 Nov: "The search function can't find newly renamed printings"): a printed name published after this build
+// (the card-data job's alt.json) is added at run time; search finds the real card by it and shows the printed name.
+const b198 = await page.evaluate(async () => { const out = {};
+  out.added = addAltNames({'Zzyx Test Printed Name': 'Sol Ring'});
+  const r = searchCards('Zzyx Test', null, 8); out.first = r.cards[0] && r.cards[0].n; out.alt = r.cards[0] && r.alt.get(r.cards[0]._k);
+  out.find = (find('Zzyx Test Printed Name') || {}).n;
+  S.view = 'search'; S.searchQ = 'Zzyx Test'; render();
+  return out; });
+T('UI-B198-01', 'Build 198: a newly published printed name is added at run time; search finds its real card by that name and shows the printed name', b198.added === 1 && b198.first === 'Sol Ring' && b198.alt === 'Zzyx Test Printed Name' && b198.find === 'Sol Ring', JSON.stringify(b198));
+} catch (e) { QUIET = false; T('UI-B198-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.

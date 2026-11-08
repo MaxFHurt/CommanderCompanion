@@ -188,6 +188,24 @@ function entryOf(d, name) {
   const k = keyOf(name);
   return (d.cards || []).find(x => keyOf(x.n) === k) || null;
 }
+// Printed names published after this build (owner, 8 Nov: "The search function can't find newly renamed printings"): the daily
+// card-data job writes every printed (flavor) name with its real card (alt.json; storage.js loadAltNames); the ones the built-in
+// list lacks are added here, to the name index too, with the same rule for a name that is also another real card's name.
+function addAltNames(map) {
+  if (typeof ALT_NAMES === 'undefined' || !map) return 0;
+  let n = 0;
+  for (const a in map) {
+    if (ALT_NAMES[a] || typeof map[a] !== 'string') continue;
+    ALT_NAMES[a] = map[a];
+    n++;
+    const k = norm(a), real = IDX && IDX.get(norm(map[a]));
+    if (!real || !k) continue;
+    if (IDX.has(k)) { if (IDX.get(k) !== real) ALT_CLASH.push(a); continue; }
+    IDX.set(k, real);
+  }
+  if (n) { ALT_IDX = null; searchCards.alt = null; }
+  return n;
+}
 // Alternate printed names (see ALT_NAMES in lists.js): the real card name for a name printed on a reskinned card, or ''.
 let ALT_IDX = null;
 function altName(name) {

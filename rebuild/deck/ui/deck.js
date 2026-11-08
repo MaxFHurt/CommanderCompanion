@@ -756,6 +756,7 @@ function searchResults() {
     );
   }
   let r = f.sort || f.what ? searchCards(f.q, filt, 1e6) : searchCards(f.q, filt, 60);
+  const altM = r.alt;   // cards found by a printed name: shown with that name
   if (f.what && WHAT_BY[f.what]) {
     const F = WHAT_BY[f.what].f,
       cards = r.cards.filter(c => F(c));
@@ -779,7 +780,7 @@ function searchResults() {
         ? ' · cards marked “Upgrade” are suggested for one of your decks'
         : '') +
     '</p><div class="cards">' +
-    r.cards.map(c => cardHtml(c, true, null, upBadge(c))).join('') +
+    r.cards.map(c => cardHtml(c, true, null, upBadge(c) + (altM && altM.get(c._k) ? '<span class="chip gold altnm" title="Found by this printed name">' + esc(altM.get(c._k)) + '</span>' : ''))).join('') +
     '</div>'
   );
 }

@@ -1404,6 +1404,23 @@ function searchCards(q, f, limit) {
     }
     res.push([rank, c]);
   }
+  // a printed name (a reskin: "Miku, Song of the People", "Spock, Completely Logical") finds its real card, said under that name
+  const alt = new Map();
+  if (nq && typeof ALT_NAMES !== 'undefined') {
+    if (!searchCards.alt) searchCards.alt = Object.keys(ALT_NAMES).map(a => [norm(a), a, find(ALT_NAMES[a])]).filter(x => x[0] && x[2]);
+    const have = new Map(res.map(x => [x[1], x]));
+    for (const [k, a, c] of searchCards.alt) {
+      const r = k.startsWith(nq) ? 0 : k.includes(nq) ? 1 : -1;
+      if (r < 0 || ALT_CLASH.includes(a)) continue;
+      const was = have.get(c);
+      if (was) { if (r < was[0]) was[0] = r; if (r <= 1 && !alt.has(c._k)) alt.set(c._k, a); continue; }
+      if (f && ((f.fmt && !legalIn(c, f.fmt)) || (f.color && (f.color === 'C' ? c.ci.length : !c.ci.includes(f.color))) || (f.within && !c.ci.every(x => f.within.includes(x))) || (f.type && !new RegExp('\\b' + f.type + '\\b').test(c.t)) || (f.legend && !canLead(c)) || (f.max && !(c.p != null && c.p <= f.max)) || (f.theme && !(matchAim(c, f.theme, f.tribe) >= 0.7)))) continue;
+      const row = [r, c];
+      res.push(row);
+      have.set(c, row);
+      alt.set(c._k, a);
+    }
+  }
   res.sort((a, b) => a[0] - b[0] || (a[1].r || 1e6) - (b[1].r || 1e6) || a[1].n.localeCompare(b[1].n));
-  return {total: res.length, cards: res.slice(0, limit || 60).map(x => x[1])};
+  return {total: res.length, cards: res.slice(0, limit || 60).map(x => x[1]), alt};
 }

@@ -1393,7 +1393,7 @@ function dropdown(input, box, filter, act) {
           '"><img alt="" src="' +
           artFor(c) +
           '"><span>' +
-          nameHtml(c) +
+          (r.alt && r.alt.get(c._k) ? esc(r.alt.get(c._k)) + ' <small class="aka">(' + esc(c.n) + ')</small>' : nameHtml(c)) +   // found by its printed name
           '<small>' +
           esc(c.t) +
           '</small></span><span>' +

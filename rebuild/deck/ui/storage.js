@@ -428,7 +428,27 @@ async function loadSavedLibrary() {
   else checkReleases();
   loadCombos();
   loadPrices();
+  loadAltNames();
   bracketTags();
+}
+// Printed names (owner, 8 Nov: "The search function can't find newly renamed printings"): the card-data job's alt.json lists
+// every printed (flavor) name with its real card; downloaded once a day and kept in this browser, the names the built-in list
+// lacks are added (library.js addAltNames), so search, imports and decklists know a reskin printed after this build.
+const ALT_URL = 'https://raw.githubusercontent.com/MaxFHurt/Deck-Companion/card-data/alt.json';
+async function loadAltNames() {
+  try {
+    const kept = lsGet('dc.alt');
+    if (kept && kept.m && addAltNames(kept.m)) render();
+    if (kept && Date.now() - (kept.at || 0) < 24 * 3600e3) return;
+    if (Date.now() - (lsGet('dc.altCheck') || 0) < 3600e3) return;
+    lsSet('dc.altCheck', Date.now());
+    const r = await fetch(ALT_URL, {cache: 'no-cache'});
+    if (!r.ok) throw new Error('status ' + r.status);
+    const m = await r.json();
+    if (!m || typeof m !== 'object') return;
+    lsSet('dc.alt', {at: Date.now(), m});
+    if (addAltNames(m)) render();
+  } catch (e) {}
 }
 // Prices: every day at 4:00 a.m. New York time the card-data job saves each card's cheapest TCGplayer price
 // (prices.json.gz on the Deck-Companion card-data branch; see tools/fetch-card-data.mjs there). The app downloads that one
