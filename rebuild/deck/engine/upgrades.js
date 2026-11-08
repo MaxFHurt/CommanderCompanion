@@ -2049,6 +2049,7 @@ const UP = {
   str: 0, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov): off until benchmarked
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
   strExp: 2, // its curve: strong cards count for more than several weak ones
+  strInc: 0.5, // Budget and Mid picks: weight of this commander's EDHREC play rate (benchmark: Mid 0.190/0.268, Budget 0.170/0.221 against 0.188/0.185 and 0.119/0.108)
   strLand: 0.5, // lands count at half: a dual land helps the mana, not as much as a top spell
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
   v2r: ['removal', 'wipe+', 'draw+'], // removal from the reading, wipes and card draw added from it: no benchmark number below 0.9.3 (ROADMAP)

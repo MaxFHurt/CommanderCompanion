@@ -106,14 +106,25 @@ function strFit(c, d) {
     x = E && E.map && edhOf(E.map, c);
   return x ? Math.max(0, Math.min(1, 3 * x.syn)) : 0;
 }
+function strInc(c, d) {
+  const E = strCtx(d).E,
+    x = E && E.map && edhOf(E.map, c);
+  if (!x) return 0;
+  const D = preDeflate(E);
+  return Math.max(0, Math.min(1, D.inc(c, x.inc)));
+}
 function strValue(c, d, casual) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand;
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc;
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
-    v = Math.pow((1 - w) * cardStrength(c, d, casual) + w * strFit(c, d), UP.strExp) * (tags(c).land ? UP.strLand : 1);
+    // Budget and Mid picks also weigh what this commander's players run (EDHREC play rate, precon bias removed): players
+    // upgrading at those prices add the commander's popular cards, not what strong decks of every commander play
+    const inc = casual && UP.strInc ? strInc(c, d) : 0,
+      base = casual && UP.strInc ? (1 - w - UP.strInc) * cardStrength(c, d, casual) + w * strFit(c, d) + UP.strInc * inc : (1 - w) * cardStrength(c, d, casual) + w * strFit(c, d);
+    v = Math.pow(base, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
   }
   return v;
@@ -176,7 +187,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
