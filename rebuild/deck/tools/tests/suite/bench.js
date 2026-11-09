@@ -4,6 +4,15 @@ const fs = require('fs'), path = require('path');
 const dir = path.resolve(process.argv[2]), label = process.argv[3] || 'bench', which = process.argv[4] || 'tune', quiet = process.argv.includes('--quiet');
 if (process.env.NOPRE) require('./h.js').noPrecon = true;   // compare without the precon evidence
 const H = require('./h.js')(dir), X = H.ctx, run = H.run;
+// Card strength (UP.str, on from 0.9.59): players see the strength list, so it is what is scored. The data the app downloads is
+// pinned next to this file (strength/: the ratings and the commander files); NOSTR=1 scores the engine's own list instead,
+// STRBLOB=<combined file> scores another copy.
+{ const SD = process.env.STRHOST || path.join(__dirname, 'strength');
+  if (process.env.STRBLOB) { X.__blob = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(process.env.STRBLOB))); run('useStrength(__blob); UP.str = 1;'); }
+  else if (!process.env.NOSTR && run('typeof UP !== "undefined" && !!UP.str') && fs.existsSync(path.join(SD, 'strength.json.gz'))) {
+    const blob = JSON.parse(require('zlib').gunzipSync(fs.readFileSync(path.join(SD, 'strength.json.gz')))); blob.cmd = {};
+    if (fs.existsSync(path.join(SD, 'strength'))) for (const f of fs.readdirSync(path.join(SD, 'strength')).filter(f => f.endsWith('.json'))) blob.cmd[f.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(SD, 'strength', f), 'utf8'));
+    X.__blob = blob; run('useStrength(__blob)'); } }
 // Weight overrides for experiments: UP='{"wf":0.1}' node bench.js ...  (applied to the engine's UP object)
 if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
 // CORPUS=corpus5: judge with that folder of player decks only (corpus5: up to 1,000 per commander, fetched 21 Oct by
@@ -77,7 +86,10 @@ for (const [slug, file] of list){
   if (process.env.BUDGETONLY){ X.__cap = +process.env.BUDGETONLY; run('__d.dismissed = LIB.filter(c => c.p == null || c.p >= __cap).map(c => c.n)'); }
   X.__cap = +(process.env.CAP || 0); X.__pool = !!process.env.POOL;   // POOL=1: the whole-card search and its picks (0.9.3), as the app shows them
    if (process.env.TIER) X.__d.tier = process.env.TIER; X.__sco = process.env.SCORECHECK === '2' ? {refill:false, theme:false} : {}; const t0 = Date.now(), R = rcGet(slug) || run(process.env.SCORECHECK ? '(() => { const R0 = upgradePaths(__d, __cap ? {cap:__cap} : undefined); try { scoreCheck(__d, R0, Object.assign({apex:apexRef(__d)}, __sco)); } catch (e) {} if (__pool && typeof poolPromote === "function") try { const Q = poolQueue(__d, R0); if (Q){ poolStep(Q, 1e12); poolPromote(Q); } } catch (e) {} return R0; })()' : 'upgradePaths(__d, __cap ? {cap:__cap} : undefined)'), ms = Date.now() - t0; rcPut(slug, R);   // CAP=3: the per-card price-capped package
+  // the list as the app shows it: with card strength on, the strength rows, ranked by the deck's tier (TIER)
+  if (!process.env.STRSWAPS && run('typeof strengthOn === "function" && strengthOn(__d)')) { X.__R = R; run('strengthPaths(__d, __R)'); }
   const TIER = process.env.TIER || 'apex', swaps = R.paths.map(L => X.tierPick ? X.tierPick(L, TIER) : L.opts[TIER]).filter(Boolean).filter(p => process.env.LANDS ? isLand(p.cut) && isLand(p.add) : !isLand(p.cut) && !isLand(p.add)).map(p => ({cut:p.cut, add:p.add}));
+  if (process.env.STRSWAPS){ const SR = run('strengthRef(__d)'); swaps.length = 0; for (const p of (SR ? SR[TIER].done : [])) if (process.env.LANDS ? isLand(p.cut) && isLand(p.add) : !isLand(p.cut) && !isLand(p.add)) swaps.push({cut:p.cut, add:p.add}); }
   // Ranking quality over everything, not just the top 10: does the engine's value order the deck's cards the way players keep
   // them, and the candidate additions the way players add them? (Spearman; needs the engine's diagnostics.)
   const rk = a => { const q = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]), r = []; q.forEach((x, i) => r[x[1]] = i); return r; };

@@ -17,7 +17,8 @@ server(){ curl -s -o /dev/null "http://127.0.0.1:$PORT/index.html" || (cd "$DIR"
 quick(){ server; add "quick check:  $(node ui-quick.mjs "$PORT" q 2>&1 | tail -1)"; }
 uisuite(){ server; L=$(node ui-par.mjs "$PORT" check 3 2>&1); add "UI suite:     $(echo "$L" | grep '^build' | tail -1)"; F=$(echo "$L" | grep 'FAIL\|stopped early' | cut -c1-180); [ -n "$F" ] && add "$F"; }   # 3 groups side by side (5.6 min); SEQ=1 runs it in one line
 [ -n "$SEQ" ] && uisuite(){ server; L=$(node ui-test.mjs "$PORT" check 2>&1); add "UI suite:     $(echo "$L" | tail -1)"; F=$(echo "$L" | grep '^FAIL' | cut -c1-160); [ -n "$F" ] && add "$F"; }
-bench(){ for s in $*; do add "bench $s:  $(SCORECHECK=1 ALSOW=3,6 node bench.js "$DIR" check "$s" --quiet 2>&1 | grep '^MEAN' | sed 's/ | whole-list.*//' | tr '\n' ' ')"; done; }
+# each tier's list as players see it (card strength on: the strength rows, ranked by the deck's tier); NOSTR=1 for the engine's own list
+bench(){ for s in $*; do for t in apex mid budget; do add "bench $s $t:  $(SCORECHECK=1 ALSOW=3,6 TIER=$t node bench.js "$DIR" check "$s" --quiet 2>&1 | grep '^MEAN' | sed 's/ | whole-list.*//' | tr '\n' ' ')"; done; done; }
 semantics(){ add "semantics:    $(node semantics.js "$DIR" | tail -1)"; }
 claims(){ add "claims:       $(node claims.js "$DIR" 2>&1 | grep -i 'unrecognised' | tr -s ' ')"; }
 accept(){ add "accept:       $(node accept.js "$DIR" 2>&1 | tail -1)"; add "accept edh:   $(AIMS=edh node accept.js "$DIR" 2>&1 | tail -1)"; }
