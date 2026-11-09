@@ -419,7 +419,7 @@ function strengthPaths(d, R) {
     for (const t of ['mid', 'budget']) {
       const p = L.opts[t];
       if (!p || p.held) continue;
-      if (p.dScore < SCORE_MIN) {
+      if (p.dScore < SCORE_MIN && !UP.strKeepNeg) {
         const r = nextFor(L, t, new Set(Object.values(L.opts).map(x => x.add)));
         if (r) L.opts[t] = r;
         else delete L.opts[t];

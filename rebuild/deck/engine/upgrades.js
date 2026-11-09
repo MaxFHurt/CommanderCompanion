@@ -2021,6 +2021,9 @@ function apexOf(O, ok) {
 function tierPick(L, t) {
   const O = L.opts;
   if (t === 'apex') return apexOf(O, () => true);
+  // card strength rows (UP.str): a tier's own pick is that tier's card, as its column shows it (the Mid and Budget builds
+  // choose by what players at those prices run); a tier without one takes the strongest card on the row at its price
+  if (L.str && O[t] && tierFits(O[t], t)) return O[t];
   return tierRank([O.apex, O.mid, O.budget].filter(Boolean)).find(p => tierFits(p, t)) || null;
 }
 // The three columns shown on a row: Apex the slot's best card (apexOf), Mid the strongest of the rest under $12, Budget the
@@ -2047,7 +2050,7 @@ function tierCols(O, skip) {
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
   str: 1, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov)
-  strAim: 1, // the deck's chosen themes count toward fit, first most (0 = the commander's page only)
+  strAim: 0, // the deck's chosen themes count toward fit, first most (0 = the commander's page only)
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
   strExp: 2, // its curve: strong cards count for more than several weak ones
   strInc: 0.5, // Budget and Mid picks: weight of this commander's EDHREC play rate (benchmark: Mid 0.190/0.268, Budget 0.170/0.221 against 0.188/0.185 and 0.119/0.108)
