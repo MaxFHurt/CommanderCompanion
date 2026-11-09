@@ -432,6 +432,13 @@ what each part does, the owner's rules, open notes, and the roadmap.
 
 ## 6. Tests (run before every push)
 
+**What to run (owner, 9 Nov: "switch to that to save us computing time and usage"):**
+- While working: only the checks for what changed (Deck Builder: `SHARD=0/1 SHARDPLAN=<plan.json> node ui-test.mjs` with the
+  test ids, or one benchmark set). No full run after every fix.
+- Before a live push: one full Deck Builder run (`check.sh all live`). The game suites below only when game files changed
+  (anything outside `rebuild/deck/`); a Deck Builder-only change does not touch them.
+- The three-tier upgrade benchmark runs once per release, in that full run.
+
     node tests/node/game.mjs          # 248 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards
     node tests/node/tracker.mjs       # 20 hosted-tracker store checks

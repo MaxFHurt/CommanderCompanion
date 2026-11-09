@@ -912,6 +912,8 @@ like players choices."
 ## Standing rules from the owner
 
 - Never commit, push or go live without the owner's go-ahead for that build.
+- Tests (owner, 9 Nov): only the checks for what changed while working; one full suite run before going live; the
+  game suites only when game files changed.
 - Don't change the upgrades engine without discussing it first.
 - Brackets are a label, not a cap. Budget is strictly under $3, Mid under $12;
   price never limits Apex.
