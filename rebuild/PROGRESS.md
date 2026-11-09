@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.92 (Deck Builder {"build": 203, "version": "0.9.58"})
+- **Live build:** 1.0.0-rebuild.93 (Deck Builder {"build": 204, "version": "0.9.59"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 93 — 9 Nov 2026
+- Deck Builder 0.9.59 (build 204): card strength is on (roadmap 6.1, owner 9 Nov: 'Push with the strength upgrade'). Deck power runs from replacement level (0) to the deck's Apex build (100), with its Budget and Mid builds marked; the upgrade list comes from the three strength builds (how often strong decks that could play a card do, from EDHREC's bracket pages, refreshed weekly from the Deck-Companion card-data branch), each deck's own tier leading, following the deck's rules (card sets, exclusions, held picks, Stick to the theme), no card on two rows; a Mid or Budget deck's order is labelled Best for Mid/Budget. Benchmarks: tournament match Apex 60% -> 70% (core 58% -> 79%), Mid 35% -> 64%; players' upgrades (agreement@5, tuneall/test/holdout) Mid 0.188/0.185/0.269 -> 0.187/0.245/0.314 (the owner accepted the 0.001 on tuneall), Budget 0.119/0.108/0.208 -> 0.156/0.188/0.292. Themes steer the picks once the player chooses or reorders them. UI tests serve pinned strength data (tools/tests/suite/strength). Rules unchanged (game 254, mechanics 85, catalog 409 passed).
 
 ### Build 92 — 8 Nov 2026
 - Deck Builder 0.9.58 (build 203): the Health pop-up shows each problem as its own section with the fix in place: the best swap, up to two other options and a 'for now' card (one you own, else one under $1) when the best card isn't owned, each with Swap; the long explanations are cut to one line. Card strength (roadmap 6.1) is in the build but off (UP.str 0): with the hosted data its picks broke 15 UI checks (set rules, excluded cards, repeats), so it waits for those fixes. Rules unchanged (game 254, mechanics 85, catalog 409 passed).
