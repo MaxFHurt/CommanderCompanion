@@ -311,7 +311,15 @@ function strengthPaths(d, R) {
       v = c && STRENGTH.cards.get(c._n);
     return v ? v[0] : strIsNew(c) ? null : 0;
   };
-  const gain = (cut, add) => strengthGain(d, cut, add, 1);
+  // a swap's change in power on this scale (strengthGain), with each card's value worked out once for this list
+  const VA = new Map(),
+    va = n => {
+      let v = VA.get(n);
+      if (v === undefined) VA.set(n, (v = strValue(find(n), d, false)));
+      return v;
+    },
+    gk = 100 / ((strSlots(d).length || 1) * (SR.top - SR.floor)),
+    gain = (cut, add) => (va(add) - va(cut)) * gk;
   const inc = c => {
     const x = E && E.map && edhOf(E.map, c);
     return x ? +x.inc.toFixed(3) : 0;
@@ -506,11 +514,11 @@ function strengthPaths(d, R) {
       return L;
     })
     .filter(L => {
-      // a card already picked on another row is not offered here too
-      for (const t of Object.keys(L.opts)) if (used.has(L.opts[t].add)) delete L.opts[t];
+      // a card already picked on another row, or one that doesn't raise power, is not offered here
+      for (const t of Object.keys(L.opts)) if (used.has(L.opts[t].add) || !(L.opts[t].dScore >= SCORE_MIN)) delete L.opts[t];
       const ps = Object.values(L.opts);
       ps.forEach(p => used.set(p.add, L));
-      return ps.length && ps.every(p => p.dScore >= SCORE_MIN);
+      return ps.length > 0;
     });
   R.paths = rows.concat(spare);
   // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale; one that would lower
@@ -520,7 +528,7 @@ function strengthPaths(d, R) {
       if (!o || typeof o !== 'object' || seenObj.has(o)) return;
       seenObj.add(o);
       if (typeof o.cut === 'string' && typeof o.add === 'string' && !o.str) {
-        o.dScore = strengthGain(d, o.cut, o.add, o.q || 1);
+        o.dScore = gain(o.cut, o.add) * (o.q || 1);
         o.str = true;
       }
       for (const v of Array.isArray(o) ? o : Object.values(o)) walk(v);
