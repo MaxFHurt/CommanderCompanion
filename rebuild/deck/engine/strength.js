@@ -558,7 +558,11 @@ function strengthPaths(d, R) {
     try {
       stickTheme(d, R);
       // a row with no on-theme card that raises power leaves the list while the setting is on (spare-land rows stay)
-      R.paths = R.paths.filter(L => L.spare || Object.values(L.opts).some(p => p && onTheme(find(p.add))));
+      R.paths = R.paths.filter(L => {
+        // a spare-land row keeps only its on-theme picks
+        if (L.spare) for (const t of Object.keys(L.opts)) if (!onTheme(find(L.opts[t].add))) delete L.opts[t];
+        return Object.values(L.opts).some(p => p && onTheme(find(p.add)));
+      });
     } catch (e) {}
   R.str = true;
   return R;
