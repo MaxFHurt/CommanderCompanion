@@ -356,7 +356,9 @@ function strengthPaths(d, R) {
   const by = L => new Map(L.map(s => [s.cut, s.add])),
     T = {apex: by(P.apex), mid: by(P.mid), budget: by(P.budget)};
   // a row for every card any of the three builds replaces (and every held pick's slot)
-  const cuts = [...new Set(P.apex.concat(P.mid, P.budget).map(s => s.cut).concat([...held.keys()]))];
+  // a deck over its land target keeps the regular list's spare-land rows: they claim their land before any strength row
+  const spareCut = new Set((R.paths || []).filter(L => L.spare).map(L => L.cut));
+  const cuts = [...new Set(P.apex.concat(P.mid, P.budget).map(s => s.cut).concat([...held.keys()]))].filter(c => !spareCut.has(c) || held.has(c));
   let rows = cuts
     .map(cut => {
       const H = held.get(cut) || {},
@@ -456,6 +458,13 @@ function strengthPaths(d, R) {
     rows.forEach(L => (L.rk = {apex: keyT(L, 'apex'), mid: keyT(L, 'mid'), budget: keyT(L, 'budget')}));
     rows.sort((a, b) => b.rk[dt] - a.rk[dt]);
   }
+  const TC = d.stick && typeof themeCtx === 'function' ? themeCtx(d) : null,
+    aimsT = (d.aims || []).filter(a => a !== 'tribal'),
+    tribe = ctxOf(d).tribe,
+    onTheme = c => !!TC && (!!themeOf(c, TC) || aimsT.some(a => matchAim(c, a, tribe) >= 0.7) || (!!tribe && matchAim(c, 'tribal', tribe) >= 0.7));
+  // every on-theme card the deck allows (not only the strongest cards), worked out once
+  let TP = null;
+  const themePool = () => TP || (TP = LIB.filter(c => ok(c) && onTheme(c)));
   // alternatives: the next strongest cards for the slot at each tier's price, up to three, each keeping at least half the
   // pick's gain; the strongest card measured for the slot is the row's Highest score card
   rows.forEach(L => {
@@ -476,6 +485,15 @@ function strengthPaths(d, R) {
     }
     const top = C[0];
     L.top = top ? {n: top.c.n, p: top.c.p, dScore: top.g, inc: inc(top.c)} : null;
+    // Stick to the theme: the slot's strongest on-theme cards, for stickTheme to choose from
+    if (d.stick)
+      L.finds = themePool()
+        .filter(c => fits(cutC, c))
+        .map(c => ({c, g: gain(L.cut, c.n)}))
+        .filter(x => x.g > SCORE_MIN)
+        .sort((a, b) => b.g - a.g)
+        .slice(0, 4)
+        .map(x => ({n: x.c.n, dScore: x.g}));
   });
   // spare lands (a deck over its land target) come from the regular list, measured on this scale
   const spare = (R.paths || [])
@@ -513,6 +531,8 @@ function strengthPaths(d, R) {
   if (d.stick && typeof stickTheme === 'function')
     try {
       stickTheme(d, R);
+      // a row with no on-theme card that raises power leaves the list while the setting is on (spare-land rows stay)
+      R.paths = R.paths.filter(L => L.spare || Object.values(L.opts).some(p => p && onTheme(find(p.add))));
     } catch (e) {}
   R.str = true;
   return R;

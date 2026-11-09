@@ -393,7 +393,7 @@ T('UI-TYPE-01', 'Card-type filter: upgrades and build-plan slots narrow to sugge
 } catch (e) { QUIET = false; T('UI-TYPE-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-STATS-01')) { try { if (SHARD) await RESET();
 // 26. Running build stats at the top of Upgrades.
-const stt = await page.evaluate(async () => { const out = {}; const wq = async () => { for (let i = 0; i < 80 && !/% of the way from random|of the Apex build’s|above the Apex build’s/.test(document.body.textContent); i++) await new Promise(r => setTimeout(r, 200)); };
+const stt = await page.evaluate(async () => { const out = {}; const wq = async () => { for (let i = 0; i < 80 && !(/% of the way from random|of the Apex build’s|above the Apex build’s/.test(document.body.textContent) || (cur() && cur().base && document.querySelector('#stats-more .sgrid'))); i++) { await new Promise(r => setTimeout(r, 200)); if (i % 5 === 4) render(); } };   /* 0.9.59: with card strength the strip reads power from the start; the starting score is what is waited for */
   await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; await loadEdh(d.commander); await loadThemes(d.commander, d.aims); render(); await wq();
   const num = (sel, re) => +((re.exec(document.querySelector(sel).textContent) || [])[1]);
   out.first = document.querySelector('.statbar').textContent; out.base = JSON.parse(JSON.stringify(d.base || null)); out.firstTop = !!document.querySelector('#statscroll > .statbar:first-child');
@@ -495,7 +495,7 @@ const b81 = await page.evaluate(async () => { const out = {}; S.syncRecs = true;
   $('#modal').hidden = true; S.open = false; S.view = 'decks'; render(); out.mineShown = !!document.querySelector('#mywant') && document.querySelector('#mywant').textContent.includes(c.n);
   S.view = 'decks'; S.open = true; S.deckId = d.id;
   // upgrades: impact order, GC chip
-  S.tab = 'up'; S.upOrd = null; S.upSort = 'impact'; recsFor.k = null; render(); await recsReady(d); render(); const R = recsFor(d), imp = L => Math.max(...Object.values(L.opts).map(p => p.dScore != null ? p.dScore : -1e9));
+  S.tab = 'up'; S.upOrd = null; S.upSort = 'impact'; recsFor.k = null; render(); await recsReady(d); render(); const R = recsFor(d), imp = L => R.str && L.rk && (d.tier === 'mid' || d.tier === 'budget') ? L.rk[d.tier] : Math.max(...Object.values(L.opts).map(p => p.dScore != null ? p.dScore : -1e9));   /* 0.9.59: with card strength, a Mid or Budget deck's order is its own build's (labelled Best for Mid/Budget) */
   const shown = [...document.querySelectorAll('.paths [data-act="swap"]')].map(b => +b.dataset.v.split('|')[0]).filter((x, i, A) => A.indexOf(x) === i), vals = shown.map(i => imp(R.paths[i]));
   out.impactSorted = vals.length > 2 && vals.every((v, i) => !i || vals[i - 1] >= v - 1e-9); out.sortBar = (document.querySelector('select[data-act="upsort"]') || {}).value === 'impact';
   out.gcRows = R.paths.filter(L => Object.values(L.opts).some(p => p.gc)).length; out.gcChip = R.paths.some(L => Object.values(L.opts).some(p => p.gc)) ? !!document.querySelector('.paths .chip.gc') : 'none';

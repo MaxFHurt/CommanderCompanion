@@ -486,8 +486,9 @@ function upPanel(d, A, mode) {
       const so = S.upSort || 'impact',
         // with card strength (UP.str) each row carries its rank at every tier: the deck's own tier orders the list
         imp = L =>
-          R.str && L.rk && L.rk[d.tier || 'apex'] != null
-            ? L.rk[d.tier || 'apex']
+          // Apex decks: the gain the chips show (the Apex build takes its biggest gains first anyway)
+          R.str && L.rk && (d.tier === 'mid' || d.tier === 'budget') && L.rk[d.tier] != null
+            ? L.rk[d.tier]
             : Math.max(...Object.values(L.opts).map(p => (p && p.dScore != null ? p.dScore : -1e9))),
         cost = L => {
           const p = tierPick(L, d.tier || 'apex') || L.opts.apex || Object.values(L.opts)[0],

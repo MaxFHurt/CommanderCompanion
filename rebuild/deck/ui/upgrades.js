@@ -930,6 +930,13 @@ function slotKinds(d, ps) {
   return k;
 }
 const SORT_LAB = {impact: 'Biggest impact', engine: 'Recommended order', price: 'Cheapest first'};
+// With card strength on, a Mid or Budget deck's default order is its own build's (what players at that price add first), not
+// the Apex-scale gain the chips show, so it says so (UP.str).
+function sortLab(k) {
+  const d = cur(),
+    R = recsFor.v;
+  return k === 'impact' && d && R && R.str && (d.tier === 'mid' || d.tier === 'budget') ? 'Best for ' + TIERS[d.tier].label : SORT_LAB[k];
+}
 // Upgrade sheets (the default view): one upgrade at a time as four cards side by side, your card, Budget, Mid and Apex, each with
 // its picture, its effect on the deck score and its price. Tapping a card shows its details and actions below (the same row the
 // list view shows, narrowed to that card); the arrows move between upgrades. List shows every upgrade as before.
@@ -1048,7 +1055,7 @@ function filterBar(PT, shown, PK) {
     sel(
       'upsort',
       'Sort',
-      Object.keys(SORT_LAB).map(k => [k, SORT_LAB[k]]),
+      Object.keys(SORT_LAB).map(k => [k, sortLab(k)]),
       S.upSort || 'impact'
     ) +
     (ts.length >= 2 || upT()
@@ -1071,7 +1078,7 @@ function sortBar() {
       '" aria-pressed="' +
       (so === v) +
       '">' +
-      SORT_LAB[v] +
+      sortLab(v) +
       '</button>';
   return (
     '<div class="row typebar" role="group" aria-label="Sort upgrades"><span class="lab" style="margin:0">Sort</span>' +
