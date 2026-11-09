@@ -169,18 +169,21 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    slow rocks, wipes and big creatures they never play). Must be measured against the upgrade benchmark and the tournament
    comparison before and after. (deck/ROADMAP.md "Queue", Large 3)
 2. **Open questions for the owner** (deck/WORK_SESSION_HANDOFF.md section 0):
-   - The Apex rule against players: keep, or review the biggest score finds (Archpriest of Shadows, Evolution Witness,
-     The Soul Stone…) in case the score overrates them.
+   - (Answered 9 Nov: keep it as it is.) The Apex rule against players: keep, or review the biggest score finds (Archpriest
+     of Shadows, Evolution Witness, The Soul Stone…) in case the score overrates them.
    - (Answered 8 Nov, build 82.) The upgrade list is kept after a swap (owner: "Apex suggestions should not change based on an
      upgrade I made of a mid or budget quality"): the row keeps its higher tiers, shows the card you put in (In your deck)
      and the card you took out (a red Replaced chip); the list is worked out again only on Regenerate or another change.
    - Speed: keep each card's reading between launches; send the card library to the background core once at launch.
-   - Plans the engine can't see yet: fliers, defenders/toughness, goad, untap, opponents' cards, keyword counters — which
-     to add (section 5.1 may cover several).
+   - (Answered 9 Nov: "The engine should see all plans.") Plans the engine can't see yet: fliers, defenders/toughness, goad,
+     untap and opponents' cards were already in (engine v2, 20 Oct); Big creatures switched on and Keyword counters added (both
+     offered, not picked for a deck on their own).
    - Do the reasons on cards read the owner's commanders correctly?
-   - Should alternatives be matched to the card going out rather than to the pick? (guide blind spots: Sheoldred and Yawgmoth
+   - (Answered 9 Nov: "either".) Should alternatives be matched to the card going out rather than to the pick? See
+     alternatives now lists cards doing either card's job, in the pick's price band. (guide blind spots: Sheoldred and Yawgmoth
      for Doom, Swords to Plowshares for Turtle Power, Brightglass Gearhulk for Wakanda)
-   - EDHREC land count: the app uses its own land formula; the tests use EDHREC's average (a land apart). Align them?
+   - (Answered 9 Nov: "our land counter should match EDH".) EDHREC land count: the land target is now the commander's EDHREC
+     average when its page is loaded (UP.edhLands), the app's own formula otherwise.
 3. **(Done, build 68.)** **Printings (build 67 system):** owned cards (the library keeps names only, so "the printing I own" cannot
    win yet: store set + number when cards are added to the library, then make it rule 2b); built-in precons (lists.js) get
    their printings only through the by-name EDHREC lookup on opening (store set + number in lists.js instead); generated

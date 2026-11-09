@@ -439,8 +439,10 @@ async function fetchEdh(name) {
     E.map = new Map(rows.map(r => [norm(r[0]), {inc: r[1], syn: r[2]}]));
     E.state = 'ok';
   };
-  if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length && cached.tags) {
+  // (a page cached before 0.9.60 has no land count: it is fetched again once)
+  if (cached && Date.now() - cached.ts < 7 * 864e5 && cached.rows.length && cached.tags && cached.lands != null) {
     E.decks = cached.decks;
+    E.lands = cached.lands;
     E.pre = cached.pre || null;
     E.tags = cached.tags;
     apply(cached.rows);
@@ -463,6 +465,7 @@ async function fetchEdh(name) {
       if (!seen.size) throw new Error('no cards');
       E.decks = decks;
       E.tags = parseTags(j);
+      E.lands = parseLands(j); // EDHREC's average land count for this commander (the land target, owner 9 Nov)
       const pn = j.container && j.container.json_dict && j.container.json_dict.card && j.container.json_dict.card.precon;
       if (pn) {
         try {
@@ -473,7 +476,7 @@ async function fetchEdh(name) {
         }
       }
       apply([...seen.values()]);
-      lsSet('dc.edh.' + slug, {ts: Date.now(), decks, rows: [...seen.values()], pre: E.pre, tags: E.tags});
+      lsSet('dc.edh.' + slug, {ts: Date.now(), decks, rows: [...seen.values()], pre: E.pre, tags: E.tags, lands: E.lands || 0});
     } catch (e) {
       E.state = 'fail';
       await addFall(E, name);
@@ -628,6 +631,7 @@ async function loadEdh(name) {
       decks: E.decks,
       pre: E.pre,
       tags: E.tags,
+      lands: E.lands || 0,
       tmap: Object.assign(E.tmap, mine.tmap),
       state: E.state,
       fall: E.fall || null

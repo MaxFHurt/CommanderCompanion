@@ -284,6 +284,14 @@ const THEMES = {
     re: /power (?:[4-9]|\d\d) or greater|greatest power|total power of creatures|creatures? you control with power \d+ or greater/i,
     pw: 6
   },
+  // keyword counters (Ikoria on): flying, deathtouch, lifelink… counters, and cards that give or move them (owner, 9 Nov: "the
+  // engine should see all plans")
+  kwcounters: {
+    v2: true,
+    pick: false,
+    label: 'Keyword counters',
+    re: /\b(?:flying|first strike|double strike|deathtouch|hexproof|indestructible|lifelink|menace|reach|trample|vigilance)(?: (?:and|or) (?:a |an )?(?:flying|first strike|double strike|deathtouch|hexproof|indestructible|lifelink|menace|reach|trample|vigilance))* counters?\b|\bkeyword counters?\b|counters? (?:from among )?flying, first strike/i
+  },
   cheat: {
     v2: true,
     pick: false,

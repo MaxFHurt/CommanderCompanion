@@ -958,7 +958,7 @@ function altsFor(d, name, o) {
   if (o.deck) ref.cards = o.deck.map(x => ({n: x.n, q: x.q}));
   const ctx = ctxOf(ref),
     val = o.val || (x => baseScore(x, ref, ctx).s),
-    band = priceBand(c.p),
+    band = o.band || priceBand(c.p), // o.band: another card's price band (alternatives matched to the card going out)
     tc = tags(c),
     land = !!tc.land,
     ty = mainType(c),
@@ -995,7 +995,7 @@ function altsFor(d, name, o) {
       !dis.has(x._n) &&
       (x.p != null || band === 'apex') &&
       priceBand(x.p) === band &&
-      (band !== 'apex' || c.p == null || x.p == null || x.p <= 2 * c.p) &&
+      (band !== 'apex' || (o.band ? o.refP : c.p) == null || x.p == null || x.p <= 2 * (o.band ? o.refP : c.p)) &&
       same(x)
   ).map(x => {
     let share = 0;

@@ -774,7 +774,12 @@ function mainType(c) {
 // Lands = 31.5 + 1.6 × average mana value of the spells − 0.32 × cheap ramp (mana value 2 or less) + 0.72 × landfall cards,
 // between 30 and 42. Commander decks with at least 40 spells; otherwise null (the starting target is used).
 function landTarget(A, d) {
-  if (!d || d.format !== 'commander' || A.nonland < 40) return null;
+  if (!d || d.format !== 'commander') return null;
+  // the commander's EDHREC average when its page is loaded (owner, 9 Nov: "our land counter should match EDH"); our formula
+  // from the deck's own spells otherwise
+  const E = A.ctx && A.ctx.edh;
+  if (UP.edhLands && E && E.lands >= 25 && E.lands <= 45) return Math.round(E.lands);
+  if (A.nonland < 40) return null;
   return Math.max(30, Math.min(42, Math.round(31.5 + 1.6 * A.avg - 0.32 * A.cheapRamp + 0.72 * A.landfall)));
 }
 function legalIn(c, fmt) {

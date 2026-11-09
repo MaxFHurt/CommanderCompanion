@@ -2050,6 +2050,7 @@ function tierCols(O, skip) {
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
   str: 1, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov)
+  edhLands: 1, // the land target is the commander's EDHREC average when its page is loaded (owner, 9 Nov)
   strAim: 0, // the commander's own (automatic) themes toward fit: 0 (any weight lowered agreement with players)
   strAimSet: 1, // themes the player chose or reordered count toward fit, first most
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
@@ -2085,8 +2086,10 @@ const UP = {
     'legends',
     'xspells',
     'weenies',
-    'bigmana'
-  ], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own)
+    'bigmana',
+    'big',
+    'kwcounters'
+  ], // engine v2: plans added 20 Oct (all offered; defenders is never picked on its own); big and keyword counters 9 Nov (owner: all plans)
   xPlan: 0.25, // engine v2: weight of fitting another plan this commander's players build (xPlansOf); owner took the trade-off 21 Oct
   v2sim: 1, // on from 0.9.11 (benchmark identical; owner: "Do all 5"). engine v2: practice games read mana and creatures from the rules reading, with combat (simReading)
   polP: 0,

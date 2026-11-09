@@ -1787,7 +1787,12 @@ function altList(d, s) {
     G = R.str && typeof strGainFn === 'function' ? strGainFn(d) : null,
     // card strength (UP.str): candidates ranked by strength at the pick's tier, each measured on the power scale as the pick is
     val = G ? c => 50 * strValue(c, d, s.t === 'mid' || s.t === 'budget') : R.valOf, // on altsFor's scale (its type and job bonuses)
-    L = altsFor(d, s.n, {cut: s.cut, val, skip: R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)), n: 14, all: !!G});
+    skip = R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)),
+    L0 = altsFor(d, s.n, {cut: s.cut, val, skip, n: 14, all: !!G}),
+    // either job (owner, 9 Nov): cards doing the job of the suggested card, or of the card going out, in the pick's price band
+    pc = find(s.n),
+    L1 = s.cut && find(s.cut) && !tags(find(s.cut)).land === !tags(pc || {}).land ? altsFor(d, s.cut, {cut: s.cut, val, skip: skip.concat([s.n]), n: 14, all: !!G, band: priceBand(pc && pc.p), refP: pc && pc.p}) : [],
+    L = L0.concat(L1.filter(a => !L0.some(b => b.n === a.n)).map(a => Object.assign(a, {forCut: true})));
   if (G) {
     // as good as half the pick by the measure its tier picks with (Apex: power; Mid and Budget: the casual rating with this
     // commander's play rate), and never worse than the card in the slot (it adds power)
@@ -1837,6 +1842,7 @@ function openAlts(v) {
         : tags(c || {}).land
           ? 'Each one is a land making the same colours'
           : 'Each one is a ' + mainType(c).toLowerCase() + ' that fits the same part of your plan') +
+      (s.cut ? ' (or does the job of ' + esc(s.cut.split(' // ')[0]) + ', the card going out)' : '') +
       ', in the same price band as ' +
       esc(s.n.split(' // ')[0]) +
       ' (' +
