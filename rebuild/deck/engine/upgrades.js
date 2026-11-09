@@ -2054,7 +2054,7 @@ const UP = {
   strAimSet: 1, // themes the player chose or reordered count toward fit, first most
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
   strExp: 2, // its curve: strong cards count for more than several weak ones
-  strInc: 0.5, // Budget and Mid picks: weight of this commander's EDHREC play rate (benchmark: Mid 0.190/0.268, Budget 0.170/0.221 against 0.188/0.185 and 0.119/0.108)
+  strInc: 0.55, // Budget and Mid picks: weight of this commander's EDHREC play rate (rows benchmark, 9 Nov: Mid 0.187/0.245/0.314, Budget 0.156/0.188/0.292 against today's 0.188/0.185/0.269 and 0.119/0.108/0.208)
   strRows: 15, // upgrade rows shown from the strength builds, biggest gain first
   strLand: 0.5, // lands count at half: a dual land helps the mana, not as much as a top spell
   v2: 1, // engine v2: jobs from the rules reading (engine/rules.js, engine/functions.js); see tags()
