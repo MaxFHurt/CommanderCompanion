@@ -116,7 +116,9 @@ suggested tools first, "that card" carried from step to step, applied as one cha
    (build 53); online "play over time" games live on the Worker and their list travels with the profile.
 2. **Online games privacy:** each device holds the whole game (it runs the rules), so someone using developer tools could
    read other hands. **Done for online games, build 76** (top of this file): they run on the free Supabase rules server.
-   Still true for hosted live games: the host device holds the game (a device nobody plays on avoids it).
+   Hosted live games: each phone is sent only its own view (other hands hidden); only the host device itself holds the
+   whole game in memory (readable with developer tools, never shown), so it matters only when someone plays on the host
+   device. Hosting on a device nobody plays on avoids it.
 3. **Native iOS wrapper with Multipeer Connectivity** (true Bluetooth): on hold (owner, 1 Nov). Needs an Apple Developer
    account and a Mac.
 
@@ -174,7 +176,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    - (Answered 8 Nov, build 82.) The upgrade list is kept after a swap (owner: "Apex suggestions should not change based on an
      upgrade I made of a mid or budget quality"): the row keeps its higher tiers, shows the card you put in (In your deck)
      and the card you took out (a red Replaced chip); the list is worked out again only on Regenerate or another change.
-   - Speed: keep each card's reading between launches; send the card library to the background core once at launch.
+   - (Done on the branch, 9 Nov, not live.) Speed: each card's reading is kept between launches and the background core reuses
+     it (phone speed: every card ready 37.8 s -> 1.4 s, opening a precon 47 s -> about 24 s); the library was already sent to the
+     background core once at launch (Build 143).
    - (Answered 9 Nov: "The engine should see all plans.") Plans the engine can't see yet: fliers, defenders/toughness, goad,
      untap and opponents' cards were already in (engine v2, 20 Oct); Big creatures switched on and Keyword counters added (both
      offered, not picked for a deck on their own).

@@ -871,8 +871,12 @@ like players choices."
     (Wakanda). Each beats our pick only in a slot whose pick is a different kind of card (a creature slot
     for Swords; Sheoldred barely run by Doom players). Every version that showed them (a few top Commander
     staples measured per slot, stN; off-theme picks in weak slots) cost popular alternatives (row@5 0.240
-    -> 0.239) or agreement (@10 0.124 -> 0.122), so they were rejected. Open question for the owner:
-    should alternatives be matched to the card going out rather than to the pick?
+    -> 0.239) or agreement (@10 0.124 -> 0.122), so they were rejected. Owner, 9 Nov: alternatives match either card's job.
+  - Re-checked 9 Nov on the card-strength list (guidecheck.js now runs strengthPaths, as the app does): Swords to Plowshares
+    is offered (alternative, Turtle Power row 9); Sheoldred and Yawgmoth score below our pick by card strength (-1.15, -0.49);
+    Brightglass Gearhulk still missed (+0.26 over our pick for Greater Good). Guide adds offered anywhere 49% -> 39%, as the
+    Apex pick 25% -> 23%; guide cuts we also make 49% -> 61%; missed guide cards that beat our pick 27 -> 11. The UI's
+    either-job alternatives (See alternatives) are not in this count.
 - **Closer plan weighting: tried and rejected (17 Oct, after Build 133).** The
   fit tip's closer weights (2 / 1.75 / 1.5, plus a bonus per extra plan) were
   benchmarked in the engine. Main scorer 5/4.4/3.75: test 0.303 -> 0.281. Milder

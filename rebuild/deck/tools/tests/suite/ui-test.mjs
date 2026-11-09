@@ -60,6 +60,25 @@ if (RUN('UI-DEV')) { try { if (SHARD) await RESET();
   const r2 = await p2.evaluate(() => ({dev:window.DEV, fns:typeof handleAct === 'function' && typeof poolPromote === 'function' && typeof render === 'function'})); await p2.close();
   T('UI-DEV', 'With ?dev=1 the page runs the readable files, with no page errors', r2.dev === true && r2.fns && !e2.length, JSON.stringify(r2) + ' ' + e2.join(' | ')); }
 } catch (e) { QUIET = false; T('UI-DEV', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-READS-01')) { try { if (SHARD) await RESET();
+// Card readings kept between launches (roadmap 6.2): the page stores them once every card is read; a new launch on the same
+// card data puts them back (none read again), they match a fresh reading, and the background core reuses them too.
+{ await page.evaluate(async () => { for (let i = 0; i < 1800 && !READS.saved; i++) await new Promise(r => setTimeout(r, 100)); });
+  const saved = await page.evaluate(() => READS.saved), main = await page.evaluate(() => JSON.stringify(Object.assign({gen: warmTags.gen, complete: DBINFO.complete, src: DBINFO.source, noReads: S.noReads}, READS))), p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message));
+  await p2.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await p2.waitForTimeout(800); await p2.evaluate(INJECT, [cards, tags]);
+  const r = await p2.evaluate(async () => { for (let i = 0; i < 1200 && !READS.ms; i++) await new Promise(r => setTimeout(r, 50));
+    const ser = t => JSON.stringify([t.land, Object.entries(t.th), [...t.roles]]), fser = f => f ? JSON.stringify([[...f.makes], [...f.uses], [...f.roles]]) : '';
+    let diff = 0, fdiff = 0, n = 0; const ex = [];
+    for (let i = 0; i < LIB.length; i += 37){ const c = LIB[i], x = {}; for (const k in c) if (k[0] !== '_') x[k] = c[k]; n++;
+      if (ser(tags(x)) !== ser(c._t)){ diff++; if (ex.length < 2) ex.push(c.n); }
+      if (c._fn && fser(fnOf(x)) !== fser(c._fn)) fdiff++; }
+    wkWarm.done = false; WK.warm = null; wkWarm(); for (let i = 0; i < 600 && !WK.warm; i++) await new Promise(r => setTimeout(r, 50));
+    const P = await readsLoad();
+    return {lib: LIB.length, used: READS.used, fresh: READS.fresh, ms: READS.ms, sampled: n, diff, fdiff, ex, worker: WK.warm && WK.warm.used, otherSettings: readApply(P, 'other'), kept: P && Object.keys(P.rows).length}; });
+  await p2.close();
+  T('UI-READS-01', 'Card readings are kept between launches: the next launch reads no card again, its readings match a fresh reading, the background core reuses them, and a store made with other engine settings is ignored',
+    saved > 20000 && r.used === r.lib && r.fresh === 0 && r.diff === 0 && r.fdiff === 0 && r.worker === r.lib && r.otherSettings === 0 && !e2.length, JSON.stringify(Object.assign({saved}, r)) + ' main ' + main + ' ' + e2.join(' | ')); }
+} catch (e) { QUIET = false; T('UI-READS-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-ID-01')) { try { if (SHARD) await RESET();
 
 // 1. Native precon loader, Wakanda (alternate printed names) — the path that recommended installed cards before.

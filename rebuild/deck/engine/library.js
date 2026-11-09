@@ -350,6 +350,59 @@ function tags(c) {
   }
   return (c._t = {land, th, roles});
 }
+// ----- Card readings kept between launches (roadmap 6.2, speed) -----
+// Reading every card's text for its jobs and themes (tags, with fnOf inside it) takes about 15 s at phone speed. The result
+// depends only on the card's own text and on the engine (its build and settings), so the page stores it and reuses it on the
+// next launch (ui/storage.js readsLoad/readsSave). A card is reused only if a hash of the fields the reading looks at matches;
+// the whole store only if the build, the settings and the theme list match. Themes are stored only when not 0 (most are 0).
+function readSig(build) {
+  return String(build || '') + '|' + oracleHash(JSON.stringify(UP)) + '|' + Object.keys(THEMES).join(',');
+}
+function readHash(c) {
+  return oracleHash(c.n + '\u0001' + c.m + '\u0001' + c.t + '\u0001' + c.o + '\u0001' + c.cmc + '\u0001' + c.pt + (c.fc ? JSON.stringify(c.fc) : ''));
+}
+// pack every card read so far: {sig, keys (the usual theme list, in order), rows: {card key: [hash, land, themes, roles, fn]}}
+function readPack(sig) {
+  let keys = null;
+  const rows = {};
+  for (const c of LIB) {
+    const t = c._t;
+    if (!t || !c._k) continue;
+    const tk = Object.keys(t.th);
+    if (!keys) keys = tk;
+    let th;
+    if (tk.length === keys.length && tk.every((k, i) => k === keys[i])) {
+      th = [];
+      keys.forEach((k, i) => t.th[k] && th.push(i, t.th[k]));
+    } else th = Object.assign({}, t.th); // an unusual theme list is kept whole
+    const f = c._fn;
+    rows[c._k] = [readHash(c), t.land ? 1 : 0, th, [...t.roles], f ? [[...f.makes], [...f.uses], [...f.roles]] : 0];
+  }
+  return {sig, keys: keys || [], rows};
+}
+// put stored readings back on the cards not read yet (LIB[i0] to LIB[i1], all by default); returns how many were reused.
+// same: the card data is the very file the store was made from, so each card's text hash need not be checked.
+function readApply(P, sig, same, i0, i1) {
+  if (!P || P.sig !== sig || !P.rows) return 0;
+  let n = 0;
+  const end = Math.min(i1 == null ? LIB.length : i1, LIB.length);
+  for (let i = i0 || 0; i < end; i++) {
+    const c = LIB[i];
+    if (c._t || !c._k) continue;
+    const r = P.rows[c._k];
+    if (!r || (!same && r[0] !== readHash(c))) continue;
+    let th;
+    if (Array.isArray(r[2])) {
+      th = {};
+      P.keys.forEach(k => (th[k] = 0));
+      for (let i = 0; i < r[2].length; i += 2) th[P.keys[r[2][i]]] = r[2][i + 1];
+    } else th = Object.assign({}, r[2]);
+    if (r[4] && !c._fn) c._fn = {makes: new Set(r[4][0]), uses: new Set(r[4][1]), roles: new Set(r[4][2])};
+    c._t = {land: !!r[1], th, roles: new Set(r[3])};
+    n++;
+  }
+  return n;
+}
 // The core pieces of a plan fit its EDHREC theme whatever share of the theme's decks run them (owner, 31 Oct: "we can't miss
 // critical things like a soul stone being excluded from a graveyard/reanimate deck"): the theme pages only list what many of
 // its players run, and a strong card few of them own (The Soul Stone, in 7% of Teval decks) never reached them. UP.aimText.

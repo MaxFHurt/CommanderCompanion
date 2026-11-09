@@ -608,17 +608,68 @@ function useFull(rows, when, complete, ts) {
 // Reading every card's text for its jobs and themes (tags, kept on each card) takes a few seconds the first time; the first
 // deck opened after loading used to wait for it. It is done here in small slices while the app is idle, so the screen never
 // stalls. Same results as reading on first use: the engine settings are fixed before card data loads.
+// Readings kept from the last launch (roadmap 6.2; engine readPack/readApply) are put back first, in the same small slices;
+// only cards with no stored reading are read, and the store is written again when the complete card data had new ones.
 function warmTags() {
   const gen = (warmTags.gen = (warmTags.gen || 0) + 1),
-    list = LIB;
-  let i = 0;
+    list = LIB,
+    t0 = performance.now();
+  let i = 0,
+    j = 0,
+    fresh = 0,
+    P = null,
+    sig = '',
+    same = false;
   const step = () => {
     if (warmTags.gen !== gen) return;
     const end = performance.now() + 12;
-    while (i < list.length && performance.now() < end) tags(list[i++]);
+    while (P && j < list.length && performance.now() < end) {
+      READS.used += readApply(P, sig, same, j, j + 500);
+      j += 500;
+    }
+    while (i < list.length && performance.now() < end) {
+      const c = list[i++];
+      if (!c._t) fresh++;
+      tags(c);
+    }
     if (i < list.length) setTimeout(step, 4);
+    else {
+      READS.ms = Math.round(performance.now() - t0);
+      READS.fresh = Math.max(fresh, list.length - READS.used); // read here, whether by this or by a deck opened meanwhile
+      if (READS.fresh && DBINFO.complete) readsSave();
+    }
   };
-  setTimeout(step, 400);
+  READS.used = 0;
+  readsLoad().then(
+    x => {
+      if (x && x.sig === (sig = readSig(window.BUILD))) {
+        P = x;
+        same = !!x.data && x.data === readsData();
+      }
+      setTimeout(step, 400);
+    },
+    () => setTimeout(step, 400)
+  );
+}
+const READS = {used: 0, fresh: 0, ms: 0, saved: 0};
+// the card data the readings were made from: the same file means the same card texts
+function readsData() {
+  return [DBINFO.source, DBINFO.count, DBINFO.when, DBINFO.ts || 0].join('|');
+}
+function readsLoad() {
+  if (S.noReads || typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return idb('readonly', st => st.get('reads')).catch(() => null);
+}
+function readsSave() {
+  if (S.noReads || typeof indexedDB === 'undefined') return;
+  try {
+    const P = readPack(readSig(window.BUILD));
+    P.data = readsData();
+    idb('readwrite', st => st.put(P, 'reads')).then(
+      () => (READS.saved = Object.keys(P.rows).length),
+      () => {}
+    );
+  } catch (e) {}
 }
 // Price history: each time complete card data arrives, the prices of the cards you care about (your decks, library, buy
 // lists and cards you have opened) are kept by the data's date, so history starts when this shipped and grows over time.
@@ -1064,7 +1115,8 @@ async function genPrefetch() {
 function wkWarm() {
   if (wkWarm.done || !DBINFO.complete || !wkGet()) return;
   wkWarm.done = true;
-  wkSend({kind: 'warm'}).then(r => {
+  wkSend({kind: 'warm', rsig: S.noReads ? '' : readSig(window.BUILD), rdata: readsData()}).then(r => {
+    WK.warm = r;
     if (r && r.err) wkWarm.done = false;
   });
 }

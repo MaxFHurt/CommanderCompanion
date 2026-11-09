@@ -10,6 +10,8 @@ const tot = {adds:0, unknown:0, have:0, off:0, elig:0, pick:0, offered:0, popMis
 for (const [slug, file] of B.SETS.test){
   const ev = B.evidence(slug, file), d = ev.d; H.edh(d.commander); X.__d = d; d.tier = 'apex';
   const R = run('(() => { const R0 = upgradePaths(__d); try { scoreCheck(__d, R0, {apex:apexRef(__d)}); } catch (e) {} return R0; })()');
+  // Score the list players see: with card strength on, the app rebuilds the rows from the strength builds (as bench.js does).
+  if (!process.env.NOSTR && run('typeof strengthOn === "function" && strengthOn(__d)')) { X.__R = R; run('strengthPaths(__d, __R)'); }
   const inDeck = new Set(d.cards.map(e => keyOf(e.n))), ident = run('ctxOf')(d).ident, dOf = R.dOf || (() => null);
   const offered = new Map(), picks = new Set(), ourCuts = new Set();
   R.paths.forEach((L, i) => { ourCuts.add(keyOf(L.cut)); const put = (n, how) => { if (n && !offered.has(keyOf(n))) offered.set(keyOf(n), how + ' (row ' + (i + 1) + ')'); };

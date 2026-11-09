@@ -423,10 +423,38 @@ if (ROLE === 'build') {
         return;
       }
       // Warm-up: the card reading every build uses is done once, while the app is idle, so the first deck is not slower here.
+      // The page passes the store's signature (roadmap 6.2): readings kept from the last launch are put back first, so only
+      // cards with none are read here.
       if (m.kind === 'warm') {
-        const t0 = Date.now();
-        for (const c of LIB) tags(c);
-        postMessage({id: m.id, ok: true, ms: Date.now() - t0});
+        const t0 = Date.now(),
+          done = used => {
+            for (const c of LIB) tags(c);
+            postMessage({id: m.id, ok: true, ms: Date.now() - t0, used});
+          };
+        if (!m.rsig || typeof indexedDB === 'undefined') return done(0);
+        try {
+          const rq = indexedDB.open('deck-companion', 1);
+          rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+          rq.onerror = () => done(0);
+          rq.onsuccess = () => {
+            try {
+              const g = rq.result.transaction('kv', 'readonly').objectStore('kv').get('reads');
+              g.onsuccess = () => {
+                const P = g.result;
+                let n = 0;
+                try {
+                  n = readApply(P, m.rsig, !!(P && P.data && P.data === m.rdata));
+                } catch (e) {}
+                done(n);
+              };
+              g.onerror = () => done(0);
+            } catch (e) {
+              done(0);
+            }
+          };
+        } catch (e) {
+          done(0);
+        }
         return;
       }
       // The reference build for a deck's settings, designed ahead while the player is still choosing (kept for the build).
