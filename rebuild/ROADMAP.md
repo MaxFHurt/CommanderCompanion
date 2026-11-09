@@ -216,6 +216,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 94 (Deck Builder 0.9.60, build 205): Fix menus and alternatives by card strength (either job), EDHREC land target,
+  all plans seen (Big creatures, Keyword counters), on-theme spare rows, benchmark scores the list players see (owner, 9 Nov).
 - Build 93 (Deck Builder 0.9.59, build 204): card strength on: deck power and the upgrade list from the strength builds
   (Apex like tournament decks, Budget and Mid as cheaper versions of it), following every deck rule (owner, 9 Nov).
 - Build 92 (Deck Builder 0.9.58, build 203): Health pop-up with the fixes in place, one section per problem (best fix,

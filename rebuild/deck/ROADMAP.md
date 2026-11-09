@@ -51,7 +51,7 @@ Items marked "discuss first" need the owner's decision before they are built; th
 
 3. **Smarter deck score**
    - *Status (9 November):* live in 0.9.59 (build 204, Build 93) as card strength (UP.str): see HANDOFF.md and PROGRESS.md for
-     the benchmarks. Not done: the Fix menus and See alternatives still pick by the deck score (their gains are shown on the strength scale).
+     the benchmarks. The Fix menus and See alternatives pick by card strength since 0.9.60 (build 205, Build 94).
    - *You'll see:* better suggestions in every list, and fewer odd "Unpopular pick" chips.
    - *Builds on:* the deck score (synergy, balance, card quality, ways to win, practice games).
    - *Size:* Large. *Upgrades engine:* yes, discuss first.

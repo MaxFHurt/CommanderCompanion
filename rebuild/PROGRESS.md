@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.93 (Deck Builder {"build": 204, "version": "0.9.59"})
+- **Live build:** 1.0.0-rebuild.94 (Deck Builder {"build": 205, "version": "0.9.60"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,9 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 94 — 9 Nov 2026
+- Deck Builder 0.9.60 (build 205): the Fix menus and See alternatives pick by card strength (owner, 9 Nov: 'Fix the fix menu and alternatives'); an alternative may do the pick's job or the job of the card going out; mana fixes stay tested in practice games. The land target follows EDHREC's average for the commander when its page is loaded ('our land counter should match EDH'). The engine sees every plan, with two new ones: Big creatures and Keyword counters. With Stick to the theme on, spare-land rows keep only on-theme picks. The upgrade benchmark now scores the list players see, per tier (agreement@5 tuneall/test/holdout): Mid 0.187/0.245/0.314, Budget 0.156/0.188/0.292, Apex 0.020/-0.078/0.076 (Apex adds tournament staples few precon upgraders add; it is judged on the tournament comparison). Testing rule (owner, 9 Nov): targeted checks while working, one full Deck Builder run before going live, game suites only when game files change. Tests: UI suite 138 (GEN-03 passes alone; it clashes only side by side), accept 39 x 2, semantics 2 old failures, claims 40 unrecognised, cisweep 0, edge clean. Game files unchanged.
 
 ### Build 93 — 9 Nov 2026
 - Deck Builder 0.9.59 (build 204): card strength is on (roadmap 6.1, owner 9 Nov: 'Push with the strength upgrade'). Deck power runs from replacement level (0) to the deck's Apex build (100), with its Budget and Mid builds marked; the upgrade list comes from the three strength builds (how often strong decks that could play a card do, from EDHREC's bracket pages, refreshed weekly from the Deck-Companion card-data branch), each deck's own tier leading, following the deck's rules (card sets, exclusions, held picks, Stick to the theme), no card on two rows; a Mid or Budget deck's order is labelled Best for Mid/Budget. Benchmarks: tournament match Apex 60% -> 70% (core 58% -> 79%), Mid 35% -> 64%; players' upgrades (agreement@5, tuneall/test/holdout) Mid 0.188/0.185/0.269 -> 0.187/0.245/0.314 (the owner accepted the 0.001 on tuneall), Budget 0.119/0.108/0.208 -> 0.156/0.188/0.292. Themes steer the picks once the player chooses or reorders them. UI tests serve pinned strength data (tools/tests/suite/strength). Rules unchanged (game 254, mechanics 85, catalog 409 passed).
