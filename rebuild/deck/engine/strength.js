@@ -515,7 +515,19 @@ function strengthPaths(d, R) {
     })
     .filter(L => {
       // a card already picked on another row, or one that doesn't raise power, is not offered here
-      for (const t of Object.keys(L.opts)) if (used.has(L.opts[t].add) || !(L.opts[t].dScore >= SCORE_MIN)) delete L.opts[t];
+      for (const t of Object.keys(L.opts)) {
+        const p = L.opts[t];
+        if (!used.has(p.add) && p.dScore >= SCORE_MIN) continue;
+        // its card went to another row (or doesn't raise power): the strongest spell for the spare land at that tier's price
+        let b = null;
+        for (const c of P.pool) {
+          if (tags(c).land || used.has(c.n) || Object.values(L.opts).some(x => x.add === c.n) || !(t === 'apex' || (c.p != null && underCap(c.p, t)))) continue;
+          const g = gain(L.cut, c.n);
+          if (g >= SCORE_MIN && (!b || g > b.g)) b = {c, g};
+        }
+        if (b) L.opts[t] = Object.assign({}, p, {add: b.c.n, dScore: b.g, gain: b.g, why: ['Card strength: uses a spare land'], str: true});
+        else delete L.opts[t];
+      }
       const ps = Object.values(L.opts);
       ps.forEach(p => used.set(p.add, L));
       return ps.length > 0;
