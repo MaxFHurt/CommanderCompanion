@@ -293,6 +293,20 @@ function strPicks(d, SR) {
   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
   return SR.picks;
 }
+// A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
+// measure many swaps (the upgrade list, the Fix menus, See alternatives). Null when strength is off.
+function strGainFn(d, SR) {
+  SR = SR || strengthRef(d);
+  if (!SR || SR.top <= SR.floor) return null;
+  const VA = new Map(),
+    va = n => {
+      let v = VA.get(n);
+      if (v === undefined) VA.set(n, (v = strValue(find(n), d, false)));
+      return v;
+    },
+    gk = 100 / ((strSlots(d).length || 1) * (SR.top - SR.floor));
+  return (cut, add, q) => (va(add) - va(cut)) * gk * (q || 1);
+}
 // The upgrade list from the strength builds (UP.str): one row per card the Apex build replaces, biggest gain first (at most
 // UP.strRows), each with that row's Apex pick and, where the Mid and Budget builds replace the same card, their picks.
 // The Apex pick is the strongest of the row's picks, Mid the stronger of Mid and Budget; no card is picked on two rows (the
@@ -311,15 +325,7 @@ function strengthPaths(d, R) {
       v = c && STRENGTH.cards.get(c._n);
     return v ? v[0] : strIsNew(c) ? null : 0;
   };
-  // a swap's change in power on this scale (strengthGain), with each card's value worked out once for this list
-  const VA = new Map(),
-    va = n => {
-      let v = VA.get(n);
-      if (v === undefined) VA.set(n, (v = strValue(find(n), d, false)));
-      return v;
-    },
-    gk = 100 / ((strSlots(d).length || 1) * (SR.top - SR.floor)),
-    gain = (cut, add) => (va(add) - va(cut)) * gk;
+  const gain = strGainFn(d, SR);
   const inc = c => {
     const x = E && E.map && edhOf(E.map, c);
     return x ? +x.inc.toFixed(3) : 0;

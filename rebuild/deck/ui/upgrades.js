@@ -1631,6 +1631,13 @@ function gainTxt(v) {
     a = Math.abs(p != null ? p : v);
   return (v >= 0 ? '+' : '−') + (a >= 10 ? Math.round(a) : a.toFixed(1)) + (p != null ? ' power' : ' score');
 }
+// A fix's chip: its change in deck power, or, for a land or mana fix measured in practice games while card strength is on, what
+// it was measured on (its deck-score change is not on the power scale)
+function fixChip(p) {
+  return p && p.mana
+    ? '<span class="chip good" title="Measured with fresh practice games: fewer games short of lands or stuck without a colour">Better mana · tested in practice games</span>'
+    : scoreChip(p && p.dScore);
+}
 function scoreChip(v) {
   return v == null
     ? ''
@@ -1777,7 +1784,23 @@ function altList(d, s) {
     return altsFor(d, s.n, {deck, skip: P.flatMap(y => [y.a, y.m, y.b]).filter(Boolean)});
   }
   const R = recsFor(d),
-    L = altsFor(d, s.n, {cut: s.cut, val: R.valOf, skip: R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)), n: 14});
+    G = R.str && typeof strGainFn === 'function' ? strGainFn(d) : null,
+    // card strength (UP.str): candidates ranked by strength at the pick's tier, each measured on the power scale as the pick is
+    val = G ? c => 50 * strValue(c, d, s.t === 'mid' || s.t === 'budget') : R.valOf, // on altsFor's scale (its type and job bonuses)
+    L = altsFor(d, s.n, {cut: s.cut, val, skip: R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)), n: 14, all: !!G});
+  if (G) {
+    // as good as half the pick by the measure its tier picks with (Apex: power; Mid and Budget: the casual rating with this
+    // commander's play rate), and never worse than the card in the slot (it adds power)
+    const cas = s.t === 'mid' || s.t === 'budget',
+      cv = n => strValue(find(n), d, true),
+      tg = n => (cas ? cv(n) - cv(s.cut) : G(s.cut, n, s.q)),
+      need = Math.max(cas ? 1e-4 : SCORE_MIN, 0.5 * tg(s.n));
+    return L.filter(a => !(d.format === 'commander' && hasCard(d, a.n)))
+      .map(a => Object.assign(a, {dScore: G(s.cut, a.n, s.q), str: true}))
+      .filter(a => a.dScore >= SCORE_MIN && tg(a.n) >= need)
+      .sort((a, b) => !!b.theme - !!a.theme || b.dScore - a.dScore) // on-theme cards first, as always
+      .slice(0, 6);
+  }
   if (!R.dOf) return L.slice(0, 6);
   const need = Math.max(SCORE_MIN, s.dScore != null ? 0.5 * s.dScore : SCORE_MIN);
   return L.filter(a => !(d.format === 'commander' && hasCard(d, a.n)))
@@ -3135,13 +3158,20 @@ function fixStandIn(d, key, L) {
   const e = evalFor(d),
     ar = apexFor(d),
     R = recsFor(d),
-    score = e && e.exact != null && !['landsUp', 'landsDown', 'mana'].includes(kind) ? (cut, add) => swapScore(d, e, ar, cut, add, 1) : null;
+    G = typeof strengthOn === 'function' && strengthOn(d) && STR_FIX.includes(kind) ? strGainFn(d) : null,
+    score = G
+      ? (cut, add) => G(cut, add, 1)
+      : e && e.exact != null && !['landsUp', 'landsDown', 'mana'].includes(kind)
+        ? (cut, add) => swapScore(d, e, ar, cut, add, 1)
+        : null;
   const tryWith = (only, how) => {
     try {
-      const S2 = fixSwaps(d, kind, {n: 3, val: R && R.valOf, score, only: c => !taken.has(norm(c.n)) && only(c)}).filter(
+      const S2 = fixSwaps(d, kind, {n: 3, val: G ? c => strValue(c, d, d.tier === 'mid' || d.tier === 'budget') : R && R.valOf, score, only: c => !taken.has(norm(c.n)) && only(c)}).filter(
         p => !hasCard(d, p.add) && (p.dScore == null || p.dScore > 0)
       );
-      return S2.length ? Object.assign(S2[0], {now: how}) : null;
+      if (G) S2.forEach(p => (p.dScore = G(p.cut, p.add, p.q || 1)));
+      const ok2 = S2.filter(p => !G || p.dScore >= SCORE_MIN);
+      return ok2.length ? Object.assign(ok2[0], {now: how, str: !!G, mana: !G && typeof strengthOn === 'function' && strengthOn(d)}) : null;
     } catch (err) {
       return null;
     }
@@ -3203,7 +3233,7 @@ function popFixRows(d, k, g) {
       '<span class="hsx"><button class="lnk" data-act="card" data-n="' + esc(p.cut) + '">' + esc(p.cut) + '</button> → ' +
       '<button class="lnk" data-act="card" data-n="' + esc(p.add) + '"><b>' + esc(p.add) + '</b></button>' +
       ' <em>' + money(a) + '</em>' + (own.has(norm(p.add)) ? ' <span class="chip good">You own this</span>' : '') +
-      (p.dScore != null ? ' ' + scoreChip(p.dScore) : '') + '</span>' +
+      (p.dScore != null ? ' ' + fixChip(p) : '') + '</span>' +
       '<button class="btn ' + (i === 0 ? 'pri ' : '') + 'sm" data-act="pfix-swap" data-v="' + esc(k) + '|' + i + '">Swap</button></div>'
     );
   };
@@ -3222,7 +3252,34 @@ function popFixRows(d, k, g) {
   );
 }
 // The swaps that fix one alert, best for the deck score first. Worked out when the menu opens.
+// With card strength on (UP.str), the Fix menus for spells (ramp, draw, removal, wipes, curve, ways to win) choose and rank
+// their swaps by card strength, each shown with its change in deck power, as the upgrade list does; land and mana fixes are
+// still measured with fresh practice games (strength can't see colours or land drops) and marked as such (p.mana).
+const STR_FIX = ['ramp', 'draw', 'removal', 'wipe', 'curve', 'wins'];
 function fixList(d, key) {
+  const kind = FIX_OF[key],
+    on = typeof strengthOn === 'function' && strengthOn(d);
+  if (on && STR_FIX.includes(kind)) {
+    const G = strGainFn(d);
+    if (G) {
+      const cas = d.tier === 'mid' || d.tier === 'budget';
+      try {
+        return fixSwaps(d, kind, {n: 6, val: c => strValue(c, d, cas), score: (cut, add) => G(cut, add, 1)})
+          .filter(p => !hasCard(d, p.add))
+          .map(p => Object.assign(p, {dScore: G(p.cut, p.add, p.q || 1), str: true}))
+          .filter(p => p.dScore >= SCORE_MIN)
+          .sort((a, b) => b.dScore - a.dScore)
+          .slice(0, 5);
+      } catch (err) {
+        return [];
+      }
+    }
+  }
+  const L = fixListGames(d, key);
+  if (on) L.forEach(p => (p.mana = true));
+  return L;
+}
+function fixListGames(d, key) {
   let kind = FIX_OF[key];
   if (!kind) return [];
   if (kind === 'mana' && ctxOf(d).ident.length < 2) kind = 'landsUp';
@@ -3299,6 +3356,7 @@ function manaPick(ranks) {
       q: 1,
       kind: 'mana',
       dScore: b.dScore,
+      mana: typeof strengthOn === 'function' && !!cur() && strengthOn(cur()),
       best: b === x.r[0],
       why: b.spell
         ? 'A land for a weak spell: the deck runs short of lands'
@@ -3412,7 +3470,7 @@ function fixDraw(d, keys, G) {
       money(a) +
       '</em></button>' +
       '<div class="row">' +
-      (p.dScore != null ? scoreChip(p.dScore) : '') +
+      fixChip(p) +
       (a && a.gc ? '<span class="chip gc">Game Changer</span>' : '') +
       '<span class="chip">' +
       esc(p.why) +
@@ -3618,7 +3676,7 @@ function upFixHtml(d) {
       '</span><em>' +
       money(a) +
       '</em></button><div class="row">' +
-      (p.dScore != null ? scoreChip(p.dScore) : '') +
+      fixChip(p) +
       (p.why ? '<span class="chip">' + esc(p.why) + '</span>' : '') +
       '<button class="btn pri sm" data-act="upfix-swap" data-v="' +
       esc(g.k) +
