@@ -104,6 +104,11 @@ function cardStrength(c, d, casual) {
 // fit with the commander's plan: EDHREC synergy on its page, or with the deck's chosen themes (their EDHREC theme pages; the
 // first theme counts most, so reordering them steers the picks)
 const STR_AIM_W = [1, 0.8, 0.6, 0.5, 0.4];
+// how much the deck's themes count: UP.strAim for the commander's own (automatic) themes, UP.strAimSet once the player has
+// chosen or reordered them (they asked for those themes to steer the picks)
+function strAimW(d) {
+  return d.aimAuto === false ? UP.strAimSet : UP.strAim;
+}
 // how many of the deck's theme pages are loaded (they arrive after the commander's page)
 function strTm(d) {
   const E = strCtx(d).E;
@@ -113,14 +118,15 @@ function strFit(c, d) {
   const E = strCtx(d).E,
     x = E && E.map && edhOf(E.map, c),
     f0 = x ? Math.max(0, Math.min(1, 3 * x.syn)) : 0;
-  if (!UP.strAim || !(d.aims || []).length) return f0;
+  const w = strAimW(d);
+  if (!w || !(d.aims || []).length) return f0;
   let f = f0;
   (d.aims || []).slice(0, 5).forEach((a, i) => {
     const m = isEdhAim(a) && E && E.tmap && E.tmap[a.slice(4)],
       y = m && edhOf(m, c);
-    if (y) f = Math.max(f, Math.min(1, UP.strAim * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn))));
+    if (y) f = Math.max(f, Math.min(1, w * STR_AIM_W[i] * Math.max(0, Math.min(1, 3 * y.syn))));
     // a mechanic the card does (or a theme whose page isn't loaded) counts too, a little less
-    else if (matchAim(c, a, d.tribe) >= 0.7) f = Math.max(f, Math.min(1, UP.strAim * STR_AIM_W[i] * 0.5));
+    else if (matchAim(c, a, d.tribe) >= 0.7) f = Math.max(f, Math.min(1, w * STR_AIM_W[i] * 0.5));
   });
   return f;
 }
@@ -134,7 +140,7 @@ function strInc(c, d) {
 function strValue(c, d, casual) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strAim + '|' + (UP.strAim ? (d.aims || []).join(',') + ':' + strTm(d) : '');
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
@@ -206,7 +212,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strAim, strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)

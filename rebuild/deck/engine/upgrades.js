@@ -2050,7 +2050,8 @@ function tierCols(O, skip) {
 // T: job count treated as enough, m: smallest gain worth offering, fn: same-theme/type bonus). Thin = little play data.
 const UP = {
   str: 1, // card strength and deck power by it (engine/strength.js; roadmap 6.1, owner 8 Nov)
-  strAim: 0, // the deck's chosen themes count toward fit, first most (0 = the commander's page only)
+  strAim: 0, // the commander's own (automatic) themes toward fit: 0 (any weight lowered agreement with players)
+  strAimSet: 1, // themes the player chose or reordered count toward fit, first most
   strFit: 0.35, // its weight of fit with the commander's plan (EDHREC synergy) against strength
   strExp: 2, // its curve: strong cards count for more than several weak ones
   strInc: 0.5, // Budget and Mid picks: weight of this commander's EDHREC play rate (benchmark: Mid 0.190/0.268, Budget 0.170/0.221 against 0.188/0.185 and 0.119/0.108)
