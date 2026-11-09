@@ -2,14 +2,24 @@
 // strongTyp = mean share of strong decks that run each generated spell (the median strong deck's own value, leave-one-out,
 // is the reference); core = share of the strong decks' core spells (in half or more of them) that the generator includes.
 // node genstrong.js <engineDir> [set] [--show]      UP='{...}' for experiments; NOEDH=1 hides the commander's play data
+const PAR = require('./par.js'), mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+function report(rows, mid){
+  if (mid && mid.length) globalThis.__mid = mid; else delete globalThis.__mid;
+console.log('deck'.padEnd(20) + 'strong  gen/real-strong/precon   core   GC  tut fast int  mv   (strong median)          score');
+rows.forEach(r => console.log(r.slug.padEnd(20) + String(r.n).padEnd(8) + (r.typ + '/' + r.realTyp + '/' + r.precon).padEnd(26) + String(r.core).padEnd(7) + [r.pw.gc, r.pw.tut, r.pw.fast, r.pw.int, r.pw.mv].join(' ').padEnd(18) + ('(' + [r.realP.gc, r.realP.tut, r.realP.fast, r.realP.int, r.realP.mv].join(' ') + ')').padEnd(22) + r.score));
+if (globalThis.__mid) console.log('MID typicality: app ' + mean(__mid.map(x => x[0])).toFixed(3) + ' | best possible ' + mean(__mid.map(x => x[1])).toFixed(3) + ' | Mid deck score ' + mean(__mid.map(x => x[2])).toFixed(1));
+console.log('\nMEAN strong-deck typicality: generated ' + mean(rows.map(r => r.typ)).toFixed(3) + ' | median strong deck ' + mean(rows.map(r => r.realTyp)).toFixed(3) + ' | precon ' + mean(rows.map(r => r.precon)).toFixed(3) + ' | strong-core coverage ' + mean(rows.filter(r => r.core != null).map(r => r.core)).toFixed(2) +
+  ' | gen beats median strong deck in ' + rows.filter(r => r.typ >= r.realTyp).length + '/' + rows.length + ' | GC ' + mean(rows.map(r => r.pw.gc)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.gc)).toFixed(1) + ' | tutors ' + mean(rows.map(r => r.pw.tut)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.tut)).toFixed(1) + ' | interaction ' + mean(rows.map(r => r.pw.int)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.int)).toFixed(1) + ' | mv ' + mean(rows.map(r => r.pw.mv)).toFixed(2) + ' vs ' + mean(rows.map(r => r.realP.mv)).toFixed(2) + ' | score ' + mean(rows.map(r => r.score)).toFixed(1));
+}
+if (PAR.fan(P => report(P.flatMap(x => x.rows).sort((a, b) => a.i - b.i), P.flatMap(x => x.mid).sort((a, b) => a[3] - b[3])))) return;
 const path = require('path'), fs = require('fs'), which = process.argv[3] || 'tuneall', show = process.argv.includes('--show');
 process.argv = [process.argv[0], 'x', path.resolve(process.argv[2]), 'g', which, '--quiet']; const B = require('./bench.js'), H = B.H, X = H.ctx, run = H.run;
 if (process.env.UP){ X.__up = JSON.parse(process.env.UP); run('Object.assign(UP, __up)'); }
-const KN = new Map(run('LIB').map(c => [c._k, c])), mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0, med = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+const KN = new Map(run('LIB').map(c => [c._k, c])), med = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
 const CORP = ['corpus', 'corpus2', 'corpus3', 'corpus4'].map(x => path.resolve(__dirname, '../../' + x));
 const list = which === 'all' ? B.SETS.tuneall.concat(B.SETS.test, B.SETS.holdout) : B.SETS[which]; const rows = [];
 const FAST = new Set(['Sol Ring', 'Mana Crypt', 'Mana Vault', 'Chrome Mox', 'Mox Diamond', 'Jeweled Lotus', 'Lotus Petal', 'Mox Opal', 'Grim Monolith', 'Ancient Tomb', 'Arcane Signet', 'Fellwar Stone', 'Mind Stone', 'Talisman of Dominance']);
-for (const [slug, file] of list){
+for (const [li, [slug, file]] of list.entries()){ if (!PAR.mine(li)) continue;
   const pd = H.retail(slug), cmdN = pd.commander; H.edh(cmdN);
   // NOEDH=1: an obscure commander with no play data at all (only the card text guides the build)
   if (process.env.NOEDH) run("EDH={key:'',map:null,decks:0,state:'fail'}");
@@ -38,13 +48,9 @@ for (const [slug, file] of list){
   // best a Mid deck could do (the strong decks' most-run spells under $12, as many as the Mid deck has)
   if (process.env.MID){ X.__m = JSON.parse(JSON.stringify(nd)); run('genDeck(__m, [], null, new Set(), "mid")'); const md = run('__m'), ms = new Set(md.cards.map(e => X.find(e.n)).filter(c => c && !run('tags')(c).land).map(c => c._k));
     const cheap = [...rate.entries()].filter(([k]) => { const c = KN.get(k); return c && c.p != null && c.p < 12; }).sort((a, b) => b[1] - a[1]).slice(0, ms.size).map(([k]) => k);
-    (globalThis.__mid = globalThis.__mid || []).push([typ(ms), typ(new Set(cheap)), +run('evaluateDeck(__m, {apex:apexRef(__m), games:300}).exact').toFixed(1)]);
+    (globalThis.__mid = globalThis.__mid || []).push([typ(ms), typ(new Set(cheap)), +run('evaluateDeck(__m, {apex:apexRef(__m), games:300}).exact').toFixed(1), li]);
     if (show) console.log(slug, 'mid misses:', cheap.filter(k => !ms.has(k)).slice(0, 10).map(k => KN.get(k).n + ' ' + Math.round(100 * rate.get(k) / strong.length) + '%').join('; ')); }
-  rows.push({slug, n:strong.length, typ:+typ(sp).toFixed(3), realTyp:+realTyp.toFixed(3), precon:+typ(P).toFixed(3), core:core.length ? +(core.filter(k => sp.has(k)).length / core.length).toFixed(2) : null, nCore:core.length, pw:power(sp), realP, score:+score.toFixed(1), ms, lands:A.lands});
+  rows.push({i:li, slug, n:strong.length, typ:+typ(sp).toFixed(3), realTyp:+realTyp.toFixed(3), precon:+typ(P).toFixed(3), core:core.length ? +(core.filter(k => sp.has(k)).length / core.length).toFixed(2) : null, nCore:core.length, pw:power(sp), realP, score:+score.toFixed(1), ms, lands:A.lands});
   if (show) console.log(slug, 'missing strong core:', core.filter(k => !sp.has(k)).map(k => KN.get(k).n + ' ' + Math.round(100 * rate.get(k) / strong.length) + '%').join('; '));
 }
-console.log('deck'.padEnd(20) + 'strong  gen/real-strong/precon   core   GC  tut fast int  mv   (strong median)          score');
-rows.forEach(r => console.log(r.slug.padEnd(20) + String(r.n).padEnd(8) + (r.typ + '/' + r.realTyp + '/' + r.precon).padEnd(26) + String(r.core).padEnd(7) + [r.pw.gc, r.pw.tut, r.pw.fast, r.pw.int, r.pw.mv].join(' ').padEnd(18) + ('(' + [r.realP.gc, r.realP.tut, r.realP.fast, r.realP.int, r.realP.mv].join(' ') + ')').padEnd(22) + r.score));
-if (globalThis.__mid) console.log('MID typicality: app ' + mean(__mid.map(x => x[0])).toFixed(3) + ' | best possible ' + mean(__mid.map(x => x[1])).toFixed(3) + ' | Mid deck score ' + mean(__mid.map(x => x[2])).toFixed(1));
-console.log('\nMEAN strong-deck typicality: generated ' + mean(rows.map(r => r.typ)).toFixed(3) + ' | median strong deck ' + mean(rows.map(r => r.realTyp)).toFixed(3) + ' | precon ' + mean(rows.map(r => r.precon)).toFixed(3) + ' | strong-core coverage ' + mean(rows.filter(r => r.core != null).map(r => r.core)).toFixed(2) +
-  ' | gen beats median strong deck in ' + rows.filter(r => r.typ >= r.realTyp).length + '/' + rows.length + ' | GC ' + mean(rows.map(r => r.pw.gc)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.gc)).toFixed(1) + ' | tutors ' + mean(rows.map(r => r.pw.tut)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.tut)).toFixed(1) + ' | interaction ' + mean(rows.map(r => r.pw.int)).toFixed(1) + ' vs ' + mean(rows.map(r => r.realP.int)).toFixed(1) + ' | mv ' + mean(rows.map(r => r.pw.mv)).toFixed(2) + ' vs ' + mean(rows.map(r => r.realP.mv)).toFixed(2) + ' | score ' + mean(rows.map(r => r.score)).toFixed(1));
+if (PAR.part) PAR.emit({rows, mid:globalThis.__mid || []}); else report(rows, globalThis.__mid);

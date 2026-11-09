@@ -60,6 +60,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Next build (on the branch `claude/commander-companion-roadmap-ilkx1o`, not live)
 - Deck Builder speed (roadmap 6.2, owner 9 Nov: 'Do 1, 2, and 3'): each card's reading (tags and functions) is kept between launches in the browser's storage (about 2.8 MB, keyed by build, engine settings and each card's text), and the background core reuses it. At phone speed (4x slowed): every card ready 37.8 s -> 1.4 s on the next launch, opening a precon 47 s -> about 24 s, the background core's warm-up 15 s -> 0.2 s. Readings match a fresh reading exactly (all 32,115 cards in Node; a sample in the browser, test UI-READS-01). Sending the library to the background core once at launch was already done (Build 143).
+- Test speed (roadmap 6.6, being verified): `check.sh ... live` runs independent checks 3 side by side, and cisweep and genstrong split their decks across 3 processes (`PAR`, tools/tests/suite/par.js); the numbers must match the one-at-a-time run before it is relied on.
 - Published-guides check (roadmap 6.2 guide blind spots) now scores the strength list players see: Swords to Plowshares (Turtle Power) is offered; Sheoldred and Yawgmoth (Doom) score below our pick by card strength; Brightglass Gearhulk (Wakanda) still missed; guide cuts we also make 49% -> 61%; guide adds we offer 49% -> 39% (strength rows show fewer popular cards).
 
 ### Build 94 — 9 Nov 2026
