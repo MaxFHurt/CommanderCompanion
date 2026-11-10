@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.95 (Deck Builder {"build": 206, "version": "0.9.61"})
+- **Live build:** 1.0.0-rebuild.96 (Deck Builder {"build": 207, "version": "0.9.62"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -58,7 +58,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Next build (on the branch `claude/commander-companion-roadmap-ilkx1o`, not live)
+### Build 96 — 10 Nov 2026
+- Deck Builder 0.9.62 (build 207): text boxes no longer close while typing (a background redraw waits, and the box keeps focus, text and cursor); practice games are played once per deck (scoring about twice as fast, Fix: Mana 5.3 -> 2.6 s on desktop, scores unchanged); the upgrade list is built once its data has arrived (opening a precon: 9 builds -> 4, Upgrades complete 8.4 -> 4.0 s on desktop); I don't have this card lists the card's own variations (same mechanic, similar mana value) (owner, 10 Nov). Tests: UI-TYPE-02, UI-NH-01 new; UI suite 140 + UI-STATS-01 (passes alone); benchmark test Mid identical. Game files unchanged. Next (owner: next week): build the upgrade list on the background helper and ahead of time (options C + D).
 - Upgrade list built once the data settles (owner, 10 Nov: 'How do we make this instant?', options A + B chosen; C + D, the background helper building it and building ahead, left for next week): while play data or the Apex reference is still arriving, the deck keeps the list it has, marked as checking, and builds once (at most 8 s later); a deck seen before then matches its saved checked list. Opening a precon (desktop): 9 builds -> 4 (plus one the timing script forces), Upgrades list complete 8.4 s -> 4.0 s. UI suite 140 + UI-STATS-01 (passes alone twice; it timed out once side by side).
 - Speed (owner, 10 Nov: 'Optimize the app. It's running slow'): practice games are kept for the same deck (engine practice.js simulate: same commander, cards in order, games, seed, settings and card library; the last 400): a measured session played 488 sets of games for 203 different decks. Desktop timings in that session: practice games 13.6 s -> 6.0 s, deck scoring 28.9 s -> 14.7 s, Fix: Mana 5.3 s -> 2.6 s, generating a deck 7.6 s -> 5.8 s; the UI suite 650 s -> 535 s. Scores unchanged (benchmark test Mid identical; practice panel agrees game for game, UI-B136-01). Full UI suite 141 passed. Still open: the upgrade list is worked out again as each piece of data arrives (9 times opening a precon, 0.2-0.5 s each on desktop) and runs on the page.
 - Typing (owner, 10 Nov: 'entered text boxes closing while I'm typing and you have to reselect the box'): a background redraw (upgrades measured, fixes found, prices, card data) waits while a text box has focus and a key was pressed in the last 3 s (up to 15 s), and every redraw puts the box back focused with its text and cursor (ui/cards.js focusSnap/focusBack); an open search list reopens. New test UI-TYPE-02.
