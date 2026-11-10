@@ -58,6 +58,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Ready, not live (10 Nov): the Deck Builder's top bar fits every screen
+- Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
+  open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each
+  button keeps its name for screen readers); if even that doesn't fit, the "Deck Builder" title goes too. Wide screens are
+  unchanged. Files: deck/ui/views.js (fitNav), deck/ui/boot.js, deck/cc-theme.css (v=181), bundles rebuilt.
+- Checks: no button past the edge at 13 screen sizes (phones both ways, iPad, desktop), also with notch-sized side margins;
+  screen suite (check.sh screens live) 141 passed, 0 failed.
+
 ### Open (10 Nov, not live): the upgrade-list wait-for-data rule (ui/library.js recsSettling; off unless S.settle = true)
 - Owner asked to fix it; not fixed yet. With it on, full UI-suite runs (3 groups side by side) fail one check about every run: UI-ASYNC-01 (no swaps drawn) or UI-B197-02 (the Health pop-up opened with 2 of 3 sections filled). Never alone (11 solo runs), never seen with it off in 3 full runs (not proof at this rate). One failing UI-ASYNC-01 run had the deck with no mechanics (Upgrades drew "Set up the build first") after an earlier test's play data replaced its commander's; the test now reloads its own play data and takes its themes, which did not stop the failures. Next: record the gate's holds during a full run (which deck, how long, what triggered the release) and compare with the failing tests' timing; check whether a held list delays recsFor.done / the background health fixes (UPFIX), which UI-B197-02 reads.
 

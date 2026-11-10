@@ -15,7 +15,10 @@ addEventListener('resize', () => {
   if (nw !== wasNarrow) {
     wasNarrow = nw;
     render();
-  } else fitWork();
+  } else {
+    fitWork();
+    fitNav();
+  }
 });
 loadLocal();
 ccAdoptName();
@@ -36,3 +39,5 @@ loadSavedLibrary();
 initBackup();
 checkShareLink();
 addEventListener('hashchange', checkShareLink);
+// the title font arrives after the first paint and widens the bar: check the fit again then
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitNav());

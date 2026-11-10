@@ -1,22 +1,47 @@
 // ---------- views ----------
+// The top bar never runs off the screen (owner's iPhone, 10 Nov: Profile was cut off sideways). Whatever the screen and its
+// safe areas, if the buttons do not fit on one line the labels go and the icons stay (each button keeps its name for screen
+// readers); if even the icons do not fit, the "Deck Builder" title goes too.
+function fitNav() {
+  const top = document.querySelector('header.top');
+  if (!top) return;
+  top.classList.remove('tight', 'tighter');
+  const over = () => {
+    const r = top.getBoundingClientRect(),
+      vw = document.documentElement.clientWidth,
+      bs = top.querySelectorAll('button');
+    if (top.scrollWidth > top.clientWidth + 1 || r.right > vw + 1) return true;
+    for (const x of bs) {
+      const q = x.getBoundingClientRect();
+      if (q.width && (q.right > Math.min(r.right, vw) + 1 || q.left < Math.max(r.left, 0) - 1)) return true;
+    }
+    return false;
+  };
+  if (over()) top.classList.add('tight');
+  if (over()) top.classList.add('tighter');
+}
 function navHtml() {
-  const b = (v, label) =>
+  const b = (v, label, name) =>
     '<button data-act="nav" data-v="' +
     v +
+    '" aria-label="' +
+    (name || label) +
     '"' +
     (S.view === v ? ' aria-current="page"' : '') +
     '>' +
     SVG[v] +
+    '<span class="nl">' +
     label +
-    '</button>';
+    '</span></button>';
   $('#nav-l').innerHTML =
     '<button data-act="cc-home" class="cc-home" aria-label="Commander Companion home"><img src="../assets/img/ui/home.png" alt="Home"></button>' +
     b('decks', 'Decks') +
     b('deck', 'Builder') +
-    b('search', '<span><span class="xs-hide">Card&nbsp;</span>Search</span>') +
-    b('buy', '<span>Buy<span class="xs-hide">&nbsp;list</span></span>') +
+    b('search', '<span class="xs-hide">Card&nbsp;</span>Search', 'Card search') +
+    b('buy', 'Buy<span class="xs-hide">&nbsp;list</span>', 'Buy list') +
     b('library', 'Library');
   $('#nav-r').innerHTML = b('profile', 'Profile');
+  fitNav();
   let u = $('#undo-fab');
   if (!u) {
     u = document.createElement('button');

@@ -194,3 +194,8 @@ a { color: var(--glow); }
 .dl.tok .nm small { margin-left: 6px; }
 
 .cmdbox .pnm { font-weight: 400; opacity: 0.7; font-size: 0.85em; }
+
+/* Top bar too narrow for its labels (fitNav adds these): icons only, then no title. */
+.top.tight .nav button:not(.cc-home) .nl { display: none; }
+.top.tight .nav button:not(.cc-home) { padding: 0 6px; min-width: 40px; }
+.top.tighter .brand { display: none; }
