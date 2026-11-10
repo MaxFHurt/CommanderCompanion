@@ -791,10 +791,30 @@ function recRestore(d, key) {
   };
   return R;
 }
+// Opening a deck built its upgrade list again each time a piece of data arrived (play data, the deck's themes, the Apex
+// reference, theme pages: 9 builds for a precon; owner, 10 Nov: "How do we make this instant?"). While that data is still
+// arriving, the list the deck already has stays, marked as checking (no swap offered), and the list is built once it has all
+// arrived (at most 8 s later). Then a deck seen before matches its saved, checked list again and opens without the check.
+function recsSettling(d) {
+  if (S.syncRecs || d.format !== 'commander' || !DBINFO.complete) return false;
+  const c = find(d.commander);
+  return !!c && ((EDH.key === c.n && EDH.state === 'loading') || !apexFor(d));
+}
 function recsFor(d) {
   dropHolds(d);
   const key = recsKey(d);
   if (recsFor.k !== key && carryRecs(d, key)) return recsFor.v;
+  if (recsFor.k !== key && recsFor.v && recsFor.vid === d.id && recsSettling(d)) {
+    const w = (recsFor.wait = recsFor.wait && recsFor.wait.id === d.id ? recsFor.wait : {id: d.id, at: Date.now()});
+    if (Date.now() - w.at < 8000) {
+      recsFor.v.pending = true;
+      clearTimeout(recsFor.wt);
+      recsFor.wt = setTimeout(() => cur() === d && render(), 500);
+      return recsFor.v;
+    }
+  }
+  if (recsFor.k !== key) recsFor.wait = null;
+  recsFor.vid = d.id;
   if (recsFor.k !== key) {
     const R0 = recRestore(d, key);
     if (R0) {
