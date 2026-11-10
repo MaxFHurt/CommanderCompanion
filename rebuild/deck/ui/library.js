@@ -796,10 +796,9 @@ function recRestore(d, key) {
 // arriving, the list the deck already has stays (its cards unchanged), and the list is built once it has all
 // arrived (at most 4 s later; a wait for the real list, recsReady, is never held). Then a deck seen before matches its saved, checked list again and opens without the check.
 function recsSettling(d) {
-  // S.settle = false turns it off. (Off in Build 96 while UI-ASYNC-01 failed about 1 full suite run in 3: that was the test,
-  // not this rule: an earlier test's play data arrived late and replaced its commander's, so the deck had no mechanics and
-  // Upgrades showed "Set up the build first". The test now loads its own play data until it is in.)
-  if (S.settle === false || S.syncRecs || recsFor.now || d.format !== 'commander' || !DBINFO.complete) return false;
+  // off unless S.settle = true (as in Build 96). With it on, full UI-suite runs still fail one check side by side (UI-ASYNC-01:
+  // no swaps drawn; UI-B197-02: a Health pop-up section not filled at once); not found yet: see PROGRESS.md.
+  if (!S.settle || S.syncRecs || recsFor.now || d.format !== 'commander' || !DBINFO.complete) return false;
   const c = find(d.commander);
   return !!c && ((EDH.key === c.n && EDH.state === 'loading') || !apexFor(d));
 }
