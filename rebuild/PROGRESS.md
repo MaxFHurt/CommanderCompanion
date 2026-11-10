@@ -58,7 +58,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Build 97 — 10 Nov 2026 (Deck Builder 0.9.63, build 208): the top bar fits every screen
+### Build 97 — not live yet (owner, 10 Nov: "make a build of several changes, test it, and push it live"): collecting changes
+- Deck Builder profile clean-up (owner: "any irrelevant data needs to go off the profile page"): the Profile page keeps the
+  player's things (name, game record, players at your table, backup file); the upgrade engine and the card database moved
+  to a Settings pop-up opened from the Profile header (redrawn with the page, so card-data progress shows live); the
+  saved-decks list left (the Decks page lists, opens and deletes decks). Files: deck/ui/cards.js (viewProfile, settingsHtml,
+  openSettings), deck/ui/events.js. Test UI-PROF-01 (new; also checks the top bar below).
+
+#### The top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
   open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each
   button keeps its name for screen readers); if even that doesn't fit, the "Deck Builder" title goes too. Wide screens are

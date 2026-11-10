@@ -1721,6 +1721,24 @@ if (RUN('UI-TYPE-02')) { try { if (SHARD) await RESET();
   await page.evaluate(() => { const a = document.activeElement; if (a) { a.value = ''; a.blur(); } document.querySelectorAll('.ddl').forEach(x => (x.hidden = true)); S.tab = 'up'; render(); });
   T('UI-TYPE-02', 'Typing in a text box: a background redraw waits while you type; after it runs the box is still focused with your text and cursor, so typing carries on', r1.id === 'add-q' && r1.v === 'Sol R' && r1.waited && r2.id === 'add-q' && r2.v === 'Sol R' && r2.caret === 5 && v3 === 'Sol Ring', JSON.stringify({r1, r2, v3})); }
 } catch (e) { QUIET = false; T('UI-TYPE-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+// Build 97 (owner, 10 Nov): the profile page holds the player's things only; the upgrade engine and the card data moved to a
+// Settings pop-up (opened from the Profile header); the saved-decks list left (the Decks page has it). The top bar never runs
+// past the screen's edge: icons only when the labels don't fit.
+if (RUN('UI-PROF-01')) { try { if (SHARD) await RESET();
+  const r = await page.evaluate(() => { const out = {}; S.view = 'profile'; S.open = false; render(); const m = $('#main').textContent;
+    out.clean = !/Upgrade engine|Card database|Saved decks/.test(m) && !!document.querySelector('#p-name') && /Backup file/.test(m);
+    document.querySelector('[data-act="settings"]').click(); const pop = $('#settings-pop');
+    out.pop = !!pop && !$('#modal').hidden && /Upgrade engine/.test(pop.textContent) && /Card database/.test(pop.textContent) && !!pop.querySelector('[data-act="engine-mode"]') && !!pop.querySelector('#db-file');
+    render(); out.redrawn = !!$('#settings-pop') && !$('#modal').hidden;
+    pop.querySelector('[data-act="close"]') && $('#settings-pop [data-act="close"]').click(); out.closed = $('#modal').hidden && !S.settingsOpen;
+    render(); out.stays = $('#modal').hidden; S.view = 'decks'; render(); return out; });
+  await page.setViewportSize({width: 600, height: 340}); await page.waitForTimeout(300);
+  const nav = await page.evaluate(() => { fitNav(); const t = document.querySelector('header.top'), R = t.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    return {tight: t.classList.contains('tight'), off: [...t.querySelectorAll('button')].filter(x => { const q = x.getBoundingClientRect(); return q.width && (q.right > Math.min(R.right, vw) + 1); }).length, named: !!t.querySelector('[data-v="profile"][aria-label="Profile"]')}; });
+  await page.setViewportSize({width: 1300, height: 900}); await page.waitForTimeout(300);
+  const wide = await page.evaluate(() => { fitNav(); return !document.querySelector('header.top').classList.contains('tight'); });
+  T('UI-PROF-01', 'Profile: player things only (no Upgrade engine, Card database or saved-decks list); Settings pop-up has both, survives a redraw and closes; top bar: icons only on a narrow sideways phone with nothing past the edge, full labels on a wide screen', Object.values(r).every(Boolean) && nav.tight && !nav.off && nav.named && wide, JSON.stringify({r, nav, wide}));
+} catch (e) { QUIET = false; T('UI-PROF-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
 // Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
 // instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing

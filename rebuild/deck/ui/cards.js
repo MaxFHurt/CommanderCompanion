@@ -3,7 +3,7 @@ function viewProfile() {
   return (
     '<section class="panel"><div class="ph"><h2>Profile</h2><small>' +
     'Saved in this browser' +
-    '</small></div>' +
+    '</small><button class="btn sm" data-act="settings" style="margin-left:auto">Settings</button></div>' +
     '<div class="grp" style="max-width:420px"><label class="lab" for="p-name">Player name</label><input type="text" id="p-name" value="' +
     esc(P.name) +
     '" maxlength="40"' +
@@ -11,32 +11,19 @@ function viewProfile() {
     '></div>' +
     ccRecordHtml() +
     playersHtml() +
-    '<div class="grp"><span class="lab">Saved decks · ' +
-    P.decks.length +
-    '</span>' +
-    (P.decks
-      .map(
-        d =>
-          '<div class="row" style="border-bottom:1px solid var(--line);padding-bottom:6px"><b style="flex:1;min-width:140px">' +
-          esc(d.name) +
-          '</b><span class="chip">' +
-          d.format +
-          '</span>' +
-          priceChip(analyze(d)) +
-          '<button class="btn sm" data-act="open-deck" data-v="' +
-          d.id +
-          '">Open</button><button class="btn sm danger" data-act="del-deck" data-v="' +
-          d.id +
-          '">' +
-          (S.confirmDel === d.id ? 'Confirm delete' : 'Delete') +
-          '</button></div>'
-      )
-      .join('') || '<p class="note">No decks saved.</p>') +
-    '</div>' +
     '</section>' +
+    backupPanel()
+  );
+}
+// Settings (owner, 10 Nov: "any irrelevant data needs to go off the profile page"): the upgrade engine and the card data are
+// about this device, not the player, so they sit in a pop-up opened from the Profile header. The saved-decks list left the
+// page too: the Decks page lists, opens and deletes decks.
+function settingsHtml() {
+  return (
+    '<div class="panel" role="dialog" aria-label="Settings" id="settings-pop"><div class="ph"><h2>Settings</h2><button class="ico" data-act="close" aria-label="Close">×</button></div>' +
     // owner, 24 Oct ("is it possible to recover where we were?"): the engine from before the engine change (0.9.3) stays
     // selectable on this device; every version is also kept in the project history
-    '<section class="panel"><div class="ph"><h2>Upgrade engine</h2><small>This device</small></div><p class="note" style="margin:0;max-width:75ch">Which engine picks your upgrades and builds generated decks. <b>Current</b> reads every card’s rules and knows more deck plans. <b>Classic</b> picks the way the app did before the engine change (0.9.3). Your decks are not changed; the upgrade lists are worked out again.</p><div class="row">' +
+    '<section class="grp"><div class="ph"><h3>Upgrade engine</h3><small>This device</small></div><p class="note" style="margin:0;max-width:75ch">Which engine picks your upgrades and builds generated decks. <b>Current</b> reads every card’s rules and knows more deck plans. <b>Classic</b> picks the way the app did before the engine change (0.9.3). Your decks are not changed; the upgrade lists are worked out again.</p><div class="row">' +
     [
       ['new', 'Current'],
       ['old', 'Classic (0.9.3)']
@@ -55,8 +42,7 @@ function viewProfile() {
       )
       .join('') +
     '</div></section>' +
-    backupPanel() +
-    '<section class="panel"><div class="ph"><h2>Card database</h2><small>' +
+    '<section class="grp"><div class="ph"><h3>Card database</h3><small>' +
     (DBINFO.source === 'full'
       ? DBINFO.count.toLocaleString() +
         ' cards · Scryfall data from ' +
@@ -78,8 +64,13 @@ function viewProfile() {
     (DBINFO.err ? ' <span class="unk">The last update failed (' + esc(DBINFO.err) + ').</span>' : '') +
     '</p>' +
     '<div class="row"><button class="btn pri" data-act="db-update">Update card data now</button></div>' +
-    '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section>'
+    '<p class="note" style="margin:0">If the automatic update keeps failing, download <b>Oracle Cards</b> from <a href="https://scryfall.com/docs/api/bulk-data" target="_blank" rel="noopener">scryfall.com/docs/api/bulk-data</a> and load the file here:</p><div class="row"><input type="file" id="db-file" accept=".json,application/json" style="max-width:340px"></div></section></div>'
   );
+}
+function openSettings() {
+  S.settingsOpen = true;
+  $('#modal').innerHTML = settingsHtml();
+  $('#modal').hidden = false;
 }
 // The deck editor fills what is left of the screen, and its panes scroll inside themselves.
 // One-pane (tabbed) layout for phones in portrait and narrow tablets in portrait; two panes whenever there is room side by side.
@@ -255,6 +246,10 @@ function render() {
     }
   }
   focusBack(fk);
+  // the Settings pop-up shows live card-data progress: draw it again with the page (the file box keeps a chosen file)
+  if (S.settingsOpen && !$('#modal').hidden && $('#settings-pop') && !(document.activeElement && document.activeElement.id === 'db-file'))
+    $('#modal').innerHTML = settingsHtml();
+  else if (S.settingsOpen && $('#modal').hidden) S.settingsOpen = false;
   watchSoon();
   ensureTheme();
   ensureEdh();

@@ -498,6 +498,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       break;
     case 'close':
       $('#modal').hidden = true;
+      S.settingsOpen = false;
       S.deckPop = null;
       S.rowCut = null;
       S.watchOpen = false;
@@ -1639,6 +1640,9 @@ function handleAct(act, v, n, pArg, cutArg) {
       );
       break;
     }
+    case 'settings':
+      openSettings();
+      return;
     case 'engine-mode':
       if (v === engineMode()) return;
       lsSet('dc.engine', v);
