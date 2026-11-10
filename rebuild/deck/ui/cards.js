@@ -144,12 +144,47 @@ function pushDeckEdits() {
     })
     .catch(() => {});   // offline: the start screen sends it next time
 }
+// A text box the player types in (not a button, checkbox or slider), inside the page or a window
+function textBox(a) {
+  return !!(a && a.closest && a.closest('#main') && (a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && !/^(button|checkbox|radio|range|submit|reset|file|color|image|hidden)$/i.test(a.type || ''))));
+}
+// which box had focus, by a description that survives the redraw (id, else its kind and place among the page's boxes)
+function focusSnap() {
+  const a = document.activeElement;
+  if (!textBox(a)) return null;
+  const all = [...document.querySelectorAll('#main input, #main textarea')].filter(textBox),
+    sig = x => [x.tagName, x.id, x.name, x.dataset.act || '', x.dataset.k || '', x.placeholder || ''].join('|');
+  const s = sig(a);
+  const dl = a.closest('.dd') && a.closest('.dd').querySelector('.ddl');
+  return {id: a.id, sig: s, nth: all.filter(x => sig(x) === s).indexOf(a), v: a.value, s0: a.selectionStart, s1: a.selectionEnd, open: !!(dl && !dl.hidden)};
+}
+function focusBack(f) {
+  if (!f) return;
+  const all = [...document.querySelectorAll('#main input, #main textarea')].filter(textBox),
+    sig = x => [x.tagName, x.id, x.name, x.dataset.act || '', x.dataset.k || '', x.placeholder || ''].join('|');
+  const el = (f.id && document.getElementById(f.id)) || all.filter(x => sig(x) === f.sig)[f.nth];
+  if (!el || el === document.activeElement) return;
+  if (el.value !== f.v) el.value = f.v; // what the player typed stays, even if the page had not stored it yet
+  try {
+    el.focus({preventScroll: true});
+    if (f.s0 != null) el.setSelectionRange(f.s0, f.s1);
+  } catch (e) {}
+  // a search box whose list was open opens it again
+  if (f.v && f.open && el.closest('.dd')) el.dispatchEvent(new Event('input', {bubbles: true}));
+}
+document.addEventListener('keydown', () => (render.key = Date.now()), true);
+document.addEventListener('input', () => (render.key = Date.now()), true);
 function render() {
   // A redraw from work finishing in the background (upgrades measured, health fixes found, prices) waits while a search's
   // list of cards is open: redrawing then closed the list under the finger, so a tapped card was missed or the tap landed
   // on what was underneath (owner, 8 Nov, iPhone and iPad). A redraw from a tap or a key goes ahead at once.
+  // Owner, 10 Nov: the same for typing: "entered text boxes closing while I'm typing and you have to reselect the box". A
+  // background redraw waits while a text box has focus and a key was pressed in the last 3 s (up to 15 s), and any redraw puts
+  // the box back as it was: focused, with its text and the cursor where it was (renderFocusKeep).
   clearTimeout(render.wait);
-  if (!window.event && [...document.querySelectorAll('#main .ddl')].some(x => !x.hidden)) {
+  const ddl = [...document.querySelectorAll('#main .ddl')].some(x => !x.hidden),
+    typing = textBox(document.activeElement) && Date.now() - (render.key || 0) < 3000;
+  if (!window.event && (ddl || typing)) {
     render.since = render.since || Date.now();
     if (Date.now() - render.since < 15000) {
       render.wait = setTimeout(render, 400);
@@ -157,6 +192,7 @@ function render() {
     }
   }
   render.since = 0;
+  const fk = focusSnap();
   if (deckWasOpen && !S.open) pushDeckEdits();
   if (S.open && cur()) {
     repairPrecPrints(cur());
@@ -218,6 +254,7 @@ function render() {
       }
     }
   }
+  focusBack(fk);
   watchSoon();
   ensureTheme();
   ensureEdh();

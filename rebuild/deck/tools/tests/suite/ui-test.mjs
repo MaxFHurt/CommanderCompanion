@@ -1709,6 +1709,18 @@ const cw1 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   $('#modal').hidden = true; return out; });
 T('UI-CW-01', 'Card window: a spell for a full Commander deck opens at once ("Thinking…"), then shows the same best swap as measured directly', cw1.thinking && cw1.filled && cw1.same, JSON.stringify(cw1));
 } catch (e) { QUIET = false; T('UI-CW-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-TYPE-02')) { try { if (SHARD) await RESET();
+// Owner, 10 Nov: background loading redraws closed a text box while typing. A background redraw waits while you type, and any
+// redraw keeps the box focused with its text and cursor.
+{ await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); });
+  await page.waitForSelector('#add-q'); await page.click('#add-q'); await page.keyboard.type('Sol R', {delay: 40});
+  const r1 = await page.evaluate(() => new Promise(res => setTimeout(() => { render(); const a = document.activeElement; res({id: a && a.id, v: a && a.value, waited: !!render.wait}); }, 50)));
+  await page.waitForTimeout(3600);   // stopped typing: the waiting redraw (or a new one) goes ahead
+  const r2 = await page.evaluate(() => new Promise(res => setTimeout(() => { render(); const a = document.activeElement; res({id: a && a.id, v: a && a.value, caret: a && a.selectionStart, waiting: !!render.since}); }, 50)));
+  await page.keyboard.type('ing', {delay: 30}); const v3 = await page.evaluate(() => document.activeElement && document.activeElement.value);
+  await page.evaluate(() => { const a = document.activeElement; if (a) { a.value = ''; a.blur(); } document.querySelectorAll('.ddl').forEach(x => (x.hidden = true)); S.tab = 'up'; render(); });
+  T('UI-TYPE-02', 'Typing in a text box: a background redraw waits while you type; after it runs the box is still focused with your text and cursor, so typing carries on', r1.id === 'add-q' && r1.v === 'Sol R' && r1.waited && r2.id === 'add-q' && r2.v === 'Sol R' && r2.caret === 5 && v3 === 'Sol Ring', JSON.stringify({r1, r2, v3})); }
+} catch (e) { QUIET = false; T('UI-TYPE-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
 // Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
 // instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing

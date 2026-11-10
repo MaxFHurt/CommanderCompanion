@@ -59,6 +59,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 ## Log
 
 ### Next build (on the branch `claude/commander-companion-roadmap-ilkx1o`, not live)
+- Typing (owner, 10 Nov: 'entered text boxes closing while I'm typing and you have to reselect the box'): a background redraw (upgrades measured, fixes found, prices, card data) waits while a text box has focus and a key was pressed in the last 3 s (up to 15 s), and every redraw puts the box back focused with its text and cursor (ui/cards.js focusSnap/focusBack); an open search list reopens. New test UI-TYPE-02.
 - "I don't have this card" (owner, 10 Nov: "just pulls the same cards for every card ... It should show the alternate recommendations for that card. Other variations of the same mechanic with similar mana costs"): the list is ranked by how alike each card is to the missing one (engine likeness in generator.js: what it does and hits, speed, type, jobs, themes, times mana-value closeness), with popularity and the deck score as a smaller weight. Wakanda: Dispatch -> Path to Exile, Swords to Plowshares; Beast Within -> Emergency Eject, Stroke of Midnight; Fight for the Throne -> Ancient Animus; Arcane Signet -> Fellwar Stone. Lands keep their colour rule. New test UI-NH-01; UI-B141-04 no longer requires strongest first. Engine scoring unchanged (likeness is used only by this list).
 
 ### Build 95 — 10 Nov 2026
