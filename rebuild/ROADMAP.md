@@ -222,8 +222,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
-- Build 96 (Deck Builder 0.9.62, build 207): typing no longer interrupted, practice games once per deck, upgrade list built
-  once its data arrives, I don't have this card shows real variations (owner, 10 Nov). Next week: options C + D (upgrade list
+- Build 96 (Deck Builder 0.9.62, build 207): typing no longer interrupted, practice games once per deck, I don't have this card
+  shows real variations (the wait-for-data rule for the upgrade list is built but off) (owner, 10 Nov). Next week: options C + D (upgrade list
   on the background helper, built ahead).
 - Build 95 (Deck Builder 0.9.61, build 206): health fixes only in the Health pop-up, land target from the deck's own mana
   needs, card readings kept between launches (precon opens in about half the time), full test run 83 -> 36 min (owner, 10 Nov).
