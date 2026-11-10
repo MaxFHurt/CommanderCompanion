@@ -828,11 +828,13 @@ function mainType(c) {
 // between 30 and 42. Commander decks with at least 40 spells; otherwise null (the starting target is used).
 function landTarget(A, d) {
   if (!d || d.format !== 'commander') return null;
-  // the commander's EDHREC average when its page is loaded (owner, 9 Nov: "our land counter should match EDH"); our formula
-  // from the deck's own spells otherwise
-  const E = A.ctx && A.ctx.edh;
-  if (UP.edhLands && E && E.lands >= 25 && E.lands <= 45) return Math.round(E.lands);
-  if (A.nonland < 40) return null;
+  // A deck with most of its spells: its own mana needs, from our formula (owner, 10 Nov: "if our deck needs mana to swing
+  // because of its current state we need to adapt to the deck's mana needs"). A deck still being built has too few spells to
+  // judge: it starts from the commander's EDHREC average when its page is loaded, else the starting target.
+  if (A.nonland < 40) {
+    const E = A.ctx && A.ctx.edh;
+    return UP.edhLands && E && E.lands >= 25 && E.lands <= 45 ? Math.round(E.lands) : null;
+  }
   return Math.max(30, Math.min(42, Math.round(31.5 + 1.6 * A.avg - 0.32 * A.cheapRamp + 0.72 * A.landfall)));
 }
 function legalIn(c, fmt) {
