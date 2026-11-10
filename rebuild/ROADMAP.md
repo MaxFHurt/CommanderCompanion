@@ -254,6 +254,7 @@ frame, ui/button-frame-large.png, with typed labels).
 
 ## Done (recent, newest first)
 
+- Build 97 (Deck Builder 0.9.63, build 208): the Deck Builder's top bar fits every screen (icons only, then no title, when the labels don't fit; owner's iPhone sideways).
 - Build 96 (Deck Builder 0.9.62, build 207): typing no longer interrupted, practice games once per deck, I don't have this card
   shows real variations (the wait-for-data rule for the upgrade list is built but off) (owner, 10 Nov). Next week: options C + D (upgrade list
   on the background helper, built ahead).

@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.96 (Deck Builder {"build": 207, "version": "0.9.62"})
+- **Live build:** 1.0.0-rebuild.97 (Deck Builder {"build": 208, "version": "0.9.63"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -58,7 +58,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Ready, not live (10 Nov): the Deck Builder's top bar fits every screen
+### Build 97 — 10 Nov 2026 (Deck Builder 0.9.63, build 208): the top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
   open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each
   button keeps its name for screen readers); if even that doesn't fit, the "Deck Builder" title goes too. Wide screens are
