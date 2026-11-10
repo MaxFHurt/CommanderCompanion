@@ -212,19 +212,13 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    `tests/style_diff.py` (and the Deck Builder's `cc-theme.css` appended sections into its base rules).
 2. Anything the real-device checks in section 1.4 turn up.
 
-## 7b. Sign-in and automatic saving (owner, 10 Nov: "Let's work on the sign in fix now"; next session, first)
+## 7b. Profile page clean-up (owner, 10 Nov; next session)
 
-1. **Optional sign-in** through Supabase Auth on the owner's existing project: email link (no password) and Google first; Apple
-   needs a paid Apple Developer account. Signing in stays optional: playing without an account keeps working.
-2. **Automatic saving** for signed-in players: every change syncs in the background (profile, decks, games list); one profile
-   per account, readable only by its owner (row level security). The current 12-letter profile key carries over on first
-   sign-in, so no existing profile is lost.
-3. **Warning when not signed in:** a clear notice that data lives only on this device and can be lost (cleared browser data,
-   a lost or replaced device) until the player signs in.
-4. **Profile page clean-up:** anything not about the player moves off the page or goes. List the page's sections and have the
+1. **Profile page clean-up:** anything not about the player moves off the page or goes. List the page's sections and have the
    owner confirm what goes before removing anything.
-5. Checks: both apps' full test runs (game files change), sign-in tested on two devices, the key carry-over tested, before
-   asking to go live.
+2. Sign-in and automatic saving: dropped (owner, 10 Nov: "If it's already transferable by profile key, then none of this is
+   necessary"). The profile key already backs a linked device up automatically. Offered instead, not decided: a warning on a
+   device that is not linked (its data lives only there) and a reminder to keep the key safe.
 
 ## 8. Needs the owner's approval before any work
 
