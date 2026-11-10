@@ -224,8 +224,10 @@ function render() {
   ensureSetCards(S.view === 'decks' && S.open ? cur() : null);
 }
 // "I don't have this card" (owner, 18 Oct): the cards that do the same job (the alternatives' rule, at any price your deck's
-// level allows; cards you own always count), each measured in this deck with the card swapped out, best first; the ones you own
-// are listed first. It thinks first and shows the list once, complete.
+// level allows; cards you own always count), each measured in this deck with the card swapped out; the ones you own are listed
+// first. Owner, 10 Nov: they are this card's own variations, "other variations of the same mechanic with similar mana costs":
+// ranked by how alike they are (engine likeness: what the card does and hits, its speed and mana value), then by the deck score,
+// so each card gets its own list. It thinks first and shows the list once, complete.
 function noHaveList(d, n) {
   const c = find(n);
   if (!c) return [];
@@ -256,6 +258,7 @@ function noHaveList(d, n) {
       const r = ctx.edh && edhOf(ctx.edh.map, x);
       return {
         c: x,
+        like: land ? 1 : likeness(c, x),
         g:
           (own.has(x._n) ? 5 : 0) +
           (r ? 10 * r.inc + 4 * Math.max(0, r.syn) : 0) +
@@ -263,7 +266,9 @@ function noHaveList(d, n) {
           0.2 * baseScore(x, d, ctx).s
       };
     })
-    .sort((a, b) => b.g - a.g)
+    .filter(y => land || y.like > 0)
+    // the closest variations first; among equally close cards, the ones players run and the deck likes
+    .sort((a, b) => b.like + 0.04 * b.g - (a.like + 0.04 * a.g))
     .slice(0, 30);
   const fd = land && e && e.exact != null ? freshDelta(d, ar) : null;
   return P.map(y => ({
@@ -272,8 +277,13 @@ function noHaveList(d, n) {
     own: own.has(y.c._n),
     q,
     dScore: e && e.exact != null ? (land ? fd(n, y.c.n) : swapScore(d, e, ar, n, y.c.n, q)) : null,
-    g: y.g
-  })).sort((a, b) => (b.dScore ?? -1e9) - (a.dScore ?? -1e9) || b.g - a.g);
+    g: y.g,
+    like: y.like
+  })).sort((a, b) =>
+    land
+      ? (b.dScore ?? -1e9) - (a.dScore ?? -1e9) || b.g - a.g
+      : b.like + 0.3 * Math.tanh(2 * (b.dScore || 0)) - (a.like + 0.3 * Math.tanh(2 * (a.dScore || 0)))
+  );
 }
 function openNoHave(n) {
   const d = cur(),

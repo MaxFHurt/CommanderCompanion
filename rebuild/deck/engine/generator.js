@@ -949,6 +949,90 @@ function sameJobAs(c, ref, ctx, lv) {
     return sx >= 2 || !aims.size || [...aimSet(x)].some(a => aims.has(a));
   };
 }
+// How alike two cards are (owner, 10 Nov: "I don't have this card" should show "other variations of the same mechanic with
+// similar mana costs", not the same strong cards for every card). Each card is read into weighted features: what it does (destroy,
+// exile, bounce, -X/-X, damage, fight, edict, counter, tutor, land search, mana, draw, tokens, equipment, auras, protection
+// words…), what it hits (creature, artifact, permanent…, one target or all), its speed, type, jobs and themes. likeness() is the
+// weighted share of features the two share (0 to 1) times how close their mana values are (same 1, one apart 0.75, two 0.45, 0
+// from three apart).
+const LIKE_VERBS = [
+  ['destroy', /\bdestroy\b/],
+  ['exile', /\bexile (target|each|all|up to|another|it|that)\b/],
+  ['bounce', /\breturn[^.]*\bto (its|their) owner'?s'? hands?\b/],
+  ['shrink', /\bgets? -\d+\/-\d+|\bget -x\/-x|-\d+\/-\d+ until/],
+  ['damage', /\bdeals? (\d+|x|that much|damage equal)[^.]* damage\b/],
+  ['fight', /\bfights?\b/],
+  ['edict', /\b(each|target) (player|opponent)s? sacrifices?\b/],
+  ['counter', /\bcounter target\b/],
+  ['tutor', /\bsearch your library for (a|an|up to \w+) (?![^.]*\bbasic land\b)(?![^.]*\bland cards?\b)/],
+  ['landsearch', /\bsearch your library for [^.]*\blands?\b/],
+  ['mana', /\badd \{|\badd (one|two|three) mana\b|\badd mana\b/],
+  ['draw', /\bdraws? (a|two|three|x|\w+) cards?\b/],
+  ['token', /\bcreates? [^.]*\btokens?\b/],
+  ['life', /\bgain \d+ life|\bgains? life\b|\bgain life equal\b/],
+  ['tap', /\btap target\b/],
+  ['untap', /\buntap (target|all|each|up to)\b/],
+  ['equip', /\bequipped creature\b/],
+  ['aura', /\benchanted creature\b/],
+  ['hexproof', /\bhexproof\b/],
+  ['indestructible', /\bindestructible\b/],
+  ['shroud', /\bshroud\b/],
+  ['protection', /\bprotection from\b/],
+  ['recur', /\breturn[^.]*\bfrom your graveyard\b/],
+  ['reanimate', /\breturn[^.]*\bfrom (your|a) graveyard to the battlefield\b/],
+  ['counters', /\b\+1\/\+1 counters?\b/],
+  ['copy', /\bcopy (of )?target\b|\bcopies? of\b/],
+  ['steal', /\bgain control of\b/],
+  ['discard', /\bdiscards?\b/],
+  ['mill', /\bmills?\b/],
+  ['extra-combat', /\badditional combat\b/],
+  ['cost', /\bcosts? \{\d+\} less\b/],
+  ['flicker', /\bexile[^.]*\breturn (it|that card|them) to the battlefield\b/]
+];
+const LIKE_NOUN = /(nonland permanent|nontoken creature|noncreature|creature|artifact|enchantment|planeswalker|land|permanent|spell|player|opponent)/;
+function likeFeatures(c) {
+  if (c._lf) return c._lf;
+  const F = new Map(),
+    put = (k, w) => F.set(k, Math.max(F.get(k) || 0, w)),
+    o = String(c.o || '').split(' // ')[0].toLowerCase().replace(/\([^()]*\)/g, ''),
+    t = tags(c);
+  put('type:' + mainType(c), 1);
+  if (/Instant/.test(c.t || '') || /\bflash\b/.test(o)) put('speed:instant', 0.75);
+  LIKE_VERBS.forEach(([k, re]) => re.test(o) && put('do:' + k, 2));
+  for (const m of o.matchAll(/\btarget ([a-z ,-]{0,40})/g)) {
+    const n = LIKE_NOUN.exec(m[1]);
+    if (n) put('hits:' + n[1], 1.5);
+  }
+  for (const m of o.matchAll(/\b(each|all) (other )?([a-z ,-]{0,30})/g)) {
+    const n = LIKE_NOUN.exec(m[3]);
+    if (n && /destroy|exile|return|damage|-\d|sacrifice/.test(o)) put('all:' + n[1], 1.5);
+  }
+  t.roles.forEach(r => put('job:' + r, 1.5));
+  if (typeof fnOf === 'function')
+    try {
+      const f = fnOf(c);
+      f.makes.forEach(k => put('makes:' + k, 1));
+      f.uses.forEach(k => put('uses:' + k, 1));
+      f.roles.forEach(k => put('job:' + k, 1.5));
+    } catch (e) {}
+  for (const k in t.th) if (t.th[k] > 0) put('theme:' + k, 0.5);
+  return (c._lf = F);
+}
+function likeness(c, x) {
+  const A = likeFeatures(c),
+    B = likeFeatures(x);
+  let both = 0,
+    any = 0;
+  for (const [k, w] of A) {
+    const v = B.get(k) || 0;
+    both += Math.min(w, v);
+    any += Math.max(w, v);
+  }
+  for (const [k, w] of B) if (!A.has(k)) any += w;
+  const dv = Math.abs((c.cmc || 0) - (x.cmc || 0)),
+    mv = dv < 0.5 ? 1 : dv < 1.5 ? 0.75 : dv < 2.5 ? 0.45 : 0;
+  return any ? (both / any) * mv : 0;
+}
 function altsFor(d, name, o) {
   o = o || {};
   const c = find(name);

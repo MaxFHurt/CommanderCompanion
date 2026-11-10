@@ -1351,8 +1351,23 @@ const b141n = await page.evaluate(async () => { const d = S.profile.decks.find(x
   const sc = B.map(b => { const t = (b.closest('.opt').querySelector('.chip') || {}).textContent || ''; const m = /([+−-])\s?([\d.]+)/.exec(t); return m ? (m[1] === '+' ? 1 : -1) * +m[2] : 0; }); out.sorted = sc.every((v, i) => !i || v <= sc[i - 1] + 1e-9);
   const add = B[0].dataset.n; B[0].click(); await new Promise(r => setTimeout(r, 100)); out.asked = !!document.querySelector('#confirm:not([hidden]) [data-act="conf-yes"]'); document.querySelector('#confirm [data-act="conf-yes"]').click(); await new Promise(r => setTimeout(r, 200));
   out.swapped = hasCard(d, add) && !hasCard(d, e.n); out.ruledOut = (d.dismissed || []).includes(e.n); d.cards = JSON.parse(keep); d.dismissed = JSON.parse(dis); S.autoYes = aY; $('#modal').hidden = true; recsFor.k = null; render(); return out; });
-T('UI-B141-04', 'I don’t have this card: thinks, then lists cards that do the same job at the deck’s price level, best first; Swap in asks first, swaps, and the missing card is not suggested again', b141n.btn && b141n.think && b141n.n >= 3 && b141n.sameJob && b141n.inCap && b141n.sorted && b141n.asked && b141n.swapped && b141n.ruledOut, JSON.stringify(b141n));
+T('UI-B141-04', 'I don’t have this card: thinks, then lists cards that do the same job at the deck’s price level (closest variations first since 10 Nov: UI-NH-01); Swap in asks first, swaps, and the missing card is not suggested again', b141n.btn && b141n.think && b141n.n >= 3 && b141n.sameJob && b141n.inCap && b141n.asked && b141n.swapped && b141n.ruledOut, JSON.stringify(b141n));
 } catch (e) { QUIET = false; T('UI-B141-04', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-NH-01')) { try { if (SHARD) await RESET();
+// Owner, 10 Nov: "I don't have this card" showed the same cards for every card; it lists the card's own variations (same
+// mechanic, similar mana cost). Two removal spells of different mana value get different lists; each top pick does the card's
+// job and costs within 2 of it.
+const nh = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id;
+  for (let i = 0; i < 150 && !evalFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  const spells = d.cards.map(e => find(e.n)).filter(c => c && !tags(c).land && mainJob(c.n));
+  const byJob = new Map(); spells.forEach(c => { const j = mainJob(c.n); if (!byJob.has(j)) byJob.set(j, []); byJob.get(j).push(c); });
+  // two cards with the same job and different mana values
+  let pair = null; for (const L of byJob.values()){ const a = L[0], b = L.find(x => Math.abs(x.cmc - a.cmc) >= 2); if (b){ pair = [a, b]; break; } }
+  const look = c => { const L = noHaveList(d, c.n).slice(0, 3); return {n: c.n, mv: c.cmc, job: mainJob(c.n), top: L.map(a => a.n), ok: L.every(a => { const x = find(a.n); return jobsOf(x.n).includes(mainJob(c.n)) && Math.abs(x.cmc - c.cmc) <= 2; })}; };
+  const P = pair ? pair.map(look) : [];
+  return {pair: P, differ: P.length === 2 && P[0].top.join() !== P[1].top.join(), ok: P.every(x => x.top.length && x.ok)}; });
+T('UI-NH-01', 'I don’t have this card: each card gets its own variations (two cards with the same job and different mana values get different lists; the top picks do the job and cost within 2)', nh.pair.length === 2 && nh.differ && nh.ok, JSON.stringify(nh));
+} catch (e) { QUIET = false; T('UI-NH-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B142-01')) { try { if (SHARD) await RESET();
 // 96. Build 142, rules audit: cycling (its reminder text says "draw a card") is not card draw; "target player draws" can be you;
 // lands put onto your battlefield over two sentences are ramp; "target attacking or blocking creature" is removal; "creatures
