@@ -58,7 +58,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Build 97 — not live yet (owner, 10 Nov: "make a build of several changes, test it, and push it live"): collecting changes
+### Build 97 — 10 Nov 2026 (Deck Builder 0.9.63, build 208): three changes in one build (owner: "make a build of several changes, test it, and push it live")
+- Full run: UI suite 142 passed + UI-STATS-01 (timed out side by side; passes alone 2 of 2); upgrade benchmark identical to Build 94-96; accept 39 x 2; semantics 2 old failures; claims 40; cisweep 0; edge 0.
 - Deck Builder profile clean-up (owner: "any irrelevant data needs to go off the profile page"): the Profile page keeps the
   player's things (name, game record, players at your table, backup file); the upgrade engine and the card database moved
   to a Settings pop-up opened from the Profile header (redrawn with the page, so card-data progress shows live); the
