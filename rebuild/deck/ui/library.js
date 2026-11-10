@@ -796,7 +796,9 @@ function recRestore(d, key) {
 // arriving, the list the deck already has stays (its cards unchanged), and the list is built once it has all
 // arrived (at most 4 s later; a wait for the real list, recsReady, is never held). Then a deck seen before matches its saved, checked list again and opens without the check.
 function recsSettling(d) {
-  if (S.syncRecs || recsFor.now || d.format !== 'commander' || !DBINFO.complete) return false;
+  // switched off (10 Nov): under load it still left the list without swaps (UI-ASYNC-01, UI-STATS-01 side by side); kept for
+  // the background-helper work (roadmap 6, options C + D). S.settle = true turns it on.
+  if (!S.settle || S.syncRecs || recsFor.now || d.format !== 'commander' || !DBINFO.complete) return false;
   const c = find(d.commander);
   return !!c && ((EDH.key === c.n && EDH.state === 'loading') || !apexFor(d));
 }

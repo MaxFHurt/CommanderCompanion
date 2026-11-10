@@ -58,8 +58,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Next build (on the branch, not live; being checked)
-- After Build 96 (which waits on GitHub's Pages deploy, stuck on GitHub's side on 10 Nov): the upgrade-list wait is narrowed so it can never hide swaps: it holds only a finished, checked list for the deck's current cards, for at most 4 s, and a wait for the real list (recsReady, e.g. Regenerate) is never held (UI-ASYNC-01 failed 1 run in 3-4 with the Build 96 rule; passes 4 of 4 with the gate off). ixDeckMatches compares the deck name by name instead of joining 100 names on each call (benchmark test Mid identical; UI-B81-01 passes).
+### Next build (on the branch, not live)
+- The upgrade-list wait from Build 96 is switched off (S.settle; kept for the background-helper work, roadmap options C + D): under load it still left a list without swaps (UI-ASYNC-01 failed side by side even after narrowing it to a finished list for the same cards, 4 s, never for recsReady). With it off: UI suite 140 + UI-STATS-01 (passes alone 3 of 3; it waits a fixed 16 s and timed out side by side). ixDeckMatches compares the deck name by name instead of joining 100 names on each call (benchmark test Mid identical; UI-B81-01 passes). Build 96 on main still has the wait on (its Pages deploy was stuck on GitHub's side on 10 Nov).
 
 ### Build 96 — 10 Nov 2026
 - Deck Builder 0.9.62 (build 207): text boxes no longer close while typing (a background redraw waits, and the box keeps focus, text and cursor); practice games are played once per deck (scoring about twice as fast, Fix: Mana 5.3 -> 2.6 s on desktop, scores unchanged); the upgrade list is built once its data has arrived (opening a precon: 9 builds -> 4, Upgrades complete 8.4 -> 4.0 s on desktop); I don't have this card lists the card's own variations (same mechanic, similar mana value) (owner, 10 Nov). Tests: UI-TYPE-02, UI-NH-01 new; UI suite 140 + UI-STATS-01 (passes alone); benchmark test Mid identical. Game files unchanged. Next (owner: next week): build the upgrade list on the background helper and ahead of time (options C + D).
