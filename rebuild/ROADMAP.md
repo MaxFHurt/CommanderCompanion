@@ -233,6 +233,17 @@ least about 2,500 px wide, or SVG); put them in unchanged, check phone, iPad and
 landing stretches), and use the same art for the other screens' buttons (mode select, Profile, Settings use one stretched
 frame, ui/button-frame-large.png, with typed labels).
 
+## 7d. Clearer deck generation (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
+
+1. **Setup pop-up on first generation:** after choosing how to make a deck (the mode), the criteria (commander or colours,
+   tier, mechanics/themes, owned cards, budget) open as a pop-up that walks the player through them the first time, instead of
+   being spread over the page.
+2. **Empty decks fill by suggestion:** a player who starts an empty Commander deck (or an empty Standard deck) sees every
+   remaining card of a base-level (precon-level) build as upgrade suggestions to add, with no replacements (no cuts) until
+   the deck is full; each can be added on its own or all at once.
+3. Before building: confirm with the owner the pop-up's steps and wording, and whether the precon-level fill uses the Budget
+   tier's prices. Checks: generator benchmarks (genstrong, tourney), UI suite, phone and iPad layouts.
+
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
