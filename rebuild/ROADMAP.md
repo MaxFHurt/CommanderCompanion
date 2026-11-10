@@ -186,8 +186,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    - (Answered 9 Nov: "either".) Should alternatives be matched to the card going out rather than to the pick? See
      alternatives now lists cards doing either card's job, in the pick's price band. (guide blind spots: Sheoldred and Yawgmoth
      for Doom, Swords to Plowshares for Turtle Power, Brightglass Gearhulk for Wakanda)
-   - (Answered 9 Nov: "our land counter should match EDH".) EDHREC land count: the land target is now the commander's EDHREC
-     average when its page is loaded (UP.edhLands), the app's own formula otherwise.
+   - (Answered 10 Nov, replacing 9 Nov's "match EDH": "If our deck needs mana to swing because of its current state we need to
+     adapt to the deck's mana needs".) Land count: a deck with most of its spells follows its own mana needs (our formula:
+     average mana value, cheap ramp, landfall); a deck still being built starts from the commander's EDHREC average.
 3. **(Done, build 68.)** **Printings (build 67 system):** owned cards (the library keeps names only, so "the printing I own" cannot
    win yet: store set + number when cards are added to the library, then make it rule 2b); built-in precons (lists.js) get
    their printings only through the by-name EDHREC lookup on opening (store set + number in lists.js instead); generated
