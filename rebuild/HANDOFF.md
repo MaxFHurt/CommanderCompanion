@@ -438,6 +438,9 @@ what each part does, the owner's rules, open notes, and the roadmap.
 - Before a live push: one full Deck Builder run (`check.sh all live`). The game suites below only when game files changed
   (anything outside `rebuild/deck/`); a Deck Builder-only change does not touch them.
 - The three-tier upgrade benchmark runs once per release, in that full run.
+- The full run takes about 36 min (was 83): live mode runs independent checks 3 side by side and cisweep/genstrong split
+  their decks across 3 processes (`PAR`, `tools/tests/suite/par.js`); numbers identical to one at a time (checked 10 Nov).
+  `SEQ=1` runs everything one at a time; `PAR=n` changes the width.
 
     node tests/node/game.mjs          # 248 rules/coach/judge/undo/challenge checks
     node tests/node/mechanics.mjs     # 62 terms key, targeting, every automated mechanic, awards

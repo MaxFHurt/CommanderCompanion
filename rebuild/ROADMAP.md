@@ -201,8 +201,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
      winning combo). The + now uses the Fix menus' rules (ui/upgrades.js fixesMore, comboWins); test UI-B192-01.
 5. **Known limits:** checking upgrades takes about 1 s more per deck (2–3 s on a phone); opening a card for a full deck takes
    about half a second; deck history records only changes made through the app's buttons.
-6. **Suite speed:** the full UI suite is about 435 s on 3 browsers; a real cut needs less work per test (fewer practice games
-   in tests, a smaller card library for screen-only tests).
+6. **Suite speed:** (Done on the branch, 10 Nov.) The full live run 83 min -> 36 min: independent checks 3 side by side,
+   cisweep 1,466 s -> 623 s and genstrong 727 s -> 250 s split across 3 processes; every number identical. Still open: the
+   UI suite itself (about 650 s on 3 browsers) needs less work per test (fewer practice games, a smaller card library).
 
 ## 7. Look and layout
 

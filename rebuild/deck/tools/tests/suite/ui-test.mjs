@@ -953,9 +953,9 @@ if (RUN('UI-B114-01')) { try { if (SHARD) await RESET();
 // generated deck gets the formula's land count.
 const b114 = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)), A = analyze(w);
   out.target = A.T.lands; out.expect = Math.max(30, Math.min(42, Math.round(31.5 + 1.6 * A.avg - 0.32 * A.cheapRamp + 0.72 * A.landfall))); out.formula = out.target === out.expect;
-  const part = JSON.parse(JSON.stringify(w)); part.id = 'part'; part.cards = part.cards.slice(0, 20); out.partial = analyze(part).T.lands; out.partialStarts = out.partial === targetsOf(part, ctxOf(part)).lands;
+  const part = JSON.parse(JSON.stringify(w)); part.id = 'part'; part.cards = part.cards.slice(0, 20); out.partial = analyze(part).T.lands; const E = ctxOf(part).edh; out.edh = UP.edhLands && E && E.lands >= 25 && E.lands <= 45 ? Math.round(E.lands) : null; out.partialStarts = out.partial === (out.edh != null ? out.edh : targetsOf(part, ctxOf(part)).lands);   // owner, 9 Nov: the commander's EDHREC average when its page is loaded
   const g = await startPlan('Don & Leo, Problem Solvers', [], null, null, {fill:'apex'}); const G = analyze(g); out.gen = {size:G.size, lands:G.lands, target:G.T.lands}; out.genOk = G.size === 100 && Math.abs(G.lands - G.T.lands) <= 1; S.draft = null; return out; });
-T('UI-B114-01', 'Land formula: a full deck’s land target comes from its spells (average mana value, cheap ramp, landfall); a deck still being built keeps the starting target; a generated deck gets the formula’s land count (within one)', b114.formula && b114.partialStarts && b114.genOk, JSON.stringify(b114));
+T('UI-B114-01', 'Land formula: a full deck’s land target comes from its spells (average mana value, cheap ramp, landfall); a deck still being built keeps the starting target (the commander’s EDHREC average once its page is loaded); a generated deck gets the formula’s land count (within one)', b114.formula && b114.partialStarts && b114.genOk, JSON.stringify(b114));
 } catch (e) { QUIET = false; T('UI-B114-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B115-01')) { try { if (SHARD) await RESET();
 // 65. Build 115, revised in Build 141 (owner: Game Changers follow the rule of every other mechanic, and Apex has no Bracket 3
