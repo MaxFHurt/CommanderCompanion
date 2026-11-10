@@ -420,6 +420,7 @@ document.addEventListener('click', ev => {
     }
   }
   if (ev.target.id === 'modal') {
+    if ($('#setup-pop')) S.setup = null;
     $('#modal').hidden = true;
     S.watchOpen = false;
     return;
@@ -499,6 +500,7 @@ function handleAct(act, v, n, pArg, cutArg) {
     case 'close':
       $('#modal').hidden = true;
       S.settingsOpen = false;
+      if (S.setup) openSetup();   // closing the mechanics list goes back to the setup pop-up
       S.deckPop = null;
       S.rowCut = null;
       S.watchOpen = false;
@@ -754,9 +756,26 @@ function handleAct(act, v, n, pArg, cutArg) {
       }
       changed = false;
       break;
-    case 'new-deck':
-      newDeck({format: v, name: v === 'commander' ? 'New Commander deck' : 'New Standard deck', src: 'scratch'});
+    case 'new-deck': {
+      const nd = newDeck({format: v, name: v === 'commander' ? 'New Commander deck' : 'New Standard deck', src: 'scratch'});
+      S.setup = {id: nd.id};   // the setup pop-up walks through the build first (drawn by render)
       break;
+    }
+    case 'su-skip':
+      S.setup = null;
+      $('#modal').hidden = true;
+      return;
+    case 'su-cmd-change':
+      if (!d) return;
+      if (d.commander && !d.cards.length) {
+        d.commander = '';
+        delete d.partner;
+        if (!d.aimLocked) d.aims = [];
+      }
+      break;
+    case 'su-go':
+      if (d && S.setup) setupGo(d);
+      return;
     case 'del-deck':
       if (S.confirmDel !== v) {
         S.confirmDel = v;
@@ -2424,6 +2443,7 @@ document.addEventListener('input', ev => {
   } else if (t.id === 'seed-q') dropdown(t, $('#seed-res'), {fmt: 'commander'}, 'seed-add');
   else if (t.id === 'gen-q') dropdown(t, $('#gen-res'), {fmt: 'commander', legend: true}, 'gen-pick');
   else if (t.id === 'cmd-q') dropdown(t, $('#cmd-res'), {fmt: 'commander', legend: true}, 'set-cmd');
+  else if (t.id === 'su-q') dropdown(t, $('#su-res'), {fmt: 'commander', legend: true}, 'set-cmd');
 });
 document.addEventListener('change', ev => {
   UNDO.seq++;
@@ -2570,6 +2590,7 @@ document.addEventListener('keydown', ev => {
     return;
   }
   if (ev.key === 'Escape') {
+    if ($('#setup-pop')) S.setup = null;
     $('#modal').hidden = true;
     document.querySelectorAll('.ddl').forEach(x => (x.hidden = true));
   }

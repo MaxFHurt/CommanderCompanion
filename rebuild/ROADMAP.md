@@ -233,7 +233,7 @@ least about 2,500 px wide, or SVG); put them in unchanged, check phone, iPad and
 landing stretches), and use the same art for the other screens' buttons (mode select, Profile, Settings use one stretched
 frame, ui/button-frame-large.png, with typed labels).
 
-## 7d. Clearer deck generation (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
+## 7d. Clearer deck generation (built on the branch 10 Nov for Build 97: setup pop-up for empty decks, plan listed to add) (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
 
 1. **Setup pop-up on first generation:** after choosing how to make a deck (the mode), the criteria (commander or colours,
    tier, mechanics/themes, owned cards, budget) open as a pop-up that walks the player through them the first time, instead of

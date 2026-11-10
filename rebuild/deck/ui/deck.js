@@ -2208,3 +2208,163 @@ function playersHtml() {
     '</div>'
   );
 }
+// Setting up a new empty deck (owner, 10 Nov: "If you don't know where to look, you don't know where to start"): choosing an
+// Empty Commander or Empty Standard deck opens this pop-up, which walks through what the build needs, in order: the commander
+// (Standard: up to three colors), the price level, then the mechanics (set from the commander; Standard picks its own). Then
+// "Show the cards to add" designs the deck's plan: every card of a full precon-level build is listed on the Upgrades tab as a
+// card to add, nothing is swapped or put in the deck until the player adds it (one at a time, or Add all at a price level).
+// The same choices stay in the Build panel afterwards. S.setup = {id}: the deck the pop-up is for.
+function setupHtml(d) {
+  const ctx = ctxOf(d),
+    cmdr = d.format === 'commander',
+    step = (k, title, body, done) =>
+      '<div class="grp sustep' +
+      (done ? ' done' : '') +
+      '"><span class="lab">' +
+      (done ? '✓ ' : k + ' · ') +
+      title +
+      '</span>' +
+      body +
+      '</div>';
+  const s1 = cmdr
+    ? ctx.cmd
+      ? step(
+          1,
+          'Commander',
+          '<div class="cmdbox"><img alt="" src="' +
+            artFor(ctx.cmd, {pid: d.cmdPid}) +
+            '"><div><b>' +
+            esc(ctx.cmd.n) +
+            '</b><span>' +
+            pips(ctx.cmd.m) +
+            '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="su-cmd-change">Change</button></div></div></div>',
+          true
+        )
+      : step(
+          1,
+          'Choose your commander',
+          '<div class="dd"><input type="search" id="su-q" placeholder="Search commanders" autocomplete="off" aria-label="Search commanders"><div class="ddl" id="su-res" hidden></div></div>'
+        )
+    : step(
+        1,
+        'Choose up to three colors',
+        '<div class="row">' +
+          'WUBRG'
+            .split('')
+            .map(
+              k =>
+                '<button class="btn sm' +
+                ((d.colors || []).includes(k) ? ' pri' : '') +
+                '" data-act="color" data-v="' +
+                k +
+                '" aria-pressed="' +
+                (d.colors || []).includes(k) +
+                '">' +
+                {W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green'}[k] +
+                '</button>'
+            )
+            .join('') +
+          '</div>',
+        (d.colors || []).length > 0
+      );
+  const ready1 = cmdr ? !!ctx.cmd : (d.colors || []).length > 0;
+  const s2 = step(
+    2,
+    'Price level',
+    '<div class="row">' +
+      TIER_KEYS.map(
+        t =>
+          '<button class="btn sm' +
+          (d.tier === t ? ' pri' : '') +
+          '" data-act="tier" data-v="' +
+          t +
+          '" aria-pressed="' +
+          (d.tier === t) +
+          '">' +
+          TIERS[t].label +
+          '</button>'
+      ).join('') +
+      '</div><p class="note" style="margin:0">' +
+      (d.tier === 'apex' ? 'Apex: the strongest cards, at any price.' : d.tier === 'mid' ? 'Mid: nothing over $12.' : 'Budget: precon level, nothing over $3.') +
+      ' Every price level is listed for each card either way; this is the level the deck aims for.</p>',
+    ready1
+  );
+  const s3 = step(
+    3,
+    'Mechanics',
+    (d.aims.length
+      ? '<div class="row">' +
+        d.aims.map((a, i) => '<span class="chip gold">' + (i + 1) + ' · ' + esc(aimLabel(a, ctx.tribe)) + '</span>').join('') +
+        '</div>'
+      : '') +
+      '<p class="note" style="margin:0">' +
+      (cmdr
+        ? ctx.cmd
+          ? d.aims.length
+            ? 'Set from what your commander does. Change them only if you want to take the deck somewhere else.'
+            : 'This commander has no strategy of its own: the deck is built on card strength and jobs. You can add mechanics.'
+          : 'Set from your commander once you choose one.'
+        : d.aims.length
+          ? 'Your deck is built around these, in order.'
+          : 'Add at least one mechanic for the deck to be built around.') +
+      '</p>' +
+      (ready1 ? '<div class="row"><button class="btn sm" data-act="mech-list">' + (d.aims.length ? 'Change mechanics' : '+ Add a mechanic') + '</button></div>' : ''),
+    isAimed(d)
+  );
+  const ok = isAimed(d) || (cmdr && !!ctx.cmd);
+  return (
+    '<div class="panel" role="dialog" aria-label="Set up your deck" id="setup-pop"><div class="ph"><h2>Set up your deck</h2><button class="ico" data-act="su-skip" aria-label="Close">×</button></div>' +
+    '<p class="note" style="margin:0">Three steps, in order. Then every card of a full ' +
+    (cmdr ? 'precon-level ' : '') +
+    'build is listed on the Upgrades tab for you to add: nothing goes in the deck until you add it.</p>' +
+    s1 +
+    s2 +
+    s3 +
+    '<div class="row"><button class="btn pri" data-act="su-go"' +
+    (ok ? '' : ' disabled') +
+    '>Show the cards to add</button><button class="btn" data-act="su-skip">Skip: I’ll add cards myself</button></div></div>'
+  );
+}
+function openSetup() {
+  const d = cur();
+  if (!d || !S.setup || S.setup.id !== d.id) {
+    S.setup = null;
+    return;
+  }
+  $('#modal').innerHTML = setupHtml(d);
+  $('#modal').hidden = false;
+}
+// Design the plan for the set-up deck and show it on the Upgrades tab
+async function setupGo(d) {
+  S.setup = null;
+  $('#modal').hidden = true;
+  if (d.format === 'commander' && !d.aims.length) {
+    const c = find(d.commander);
+    try {
+      const ea = c ? await edhAimsFor(c) : [];
+      if (ea.length) d.aims = ea;
+    } catch (e) {}
+  }
+  setStatus('Thinking… choosing the cards for your ' + (d.format === 'commander' ? 'commander' : 'deck'));
+  const el = $('#status');
+  if (el) el.classList.add('think');
+  let G = null;
+  try {
+    G = await genRun(d, [], null, ownSet(), null);
+  } catch (e) {
+    console.warn('Plan failed:', e);
+  } finally {
+    if (el) el.classList.remove('think');
+    setStatus('');
+  }
+  if (cur() !== d) return;
+  S.tab = 'up';
+  S.planShow = 0;
+  touch();
+  render();
+  toast(
+    d.plan && d.plan.length
+      ? d.plan.reduce((s, x) => s + x.q, 0) + ' cards to add are on the Upgrades tab. Nothing is in the deck until you add it.'
+      : 'No cards could be chosen for this build. Add cards yourself, or change the build.'
+  );
+}

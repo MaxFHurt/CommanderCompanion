@@ -1739,6 +1739,35 @@ if (RUN('UI-PROF-01')) { try { if (SHARD) await RESET();
   const wide = await page.evaluate(() => { fitNav(); return !document.querySelector('header.top').classList.contains('tight'); });
   T('UI-PROF-01', 'Profile: player things only (no Upgrade engine, Card database or saved-decks list); Settings pop-up has both, survives a redraw and closes; top bar: icons only on a narrow sideways phone with nothing past the edge, full labels on a wide screen', Object.values(r).every(Boolean) && nav.tight && !nav.off && nav.named && wide, JSON.stringify({r, nav, wide}));
 } catch (e) { QUIET = false; T('UI-PROF-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+// Build 97 (owner, 10 Nov): a new empty deck opens a setup pop-up that walks through the build (commander or colors, price
+// level, mechanics); "Show the cards to add" designs the plan: a full build listed on the Upgrades tab to add, nothing put in
+// the deck and nothing swapped. Closing the mechanics list goes back to the pop-up; Escape or Skip closes it for good.
+if (RUN('UI-SETUP-01')) { try { if (SHARD) await RESET();
+  const wait = async f => { for (let i = 0; i < 600 && !(await page.evaluate(f)); i++) await page.waitForTimeout(250); return page.evaluate(f); };
+  const a = await page.evaluate(() => { const out = {}; S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="commander"]').click();
+    out.pop = !!$('#setup-pop') && !$('#modal').hidden; out.goOff = $('[data-act="su-go"]').disabled; return out; });
+  await page.click('#su-q'); await page.keyboard.type('Atraxa, Praetors'); await page.waitForTimeout(400);
+  a.typing = await page.evaluate(() => document.activeElement.id === 'su-q' && !$('#su-res').hidden);
+  await page.click('#su-res button'); await page.waitForTimeout(500);
+  Object.assign(a, await page.evaluate(() => { const d = cur(), out = {}; out.cmd = /Atraxa/.test(d.commander) && !!$('#setup-pop'); out.aims = d.aims.length > 0;
+    $('#setup-pop [data-act="tier"][data-v="mid"]').click(); out.tier = cur().tier === 'mid' && !!$('#setup-pop [data-act="tier"][data-v="mid"].pri');
+    $('#setup-pop [data-act="mech-list"]').click(); out.list = !$('#setup-pop') && /Mechanics/.test($('#modal').textContent);
+    $('#modal [data-act="close"]').click(); out.back = !!$('#setup-pop') && !$('#modal').hidden; out.goOn = !$('[data-act="su-go"]').disabled;
+    $('[data-act="su-go"]').click(); return out; }));
+  a.planned = await wait(() => !!(cur().plan && cur().plan.length) && S.tab === 'up' && !$('#status').classList.contains('think'));
+  Object.assign(a, await page.evaluate(() => { const d = cur(), n = d.plan.reduce((s, x) => s + x.q, 0); return {full: n >= 90, empty: d.cards.length === 0, closed: $('#modal').hidden && !S.setup, shown: /Build in progress/.test($('#main').textContent)}; }));
+  const b = await page.evaluate(() => { const out = {}; S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="standard"]').click();
+    $('#setup-pop [data-act="color"][data-v="R"]').click(); $('#setup-pop [data-act="color"][data-v="G"]').click(); out.colors = cur().colors.join('') === 'RG';
+    out.needsMech = $('[data-act="su-go"]').disabled; $('#setup-pop [data-act="mech-list"]').click(); $('#modal [data-act="mech-add"]').click(); $('#modal [data-act="close"]').click();
+    out.go = !$('[data-act="su-go"]').disabled; $('[data-act="su-go"]').click(); return out; });
+  b.planned = await wait(() => S.tab === 'up' && !S.setup && !$('#status').classList.contains('think') && !!(cur().plan && cur().plan.length));
+  Object.assign(b, await page.evaluate(() => ({empty: cur().cards.length === 0, n: cur().plan.reduce((s, x) => s + x.q, 0) >= 50})));
+  const c = await page.evaluate(() => { S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="commander"]').click();
+    document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); render(); const esc = $('#modal').hidden && !S.setup;
+    S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="commander"]').click(); $('#setup-pop [data-act="su-skip"]').click(); render();
+    const skip = $('#modal').hidden && !S.setup; S.draft = null; S.view = 'decks'; S.open = false; render(); return {esc, skip}; });
+  T('UI-SETUP-01', 'New empty deck: setup pop-up walks through commander (typing keeps focus), price level and mechanics (the list returns to the pop-up); Show the cards to add lists a full build on Upgrades with nothing put in the deck; Standard needs colors and a mechanic; Escape and Skip close it', Object.values(a).every(Boolean) && a.goOff && Object.values(b).every(x => x === true || x === false) && b.colors && b.needsMech && b.go && b.planned && b.empty && b.n && c.esc && c.skip, JSON.stringify({a, b, c}));
+} catch (e) { QUIET = false; T('UI-SETUP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
 // Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
 // instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing

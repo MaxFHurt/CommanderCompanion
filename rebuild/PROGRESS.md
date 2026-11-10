@@ -65,6 +65,17 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
   saved-decks list left (the Decks page lists, opens and deletes decks). Files: deck/ui/cards.js (viewProfile, settingsHtml,
   openSettings), deck/ui/events.js. Test UI-PROF-01 (new; also checks the top bar below).
 
+- Clearer deck generation (roadmap 7d; owner: "If you don't know where to look, you don't know where to start"): choosing
+  Empty Commander deck or Empty Standard deck opens a "Set up your deck" pop-up with three steps in order: commander (search;
+  Standard: up to three colors), price level (Budget = precon level, Mid, Apex), mechanics (set from the commander; Standard
+  adds its own; "Change mechanics" opens the list and closing it returns to the pop-up). "Show the cards to add" designs the
+  deck's plan: every card of a full build is listed on the Upgrades tab as a card to add, Budget (precon level) stand-in first
+  for each slot, with Add all per price level; nothing goes in the deck and nothing is swapped until the player adds it. Skip,
+  Escape or tapping outside closes it; the Build panel keeps the same choices. Files: deck/ui/deck.js (setupHtml, openSetup,
+  setupGo), deck/ui/events.js, deck/ui/cards.js (render keeps the pop-up in step). Test UI-SETUP-01 (new).
+- Recovery email (7b.3): not started. It needs an email-sending service in the owner's name (account and key): to set up
+  with the owner.
+
 #### The top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
   open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each

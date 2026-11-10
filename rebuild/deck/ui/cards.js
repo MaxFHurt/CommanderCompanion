@@ -250,6 +250,12 @@ function render() {
   if (S.settingsOpen && !$('#modal').hidden && $('#settings-pop') && !(document.activeElement && document.activeElement.id === 'db-file'))
     $('#modal').innerHTML = settingsHtml();
   else if (S.settingsOpen && $('#modal').hidden) S.settingsOpen = false;
+  // the setup pop-up for a new empty deck follows the deck's choices (not while typing in its search, or over another pop-up)
+  if (S.setup) {
+    const sd = cur(), ae = document.activeElement;
+    if (!sd || sd.id !== S.setup.id || S.view !== 'decks' || !S.open) S.setup = null;
+    else if ($('#modal').hidden || $('#setup-pop')) { if (!(ae && ae.id === 'su-q' && $('#setup-pop'))) openSetup(); }
+  }
   watchSoon();
   ensureTheme();
   ensureEdh();
