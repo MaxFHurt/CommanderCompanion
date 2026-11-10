@@ -224,6 +224,15 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    (Supabase on the owner's project; free at this volume). Phone (SMS) later if wanted: it needs a paid SMS service. The key
    keeps working as now; the email only finds the profile again. Checks: both apps' tests, recovery tried on a second device.
 
+## 7c. Landing buttons: use the owner's original art (owner, 10 Nov)
+
+The six landing buttons (assets/img/landing/*.png, about 830 x 250 px) were cut from a landing mock-up on 4 Oct (commit
+0580abe) with a flat black box pasted over each label area; that box covers the inner edge of the frame, and the images are
+blown up about 3x on an iPhone, so the frames look soft and doubled. Next: the owner re-sends the original button files (at
+least about 2,500 px wide, or SVG); put them in unchanged, check phone, iPad and PC sizes (and an ultra-wide screen, where the
+landing stretches), and use the same art for the other screens' buttons (mode select, Profile, Settings use one stretched
+frame, ui/button-frame-large.png, with typed labels).
+
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
