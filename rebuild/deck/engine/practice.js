@@ -203,7 +203,28 @@ function simLandCols(c, s, ident, reach, needCol, have, colsOf) {
   }
   return colsOf(s);
 }
+// Practice games are the same games for the same deck (a fixed seed), and the app asked for the same deck's games again and
+// again (owner, 10 Nov: "It's running slow"; a session measured 488 calls for 203 different decks). The last 400 results are
+// kept, by everything the games read: the commander and partner, the cards in order, the number of games, the seed, the engine
+// settings and the card library. Callers only read the result.
+const SIMC = {lib: null, up: '', m: new Map()};
 function simulate(d, games, seed) {
+  const up = JSON.stringify(UP);
+  if (SIMC.lib !== LIB || SIMC.up !== up) {
+    SIMC.lib = LIB;
+    SIMC.up = up;
+    SIMC.m.clear();
+  }
+  let k = (d.commander || '') + '\u0001' + (d.partner || '') + '\u0001' + (d.format || '') + (d.colors || []).join('') + '\u0001' + games + '\u0001' + seed + '\u0001';
+  for (const e of d.cards) k += e.n + '\u0002' + e.q + '\u0003';
+  const hit = SIMC.m.get(k);
+  if (hit) return hit;
+  const r = simulate0(d, games, seed);
+  SIMC.m.set(k, r);
+  if (SIMC.m.size > 400) SIMC.m.delete(SIMC.m.keys().next().value);
+  return r;
+}
+function simulate0(d, games, seed) {
   const ctx = ctxOf(d),
     ident = ctx.ident.length ? ctx.ident : ['C'],
     cmds = [d.commander, d.partner].filter(Boolean).map(find).filter(Boolean);
