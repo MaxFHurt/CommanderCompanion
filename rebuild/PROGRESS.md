@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.94 (Deck Builder {"build": 205, "version": "0.9.60"})
+- **Live build:** 1.0.0-rebuild.95 (Deck Builder {"build": 206, "version": "0.9.61"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -58,7 +58,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
-### Next build (on the branch `claude/commander-companion-roadmap-ilkx1o`, not live)
+### Build 95 — 10 Nov 2026
+- Deck Builder 0.9.61 (build 206): the Health pop-up holds the health alerts' fixes, not the Upgrades page (owner, 10 Nov); a full deck's land target follows its own mana needs again, the commander's EDHREC average only starts a deck still being built (owner, 10 Nov); card readings are kept between launches and reused by the background core (phone speed: every card ready 37.8 s -> 1.4 s, opening a precon 47 s -> about 24 s). Tests: the full live run 83 -> 36 min (checks side by side, cisweep and genstrong split by deck; numbers identical); guidecheck scores the strength list; UI-READS-01 new, UI-B197-02 and UI-B114-01 updated. Benchmark identical to Build 94 on all nine numbers. Game files unchanged.
 - Deck Builder speed (roadmap 6.2, owner 9 Nov: 'Do 1, 2, and 3'): each card's reading (tags and functions) is kept between launches in the browser's storage (about 2.8 MB, keyed by build, engine settings and each card's text), and the background core reuses it. At phone speed (4x slowed): every card ready 37.8 s -> 1.4 s on the next launch, opening a precon 47 s -> about 24 s, the background core's warm-up 15 s -> 0.2 s. Readings match a fresh reading exactly (all 32,115 cards in Node; a sample in the browser, test UI-READS-01). Sending the library to the background core once at launch was already done (Build 143).
 - Health fixes (owner, 10 Nov: 'The health upgrades listed on the upgrade page were meant to go on the health pop up directly, not the main page'): the Upgrades page no longer shows the 'Fixes <alert>' rows (Build 87); it still works them out in the background, and the Health pop-up opens with them already in each alert's section. UI-B197-02 rewritten for this; UI-HPOP-01, UI-ASYNC-01, UI-B192-01 pass.
 - Land target (owner, 10 Nov: 'If our deck needs mana to swing because of its current state we need to adapt to the deck's mana needs', replacing 9 Nov's 'match EDH'): a deck with most of its spells (40+) takes its target from its own spells again (our formula: average mana value, cheap ramp, landfall); a deck still being built starts from the commander's EDHREC average when loaded. Benchmark identical on all nine numbers (3 sets x 3 tiers); the 21 land-related UI checks pass.

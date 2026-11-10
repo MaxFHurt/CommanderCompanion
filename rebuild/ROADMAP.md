@@ -176,7 +176,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    - (Answered 8 Nov, build 82.) The upgrade list is kept after a swap (owner: "Apex suggestions should not change based on an
      upgrade I made of a mid or budget quality"): the row keeps its higher tiers, shows the card you put in (In your deck)
      and the card you took out (a red Replaced chip); the list is worked out again only on Regenerate or another change.
-   - (Done on the branch, 9 Nov, not live.) Speed: each card's reading is kept between launches and the background core reuses
+   - (Done, Build 95.) Speed: each card's reading is kept between launches and the background core reuses
      it (phone speed: every card ready 37.8 s -> 1.4 s, opening a precon 47 s -> about 24 s); the library was already sent to the
      background core once at launch (Build 143).
    - (Answered 9 Nov: "The engine should see all plans.") Plans the engine can't see yet: fliers, defenders/toughness, goad,
@@ -202,7 +202,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
      winning combo). The + now uses the Fix menus' rules (ui/upgrades.js fixesMore, comboWins); test UI-B192-01.
 5. **Known limits:** checking upgrades takes about 1 s more per deck (2–3 s on a phone); opening a card for a full deck takes
    about half a second; deck history records only changes made through the app's buttons.
-6. **Suite speed:** (Done on the branch, 10 Nov.) The full live run 83 min -> 36 min: independent checks 3 side by side,
+6. **Suite speed:** (Done, Build 95.) The full live run 83 min -> 36 min: independent checks 3 side by side,
    cisweep 1,466 s -> 623 s and genstrong 727 s -> 250 s split across 3 processes; every number identical. Still open: the
    UI suite itself (about 650 s on 3 browsers) needs less work per test (fewer practice games, a smaller card library).
 
@@ -222,6 +222,8 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## Done (recent, newest first)
 
+- Build 95 (Deck Builder 0.9.61, build 206): health fixes only in the Health pop-up, land target from the deck's own mana
+  needs, card readings kept between launches (precon opens in about half the time), full test run 83 -> 36 min (owner, 10 Nov).
 - Build 94 (Deck Builder 0.9.60, build 205): Fix menus and alternatives by card strength (either job), EDHREC land target,
   all plans seen (Big creatures, Keyword counters), on-theme spare rows, benchmark scores the list players see (owner, 9 Nov).
 - Build 93 (Deck Builder 0.9.59, build 204): card strength on: deck power and the upgrade list from the strength builds
