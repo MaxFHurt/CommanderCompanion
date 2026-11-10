@@ -3607,9 +3607,10 @@ function manaNone(d) {
       : '')
   );
 }
-// Health fixes in the upgrade list (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active alert (yellow or
-// red, not ignored) shows its best two swaps from its Fix menu at the top of the list, worked out in the background one alert at a
-// time and kept until the deck changes.
+// Health fixes (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active alert's (yellow or red, not
+// ignored) best swaps from its Fix menu, worked out in the background one alert at a time while Upgrades is open and kept until
+// the deck changes. Owner, 10 Nov: they belong in the Health pop-up, not on the Upgrades page: the page no longer shows them
+// (ui/deck.js drops this html) and the pop-up reuses these lists (popFixFill), so it opens with them already filled in.
 const UPFIX = {sig: '', G: [], busy: false, t: null};
 function upFixHtml(d) {
   if (!d || d.format !== 'commander' || !d.cards.length) return '';
@@ -3639,8 +3640,8 @@ function upFixHtml(d) {
           UPFIX.t = setTimeout(step, 0);
         } else {
           UPFIX.busy = false;
-          // shown at once unless a window is open (a redraw then would replace it: See alternatives, a card); else next redraw
-          if (cur() === d && S.tab === 'up' && $('#modal').hidden) render();
+          // an open Health pop-up takes them at once
+          if (cur() === d && !$('#modal').hidden && $('#modal .deckpop')) popFixFill(d);
         }
       };
     UPFIX.t = setTimeout(step, 40);

@@ -538,7 +538,7 @@ function upPanel(d, A, mode) {
           (upT() ? ' of that card type' : '') +
           '.</p>'
         : '') +
-      upFixHtml(d) +
+      (upFixHtml(d), '') + // worked out here for the Health pop-up, shown only there (owner, 10 Nov)
       (sheet ? '<div class="sheet" data-sel="' + sel + '">' + sheetHead(d, R, PV[si][0], PV[si][1], si, PV.length, sel) : '') +
       '<div class="paths">' +
       (sheet ? [PV[si]] : PV.slice(0, show))

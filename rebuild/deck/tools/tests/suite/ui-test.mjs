@@ -1667,19 +1667,20 @@ const b198 = await page.evaluate(async () => { const out = {};
 T('UI-B198-01', 'Build 198: a newly published printed name is added at run time; search finds its real card by that name and shows the printed name', b198.added === 1 && b198.first === 'Sol Ring' && b198.alt === 'Zzyx Test Printed Name' && b198.find === 'Sol Ring', JSON.stringify(b198));
 } catch (e) { QUIET = false; T('UI-B198-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B197-02')) { try { if (SHARD) await RESET();
-// Build 197 (owner, 8 Nov: "Why are deck health fixes not shown as upgrades?"): each active health alert's best swaps are shown
-// at the top of the upgrade list, marked with the alert, and swapping one keeps the upgrade list.
+// Owner, 10 Nov: the health alerts' fixes go in the Health pop-up, not on the Upgrades page. Upgrades works them out in the
+// background (Build 197) but shows none; the pop-up opens with them already there, one section per alert.
 const b1972 = await page.evaluate(async () => { const out = {}; const sy = S.syncRecs; S.syncRecs = true;
   await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
   for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
   S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
-  out.alerts = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k]);
+  out.alerts = [...(HFIX.get(d.id) || [])].filter(k => FIX_OF[k] && !(d.ignoreH || []).includes(k));
   for (let i = 0; i < 400 && UPFIX.busy; i++) await new Promise(r => setTimeout(r, 50));
-  render(); const rows = [...document.querySelectorAll('.upfix .fixsw')]; out.rows = rows.length; out.chips = rows.map(r => (r.querySelector('.chip.warn') || {}).textContent);
-  const R = recsFor(d), b = document.querySelector('.upfix [data-act="upfix-swap"]');
-  if (b) { const [k, i] = b.dataset.v.split('|'), p = UPFIX.G.find(x => x.k === k).L[+i]; b.click(); await new Promise(r => setTimeout(r, 200)); out.swapped = hasCard(d, p.add) && !hasCard(d, p.cut); out.kept = recsFor(d) === R; }
-  S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
-T('UI-B197-02', 'Build 197: active health alerts show their best swaps at the top of the upgrade list, marked with the alert; a swap there keeps the list', !b1972.alerts.length || (b1972.rows > 0 && b1972.chips.every(c => /^Fixes /.test(c)) && b1972.swapped && b1972.kept), JSON.stringify(b1972));
+  render(); out.pageRows = document.querySelectorAll('.upfix, .upfix .fixsw').length; out.worked = UPFIX.G.length;
+  openDeckPop('health'); const B = () => [...document.querySelectorAll('#modal .hsw')]; await new Promise(r => setTimeout(r, 100));
+  out.secs = B().length; out.filledAtOnce = B().filter(b => !b.querySelector('.think')).length;
+  out.withSwap = B().filter(b => b.querySelector('[data-act="pfix-swap"]') || /No swap raises/.test(b.textContent)).length;
+  $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => x !== d); S.syncRecs = sy; S.view = 'home'; render(); return out; });
+T('UI-B197-02', 'Health alerts\u2019 fixes are not on the Upgrades page; worked out there in the background, the Health pop-up opens with them already in each alert\u2019s section', b1972.pageRows === 0 && (!b1972.alerts.length || (b1972.worked > 0 && b1972.secs > 0 && b1972.filledAtOnce === b1972.secs && b1972.withSwap === b1972.secs)), JSON.stringify(b1972));
 } catch (e) { QUIET = false; T('UI-B197-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-CW-01')) { try { if (SHARD) await RESET();
 // Card window (roadmap known limit, 8 Nov): a spell going into a full Commander deck opens at once with a "Thinking" line; the
