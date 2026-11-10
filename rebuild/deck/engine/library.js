@@ -1212,8 +1212,14 @@ function deckTokens(d) {
 // until the deck's list changes), so each candidate costs a few set lookups, not a pass over the deck.
 const IXD = new Map();
 function ixDeckMatches(d, c) {
-  const sig = (d.cards || []).map(e => e.n).join('|'), k = d.id || sig;
-  let t = IXD.get(k);
+  // the deck's list is compared name by name with the one the totals were counted from (owner, 10 Nov, speed: joining the 100
+  // names into a string on each of thousands of calls cost about 1 s per deck opened; same answers)
+  const cards = d.cards || [];
+  let t = IXD.get(d.id || '');
+  const same = t && t.names.length === cards.length && cards.every((e, i) => e.n === t.names[i]);
+  if (!same) t = null;
+  const sig = t ? t.sig : cards.map(e => e.n).join('|'), k = d.id || sig;
+  if (!t) t = IXD.get(k);
   if (!t || t.sig !== sig) {
     const gives = {}, wants = {};
     for (const e of d.cards || []) {
@@ -1222,10 +1228,10 @@ function ixDeckMatches(d, c) {
       const ix = ixOf(x);
       for (const r of IX) { if (ix.gives.has(r.k)) gives[r.k] = (gives[r.k] || 0) + 1; if (ix.wants.has(r.k)) wants[r.k] = (wants[r.k] || 0) + 1; }
     }
-    t = {sig, gives, wants};
+    t = {sig, gives, wants, names: cards.map(e => e.n), set: new Set(cards.map(e => e.n))};
     IXD.set(k, t);
   }
-  const me = ixOf(c), inDeck = (d.cards || []).some(e => e.n === c.n);
+  const me = ixOf(c), inDeck = t.set.has(c.n);
   let n = 0;
   // matches per interaction (a card that both feeds and wants the same thing counts on each side); a card already in the deck
   // leaves itself out of the totals

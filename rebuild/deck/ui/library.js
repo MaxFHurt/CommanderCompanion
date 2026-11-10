@@ -793,10 +793,10 @@ function recRestore(d, key) {
 }
 // Opening a deck built its upgrade list again each time a piece of data arrived (play data, the deck's themes, the Apex
 // reference, theme pages: 9 builds for a precon; owner, 10 Nov: "How do we make this instant?"). While that data is still
-// arriving, the list the deck already has stays, marked as checking (no swap offered), and the list is built once it has all
-// arrived (at most 8 s later). Then a deck seen before matches its saved, checked list again and opens without the check.
+// arriving, the list the deck already has stays (its cards unchanged), and the list is built once it has all
+// arrived (at most 4 s later; a wait for the real list, recsReady, is never held). Then a deck seen before matches its saved, checked list again and opens without the check.
 function recsSettling(d) {
-  if (S.syncRecs || d.format !== 'commander' || !DBINFO.complete) return false;
+  if (S.syncRecs || recsFor.now || d.format !== 'commander' || !DBINFO.complete) return false;
   const c = find(d.commander);
   return !!c && ((EDH.key === c.n && EDH.state === 'loading') || !apexFor(d));
 }
@@ -804,16 +804,20 @@ function recsFor(d) {
   dropHolds(d);
   const key = recsKey(d);
   if (recsFor.k !== key && carryRecs(d, key)) return recsFor.v;
-  if (recsFor.k !== key && recsFor.v && recsFor.vid === d.id && recsSettling(d)) {
+  // held only when it is a finished, checked list for the very cards the deck has now (only the data around it is changing); it
+  // stays usable: nothing on it is wrong for this deck, it is just about to be refreshed
+  if (recsFor.k !== key && recsFor.v && !recsFor.v.pending && recsFor.vid === d.id && recsFor.vsig === cardsSig(d) && recsSettling(d)) {
     const w = (recsFor.wait = recsFor.wait && recsFor.wait.id === d.id ? recsFor.wait : {id: d.id, at: Date.now()});
-    if (Date.now() - w.at < 8000) {
-      recsFor.v.pending = true;
+    if (Date.now() - w.at < 4000) {
       clearTimeout(recsFor.wt);
       recsFor.wt = setTimeout(() => cur() === d && render(), 500);
       return recsFor.v;
     }
   }
-  if (recsFor.k !== key) recsFor.wait = null;
+  if (recsFor.k !== key) {
+    recsFor.wait = null;
+    recsFor.vsig = cardsSig(d);
+  }
   recsFor.vid = d.id;
   if (recsFor.k !== key) {
     const R0 = recRestore(d, key);
@@ -1041,8 +1045,16 @@ function poolNote(Q) {
 }
 // Waits for the score check of the current list (Regenerate and the tests use it).
 async function recsReady(d) {
-  for (let i = 0; i < 200 && recsFor(d).pending; i++) await new Promise(r => setTimeout(r, 50));
-  return recsFor(d);
+  const ready = () => {
+    recsFor.now = true;
+    try {
+      return recsFor(d);
+    } finally {
+      recsFor.now = false;
+    }
+  };
+  for (let i = 0; i < 200 && ready().pending; i++) await new Promise(r => setTimeout(r, 50));
+  return ready();
 }
 
 // The Undo button for the deck bar (shown once there is something to undo).
