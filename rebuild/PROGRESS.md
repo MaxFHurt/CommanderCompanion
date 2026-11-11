@@ -77,6 +77,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Recovery email (7b.3): not started. It needs an email-sending service in the owner's name (account and key): to set up
   with the owner.
 
+- Top bar on the owner's iPhone (11 Nov): it stayed too wide after the phone changed width until it was rotated. The bar is now checked on every layout check (page show, focus, visual-viewport resize, orientation change) and uses the visible width. Checks: a 932 px wide load shrunk to 667 px and 320 px with no action: no button past the edge. Files: deck/ui/events.js (ensureLayout, orientation, visual viewport), deck/ui/views.js (fitNav). Not yet on your iPhone.
+
 #### The top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
   open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each

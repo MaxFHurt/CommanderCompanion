@@ -2600,6 +2600,7 @@ addEventListener('orientationchange', () =>
   setTimeout(() => {
     wasNarrow = isNarrow();
     render();
+    fitNav();
   }, 250)
 );
 // iPad windows (Stage Manager, Split View) can come back at full size without a resize event, or report the
@@ -2612,6 +2613,7 @@ function ensureLayout() {
   wasNarrow = nw;
   if (app.classList.contains('narrow') !== nw) render();
   else fitWork();
+  fitNav();   // the top bar is checked again whenever the layout is (owner's iPhone, 11 Nov: it stayed too wide until rotated)
 }
 let elT = [];
 function recheckLayout() {
@@ -2657,7 +2659,7 @@ function restoreSpot() {
     S.open = false;
   }
 }
-if (window.visualViewport) visualViewport.addEventListener('resize', () => fitWork());
+if (window.visualViewport) visualViewport.addEventListener('resize', () => { fitWork(); fitNav(); });
 // The working area is sized from where it starts on screen, which moves while the page loads (fonts, the logo, Safari's
 // toolbar). Size it again once everything has loaded, so it never stays too tall to scroll until the window is zoomed or resized.
 addEventListener('load', () => {

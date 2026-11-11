@@ -8,7 +8,8 @@ function fitNav() {
   top.classList.remove('tight', 'tighter');
   const over = () => {
     const r = top.getBoundingClientRect(),
-      vw = document.documentElement.clientWidth,
+      vv = window.visualViewport,
+      vw = Math.min(document.documentElement.clientWidth, vv ? vv.width : Infinity),
       bs = top.querySelectorAll('button');
     if (top.scrollWidth > top.clientWidth + 1 || r.right > vw + 1) return true;
     for (const x of bs) {
