@@ -82,6 +82,10 @@ function parseStarter(raw) {
     });
   return out;
 }
+const TWO_SIDED = new Set(['transform', 'modal_dfc', 'reversible_card']);
+function twoSided(o, f) {
+  return !!(f && f.length === 2 && TWO_SIDED.has(o.layout || ''));
+}
 function fromScryfall(o) {
   if (!o || o.object !== 'card') return null;
   if (/token|emblem|art_series|vanguard|scheme|planar/.test(o.layout || '')) return null;
@@ -117,9 +121,12 @@ function fromScryfall(o) {
     nw: o.reprint === false && o.released_at ? o.released_at.slice(0, 7) : '', // first printing's month, for new cards with little play data yet
     fn: o.flavor_name || f0.flavor_name || '',
     src: 'full',
-    df: !!(f && f.length === 2 && f[0].image_uris && f[1].image_uris),
+    // Two-sided cards (owner, 11 Nov: no flip anywhere): the published card data keeps no pictures on the faces, so a card
+    // counts as two-sided by its layout (both faces are printed sides); its back picture comes from the same printing.
+    df: twoSided(o, f),
+    rv: o.layout === 'reversible_card',   // reversible card: the chip says Reverse
     fc:
-      f && f.length === 2 && f[0].image_uris
+      twoSided(o, f)
         ? f.map(x => ({
             n: x.name || '',
             m: x.mana_cost || '',

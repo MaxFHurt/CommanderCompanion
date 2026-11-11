@@ -79,6 +79,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - Top bar on the owner's iPhone (11 Nov): it stayed too wide after the phone changed width until it was rotated. The bar is now checked on every layout check (page show, focus, visual-viewport resize, orientation change) and uses the visible width. Checks: a 932 px wide load shrunk to 667 px and 320 px with no action: no button past the edge. Files: deck/ui/events.js (ensureLayout, orientation, visual viewport), deck/ui/views.js (fitNav). Not yet on your iPhone.
 
+- Flip (owner, 11 Nov: "I don't see a flip function in the deck builder"): the Flip control was in the card pop-up but never
+  showed. The published card data keeps no pictures on card faces, and the app only flagged a card two-sided when both faces
+  had pictures, so no card qualified. A card is now two-sided by its layout (transform, modal_dfc, reversible_card: 489 cards in
+  the test data); the control is a chip, and reads Reverse for reversible cards. Pictures come from the same printing's back
+  side. Files: deck/engine/library.js (twoSided, rv), deck/ui/base.js (chip), index.html (cc-theme v=182). Test UI-FLIP-01 (new).
+  Not checked in the live app yet.
+
 #### The top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
   open, on resize and once the fonts load): if the buttons don't fit on one line the labels go and the icons stay (each

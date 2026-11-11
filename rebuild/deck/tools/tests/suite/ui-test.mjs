@@ -1768,6 +1768,16 @@ if (RUN('UI-SETUP-01')) { try { if (SHARD) await RESET();
     const skip = $('#modal').hidden && !S.setup; S.draft = null; S.view = 'decks'; S.open = false; render(); return {esc, skip}; });
   T('UI-SETUP-01', 'New empty deck: setup pop-up walks through commander (typing keeps focus), price level and mechanics (the list returns to the pop-up); Show the cards to add lists a full build on Upgrades with nothing put in the deck; Standard needs colors and a mechanic; Escape and Skip close it', Object.values(a).every(Boolean) && a.goOff && Object.values(b).every(x => x === true || x === false) && b.colors && b.needsMech && b.go && b.planned && b.empty && b.n && c.esc && c.skip, JSON.stringify({a, b, c}));
 } catch (e) { QUIET = false; T('UI-SETUP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+// Build 97 (owner, 11 Nov: "I don't see a flip function in the deck builder"): a two-sided card's pop-up has a Flip chip that
+// shows the other face (picture and face note) and flips back; the card data marks two-sided cards by layout (no pictures in it).
+if (RUN('UI-FLIP-01')) { try { if (SHARD) await RESET();
+  const f = await page.evaluate(() => { const c = LIB.find(x => x.df && x.fc && x.fc.length === 2);
+    if (!c) return {none: true}; openCard(c.n, ''); const chip = document.querySelector('#modal .flip'), img0 = document.querySelector('#modal .card.real img')?.src || '';
+    const out = {name: c.n, chip: !!chip, chipTag: chip && chip.tagName, chipText: chip && chip.textContent.trim()}; if (chip) { chip.click(); }
+    out.back = (document.querySelector('#modal .card.real img')?.src || '') !== img0; out.note = /back/.test(document.querySelector('#face-note')?.textContent || '');
+    document.querySelector('#modal .flip').click(); out.front = (document.querySelector('#modal .card.real img')?.src || '') === img0; return out; });
+  T('UI-FLIP-01', 'Two-sided card (card pop-up): a Flip chip shows the other face and flips back; the face note says which side is showing', !f.none && f.chip && f.back && f.note && f.front, JSON.stringify(f));
+} catch (e) { QUIET = false; T('UI-FLIP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
 // Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
 // instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing

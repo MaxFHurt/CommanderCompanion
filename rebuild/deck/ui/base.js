@@ -1005,7 +1005,7 @@ function cardHtml(c, mini, pr, extra) {
       '" src="' +
       imgUrl('normal', pr ? pr.id : pidOf(c), !mini && c.df && S.face === 1) +
       '">' +
-      (!mini && c.df ? '<button class="btn sm flip" data-act="flip" aria-label="Flip to the other face">⟲ Flip</button>' : '') +
+      (!mini && c.df ? '<button class="chip gold flip" data-act="flip" aria-label="' + (c.rv ? 'Reverse the card' : 'Flip to the other face') + '">⟲ ' + (c.rv ? 'Reverse' : 'Flip') + '</button>' : '') +
       '<div class="ft"><span>' +
       esc(pr && pr.set ? pr.set + (pr.yr ? ' · ' + pr.yr : '') : mini ? c.n : '') +
       '</span><span>' +
