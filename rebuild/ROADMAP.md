@@ -254,6 +254,7 @@ frame, ui/button-frame-large.png, with typed labels).
 
 ## Done (recent, newest first)
 
+- Build 98 (Deck Builder 0.9.64, build 209): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
 - Build 97 (Deck Builder 0.9.63, build 208): the top bar fits every screen; Profile clean-up (Settings pop-up for engine and card data); Set up your deck pop-up for empty decks with the full build listed to add (7d).
 - Build 96 (Deck Builder 0.9.62, build 207): typing no longer interrupted, practice games once per deck, I don't have this card
   shows real variations (the wait-for-data rule for the upgrade list is built but off) (owner, 10 Nov). Next week: options C + D (upgrade list

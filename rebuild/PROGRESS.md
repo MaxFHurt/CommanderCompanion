@@ -58,6 +58,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Build 98 — 11 Nov 2026 (Deck Builder 0.9.64, build 209; app 1.0.0-rebuild.98): Build 97's three changes plus the top-bar re-check and the Flip chip
+- Build 97 (10 Nov, Deck Builder 0.9.63, build 208) was the three changes below.
 ### Build 97 — 10 Nov 2026 (Deck Builder 0.9.63, build 208): three changes in one build (owner: "make a build of several changes, test it, and push it live")
 - Full run: UI suite 142 passed + UI-STATS-01 (timed out side by side; passes alone 2 of 2); upgrade benchmark identical to Build 94-96; accept 39 x 2; semantics 2 old failures; claims 40; cisweep 0; edge 0.
 - Deck Builder profile clean-up (owner: "any irrelevant data needs to go off the profile page"): the Profile page keeps the
@@ -77,14 +79,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Recovery email (7b.3): not started. It needs an email-sending service in the owner's name (account and key): to set up
   with the owner.
 
-- Top bar on the owner's iPhone (11 Nov): it stayed too wide after the phone changed width until it was rotated. The bar is now checked on every layout check (page show, focus, visual-viewport resize, orientation change) and uses the visible width. Checks: a 932 px wide load shrunk to 667 px and 320 px with no action: no button past the edge. Files: deck/ui/events.js (ensureLayout, orientation, visual viewport), deck/ui/views.js (fitNav). Not yet on your iPhone.
+- Top bar on the owner's iPhone (11 Nov): it stayed too wide after the phone changed width until it was rotated. The bar is now checked on every layout check (page show, focus, visual-viewport resize, orientation change) and uses the visible width. Checks: a 932 px wide load shrunk to 667 px and 320 px with no action: no button past the edge. Files: deck/ui/events.js (ensureLayout, orientation, visual viewport), deck/ui/views.js (fitNav). Live in Build 98.
 
 - Flip (owner, 11 Nov: "I don't see a flip function in the deck builder"): the Flip control was in the card pop-up but never
   showed. The published card data keeps no pictures on card faces, and the app only flagged a card two-sided when both faces
   had pictures, so no card qualified. A card is now two-sided by its layout (transform, modal_dfc, reversible_card: 489 cards in
   the test data); the control is a chip, and reads Reverse for reversible cards. Pictures come from the same printing's back
   side. Files: deck/engine/library.js (twoSided, rv), deck/ui/base.js (chip), index.html (cc-theme v=182). Test UI-FLIP-01 (new).
-  Not checked in the live app yet.
+  Live in Build 98 (checked by the test only).
 
 #### The top bar fits every screen
 - Owner's iPhone, held sideways: the top bar ran off the right edge and Profile was cut off. Now the bar checks its own fit (on
