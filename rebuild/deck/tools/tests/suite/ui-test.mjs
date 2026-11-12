@@ -1670,6 +1670,24 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-APEX-01')) { try { if (SHARD) await RESET();
+// Build 100 (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says it's deck power 66 with 28 cards on the
+// upgrade page"): a deck generated at a price level is that level's strength build, the scale its power is measured on: Apex at
+// power 100 with no Apex swaps left; Mid at the Mid build's mark.
+const ap1 = await page.evaluate(async () => { const out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
+  const name = 'Heroes in a Half Shell';
+  for (const t of ['apex', 'mid']) {
+    S.draft = null; const nd = await startPlan(name, [], null, null, {fill: t}); const d = S.draft || nd; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+    for (let i = 0; i < 100 && !(STRENGTH.cmd && STRENGTH.cmd.size && strengthPower(d)); i++) await wait(100);
+    const P = strengthPower(d), SR = strengthRef(d), picks = SR ? strPicks(d, SR)[t] : null;
+    S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await wait(300); render();
+    const strip = (document.querySelector('.statbar') || {}).textContent || '';
+    out[t] = {power: P && +P.power.toFixed(1), mid: P && +P.mid.toFixed(1), left: picks ? picks.length : -1, strip: +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1), finished: genRun.str, cards: d.cards.reduce((a, x) => a + x.q, 0)};
+    S.profile.decks = S.profile.decks.filter(x => x !== d);
+  }
+  S.view = 'home'; render(); return out; });
+T('UI-APEX-01', 'Build 100: a generated Apex deck is its own Apex build (power 100, no Apex swaps left; the strip agrees) and a generated Mid deck sits at its Mid mark', ap1.apex.power >= 99 && ap1.apex.left === 0 && ap1.apex.strip >= 99 && ap1.apex.cards === 99 && ap1.mid.cards === 99 && Math.abs(ap1.mid.power - ap1.mid.mid) <= 3 && ap1.mid.left === 0, JSON.stringify(ap1));
+} catch (e) { QUIET = false; T('UI-APEX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-NAME-01')) { try { if (SHARD) await RESET();
 // Build 100 (owner, 12 Nov: "heralds of the shredder still reads as vigor"): a card pictured in the deck's themed printing
 // (the commander's set) is named as that printing in the decklist, also in a deck that is not a precon (a generated deck).

@@ -293,6 +293,76 @@ function strPicks(d, SR) {
   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
   return SR.picks;
 }
+// A generated deck finished on the strength scale (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says
+// it's deck power 66 with 28 cards on the upgrade page"): deck power and the upgrade list measure a deck against its strength
+// builds, so a deck generated at a price level takes that level's strength build's swaps (the same rule-following picks the
+// upgrade list shows), again until the build finds nothing more. An Apex deck is then its own Apex build (power 100, no Apex
+// rows); Mid and Budget are their builds. Cards in keep (the player's own picks) and locked cards stay. Returns the swaps made.
+function strFinish(d, tier, keep) {
+  if (!strengthOn(d) || !TIERS[tier]) return 0;
+  // Theme first: the theme stays ahead of strength, so an on-theme card is only ever replaced by another on-theme card
+  const TH = d.themeFirst ? themeCtx(d) : null,
+    onT = c => !!c && themeOf(c, TH),
+    themeOk = (cut, add) => !TH || !onT(find(cut)) || onT(find(add));
+  const casual = tier !== 'apex',
+    cap = TIERS[tier].cap,
+    kept = n => keep && keep.has(keyOf(n));
+  let n = 0;
+  for (let round = 0; round < 8; round++) {
+    const SR = strengthRef(d);
+    if (!SR || SR.top <= SR.floor) break;
+    const P = strPicks(d, SR),
+      L = (P[tier] || []).filter(s => !kept(s.cut) && themeOk(s.cut, s.add));
+    let k = 0;
+    for (const s of L) {
+      const e = entryOf(d, s.cut);
+      if (!e || e.l || entryOf(d, s.add)) continue;
+      cutCard(d, e.n, 1);
+      addCard(d, s.add, 1);
+      k++;
+    }
+    // the swaps change the spells, so the land count follows the deck's own land formula again (the generator's rule): spare
+    // basics give way to the strongest spells allowed, or the weakest spells (not the deck's core, not a job it is short of)
+    // to basics, whose colours are then split by what the spells need
+    const A = analyze(d),
+      diff = A.lands - A.T.lands;
+    if (Math.abs(diff) > 1) {
+      const ok = strOk(d),
+        vv = c => strValue(c, d, casual);
+      if (diff > 1) {
+        const adds = SR.pool.filter(c => ok(c) && !tags(c).land && (!TH || onT(c)) && (cap === Infinity || (c.p != null && c.p <= cap))).sort((a, b) => vv(b) - vv(a));
+        for (let i = 0; i < diff - 1 && adds[i]; i++) {
+          const b = d.cards.filter(e => BASICS[e.n] && !e.l).sort((x, y) => y.q - x.q)[0];
+          if (!b) break;
+          cutCard(d, b.n, 1);
+          addCard(d, adds[i].n, 1);
+          k++;
+        }
+      } else {
+        const A2 = analyze(d),
+          need = r => Math.min(A2.T[r], A2.roles[r]),
+          cuts = strSlots(d)
+            .filter((c, i, a) => a.indexOf(c) === i && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
+            .sort((a, b) => vv(a) - vv(b));
+        let left = -diff - 1;
+        for (const c of cuts) {
+          if (!left) break;
+          if (STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < need(r))) continue;
+          cutCard(d, c.n, 1);
+          addCard(d, BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes', 1);
+          left--;
+          k++;
+        }
+      }
+      try {
+        applyMana(d, manaPlan(d));
+      } catch (e) {}
+    }
+    n += k;
+    if (!k) break;
+  }
+  return n;
+}
 // A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
 // measure many swaps (the upgrade list, the Fix menus, See alternatives). Null when strength is off.
 function strGainFn(d, SR) {
