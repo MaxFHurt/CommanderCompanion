@@ -695,6 +695,9 @@ function themeDefaults(d) {
   return true;
 }
 function ensureEdh() {
+  // while Generate (or its building window) is open it reads the commander being generated: the deck open behind it does not
+  // take the one EDHREC slot back meanwhile (that dropped the deck built ahead, and the strength finish read the wrong page)
+  if (!$('#modal').hidden && document.querySelector('#modal #genmode, #modal #genbuild, #modal #themebuild')) return;
   const d = S.view === 'decks' && S.open ? cur() : null,
     c = d && d.format === 'commander' ? find(d.commander) : null;
   if (!c) return;

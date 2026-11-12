@@ -1032,20 +1032,29 @@ async function genRun(nd, seeds, ownOnly, ownAll, fill) {
   const fin = fill && TIERS[fill] && UP.strGen !== 0 && !ownOnly && !(nd.budget && nd.budget.total) && typeof strFinish === 'function' && UP.str && STRENGTH.cards && nd.format === 'commander';
   // the scale moves with the commander's page and the deck's themes (an automatic deck takes the page's top themes when it
   // arrives), so both are in place before the deck is built and finished, not swapped in afterwards
-  if (fin)
+  // card strength leans on what a commander's players run, so a commander without play data of its own (built from its
+  // creature type's and theme's pages) is not finished: it would only bring in staples. Decided before anything waits, so a
+  // page set up for this build is the one it reads.
+  const playData = () => EDH.key === nd.commander && EDH.state === 'ok' && EDH.map && EDH.map.size && EDH.decks > 0 && !(EDH.fall || []).length;
+  let go = fin;
+  if (go)
     try {
-      await loadEdh(nd.commander);
-      if (themeDefaults(nd)) nd.aimAuto = true;
-      await loadThemes(nd.commander, nd.aims);
-    } catch (e) {}
+      for (let i = 0; i < 3 && !(EDH.key === nd.commander && EDH.state); i++) await loadEdh(nd.commander); // another deck's page may take the slot meanwhile
+      if (!playData()) go = false;
+      else {
+        if (themeDefaults(nd)) nd.aimAuto = true;
+        if ((nd.aims || []).some(a => isEdhAim(a) && !(EDH.tmap || {})[a.slice(4)])) await loadThemes(nd.commander, nd.aims);
+      }
+    } catch (e) {
+      go = false;
+    }
   const G = await genRun0(nd, seeds, ownOnly, ownAll, fill);
-  if (G && fin)
+  if (G && go)
     try {
-      await loadEdh(nd.commander); // the page of a deck left open may have taken the one EDHREC slot while this one was built
+      for (let i = 0; i < 3 && EDH.key !== nd.commander; i++) await loadEdh(nd.commander); // a deck left open may have taken the one EDHREC slot while this one was built
       await loadThemes(nd.commander, nd.aims);
       await loadStrengthCmd(nd.commander);
-      // nor for a commander without play data: card strength leans on what its players run, so it would only bring in staples
-      if (!(EDH.key === nd.commander && EDH.state === 'ok' && EDH.map && EDH.map.size && EDH.decks > 0 && !(EDH.fall || []).length)) return G;
+      if (!playData()) return G;
       const keep = new Set((seeds || []).map(x => keyOf(typeof x === 'string' ? x : x.n)));
       genRun.str = strFinish(nd, fill, keep);
     } catch (e) {
