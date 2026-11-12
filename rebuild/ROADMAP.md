@@ -66,7 +66,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## 2. Game rules engine (cards in play)
 
-1. **The card long tail:** 21,958 of 32,300 Commander-legal cards run by themselves (build 101, batch 1 of 12 Nov on that day's Scryfall file: 237 newly automatic, 272 misread cards sent back to by hand; PROGRESS.md). Before: 21,695 of 31,836 (build 89, 8 Nov; was about 21,500) (top 1,000: all; build 78 added 171 and build 79 269,
+1. **The card long tail:** 22,630 of 32,300 Commander-legal cards run by themselves (batch 2 of 12 Nov, on the branch: 679 more; 178 of batch 1's 272 sent-back cards restored, 94 left). Build 101: 21,958 ( batch 1 of 12 Nov on that day's Scryfall file: 237 newly automatic, 272 misread cards sent back to by hand; PROGRESS.md). Before: 21,695 of 31,836 (build 89, 8 Nov; was about 21,500) (top 1,000: all; build 78 added 171 and build 79 269,
    most-played first: Earthbend, Discover and energy payments inside effects, wipes with qualifiers, "equal to" amounts,
    Syphon Mind, Noxious Gearhulk, Kozilek, Soul Shatter, Homeward Path, Balefire Dragon …). About 10,270 still need
    something done by hand. Work most-played first, in batches of wordings (each covers a few dozen cards); Forge's scripts are

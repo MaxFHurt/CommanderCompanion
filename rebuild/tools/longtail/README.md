@@ -13,3 +13,8 @@ Which wordings keep cards "by hand", grouped so a batch of rules can be chosen. 
 
 After a change: run `audit.sh` again and compare with the baseline both ways (newly automatic, and cards that went back to
 by hand). Read the compiled effects of every newly automatic card (`review.mjs`) before counting it.
+    node tools/longtail/cardfx.mjs names.txt                        # every trigger/ability/spell of each card as compiled
+
+Batch 2 review checks that found real misreads (worth repeating each batch): "its power" / "that creature's power"
+(whose power?), "that player" inside "each player …" (per player, not once), "it" after a token is made, counts
+that compiled to a fixed number, and spells whose "it" fell back to the spell itself.

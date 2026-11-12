@@ -9,10 +9,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 - **Live build:** 1.0.0-rebuild.101 (Deck Builder {"build": 211, "version": "0.9.66"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,958 of 32,300 (about 68%; Scryfall oracle file of 12 Nov 2026, build 101);
-  about 10,340 still need something done by hand. On the same file the live build 100 measures 21,993: batch 1 made 237
-  more cards run by themselves and sent 272 back to "by hand" that the game had been reading wrongly (see the batch 1
-  entry below). It is a long tail: 10,307 by-hand cards fail on about 11,500 different wordings.
+- **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; long-tail batch 2, on the branch,
+  not yet live). Live build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
+  handful of cards. Of the 272 cards batch 1 sent back to "by hand" for being misread, 178 now run correctly; 94 remain.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
 
@@ -167,6 +166,39 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Build 90 — 2 Nov 2026
 - Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
+
+### Long tail, batch 2 — 12 Nov 2026 (branch only; check-in at 500, owner's rule)
+- **679 more cards run by themselves** (21,958 → 22,630 of 32,300; one misread card sent back). Owner, 12 Nov: batches of
+  500; fix the cards sent back; nothing left by hand.
+- **Amounts read from the text** (new `src/engine/amounts-b101.js`): whose cards ("you control", "your opponents control",
+  "that player controls", "on the battlefield", in a hand, graveyard, library or exile), noun lists ("Squirrels, Bats,
+  Lizards, and Rats"), qualities (tapped, attacking, nontoken, nonbasic, legendary, a colour, a keyword, with counters,
+  power/mana value limits, attached), and arithmetic ("twice", "3 plus", "minus 4", "half … rounded up", "… plus the number
+  of …"). This turn's tally (triggers.js tallyTurn): creatures that died (under your control, nontoken, a subtype),
+  cards drawn and discarded, tokens made, creatures that entered under your control, opponents attacked, permanents
+  sacrificed. Also party size, blockers of a creature, opponents with more/fewer creatures, domain, colours among
+  permanents, card types in graveyards, different mana values/powers, commander casts, colours of the spell cast.
+- **New wordings** (`src/engine/effects-b101.js`): colour changes ("becomes red and gains haste"), Hurricane/Earthquake
+  damage, "can't attack", "return another creature you control", "up to one other target", Twiddle, "target opponent gains
+  control of this", fights an opponent's creature, delayed returns and destroys, "double its power", tap/untap all,
+  damage to each other creature, three-type wipes, damage to two different targets, "discard up to two", "sacrifice it
+  unless you discard", he/she/him, prevention of combat damage by or to one creature, prevention of all damage to a
+  target, "can't be regenerated", "skip your next turn" (phase.js), "can block an additional creature" (rules.js), "blocks
+  this turn if able", "must be blocked if able", Lure for a turn (rules.js validateForcedBlockAssignments), "can attack as
+  though it didn't have defender", "fewer than seven cards … the difference", "each other opponent", Clockwork counters.
+- **Misreads fixed** (found by reading every newly passing card, tools/longtail/cardfx.mjs):
+  - "each player … equal to the number of lands that player controls" (Price of Progress, Acidic Soil, Mjölnir, Folio of
+    Fancies) is worked out for each player (it was once, for no one).
+  - "its power" / "that creature's power": the target (Soul's Might, Berserk), the creature that entered (Hamletback
+    Goliath, Railway Brawler), the enchanted creature that died (Dying Wish), the sacrificed creature (Disciple of Bolas,
+    Rupture, Twisted Justice); "It deals damage equal to its power" is dealt by that creature (Venom Blast, Bionic Blow,
+    Knockout Maneuver; misread since before build 101).
+  - "Put X +1/+1 counters on it" after making a token or manifesting is that permanent (Fractal tokens); "Choose target
+    creature … that creature" is the target; a count that names its own target player is asked first (Reap); "that
+    player" after an earlier target player (The Mouth of Sauron); "its controller controls" left to the player.
+- Tests: catalog 447 (+16), game 254, mechanics 85, smoke 6, tracker 20, practice 20, rules-server 27, forge 301/302,
+  soak 40 three times (0 problems), every Playwright suite (game_ui 28, flows_ui 29, net_ui 30, online_ui 41, offline_ui 5,
+  pair_ui 5, challenge_ui 13, scan_ui, tracker_test 40, tracker_net_ui 44). Deck Builder untouched.
 
 ### Build 101 — 12 Nov 2026: long tail, batch 1 (owner, 12 Nov: release it; batches of 500 from now on; the 272 sent-back cards are to be fixed, nothing left by hand)
 - **237 more cards run by themselves.** New wordings in `src/engine/effects-b101.js` (hooked after the build-49 ones): random
