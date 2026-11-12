@@ -885,6 +885,10 @@ function cmdNameHtml(d, c) {
 }
 function printedName(d, e, c) {
   if (e.pn) return e.pn;
+  // the name printed on the printing the picture shows (a generated deck shows the commander's set: Vigor is pictured as
+  // Heralds of the Shredder in a Turtles deck, owner 12 Nov), the same choice as pidOf / shownPrint
+  const sfn = c ? (shownPrint(c, e) || {}).fn : '';
+  if (sfn && norm(sfn) !== c._n) return sfn;
   if (!c || d.src !== 'precon' || !EDH.pre || !EDH.pre.list || EDH.key !== d.commander) return '';
   if (printedName.pre !== EDH.pre) {
     printedName.pre = EDH.pre;

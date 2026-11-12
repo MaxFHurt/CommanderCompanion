@@ -1670,6 +1670,23 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-NAME-01')) { try { if (SHARD) await RESET();
+// Build 100 (owner, 12 Nov: "heralds of the shredder still reads as vigor"): a card pictured in the deck's themed printing
+// (the commander's set) is named as that printing in the decklist, also in a deck that is not a precon (a generated deck).
+const nm1 = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+  d.src = 'gen';
+  S.view = 'decks'; S.open = true; S.tab = 'list'; S.deckQ = ''; S.listRole = ''; render(); await new Promise(r => setTimeout(r, 300));
+  const e = d.cards.find(x => find(x.n) && find(x.n).id && x.n !== d.commander); delete e.pid; delete e.pn; delete e.ps;
+  const c = find(e.n); PRINT.map.set(c._n, {id: 'themed-print-id', sc: 'tmc', set: 'Themed Set', rar: 'rare', fn: 'Printed Card Name'});
+  render();
+  const row = [...document.querySelectorAll('button.dl')].find(b => b.dataset.n === e.n);
+  out.name = row ? (row.querySelector('.nm') || {}).textContent : '';
+  out.img = row ? ((row.querySelector('img') || {}).getAttribute ? row.querySelector('img').getAttribute('src') : '') : '';
+  PRINT.map.delete(c._n);
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-NAME-01', 'Build 100: a card shown in the themed printing is named as that printing in the decklist of a generated deck (picture and name agree)', /^Printed Card Name/.test(nm1.name) && /themed-print-id/.test(nm1.img), JSON.stringify(nm1));
+} catch (e) { QUIET = false; T('UI-NAME-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B198-01')) { try { if (SHARD) await RESET();
 // Build 198 (owner, 8 Nov: "The search function can't find newly renamed printings"): a printed name published after this build
 // (the card-data job's alt.json) is added at run time; search finds the real card by it and shows the printed name.
