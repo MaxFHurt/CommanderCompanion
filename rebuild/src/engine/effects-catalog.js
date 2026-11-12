@@ -761,6 +761,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         army = [...controller.deck.battlefield].reverse().find(c => /\bArmy\b/.test(definitionFor(game, c)?.typeLine || ''));
       }
       if (army) { H.addCounter(army, '+1/+1', n); emit({ type: 'counter-added', sourceId: army.instanceId, controllerId, counter: '+1/+1', amount: n }); }
+      if (army) bindings.lastCreated = [...(bindings.lastCreated || []).filter(id => id !== army.instanceId), army.instanceId];   // "the amassed Army"
       notes.push(`${controller.displayName} amasses ${n}.`);
       return true;
     }
@@ -2032,6 +2033,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       const real = locateCardInGame(game, pick.instanceId)?.card;
       const d = definitionFor(game, real);
       moveCard(game, pick.instanceId, 'battlefield', { controllerId: who.playerId, onEvent: emit });
+      bindings.lastCreated = [...(bindings.lastCreated || []), pick.instanceId];   // "… then put X +1/+1 counters on it"
       game.cardDefinitions['face-down-2-2'] = game.cardDefinitions['face-down-2-2'] || H.faceDown();
       real.realDefinitionId = real.definitionId; real.definitionId = 'face-down-2-2'; real.faceDownKind = 'manifest';
       // A manifested creature card can be turned face up for its mana cost.

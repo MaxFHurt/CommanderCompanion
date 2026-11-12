@@ -411,6 +411,18 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
         notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: effect.amount, playerId: p.playerId, sourceName: effect.sourceName }], bindings));
       return true;
     }
+    case 'b101-per-player': {
+      // The same instruction for each player in turn order from you, with X counted for that player.
+      const before = bindings.__each, beforeX = bindings.X;
+      const order = (game.players || []).filter(p => !p.eliminated && (!effect.opponents || p.playerId !== controllerId));
+      for (const p of order) {
+        bindings.__each = p.playerId;
+        bindings.X = Math.max(0, Number(resolveAmount(game, controllerId, effect.x, bindings)) || 0);
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, effect.effects, bindings));
+      }
+      bindings.__each = before; bindings.X = beforeX;
+      return true;
+    }
     case 'b101-give-control': {
       const to = bindings[effect.playerBind], hit = locateCardInGame(game, bindings.sourceId);
       if (!to || !hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }

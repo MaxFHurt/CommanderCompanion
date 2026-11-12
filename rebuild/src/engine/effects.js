@@ -720,6 +720,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       bindings[effect.as] = onStack?.controllerId || hit?.card?.controllerId || hit?.player?.playerId || null;
       continue;
     }
+    if (effect.bind === '__lastMade') bindings.__lastMade = [...(bindings.lastCreated || [])].pop() || [...(bindings.lastMoved || [])].pop() || null;   // the permanent just made
     if (effect.forPlayerBind) {
       const pid = bindings[effect.forPlayerBind];
       if (pid && game.players.some(p => p.playerId === pid)) notes.push(...applyEffectsUnsafe(game, pid, [{ ...effect, forPlayerBind: null }], bindings));
@@ -3211,18 +3212,32 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       if (expr == null && /^(?:the number of .+|the greatest power among .+|your devotion to (?:white|blue|black|red|green)|.+?'?s power)$/i.test(whereX[2])) expr = whereXExpr(whereX[2]);
       const inner = expr != null ? compileEffectText(`${whereX[1]}.`, { sourceName }) : null;
       // "… the number of lands that player controls": the player the sentence targets, else the trigger's player.
+      let perPlayer = null;
       if (inner && inner.supported && amountNeedsPlayerB101(expr)) {
-        const pr = inner.requirements.find(r => r.kind === 'player') || inner.requirements.find(r => r.kind === 'target' && /^target (?:player|opponent)$/i.test(r.scope || ''));
+        const isPlayerReq = r => r.kind === 'player' || (r.kind === 'target' && /^target (?:player|opponent)$/i.test(r.scope || ''));
+        // "that player" after an earlier target player (The Mouth of Sauron: "target player mills three cards. Then … that player's graveyard").
+        const prior = /\bthat player\b|\bthey\b|\btheir\b/i.test(whereX[2]) ? [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(isPlayerReq) : null;
+        const pr = inner.requirements.find(isPlayerReq) || prior;
         const each = inner.effects.find(e => e.forPlayerBind)?.forPlayerBind;
         const named = whereX[2].match(/\btarget (player|opponent)\b/i);
-        if (pr || !named) bindAmountPlayerB101(expr, pr ? pr.bind : (each || 'eventPlayer'));
+        // "deals damage to each player equal to the number of lands that player controls" (Price of Progress, Acidic Soil):
+        // worked out for each player in turn.
+        const spread = inner.effects.filter(e => ['each-opponent', 'each-player', 'all-players'].includes(e.scope) || (e.kind === 'damage-each' && e.players && !e.creatures));
+        if (!pr && !named && !each && spread.length) {
+          const e = spread[0];
+          const one = e.kind === 'damage-each' ? { kind: 'damage', amount: 'X', bind: '__each', sourceName: e.sourceName } : ['mill', 'life', 'draw', 'player-counter'].includes(e.kind) ? { ...e, scope: 'you', forPlayerBind: '__each' } : null;
+          if (inner.effects.length !== 1 || !one) expr = null;
+          else { bindAmountPlayerB101(expr, '__each'); perPlayer = { kind: 'b101-per-player', opponents: e.scope === 'each-opponent' || e.players === 'opponents', x: expr, effects: [one] }; }
+        } else if (pr || !named) bindAmountPlayerB101(expr, pr ? pr.bind : (each || 'eventPlayer'));
         else {
-          // "… equal to the number of creatures target player controls" (Will of the Mardu): the count names its own target.
+          // "… equal to the number of creatures target player controls" (Will of the Mardu, Reap): the count names its own
+          // target, chosen first (the other choices may depend on the count).
           const bind = `player${inner.requirements.length + 30}`;
-          inner.requirements.push({ kind: 'player', bind, scope: named[1].toLowerCase(), label: `target ${named[1].toLowerCase()}` });
+          inner.requirements.unshift({ kind: 'player', bind, scope: named[1].toLowerCase(), label: `target ${named[1].toLowerCase()}` });
           bindAmountPlayerB101(expr, bind);
         }
       }
+      if (perPlayer) { parts.push({ effects: [perPlayer], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] }); continue; }
       // "Target creature gets +X/+0 …, where X is its power" (Berserk, Xenagos): the targeted creature's power, not this card's.
       // "its power" / "that creature's power" (build 102): the creature the instruction targets; with none, the card the
       // trigger is about (the creature that entered, the enchanted creature that died), else this card. A creature
@@ -3622,6 +3637,17 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
   // Nothing targeted: "it" is the card the trigger is about ("When this land enters, sacrifice it.").
   if (!lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget' && e.kind === 'sacrifice') e.bind = 'eventCard';
+  // Build 102: "Create a 0/0 Fractal token. Put X +1/+1 counters on it." / "Manifest the top card …, then put X counters on
+  // it": "it" is the permanent just made, not this card. "Choose target creature. … that creature": the chosen target.
+  {
+    const made = merged.effects.findIndex(e => e.kind === 'create-token' || e.kind === 'manifest' || e.kind === 'amass' || e.kind === 'incubate');
+    const creatureTargets = merged.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
+    merged.effects.forEach((e, at) => {
+      if (e.bind !== 'eventCard' && e.bind !== 'thatCard') return;
+      if (/^Choose target\b/i.test(raw) && creatureTargets.length === 1) e.bind = creatureTargets[0].bind;
+      else if (made >= 0 && made < at && !creatureTargets.length && /^(?:counter|pump|grant-keyword|animate|combat-restriction|attach|tap|untap)$/.test(e.kind)) e.bind = '__lastMade';
+    });
+  }
   // Build 101: "That land becomes a 0/0 Elemental creature …", "It can't block this turn." read for a pronoun
   // (effects-b101.js). With a target earlier in the ability the pronoun is that target; with none it is the trigger's
   // card, but only when nothing earlier in the ability could have made or moved another card "it" might mean.
@@ -3684,7 +3710,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     }
   }
   // X must be chosen unless a caller already binds it from an X cost.
-  if ((merged.effects.some(e => JSON.stringify(e).includes('"X"')) || merged.requirements.some(r => r.max === 'X' || r.min === 'X' || r.total === 'X')) && !merged.effects.some(e => e.kind === 'set-x') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
+  if ((merged.effects.some(e => JSON.stringify(e).includes('"X"')) || merged.requirements.some(r => r.max === 'X' || r.min === 'X' || r.total === 'X')) && !merged.effects.some(e => e.kind === 'set-x' || e.kind === 'b101-per-player') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
     merged.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });
   // A target description that swallowed the rest of the sentence ("target player, where X is …", "target creature
   // equal to …") was not understood: the player resolves it, rather than the game asking for a made-up X.

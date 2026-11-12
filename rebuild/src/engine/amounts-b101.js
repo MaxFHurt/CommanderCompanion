@@ -95,17 +95,18 @@ export function parseCountB101(phrase) {
   if ((m = p.match(/^(?:([+-]\d+\/[+-]\d+|[a-z]+) )?counters? on it$/))) return { kind: 'b101-source-counters', counter: m[1] || '*', it: true };
   if ((m = p.match(/^(?:([+-]\d+\/[+-]\d+|[a-z]+) )?counters? on (this [a-z]+|[a-z' ,-]+)$/)) && !/^(?:it|each|all|target|that|those|enchanted|equipped|creatures?|permanents?|lands?|artifacts?)\b/.test(m[2]) && !/ you control| among | and |\bcontrols?\b/.test(m[2]))
     return { kind: 'b101-source-counters', counter: m[1] || '*' };
-  if ((m = p.match(/^(?:cards?|(creature|land|instant|sorcery|artifact|enchantment|nonland|permanent) cards?) in (your|their|that player'?s|target player'?s|target opponent'?s|its controller'?s|its owner'?s) hand$/)) && !m[1]) return /^your$/.test(m[2]) ? { kind: 'count', zone: 'hand', filter: 'card' } : { kind: 'b101-n', who: 'ref', zone: 'hand', alts: [{ types: [], subs: [] }], adj: [] };
+  if ((m = p.match(/^(?:cards?|(creature|land|instant|sorcery|artifact|enchantment|nonland|permanent) cards?) in (your|their|that player'?s|target player'?s|target opponent'?s) hand$/)) && !m[1]) return /^your$/.test(m[2]) ? { kind: 'count', zone: 'hand', filter: 'card' } : { kind: 'b101-n', who: 'ref', zone: 'hand', alts: [{ types: [], subs: [] }], adj: [] };
 
   // Where the cards are and whose they are.
   const take = (re, fn) => { const x = p.match(re); if (!x) return false; p = (p.slice(0, x.index) + ' ' + p.slice(x.index + x[0].length)).replace(/\s+/g, ' ').trim(); fn(x); return true; };
   take(/ you control\b/, () => { e.who = 'you'; })
     || take(/ (?:your opponents control|an opponent controls|you don'?t control)\b/, () => { e.who = 'opponents'; })
-    || take(/ (?:they|that player|target player|target opponent|defending player|that opponent|its controller|that creature'?s controller) controls?\b/, x => { e.who = 'ref'; if (/defending/.test(x[0])) e.playerBind = 'defendingPlayer'; })
+    || take(/ (?:its controller|that creature'?s controller|its owner) controls?\b/, () => { e.who = 'unknown'; })   // whose: left to the player
+    || take(/ (?:they|that player|target player|target opponent|defending player|that opponent) controls?\b/, x => { e.who = 'ref'; if (/defending/.test(x[0])) e.playerBind = 'defendingPlayer'; })
     || take(/ on the battlefield\b/, () => { e.who = 'all'; })
     || take(/ in your (graveyard|hand|library)\b/, x => { e.who = 'you'; e.zone = x[1]; })
     || take(/ (?:you own )?in exile\b/, () => { e.who = 'you'; e.zone = 'exile'; })
-    || take(/ in (?:their|that player'?s|target player'?s|target opponent'?s|its controller'?s|its owner'?s|defending player'?s) (graveyard|hand|library)\b/, x => { e.who = 'ref'; e.zone = x[1]; })
+    || take(/ in (?:their|that player'?s|target player'?s|target opponent'?s|defending player'?s) (graveyard|hand|library)\b/, x => { e.who = 'ref'; e.zone = x[1]; if (/defending/.test(x[0])) e.playerBind = 'defendingPlayer'; })
     || take(/ in all graveyards\b/, () => { e.who = 'all'; e.zone = 'graveyard'; })
     || take(/ in your opponents'? graveyards\b/, () => { e.who = 'opponents'; e.zone = 'graveyard'; });
   // Qualities after the noun.
@@ -118,6 +119,7 @@ export function parseCountB101(phrase) {
   take(/ that(?:'s| is| are) attached to a creature\b/, () => { e.attachedToCreature = true; });
   take(/ attached to (?:it|this creature)\b/, () => { e.attachedToSource = true; });
   take(/ named ([a-z' ,-]+)$/, x => { e.name = x[1].trim(); });
+  if (e.who === 'unknown') return null;
   if (e.who == null) {
     // No owner said: only the groups that mean the same for everyone.
     if (/\b(?:attacking|blocking)\b/.test(p)) e.who = 'all';

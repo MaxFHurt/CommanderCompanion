@@ -3418,4 +3418,21 @@ section('build 102: "its power" is the right creature');
   check('Hamletback Goliath: a 2/2 entering gives two counters', Number(goliath.counters?.['+1/+1'] || 0) === 2, JSON.stringify(goliath.counters));
 }
 
+{
+  // Price of Progress: each player is dealt twice the number of nonbasic lands THEY control
+  const t = setup();
+  onField(t, 'Fog Bank', '', { typeLine: 'Land' }, 1);
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  cast(t, 'Opt', 'Opt deals damage to each player equal to twice the number of nonbasic lands that player controls.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Price of Progress: 2 to the player with one nonbasic land, 0 to the one with none', t.P(1).life === l1 - 2 && t.P(0).life === l0, `${t.P(0).life - l0} ${t.P(1).life - l1}`);
+}
+
+{
+  // "Create a 0/0 Fractal token. Put X +1/+1 counters on it, where X is the number of lands you control.": the token gets them
+  const t = setup();
+  cast(t, 'Opt', 'Create a 0/0 green and blue Fractal creature token. Put X +1/+1 counters on it, where X is the number of lands you control.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const frac = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Fractal');
+  check('Fractal token: eight lands, eight counters on the token', Number(frac?.counters?.['+1/+1'] || 0) === 8, JSON.stringify(frac?.counters));
+}
+
 done();
