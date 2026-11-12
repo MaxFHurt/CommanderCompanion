@@ -211,7 +211,10 @@ function render() {
   const m = $('#main');
   document.querySelector('.top').classList.toggle('home', S.view === 'home');
   document.querySelector('.app').classList.toggle('home', S.view === 'home');
-  m.innerHTML =
+  // card pictures load as they come into view (owner, 12 Nov: "the card images in the deck list are taking forever to load"):
+  // a 100-card list asked for every picture at once (about 15 MB of art crops on a phone), so the rows on screen waited behind
+  // the rest, and each redraw while data arrives started the queue again
+  m.innerHTML = (
     S.view === 'home'
       ? viewHome()
       : S.view === 'decks'
@@ -224,7 +227,8 @@ function render() {
               ? viewBuy()
               : S.view === 'library'
                 ? viewLibrary()
-                : viewDeck();
+                : viewDeck()
+  ).replace(/<img (?![^>]*\bloading=)/g, '<img loading="lazy" decoding="async" ');
   // a Back button on every page (owner, 1 Nov); an open deck has its own "All decks"
   if (S.view !== 'home' && !(S.view === 'decks' && S.open && cur()))
     m.insertAdjacentHTML('afterbegin', '<div class="row backrow"><button class="btn sm" data-act="go-back">← Back</button></div>');
