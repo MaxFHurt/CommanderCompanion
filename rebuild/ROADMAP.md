@@ -259,6 +259,16 @@ frame, ui/button-frame-large.png, with typed labels).
 3. Before building: confirm with the owner the pop-up's steps and wording, and whether the precon-level fill uses the Budget
    tier's prices. Checks: generator benchmarks (genstrong, tourney), UI suite, phone and iPad layouts.
 
+## 7f. Owner's reports of 12 Nov (Build 100)
+1. **(Done, Build 100.)** Heralds of the Shredder read as Vigor in the decklist.
+2. **Decklist images slow (Build 100: pictures load lazily):** not reproduced in Chromium; owner to say whether it is better on the
+   phone, and if not: which deck, how long, Wi-Fi or cell, and whether only on the first open after an update.
+3. **Generated Apex deck at power 66 with 28 upgrades (needs the owner's decision):** power and the upgrade list use the strength
+   builds (Build 93), the generator does not. Built and reverted (commit 8fa9ab2): finishing generated decks on the strength build
+   (power 100), which swaps 59-76 of the generator's cards and lowers the engine's score (Turtles 91 -> 77, synergy 100 -> 62) and
+   needs Theme first, the land formula, no-play-data decks and building ahead reworked (five tests). Other way: generate with
+   the strength values from the start. Owner to choose.
+
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
@@ -269,6 +279,7 @@ frame, ui/button-frame-large.png, with typed labels).
 
 ## Done (recent, newest first)
 
+- Build 100 (Deck Builder 0.9.66, build 211): decklist names follow the printing the picture shows (Heralds of the Shredder); card pictures load as they come into view.
 - Build 99 (Deck Builder 0.9.65, build 210): real practice games: your deck against any of your decks or the precons, full bot games on the rules engine (5.3).
 - Build 98 (Deck Builder 0.9.64, build 209): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
 - Build 97 (Deck Builder 0.9.63, build 208): the top bar fits every screen; Profile clean-up (Settings pop-up for engine and card data); Set up your deck pop-up for empty decks with the full build listed to add (7d).

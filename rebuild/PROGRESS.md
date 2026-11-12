@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.99 (Deck Builder {"build": 210, "version": "0.9.65"})
+- **Live build:** 1.0.0-rebuild.100 (Deck Builder {"build": 211, "version": "0.9.66"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,30 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 100 — 12 Nov 2026 (Deck Builder 0.9.66, build 211; app 1.0.0-rebuild.100): card names follow the picture; lazy card pictures
+- Owner, 12 Nov: "heralds of the shredder still reads as vigor". Heralds of the Shredder is Vigor's printed name in the Turtles
+  precon set. A generated deck shows cards in the commander's set printing (ensureTheme), but the decklist named a card by a
+  printed name only from a precon's own list, so the Turtles picture of Vigor was labelled Vigor. The decklist name now comes from
+  the printing the picture shows (views.js printedName reads shownPrint first). Test UI-NAME-01 (fails on Build 99, passes now).
+- Owner, 12 Nov: "the card images in the deck list are taking forever to load now". Not reproduced in Chromium: on a phone-sized,
+  throttled screen the visible rows' pictures finished in 3-6 s, through the service worker too, with its picture cache filled to
+  4,000 entries; no request was cancelled by the page's redraws. Found: the list asks for every picture at once (about 100 art
+  crops, ~15 MB on a phone) and the page is redrawn about 22 times while data arrives. Pictures now load as they come into view
+  and decode off the main thread (cards.js render). Needs the owner's phone to confirm.
+- Not shipped: "I generated an apex deck with heroes in a half shell. It says it's deck power 66 with 28 cards on the upgrade
+  page". Cause: since Build 93 deck power and the upgrade list measure a deck against its card-strength builds, but the
+  generator still builds by the engine's score, so a fresh Apex deck sits at power 32-65 with its strength build's swaps listed.
+  Finishing generated decks on the strength build (strFinish, commit 8fa9ab2) gave power 100 with no Apex swaps left for six
+  commanders, but swaps 59-76 cards (Turtles Apex: engine score 91 -> 77, synergy 100 -> 62, bracket 3 -> 4) and broke five
+  generation tests (UI-GEN-03 Theme first, UI-B114-01 land formula, UI-B142-02 Budget list, UI-B144-02 built ahead, UI-B145-01
+  no-play-data reasons). Reverted (f57e65c); waits for the owner's decision (ROADMAP 7f.3).
+- Tests: Deck Builder full live run: UI suite 144 passed, 1 failed side by side (UI-PLAN-03, passes alone); upgrade benchmark,
+  genstrong and tourney identical to the run with the reverted change; accept 39 x 2; semantics 2 old failures; claims 40;
+  scheck bad 2 (the same on Build 99); cisweep 0; edge 0. Game files unchanged, so the game suites were not rerun (owner, 9 Nov);
+  they passed on Build 99 this morning (game 254, mechanics 85, catalog 409, smoke 6, tracker 20, practice 20, rules-server 27,
+  forge, soak 40 with 0 problems). Rules audit of 12 Nov (Scryfall file of 11 Nov): 21,993 of 32,300 Commander cards run by
+  themselves.
 
 ### Build 99 — 12 Nov 2026 (Deck Builder 0.9.65, build 210; app 1.0.0-rebuild.99): real practice games, deck vs any deck (roadmap 5.3)
 - Deck Builder: Build stats → Practice games → Games against other decks. 6 full games on the rules engine, every seat played by
