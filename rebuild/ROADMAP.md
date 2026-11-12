@@ -263,7 +263,11 @@ frame, ui/button-frame-large.png, with typed labels).
 1. **(Done, Build 100.)** Heralds of the Shredder read as Vigor in the decklist.
 2. **Decklist images slow (Build 100: pictures load lazily):** not reproduced in Chromium; owner to say whether it is better on the
    phone, and if not: which deck, how long, Wi-Fi or cell, and whether only on the first open after an update.
-3. **Generated Apex deck at power 66 with 28 upgrades (needs the owner's decision):** power and the upgrade list use the strength
+4. **(Done, Build 102.)** The Upgrades tab's number did not match the cards listed to replace.
+5. **Deck score to agree with the strongest version (owner, 12 Nov: "make the score match the strongest version of the deck"):**
+   the score's synergy part rewards cards specific to the commander, so strong staples (Sol Ring, tutors) lower it, and its card
+   quality part measures against the engine's own Apex reference, not the strength build. Next, before item 3 ships.
+3. **Generated Apex deck at power 66 with 28 upgrades (owner chose the strongest version, 12 Nov; built on branch team/apex):** power and the upgrade list use the strength
    builds (Build 93), the generator does not. Built and reverted (commit 8fa9ab2): finishing generated decks on the strength build
    (power 100), which swaps 59-76 of the generator's cards and lowers the engine's score (Turtles 91 -> 77, synergy 100 -> 62) and
    needs Theme first, the land formula, no-play-data decks and building ahead reworked (five tests). Other way: generate with
@@ -279,6 +283,7 @@ frame, ui/button-frame-large.png, with typed labels).
 
 ## Done (recent, newest first)
 
+- Build 102 (Deck Builder 0.9.67, build 212): the Upgrades tab counts the cards the page lists to replace.
 - Build 100 (Deck Builder 0.9.66, build 211): decklist names follow the printing the picture shows (Heralds of the Shredder); card pictures load as they come into view.
 - Build 99 (Deck Builder 0.9.65, build 210): real practice games: your deck against any of your decks or the precons, full bot games on the rules engine (5.3).
 - Build 98 (Deck Builder 0.9.64, build 209): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
