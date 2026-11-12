@@ -2281,13 +2281,14 @@ function evalFor(d) {
       .join('|')
   ].join('#');
   const ar = apexFor(d),
-    k2 = key + '#' + (ar ? 'apex' : 'pending');
+    st = typeof strengthOn === 'function' && strengthOn(d),
+    k2 = key + '#' + (ar ? 'apex' : 'pending') + (st ? '#str' + STRENGTH.date + ':' + STRENGTH.cmd.size : '');
   const old = EVC.get(d.id);
   if (old && old.key === k2) return old.v;
   const sim = old && old.base === key && old.v ? old.v.sim : undefined; // same cards: the practice games need not be replayed
   let v = null;
   try {
-    v = evaluateDeck(d, {games: 300, apex: ar, sim});
+    v = evaluateDeck(d, {games: 300, apex: ar, sim, str: st}); // the score players see measures against the strongest build (owner, 12 Nov)
   } catch (e) {}
   EVC.set(d.id, {key: k2, base: key, v});
   return v;
@@ -2709,6 +2710,16 @@ function statsHtml(d, A, R, mode) {
   // Budget and Mid builds marked (engine/strength.js)
   const SP = typeof strengthOn === 'function' && strengthOn(d) ? strengthPower(d) : null;
   const T0r = (apexFor(d) || {}).tot,
+    // what keeps the deck below the next level: with card strength, against the strength builds scored the same way
+    GR = SP
+      ? (() => {
+          try {
+            return strRefParts(d, strengthRef(d));
+          } catch (x) {
+            return null;
+          }
+        })()
+      : T0r,
     T0 = refOrder(T0r),
     pw = SP ? SP.power : e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
@@ -2785,7 +2796,7 @@ function statsHtml(d, A, R, mode) {
         ', all-under-$12 ' +
         Math.round(SP.mid) +
         '.</p>' +
-        (e && T0r ? gapHtml(e, T0r, lvl) : '')
+        (e && GR ? gapHtml(e, GR, lvl) : '')
       : pw != null
       ? '<p class="note" style="margin:0">Power <b>' +
             Math.round(pwr) +
@@ -2800,7 +2811,7 @@ function statsHtml(d, A, R, mode) {
             ', all-under-$12 ' +
             Math.round(pctOf(T0.mid)) +
             '.</p>' +
-            gapHtml(e, T0r, lvl)
+            gapHtml(e, GR, lvl)
       : '';
   // Deck health in one line (owner, 1 Nov): red = needs attention now (any bad), yellow = needs attention (any warn), green =
   // healthy; ignored alerts and info (Interaction) never set the colour. It names the problem areas; tapping it opens the pop-up.

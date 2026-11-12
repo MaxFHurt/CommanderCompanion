@@ -290,7 +290,14 @@ function evaluateDeck(d, opt) {
     if (!f && ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)) f = 0.7;
     return f;
   };
-  const synOf = c => {
+  // Owner, 12 Nov ("make the score match the strongest version of the deck"): with card strength (opt.str, the score players see),
+  // a spell also counts by how strong it is for this deck, against the average spell of its strongest build (engine/strength.js),
+  // so the staples strong decks run (Sol Ring, tutors) no longer lower the score of a deck that plays them
+  const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
+    topS = SRx ? strTopSpell(d, SRx) : 0,
+    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false) / topS) : 0);
+  const synOf = c => Math.max(synOf0(c), strSyn(c));
+  const synOf0 = c => {
     const x = hasE ? incOf(c) : null,
       l = x ? Math.max(0, Math.min(1, 3 * x.syn + 0.25 * x.inc)) : 0;
     let t = 0;
@@ -401,6 +408,17 @@ function evaluateDeck(d, opt) {
       const ref = d.tier === 'budget' ? AR.budget : AR.mid;
       qTier = {tier: d.tier, pct: qualityPct(m, ref, AR.floor)};
       why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
+    }
+  }
+  // with card strength (opt.str): card quality is the deck's power, from replacement level (0) to its strongest build (100)
+  if (SRx) {
+    const pw = SRx.top > SRx.floor ? (100 * (strMean(d, strSlots(d)) - SRx.floor)) / (SRx.top - SRx.floor) : null;
+    if (pw != null) {
+      qExact = Math.max(0, Math.min(100, pw));
+      qOver = Math.max(0, pw - 100);
+      qPct = Math.round(qExact);
+      qTier = null;
+      why.quality = qPct + '% of the way from replacement level to this deck’s strongest build (card strength: how often strong decks that could play each card do)';
     }
   }
   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.

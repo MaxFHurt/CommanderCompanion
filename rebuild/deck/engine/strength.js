@@ -236,6 +236,31 @@ function strengthRef(d) {
   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
   return R;
 }
+// the average strength value of the spells in a deck's strongest build (the scale the score's synergy part reads strength on)
+function strTopSpell(d, SR) {
+  if (SR.topS == null) {
+    const sp = SR.apex.list.filter(c => !tags(c).land);
+    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false), 0) / sp.length : 0;
+  }
+  return SR.topS;
+}
+// the strength builds scored as players see the score (opt.str), for "What keeps it below the next level"
+function strRefParts(d, SR) {
+  if (SR.parts) return SR.parts;
+  const out = {parts: {}};
+  for (const t of ['budget', 'mid', 'apex']) {
+    const u = JSON.parse(JSON.stringify(d)),
+      cnt = new Map();
+    SR[t].list.forEach(c => cnt.set(c.n, (cnt.get(c.n) || 0) + 1));
+    delete u.plan;
+    u.tier = t;
+    u.cards = [...cnt].map(([n, q]) => ({n, q, l: false}));
+    const e = evaluateDeck(u, {games: 100, str: true, strRef: SR});
+    out[t] = +e.exact.toFixed(2);
+    out.parts[t] = e.parts;
+  }
+  return (SR.parts = out);
+}
 function strMean(d, list) {
   return list.length ? list.reduce((a, c) => a + strValue(c, d, false), 0) / list.length : 0;
 }
