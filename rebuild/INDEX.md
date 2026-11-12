@@ -1,0 +1,50 @@
+# Where things are (read this instead of skimming)
+
+Line numbers drift; grep the function name (`grep -n "^function name" file`), then `sed -n a,bp` only what you need.
+
+## Docs (logs: read one section, never the whole file)
+| Need | Where |
+|---|---|
+| Owner's rules | HANDOFF.md §2 |
+| Live build line | HANDOFF.md line 11; PROGRESS.md "Live build" |
+| Architecture (game) | HANDOFF.md §3 |
+| Open work | ROADMAP.md (sections 1-8; 7e-7f = latest owner reports) |
+| Game test list | HANDOFF.md §6 |
+| Deck Builder tests | deck/tools/tests/suite/README.md, check.sh |
+| Release steps | `.claude/skills/release/SKILL.md` |
+
+## Deck Builder (`deck/`; sources in engine/ and ui/, bundled by `sh deck/tools/build.sh` into app.min.js / engine.min.js)
+| Topic | File · function |
+|---|---|
+| Deck score (synergy, balance, quality, routes, mana) | engine/score.js · evaluateDeck (EV_W weights; `opt.str` = strength version) |
+| Reference Apex/Mid/Budget builds (engine) | engine/score.js · apexRef, refScores; ui/upgrades.js · apexFor |
+| Score shown on the page | ui/upgrades.js · evalFor |
+| Card strength, power, strength builds | engine/strength.js · strengthRef, strBuild, strPicks, strengthPower, strengthPaths, strFinish (branch team/apex2) |
+| Strength settings | engine/upgrades.js `UP = {…}` (str*, lfix …) |
+| Practice games (mana part) | engine/practice.js · simulate (screw = <4 lands on turn 5) |
+| Generator | engine/generator.js · buildPlan, genDeck, manaPlan (KARSTEN pips), validateDeck; ui/storage.js · genRun, genPrefetch |
+| Generate button | ui/events.js case 'gen-go' → ui/upgrades.js · startPlan |
+| Upgrade list | engine/upgrades.js · upgradePaths, tierPick; ui/library.js · recsFor; page: ui/deck.js (PV rows, sheets) |
+| Upgrades tab number | ui/views.js · upCardCount |
+| Fix menus / land rule | engine/mana.js · fixSwaps, landCovers; engine/upgrades.js · landColors |
+| Card reading (roles, tags) | engine/reading.js, engine/library.js · analyze, tags |
+| Decklist rows, names, pictures | ui/views.js · listRows, printedName; ui/base.js · shownPrint, pidOf, artFor, ensureTheme |
+| Page redraw | ui/cards.js · render |
+| EDHREC data (one shared slot `EDH`) | ui/base.js · loadEdh, loadThemes, ensureEdh |
+| Downloads (cards, prices, strength) | ui/storage.js · loadStrength, loadStrengthCmd, loadPrices |
+| UI tests | deck/tools/tests/suite/ui-test.mjs (`if (RUN('UI-…'))` blocks), ui-test.groups.json |
+
+## Game app (`src/`; another chat works the rules long tail)
+| Topic | Where |
+|---|---|
+| Rules text compiler | src/engine/effects.js · compileEffectText; effects-catalog.js, effects-b49.js |
+| Triggers | src/engine/triggers.js, triggers-catalog.js, trigger-subject.js |
+| Game flow, ops, legality | src/game/flow.js, ops.js, legal.js, casting.js |
+| Terms key (automation labels) | src/data/mechanics.js |
+| Rules audit | tools/rules-audit.mjs <scryfall.json> |
+| Practice-match bot | src/game/bot.js, practice-match.js |
+| Node tests | tests/node/*.mjs |
+
+## Scratch scripts (live-data measurements, not in the repo)
+/home/user/dc-test/live/*.mjs: tourney-live (tournament match), score (old/new score), manaparts (practice-game mana), apex (power/rows),
+tabcount. They serve a checkout with `python3 -m http.server <port>` from `rebuild/` and open `/deck/index.html`.
