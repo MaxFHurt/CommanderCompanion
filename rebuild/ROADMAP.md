@@ -160,9 +160,24 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    the deck"); the score is unchanged. Earlier (build 71): "Works with" in the card window. **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
    death triggers, token makers with "whenever a creature enters", spells with cast triggers…) count as synergy, and the card
    window says which cards it works with. Builds on 1.
-3. **Real practice games:** full games with the game engine and bots (as `soak.mjs` does) to measure how a deck performs,
+3. **(Built on the branch 12 Nov, not live yet: owner, "nothing goes live until it's been fully tested".)** **Real practice
+   games:** full games with the game engine and bots (as `soak.mjs` does) to measure how a deck performs,
    beyond mana and curve. Most accurate; slow in a browser, so run in the background helpers and keep the goldfish numbers
    as the fast first answer. Builds on 1.
+   What was built: `src/game/bot.js` (a steady casual player: keeps 2–5 lands, plays a land then its biggest spell, attacks
+   that don't lose a creature for nothing or that are lethal, blocks to survive or trade up, removal at opponents, declines
+   optional sacrifices, counters big spells), `src/game/practice-match.js` (playMatch: one seeded, repeatable game; loops are
+   cut off at 500 moves a turn and reported), `src/game/practice-cards.js` (the Deck Builder's card rows back into game cards),
+   `deck/match-worker.js` (a module worker; the page splits the games over up to 3 of them). In the Deck Builder: Build stats →
+   Practice games → **Games against other decks** (owner, 12 Nov: "simulating your newly built deck vs any other deck in your
+   deck library including precons"): up to three opponents, each one of the player's own Commander decks or a built-in precon
+   ("No player" for a smaller game, so 1-on-1 works); 6 games; shows wins, average winning round, round knocked out, commander
+   cast round, spells and damage, and the cards the engine left to be resolved by hand (skipped by the bot). About 3–4 s a
+   4-player game on a laptop core (6 games ≈ 10–40 s across 3 workers). Tests: `tests/node/practice.mjs` (20 checks: card
+   conversion, bot choices, 4-player and 1-on-1 precon games with no problems, same seed = same game). The hand-resolved list
+   is also data for 2.4 (which cards to automate next): e.g. Orcish Bowmasters, Laboratory Drudge, Frontier Siege.
+   Not done: the deck score does not use these games (too slow and too noisy at 6 games); offline, the worker needs the game
+   files cached (the service worker precaches every file, so this should hold, but it was not tried on a device).
 
 ## 6. Deck Builder
 

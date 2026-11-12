@@ -106,7 +106,230 @@ function practiceHtml(d) {
     '</tbody></table>';
   h +=
     '<p class="note" style="margin:0">The deck score plays 300 of these. Play is simple on purpose: a land each turn (the one that adds a missing colour), then the commander, mana cards, card draw and the costliest spell it can cast. Creatures can’t attack or tap for mana the turn they arrive (unless they have haste), a creature tapped for mana doesn’t attack, and every attack is unblocked.</p>';
-  return h + '</details>';
+  return h + realGamesHtml(d) + '</details>';
+}
+// Real practice games (roadmap 5.3): full 4-player games on the game app's rules engine (match-worker.js, a module worker
+// loading ../src/game/practice-match.js), against three built-in precons, every seat played by the same simple bot. Slow
+// (several seconds a game), so they run only when asked, in the background, split across the device's cores; the goldfish
+// numbers above stay the fast first answer. Results are kept for the deck's current cards until the page is reloaded.
+const REAL = {k: '', rows: [], total: 0, workers: [], err: '', at: 0};
+const REAL_GAMES = 6;
+function realKey(d) {
+  return d.id + '|' + d.commander + '|' + (d.partner || '') + '|' + d.cards.map(e => e.n + 'x' + e.q).join(',') + '|' + realChoices(d).join(',');
+}
+// The opponents (owner, 12 Nov: "simulating your newly built deck vs any other deck in your deck library including precons"):
+// up to three seats, each a built-in precon or one of the player's own Commander decks; a seat can be left empty for a
+// smaller game (one opponent plays 1-on-1). By default, three precons, the same ones for a deck every time (by its id),
+// never its own commander. Choices are kept per deck: S.realOpp[deck id] = ['p:<precon name>' | 'd:<deck id>' | '-', …].
+function realDefaults(d) {
+  const own = keyOf(d.commander || ''),
+    pool = PRECONS.filter(p => PRECON_LISTS[p.name] && find(p.cmd) && keyOf(p.cmd) !== own);
+  let h = 0;
+  for (const ch of String(d.id)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const out = [];
+  for (let i = 0; out.length < 3 && i < pool.length; i++) out.push('p:' + pool[(h + i * 5) % pool.length].name);
+  return out;
+}
+function realChoices(d) {
+  const saved = (S.realOpp || {})[d.id],
+    def = realDefaults(d);
+  return [0, 1, 2].map(i => (saved && saved[i] ? saved[i] : def[i] || '-'));
+}
+// The decks a seat can take: the player's other Commander decks with a commander and 60+ cards, then the precons.
+function realOwnDecks(d) {
+  return (S.profile.decks || []).filter(
+    x => x.id !== d.id && x.format === 'commander' && x.commander && x.cards.reduce((a, e) => a + e.q, 0) >= 60
+  );
+}
+function realOpponents(d) {
+  return realChoices(d)
+    .map(v => {
+      if (v.slice(0, 2) === 'p:') {
+        const p = PRECONS.find(x => x.name === v.slice(2));
+        return p && PRECON_LISTS[p.name] ? {name: p.name, cmds: [p.cmd], entries: PRECON_LISTS[p.name].split(';').map(preconEntry)} : null;
+      }
+      if (v.slice(0, 2) === 'd:') {
+        const x = (S.profile.decks || []).find(y => y.id === v.slice(2));
+        return x && x.commander ? {name: x.name || 'Untitled deck', cmds: [x.commander, x.partner].filter(Boolean), entries: x.cards} : null;
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+function realPicker(d) {
+  const ch = realChoices(d),
+    own = realOwnDecks(d);
+  return ch
+    .map((v, i) => {
+      const opt = (val, label) => '<option value="' + i + '|' + esc(val) + '"' + (val === v ? ' selected' : '') + '>' + esc(label) + '</option>';
+      return (
+        '<select data-act="real-opp" aria-label="Opponent ' +
+        (i + 1) +
+        '">' +
+        (i ? opt('-', 'No player') : '') +
+        (own.length ? '<optgroup label="Your decks">' + own.map(x => opt('d:' + x.id, x.name || 'Untitled deck')).join('') + '</optgroup>' : '') +
+        '<optgroup label="Precons">' +
+        PRECONS.filter(p => PRECON_LISTS[p.name]).map(p => opt('p:' + p.name, p.name)).join('') +
+        '</optgroup></select>'
+      );
+    })
+    .join('');
+}
+function realSetOpp(v) {
+  const d = cur();
+  if (!d) return;
+  const k = String(v).indexOf('|'),
+    i = +String(v).slice(0, k),
+    val = String(v).slice(k + 1);
+  S.realOpp = S.realOpp || {};
+  const ch = realChoices(d);
+  ch[i] = val;
+  if (!ch.some(x => x !== '-')) ch[0] = realDefaults(d)[0];
+  S.realOpp[d.id] = ch;
+  realStop();
+  REAL.k = '';
+  render();
+}
+function realRow(c) {
+  if (!c) return null;
+  const x = {};
+  for (const k in c) if (k[0] !== '_') x[k] = c[k];
+  return x;
+}
+function realDeck(name, cmds, entries) {
+  return {
+    name,
+    commanders: cmds.map(n => (find(n) ? find(n).n : n)),
+    cards: cmds.map(n => ({n, q: 1, c: realRow(find(n))})).concat(entries.map(e => ({n: e.n, q: e.q, c: realRow(find(e.n))})))
+  };
+}
+function realStop() {
+  REAL.workers.forEach(w => {
+    try {
+      w.terminate();
+    } catch (e) {}
+  });
+  REAL.workers = [];
+}
+function realGames(d) {
+  realStop();
+  REAL.k = realKey(d);
+  REAL.rows = [];
+  REAL.err = '';
+  REAL.total = REAL_GAMES;
+  REAL.at = Date.now();
+  const mine = realDeck(d.name || 'Your deck', [d.commander, d.partner].filter(Boolean), d.cards),
+    opps = realOpponents(d).map(p => realDeck(p.name, p.cmds, p.entries)),
+    n = Math.max(1, Math.min(3, wkCores() || 1)),
+    key = REAL.k;
+  for (let k = 0; k < n; k++) {
+    const games = [];
+    for (let g = k; g < REAL_GAMES; g += n) games.push(g);
+    let w;
+    try {
+      w = new Worker('match-worker.js?v=' + (window.BUILD || ''), {type: 'module'});
+    } catch (e) {
+      REAL.err = 'This browser cannot run the full games in the background.';
+      break;
+    }
+    w.onmessage = ev => {
+      const m = ev.data || {};
+      if (REAL.k !== key) return;
+      if (m.kind === 'game') REAL.rows.push(m.row);
+      else if (m.kind === 'error') REAL.err = m.error;
+      if (m.kind !== 'game') {
+        w.terminate();
+        REAL.workers = REAL.workers.filter(x => x !== w);
+      }
+      if (S.pracOpen) render();
+    };
+    w.onerror = ev => {
+      REAL.err = 'The games stopped: ' + ((ev && ev.message) || 'background helper failed');
+      REAL.workers = REAL.workers.filter(x => x !== w);
+      if (S.pracOpen) render();
+    };
+    w.postMessage({deck: mine, opponents: opps, games, seed: 1, maxRounds: 12});
+    REAL.workers.push(w);
+  }
+  render();
+}
+// The totals over the games played so far.
+function realSummary(rows) {
+  const n = rows.length,
+    avg = xs => (xs.length ? xs.reduce((a, x) => a + x, 0) / xs.length : null),
+    seats = r => r.players.length || 1,
+    me = r => r.players[r.me],
+    wins = rows.filter(r => r.winner === r.me),
+    hand = {};
+  rows.forEach(r => Object.keys(r.handResolved || {}).forEach(k => (hand[k] = (hand[k] || 0) + r.handResolved[k])));
+  return {
+    n,
+    wins: wins.length,
+    nobody: rows.filter(r => r.winner < 0).length,
+    winRound: avg(wins.map(r => r.rounds)),
+    outRound: avg(rows.filter(r => me(r).eliminated && me(r).outTurn).map(r => Math.ceil(me(r).outTurn / seats(r)))),
+    cmdRound: avg(rows.filter(r => me(r).commanderTurn).map(r => Math.ceil(me(r).commanderTurn / seats(r)))),
+    damage: avg(rows.map(r => +(me(r).stats.damage || 0))),
+    spells: avg(rows.map(r => +(me(r).stats.spells || 0))),
+    hand: Object.keys(hand)
+      .map(k => [k, hand[k]])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8),
+    missing: rows.length ? rows[0].missing || 0 : 0,
+    problems: rows.reduce((a, r) => a + (r.problems || []).length, 0)
+  };
+}
+function realGamesHtml(d) {
+  if (d.format !== 'commander' || !d.commander) return '';
+  const opps = realOpponents(d),
+    fresh = REAL.k === realKey(d),
+    running = fresh && REAL.workers.length > 0,
+    r1 = x => (x == null ? '–' : Math.round(x * 10) / 10);
+  if (!fresh && REAL.k && REAL.workers.length) realStop(); // the deck changed: its old games no longer apply
+  let h =
+    '<h3 class="lab" style="margin-top:1em">Games against other decks</h3><p class="note" style="margin:0">' +
+    REAL_GAMES +
+    ' full ' +
+    ['', '', 'two', 'three', 'four'][opps.length + 1] +
+    '-player games on the Commander Companion rules engine: your deck against ' +
+    esc(opps.map(p => p.name).join(', ')) +
+    ' (choose any of your decks or a precon for each seat).</p><div class="row real-opp">' +
+    realPicker(d) +
+    '</div><p class="note" style="margin:0">Every seat is played by the same simple player (lands, then its biggest spell; attacks that don’t lose a creature for nothing; blocks to survive; removal at the leading opponent). Each game takes several seconds.</p>';
+  if (!fresh || (!running && !REAL.rows.length && !REAL.err))
+    return h + '<div class="row"><button class="btn sm pri" data-act="real-go">Play ' + REAL_GAMES + ' games</button></div>';
+  const S1 = realSummary(REAL.rows);
+  h +=
+    '<p class="note" style="margin:0">' +
+    (running ? 'Playing… <b>' + S1.n + ' of ' + REAL.total + '</b> games done. ' : '') +
+    (S1.n
+      ? 'Won <b>' +
+        S1.wins +
+        ' of ' +
+        S1.n +
+        '</b>' +
+        (S1.winRound ? ' (by round ' + r1(S1.winRound) + ' on average)' : '') +
+        (S1.nobody ? '; no winner by round 12 in ' + S1.nobody : '') +
+        '. Knocked out ' +
+        (S1.outRound ? 'by round ' + r1(S1.outRound) + ' on average' : 'in none') +
+        '; commander cast by round ' +
+        r1(S1.cmdRound) +
+        '; ' +
+        r1(S1.spells) +
+        ' spells and ' +
+        r1(S1.damage) +
+        ' damage to opponents a game.'
+      : '') +
+    '</p>';
+  if (S1.hand.length)
+    h +=
+      '<p class="note" style="margin:0">The rules engine can’t play these yet, so they were skipped (resolved by hand in a real game): ' +
+      S1.hand.map(x => esc(x[0]) + ' ×' + x[1]).join(', ') +
+      '.</p>';
+  if (S1.missing) h += '<p class="note" style="margin:0">' + S1.missing + ' of your cards were not in the card data and were left out.</p>';
+  if (REAL.err) h += '<p class="note bad" style="margin:0">' + esc(REAL.err) + '</p>';
+  if (!running) h += '<div class="row"><button class="btn sm" data-act="real-go">Play them again</button></div>';
+  return h;
 }
 function upPanel(d, A, mode) {
   // mode "stats": the Build stats tab (the deck analysis); otherwise the Upgrades tab

@@ -634,6 +634,14 @@ function handleAct(act, v, n, pArg, cutArg) {
       if (fn) fn.innerHTML = faceNote(c);
       return;
     }
+    case 'real-opp':
+      realSetOpp(v);
+      return;
+    case 'real-go': {
+      const d = cur();
+      if (d) realGames(d);
+      return;
+    }
     case 'prac-new': {
       const d = cur();
       if (!d) return;
