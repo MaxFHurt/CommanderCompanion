@@ -198,7 +198,7 @@ function viewDecks() {
           (nUp
             ? ' <em title="' +
               nUp +
-              (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? '' : 's') + ' recommended to swap out at this deck’s price level') +
+              (hasPlan ? ' cards to add' : ' card' + (nUp === 1 ? '' : 's') + ' in this deck with a suggested replacement') +
               '">' +
               nUp +
               (hasPlan ? '' : ' card' + (nUp === 1 ? '' : 's')) +
@@ -1325,8 +1325,10 @@ function upCardCount(R, d) {
   const t = d && TIERS[d.tier] ? d.tier : 'apex',
     seen = new Set();
   let n = 0;
+  // every card the list suggests replacing, at any price level: the Upgrades page walks through all of them ("Upgrade 1 of N"),
+  // so the tab counts the same cards (owner, 12 Nov: it counted only the deck's own price level and never matched)
   R.paths.forEach(L => {
-    const p = tierPick(L, t);
+    const p = tierPick(L, t) || tierPick(L, 'apex') || tierPick(L, 'mid') || tierPick(L, 'budget');
     if (!p || (d && !entryOf(d, p.cut)) || seen.has(keyOf(p.cut))) return;
     seen.add(keyOf(p.cut));
     n += p.q || 1;
