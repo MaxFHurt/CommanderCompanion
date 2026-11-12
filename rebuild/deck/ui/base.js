@@ -972,6 +972,11 @@ function symPip(k) {
   const cls = 'WUBRG'.includes(k) && k.length === 1 ? 'p' + k : 'pN';
   return '<i class="pip ' + cls + '">' + (k === 'T' ? '↷' : esc(k)) + '</i>';
 }
+// A commander's colours: its colour identity, so a two-sided commander shows the colours of both faces (owner, 12 Nov).
+// Colourless commanders show their mana cost (the {0} or generic cost).
+function identityPips(c) {
+  return c && c.ci && c.ci.length ? c.ci.map(k => symImg(k)).join('') : pips(c && c.m);
+}
 function pips(text) {
   return esc(text || '').replace(/\{([^}]+)\}/g, (m, k) => symImg(k));
 }

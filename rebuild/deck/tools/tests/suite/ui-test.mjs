@@ -1778,6 +1778,17 @@ if (RUN('UI-FLIP-01')) { try { if (SHARD) await RESET();
     document.querySelector('#modal .flip').click(); out.front = (document.querySelector('#modal .card.real img')?.src || '') === img0; return out; });
   T('UI-FLIP-01', 'Two-sided card (card pop-up): a Flip chip shows the other face and flips back; the face note says which side is showing', !f.none && f.chip && f.back && f.note && f.front, JSON.stringify(f));
 } catch (e) { QUIET = false; T('UI-FLIP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+// Build 98 (owner, 12 Nov: "make sure the card color identity is correct"): a two-sided commander whose back face adds a colour
+// shows the colour symbols of its whole identity (commander box), not only its front face's mana cost.
+if (RUN('UI-IDENT-01')) { try { if (SHARD) await RESET();
+  const r = await page.evaluate(() => { const c = LIB.find(x => x.df && x.fc && x.fc.length === 2 && x.n === 'Etali, Primal Conqueror // Etali, Primal Sickness');
+    if (!c) return {none: true};
+    const out = {ci: c.ci.join(''), cost: c.m}; S.view = 'decks'; S.open = false; render();
+    const d = newDeck({format: 'commander', name: 'Ident test', src: 'scratch'}); setCommander(d, c.n); d.aims = d.aims.length ? d.aims : ['tribal']; S.setup = null; $('#modal').hidden = true; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+    const box = document.querySelector('.cmdbox'); const syms = [...(box ? box.querySelectorAll('img.ms') : [])].map(i => i.alt.replace(/[{}]/g, ''));
+    out.shown = syms.sort().join(''); out.box = !!box; out.match = out.shown === c.ci.slice().sort().join(''); return out; });
+  T('UI-IDENT-01', 'Two-sided commander (Etali // Primal Sickness): its commander box shows the colours of its whole identity (both faces), not only the front mana cost', !r.none && r.box && r.match, JSON.stringify(r));
+} catch (e) { QUIET = false; T('UI-IDENT-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-POP-01')) { try { if (SHARD) await RESET();
 // Pop-ups on iPhone and iPad (owner, 8 Nov): on a phone held sideways, a card window's parts that fill in later ("Or take out
 // instead") stay inside its scrolling body, so the card's details are not squeezed to nothing; and a redraw from work finishing

@@ -58,6 +58,15 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Build 99 — 12 Nov 2026 (Deck Builder 0.9.65, build 210; app 1.0.0-rebuild.99): commander colours show the whole identity (not yet live)
+- Owner (12 Nov): fix the colour issues found. A two-sided commander's box showed only its front face's mana cost, so a colour on
+  the back face did not show (Etali // Primal Sickness shows R, not G R). The commander box, the Build panel and the second
+  commander now show the colour identity (identityPips in deck/ui/base.js; colourless commanders keep their cost symbols).
+- The card-data export keeps each face's colour indicator (fetch-card-data.mjs: colors) and identity.js checks it where present;
+  the current snapshot predates it, so the indicator check runs after the next card-data publish.
+- Tests: UI-IDENT-01 (new) passes; UI-SETUP-01, UI-AIM-01, UI-ID-01, UI-B92-01, UI-PROF-01, UI-FLIP-01 pass; identity.js OK on 32,115 cards.
+- Full Deck Builder run before going live. Live only on the owner's yes.
+
 ### Colour identity check (12 Nov, owner: "make sure the card color identity is correct"): no app change
 - Checked all 32,115 cards in the card snapshot: no mana-cost or rules-text colour falls outside a card's identity, on either
   face; no coloured cost has an empty identity. The app uses the printed identity for legality, deck colours and the

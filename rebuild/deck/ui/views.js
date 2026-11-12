@@ -534,7 +534,7 @@ function aimPanel(d, ctx) {
           '"><div><b>' +
           cmdNameHtml(d, ctx.cmd) +
           '</b><span>' +
-          pips(ctx.cmd.m) +
+          identityPips(ctx.cmd) +
           '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' +
           esc(ctx.cmd.n) +
           '">View</button><button class="btn sm" data-act="cmd-find">Find a commander</button></div></div></div>' +
@@ -599,7 +599,7 @@ function aimPanel(d, ctx) {
         '"><div><b>' +
         cmdNameHtml(d, ctx.cmd) +
         '</b><span>' +
-        pips(ctx.cmd.m) +
+        identityPips(ctx.cmd) +
         '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="card" data-n="' +
         esc(ctx.cmd.n) +
         '">View</button>' +

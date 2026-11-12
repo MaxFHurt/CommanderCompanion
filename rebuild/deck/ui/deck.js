@@ -1898,7 +1898,7 @@ function partnerBox(d, lock) {
       '"><div><b>' +
       esc(par.n) +
       '</b><span>' +
-      pips(par.m) +
+      identityPips(par) +
       '</span><div class="row" style="margin-top:4px"><span class="chip good">Second commander · ' +
       esc(pairLabel(cmd) || pairLabel(par)) +
       '</span><button class="btn sm" data-act="card" data-n="' +
@@ -2236,7 +2236,7 @@ function setupHtml(d) {
             '"><div><b>' +
             esc(ctx.cmd.n) +
             '</b><span>' +
-            pips(ctx.cmd.m) +
+            identityPips(ctx.cmd) +
             '</span><div class="row" style="margin-top:4px"><button class="btn sm" data-act="su-cmd-change">Change</button></div></div></div>',
           true
         )

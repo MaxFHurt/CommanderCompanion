@@ -3,7 +3,7 @@
 //  1. the app's identity (the colours the app uses for legality, deck colours and the off-colour check) is the printed identity;
 //  2. no mana cost colour and no rules-text colour (reminder text left out) falls outside that identity, on either face;
 //  3. the identity is never empty while a face has a coloured mana cost.
-// Identity colours with no printed symbol (colour indicators, some lands) are counted, not failed: the snapshot does not keep them.
+// Identity colours with no printed symbol (colour indicators, some lands) are counted, not failed where the snapshot has no colour indicator; the indicator is checked where the export keeps it (colors).
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const DIR = path.resolve(process.argv[2] || '.');
 const file = [path.join(DIR, '..', 'snapshot', 'cards.json.gz'), path.join(DIR, '..', '..', 'snapshot', 'cards.json.gz')].find(f => fs.existsSync(f));
@@ -25,7 +25,11 @@ for (const o of cards) {
   if (c1.length) { costOut++; fails.push(`${o.name}: cost colour ${c1.join('')} not in identity ${[...id].join('') || '(none)'}`); }
   if (c2.length) { textOut++; fails.push(`${o.name}: rules-text colour ${c2.join('')} not in identity ${[...id].join('') || '(none)'}`); }
   if (!id.size && cost.size) { emptyWithCost++; fails.push(`${o.name}: colourless identity but a coloured cost`); }
-  if ([...id].some(k => !cost.has(k) && !text.has(k))) indicator++;
+  // the colour indicator (when the snapshot keeps it) must also be inside the identity
+  const ind = new Set([...(o.colors || []), ...faces(o).flatMap(f => f.colors || [])]);
+  const c3 = [...ind].filter(k => !id.has(k));
+  if (c3.length) { costOut++; fails.push(`${o.name}: colour indicator ${c3.join('')} not in identity ${[...id].join('') || '(none)'}`); }
+  if ([...id].some(k => !cost.has(k) && !text.has(k) && !ind.has(k))) indicator++;
 }
 const ok = costOut === 0 && textOut === 0 && emptyWithCost === 0;
 console.log(`identity: ${n} cards, cost outside identity ${costOut}, rules text outside identity ${textOut}, coloured cost with empty identity ${emptyWithCost}, identity from an indicator or land (not checked) ${indicator} ${ok ? 'OK' : 'FAILED'}`);
