@@ -3435,4 +3435,13 @@ section('build 102: "its power" is the right creature');
   check('Fractal token: eight lands, eight counters on the token', Number(frac?.counters?.['+1/+1'] || 0) === 8, JSON.stringify(frac?.counters));
 }
 
+{
+  // Disciple of Bolas: X is the sacrificed creature's power (it was this card's own power before)
+  const t = setup();
+  onField(t, 'Fog Bank', '', { power: '3', toughness: '3' });
+  const life = t.P(0).life, hand = t.P(0).deck.hand.length;
+  cast(t, 'Grizzly Bears', 'When this creature enters, sacrifice another creature. You gain X life and draw X cards, where X is that creature\'s power.');
+  check('Disciple of Bolas: a 3-power creature sacrificed, 3 life and 3 cards', t.P(0).life === life + 3 && t.P(0).deck.hand.length === hand + 3 && !t.bf(0, 'Fog Bank'), `${t.P(0).life - life} ${t.P(0).deck.hand.length - hand}`);
+}
+
 done();

@@ -424,8 +424,11 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
   }
   if (amount.kind === 'source-counters')
     return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[amount.counter] || 0);
-  if (amount.kind === 'b101-its-power') {
-    const hit = locateCardInGame(game, bindings.eventCard || bindings.sourceId);
+  // "that creature's power" with nothing targeted: the creature sacrificed to cast it (Twisted Justice), else the other
+  // creature of the event (the one that entered or died), else the event's card.
+  if (amount.kind === 'b101-that-power' && bindings.sacrificedPower != null) return Math.max(0, Number(bindings.sacrificedPower) || 0);
+  if (amount.kind === 'b101-its-power' || amount.kind === 'b101-that-power') {
+    const hit = locateCardInGame(game, (amount.kind === 'b101-that-power' ? bindings.thatCard : null) || bindings.eventCard || bindings.sourceId);
     if (!hit) return 0;
     if (hit.zone === 'battlefield') return Math.max(0, Number(effectivePower(hit.card, definitionFor(game, hit.card), game) || 0));
     const p = Number(bindings.eventLastPower ?? definitionFor(game, hit.card)?.power);   // last known: printed power plus its counters when it left
@@ -1257,6 +1260,8 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           if (!hit || hit.zone !== 'battlefield' || (hit.card.controllerId || hit.player.playerId) !== p.playerId)
             throw new Error('A sacrifice choice is no longer legal.');
           const n = cardName(game, hit.card);
+          // "… where X is that creature's power" after "sacrifice another creature" (Disciple of Bolas): its last power.
+          { const sd = definitionFor(game, hit.card); bindings.sacrificedPower = Math.max(0, Number(effectivePower(hit.card, sd, game) || 0)); bindings.sacrificedToughness = Math.max(0, Number(effectiveToughness(hit.card, sd, game) || 0)); bindings.sacrificedManaValue = Number(sd?.manaValue ?? sd?.cmc ?? 0); }
           moveCard(game, id, 'graveyard', { moveReason: 'sacrifice', onEvent: e => emit(bindings, e) });
           notes.push(`${p.displayName} sacrifices ${n}.`);
         }
@@ -2062,7 +2067,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^It deals damage equal to its power to (any target|target creature|target player|target opponent|target permanent)\.?$/i))) {
+  if ((m = c.match(/^(?:then )?it deals damage equal to its power to (any target|target creature(?: an opponent controls| you don'?t control)?|target player|target opponent|target permanent|target creature or planeswalker(?: an opponent controls| you don'?t control)?)\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     // Build 102: "it" is the creature the ability is about (settled later: the earlier target, else the trigger's creature),
     // and that creature deals the damage.
@@ -3245,12 +3250,16 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       if (inner && inner.supported && /^(?:that creature'?s|its|their) power$/i.test(whereX[2].trim())) {
         const ts = inner.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
         const picked = [...parts, inner].some(p => (p.effects || []).some(e => /^(?:sacrifice|sacrifice-many|choose-permanent)$/.test(e.kind)) || (p.requirements || []).some(r => r.kind === 'choose-permanent' || r.kind === 'card-selection'));
+        // The one creature you sacrificed earlier in the ability (Disciple of Bolas, Rupture, Twisted Justice): its last power.
+        const sacs = [...parts, inner].flatMap(p => (p.effects || []).filter(e => e.kind === 'sacrifice-many' && Number(e.amount) === 1 && (!e.scope || e.scope === 'you')));   // you, or one target player
         // "X deals X damage to target creature, where X is its power": "its" is the one dealing the damage, not the target.
         const dealer = whereX[1].match(/^(.*?)\bdeals?\b/i);
-        if (dealer && !/\btarget\b/i.test(dealer[1])) expr = /^(?:it|he|she|that creature)\b/i.test(dealer[1].trim()) ? { kind: 'b101-its-power' } : { kind: 'source-power' };
+        const thatOne = /^that creature'?s power$/i.test(whereX[2].trim());
+        if (dealer && !thatOne && !/\btarget\b/i.test(dealer[1])) expr = /^(?:it|he|she|that creature)\b/i.test(dealer[1].trim()) ? { kind: 'b101-its-power' } : { kind: 'source-power' };
         else if (ts.length === 1) expr = { kind: 'bound-power', bind: ts[0].bind };
+        else if (sacs.length === 1 && !ts.length && thatOne) expr = { kind: 'binding', bind: 'sacrificedPower' };
         else if (ts.length > 1 || picked) expr = null;
-        else expr = { kind: 'b101-its-power' };
+        else expr = thatOne ? { kind: 'b101-that-power' } : { kind: 'b101-its-power' };
       }
       if (expr != null && inner && inner.supported) {
         for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
