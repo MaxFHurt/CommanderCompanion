@@ -131,6 +131,8 @@ export function parseAmountB101(phrase) {
   let m;
   if (lit(p) != null) return lit(p);
   if ((m = p.match(/^(twice|two times|three times|four times|five times|ten times) (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: { twice: 2, 'two times': 2, 'three times': 3, 'four times': 4, 'five times': 5, 'ten times': 10 }[m[1]] }; }
+  if ((m = p.match(/^(\d+) times (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: Number(m[1]) }; }
+  if (/^(?:that spell'?s|its) mana value$/.test(p)) return { kind: 'binding', bind: 'eventManaValue' };
   if ((m = p.match(/^half (.+?),? rounded (up|down)$/))) { const a = parseAmountB101(m[1]); return a == null ? null : { kind: 'b101-math', op: 'half', a, round: m[2] }; }
   if ((m = p.match(/^(\d+|one|two|three|four|five|six|seven|eight|nine|ten) plus (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'plus', a, b: lit(m[1]) }; }
   if ((m = p.match(/^(.+?) plus (\d+|one|two|three|four|five|six|seven|eight|nine|ten)$/))) { const a = parseAmountB101(m[1]); return a == null ? null : { kind: 'b101-math', op: 'plus', a, b: lit(m[2]) }; }

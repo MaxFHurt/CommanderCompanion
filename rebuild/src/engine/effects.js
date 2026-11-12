@@ -3139,6 +3139,11 @@ function equalToAsX(clause) {
     .replace(/^(.*?\bmills?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
     .replace(/^(.*?\bdeals?) damage equal to (.+?) to ((?:any target|target [^.,]+?|each [^.,]+?))\.$/i, '$1 X damage to $3, where X is $2.')
     .replace(/^(.*?\bdeals?) damage to (any target|target [^.,]+?|each [^.,]+?|that player|that creature|it|you) equal to (.+?)\.$/i, '$1 X damage to $2, where X is $3.')
+    .replace(/^(.*?\bdeals?) 1 damage to (any target|target [^.,]+?|each [^.,]+?|that player|you) for each (.+?)\.$/i, '$1 X damage to $2, where X is the number of $3.')
+    .replace(/^(.*?\bdeals?) (2|3|4|5) damage to (any target|target [^.,]+?|each [^.,]+?|that player|you) for each (.+?)\.$/i, '$1 X damage to $3, where X is $2 times the number of $4.')
+    .replace(/^(.*?\b(?:lose|loses|gain|gains)) 1 life for each (.+?)\.$/i, '$1 X life, where X is the number of $2.')
+    .replace(/^(.*?\b(?:lose|loses|gain|gains)) (2|3|4|5) life for each (.+?)\.$/i, '$1 X life, where X is $2 times the number of $3.')
+    .replace(/^(.*?\bmills?) a card for each (.+?)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\bdraws?) a card for each (.+?)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\b[Pp]ut) (?:a|an) ([+-]\d+\/[+-]\d+|[a-z]+) counter on (.+?) for each (.+?)\.$/i, '$1 X $2 counters on $3, where X is the number of $4.')
     .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
@@ -3194,13 +3199,20 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       if (inner && inner.supported && amountNeedsPlayerB101(expr)) {
         const pr = inner.requirements.find(r => r.kind === 'player') || inner.requirements.find(r => r.kind === 'target' && /^target (?:player|opponent)$/i.test(r.scope || ''));
         const each = inner.effects.find(e => e.forPlayerBind)?.forPlayerBind;
-        if (pr || !/\btarget (?:player|opponent)\b/i.test(whereX[2])) bindAmountPlayerB101(expr, pr ? pr.bind : (each || 'eventPlayer'));
-        else expr = null;
+        const named = whereX[2].match(/\btarget (player|opponent)\b/i);
+        if (pr || !named) bindAmountPlayerB101(expr, pr ? pr.bind : (each || 'eventPlayer'));
+        else {
+          // "… equal to the number of creatures target player controls" (Will of the Mardu): the count names its own target.
+          const bind = `player${inner.requirements.length + 30}`;
+          inner.requirements.push({ kind: 'player', bind, scope: named[1].toLowerCase(), label: `target ${named[1].toLowerCase()}` });
+          bindAmountPlayerB101(expr, bind);
+        }
       }
       // "Target creature gets +X/+0 …, where X is its power" (Berserk, Xenagos): the targeted creature's power, not this card's.
       if (inner && inner.supported && /^(?:that creature'?s|its) power$/i.test(whereX[2].trim()) && /^(?:another |up to one )?target\b/i.test(whereX[1].trim())) {
-        const ts = inner.requirements.filter(r => r.kind === 'target');
-        expr = ts.length === 1 ? { kind: 'bound-power', bind: ts[0].bind } : null;
+        const ts = inner.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
+        if (ts.length === 1) expr = { kind: 'bound-power', bind: ts[0].bind };
+        else if (ts.length > 1) expr = null;   // no creature targeted ("target opponent loses life equal to its power"): this card's power
       }
       if (expr != null && inner && inner.supported) {
         for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
@@ -3594,10 +3606,15 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay']);
     merged.effects.forEach((e, at) => {
       if (e.bind !== 'b101It' && e.bind !== 'b101That') return;
-      if (lastTarget) e.bind = lastTarget.bind;
+      // The earlier target: not one this same instruction names for itself ("It deals damage equal to its power to target creature …").
+      const own = new Set(Object.entries(e).filter(([k]) => k !== 'bind').map(([, v]) => v));
+      const earlierTarget = [...merged.requirements].reverse().find(r => r.kind === 'target' && !own.has(r.bind) && !/^target (?:player|opponent)$/i.test(r.scope || ''));
+      if (earlierTarget) e.bind = earlierTarget.bind;
       else if (merged.effects.slice(0, at).every(x => PLAIN.has(x.kind))) e.bind = e.bind === 'b101It' ? 'eventCard' : 'thatCard';
       else if (!merged.unsupported.includes(raw)) merged.unsupported.push(raw);
     });
+    // A delayed "return it … at end of combat" after a target: "it" is that target.
+    for (const e of merged.effects) if (e.kind === 'delay' && e.b101Pronoun && lastTarget) for (const x of e.effects) if (x.bind === 'eventCard' || x.bind === 'thatCard') x.bind = lastTarget.bind;
     if (/"b101(?:It|That)"/.test(JSON.stringify(merged.effects)) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);   // inside a delayed or nested instruction
   }
   // "Target player discards two cards. Otherwise, that player discards a card.": "that player" is the targeted player.
@@ -3656,4 +3673,4 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
 export function supportForEffectText(text) { const c = compileEffectText(text); return { supported: c.supported, unsupported: c.unsupported, effectKinds: [...new Set(c.effects.map(e => e.kind))], requirements: c.requirements, guidedFallbackAvailable: c.guidedFallbackAvailable }; }
 
 // Helpers for effects-catalog.js (read when its functions run, never at load time).
-export const catalogHelpers = { setTapped, compileEffectText: (...a) => compileEffectText(...a), faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
+export const catalogHelpers = { cardMatchesFilter: (...a) => cardMatchesFilter(...a), setTapped, compileEffectText: (...a) => compileEffectText(...a), faceDown: () => faceDownDefinitionLazy(), compileSingleClause, KEYWORD_LIST, filterFromNoun, countExprFromPhrase, targetRequirement, playerRequirement, scopeFromSubject, emit, resolveBoundId, addCounter, targetPlayers, applyEffectsUnsafe, shuffle: a => { for (let j = a.length - 1; j > 0; j--) { const k = Math.floor(Math.random() * (j + 1)); [a[j], a[k]] = [a[k], a[j]]; } return a; } };
