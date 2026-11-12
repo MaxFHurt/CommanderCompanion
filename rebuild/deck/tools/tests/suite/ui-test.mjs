@@ -1670,6 +1670,21 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-TAB-01')) { try { if (SHARD) await RESET();
+// Build 101 (owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards
+// that are currently in the deck that need to be replaced"): the tab's number is the number of upgrades the page lists ("Upgrade
+// 1 of N"), also for a Budget deck whose rows have Apex or Mid picks only.
+const tab1 = await page.evaluate(async () => { const out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
+  await loadPreconLive('wakanda-forever', 'Wakanda Forever'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); d.tier = 'budget';
+  S.upView = 'sheet'; S.upT = ''; S.upK = ''; S.view = 'decks'; S.open = true; S.tab = 'up'; render();
+  for (let i = 0; i < 120; i++) { await wait(250); if (i % 8 === 0) render(); const R = recsFor(d); if (R && R.done && i > 20) break; }
+  $('#modal').hidden = true; render(); await wait(300);
+  const em = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '', txt = (document.querySelector('.panel.pane') || {}).innerText || '';
+  out.tab = +((/(\d+)/.exec(em) || [])[1] || -1); out.sheets = +((/upgrade 1 of (\d+)/i.exec(txt) || [])[1] || -1);
+  const R = recsFor(d); out.budgetOnly = R ? R.paths.filter(L => tierPick(L, 'budget')).length : -1;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-TAB-01', 'Build 101: the Upgrades tab counts the cards the page lists to replace (the same N as "Upgrade 1 of N"), not only the deck’s own price level', tab1.tab > 0 && tab1.tab === tab1.sheets, JSON.stringify(tab1));
+} catch (e) { QUIET = false; T('UI-TAB-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-NAME-01')) { try { if (SHARD) await RESET();
 // Build 100 (owner, 12 Nov: "heralds of the shredder still reads as vigor"): a card pictured in the deck's themed printing
 // (the commander's set) is named as that printing in the decklist, also in a deck that is not a precon (a generated deck).
