@@ -58,6 +58,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Colour identity check (12 Nov, owner: "make sure the card color identity is correct"): no app change
+- Checked all 32,115 cards in the card snapshot: no mana-cost or rules-text colour falls outside a card's identity, on either
+  face; no coloured cost has an empty identity. The app uses the printed identity for legality, deck colours and the
+  off-colour check (deck/engine/library.js: ci = color_identity), so two-sided cards already count both faces.
+- 138 cards have an identity colour with no printed symbol (colour indicators, some lands). The snapshot does not keep the
+  indicator, so these are counted, not checked.
+- New test: deck/tools/tests/suite/identity.js (run by check.sh cards in both modes): identity OK on 32,115 cards.
+
 ### Build 98 — 11 Nov 2026 (Deck Builder 0.9.64, build 209; app 1.0.0-rebuild.98): Build 97's three changes plus the top-bar re-check and the Flip chip
 - Build 97 (10 Nov, Deck Builder 0.9.63, build 208) was the three changes below.
 ### Build 97 — 10 Nov 2026 (Deck Builder 0.9.63, build 208): three changes in one build (owner: "make a build of several changes, test it, and push it live")

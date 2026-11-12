@@ -28,6 +28,7 @@ jobs_run(){ for f in "$JD"/*.solo.sh; do [ -f "$f" ] && sh "$f" > "${f%.sh}.out"
 # each tier's list as players see it (card strength on: the strength rows, ranked by the deck's tier); NOSTR=1 for the engine's own list
 bench(){ for s in $*; do for t in apex mid budget; do job 'echo "bench '"$s $t"':  $(SCORECHECK=1 ALSOW=3,6 TIER='"$t"' node bench.js "$DIR" check '"$s"' --quiet 2>&1 | grep "^MEAN" | sed "s/ | whole-list.*//" | tr "\n" " ")"'; done; done; }
 semantics(){ job 'echo "semantics:    $(node semantics.js "$DIR" | tail -1)"'; }
+identity(){ job 'echo "$(node identity.js "$DIR" | head -1)"'; }   # colour identity vs the printed colours (owner, 12 Nov)
 claims(){ job 'echo "claims:       $(node claims.js "$DIR" 2>&1 | grep -i unrecognised | tr -s " ")"'; }
 accept(){ job 'echo "accept:       $(node accept.js "$DIR" 2>&1 | tail -1)"'; job 'echo "accept edh:   $(AIMS=edh node accept.js "$DIR" 2>&1 | tail -1)"'; }
 scheck(){ job 'echo "scheck:       $(node scheck.js "$DIR" 2>&1 | tail -1)"'; }
@@ -41,11 +42,11 @@ T0=$(date +%s)
 if [ "$MODE" = quick ]; then
   if has screens || has generator || has sim; then quick; fi
   if has upgrade; then quick; bench tuneall; fi
-  if has cards; then semantics; fi
+  if has cards; then semantics; identity; fi
 else
   RAN=" "; once(){ case "$RAN" in *" $1 "*) return 1;; esac; RAN="$RAN$1 "; return 0; }
   if has upgrade || has cards || has sim; then once bench && bench tuneall test holdout; fi
-  if has cards; then once semantics && semantics; once claims && claims; once accept && accept; fi
+  if has cards; then once semantics && semantics; once identity && identity; once claims && claims; once accept && accept; fi
   if has upgrade; then once scheck && scheck; once claims && claims; once cisweep && cisweep; once edge && edge; fi
   if has generator; then once accept && accept; once genstrong && genstrong; once tourney && tourney; fi
   jobs_run
