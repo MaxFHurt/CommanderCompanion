@@ -540,6 +540,26 @@ export function validateForcedBlockAssignments({ game, defender, assignments = [
         reasons.push(`${bdef?.name || 'A creature'} must block ${adef?.name || 'the chosen attacker'} if able.`);
     }
   }
+  // Build 102: "Target creature blocks this turn if able" (any attacker), "It must be blocked this turn if able", and
+  // "All creatures able to block target creature this turn do so" (Lure for one turn).
+  const findCard = id => { for (const q of game.players || []) { const c = (q.deck?.battlefield || []).find(x => x.instanceId === id); if (c) return c; } return null; };
+  const canBlock = (b, a) => !!a && validateBlock({ blocker: b, definition: game.cardDefinitions?.[b.definitionId], attackerDefinition: game.cardDefinitions?.[a.definitionId], attacker: a }).legal;
+  const mine = defender.deck?.battlefield || [];
+  for (const blocker of mine) {
+    if (!(blocker.temporaryEffects || []).some(e => e?.kind === 'must-block-any')) continue;
+    if (assignments.some(x => x.blockerId === blocker.instanceId)) continue;
+    if (attackers.some(a => canBlock(blocker, findCard(a.instanceId)))) reasons.push(`${game.cardDefinitions?.[blocker.definitionId]?.name || 'A creature'} must block this turn if able.`);
+  }
+  for (const a of attackers) {
+    const card = findCard(a.instanceId);
+    if (!card) continue;
+    const fx = card.temporaryEffects || [];
+    const name = game.cardDefinitions?.[card.definitionId]?.name || 'That attacker';
+    if (fx.some(e => e?.kind === 'lure-turn')) {
+      for (const b of mine) if (canBlock(b, card) && !assignments.some(x => x.blockerId === b.instanceId && x.attackerId === card.instanceId)) reasons.push(`${game.cardDefinitions?.[b.definitionId]?.name || 'A creature'} must block ${name} if able.`);
+    } else if (fx.some(e => e?.kind === 'must-be-blocked') && !assignments.some(x => x.attackerId === card.instanceId) && mine.some(b => canBlock(b, card) && !assignments.some(x => x.blockerId === b.instanceId)))
+      reasons.push(`${name} must be blocked if able.`);
+  }
   return { legal: reasons.length === 0, reasons };
 }
 export function validateBlockAssignments({ game, defender, assignments = [] } = {}) {
@@ -579,7 +599,7 @@ export function validateBlockAssignments({ game, defender, assignments = [] } = 
       continue;
     }
     counts.set(blocker.instanceId, (counts.get(blocker.instanceId) || 0) + 1);
-    if (counts.get(blocker.instanceId) > blockerCapacity(bdef))
+    if (counts.get(blocker.instanceId) > blockerCapacity(bdef, blocker))
       reasons.push(`${bdef?.name || 'That creature'} is assigned to block more attackers than it can legally block.`);
   }
   for (const attack of incoming) {
@@ -944,6 +964,8 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
   }
   return { legal: reasons.length === 0, reasons };
 }
-export function blockerCapacity(definition) { const text = String(definition?.oracleText || ''); const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
+// "This creature can block an additional creature this turn." (build 102): temporary extra blocks on the card.
+export function blockerCapacity(definition, card = null) { return blockerCapacityPrinted(definition) + (card?.temporaryEffects || []).filter(e => e?.kind === 'extra-blocks').reduce((n, e) => n + Number(e.amount || 0), 0); }
+function blockerCapacityPrinted(definition) { const text = String(definition?.oracleText || ''); const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
   return 1; const words = { one: 1, two: 2, three: 3, four: 4, five: 5 }; return 1 + (Number(m[1]) || words[m[1].toLowerCase()] || 0); }
 export function attackerMinimumBlockers(definition, instance = null) { return instanceKeyword(instance, definition, 'Menace') ? 2 : 1; }

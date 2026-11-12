@@ -3343,4 +3343,79 @@ section('build 102: amounts read from the text');
   check('"creatures in your party": a Cleric Wizard and a Wizard fill two roles', t.P(0).life === life + 2, String(t.P(0).life - life));
 }
 
+section('build 102: combat, turns and colours');
+{
+  // "Target creature blocks this turn if able": a block that leaves it out is refused
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Fog Bank', 'battlefield');
+  const bear = t.bf(0, 'Grizzly Bears'), wall = t.bf(1, 'Fog Bank');
+  t.end(0); t.end(1);
+  wall.temporaryEffects = [{ kind: 'must-block-any', expires: 'cleanup' }];
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  t.passAll();
+  const none = t.try(1, { type: 'block', assignments: [] });
+  const ok = t.try(1, { type: 'block', assignments: [{ attackerId: bear.instanceId, blockerId: wall.instanceId }] });
+  check('"blocks this turn if able": no block refused, the block accepted', !none.ok && ok.ok, JSON.stringify([none.error, ok.error]));
+}
+{
+  // Lure for a turn: every creature able to block it must
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Fog Bank', 'battlefield');
+  const bear = t.bf(0, 'Grizzly Bears'), wall = t.bf(1, 'Fog Bank');
+  t.end(0); t.end(1);
+  bear.temporaryEffects = [{ kind: 'lure-turn', expires: 'cleanup' }];
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  t.passAll();
+  check('"All creatures able to block target creature this turn do so": not blocking it is refused', !t.try(1, { type: 'block', assignments: [] }).ok);
+}
+{
+  // "You skip your next turn."
+  const t = newGame(['simic', 'simic', 'simic']); t.keepAll();
+  t.P(1).skipTurns = 1;
+  t.end(0);
+  check('a skipped turn: after player 1, player 3 takes the turn', t.game.activePlayerId === t.P(2).playerId && !t.P(1).skipTurns, t.game.activePlayerId);
+}
+{
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '1', toughness: '4' }, 1);
+  cast(t, 'Opt', 'Target creature becomes red and gains haste until end of turn.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"becomes red and gains haste until end of turn": red, hasty', JSON.stringify(withOverlay(foe, def(t, foe)).colors) === '["R"]' && has(t, foe, 'Haste'), JSON.stringify(withOverlay(foe, def(t, foe)).colors));
+  cast(t, 'Divination', 'Target creature can\'t be regenerated this turn.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  foe.temporaryEffects.push({ kind: 'regen-shield', expires: 'cleanup' });
+  t.give(0, 'Counterspell'); const k = asText(t, t.hand(0, 'Counterspell'), 'Destroy target creature.', { manaCost: '{U}', typeLine: 'Instant' });
+  t.ctl.dispatch({ type: 'play', instanceId: k.instanceId }, t.as(0)); settle(t, [tgt(foe.instanceId)]);
+  check('"can\'t be regenerated this turn": the shield does not save it', foe.zone === 'graveyard', foe.zone);
+}
+{
+  // "Prevent all combat damage that would be dealt by target creature this turn."
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield');
+  const bear = t.bf(0, 'Grizzly Bears');
+  t.end(0); t.end(1);
+  t.game.combatPrevention = [{ turn: t.game.turnNumber, scope: 'by-card', cardId: bear.instanceId }];
+  const life = t.P(1).life;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('combat damage dealt by that creature is prevented', t.P(1).life === life, `${life} → ${t.P(1).life}`);
+}
+
+section('build 102: "its power" is the right creature');
+{
+  // Venom Blast: the targeted creature (now 4/4) deals the damage, equal to its own power
+  const t = setup();
+  const mine = onField(t, 'Grizzly Bears', ''), foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Put two +1/+1 counters on target creature you control. It deals damage equal to its power to up to one other target creature.', [[d => d.targeting && (d.options || []).some(o => o.id === mine.instanceId) && !(d.options || []).some(o => o.id === foe.instanceId), () => mine.instanceId], tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Venom Blast: the 4/4 deals 4 damage', Number(foe.damageMarked || 0) === 4, String(foe.damageMarked));
+}
+{
+  // Hamletback Goliath: X is the entering creature's power, not its own
+  const t = setup();
+  const goliath = onField(t, 'Fog Bank', 'Whenever another creature enters, you may put X +1/+1 counters on this creature, where X is that creature\'s power.', { power: '6', toughness: '6' });
+  cast(t, 'Grizzly Bears', '');
+  check('Hamletback Goliath: a 2/2 entering gives two counters', Number(goliath.counters?.['+1/+1'] || 0) === 2, JSON.stringify(goliath.counters));
+}
+
 done();

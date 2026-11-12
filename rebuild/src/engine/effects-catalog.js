@@ -624,7 +624,7 @@ export function regenerates(game, card, notes = []) {
     return true;
   }
   const shields = (card?.temporaryEffects || []).filter(e => e?.kind === 'regen-shield');
-  if (!shields.length || card.cantRegenerate) return false;
+  if (!shields.length || card.cantRegenerate || (card.temporaryEffects || []).some(e => e?.kind === 'cant-regenerate')) return false;
   card.temporaryEffects.splice(card.temporaryEffects.indexOf(shields[0]), 1);
   card.tapped = true;
   card.damageMarked = 0;

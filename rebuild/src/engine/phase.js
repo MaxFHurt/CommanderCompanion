@@ -113,6 +113,13 @@ export function advanceTurn(game) {
     }
     if (!next)
       next = game.players[(i + 1) % game.players.length];
+    // "You skip your next turn." (build 102): that player's turn is passed over once per skip.
+    for (let guard = 0; next && Number(next.skipTurns || 0) > 0 && guard < game.players.length * 4; guard++) {
+      next.skipTurns--;
+      step++;
+      next = game.players[(i + step) % game.players.length];
+      while (next?.eliminated && step < game.players.length * 4) { step++; next = game.players[(i + step) % game.players.length]; }
+    }
     if ((i + step) >= game.players.length)
       game.roundNumber++;
   }

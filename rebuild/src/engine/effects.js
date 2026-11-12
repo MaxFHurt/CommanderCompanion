@@ -391,7 +391,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
   if (amount.kind === 'spells-cast-this-turn')
     return (game.players.find(x => x.playerId === controllerId)?.counters?.castThisTurn || []).filter(x => !amount.types || amount.types.some(t => new RegExp(`\\b${t}\\b`, 'i').test(x.typeLine || ''))).length;
   if (amount.kind === 'b101-source-counters') {
-    const hit = locateCardInGame(game, amount.it && bindings.eventCard && bindings.eventCard !== bindings.sourceId ? bindings.eventCard : bindings.sourceId);
+    const hit = locateCardInGame(game, amount.that ? (bindings.thatCard || bindings.eventCard) : amount.it && bindings.eventCard && bindings.eventCard !== bindings.sourceId ? bindings.eventCard : bindings.sourceId);
     const counters = (hit && hit.zone === 'battlefield' ? hit.card.counters : (bindings.eventCounters || hit?.card?.counters)) || {};
     return amount.counter === '*' ? Object.values(counters).reduce((n, v) => n + Math.max(0, Number(v) || 0), 0) : Number(counters[amount.counter] || 0);
   }
@@ -419,11 +419,19 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const p = game.players.find(x => x.playerId === (amount.ref ? (bindings[amount.playerBind] || bindings.eventPlayer) : controllerId)), seen = new Set();
     if (amount.kind === 'b101-domain') for (const c of p?.deck?.battlefield || []) { const t = String(definitionFor(game, c)?.typeLine || ''); if (/\bLand\b/.test(t)) for (const b of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (new RegExp(`\\b${b}\\b`).test(t)) seen.add(b); }
     if (amount.kind === 'b101-colors') for (const c of p?.deck?.battlefield || []) for (const k of definitionFor(game, c)?.colors || []) seen.add(k);
-    if (amount.kind === 'b101-grave-types') for (const c of p?.deck?.graveyard || []) for (const b of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery']) if (new RegExp(`\\b${b}\\b`).test(String(definitionFor(game, c)?.typeLine || ''))) seen.add(b);
+    if (amount.kind === 'b101-grave-types') for (const c of (amount.all ? game.players.filter(q => !q.eliminated).flatMap(q => q.deck?.graveyard || []) : p?.deck?.graveyard || [])) for (const b of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery']) if (new RegExp(`\\b${b}\\b`).test(String(definitionFor(game, c)?.typeLine || ''))) seen.add(b);
     return seen.size;
   }
   if (amount.kind === 'source-counters')
     return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[amount.counter] || 0);
+  if (amount.kind === 'b101-its-power') {
+    const hit = locateCardInGame(game, bindings.eventCard || bindings.sourceId);
+    if (!hit) return 0;
+    if (hit.zone === 'battlefield') return Math.max(0, Number(effectivePower(hit.card, definitionFor(game, hit.card), game) || 0));
+    const p = Number(bindings.eventLastPower ?? definitionFor(game, hit.card)?.power);   // last known: printed power plus its counters when it left
+    const c = bindings.eventCounters || {};
+    return Math.max(0, (Number.isFinite(p) ? p : 0) + Number(c['+1/+1'] || 0) - Number(c['-1/-1'] || 0));
+  }
   if (amount.kind === 'event-card-power') {
     const hit = locateCardInGame(game, bindings.eventCard);
     return hit ? Math.max(0, Number(effectivePower(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
@@ -720,9 +728,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
     const amount = Math.max(0, resolveAmount(game, controllerId, effect.amount, bindings));
     if (effect.kind === 'prevent-combat') {
       game.combatPrevention = (game.combatPrevention || []).filter(x => x.turn === game.turnNumber);
-      const id = effect.scope === 'card' ? resolveBoundId(effect, bindings) : null;
+      const id = ['card', 'by-card', 'to-card'].includes(effect.scope) ? resolveBoundId(effect, bindings) : null;
       game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id });
-      notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : 'Combat damage to and from that creature is prevented this turn.');
+      notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : effect.scope === 'by-card' ? 'Combat damage that creature would deal is prevented this turn.' : effect.scope === 'to-card' ? 'Combat damage to that creature is prevented this turn.' : 'Combat damage to and from that creature is prevented this turn.');
       continue;
     }
     if (effect.kind === 'return-self-hand') {
@@ -2055,7 +2063,9 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   }
   if ((m = c.match(/^It deals damage equal to its power to (any target|target creature|target player|target opponent|target permanent)\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
-    effects.push({ kind: 'damage', amount: { kind: 'source-power' }, bind, sourceName });
+    // Build 102: "it" is the creature the ability is about (settled later: the earlier target, else the trigger's creature),
+    // and that creature deals the damage.
+    effects.push({ kind: 'damage-from-selected-creature', sourceBind: 'b101It', targetBind: bind, bind });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Target creature you control deals damage equal to its power to (any other target|any target|target creature|target player|target opponent)\.?$/i))) {
@@ -3086,7 +3096,7 @@ function bridgePronoun(clause, parts, sourceName) {
 // results are kept; each caller gets its own copy because some callers adjust the effects they receive.
 const COMPILE_CACHE = new Map();
 export function compileEffectText(text, opts = {}) {
-  const key = `${opts.sourceName || 'Effect'}\u0000${opts.allowGuidedFallback ? 1 : 0}\u0000${text}`;
+  const key = `${opts.sourceName || 'Effect'}\u0000${opts.allowGuidedFallback ? 1 : 0}\u0000${COMPILE_DEPTH > 0 ? 'n' : 't'}\u0000${text}`;
   let hit = COMPILE_CACHE.get(key);
   if (!hit) {
     hit = compileEffectTextUncached(text, opts);
@@ -3153,7 +3163,12 @@ function equalToAsX(clause) {
   EQUAL_TO_BUSY = true;
   try { if (!compileEffectTextUncached(clause, {}).unsupported.length) return clause; return compileEffectTextUncached(x, {}).unsupported.length ? clause : x; } catch { return clause; } finally { EQUAL_TO_BUSY = false; }
 }
-function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
+let COMPILE_DEPTH = 0;
+function compileEffectTextUncached(text, opts = {}) {
+  COMPILE_DEPTH++;
+  try { return compileEffectTextUncachedInner(text, opts); } finally { COMPILE_DEPTH--; }
+}
+function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
   const vote = compileVote(cleanOracle(text), sourceName, allowGuidedFallback);
   if (vote) return vote;
   const raw = cleanOracle(text);
@@ -3209,10 +3224,18 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
         }
       }
       // "Target creature gets +X/+0 …, where X is its power" (Berserk, Xenagos): the targeted creature's power, not this card's.
-      if (inner && inner.supported && /^(?:that creature'?s|its) power$/i.test(whereX[2].trim()) && /^(?:another |up to one )?target\b/i.test(whereX[1].trim())) {
+      // "its power" / "that creature's power" (build 102): the creature the instruction targets; with none, the card the
+      // trigger is about (the creature that entered, the enchanted creature that died), else this card. A creature
+      // sacrificed or chosen in the same ability is not tracked here: left to the player.
+      if (inner && inner.supported && /^(?:that creature'?s|its|their) power$/i.test(whereX[2].trim())) {
         const ts = inner.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
-        if (ts.length === 1) expr = { kind: 'bound-power', bind: ts[0].bind };
-        else if (ts.length > 1) expr = null;   // no creature targeted ("target opponent loses life equal to its power"): this card's power
+        const picked = [...parts, inner].some(p => (p.effects || []).some(e => /^(?:sacrifice|sacrifice-many|choose-permanent)$/.test(e.kind)) || (p.requirements || []).some(r => r.kind === 'choose-permanent' || r.kind === 'card-selection'));
+        // "X deals X damage to target creature, where X is its power": "its" is the one dealing the damage, not the target.
+        const dealer = whereX[1].match(/^(.*?)\bdeals?\b/i);
+        if (dealer && !/\btarget\b/i.test(dealer[1])) expr = /^(?:it|he|she|that creature)\b/i.test(dealer[1].trim()) ? { kind: 'b101-its-power' } : { kind: 'source-power' };
+        else if (ts.length === 1) expr = { kind: 'bound-power', bind: ts[0].bind };
+        else if (ts.length > 1 || picked) expr = null;
+        else expr = { kind: 'b101-its-power' };
       }
       if (expr != null && inner && inner.supported) {
         for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
@@ -3605,17 +3628,20 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   {
     const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay']);
     merged.effects.forEach((e, at) => {
-      if (e.bind !== 'b101It' && e.bind !== 'b101That') return;
-      // The earlier target: not one this same instruction names for itself ("It deals damage equal to its power to target creature …").
-      const own = new Set(Object.entries(e).filter(([k]) => k !== 'bind').map(([, v]) => v));
-      const earlierTarget = [...merged.requirements].reverse().find(r => r.kind === 'target' && !own.has(r.bind) && !/^target (?:player|opponent)$/i.test(r.scope || ''));
-      if (earlierTarget) e.bind = earlierTarget.bind;
-      else if (merged.effects.slice(0, at).every(x => PLAIN.has(x.kind))) e.bind = e.bind === 'b101It' ? 'eventCard' : 'thatCard';
-      else if (!merged.unsupported.includes(raw)) merged.unsupported.push(raw);
+      for (const key of ['bind', 'sourceBind']) {
+        if (e[key] !== 'b101It' && e[key] !== 'b101That') continue;
+        // The earlier target: not one this same instruction names for itself ("It deals damage equal to its power to target creature …").
+        const own = new Set(Object.entries(e).filter(([k]) => k !== key).map(([, v]) => v));
+        const earlierTarget = [...merged.requirements].reverse().find(r => r.kind === 'target' && !own.has(r.bind) && !/^target (?:player|opponent)$/i.test(r.scope || ''));
+        if (earlierTarget) e[key] = earlierTarget.bind;
+        else if (COMPILE_DEPTH > 1) continue;   // a sentence read inside a larger one: the outer reading settles it
+        else if (merged.effects.slice(0, at).every(x => PLAIN.has(x.kind))) e[key] = e[key] === 'b101It' ? 'eventCard' : 'thatCard';
+        else if (!merged.unsupported.includes(raw)) merged.unsupported.push(raw);
+      }
     });
     // A delayed "return it … at end of combat" after a target: "it" is that target.
     for (const e of merged.effects) if (e.kind === 'delay' && e.b101Pronoun && lastTarget) for (const x of e.effects) if (x.bind === 'eventCard' || x.bind === 'thatCard') x.bind = lastTarget.bind;
-    if (/"b101(?:It|That)"/.test(JSON.stringify(merged.effects)) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);   // inside a delayed or nested instruction
+    if (COMPILE_DEPTH <= 1 && /"b101(?:It|That)"/.test(JSON.stringify(merged.effects)) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);   // inside a delayed or nested instruction
   }
   // "Target player discards two cards. Otherwise, that player discards a card.": "that player" is the targeted player.
   const targetedPlayer = merged.requirements.find(r => r.kind === 'player');

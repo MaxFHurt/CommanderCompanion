@@ -62,6 +62,27 @@ export function parseCountB101(phrase) {
   if (/^cards? you'?ve discarded this turn$/.test(p)) return { kind: 'b101-tally', what: 'discards' };
   if (/^tokens? you(?:'ve)? created this turn$/.test(p)) return { kind: 'b101-tally', what: 'tokens' };
   if (/^creatures? in your party$/.test(p)) return { kind: 'b101-party' };
+  // Build 102, more of this turn's tally and one-off counts.
+  if ((m = p.match(/^(other )?(nontoken )?([a-z]+?)s?(?: and\/or ([a-z]+?)s?)? that entered (?:the battlefield )?under your control this turn$/)) || (m = p.match(/^(other )?(nontoken )?([a-z]+?)s?(?: and\/or ([a-z]+?)s?)? you had enter (?:the battlefield )?under your control this turn$/)))
+    return { kind: 'b101-tally', what: 'entered', other: !!m[1], nontoken: !!m[2], subs: [m[3], m[4]].filter(Boolean).map(singularB101) };
+  if (/^(?:opponents|players) you attacked this (?:turn|combat)$/.test(p)) return { kind: 'b101-tally', what: 'attacked' };
+  if (/^players? being attacked$/.test(p)) return { kind: 'b101-attacked-now' };
+  if (/^permanents? you'?ve sacrificed this turn$/.test(p)) return { kind: 'b101-tally', what: 'sacrificed' };
+  if ((m = p.match(/^(?:other )?spells? you'?ve cast this turn other than the first$/))) return { kind: 'b101-math', op: 'minus', a: { kind: 'spells-cast-this-turn' }, b: 1 };
+  if (/^times? you'?ve cast (?:a|your) commanders? from the command zone this game$/.test(p)) return { kind: 'b101-commander-casts' };
+  if ((m = p.match(/^colors? (?:that spell is|of that spell)$/)) || /^of that spell'?s colors$/.test(p)) return { kind: 'b101-event-spell-colors' };
+  if ((m = p.match(/^cards? in all graveyards with the same name as (?:that|the) spell$/))) return { kind: 'b101-same-name-graveyards' };
+  if ((m = p.match(/^graveyards? with (\w+) or more cards in (?:it|them)$/)) && lit(m[1]) != null) return { kind: 'b101-big-graveyards', min: lit(m[1]) };
+  if ((m = p.match(/^(?:your )?opponents? with (\w+) or more cards in hand$/)) && lit(m[1]) != null) return { kind: 'b101-opponents-hand', min: lit(m[1]) };
+  if ((m = p.match(/^opponents? who controls? fewer (creatures|lands|artifacts) than you$/))) return { kind: 'b101-opponents-more', type: singularB101(m[1]), fewer: true };
+  if ((m = p.match(/^card types? among cards in all graveyards$/))) return { kind: 'b101-grave-types', all: true };
+  if ((m = p.match(/^card types? among (other )?(nonland )?permanents you control$/))) return { kind: 'b101-types-among-permanents', other: !!m[1], nonland: !!m[2] };
+  if ((m = p.match(/^different (mana values?|powers?) among (nonland cards in your graveyard|nonland permanents you control|creatures you control|permanents you control)$/))) return { kind: 'b101-distinct', stat: /power/.test(m[1]) ? 'power' : 'mv', where: m[2] };
+  if (/^cards? with a cycling ability in your graveyard$/.test(p)) return { kind: 'b101-n', who: 'you', zone: 'graveyard', alts: [{ types: [], subs: [] }], adj: [], oracle: 'cycling' };
+  if ((m = p.match(/^permanents you control that are ([a-z]+)s(?: and\/or| or) ([a-z]+)s$/))) return parseCountB101(`${m[1]}s and/or ${m[2]}s you control`);
+  if ((m = p.match(/^(auras?|equipment|auras? and equipment) attached to (?:it|this creature|[a-z' ,-]+)$/))) return { kind: 'b101-attached', auras: /aura/.test(m[1]), equipment: /equipment/.test(m[1]) };
+  if (/^counters? on that creature$/.test(p)) return { kind: 'b101-source-counters', counter: '*', it: true, that: true };
+  if (/^times? (?:it|this creature) has mutated$/.test(p)) return { kind: 'b101-mutations' };
   if ((m = p.match(/^creatures? blocking it( beyond the first)?$/))) return m[1] ? { kind: 'b101-math', op: 'minus', a: { kind: 'b101-blockers' }, b: 1 } : { kind: 'b101-blockers' };
   if ((m = p.match(/^(white|blue|black|red|green) mana symbols? in the mana costs of permanents you control$/))) return { kind: 'devotion', color: COLORS[m[1]] };
   if ((m = p.match(/^opponents? who controls? more (creatures|lands|artifacts) than you$/))) return { kind: 'b101-opponents-more', type: singularB101(m[1]) };
@@ -193,6 +214,7 @@ function matchesB101(game, card, e, bindings, H) {
     }
   }
   if (e.keyword && !H.hasKeyword(card, d, e.keyword, game)) return false;
+  if (e.oracle && !new RegExp(`(?:^|\\n)\\s*${e.oracle}\\b`, 'i').test(String(d?.oracleText || ''))) return false;
   if (e.counter && !(e.counter === '*' ? Object.values(card.counters || {}).some(n => Number(n) > 0) : Number(card.counters?.[e.counter] || 0) > 0)) return false;
   const cmp = (v, [op, n]) => (op === '>=' ? v >= n : v <= n);
   if (e.power && !cmp(Number(H.effectivePower(card, d, game) || 0), e.power)) return false;
@@ -224,6 +246,8 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-tally': {
       const t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
       if (!t) return 0;
+      if (expr.what === 'entered') return (t.entered || []).filter(e => e.controllerId === controllerId && (!expr.other || e.id !== (bindings.eventCard || bindings.sourceId)) && (!expr.nontoken || !e.token) && expr.subs.some(x => x === 'creature' ? /\bCreature\b/i.test(e.typeLine) : new RegExp(`\\b${x}\\b`, 'i').test(e.typeLine))).length;
+      if (expr.what === 'attacked') return (t.attacked?.[controllerId] || []).length;
       if (expr.what !== 'died') return Number(t[expr.what]?.[controllerId] || 0);
       return t.died.filter(d => (expr.sub ? new RegExp(`\\b${expr.sub}\\b`, 'i').test(d.typeLine.split('—')[1] || '') : /\bCreature\b/i.test(d.typeLine)) && (!expr.nontoken || !d.token) && (!expr.mine || d.controllerId === controllerId) && (!expr.owned || (d.ownerId === controllerId && !d.token))).length;
     }
@@ -242,8 +266,42 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-opponents-more': {
       const n = p => (p?.deck?.battlefield || []).filter(c => new RegExp(`\\b${expr.type}\\b`, 'i').test(H.definitionFor(game, c)?.typeLine || '')).length;
       const me = n(alive.find(p => p.playerId === controllerId));
-      return alive.filter(p => p.playerId !== controllerId && n(p) > me).length;
+      return alive.filter(p => p.playerId !== controllerId && (expr.fewer ? n(p) < me : n(p) > me)).length;
     }
+    case 'b101-attacked-now': return new Set((game.combatState?.attackers || []).map(a => a.defenderId).filter(Boolean)).size;
+    case 'b101-commander-casts': return (alive.find(p => p.playerId === controllerId)?.commanders || []).reduce((n, c) => n + Number(c.castCount || 0), 0);
+    case 'b101-event-spell-colors': {
+      const obj = (game.stack || []).find(x => x.id === bindings.eventStackId), card = obj?.card || (bindings.eventCard && H.locateCardInGame(game, bindings.eventCard)?.card);
+      return card ? (H.definitionFor(game, card)?.colors || []).length : 0;
+    }
+    case 'b101-same-name-graveyards': {
+      const obj = (game.stack || []).find(x => x.id === bindings.eventStackId), card = obj?.card || (bindings.eventCard && H.locateCardInGame(game, bindings.eventCard)?.card);
+      const name = card && H.definitionFor(game, card)?.name;
+      return name ? alive.reduce((n, p) => n + (p.deck.graveyard || []).filter(c => H.definitionFor(game, c)?.name === name).length, 0) : 0;
+    }
+    case 'b101-big-graveyards': return alive.filter(p => (p.deck.graveyard || []).length >= expr.min).length;
+    case 'b101-opponents-hand': return alive.filter(p => p.playerId !== controllerId && (p.deck.hand || []).length >= expr.min).length;
+    case 'b101-types-among-permanents': {
+      const seen = new Set();
+      for (const c of alive.find(p => p.playerId === controllerId)?.deck?.battlefield || []) {
+        if (expr.other && c.instanceId === bindings.sourceId) continue;
+        const front = String(H.definitionFor(game, c)?.typeLine || '').split('—')[0];
+        if (expr.nonland && /\bLand\b/.test(front)) continue;
+        for (const t of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Kindred', 'Land', 'Planeswalker']) if (new RegExp(`\\b${t}\\b`).test(front)) seen.add(t);
+      }
+      return seen.size;
+    }
+    case 'b101-distinct': {
+      const me = alive.find(p => p.playerId === controllerId);
+      const rows = expr.where === 'nonland cards in your graveyard' ? (me?.deck?.graveyard || []).filter(c => !/\bLand\b/.test(H.definitionFor(game, c)?.typeLine || ''))
+        : (me?.deck?.battlefield || []).filter(c => { const t = H.definitionFor(game, c)?.typeLine || ''; return expr.where === 'creatures you control' ? /\bCreature\b/.test(t) : expr.where === 'nonland permanents you control' ? !/\bLand\b/.test(t) : true; });
+      return new Set(rows.map(c => { const d = H.definitionFor(game, c); return expr.stat === 'power' ? Number(H.effectivePower(c, d, game) || 0) : Number(d?.manaValue ?? d?.cmc ?? 0); })).size;
+    }
+    case 'b101-attached': {
+      const host = bindings.eventCard && bindings.eventCard !== bindings.sourceId && H.locateCardInGame(game, bindings.eventCard)?.zone === 'battlefield' ? bindings.eventCard : bindings.sourceId;
+      return alive.flatMap(p => p.deck.battlefield || []).filter(c => c.attachedTo === host && ((expr.auras && /\bAura\b/.test(H.definitionFor(game, c)?.typeLine || '')) || (expr.equipment && /\bEquipment\b/.test(H.definitionFor(game, c)?.typeLine || '')))).length;
+    }
+    case 'b101-mutations': { const hit = H.locateCardInGame(game, bindings.sourceId); return Math.max(0, (hit?.card?.mutatedWith || []).length); }
     case 'b101-players': return alive.length;
     case 'b101-player-counter': return Number(alive.find(p => p.playerId === controllerId)?.counters?.[expr.counter] || 0);
     case 'b101-colors-spent': {

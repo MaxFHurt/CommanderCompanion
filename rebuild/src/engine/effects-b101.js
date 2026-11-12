@@ -151,6 +151,106 @@ export function compileB101Clause(c, ctx) {
     if (r) return take(r);
   }
 
+  // --- Build 102. Colours: "Target creature becomes red until end of turn." (Wisps), "… becomes black and gains fear …"
+  const COLW = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  if ((m = c.match(rx(`^(target creature|target permanent|target artifact|target land|${SELF}|it|that creature) becomes? (white|blue|black|red|green|colorless)(?: and (white|blue|black|red|green))?( until end of turn)?(?: and (gains? [a-z ,]+|gets? [+-]\\d+\\/[+-]\\d+) until end of turn)?\\.?$`))) && (m[4] || /until end of turn$/i.test(c))) {
+    const colors = m[2].toLowerCase() === 'colorless' ? [] : [COLW[m[2].toLowerCase()], ...(m[3] ? [COLW[m[3].toLowerCase()]] : [])];
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : pronounBind(m[1]);
+    effects.push({ kind: 'animate', bind, power: null, toughness: null, addTypes: [], subtypes: [], keywords: [], colors, expires: 'cleanup', typeOnly: false, colorOnly: true });
+    if (m[5]) {
+      const r2 = sub(`Target creature ${m[5].replace(/^gain /i, 'gains ').replace(/^get /i, 'gets ')} until end of turn.`), t2 = r2?.requirements.find(q => q.kind === 'target');
+      if (!r2 || !t2 || r2.requirements.length !== 1) { effects.pop(); if (/^target/i.test(m[1])) requirements.pop(); return false; }
+      effects.push(...r2.effects.map(e => swapBind(e, t2.bind, bind)));
+    }
+    return true;
+  }
+  // "This creature becomes the color of your choice until end of turn."
+  if ((m = c.match(rx(`^(${SELF}|target creature|target permanent) becomes the colou?r of your choice until end of turn\\.?$`)))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : 'sourceId', colorBind = `color${requirements.length}`;
+    requirements.push({ kind: 'color', bind: colorBind, includeColorless: false, label: 'Choose a color' });
+    effects.push({ kind: 'b101-set-color', bind, colorBind });
+    return true;
+  }
+  // "Prevent all combat damage that would be dealt by target creature this turn." / "… dealt to target creature …"
+  if ((m = c.match(/^Prevent all combat damage that would be dealt (by|to) (target (?:attacking |blocking )?creature(?: [a-z' ]+)?|it|that creature) this turn\.?$/i))) {
+    const bind = /^target/i.test(m[2]) ? H.targetRequirement(requirements, m[2].toLowerCase(), m[2]) : /^it$/i.test(m[2]) ? 'b101It' : 'b101That';
+    effects.push({ kind: 'prevent-combat', scope: /^by$/i.test(m[1]) ? 'by-card' : 'to-card', bind });
+    return true;
+  }
+  // "Prevent all damage that would be dealt to target creature this turn." (all damage, not only combat)
+  if ((m = c.match(/^Prevent all damage that would be dealt to (target creature(?: [a-z' ]+)?|target player|you|it) this turn\.?$/i))) {
+    const self = /^you$/i.test(m[1]), bind = self ? null : /^it$/i.test(m[1]) ? 'b101It' : /player/i.test(m[1]) ? H.playerRequirement(requirements, 'player', m[1]) : H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'prevent-damage', ...(self ? { toController: true } : { bind }), amount: 9999, expires: 'cleanup' });
+    return true;
+  }
+  // "Target creature can't be regenerated this turn."
+  if ((m = c.match(/^(target creature(?: [a-z' ]+)?|it|that creature) can'?t be regenerated this turn\.?$/i))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : /^it$/i.test(m[1]) ? 'b101It' : 'b101That';
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'cant-regenerate', expires: 'cleanup' }, note: "can't be regenerated this turn" });
+    return true;
+  }
+  // "You skip your next turn." / "Target player skips their next turn."
+  if ((m = c.match(/^(you|target player|target opponent|that player) skips? (?:your|their) next turn\.?$/i))) {
+    const pb = /^you$/i.test(m[1]) ? null : /^that/i.test(m[1]) ? 'eventPlayer' : H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', m[1]);
+    effects.push({ kind: 'b101-skip-turn', ...(pb ? { forPlayerBind: pb } : {}) });
+    return true;
+  }
+  // "This creature can block an additional creature this turn." / "… any number of creatures this turn."
+  if ((m = c.match(rx(`^(${SELF}|target creature(?: you control)?|it) can block (an|one|two|three|any number of) additional creatures? this turn\\.?$`))) || (m = c.match(rx(`^(${SELF}|target creature(?: you control)?|it) can block (any number of) creatures this turn\\.?$`)))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : /^it$/i.test(m[1]) ? 'b101It' : 'sourceId';
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'extra-blocks', amount: /any number/i.test(m[2]) ? 99 : num(m[2]), expires: 'cleanup' }, note: 'can block more creatures this turn' });
+    return true;
+  }
+  // "Target creature blocks this turn if able." / "It must be blocked this turn if able." / "All creatures able to block target creature this turn do so."
+  if ((m = c.match(rx(`^(target creature(?: [a-z' ]+)?|${SELF}|it|that creature) blocks this turn if able\\.?$`)))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : /^it$/i.test(m[1]) ? 'b101It' : /^that/i.test(m[1]) ? 'b101That' : 'sourceId';
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'must-block-any', expires: 'cleanup' }, note: 'must block this turn if able' });
+    return true;
+  }
+  if ((m = c.match(rx(`^(target creature(?: [a-z' ]+)?|${SELF}|it|that creature) must be blocked this turn if able\\.?$`)))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : /^it$/i.test(m[1]) ? 'b101It' : /^that/i.test(m[1]) ? 'b101That' : 'sourceId';
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'must-be-blocked', expires: 'cleanup' }, note: 'must be blocked this turn if able' });
+    return true;
+  }
+  if ((m = c.match(rx(`^All creatures able to block (target creature(?: [a-z' ]+)?|${SELF}|it|that creature) this turn do so\\.?$`)))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : /^it$/i.test(m[1]) ? 'b101It' : /^that/i.test(m[1]) ? 'b101That' : 'sourceId';
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'lure-turn', expires: 'cleanup' }, note: 'must be blocked by every creature able to block it this turn' });
+    return true;
+  }
+  // "… gets +2/+2 until end of turn and can attack this turn as though it didn't have defender." (defender off this turn)
+  if ((m = c.match(rx(`^(${SELF}|target creature(?: [a-z' ]+)?)( gets [+-]\\d+\\/[+-]\\d+ until end of turn and)? can attack this turn as though (?:it|they) didn'?t have defender\\.?$`)))) {
+    const r = m[2] ? sub(`${m[1]} gets ${m[2].match(/[+-]\d+\/[+-]\d+/)[0]} until end of turn.`) : null;
+    if (m[2] && !r) return false;
+    if (r) { effects.push(...r.effects); requirements.push(...r.requirements); }
+    const t = r?.requirements.find(q => q.kind === 'target');
+    effects.push({ kind: 'grant-keyword', bind: t ? t.bind : /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), m[1]) : 'sourceId', keyword: 'defender', enabled: false, expires: 'cleanup' });
+    return true;
+  }
+  // "if you have fewer than seven cards in hand, draw cards equal to the difference"
+  if ((m = c.match(rx(`^(?:then )?if you have fewer than ${N} cards in (?:your )?hand, draw cards equal to the difference\\.?$`)))) {
+    effects.push({ kind: 'draw', scope: 'you', amount: { kind: 'b101-math', op: 'minus', a: num(m[1]), b: { kind: 'count', zone: 'hand', filter: 'card' } } });
+    return true;
+  }
+  // "it deals that much damage to each other opponent" (the one dealt damage is left out)
+  if ((m = c.match(rx(`^(?:${SELF}|it) deals (that much|${N}) damage to each other opponent\\.?$`)))) {
+    effects.push({ kind: 'b101-damage-other-opponents', amount: /that much/i.test(m[1]) ? { kind: 'binding', bind: 'eventAmount' } : num(m[1]), sourceName });
+    return true;
+  }
+  // "Remove a +1/+1 counter from it at end of combat." (Clockwork creatures)
+  if ((m = c.match(rx(`^remove (a|an|one|two) ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters? from (it|${SELF}) at end of combat\\.?$`)))) {
+    effects.push({ kind: 'delay', when: { event: 'end-combat', whose: 'any' }, effects: [{ kind: 'remove-counter', bind: /^it$/i.test(m[3]) ? 'eventCard' : 'sourceId', counter: m[2], amount: num(m[1]) }], requirements: [] });
+    return true;
+  }
+  // "Draw that many cards plus one."
+  if ((m = c.match(rx(`^(?:you )?draw that many cards plus ${N}\\.?$`)))) { effects.push({ kind: 'draw', scope: 'you', amount: { kind: 'b101-math', op: 'plus', a: { kind: 'binding', bind: 'thatMany' }, b: num(m[1]) } }); return true; }
+  // "~ deals 2 damage to it." (the trigger's card, or what was targeted before)
+  if ((m = c.match(rx(`^(?:${SELF}) deals ${N} damage to (it|that creature)\\.?$`)))) { effects.push({ kind: 'damage', amount: num(m[1]), bind: /^it$/i.test(m[2]) ? 'b101It' : 'b101That', sourceName }); return true; }
+  // "That creature is a black Zombie in addition to its other colors and types." (permanently)
+  if ((m = c.match(/^(?:That creature|It)(?: is| becomes) an? (white|blue|black|red|green) ([A-Z][a-z]+) in addition to its other colors and types\.?$/i))) {
+    effects.push({ kind: 'animate', bind: /^it/i.test(c) ? 'b101It' : 'b101That', power: null, toughness: null, addTypes: [], subtypes: [m[2]], keywords: [], colors: null, addColors: [COLW[m[1].toLowerCase()]], expires: null, typeOnly: true, subtypeOnly: true });
+    return true;
+  }
+
   // --- Random discards: the game picks; nobody chooses.
   if ((m = c.match(rx(`^(?:you )?discard ${N} cards? at random\\.?$`)))) { effects.push({ kind: 'b101-discard-random', amount: num(m[1]) }); return true; }
   if ((m = c.match(rx(`^(Target player|Target opponent|Each player|Each opponent|That player|Defending player) discards ${N} cards? at random\\.?$`)))) {
@@ -207,7 +307,7 @@ export function compileB101Clause(c, ctx) {
     }
   }
   // "SELF deals 1 damage to each of two targets." "… to each of up to two target creatures." "… to each of up to three targets."
-  if ((m = c.match(rx(`^(.+? deals? (?:${N}|that much) damage to) each of (up to )?${N} (targets?|target creatures?(?: and\\/or planeswalkers?)?|target creatures? (?:an opponent controls|you don't control|without flying|with flying)|target players?|target opponents?|target creatures? or planeswalkers?)\\.?$`)))) {
+  if (!/\b(?:its|their) power\b|^(?:target|another target|up to)/i.test(c) && (m = c.match(rx(`^(.+? deals? (?:${N}|that much) damage to) each of (up to )?${N} (targets?|target creatures?(?: and\\/or planeswalkers?)?|target creatures? (?:an opponent controls|you don't control|without flying|with flying)|target players?|target opponents?|target creatures? or planeswalkers?)\\.?$`)))) {
     const count = num(m[4]), what = m[5].replace(/^targets?$/i, 'any target').replace(/^target (creature|player|opponent|planeswalker)s/i, 'target $1').replace(/planeswalkers$/i, 'planeswalker');
     const r = sub(`${m[1]} ${what}.`), t = r?.requirements.find(q => q.kind === 'target' || q.kind === 'player');
     if (r && t && r.requirements.length === 1 && t.kind === 'target' && count != null) {
@@ -242,7 +342,7 @@ export function compileB101Clause(c, ctx) {
 
   // --- A pronoun where the game reads a target: "That creature can't block this turn." "It must be blocked this turn if able."
   // Only in a trigger or ability with nothing targeted before it (a spell's "it" is bridged to its target in effects.js).
-  if ((m = c.match(rx(`^(It|That creature|That permanent|That land|That artifact|${SELF}) ((?:can'?t|must|blocks?|attacks?|doesn'?t|gains?|gets?|becomes?|loses?|fights?|is|deals?|has|phases?) .+)$`))) && !/\btarget\b/i.test(c)) {
+  if ((m = c.match(rx(`^(It|That creature|That permanent|That land|That artifact|${SELF}) ((?:can'?t|must|blocks?|attacks?|doesn'?t|gains?|gets?|becomes?|loses?|fights?|is|deals?|has|phases?) .+)$`))) && !/\btarget\b/i.test(c) && !/\bequal to (?:its|their) (?:power|toughness)\b/i.test(c)) {
     const noun = /land/i.test(m[1]) ? 'land' : /artifact/i.test(m[1]) ? 'artifact' : /permanent/i.test(m[1]) ? 'permanent' : 'creature';
     const r = sub(`Target ${noun} ${m[2]}`), t = r?.requirements.find(q => q.kind === 'target');
     if (r && t && r.requirements.length === 1) { effects.push(...r.effects.map(e => swapBind(e, t.bind, pronounBind(m[1])))); return true; }
@@ -286,6 +386,29 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
       }
       bindings.discardedThisWay = Number(bindings.discardedThisWay || 0) + n;
       notes.push(n ? `${controller.displayName} discards ${names.join(', ')} at random.` : `${controller.displayName} has no cards to discard.`);
+      return true;
+    }
+    case 'b101-set-color': {
+      const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind), col = bindings[effect.colorBind];
+      if (!hit || hit.zone !== 'battlefield' || !col) return true;
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'animate', addTypes: [], subtypes: [], keywords: [], colors: [col], expires: 'cleanup' }];
+      notes.push(`${definitionFor(game, hit.card)?.name || 'It'} becomes ${({ W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' })[col] || col} until end of turn.`);
+      return true;
+    }
+    case 'b101-temp': {
+      const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
+      hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { ...effect.fx }];
+      notes.push(`${definitionFor(game, hit.card)?.name || 'It'} ${effect.note}.`);
+      return true;
+    }
+    case 'b101-skip-turn':
+      if (controller) { controller.skipTurns = Number(controller.skipTurns || 0) + 1; notes.push(`${controller.displayName} skips their next turn.`); }
+      return true;
+    case 'b101-damage-other-opponents': {
+      const skip = bindings.eventPlayer || bindings.__damagedPlayer;
+      for (const p of (game.players || []).filter(q => !q.eliminated && q.playerId !== controllerId && q.playerId !== skip))
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: effect.amount, playerId: p.playerId, sourceName: effect.sourceName }], bindings));
       return true;
     }
     case 'b101-give-control': {

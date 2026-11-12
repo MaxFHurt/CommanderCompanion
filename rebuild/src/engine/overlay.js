@@ -83,6 +83,7 @@ export function withOverlay(card, def) {
     if (e.toughness !== undefined && e.toughness !== null) out.toughness = String(e.toughness);
     if (e.keywords?.length) out.keywords = [...new Set([...(out.keywords || []), ...e.keywords])];
     if (e.colors) out.colors = [...e.colors];
+    if (e.addColors?.length) out.colors = [...new Set([...(out.colors || []), ...e.addColors])];
   }
   return out;
 }
