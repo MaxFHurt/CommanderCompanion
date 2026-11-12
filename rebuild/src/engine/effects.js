@@ -7,6 +7,7 @@ import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
+import { parseCountB101, parseAmountB101, evalAmountB101, bindAmountPlayerB101, amountNeedsPlayerB101 } from './amounts-b101.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -415,7 +416,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return n;
   }
   if (amount.kind === 'b101-domain' || amount.kind === 'b101-colors' || amount.kind === 'b101-grave-types') {
-    const p = game.players.find(x => x.playerId === controllerId), seen = new Set();
+    const p = game.players.find(x => x.playerId === (amount.ref ? (bindings[amount.playerBind] || bindings.eventPlayer) : controllerId)), seen = new Set();
     if (amount.kind === 'b101-domain') for (const c of p?.deck?.battlefield || []) { const t = String(definitionFor(game, c)?.typeLine || ''); if (/\bLand\b/.test(t)) for (const b of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (new RegExp(`\\b${b}\\b`).test(t)) seen.add(b); }
     if (amount.kind === 'b101-colors') for (const c of p?.deck?.battlefield || []) for (const k of definitionFor(game, c)?.colors || []) seen.add(k);
     if (amount.kind === 'b101-grave-types') for (const c of p?.deck?.graveyard || []) for (const b of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery']) if (new RegExp(`\\b${b}\\b`).test(String(definitionFor(game, c)?.typeLine || ''))) seen.add(b);
@@ -433,6 +434,8 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const v = resolveAmount(game, controllerId, amount.of, bindings);
     return amount.round === 'up' ? Math.ceil(v / 2) : Math.floor(v / 2);
   }
+  const b101 = evalAmountB101(game, controllerId, amount, bindings, { definitionFor, locateCardInGame, effectivePower, effectiveToughness, hasKeyword, resolveAmount });
+  if (b101 !== undefined) return b101;
   return 0;
 }
 function targetPlayers(game, controllerId, scope, targetId) {
@@ -1829,7 +1832,9 @@ function knownCountPhrase(p) {
   if ((m = p.match(/^creatures? you control with (flying|defender|reach|trample|haste|vigilance|deathtouch|lifelink|menace|first strike|double strike)$/))) return { kind: 'count', zone: 'battlefield', filter: `creature|keyword:${m[1]}` };
   if ((m = p.match(/^([a-z]+) cards? in your graveyard$/)) && !['basic', 'other', 'those', 'the', 'nonland', 'noncreature', 'permanent', 'instant', 'sorcery', 'historic', 'legendary'].includes(m[1])) return { kind: 'count', zone: 'graveyard', filter: `subtype:${singularNoun(m[1])}` };
   if ((m = p.match(/^(instant|sorcery) cards? in your graveyard$/))) return { kind: 'count', zone: 'graveyard', filter: m[1] };
-  return null;
+  // The general reader (amounts-b101.js). A count about "that player" needs the caller to say who (the "where X is" reader does).
+  const general = parseCountB101(p);
+  return general && !amountNeedsPlayerB101(general) ? general : null;
 }
 function countExprFromPhrase(phrase) {
   const s = String(phrase || '').toLowerCase();
@@ -3128,11 +3133,14 @@ function equalToAsX(clause) {
     if (use) return use;
   }
   // A pronoun subject ("It deals damage equal to its power …") is read with the sentence before it; left alone.
-  if (EQUAL_TO_BUSY || /\bX\b/.test(clause) || !/ equal to /i.test(clause) || /^(?:It|They|That (?:creature|permanent))\b/.test(clause)) return clause;
+  if (EQUAL_TO_BUSY || /\bX\b/.test(clause) || !/ equal to | for each /i.test(clause) || /^(?:It|They|That (?:creature|permanent))\b/.test(clause)) return clause;
   const x = clause
     .replace(/^(.*?\b(?:lose|loses|gain|gains)) life equal to ([^.,]+?)\.$/i, '$1 X life, where X is $2.')
     .replace(/^(.*?\bmills?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
     .replace(/^(.*?\bdeals?) damage equal to (.+?) to ((?:any target|target [^.,]+?|each [^.,]+?))\.$/i, '$1 X damage to $3, where X is $2.')
+    .replace(/^(.*?\bdeals?) damage to (any target|target [^.,]+?|each [^.,]+?|that player|that creature|it|you) equal to (.+?)\.$/i, '$1 X damage to $2, where X is $3.')
+    .replace(/^(.*?\bdraws?) a card for each (.+?)\.$/i, '$1 X cards, where X is the number of $2.')
+    .replace(/^(.*?\b[Pp]ut) (?:a|an) ([+-]\d+\/[+-]\d+|[a-z]+) counter on (.+?) for each (.+?)\.$/i, '$1 X $2 counters on $3, where X is the number of $4.')
     .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
     .replace(/^(.*?\bcreates?) a number of (.+? tokens(?: with [^.]+?)?) equal to ([^.,]+?)\.$/i, '$1 X $2, where X is $3.');
   if (x === clause) return clause;
@@ -3176,17 +3184,26 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
       if (inner.supported) { parts.push({ effects: [{ kind: 'may-pay', cost: payOr[1], lifeCost: 0, skip: inner.effects.length, invert: true }, ...inner.effects], requirements: inner.requirements, unsupported: [] }); skipNextClause = true; continue; }
     }
     // "…, where X is the number of creatures you control." — X is counted as it resolves.
-    const whereX = clause.match(/^(.+?),? where X is (the number of .+?|the greatest power among .+?|your devotion to (?:white|blue|black|red|green)|.+?'?s power)\.?$/i);
+    const whereX = clause.match(/^(.+?),? where X is (.+?)\.?$/i);
     if (whereX) {
-      let expr = whereXExpr(whereX[2]);
+      // The general reader first (owners, zones, lists, "twice", "plus"); then the older readings.
+      let expr = parseAmountB101(whereX[2]);
+      if (expr == null && /^(?:the number of .+|the greatest power among .+|your devotion to (?:white|blue|black|red|green)|.+?'?s power)$/i.test(whereX[2])) expr = whereXExpr(whereX[2]);
       const inner = expr != null ? compileEffectText(`${whereX[1]}.`, { sourceName }) : null;
+      // "… the number of lands that player controls": the player the sentence targets, else the trigger's player.
+      if (inner && inner.supported && amountNeedsPlayerB101(expr)) {
+        const pr = inner.requirements.find(r => r.kind === 'player') || inner.requirements.find(r => r.kind === 'target' && /^target (?:player|opponent)$/i.test(r.scope || ''));
+        const each = inner.effects.find(e => e.forPlayerBind)?.forPlayerBind;
+        if (pr || !/\btarget (?:player|opponent)\b/i.test(whereX[2])) bindAmountPlayerB101(expr, pr ? pr.bind : (each || 'eventPlayer'));
+        else expr = null;
+      }
       // "Target creature gets +X/+0 …, where X is its power" (Berserk, Xenagos): the targeted creature's power, not this card's.
       if (inner && inner.supported && /^(?:that creature'?s|its) power$/i.test(whereX[2].trim()) && /^(?:another |up to one )?target\b/i.test(whereX[1].trim())) {
         const ts = inner.requirements.filter(r => r.kind === 'target');
         expr = ts.length === 1 ? { kind: 'bound-power', bind: ts[0].bind } : null;
       }
       if (expr != null && inner && inner.supported) {
-        for (const r of inner.requirements) if (r.kind === 'multi-target' && (r.max === 'X' || r.min === 'X')) r.xExpr = expr;   // counted as the targets are chosen
+        for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
         parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });
         continue;
       }

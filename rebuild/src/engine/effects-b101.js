@@ -4,6 +4,7 @@
 // game already runs (the same effect for another subject, another player or several targets), so the game's own
 // rules for that effect apply. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { parseCountB101, amountNeedsPlayerB101, bindAmountPlayerB101 } from './amounts-b101.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -29,6 +30,21 @@ export function compileB101Clause(c, ctx) {
   // ability when there is one, else the trigger's card ("it") or the other card of the event ("that creature").
   const pronounBind = s => rx(`^${SELF}$`).test(s) ? 'sourceId' : /^(?:it|he|she|they)$/i.test(s) ? 'b101It' : /^(?:enchanted|equipped|fortified) /i.test(s) ? '__attached' : 'b101That';
   let m;
+
+  // --- "Put X +1/+1 counters on this creature." (X from the cost, or from "where X is …"): the instruction for two counters, with X.
+  if ((m = c.match(/^(?:Then )?put X ((?:[+-]\d+\/[+-]\d+|[a-z]+) counters on .+)$/i)) && !/\btwo\b/i.test(m[1])) {
+    const r = sub(`Put two ${m[1]}`);
+    if (r && r.effects.some(e => e.amount === 2)) { r.effects.forEach(e => { if (e.amount === 2) e.amount = 'X'; }); if (!r.requirements.some(q => q.kind === 'number')) r.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }); return take(r); }
+  }
+  // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
+  if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
+    const expr = parseCountB101(m[1]);
+    if (expr && amountNeedsPlayerB101(expr)) {
+      const pb = H.playerRequirement(requirements, /opponent/i.test(m[2]) ? 'opponent' : 'player', m[2]);
+      effects.push({ kind: 'draw', scope: 'you', amount: bindAmountPlayerB101(expr, pb) });
+      return true;
+    }
+  }
 
   // --- Random discards: the game picks; nobody chooses.
   if ((m = c.match(rx(`^(?:you )?discard ${N} cards? at random\\.?$`)))) { effects.push({ kind: 'b101-discard-random', amount: num(m[1]) }); return true; }

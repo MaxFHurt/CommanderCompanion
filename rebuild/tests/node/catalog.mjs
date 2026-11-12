@@ -3306,4 +3306,41 @@ const tgt = id => [d => d.targeting || (d.options || []).some(o => o.id === id),
   check('Shared Animosity: two attacking Elves each get +1/+0', power(t, a) === 3 && power(t, b) === 2, `${power(t, a)} ${power(t, b)}`);
 }
 
+section('build 102: amounts read from the text');
+{
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Squirrel' }); onField(t, 'Fog Bank', '', { typeLine: 'Creature — Bat Rat' });
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  cast(t, 'Opt', 'Each opponent loses X life and you gain X life, where X is the number of Squirrels, Bats, Lizards, and Rats you control.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('"the number of Squirrels, Bats, Lizards, and Rats you control": each creature once (2)', t.P(1).life === l1 - 2 && t.P(0).life === l0 + 2, `${t.P(0).life - l0} ${t.P(1).life - l1}`);
+  // nonbasic lands that player controls: the targeted player's, not yours
+  onField(t, 'Fog Bank', '', { typeLine: 'Land' }, 1); onField(t, 'Grizzly Bears', '', { typeLine: 'Land' }, 1);
+  const before = t.P(1).life;
+  cast(t, 'Divination', 'Divination deals damage to target player equal to the number of nonbasic lands that player controls.', [tgt(t.P(1).playerId)], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('"damage to target player equal to the number of nonbasic lands that player controls": their two', t.P(1).life === before - 2, String(t.P(1).life - before));
+}
+{
+  const t = setup();
+  for (const n of ['Forest', 'Island', 'Grizzly Bears', 'Fog Bank', 'Divination', 'Counterspell']) { const c = t.P(0).deck.remainingLibrary.find(x => def(t, x).name === n); if (c) t.edit({ kind: 'move', instanceId: c.instanceId, to: 'hand' }); }
+  const n = t.P(0).deck.hand.length, life = t.P(0).life;   // Opt joins the hand, then leaves it as it is cast
+  cast(t, 'Opt', 'You gain X life, where X is the number of cards in your hand minus 4.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"the number of cards in your hand minus 4"', n >= 5 && t.P(0).life === life + (n - 4), `${n} cards, gained ${t.P(0).life - life}`);
+}
+{
+  // This turn's tally: a creature that died under your control
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  cast(t, 'Opt', 'Destroy target creature.', [tgt(bear.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  cast(t, 'Divination', 'Create a 3/3 green Beast creature token for each creature put into your graveyard from the battlefield this turn.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Fresh Meat: one creature died this turn, one Beast', t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Beast').length === 1, String(t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Beast').length));
+}
+{
+  // Party: up to one each of Cleric, Rogue, Warrior, Wizard; a Cleric Wizard and a Wizard make two
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Human Cleric Wizard' }); onField(t, 'Fog Bank', '', { typeLine: 'Creature — Human Wizard', keywords: [] });
+  const life = t.P(0).life;
+  cast(t, 'Opt', 'You gain X life, where X is the number of creatures in your party.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"creatures in your party": a Cleric Wizard and a Wizard fill two roles', t.P(0).life === life + 2, String(t.P(0).life - life));
+}
+
 done();

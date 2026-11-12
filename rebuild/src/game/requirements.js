@@ -250,6 +250,9 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
   reqs.forEach((req, index) => {
     const key = `${prefix}:${index}:${req.kind}`;
     const title = `${sourceName} — ${req.label || 'Choose'}`;
+    // "Scry X / up to X targets …, where X is the number of …": X is counted now, as the choice is made (it was 0);
+    // it is counted again as the effect resolves.
+    if (req.xExpr != null) bindings.X = Math.max(0, Number(resolveAmount(game, player.playerId, req.xExpr, { ...bindings, sourceId: bindings.sourceId || ctx.source?.instanceId || null })) || 0);
 
     if (gatherCatalogRequirement(game, ctx, req, bindings, ask, key, title, base, { defOf, cardOption, candidatesFor, opponentsOf, alivePlayers, playerById, plural, gather: gatherRequirements })) return;
     if (req.kind === 'number') {
