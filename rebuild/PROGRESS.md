@@ -7,9 +7,9 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.100 (Deck Builder {"build": 211, "version": "0.9.66"})
+- **Live build:** 1.0.0-rebuild.101 (Deck Builder {"build": 211, "version": "0.9.66"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,958 of 32,300 (about 68%; Scryfall oracle file of 12 Nov 2026, long-tail batch 1, not yet live);
+- **Whole catalog:** 21,958 of 32,300 (about 68%; Scryfall oracle file of 12 Nov 2026, build 101);
   about 10,340 still need something done by hand. On the same file the live build 100 measures 21,993: batch 1 made 237
   more cards run by themselves and sent 272 back to "by hand" that the game had been reading wrongly (see the batch 1
   entry below). It is a long tail: 10,307 by-hand cards fail on about 11,500 different wordings.
@@ -168,7 +168,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 ### Build 90 — 2 Nov 2026
 - Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
 
-### Long tail, batch 1 — 12 Nov 2026 (branch only, not live; waits for the owner's check-in)
+### Build 101 — 12 Nov 2026: long tail, batch 1 (owner, 12 Nov: release it; batches of 500 from now on; the 272 sent-back cards are to be fixed, nothing left by hand)
 - **237 more cards run by themselves.** New wordings in `src/engine/effects-b101.js` (hooked after the build-49 ones): random
   discards (Hymn to Tourach, Mind Twist, Hypnotic Specter: the game picks, nobody is asked); damage to "that land's /
   artifact's / spell's controller" (Ankh of Mishra, Zo-Zu, Smash to Smithereens, Ionize); "loses flying / defender /
@@ -199,7 +199,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
   controls" as a count, "twice the number of", "that spell's mana value", "your life total", "becomes red and gains haste").
 - Top 1,000: still all (1,000). Whole catalog on today's Scryfall file (32,300 cards): 21,993 → 21,958.
 - Tests: catalog 431 (+22), game 254, mechanics 85, smoke 6, tracker 20, practice 20, rules-server 27, forge triggers
-  unchanged, soak 40 three times (0 problems), Playwright suites (see the check-in). Deck Builder untouched.
+  unchanged, soak 40 three times (0 problems), every Playwright suite (game_ui 28, flows_ui 29, net_ui 30, online_ui 41, offline_ui 5, pair_ui 5, challenge_ui 13, scan_ui, tracker_test 40, tracker_net_ui 44). Deck Builder unchanged since build 100 (its suite ran then).
 - Tools for the next batches: `tools/longtail/` (README there).
 
 ### Build 89 — 8 Nov 2026
