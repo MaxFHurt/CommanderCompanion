@@ -179,7 +179,10 @@ function strBuild(d, cap, casual, pool, core) {
   const ident = ctxOf(d).ident,
     isL = c => tags(c).land,
     A0 = analyze(d),
-    need = Object.fromEntries(STR_ROLES.map(r => [r, Math.min(A0.T[r], A0.roles[r])])),
+    // UP.strKeepJobs: the deck's own counts are the floor (not only the formula's targets): a 9-mana commander needs more ramp than
+    // the minimum, and the deck's finishers and protection are how it wins (owner, 12 Nov: fix the mana first)
+    need = Object.fromEntries(STR_ROLES.map(r => [r, UP.strKeepJobs ? A0.roles[r] : Math.min(A0.T[r], A0.roles[r])])),
+    winJob = c => isFinisher(c) || tags(c).roles.has('protect'),
     vv = c => strValue(c, d, casual),
     list = strSlots(d),
     done = [];
@@ -200,6 +203,7 @@ function strBuild(d, cap, casual, pool, core) {
         // colours run Polluted Delta and Reliquary Tower, but in a mono-red deck they would take the place of its Mountains
         if (isL(add) && (UP.strLands === 0 || !landCovers(cut, add, ident))) continue;
         if (STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(add).roles.has(r) && rc[r] - 1 < need[r])) continue;
+        if (UP.strKeepJobs && winJob(cut) && !winJob(add)) continue;
         if (!best || g > best.g) best = {add, cut, g};
         break;
       }
@@ -336,7 +340,16 @@ function strFinish(d, tier, keep) {
   const casual = tier !== 'apex',
     cap = TIERS[tier].cap,
     kept = n => keep && keep.has(keyOf(n));
+  // practice-game mana (the score's mana part), to check the finished deck against the deck as generated
+  const manaOf = () => {
+    const S = simulate(d, 200, 7);
+    return Math.max(0, Math.min(1, 0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)));
+  };
+  const mana0 = UP.strManaGuard ? manaOf() : 0;
   let n = 0;
+  // the generator's land count is the floor (UP.strKeepLands): strength picks are cheaper spells, so the land formula would cut
+  // lands, and practice games then came up short of lands more often (Krenko 35 -> 33 lands, mana 100 -> 89)
+  const lands0 = analyze(d).lands;
   for (let round = 0; round < 8; round++) {
     const SR = strengthRef(d);
     if (!SR || SR.top <= SR.floor) break;
@@ -354,7 +367,7 @@ function strFinish(d, tier, keep) {
     // basics give way to the strongest spells allowed, or the weakest spells (not the deck's core, not a job it is short of)
     // to basics, whose colours are then split by what the spells need
     const A = analyze(d),
-      diff = A.lands - A.T.lands;
+      diff = A.lands - (UP.strKeepLands ? Math.max(A.T.lands, lands0) : A.T.lands);
     if (Math.abs(diff) > 1) {
       const ok = strOk(d),
         vv = c => strValue(c, d, casual);
@@ -389,12 +402,49 @@ function strFinish(d, tier, keep) {
         }
       }
       try {
-        applyMana(d, manaPlan(d));
+        const mp = manaPlan(d);
+        if (mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
       } catch (e) {}
     }
     n += k;
     if (!k) break;
   }
+  // mana guard (owner, 12 Nov: "Fix the mana first"): while the finished deck's practice games run worse on mana than the deck as
+  // generated did, its weakest spell (not its core, not a job it needs) gives way to a land of the colour its spells need most,
+  // kept only when the games get better; at most three lands
+  if (n && UP.strManaGuard) {
+    const SR = strengthRef(d);
+    let m = manaOf();
+    for (let i = 0; i < 3 && SR && m < mana0 - 0.005; i++) {
+      const A2 = analyze(d),
+        vv = c => strValue(c, d, casual),
+        cut = strSlots(d)
+          .filter((c, j, a) => a.indexOf(c) === j && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(entryOf(d, c.n) || {}).l)
+          .filter(c => !STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < Math.min(A2.T[r], A2.roles[r])))
+          .sort((a, b) => vv(a) - vv(b))[0];
+      if (!cut) break;
+      const mp = manaPlan(d),
+        col = Object.keys(mp.want || {}).sort((a, b) => (mp.want[b] || 0) - (mp.have[b] || 0) - ((mp.want[a] || 0) - (mp.have[a] || 0)))[0],
+        land = BASIC_OF[col] || BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes',
+        snap = JSON.stringify(d.cards);
+      cutCard(d, cut.n, 1);
+      addCard(d, land, 1);
+      const m2 = manaOf();
+      if (m2 <= m) {
+        d.cards = JSON.parse(snap);
+        break;
+      }
+      m = m2;
+      n++;
+    }
+  }
+  // the basics' colours follow what the new spells need (the generator's split was for its own spells)
+  // (only a re-split: a plan that would also change how many lands there are is left out)
+  if (n)
+    try {
+      const mp = manaPlan(d);
+      if (mp.changes.length && mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
+    } catch (e) {}
   return n;
 }
 // A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
