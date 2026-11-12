@@ -244,6 +244,21 @@ frame, ui/button-frame-large.png, with typed labels).
 3. Before building: confirm with the owner the pop-up's steps and wording, and whether the precon-level fill uses the Budget
    tier's prices. Checks: generator benchmarks (genstrong, tourney), UI suite, phone and iPad layouts.
 
+## 7e. Open issues (owner, 12 Nov: "any issues you have left that are unresolved should go to the roadmap")
+Each item says what is left and who has to act. Nothing here is live unless the Done list says so.
+1. **Wait-for-data rule (upgrade list):** still off (S.settle). Build 96's attempt made UI-ASYNC-01 and UI-B197-02 flaky side by side; the gate is in ui/library.js (recsSettling). Next: log its holds in a full run and check whether a held list delays recsFor.done or UPFIX. Needs the owner's go to spend the time.
+2. **Recovery email (7b.3):** not started. Needs an email-sending service set up in the owner's name (account and key). Phone (SMS) later, paid.
+3. **Profile sign-in warning (7b.2, optional, not decided):** warning on a device that is not linked to a profile key.
+4. **Landing buttons (7c):** the owner's original art is needed (about 2,500 px or SVG). The current cut-outs are edited and low resolution.
+5. **Deck setup pop-up (7d):** built, but two choices were left to the owner: the pop-up's exact steps and wording, and whether the precon-level fill uses Budget prices (built as Budget, under $3 each).
+6. **Top bar on the owner's iPhone (Build 98):** the fix is live but has not been checked on the phone. Owner to confirm sideways and upright.
+7. **Flip chip (Build 98):** live, checked by test only. Owner to say which two-sided cards still show no chip, and whether reversible cards read Reverse.
+8. **Commander colours (Build 99, not live):** needs the owner's yes after the full run. Then check a two-sided commander's box on the phone.
+9. **Colour indicators in the card export:** the export now keeps each face's colour indicator, but the published card data must be regenerated before identity.js checks it (138 cards are not checked until then). Needs the card-data workflow to run.
+10. **UI-STATS-01 (test):** fails side by side, passes alone. Test speed, not an app fault; fix the test's wait when next touched.
+11. **Upgrade list on the background helper (options C + D):** not started; the owner said "next week".
+12. **Ideas, not decided:** a top-down table view for the Deck Builder (2D, tilted 3D or full 3D; owner to choose); online play over a separate video call (the app would sync life and turns only).
+
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
@@ -253,6 +268,7 @@ frame, ui/button-frame-large.png, with typed labels).
 ---
 
 ## Done (recent, newest first)
+- Build 98 (live, 11 Nov): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
 
 - Build 98 (Deck Builder 0.9.64, build 209): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
 - Build 97 (Deck Builder 0.9.63, build 208): the top bar fits every screen; Profile clean-up (Settings pop-up for engine and card data); Set up your deck pop-up for empty decks with the full build listed to add (7d).
