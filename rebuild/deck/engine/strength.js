@@ -293,6 +293,33 @@ function strPicks(d, SR) {
   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
   return SR.picks;
 }
+// A generated deck finished on the strength scale (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says
+// it's deck power 66 with 28 cards on the upgrade page"): deck power and the upgrade list measure a deck against its strength
+// builds, so a deck generated at a price level takes that level's strength build's swaps (the same rule-following picks the
+// upgrade list shows), again until the build finds nothing more. An Apex deck is then its own Apex build (power 100, no Apex
+// rows); Mid and Budget are their builds. Cards in keep (the player's own picks) and locked cards stay. Returns the swaps made.
+function strFinish(d, tier, keep) {
+  if (!strengthOn(d) || !TIERS[tier]) return 0;
+  let n = 0;
+  for (let round = 0; round < 6; round++) {
+    const SR = strengthRef(d);
+    if (!SR || SR.top <= SR.floor) break;
+    const P = strPicks(d, SR),
+      L = (P[tier] || []).filter(s => !(keep && keep.has(keyOf(s.cut))));
+    let k = 0;
+    for (const s of L) {
+      const e = entryOf(d, s.cut);
+      if (!e || e.l || entryOf(d, s.add)) continue;
+      if (e.q > 1) e.q--;
+      else d.cards.splice(d.cards.indexOf(e), 1);
+      d.cards.push({n: s.add, q: 1});
+      k++;
+    }
+    n += k;
+    if (!k) break;
+  }
+  return n;
+}
 // A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
 // measure many swaps (the upgrade list, the Fix menus, See alternatives). Null when strength is off.
 function strGainFn(d, SR) {

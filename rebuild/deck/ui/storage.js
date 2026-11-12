@@ -1025,6 +1025,31 @@ function genKey(j) {
   ]);
 }
 async function genRun(nd, seeds, ownOnly, ownAll, fill) {
+  // a deck generated at a price level is finished on the strength scale its power is measured on (strFinish); not for decks
+  // of owned cards only or with a dollar budget, whose limits the strength picks don't know
+  const fin = fill && TIERS[fill] && UP.strGen !== 0 && !ownOnly && !(nd.budget && nd.budget.total) && typeof strFinish === 'function' && UP.str && STRENGTH.cards && nd.format === 'commander';
+  // the scale moves with the commander's page and the deck's themes (an automatic deck takes the page's top themes when it
+  // arrives), so both are in place before the deck is built and finished, not swapped in afterwards
+  if (fin)
+    try {
+      await loadEdh(nd.commander);
+      if (themeDefaults(nd)) nd.aimAuto = true;
+      await loadThemes(nd.commander, nd.aims);
+    } catch (e) {}
+  const G = await genRun0(nd, seeds, ownOnly, ownAll, fill);
+  if (G && fin)
+    try {
+      await loadEdh(nd.commander); // the page of a deck left open may have taken the one EDHREC slot while this one was built
+      await loadThemes(nd.commander, nd.aims);
+      await loadStrengthCmd(nd.commander);
+      const keep = new Set((seeds || []).map(x => keyOf(typeof x === 'string' ? x : x.n)));
+      genRun.str = strFinish(nd, fill, keep);
+    } catch (e) {
+      console.warn('Strength finish failed:', e);
+    }
+  return G;
+}
+async function genRun0(nd, seeds, ownOnly, ownAll, fill) {
   const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
   if (!wkGet()) return local();
   const job = genJob(nd, seeds, ownOnly, ownAll, fill),
@@ -1059,7 +1084,7 @@ async function genRun(nd, seeds, ownOnly, ownAll, fill) {
     });
     while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value);
   }
-  genRun.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
+  genRun.last = genRun0.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
   return {n: r.n, k: r.k};
 }
 // Stop a build made ahead that is no longer wanted (the worker stops it at its next step).
