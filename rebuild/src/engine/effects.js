@@ -389,6 +389,38 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     return Number(amount.n || 1) * resolveAmount(game, controllerId, amount.of, bindings);
   if (amount.kind === 'spells-cast-this-turn')
     return (game.players.find(x => x.playerId === controllerId)?.counters?.castThisTurn || []).filter(x => !amount.types || amount.types.some(t => new RegExp(`\\b${t}\\b`, 'i').test(x.typeLine || ''))).length;
+  if (amount.kind === 'b101-source-counters') {
+    const hit = locateCardInGame(game, amount.it && bindings.eventCard && bindings.eventCard !== bindings.sourceId ? bindings.eventCard : bindings.sourceId);
+    const counters = (hit && hit.zone === 'battlefield' ? hit.card.counters : (bindings.eventCounters || hit?.card?.counters)) || {};
+    return amount.counter === '*' ? Object.values(counters).reduce((n, v) => n + Math.max(0, Number(v) || 0), 0) : Number(counters[amount.counter] || 0);
+  }
+  if (amount.kind === 'b101-chosen-type') {
+    const p = game.players.find(x => x.playerId === controllerId), src = locateCardInGame(game, bindings.sourceId);
+    const type = String(bindings.chosenCreatureType || src?.card?.chosenCreatureType || '').trim();
+    if (!type) return 0;
+    const re = new RegExp(`\\b${type.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return (p?.deck?.battlefield || []).filter(c => cardMatchesFilter(game, c, amount.filter) && (re.test(String(definitionFor(game, c)?.typeLine || '').split('—')[1] || '') || (/\bCreature\b/.test(definitionFor(game, c)?.typeLine || '') && /changeling/i.test(definitionFor(game, c)?.oracleText || '')))).length;
+  }
+  if (amount.kind === 'b101-attackers-sharing') {
+    const me = locateCardInGame(game, bindings.eventCard || bindings.sourceId);
+    const subs = c => { const d = definitionFor(game, c); return /changeling/i.test(d?.oracleText || '') ? ['*'] : (String(d?.typeLine || '').split('—')[1] || '').trim().split(/\s+/).filter(Boolean); };
+    if (!me) return 0;
+    const mine = subs(me.card);
+    let n = 0;
+    for (const a of game.combatState?.attackers || []) {
+      if (a.instanceId === me.card.instanceId) continue;
+      const o = locateCardInGame(game, a.instanceId), theirs = o ? subs(o.card) : [];
+      if (o && mine.length && theirs.length && (mine.includes('*') || theirs.includes('*') || mine.some(x => theirs.includes(x)))) n++;
+    }
+    return n;
+  }
+  if (amount.kind === 'b101-domain' || amount.kind === 'b101-colors' || amount.kind === 'b101-grave-types') {
+    const p = game.players.find(x => x.playerId === controllerId), seen = new Set();
+    if (amount.kind === 'b101-domain') for (const c of p?.deck?.battlefield || []) { const t = String(definitionFor(game, c)?.typeLine || ''); if (/\bLand\b/.test(t)) for (const b of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (new RegExp(`\\b${b}\\b`).test(t)) seen.add(b); }
+    if (amount.kind === 'b101-colors') for (const c of p?.deck?.battlefield || []) for (const k of definitionFor(game, c)?.colors || []) seen.add(k);
+    if (amount.kind === 'b101-grave-types') for (const c of p?.deck?.graveyard || []) for (const b of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery']) if (new RegExp(`\\b${b}\\b`).test(String(definitionFor(game, c)?.typeLine || ''))) seen.add(b);
+    return seen.size;
+  }
   if (amount.kind === 'source-counters')
     return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[amount.counter] || 0);
   if (amount.kind === 'event-card-power') {
@@ -1773,11 +1805,46 @@ export function applyEffects(game, controllerId, effects = [], bindings = {}) {
     throw error;
   }
 }
+/** Counting phrases with their own meaning (build 101). The phrase is lower case; returns an amount or null. */
+function knownCountPhrase(p) {
+  let m;
+  // "burden counter on The One Ring", "+1/+1 counters on this creature": counters on the source (its last known
+  // counters when it has left the battlefield, as in "When this creature dies, … for each +1/+1 counter on it").
+  if ((m = p.match(/^([+-]\d+\/[+-]\d+|[a-z]+) counters? on (this [a-z]+|[a-z' ,-]+)$/)) && !/^(?:it|each|all|target|that|those|enchanted|equipped|creatures?|permanents?|lands?|artifacts?)\b/.test(m[2]) && !/ you control| among | and |\bcontrols?\b/.test(m[2]))
+    return { kind: 'b101-source-counters', counter: m[1] };
+  // "… for each +1/+1 counter on it" / "the number of counters on it": the trigger's own card, or the card the trigger is about.
+  if ((m = p.match(/^(?:([+-]\d+\/[+-]\d+|[a-z]+) )?counters? on it$/))) return { kind: 'b101-source-counters', counter: m[1] || '*', it: true };
+  // Distant Melody: "each permanent you control of that type" (the creature type just chosen).
+  if ((m = p.match(/^(permanent|creature)s? you control of (?:that|the chosen) type$/))) return { kind: 'b101-chosen-type', filter: m[1] };
+  // Shared Animosity: "each other attacking creature that shares a creature type with it".
+  if (/^other attacking creatures? that shares? a creature type with it$/.test(p)) return { kind: 'b101-attackers-sharing' };
+  if (/^basic land types? among lands you control$/.test(p)) return { kind: 'b101-domain' };
+  if (/^colors? among permanents you control$/.test(p)) return { kind: 'b101-colors' };
+  if (/^card types? among cards in your graveyard$/.test(p)) return { kind: 'b101-grave-types' };
+  if (/^instant and(?:\/or)? sorcery cards? in your graveyard$/.test(p)) return { kind: 'count', zone: 'graveyard', filter: 'instant or sorcery' };
+  if (/^creatures? that died this turn$/.test(p)) return { kind: 'died-this-turn' };
+  if ((m = p.match(/^(other )?attacking ([a-z]+?)s?( you control)?$/)) && m[2] !== 'creature' && /^[a-z]+$/.test(m[2])) return { kind: 'count', zone: 'battlefield', filter: `creature|attacking|subtype:${singularNoun(m[2])}`, all: true, ...(m[1] ? { minus: 1 } : {}) };
+  if ((m = p.match(/^(other )?attacking creatures?( you control)?$/))) return { kind: 'count', zone: 'battlefield', filter: 'creature|attacking', all: true, ...(m[1] ? { minus: 1 } : {}) };
+  if ((m = p.match(/^(tapped|untapped) ([a-z]+?)s? you control$/)) && filterFromNoun(m[2])) return { kind: 'count', zone: 'battlefield', filter: `${filterFromNoun(m[2])}|${m[1]}` };
+  if ((m = p.match(/^creatures? you control with (flying|defender|reach|trample|haste|vigilance|deathtouch|lifelink|menace|first strike|double strike)$/))) return { kind: 'count', zone: 'battlefield', filter: `creature|keyword:${m[1]}` };
+  if ((m = p.match(/^([a-z]+) cards? in your graveyard$/)) && !['basic', 'other', 'those', 'the', 'nonland', 'noncreature', 'permanent', 'instant', 'sorcery', 'historic', 'legendary'].includes(m[1])) return { kind: 'count', zone: 'graveyard', filter: `subtype:${singularNoun(m[1])}` };
+  if ((m = p.match(/^(instant|sorcery) cards? in your graveyard$/))) return { kind: 'count', zone: 'graveyard', filter: m[1] };
+  return null;
+}
 function countExprFromPhrase(phrase) {
   const s = String(phrase || '').toLowerCase();
   if (!/graveyard|hand|library|opponent|player/.test(s) && /\bwith\b|that entered|nontoken|\bgreen|\bwhite|\bblue|\bblack|\bred\b/.test(s)) {
     const f = filterFromNoun(s);
     if (f) return { kind: 'count', zone: 'battlefield', filter: f };
+  }
+  // Only a phrase that is fully understood is counted; anything else is left for the player (null).
+  const plain = s.trim().replace(/\.$/, '').replace(/ as you (?:activate this ability|cast this spell)$/, '');
+  if (!/^(?:(?:basic |nonbasic )?(?:lands?|creatures?|artifacts?|enchantments?|planeswalkers?|permanents?)(?: cards?)?(?: (?:you control|in your (?:graveyard|hand|library)))?|cards? in your (?:graveyard|hand|library))$/.test(plain)) {
+    const known = knownCountPhrase(plain);
+    if (known) return known;
+    const mine = plain.match(/^([a-z' -]+?) you control$/), every = plain.match(/^([a-z' -]+?) on the battlefield$/);
+    const f = (mine || every) && !/\b(?:and|or|other|counters?|cards?)\b/.test((mine || every)[1]) ? filterFromNoun((mine || every)[1]) : null;
+    return f ? { kind: 'count', zone: 'battlefield', filter: f, ...(every ? { all: true } : {}) } : null;
   }
   let zone = 'battlefield', filter = 'card';
   if (/in your graveyard/.test(s))
@@ -1819,6 +1886,8 @@ function amountExpr(text) {
     return literal;
   if (/^X$/i.test(s))
     return 'X';
+  if (/^the number of opponents you have$/i.test(s))
+    return { kind: 'opponents' };
   let m = s.match(/^the number of (.+)$/i);
   if (m)
     return countExprFromPhrase(m[1]);
@@ -1867,7 +1936,16 @@ function splitSentences(raw) {
   return cleanOracle(raw).split(/\n+|(?<=\.)\s+(?=[A-Z])|(?<=\.")\s+(?=[A-Z])/).map(normalizeClause).filter(Boolean).map(c => c.replace(/^When you do,/i, 'If you do,'));
 }
 function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)/g, '').replace(/\s+/g, ' ').trim(); }
-function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
+// A target description that swallowed the rest of the sentence ("target opponent and you gain 4 life", "target
+// creature gets +1/+0 until end of turn and") was not understood: the sentence is tried again in two halves, or left
+// for the player.
+const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
+function compileSingleClause(clause, opts = {}) {
+  const r = compileSingleClauseRaw(clause, opts);
+  if (r.requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`))) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
+  return r;
+}
+function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   const effects = [], requirements = [], unsupported = [];
   let c = stripReminderText(normalizeClause(clause));
   if (!c)
@@ -1902,7 +1980,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'draw', scope: 'you', amount: amountExpr(m[1]) });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Draw a card for each (.+)\.?$/i))) {
+  if ((m = c.match(/^Draw a card for each (.+)\.?$/i)) && countExprFromPhrase(m[1])) {
     effects.push({ kind: 'draw', scope: 'you', amount: countExprFromPhrase(m[1]) });
     return { effects, requirements, unsupported };
   }
@@ -2325,7 +2403,7 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'create-token', amount: { kind: 'opponents' }, power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}`, colors: tokenColors(typeWords) });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Create a (\d+)\/(\d+) ([^.]*?) creature token for each (.+)\.?$/i))) {
+  if ((m = c.match(/^Create a (\d+)\/(\d+) ([^.]*?) creature token for each (.+)\.?$/i)) && countExprFromPhrase(m[4])) {
     const typeWords = m[3].trim(), subtype = (typeWords.match(/(?:white|blue|black|red|green|colorless)?\s*([A-Z][A-Za-z'-]+)(?:\s+creature)?$/i) || [])[1] || 'Creature';
     effects.push({ kind: 'create-token', amount: countExprFromPhrase(m[4]), power: Number(m[1]), toughness: Number(m[2]), name: subtype, typeLine: `Token Creature — ${subtype}`, colors: tokenColors(typeWords) });
     return { effects, requirements, unsupported };
@@ -2565,6 +2643,17 @@ function compileSingleClause(clause, { sourceName = 'Effect' } = {}) {
 // "creatures you control with power 4 or greater", "green creature that entered this turn", "nontoken creature",
 // "creature or planeswalker": a filter for cardMatchesFilter ("creature|power>=4"), or null if not understood.
 const COLOR_WORDS = { white: 'w', blue: 'u', black: 'b', red: 'r', green: 'g' };
+// "Elves" -> elf, "Allies" -> ally, "Zombies" -> zombie, "Sphinxes" -> sphinx, "Cyclopes" -> cyclops.
+const IRREGULAR_NOUNS = { elves: 'elf', wolves: 'wolf', werewolves: 'werewolf', dwarves: 'dwarf', thieves: 'thief', mice: 'mouse', oxen: 'ox', cyclopes: 'cyclops', pegasi: 'pegasus', fungi: 'fungus', octopi: 'octopus', nautili: 'nautilus', geese: 'goose', feet: 'foot', children: 'child', sheep: 'sheep', fish: 'fish', elk: 'elk', moose: 'moose', kithkin: 'kithkin', merfolk: 'merfolk', treefolk: 'treefolk', vedalken: 'vedalken', viashino: 'viashino', kor: 'kor', moonfolk: 'moonfolk', homunculi: 'homunculus', djinn: 'djinn', efreet: 'efreet', cephalid: 'cephalid', myr: 'myr', eldrazi: 'eldrazi', leviathans: 'leviathan', lhurgoyfs: 'lhurgoyf', cyclops: 'cyclops', pegasus: 'pegasus', fungus: 'fungus', octopus: 'octopus', walrus: 'walrus', platypus: 'platypus', hippopotamus: 'hippopotamus', rhinoceros: 'rhinoceros', sphinx: 'sphinx', phoenix: 'phoenix', lynx: 'lynx', fox: 'fox', ox: 'ox', class: 'class', boss: 'boss', glass: 'glass', atlas: 'atlas', bolas: 'bolas', ooze: 'ooze', plains: 'plains', urzas: 'urzas', locus: 'locus', mongoose: 'mongoose', nautilus: 'nautilus', homunculus: 'homunculus', equipment: 'equipment', saprolings: 'saproling', gates: 'gate' };
+function singularNoun(w) {
+  const s = String(w || '').toLowerCase();
+  if (IRREGULAR_NOUNS[s]) return IRREGULAR_NOUNS[s];
+  if (/(?:zomb|faer|pix|gen|brown|cook|valkyr|rook|sort|aer|eer|junk|new|hipp|town)ies$/.test(s)) return s.slice(0, -1);
+  if (/[^aeiou]ies$/.test(s)) return `${s.slice(0, -3)}y`;
+  if (/(?:x|ch|sh|ss|us|z)es$/.test(s)) return s.slice(0, -2);
+  if (/(?:ss|us|is)$/.test(s)) return s;
+  return s.replace(/s$/, '');
+}
 function filterFromNoun(phrase) {
   let s = String(phrase || '').toLowerCase().trim().replace(/\.$/, '').replace(/^(?:a|an|each|all|other)\s+/, '');
   const conds = [];
@@ -2577,7 +2666,7 @@ function filterFromNoun(phrase) {
   s = s.trim();
   if ((m = s.match(/^([a-z]+?)s? or ([a-z]+?)s?$/))) return [`${m[1]} or ${m[2]}`, ...conds].join('|');
   const words = s.split(/\s+/).filter(Boolean);
-  const noun = (words.pop() || '').replace(/s$/, '');
+  const noun = singularNoun(words.pop() || '');
   if (!/^[a-z]+$/.test(noun)) return null;
   for (const w of words) {
     if (COLOR_WORDS[w]) conds.push(`color:${COLOR_WORDS[w]}`);
@@ -2919,7 +3008,34 @@ function compileAndClause(clause, opts) {
   while (at > 0) {
     const left = text.slice(0, at).trim(), right = text.slice(at + 5).trim();
     const variants = [right, `You ${right}`, right.replace(/^you /i, '')].map(r => r.charAt(0).toUpperCase() + r.slice(1));
-    const a = compileSingleClause(`${left}.`, opts);
+    let a = compileSingleClause(`${left}.`, opts);
+    // "Target creature gains trample and gets +X/+0 until end of turn.": the duration at the end covers both halves.
+    if ((a.unsupported.length || !a.effects.length) && / until end of turn$/i.test(right) && !/until end of turn/i.test(left)) a = compileSingleClause(`${left} until end of turn.`, opts);
+    // "Target player sacrifices a creature and loses 10 life." / "Each opponent discards a card and loses 2 life.": the
+    // second half has no subject of its own, so it is the same player's (never "you").
+    const other = left.match(/^(Target player|Target opponent|Each opponent|Each player|Each other player)\b/i);
+    if (other && /^(?:loses|gains|draws|discards|mills|sacrifices|creates|exiles|reveals|puts|gets|shuffles|scries|surveils|returns|takes)\b/.test(right)) {
+      if (!a.unsupported.length && a.effects.length) {
+        const b = compileSingleClause(`${other[1]} ${right}.`, opts);
+        const pa = a.requirements.find(r => r.kind === 'player'), pb = b.requirements.find(r => r.kind === 'player');
+        if (!b.unsupported.length && b.effects.length && !!pa === !!pb) {
+          const offset = a.requirements.length;
+          const renamed = offset && b.requirements.length ? JSON.parse(JSON.stringify(b).replace(/"(target|grave|player|discardCards|cards|number|color)(\d+)"/g, (_, k, n) => `"${k}${Number(n) + offset + 10}"`)) : b;
+          const pr = renamed.requirements.find(r => r.kind === 'player');
+          const same = o => (pr ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === pr.bind ? pa.bind : v])) : o);
+          return { effects: [...a.effects, ...renamed.effects.map(same)], requirements: [...a.requirements, ...renamed.requirements.filter(r => r !== pr).map(same)], unsupported: [] };
+        }
+      }
+      at = text.indexOf(' and ', at + 5);
+      continue;
+    }
+    // "Target creature gets +1/+0 until end of turn and can't be blocked this turn.": the second half is about the same target.
+    const one = a.requirements.length === 1 && a.requirements[0].kind === 'target' && /^target [a-z' ]*creature/i.test(a.requirements[0].scope || '') ? a.requirements[0] : null;
+    if (one && !a.unsupported.length && a.effects.length && /^(?:can'?t|gains?|gets?|loses?|must|attacks?|blocks?|doesn'?t|becomes?|has) /i.test(right) && !/\btarget\b/i.test(right)) {
+      const b = compileSingleClause(`Target creature ${right}.`, opts);
+      const tbs = b.requirements.filter(r => r.kind === 'target'), tb = tbs.length === 1 && b.requirements.every(r => r === tbs[0] || (r.kind === 'number' && r.bind === 'X')) ? tbs[0] : null;
+      if (!b.unsupported.length && b.effects.length && tb) return { effects: [...a.effects, ...b.effects.map(e => Object.fromEntries(Object.entries(e).map(([k, v]) => [k, v === tb.bind ? one.bind : v])))], requirements: [...a.requirements, ...b.requirements.filter(r => r !== tb)], unsupported: [] };
+    }
     if (!a.unsupported.length && a.effects.length) {
       for (const v of variants) {
         const b = compileSingleClause(`${v}.`, opts);
@@ -2933,6 +3049,10 @@ function compileAndClause(clause, opts) {
             again.effects.push(...a.effects, ...renamed.effects);
             again.requirements.push(...renamed.requirements);
             return again;
+          }
+          if (/\b(?:it|that creature|that permanent)\b/i.test(right) && a.requirements.filter(r => r.kind === 'target').length === 1) {
+            const t1 = a.requirements.find(r => r.kind === 'target');
+            for (const e of b.effects) for (const k of ['bind', 'targetBind']) if (e[k] === 'eventCard' || e[k] === 'lastTarget' || e[k] === 'thatCard') e[k] = t1.bind;
           }
           return mergeCompiled([a, b]);
         }
@@ -3058,9 +3178,15 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
     // "…, where X is the number of creatures you control." — X is counted as it resolves.
     const whereX = clause.match(/^(.+?),? where X is (the number of .+?|the greatest power among .+?|your devotion to (?:white|blue|black|red|green)|.+?'?s power)\.?$/i);
     if (whereX) {
-      const expr = whereXExpr(whereX[2]);
+      let expr = whereXExpr(whereX[2]);
       const inner = expr != null ? compileEffectText(`${whereX[1]}.`, { sourceName }) : null;
-      if (inner && inner.supported) {
+      // "Target creature gets +X/+0 …, where X is its power" (Berserk, Xenagos): the targeted creature's power, not this card's.
+      if (inner && inner.supported && /^(?:that creature'?s|its) power$/i.test(whereX[2].trim()) && /^(?:another |up to one )?target\b/i.test(whereX[1].trim())) {
+        const ts = inner.requirements.filter(r => r.kind === 'target');
+        expr = ts.length === 1 ? { kind: 'bound-power', bind: ts[0].bind } : null;
+      }
+      if (expr != null && inner && inner.supported) {
+        for (const r of inner.requirements) if (r.kind === 'multi-target' && (r.max === 'X' || r.min === 'X')) r.xExpr = expr;   // counted as the targets are chosen
         parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });
         continue;
       }
@@ -3444,6 +3570,19 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   if (lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget') e.bind = lastTarget.bind;
   // Nothing targeted: "it" is the card the trigger is about ("When this land enters, sacrifice it.").
   if (!lastTarget) for (const e of merged.effects) if (e.bind === 'lastTarget' && e.kind === 'sacrifice') e.bind = 'eventCard';
+  // Build 101: "That land becomes a 0/0 Elemental creature …", "It can't block this turn." read for a pronoun
+  // (effects-b101.js). With a target earlier in the ability the pronoun is that target; with none it is the trigger's
+  // card, but only when nothing earlier in the ability could have made or moved another card "it" might mean.
+  {
+    const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay']);
+    merged.effects.forEach((e, at) => {
+      if (e.bind !== 'b101It' && e.bind !== 'b101That') return;
+      if (lastTarget) e.bind = lastTarget.bind;
+      else if (merged.effects.slice(0, at).every(x => PLAIN.has(x.kind))) e.bind = e.bind === 'b101It' ? 'eventCard' : 'thatCard';
+      else if (!merged.unsupported.includes(raw)) merged.unsupported.push(raw);
+    });
+    if (/"b101(?:It|That)"/.test(JSON.stringify(merged.effects)) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);   // inside a delayed or nested instruction
+  }
   // "Target player discards two cards. Otherwise, that player discards a card.": "that player" is the targeted player.
   const targetedPlayer = merged.requirements.find(r => r.kind === 'player');
   if (targetedPlayer) for (const e of merged.effects) if (e.forPlayerBind === 'eventPlayer' && e.kind === 'discard' && e.cardsBind) {
@@ -3487,6 +3626,10 @@ function compileEffectTextUncached(text, { sourceName = 'Effect', allowGuidedFal
   // X must be chosen unless a caller already binds it from an X cost.
   if ((merged.effects.some(e => JSON.stringify(e).includes('"X"')) || merged.requirements.some(r => r.max === 'X' || r.min === 'X' || r.total === 'X')) && !merged.effects.some(e => e.kind === 'set-x') && !merged.requirements.some(r => r.kind === 'number' && r.bind === 'X'))
     merged.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });
+  // A target description that swallowed the rest of the sentence ("target player, where X is …", "target creature
+  // equal to …") was not understood: the player resolves it, rather than the game asking for a made-up X.
+  for (const r of merged.requirements) if (SWALLOWED.test(`${r.scope || ''} ${r.filter || ''}`) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);
+  if (/where x is/i.test(JSON.stringify(merged.effects)) && !merged.unsupported.includes(raw)) merged.unsupported.push(raw);
   if (allowGuidedFallback && merged.unsupported.length) {
     for (const u of merged.unsupported)
       merged.effects.push({ kind: 'manual', text: u });

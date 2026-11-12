@@ -9,8 +9,10 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 - **Live build:** 1.0.0-rebuild.100 (Deck Builder {"build": 211, "version": "0.9.66"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
-  commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
+- **Whole catalog:** 21,958 of 32,300 (about 68%; Scryfall oracle file of 12 Nov 2026, long-tail batch 1, not yet live);
+  about 10,340 still need something done by hand. On the same file the live build 100 measures 21,993: batch 1 made 237
+  more cards run by themselves and sent 272 back to "by hand" that the game had been reading wrongly (see the batch 1
+  entry below). It is a long tail: 10,307 by-hand cards fail on about 11,500 different wordings.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
 
@@ -165,6 +167,40 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Build 90 — 2 Nov 2026
 - Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
+
+### Long tail, batch 1 — 12 Nov 2026 (branch only, not live; waits for the owner's check-in)
+- **237 more cards run by themselves.** New wordings in `src/engine/effects-b101.js` (hooked after the build-49 ones): random
+  discards (Hymn to Tourach, Mind Twist, Hypnotic Specter: the game picks, nobody is asked); damage to "that land's /
+  artifact's / spell's controller" (Ankh of Mishra, Zo-Zu, Smash to Smithereens, Ionize); "loses flying / defender /
+  indestructible until end of turn"; "has base power and toughness N/N until end of turn" for the card itself; a group
+  "target player controls" (Contagion Engine, Great Oak Guardian, Overwhelming Forces, Tempest Caller); several targets each
+  with a one-target instruction ("Two target creatures each get …", "deals 1 damage to each of up to two targets": Jaya's
+  Immolating Inferno, Fall of the Titans, Profane Command's last mode); "defending player …" (Nemesis of Reason,
+  Thraximundar); "you may have target creature get/gain/fight …" (Disciple of the Vault, Duelist's Heritage); a pronoun
+  where the game reads a target ("That creature can't block this turn", "That land becomes a 0/0 Elemental …": the earlier
+  target when there is one, else the trigger's card); "Investigate twice".
+- **Engine misreads fixed** (found while reading how each newly passing card compiles):
+  - "Target player sacrifices a creature and loses 10 life": the life was lost by the caster. Now the same player.
+  - Counting phrases the reader did not know were silently counted as "every permanent you control" (The One Ring drew a
+    card per permanent; Chasm Skulker, Distant Melody, Descent into Avernus the same way; Shared Animosity counted every
+    creature). Unknown phrases are now left to the player; these are read properly: counters on this card (also its last
+    known counters when it dies), "counters on it", domain, colors among permanents, card types in your graveyard, instant
+    and sorcery cards in your graveyard, attacking creatures (and "other attacking Goblins"), tapped/untapped things you
+    control, creatures you control with a keyword, a subtype's cards in your graveyard, opponents you have, permanents of
+    the chosen type, other attackers sharing a creature type. Plural creature types are read (Elves, Allies, Zombies).
+  - A target description that swallowed the rest of the sentence ("target opponent and you gain 4 life": the life gain was
+    dropped; "target creature gets +1/+0 until end of turn and can't be blocked": the pump was dropped) is now read in two
+    halves about the same target, or left to the player.
+  - "where X is that creature's / its power" on a targeted creature is the target's power (Xenagos, Berserk), not the
+    source's. "Up to X target creatures …, where X is …" counts X as the targets are chosen (it was 0).
+- **272 cards went back to "by hand"**: the game had been running them with a wrong amount or half the sentence (list from
+  the audit comparison; examples: Sage's Reverie, Pact of the Serpent, Storm Herd, Thalisse, Folio of Fancies, Keeper of
+  Secrets, Crimson Wisps). The commonest of their wordings are the next batch's first candidates ("creatures target player
+  controls" as a count, "twice the number of", "that spell's mana value", "your life total", "becomes red and gains haste").
+- Top 1,000: still all (1,000). Whole catalog on today's Scryfall file (32,300 cards): 21,993 → 21,958.
+- Tests: catalog 431 (+22), game 254, mechanics 85, smoke 6, tracker 20, practice 20, rules-server 27, forge triggers
+  unchanged, soak 40 three times (0 problems), Playwright suites (see the check-in). Deck Builder untouched.
+- Tools for the next batches: `tools/longtail/` (README there).
 
 ### Build 89 — 8 Nov 2026
 - 18 more cards run by themselves (21,677 → 21,695 of 31,836), none lost: "Whenever a source you control deals noncombat

@@ -3157,4 +3157,153 @@ section('triggers that never fired (build 89)');
   check('Ad Nauseam: asked each time; three cards taken, life lost equal to their mana values', asks === 3 && first3.every(c => c.zone === 'hand') && t.P(0).life === life - mv, JSON.stringify([asks, first3.map(c => c.zone), life - t.P(0).life, mv]));
 }
 
+section('build 101: the long tail, batch 1');
+const tgt = id => [d => d.targeting || (d.options || []).some(o => o.id === id), () => id];
+{
+  // Hymn to Tourach: the game picks the cards; the player is not asked which.
+  const t = setup();
+  for (const n of ['Forest', 'Island', 'Grizzly Bears']) { const c = t.P(1).deck.remainingLibrary.find(x => def(t, x).name === n); t.edit({ kind: 'move', instanceId: c.instanceId, to: 'hand' }); }
+  const seen = cast(t, 'Opt', 'Target player discards two cards at random.', [tgt(t.P(1).playerId)], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Hymn to Tourach: two cards discarded at random, nobody asked which', t.P(1).deck.hand.length === 1 && t.P(1).deck.graveyard.length === 2 && !seen.some(d => d.kind === 'choose-many'), JSON.stringify([t.P(1).deck.hand.length, t.P(1).deck.graveyard.length, seen.map(d => d.kind)]));
+}
+{
+  // Ankh of Mishra: the land's controller takes the damage, not the Ankh's controller.
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever a land enters, this artifact deals 2 damage to that land\'s controller.', { typeLine: 'Artifact' }, 1);
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  t.give(0, 'Forest'); t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Forest').instanceId }, t.as(0)); settle(t);
+  check('Ankh of Mishra: 2 damage to the player whose land entered', t.P(0).life === l0 - 2 && t.P(1).life === l1, `${l0}→${t.P(0).life} ${l1}→${t.P(1).life}`);
+}
+{
+  // Smash to Smithereens: the destroyed artifact's controller takes the damage.
+  const t = setup();
+  const rock = onField(t, 'Fog Bank', '', { typeLine: 'Artifact' }, 1);
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  cast(t, 'Opt', 'Destroy target artifact. Opt deals 3 damage to that artifact\'s controller.', [tgt(rock.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Smash to Smithereens: artifact destroyed, 3 damage to its controller', rock.zone === 'graveyard' && t.P(1).life === l1 - 3 && t.P(0).life === l0, JSON.stringify([rock.zone, t.P(0).life, t.P(1).life]));
+}
+{
+  // "loses flying", "has base power and toughness", a group "target player controls"
+  const t = setup();
+  const bird = onField(t, 'Fog Bank', 'Flying', { typeLine: 'Creature — Bird', power: '1', toughness: '3' }, 1);
+  const mine = onField(t, 'Grizzly Bears', '{1}: This creature has base power and toughness 5/2 until end of turn.');
+  cast(t, 'Opt', 'Target creature loses flying until end of turn.', [tgt(bird.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Target creature loses flying until end of turn"', !has(t, bird, 'Flying'));
+  activate(t, mine, 0);
+  check('"This creature has base power and toughness 5/2 until end of turn"', power(t, mine) === 5 && tough(t, mine) === 2, `${power(t, mine)}/${tough(t, mine)}`);
+  cast(t, 'Divination', 'Creatures target player controls get -1/-1 until end of turn.', [tgt(t.P(1).playerId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Creatures target player controls get -1/-1": that player\'s creatures only', power(t, bird) === 0 && tough(t, bird) === 2 && power(t, mine) === 5, `${power(t, bird)}/${tough(t, bird)} ${power(t, mine)}`);
+}
+{
+  // Several targets, each with the one-target instruction
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Fog Bank', '', { power: '0', toughness: '6' }), c = onField(t, 'Fog Bank', '', { power: '0', toughness: '6' }, 1);
+  let q = null;
+  cast(t, 'Opt', 'Two target creatures each get +2/+0 and gain trample until end of turn.', [[d => d.kind === 'choose-many', d => { q = d; return [a.instanceId, b.instanceId]; }]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Two target creatures each get +2/+0 and gain trample": exactly two, both changed', q?.min === 2 && q?.max === 2 && power(t, a) === 4 && power(t, b) === 2 && has(t, a, 'Trample') && has(t, b, 'Trample') && power(t, c) === 0, JSON.stringify([q?.min, q?.max, power(t, a), power(t, b), power(t, c)]));
+  const l1 = t.P(1).life;
+  cast(t, 'Divination', 'Divination deals 1 damage to each of up to two targets.', [[d => d.kind === 'choose-many', d => { q = d; return [t.P(1).playerId, c.instanceId]; }]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"deals 1 damage to each of up to two targets": a player and a creature', q?.min === 0 && q?.max === 2 && t.P(1).life === l1 - 1 && Number(c.damageMarked || 0) === 1, JSON.stringify([q?.min, q?.max, t.P(1).life - l1, c.damageMarked]));
+}
+{
+  // "defending player mills three cards"; Gravity Well's "it loses flying"
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  t.give(0, 'Grizzly Bears', 'battlefield'); t.give(1, 'Fog Bank', 'battlefield');
+  const bear = t.bf(0, 'Grizzly Bears'); asText(t, bear, 'Flying\nWhenever this creature attacks, defending player mills three cards.');
+  asText(t, t.bf(1, 'Fog Bank'), 'Whenever a creature with flying attacks, it loses flying until end of turn.', { typeLine: 'Enchantment' });
+  t.end(0); t.end(1);
+  const g1 = t.P(1).deck.graveyard.length, g0 = t.P(0).deck.graveyard.length;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  check('"defending player mills three cards": the attacked player mills', t.P(1).deck.graveyard.length === g1 + 3 && t.P(0).deck.graveyard.length === g0, JSON.stringify([t.P(1).deck.graveyard.length - g1, t.P(0).deck.graveyard.length - g0]));
+  check('Gravity Well: the attacking flyer loses flying', !has(t, bear, 'Flying'));
+}
+{
+  // Kenku Artificer: "That artifact" is the artifact targeted earlier, not the creature that entered.
+  const t = setup();
+  const rock = onField(t, 'Fog Bank', '', { typeLine: 'Artifact', power: undefined, toughness: undefined });
+  cast(t, 'Grizzly Bears', 'When this creature enters, put three +1/+1 counters on target artifact you control. That artifact becomes a 0/0 Homunculus artifact creature with flying.', [tgt(rock.instanceId)]);
+  const bear = t.bf(0, 'Grizzly Bears');
+  check('Kenku Artificer: the targeted artifact gets the counters and becomes a 3/3 flying creature; the Kenku does not', Number(rock.counters?.['+1/+1'] || 0) === 3 && power(t, rock) === 3 && has(t, rock, 'Flying') && power(t, bear) === 2 && !Number(bear.counters?.['+1/+1'] || 0), JSON.stringify([rock.counters, power(t, rock), power(t, bear)]));
+}
+{
+  // "you may have target creature get -2/-2"; "Investigate twice."
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '6' }, 1);
+  cast(t, 'Grizzly Bears', 'When this creature enters, you may have target creature get -2/-2 until end of turn.', [tgt(foe.instanceId)]);
+  check('"you may have target creature get -2/-2 until end of turn"', tough(t, foe) === 4, String(tough(t, foe)));
+  cast(t, 'Opt', 'Investigate twice.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Investigate twice" makes two Clues', t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Clue').length === 2);
+}
+{
+  // Engine fix: "Target player sacrifices a creature of their choice and loses 10 life" — the same player loses the life.
+  const t = setup();
+  onField(t, 'Fog Bank', '', {}, 1);
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  cast(t, 'Opt', 'Target player sacrifices a creature of their choice and loses 10 life.', [tgt(t.P(1).playerId)], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('"Target player sacrifices a creature and loses 10 life": that player loses the life, not the caster', t.P(1).life === l1 - 10 && t.P(0).life === l0 && !t.bf(1, 'Fog Bank'), `${t.P(0).life} ${t.P(1).life}`);
+}
+{
+  // Engine fixes: "where X is the number of Elves you control" counts Elves; X for a number of targets is counted as they are chosen.
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Elf Druid' }); onField(t, 'Fog Bank', '', { typeLine: 'Creature — Elf' });
+  const life = t.P(0).life; let q = null;
+  cast(t, 'Opt', 'You gain X life, where X is the number of Elves you control.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"where X is the number of Elves you control" counts the two Elves', t.P(0).life === life + 2, String(t.P(0).life - life));
+  cast(t, 'Divination', 'Up to X target creatures each gain haste until end of turn, where X is the number of Elves you control.', [[d => d.kind === 'choose-many', d => { q = d; return d.options.slice(0, d.max).map(o => o.id); }]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Up to X target creatures …, where X is the number of Elves": up to two may be chosen', q?.max === 2 && q?.min === 0, JSON.stringify([q?.min, q?.max]));
+}
+
+{
+  // Counts that used to be read as "every permanent you control" (build 101 engine fixes)
+  const t = setup();
+  const ring = onField(t, 'Fog Bank', '{1}: Put a burden counter on Fog Bank, then draw a card for each burden counter on Fog Bank.', { typeLine: 'Legendary Artifact' });
+  ring.counters = { burden: 1 };
+  const hand = t.P(0).deck.hand.length;
+  activate(t, ring, 0);
+  check('The One Ring: draws a card for each burden counter (two), not for each permanent', t.P(0).deck.hand.length === hand + 2 && ring.counters.burden === 2, JSON.stringify([t.P(0).deck.hand.length - hand, ring.counters]));
+}
+{
+  // Chasm Skulker: tokens equal to the +1/+1 counters it had when it died
+  const t = setup();
+  const sk = onField(t, 'Grizzly Bears', 'When this creature dies, create X 1/1 blue Squid creature tokens with islandwalk, where X is the number of +1/+1 counters on this creature.');
+  sk.counters = { '+1/+1': 3 };
+  cast(t, 'Opt', 'Destroy target creature.', [tgt(sk.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Chasm Skulker: three counters when it died, three Squids', t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Squid').length === 3, String(t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Squid').length));
+}
+{
+  // Xenagos, God of Revels: X is the targeted creature's power, not Xenagos's own
+  const t = setup();
+  const big = onField(t, 'Fog Bank', '', { power: '5', toughness: '5' });
+  const god = onField(t, 'Grizzly Bears', '{1}: Another target creature you control gains haste and gets +X/+X until end of turn, where X is that creature\'s power.');
+  activate(t, god, 0, [tgt(big.instanceId)]);
+  check('Xenagos: the target gets +X/+X where X is its own power (5 becomes 10) and haste', power(t, big) === 10 && tough(t, big) === 10 && has(t, big, 'Haste'), `${power(t, big)}/${tough(t, big)}`);
+}
+{
+  // "deals 4 damage to target opponent and you gain 4 life": both halves happen
+  const t = setup();
+  const l0 = t.P(0).life, l1 = t.P(1).life;
+  cast(t, 'Opt', 'Opt deals 4 damage to target opponent and you gain 4 life.', [tgt(t.P(1).playerId)], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('"deals 4 damage to target opponent and you gain 4 life": damage and life gain', t.P(1).life === l1 - 4 && t.P(0).life === l0 + 4, `${t.P(0).life} ${t.P(1).life}`);
+  const foe = onField(t, 'Fog Bank', '', { power: '1', toughness: '4' });
+  cast(t, 'Divination', 'Target creature gets +1/+0 until end of turn and can\'t be blocked this turn.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"Target creature gets +1/+0 until end of turn and can\'t be blocked this turn": both parts on the target', power(t, foe) === 2 && (foe.temporaryEffects || []).some(e => e.kind === 'combat-restriction' && e.restriction === 'cant-be-blocked'), JSON.stringify(foe.temporaryEffects));
+}
+
+{
+  // Shared Animosity: +1/+0 for each OTHER attacker sharing a creature type (not for every creature)
+  const t = newGame(['simic', 'simic']); t.keepAll();
+  for (const n of ['Grizzly Bears', 'Fog Bank']) t.give(0, n, 'battlefield');
+  t.give(0, 'Forest', 'battlefield');
+  const a = t.bf(0, 'Grizzly Bears'), b = t.bf(0, 'Fog Bank');
+  asText(t, a, '', { typeLine: 'Creature — Elf Warrior' }); asText(t, b, '', { typeLine: 'Creature — Elf', power: '1', toughness: '4', keywords: [] });
+  asText(t, t.bf(0, 'Forest'), 'Whenever a creature you control attacks, it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it.', { typeLine: 'Enchantment' });
+  t.end(0); t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [a, b].map(c => ({ instanceId: c.instanceId, defenderId: t.P(1).playerId })) });
+  settle(t);
+  check('Shared Animosity: two attacking Elves each get +1/+0', power(t, a) === 3 && power(t, b) === 2, `${power(t, a)} ${power(t, b)}`);
+}
+
 done();

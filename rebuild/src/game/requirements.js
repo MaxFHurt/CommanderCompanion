@@ -294,7 +294,9 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       return;
     }
     if (req.kind === 'multi-target') {
-      const xv = v => (v === 'X' ? Math.max(0, Number(bindings.X || 0)) : v);
+      // "Up to X target creatures …, where X is the number of …": X is counted now, as the targets are chosen (req.xExpr).
+      const xNow = req.xExpr != null ? Number(resolveAmount(game, player.playerId, req.xExpr, { ...bindings, sourceId: bindings.sourceId || ctx.source?.instanceId || null })) || 0 : Number(bindings.X || 0);
+      const xv = v => (v === 'X' ? Math.max(0, xNow) : v);
       const max = Math.max(0, Number(xv(req.max) ?? 1)), min = Math.max(0, Number(xv(req.min) || 0));
       const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null);
       bindings[req.bind] = rows.length
