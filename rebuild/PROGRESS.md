@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.101 (Deck Builder {"build": 211, "version": "0.9.66"})
+- **Live build:** 1.0.0-rebuild.102 (Deck Builder {"build": 212, "version": "0.9.67"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,958 of 32,300 (about 68%; Scryfall oracle file of 12 Nov 2026, build 101);
   about 10,340 still need something done by hand. On the same file the live build 100 measures 21,993: batch 1 made 237
@@ -59,6 +59,18 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 102 — 12 Nov 2026 (Deck Builder 0.9.67, build 212; app 1.0.0-rebuild.102): the Upgrades tab count matches the list
+- Owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards that are
+  currently in the deck that need to be replaced." The tab counted only the swaps at the deck's own price level (owner's rule of
+  30 Oct: the Upgrades left number), while the page lists every card with a suggested replacement at any level (Wakanda Forever
+  at Budget: tab 10, page "Upgrade 1 of 19"). The tab now counts the cards the page lists (views.js upCardCount). Test UI-TAB-01
+  (new); UI-B88-01 updated to the new rule (still: cards, each once, never fewer than the level's own swaps, not options).
+- Tests: Deck Builder full live run: UI 143 passed, 3 failed side by side; UI-B88-01 (the old rule) then updated and passing;
+  UI-ASYNC-01 and UI-B197-02 pass alone (their known side-by-side flakes). Benchmark, genstrong, tourney identical; accept 39 x2;
+  semantics 2 old failures; claims 40; scheck bad 2 (as on Build 99); cisweep 0; edge 0. Game files unchanged since Build 101.
+- Next (owner, 12 Nov): make the deck score agree with the strongest version of the deck (the strength build), then ship the
+  strength finish for generated decks (branch team/apex: tournament match Apex 30% -> 70%, core 30% -> 79%).
 
 ### Build 100 — 12 Nov 2026 (Deck Builder 0.9.66, build 211; app 1.0.0-rebuild.100): card names follow the picture; lazy card pictures
 - Owner, 12 Nov: "heralds of the shredder still reads as vigor". Heralds of the Shredder is Vigor's printed name in the Turtles

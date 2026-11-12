@@ -621,13 +621,13 @@ T('UI-B87-01', 'Deck history: a card change keeps the earlier version; History s
 if (RUN('UI-B88-01')) { try { if (SHARD) await RESET();
 // 39. Build 88: the Upgrades tab counts cards that have an upgrade (each once), not upgrade options, and says "cards".
 const b88 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); const R = await recsReady(d); render();
-  // owner, 30 Oct: the cards recommended to swap out at the deck's own price level (each copy counted), the same number as that
-  // level's Upgrades left chip, not the number of upgrade options
+  // owner, 30 Oct: the cards recommended to swap out at the deck's own price level, not the number of upgrade options; owner,
+  // 12 Nov (Build 102): every card the page lists to replace at any price level ("Upgrade 1 of N"), so never fewer than that level's
   const lvl = tierSum(d, R, TIERS[d.tier] ? d.tier : 'apex').n, extra = new Set(R.fixes.map(p => keyOf(p.cut)).concat(R.drops.map(p => keyOf(p.n)))).size;
   const opts = R.paths.reduce((a, L) => a + Object.keys(L.opts).length, 0), t = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '';
   const n = upCardCount(R, d);
-  return {tab:t, cards:n, level:lvl, extra, options:opts, ok:t === n + ' card' + (n === 1 ? '' : 's') && n >= lvl && n <= lvl + extra}; });
-T('UI-B88-01', 'The Upgrades tab shows how many cards are recommended to swap out at the deck’s price level (its Upgrades left number), not the number of upgrade options', b88.ok, JSON.stringify(b88));
+  return {tab:t, cards:n, level:lvl, extra, options:opts, ok:t === n + ' card' + (n === 1 ? '' : 's') && n >= lvl && n <= R.paths.length + extra && n < opts}; });
+T('UI-B88-01', 'The Upgrades tab counts the cards the page lists to replace (each once, at any price level, never fewer than the deck’s own level), not the number of upgrade options', b88.ok, JSON.stringify(b88));
 } catch (e) { QUIET = false; T('UI-B88-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B89-01')) { try { if (SHARD) await RESET();
 // 40. Build 89: a card's "Put this card in" window: best swap first (card coming out on the left, this card on the right),
