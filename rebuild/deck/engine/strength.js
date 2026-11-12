@@ -176,7 +176,8 @@ function strSlots(d) {
 }
 // a build from the deck: the weakest slot swapped for the strongest card allowed while it gains (cap: price limit or null)
 function strBuild(d, cap, casual, pool, core) {
-  const isL = c => tags(c).land,
+  const ident = ctxOf(d).ident,
+    isL = c => tags(c).land,
     A0 = analyze(d),
     need = Object.fromEntries(STR_ROLES.map(r => [r, Math.min(A0.T[r], A0.roles[r])])),
     vv = c => strValue(c, d, casual),
@@ -195,6 +196,9 @@ function strBuild(d, cap, casual, pool, core) {
       for (const cut of cutsOf[isL(add)]) {
         const g = vin - vv(cut);
         if (g <= 1e-4) break;
+        // a land only replaces a land whose deck colours it also makes (the Fix menus' rule, Build 137): strong decks of other
+        // colours run Polluted Delta and Reliquary Tower, but in a mono-red deck they would take the place of its Mountains
+        if (isL(add) && (UP.strLands === 0 || !landCovers(cut, add, ident))) continue;
         if (STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(add).roles.has(r) && rc[r] - 1 < need[r])) continue;
         if (!best || g > best.g) best = {add, cut, g};
         break;
@@ -357,7 +361,12 @@ function strFinish(d, tier, keep) {
       if (diff > 1) {
         const adds = SR.pool.filter(c => ok(c) && !tags(c).land && (!TH || onT(c)) && (cap === Infinity || (c.p != null && c.p <= cap))).sort((a, b) => vv(b) - vv(a));
         for (let i = 0; i < diff - 1 && adds[i]; i++) {
-          const b = d.cards.filter(e => BASICS[e.n] && !e.l).sort((x, y) => y.q - x.q)[0];
+          // a spare basic first; a deck without basics (five colours) loses its weakest land instead
+          const b =
+            d.cards.filter(e => BASICS[e.n] && !e.l).sort((x, y) => y.q - x.q)[0] ||
+            d.cards
+              .filter(e => !e.l && !kept(e.n) && find(e.n) && tags(find(e.n)).land)
+              .sort((x, y) => vv(find(x.n)) - vv(find(y.n)))[0];
           if (!b) break;
           cutCard(d, b.n, 1);
           addCard(d, adds[i].n, 1);
@@ -430,6 +439,7 @@ function strengthPaths(d, R) {
   // deck needs
   const fits = (cutC, c) => {
     if (!cutC || !c || !!tags(cutC).land !== !!tags(c).land) return false;
+    if (tags(c).land && (UP.strLands === 0 || !landCovers(cutC, c, ctxOf(d).ident))) return false;
     return !STR_ROLES.some(r => tags(cutC).roles.has(r) && !tags(c).roles.has(r) && A0.roles[r] - 1 < Math.min(A0.T[r], A0.roles[r]));
   };
   const pick = (cut, add, t, held) => {

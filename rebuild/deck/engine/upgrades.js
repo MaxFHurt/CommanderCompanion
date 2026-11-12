@@ -2162,6 +2162,7 @@ const UP = {
   bsP: 9,
   starve: 0.08,
   lfix: 1,
+  strLands: 0, // strength builds swap spells only (12 Nov): land strength ignores how a mana base works together (mono-red Mountains gave way to off-colour fetches; five-colour fetches to shocks, stuck on colour 9% -> 27%), and leaving lands to the mana base kept tournament match (Apex 66.8% -> 66.7%) with better mana
   sjx: 1,
   tierPolish: 1, // generated Mid / Budget decks: the polish rounds after they are made from the Apex build (UP.polish rounds)
   polishSlot: 0, // generated Mid / Budget decks: polish only swaps a stand-in for another card serving the same Apex slot
