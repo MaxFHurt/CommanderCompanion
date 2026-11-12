@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.97 (Deck Builder {"build": 208, "version": "0.9.63"})
+- **Live build:** 1.0.0-rebuild.99 (Deck Builder {"build": 210, "version": "0.9.65"})
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 21,695 of 31,836 (about 68%; Scryfall oracle file of 7 Nov 2026, build 89, measured 8 Nov); about 10,140 still need something done by hand. It is a long tail: the
   commonest remaining wordings cover only a few dozen cards each. Before this round: 21,529 of the same file.
@@ -57,6 +57,17 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 99 — 12 Nov 2026 (Deck Builder 0.9.65, build 210; app 1.0.0-rebuild.99): real practice games, deck vs any deck (roadmap 5.3)
+- Deck Builder: Build stats → Practice games → Games against other decks. 6 full games on the rules engine, every seat played by
+  the practice bot (src/game/bot.js), against up to three opponents each chosen from the player's own Commander decks or the
+  built-in precons ("No player" for smaller games; 1-on-1 works) (owner, 12 Nov). Shows wins, winning round, round knocked out,
+  commander round, spells, damage and the cards left to be resolved by hand. Runs in module workers (deck/match-worker.js,
+  up to 3). No rules change; whole catalog still 21,695 of 31,836.
+- Tests: node catalog 409, game 254, mechanics 85, smoke 6, tracker 20, rules-server 27, forge passed, practice 20 (new), soak 40
+  three times (0 problems); every Playwright suite (tracker 40, game 28, flows 29, net 30, offline 5, pair 5, online 41,
+  challenge 13, scan, tracker-net 44). Deck Builder live suite: UI 144/144, accept 39 ×2, cisweep 0, edge 0, scheck bad 2,
+  claims 40 and semantics 2 failures (known since builds 83-87; its engine bundle is unchanged by this build).
 
 ### Build 98 — 11 Nov 2026 (Deck Builder 0.9.64, build 209; app 1.0.0-rebuild.98): Build 97's three changes plus the top-bar re-check and the Flip chip
 - Build 97 (10 Nov, Deck Builder 0.9.63, build 208) was the three changes below.

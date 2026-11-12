@@ -160,7 +160,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    the deck"); the score is unchanged. Earlier (build 71): "Works with" in the card window. **Card interactions from triggers:** pairs where one card's effects set off another's triggers (sacrifice outlets with
    death triggers, token makers with "whenever a creature enters", spells with cast triggers…) count as synergy, and the card
    window says which cards it works with. Builds on 1.
-3. **(Built on the branch 12 Nov, not live yet: owner, "nothing goes live until it's been fully tested".)** **Real practice
+3. **(Done, build 99, 12 Nov.)** **Real practice
    games:** full games with the game engine and bots (as `soak.mjs` does) to measure how a deck performs,
    beyond mana and curve. Most accurate; slow in a browser, so run in the background helpers and keep the goldfish numbers
    as the fast first answer. Builds on 1.
@@ -269,6 +269,7 @@ frame, ui/button-frame-large.png, with typed labels).
 
 ## Done (recent, newest first)
 
+- Build 99 (Deck Builder 0.9.65, build 210): real practice games: your deck against any of your decks or the precons, full bot games on the rules engine (5.3).
 - Build 98 (Deck Builder 0.9.64, build 209): top bar re-checked on every layout change; Flip chip on two-sided cards (Reverse for reversible).
 - Build 97 (Deck Builder 0.9.63, build 208): the top bar fits every screen; Profile clean-up (Settings pop-up for engine and card data); Set up your deck pop-up for empty decks with the full build listed to add (7d).
 - Build 96 (Deck Builder 0.9.62, build 207): typing no longer interrupted, practice games once per deck, I don't have this card
