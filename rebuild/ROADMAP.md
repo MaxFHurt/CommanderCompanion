@@ -111,11 +111,7 @@ optimization. That way we don't have to rework anything later due to new mechani
 
 When a card is resolved by hand, the player gets a toolbox of steps (move a card, tap, counters, life, draw, token …),
 suggested tools first, "that card" carried from step to step, applied as one change; a remembered ruling replays its steps.
-1. Apply the engine side: `git apply wip/toolbox-engine.patch` (repo root). It passed the node suites when written.
-2. Build the screens: `panels.js` openGuided around the toolbox (staged steps, suggested tools first, "that card" chaining,
-   one-device "everyone agrees" confirm, remembered outcomes); a toolbox in Host tools → Edit game; the ruling pop-up sending
-   `moves`; a Playwright suite.
-3. Deploy the Worker (`sh cloud/deploy.sh`): the live Worker does not keep `moves` yet.
+1. **(Done, build 69.)** Engine side, screens, and Worker deployed (`sh cloud/deploy.sh`); commits 6d3b374 and 0137f90.
 (PROGRESS.md "Paused: not finished" 1)
 
 ## 4. Multiplayer and sync

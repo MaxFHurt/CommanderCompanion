@@ -12,44 +12,22 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
   handful of cards. Of the 272 cards batch 1 sent back to "by hand" for being misread, 178 now run correctly; 94 remain.
-- **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
-  Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
+- **Status: active** (owner, 13 Nov): order of work in `ROADMAP.md`. Build 52 fixed the
+  Deck Builder on iPad so the app is usable meanwhile. The open items are in "Paused: not finished" below.
 
 ## Paused: not finished
 
 The complete roadmap of every open change across the app is `ROADMAP.md`.
 
-1. **Player toolbox (the next card-decisions feature).** When a card is resolved by hand, the player gets a toolbox of steps
-   (move a card, tap, counters, life, draw, create a token …) with the tools the card's text suggests listed first, "that card"
-   carrying from one step to the next, and the steps applied as one change; a remembered ruling replays its steps next time.
-   - Done but kept out of the app: the engine side, saved as `wip/toolbox-engine.patch` at the repo root (apply with
-     `git apply wip/toolbox-engine.patch` from the repo root). It adds `src/game/toolbox.js` (TOOLS, rankTools, stepLabel,
-     applyToolSteps), the controller's `guided-stage` / `guided-done` intents with staged steps (several devices: a
-     `manual-resolution` proposal everyone agrees to; one device: applied straight away), `rememberedOutcomes`, the view's
-     `prompt.toolbox`, flow.js staging stored ruling moves automatically, and `cloud/worker.js` accepting `moves` on a stored
-     outcome. The node suites passed with it applied (game 248, mechanics 62, smoke 6, catalog 364).
-   - Not done: the screens. `panels.js` openGuided rewritten around the toolbox (staged steps listed, suggested tools first,
-     "that card" chaining, on one device an "everyone agrees" confirm, remembered outcomes offered); a toolbox in Host tools →
-     Edit game; the ruling pop-up sending `moves`; a Playwright suite for it. Then deploy the Worker (`sh cloud/deploy.sh`), since
-     the live Worker does not keep `moves` yet.
-2. **Stylesheet cleanup** (roadmap): fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel
-   with `tests/style_diff.py`. Not started.
-3. **The card long tail:** about 10,770 cards of the whole catalog still need something done by hand (batches, check in every 100).
-4. **Hosted games between devices (owner, 2 Nov: "ignore hosted games for now, but put it in our handoff").** Build 53 carries
-   only games played on one device. A hosted game (room code or QR pairing) runs on its host device and the others connect to it,
-   so moving it means handing over the host role mid-game: the old host must stop (or become a player) before the new one reopens
-   the room with the same code, and every connected device must follow. Online games ("play over time") already live on the
-   Worker and need none of this; their list now travels with the profile.
-5. **Profile sync:** the Deck Builder sends its edits when a deck is closed (build 54) and when the app is put away (build 59).
+1. **The card long tail:** 22,630 of 32,300 run by themselves (build 103). Work in batches of 500 newly automated cards,
+   and check in with the owner after each batch.
+2. **Profile sync:** the Deck Builder sends its edits when a deck is closed (build 54) and when the app is put away (build 59).
    A device that declines "Continue your game?" keeps its own game and uploads it next time it
    changes. Not yet checked on two real devices.
-6. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
+3. **Needs the owner's devices:** the Deck Builder iPad fix (portrait, landscape, as a home-screen app), QR pairing over a
    hotspot, offline after the first launch, hosted rooms between devices.
-7. **Deck Builder test UI-B145-01** (Gisa, no play data: a Zombie deck from the theme pages) fails with no theme pages loaded
-   (`pages: []`), on build 171 as well as 172, so it predates the iPad fix; probably the test-data branch lacks the Zombie theme
-   page. The other 127 Deck Builder UI checks pass (UI-B146-02 is timing-sensitive: it failed once while other tests shared the
-   machine and passed alone).
-8. **iOS app:** on hold (owner, 1 Nov: "We don't want to develop for iOS yet").
+4. **iOS app:** on hold (owner, 1 Nov: "We don't want to develop for iOS yet").
+
 
 ## Known limits
 
