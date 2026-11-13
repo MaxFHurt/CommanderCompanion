@@ -756,6 +756,15 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       notes.push(nonland && hit ? `${name(hit.card)} connives and gets ${nonland} +1/+1 counter${nonland === 1 ? '' : 's'}.` : 'It connives.');
       return true;
     }
+    case 'connive-defer': {
+      // The draw above has happened; the discard is asked of the player afterwards (ops.js runConnive), then the counters.
+      const n = resolveAmount(game, controllerId, effect.amount, bindings);
+      if (n <= 0) return true;
+      const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
+      (game.pendingConnives = game.pendingConnives || []).push({ playerId: controllerId, creatureId: hit?.card?.instanceId || H.resolveBoundId(effect, bindings) || bindings.sourceId || null, controllerId: hit?.card?.controllerId || controllerId, amount: n });
+      notes.push('It connives.');
+      return true;
+    }
     case 'forage': {
       const pick = bindings[effect.bind];
       if (!pick) { bindings.__notDone = true; notes.push('Nothing to forage with.'); return true; }

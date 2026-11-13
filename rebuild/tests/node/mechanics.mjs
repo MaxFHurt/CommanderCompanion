@@ -702,16 +702,17 @@ section('connive and forage (701.50, 701.61)');
   for (const [pickName, expect, label] of [['Grizzly Bears', 1, 'a nonland card'], ['Forest', 0, 'a land']]) {
     const t = setup(), bear = bearOn(t); t.give(0, 'Grizzly Bears'); onTop(t, 'Forest');
     const handBefore = t.P(0).deck.hand.length, seen = [];
-    cast(t, 'Target creature you control connives.', d => { seen.push(d); if (/Discard/i.test(d.title || '')) return [d.options.find(o => labelOf(o) === pickName).id]; return target(bear)(d); });
-    const dd = seen.find(d => /Discard/i.test(d.title || ''));
-    check(`connive: the discard is asked of the player (hand + the drawn card), discarding ${label}`, !!dd && dd.playerId === t.P(0).playerId && dd.options.length >= 2, JSON.stringify(dd?.options?.map(labelOf)));
+    cast(t, 'Target creature you control connives.', d => { seen.push(d); if (/Connive/i.test(d.title || '')) { d.inHand = d.options.every(o => t.P(0).deck.hand.some(c => c.instanceId === o.id)); } if (/Connive/i.test(d.title || '')) return [d.options.find(o => labelOf(o) === pickName).id]; return target(bear)(d); });
+    const dd = seen.find(d => /Connive/i.test(d.title || ''));
+    check('connive: the card was already drawn when the discard is asked (it is a real hand card)', !!dd && dd.inHand && dd.options.some(o => o.label === 'Forest'), JSON.stringify(dd?.options?.map(labelOf)));
+    check(`connive: the discard is asked of the player after the draw, discarding ${label}`, !!dd && dd.playerId === t.P(0).playerId && dd.options.length >= 2, JSON.stringify(dd?.options?.map(labelOf)));
     check(`connive: discarded ${label} → ${expect} counter(s)`, counters(bear) === expect && t.names(0, 'graveyard').includes(pickName), JSON.stringify([bear.counters, t.names(0, 'graveyard')]));
     check('connive: drew one card, discarded one (hand size unchanged after Opt is cast)', t.P(0).deck.hand.length === handBefore, String(t.P(0).deck.hand.length - handBefore));
   }
   // Connive N: draw N, discard N, one counter per nonland card
   {
     const t = setup(), bear = bearOn(t); t.give(0, 'Grizzly Bears'); t.give(0, 'Divination'); onTop(t, 'Forest');
-    cast(t, 'Target creature you control connives two.', d => /Discard/i.test(d.title || '') ? d.options.filter(o => /Grizzly|Divination|Forest/.test(labelOf(o))).slice(0, 2).sort((a, b) => /Forest/.test(labelOf(b)) - /Forest/.test(labelOf(a))).map(o => o.id) : target(bear)(d));
+    cast(t, 'Target creature you control connives two.', d => /Connive/i.test(d.title || '') ? d.options.filter(o => /Grizzly|Divination|Forest/.test(labelOf(o))).slice(0, 2).sort((a, b) => /Forest/.test(labelOf(b)) - /Forest/.test(labelOf(a))).map(o => o.id) : target(bear)(d));
     const gy = t.names(0, 'graveyard');
     const landsDiscarded = gy.filter(n => n === 'Forest').length, nonland = gy.filter(n => n === 'Grizzly Bears' || n === 'Divination').length;
     check('connive 2: discards two, one counter per nonland card', gy.length >= 3 && counters(bear) === nonland && landsDiscarded + nonland === 2, JSON.stringify([bear.counters, gy]));
@@ -727,11 +728,11 @@ section('connive and forage (701.50, 701.61)');
   // "Whenever a creature you control connives" fires
   {
     const t = setup(), bear = bearOn(t, 'Whenever a creature you control connives, you gain 3 life.'); t.give(0, 'Grizzly Bears'); const life = t.P(0).life;
-    cast(t, 'Target creature you control connives.', d => /Discard/i.test(d.title || '') ? [d.options.find(o => labelOf(o) === 'Grizzly Bears').id] : target(bear)(d));
+    cast(t, 'Target creature you control connives.', d => /Connive/i.test(d.title || '') ? [d.options.find(o => labelOf(o) === 'Grizzly Bears').id] : target(bear)(d));
     check('the connive trigger fires', t.P(0).life === life + 3, `${life} → ${t.P(0).life}`);
   }
   // Forage: sacrifice a Food, exile three graveyard cards, the choice between them, and neither
-  const gyCards = (t, n) => { for (let k = 0; k < n; k++) { const c = t.P(0).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); } return t.P(0).deck.graveyard.slice(-n).map(c => c.instanceId); };
+  const gyCards = (t, n) => { for (let k = 0; k < n; k++) { const lib = t.P(0).deck.remainingLibrary, j = lib.findLastIndex(x => !/^(Fog Bank|Llanowar Elves|Grizzly Bears|Divination|Opt)$/.test(t.game.cardDefinitions[x.definitionId]?.name)), [c] = lib.splice(j, 1); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); } return t.P(0).deck.graveyard.slice(-n).map(c => c.instanceId); };
   const food = t => { const c = t.give(0, 'Fog Bank', 'battlefield'); asText(t, c, '', { typeLine: 'Artifact — Food' }); return c; };
   {
     const t = setup(), f = food(t), ids = gyCards(t, 4).slice(0, 3), seen = [];
