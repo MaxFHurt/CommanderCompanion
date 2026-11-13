@@ -277,6 +277,7 @@ function applyQueue(game, queue, events, onEvent) {
       const counter = /\bPlaneswalker\b/i.test(targetType) ? 'loyalty' : /\bBattle\b/i.test(targetType) ? 'defense' : null;
       if (amount > 0 && counter) {
         target.counters = target.counters || {};
+        target.lastCounterBefore = Number(target.counters[counter] || 0);   // Rith: excess damage to a planeswalker
         target.counters[counter] = Math.max(0, Number(target.counters[counter] || 0) - amount);
         events.push(`${definition(game, target)?.name || 'It'} loses ${amount} ${counter} (${target.counters[counter]} left).`);
       }

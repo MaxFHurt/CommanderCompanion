@@ -79,7 +79,7 @@ export class Need {
 }
 
 /** Requirement kinds answered while casting/activating (targets are locked in then). */
-const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute']);
+const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute', 'b101-gy-cards']);
 
 export function splitRequirements(requirements = []) {
   const cast = [], resolve = [];
@@ -448,6 +448,8 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     let rows = candidatesFor(game, req, player, ctx.source || null);
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
     if (req.notSource && bindings.sourceId) rows = rows.filter(r => r.id !== bindings.sourceId);   // "another"
+    // "creature card with mana value equal to that spell's mana value" (Krile Baldesion): the spell the trigger is about.
+    if (req.mvEqualsBind && bindings[req.mvEqualsBind] !== undefined) rows = rows.filter(r => { const card = game.players.flatMap(q => q.deck.graveyard || []).find(c => c.instanceId === r.id), d = card && defOf(game, card); return Number(d?.manaValue ?? d?.cmc ?? 0) === Number(bindings[req.mvEqualsBind]); });
     if ((req.kind === 'choose-permanent' || (req.kind === 'player' && req.notTargeted)) && rows.length === 1) { bindings[req.bind] = rows[0].id; return; }   // only one choice: no question
     if (!rows.length) {
       if (req.optional) { bindings[req.bind] = null; return; }

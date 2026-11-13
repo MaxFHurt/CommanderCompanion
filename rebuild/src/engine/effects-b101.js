@@ -99,6 +99,28 @@ export function compileB101Clause(c, ctx) {
   // --- "Exile it with three time counters on it and it gains suspend." (Epochrasite, when it dies) / "Put two time counters on it and it gains vanishing." (Maelstrom Djinn)
   if ((m = c.match(rx(`^Exile (?:it|${SELF}) with ${N} time counters? on it and it gains suspend\\.?$`)))) { effects.push({ kind: 'b101-suspend-self', amount: num(m[1]) }); return true; }
   if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|${SELF}) and it gains vanishing\\.?$`)))) { effects.push({ kind: 'b101-gain-vanishing', amount: num(m[1]) }); return true; }
+  // --- "Return target creature card with mana value equal to that spell's mana value from your graveyard to your hand." (Krile Baldesion)
+  if ((m = c.match(/^(?:you may )?return target (creature card|[a-z]+ card) with mana value equal to that spell'?s mana value from your graveyard to your hand\.?$/i))) {
+    const r = sub(`Return target ${m[1]} from your graveyard to your hand.`), t = r?.requirements.find(q => q.kind === 'graveyard-target');
+    if (r && t) { t.mvEqualsBind = 'eventManaValue'; return take(r); }
+  }
+  // --- "Put a +1/+1 counter on target creature or that creature gains banding, first strike, or trample." (Nature's Blessing): one of them, chosen as it resolves; the keyword lasts.
+  if ((m = c.match(/^Put a \+1\/\+1 counter on (target creature(?: [a-z' ]+)?) or that creature gains ((?:[a-z ]+, )+(?:or )?[a-z ]+)\.?$/i))) {
+    const kws = m[2].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    const r = sub(`Put a +1/+1 counter on ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && kws.length >= 2 && kws.every(k => rx(`^${KW}$`).test(k))) {
+      const pick = `pick${requirements.length}`, counter = '+1/+1 counter', branches = { [counter]: r.effects };
+      for (const k of kws) branches[k] = [{ kind: 'grant-keyword', bind: t.bind, keyword: k, enabled: true, expires: 'permanent' }];
+      requirements.push(...r.requirements, { kind: 'choose-text', bind: pick, options: [counter, ...kws], label: 'Choose one: a +1/+1 counter, or a keyword' });
+      effects.push({ kind: 'b101-pick', bind: pick, branches });
+      return true;
+    }
+  }
+  // --- "Exile target creature an opponent controls until an opponent becomes the monarch." (Palace Jailer)
+  if ((m = c.match(/^Exile (target creature an opponent controls) until an opponent becomes the monarch\.?$/i))) {
+    const r = sub('Exile target creature an opponent controls.'), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t) { requirements.push(...r.requirements); effects.push({ kind: 'b101-exile-monarch', bind: t.bind }); return true; }
+  }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
     const expr = parseCountB101(m[1]);
@@ -520,6 +542,33 @@ export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
     const pd = whole.effects.find(e => e.kind === 'prevent-damage'), dl = whole.effects.find(e => e.kind === 'delay'), ct = dl?.effects?.find(e => e.kind === 'counter');
     if (whole.supported && pd && ct) { pd.countPrevented = true; ct.amount = { kind: 'b101-prevented', bind: pd.bind }; return { part: { effects: whole.effects, requirements: whole.requirements, unsupported: [] }, consumed: 2 }; }
   }
+  // "Choose up to one target creature you don't control with flying. This creature gets +X/+0 until end of turn, where X is …, then you may have this creature fight that creature." (Kraul Harpooner)
+  if (/^Choose up to one target creature you don'?t control with flying\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^(This creature gets \+X\/\+0 until end of turn, where X is the number of creature cards in your graveyard), then you may have this creature fight that creature\.?$/i))) {
+    const a = H.compileEffectText(c0, { sourceName }), b = H.compileEffectText(`${m[1]}.`, { sourceName }), t = a.requirements.find(q => q.kind === 'target');
+    if (a.supported && b.supported && t) {
+      const may = `mayFight${parts.length}`;
+      return { part: { effects: [...a.effects.filter(e => e.kind !== 'note'), ...b.effects, { kind: 'b101-fight-if', sourceBind: 'sourceId', targetBind: t.bind, mayBind: may }], requirements: [...a.requirements, ...b.requirements, { kind: 'yes-no', bind: may, label: `Have ${sourceName} fight that creature?` }], unsupported: [] }, consumed: 2 };
+    }
+  }
+  // "Target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way." (Coveted Falcon)
+  if (/^Target opponent gains control of any number of target permanents you control\.?$/i.test(c0) && /^Draw a card for each one they gained control of this way\.?$/i.test(String(clauses[i + 1] || '').trim())) {
+    const whole = H.compileEffectText(c0, { sourceName }), mt = whole.requirements.find(q => q.kind === 'multi-target');
+    if (whole.supported && mt) return { part: { effects: [...whole.effects, { kind: 'draw', scope: 'you', amount: { kind: 'b101-gained-control', bind: mt.bind } }], requirements: whole.requirements, unsupported: [] }, consumed: 2 };
+  }
+  // "Exile up to two target cards from a single graveyard. [If this spell was kicked, instead exile target player's graveyard.] Create a 2/2 black Rogue creature token for each creature card exiled this way." (Waste Management)
+  if (/^Exile up to two target cards from a single graveyard\.?$/i.test(c0)) {
+    const n1 = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim(), n2 = String(clauses[i + 2] || '').replace(/\([^()]*\)/g, '').trim();
+    const kicked = /^If this spell was kicked, instead exile target player'?s graveyard\.?$/i.test(n1), tokenText = kicked ? n2 : n1;
+    if ((m = tokenText.match(/^Create (a|an|one|two|three) (.+? creature tokens?) for each creature card exiled this way\.?$/i))) {
+      const tok = H.compileEffectText(`Create ${m[1]} ${m[2]}.`, { sourceName }), t0 = tok.supported && tok.effects.length === 1 && tok.effects[0].kind === 'create-token' ? tok.effects[0] : null;
+      if (t0) {
+        const bind = kicked ? `player${parts.length + 40}` : `gyCards${parts.length}`;
+        const req = kicked ? { kind: 'player', bind, scope: 'player', label: 'target player' } : { kind: 'b101-gy-cards', bind, max: 2, label: 'up to two cards from a single graveyard' };
+        const count = { kind: 'b101-this-way', mine: false, nontoken: false, not: [], types: ['creature'], card: true };
+        return { part: { effects: [{ kind: 'b101-exile-graveyard', bind, whole: kicked }, { ...t0, amount: /^(a|an|one)$/i.test(m[1]) ? count : { kind: 'b101-math', op: 'times', a: count, b: num(m[1]) } }], requirements: [req], unsupported: [] }, consumed: kicked ? 3 : 2 };
+      }
+    }
+  }
   // "A creature destroyed this way can't be regenerated." (Essence Vortex): the destroy before it can't be stopped by a regeneration shield.
   if (/^(?:It|That creature|A creature destroyed this way|Creatures destroyed this way) can'?t be regenerated\.?$/i.test(c0)) {
     const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'destroy');
@@ -625,6 +674,16 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
     case 'b101-damage-others':
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-each', amount: effect.amount, filter: `creature|not-id:${String(bindings.sourceId || '').toLowerCase()}`, creatures: 'all', players: effect.players, sourceName: effect.sourceName }], bindings));
       return true;
+    case 'b101-exile-monarch': {
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The target is no longer on the battlefield.'); return true; }
+      // If an opponent is already the monarch, the duration is over before it starts.
+      if ((game.players || []).some(p => !p.eliminated && p.playerId !== controllerId && (p.statuses || []).some(x => x.toLowerCase() === 'monarch'))) { notes.push('An opponent is the monarch: nothing is exiled.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'exile', bind: effect.bind }], bindings));
+      const now = locateCardInGame(game, bindings[effect.bind]);
+      if (now && now.zone === 'exile') game.monarchExiles = [...(game.monarchExiles || []), { cardId: now.card.instanceId, jailerId: controllerId }];
+      return true;
+    }
     case 'b101-suspend-self': {
       // The card that just died goes to exile with time counters and suspend (it is cast free when the last comes off).
       const hit = locateCardInGame(game, bindings.sourceId);
@@ -640,6 +699,37 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
       hit.card.counters = { ...(hit.card.counters || {}), time: Number(hit.card.counters?.time || 0) + Number(effect.amount || 0) };
       hit.card.gainedVanishing = true;   // keyword-triggers-b49.js: vanishing at each upkeep
       notes.push(`${definitionFor(game, hit.card)?.name || 'It'} gets ${effect.amount} time counters and vanishing.`);
+      return true;
+    }
+    case 'b101-pick': {
+      // The branch the player chose as it resolved.
+      const branch = effect.branches[bindings[effect.bind]];
+      if (!branch) { notes.push('Nothing was chosen.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, branch, bindings));
+      return true;
+    }
+    case 'b101-fight-if': {
+      // "… then you may have this creature fight that creature": only if you said yes and the creature was chosen and is still there.
+      const yes = bindings[effect.mayBind] === true || bindings[effect.mayBind] === 'yes' || bindings[effect.mayBind] === 'true';
+      const them = locateCardInGame(game, bindings[effect.targetBind]);
+      if (!yes || !them || them.zone !== 'battlefield') { notes.push(yes ? 'There is no creature left to fight.' : 'It does not fight.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'fight', sourceBind: effect.sourceBind, targetBind: effect.targetBind }], bindings));
+      return true;
+    }
+    case 'b101-exile-graveyard': {
+      // Up to two chosen cards, or a whole graveyard; what was exiled is remembered for "for each creature card exiled this way".
+      const raw = bindings[effect.bind];
+      const ids = effect.whole ? (playerById(game, raw)?.deck.graveyard || []).map(c => c.instanceId) : [].concat(raw || []).filter(x => typeof x === 'string');
+      bindings.movedThisWayCards = bindings.movedThisWayCards || [];
+      let n = 0;
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        bindings.movedThisWayCards.push({ id, controllerId: hit.player?.playerId || hit.card.ownerId, definitionId: hit.card.definitionId, typeLine: definitionFor(game, hit.card)?.typeLine || '', token: !!hit.card.token });
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: id, to: 'exile' }], bindings)); n++;
+      }
+      bindings.movedThisWay = bindings.movedThisWayCards.length;
+      notes.push(`${n} card${n === 1 ? '' : 's'} exiled from a graveyard.`);
       return true;
     }
     case 'b101-bite-back': {
@@ -716,6 +806,15 @@ function unlessDecider(game, req, bindings) {
 /** Requirement kinds made above, asked by requirements.js. Returns true when handled. */
 export function gatherB101(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
+  if (req.kind === 'b101-gy-cards') {
+    // "Up to two target cards from a single graveyard": which graveyard (when more than one has cards), then the cards.
+    const owners = (game.players || []).filter(p => !p.eliminated && (p.deck.graveyard || []).length);
+    if (!owners.length) { bindings[req.bind] = []; return true; }
+    const who = owners.length === 1 ? owners[0].playerId : ask(`${key}:who`, () => ({ ...base, kind: 'choose-one', title, prompt: 'Choose the graveyard to take cards from.', options: owners.map(p => ({ id: p.playerId, label: `${p.displayName}'s graveyard (${p.deck.graveyard.length})` })) }));
+    const rows = (playerById(game, who)?.deck.graveyard || []);
+    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: `Choose up to ${req.max} cards.`, min: 0, max: Math.min(req.max, rows.length), options: rows.map(card => util.cardOption(game, card, playerById(game, who), 'Graveyard')) }));
+    return true;
+  }
   if (req.kind === 'b101-unless') {
     // "… unless its controller pays life equal to its toughness": asked of that player, on their own device.
     const q = unlessDecider(game, req, bindings), src = locateCardInGame(game, bindings.sourceId);

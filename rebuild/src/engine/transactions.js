@@ -584,6 +584,7 @@ function resolveStackTop(game) {
         card.counters = card.counters || {};
         card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);
       }
+      card.devoured = 0;
       if (obj.asEntersChoices?.devour?.length) {
         // Devour: the chosen creatures still there are sacrificed; counters for each one sacrificed
         let n = 0;
@@ -594,6 +595,7 @@ function resolveStackTop(game) {
           n++;
         }
         if (n) { card.counters = card.counters || {}; card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + n * Number(obj.asEntersChoices.devourEach || 1); }
+        card.devoured = n;   // Skullmulcher: "for each creature it devoured"
       }
       if (obj.asEntersChoices?.haste)
         card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }];

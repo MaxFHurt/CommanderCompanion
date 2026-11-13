@@ -73,7 +73,7 @@ export function parseTriggeredAbilities(definition) {
     out.push(current);
   // The trigger ends at the first comma that does not continue a list ("Whenever you cast an Aura, Equipment, or Vehicle spell, …").
   const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
-  return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
+  return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /do this only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').replace(/\s*Do this only once each turn\.?\s*$/i, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
   const ledger = card?.triggerModeChoices || {};
@@ -341,6 +341,9 @@ function triggerMatches(game, row, ability, event) {
       return your && typeMatches(typeLine, 'Creature');
     if (/a creature dies/i.test(t))
       return typeMatches(typeLine, 'Creature');
+    // Hateful Eidolon: "Whenever an enchanted creature dies" (the Auras it had, counted as it died: event.auraControllers).
+    if (/an enchanted creature dies/i.test(t))
+      return typeMatches(typeLine, 'Creature') && (event.auraControllers || []).length > 0;
   }
   if (event.type === 'spell-cast') {
     if (!/^(?:When|Whenever).*\bcast\b/i.test(t))
@@ -616,8 +619,30 @@ function tallyTurn(game, event) {
   if (type === 'attacks' && event.controllerId && event.defenderId) t.attacked[event.controllerId] = [...new Set([...(t.attacked[event.controllerId] || []), event.defenderId])];
   if (type === 'sacrificed') bump(t.sacrificed, event.controllerId);
   // Impact Resonance: "the greatest amount of damage dealt by a source to a permanent or player this turn" (damage from one source to one recipient adds up).
+  // Rith: "a creature or planeswalker an opponent controlled was dealt excess damage this turn" (damage beyond what was lethal, worked out as it was dealt).
+  if (['combat-damage-creature', 'damage-permanent'].includes(type) && Number(event.amount) > 0 && event.targetId) {
+    const holder = (game.players || []).find(p => (p.deck?.battlefield || []).some(c => c.instanceId === event.targetId)), tc = holder?.deck.battlefield.find(c => c.instanceId === event.targetId), td = tc && game.cardDefinitions?.[tc.definitionId];
+    if (tc && td && /\bPlaneswalker\b/.test(td.typeLine || '') && !/\bCreature\b/.test(td.typeLine || '') && Number(event.amount) > Number(tc.lastCounterBefore ?? Infinity)) { t.excess = t.excess || []; t.excess.push({ controllerId: tc.controllerId || holder.playerId }); }
+    if (tc && td && /\bCreature\b/.test(td.typeLine || '')) {
+      const toughness = Number(td.toughness || 0) + Number(tc.counters?.['+1/+1'] || 0) - Number(tc.counters?.['-1/-1'] || 0), before = Math.max(0, Number(tc.damageMarked || 0) - Number(event.amount));
+      if (Number(event.amount) > Math.max(0, toughness - before)) { t.excess = t.excess || []; t.excess.push({ controllerId: tc.controllerId || holder.playerId }); }
+    }
+  }
+  // Estinien Varlineau: "your opponents who were dealt combat damage by this creature or a Dragon this turn" (who hit whom, and what the source was).
+  if (type === 'combat-damage-player' && Number(event.amount) > 0) {
+    t.combatHits = t.combatHits || [];
+    t.combatHits.push({ sourceId: event.sourceId, controllerId: event.controllerId, playerId: event.playerId, typeLine: String(game.cardDefinitions?.[event.definitionId]?.typeLine || '') });
+  }
   if (['combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent'].includes(type)) {
-    if (Number(event.amount) > 0 && event.sourceId) { const k = `${event.sourceId}>${event.targetId || event.playerId}`; t.damagePairs[k] = Number(t.damagePairs[k] || 0) + Number(event.amount); }
+    if (Number(event.amount) > 0 && event.sourceId) {
+      const k = `${event.sourceId}>${event.targetId || event.playerId}`; t.damagePairs[k] = Number(t.damagePairs[k] || 0) + Number(event.amount);
+      // Blazing Effigy: "damage dealt to this creature this turn by other sources named …" (the source's name, kept as it dealt it).
+      if (event.targetId) {
+        const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId) || (game.stack || []).map(x => x.card).find(c => c?.instanceId === event.sourceId);
+        t.damageRecords = t.damageRecords || [];
+        t.damageRecords.push({ sourceId: event.sourceId, name: String(game.cardDefinitions?.[src?.definitionId || event.definitionId]?.name || ''), targetId: event.targetId, amount: Number(event.amount) });
+      }
+    }
     return;
   }
   if (type === 'mill') bump(t.milled, event.playerId);   // Cruel Calculations: cards put into a graveyard from a library this turn
@@ -634,6 +659,9 @@ function tallyTurn(game, event) {
   }
 }
 export function queueTriggers(game, event) {
+  // The Auras attached to a creature as it dies (still attached now): "for each Aura you controlled that was attached to it".
+  if (event?.type === 'dies' && event.sourceId && !event.auraControllers)
+    event.auraControllers = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.attachedTo === event.sourceId && /\bAura\b/.test(game.cardDefinitions?.[c.definitionId]?.typeLine || '')).map(c => c.controllerId || p.playerId));
   recordStat(game, event);
   tallyTurn(game, event);
   // Life lost this turn, by amount (Bloodchief Ascension: "if an opponent lost 2 or more life this turn").
@@ -746,7 +774,7 @@ const WIDE_VARIANTS = [
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 function wideProbeTypes(ability) {
-  const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w)))].join(' ');
+  const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w))), ...(/\boutlaws?\b/i.test(String(ability?.trigger || '')) ? ['Rogue'] : [])].join(' ');   // outlaws: Assassins, Mercenaries, Pirates, Rogues, Warlocks
   return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
 }
 function probeTrigger(definition, ability, types, events, variants) {

@@ -214,7 +214,7 @@ function shuffled(array) {
 function markDamage(game, card, n) {
   const t = String(definitionFor(game, card)?.typeLine || '');
   const counter = /\bPlaneswalker\b/.test(t) && !/\bCreature\b/.test(t) ? 'loyalty' : /\bBattle\b/.test(t) && !/\bCreature\b/.test(t) ? 'defense' : null;
-  if (counter && n > 0) { card.counters = card.counters || {}; card.counters[counter] = Math.max(0, Number(card.counters[counter] || 0) - n); return; }
+  if (counter && n > 0) { card.counters = card.counters || {}; card.lastCounterBefore = Number(card.counters[counter] || 0); card.counters[counter] = Math.max(0, Number(card.counters[counter] || 0) - n); return; }
   card.damageMarked = Number(card.damageMarked || 0) + n;
 }
 /** Tap or untap; "if a permanent with a stun counter would become untapped, instead remove a stun counter from it".
@@ -887,6 +887,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           p.counters.cardsDrawnThisTurn = Number(p.counters.cardsDrawnThisTurn || 0) + 1;
         }
         notes.push(`${p.displayName} draws ${moved} card${moved === 1 ? '' : 's'}.`);
+        bindings.drawnThisWay = moved;   // "the number of cards drawn this way" (Rise of the Deathbringer)
       }
       continue;
     }
@@ -1024,6 +1025,16 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         p.statuses = (p.statuses || []).filter(x => x.toLowerCase() !== effect.status.toLowerCase());
       controller.statuses = [...(controller.statuses || []), effect.status];
       notes.push(`${controller.displayName} becomes ${effect.status === 'Monarch' ? 'the monarch' : effect.status}.`);
+      // Palace Jailer: "until an opponent becomes the monarch" — what it exiled comes back when someone else takes the crown.
+      if (effect.status === 'Monarch' && (game.monarchExiles || []).length) {
+        const keep = [];
+        for (const x of game.monarchExiles) {
+          if (x.jailerId === controllerId) { keep.push(x); continue; }
+          const hit = locateCardInGame(game, x.cardId);
+          if (hit && hit.zone === 'exile') { const moved = moveCard(game, x.cardId, 'battlefield', { controllerId: hit.card.ownerId, onEvent: e => emit(bindings, e) }); notes.push(`${cardName(game, moved.card)} returns to the battlefield.`); }
+        }
+        game.monarchExiles = keep;
+      }
       continue;
     }
     if (effect.kind === 'goad') {
@@ -1427,7 +1438,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         throw new Error('The keyword target is no longer legal.');
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
       hit.card.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: effect.enabled !== false, expires: effect.expires || 'cleanup' });
-      notes.push(`${cardName(game, hit.card)} ${effect.enabled === false ? 'loses' : 'gains'} ${effect.keyword} until end of turn.`);
+      notes.push(`${cardName(game, hit.card)} ${effect.enabled === false ? 'loses' : 'gains'} ${effect.keyword}${effect.expires === 'permanent' ? '' : ' until end of turn'}.`);
       continue;
     }
     if (effect.kind === 'create-token') {
@@ -1748,6 +1759,8 @@ export function parseCondition(text) {
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i.test(t)) return { test: 'opp-excess-damage' };   // Rith, Liberated Primeval
+  if (/^its mana value is equal to the amount of unspent mana you have$/i.test(t)) return { test: 'mv-equals-pool' };   // Glissa Sunseeker
   if (/^you have an enduring story$/i.test(t)) return { test: 'enduring-story' };
   if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
   if ((m = t.match(/^(?:it'?s|that creature is) (?:a|an) ([A-Z][a-z]+)$/))) return { test: 'it-is', type: m[1], bind: 'lastTarget' };
@@ -1797,6 +1810,12 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'life') return Number(me?.life || 0) >= (effect.min || 0);
   // "When you discard a nonland card this way": the card just discarded.
   if (effect.test === 'discarded-nonland') { const id = (bindings.discardedCards || []).slice(-1)[0], h = id && locateCardInGame(game, id); return !!h && !/\bLand\b/.test(definitionFor(game, h.card)?.typeLine || ''); }
+  if (effect.test === 'opp-excess-damage') return game.turnTally?.turn === Number(game.turnNumber || 0) && (game.turnTally.excess || []).some(x => x.controllerId !== controllerId);
+  if (effect.test === 'mv-equals-pool') {
+    const id = ['target0', 'lastTarget', 'eventCard'].map(k => bindings[k]).find(Boolean), h = id && locateCardInGame(game, id), d = h && definitionFor(game, h.card);
+    const pool = Object.values(me?.mana?.floating || {}).reduce((n, v) => n + Math.max(0, Number(v) || 0), 0);
+    return !!d && Number(d.manaValue ?? d.cmc ?? 0) === pool;
+  }
   if (effect.test === 'discarded-any') return (bindings.discardedCards || []).length > 0;
   // Storied: three artifacts, legendary permanents and/or Sagas give "an enduring story for the rest of the game".
   if (effect.test === 'enduring-story') {
@@ -3150,7 +3169,8 @@ export function compileEffectText(text, opts = {}) {
     if (COMPILE_DEPTH === 0 && hit.supported && JSON.stringify(hit.effects).includes('b101-this-way')) {
       const first = hit.effects.findIndex(e => JSON.stringify(e).includes('b101-this-way'));
       const moved = hit.effects.slice(0, first).some(e => e.kind === 'zone-each' || ((e.kind === 'exile-many' || e.kind === 'destroy-many') && !hit.requirements.some(q => q.bind === e.bind && /graveyard/i.test(q.scope || ''))));
-      if (!moved || /\bkicked\b/i.test(text)) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
+      const own = hit.effects.slice(0, first).some(e => e.kind === 'b101-exile-graveyard');   // Waste Management: its own exile, kicked or not
+      if (!own && (!moved || /\bkicked\b/i.test(text))) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     }
     if (COMPILE_CACHE.size > 20000) COMPILE_CACHE.clear();
     COMPILE_CACHE.set(key, hit);

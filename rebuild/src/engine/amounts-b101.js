@@ -64,7 +64,11 @@ export function parseCountB101(phrase) {
     return e2;
   }
   if ((m = p.match(/^cards? (?:that were )?put into (target player'?s|that player'?s|their|your) graveyard from (?:their|your|that player'?s|the) library this turn$/))) return { kind: 'b101-tally', what: 'milled', ...(/^your$/.test(m[1]) ? {} : { who: 'ref' }) };
+  if ((m = p.match(/^(?:your )?opponents who were dealt combat damage by (?:.+?) or an? ([a-z]+) this turn$/))) return { kind: 'b101-tally', what: 'oppsHit', sub: m[1] };   // Estinien Varlineau
+  if (/^creatures? (?:it|this creature) devoured$/.test(p)) return { kind: 'b101-devoured' };   // Skullmulcher
+  if (/^auras? you controlled that (?:was|were) attached to it$/.test(p)) return { kind: 'b101-event-auras' };   // Hateful Eidolon
   if (/^other creatures? you control that shares? a creature type with (?:it|this creature)$/.test(p)) return { kind: 'b101-sharing' };   // Titan of Littjara
+  if (/^cards? drawn this way$/.test(p)) return { kind: 'binding', bind: 'drawnThisWay' };
   if (/^cards? discarded this way$/.test(p)) return { kind: 'binding', bind: 'discardedThisWay' };
   if (/^card types? the discarded card has$/.test(p)) return { kind: 'b101-discarded', what: 'types' };
   // Batch 3 part 2: counts kept from an event (life gained, creatures blocked, lands untapped as the turn began).
@@ -204,6 +208,8 @@ export function parseAmountB101(phrase) {
   // Monstrous Emergence, Close Encounter: the creature chosen (or card revealed) as an additional cost, its power read as it was chosen (ops.js).
   if (/^the power of (?:the creature you chose or the card you revealed|the chosen creature or card)$/.test(p)) return { kind: 'binding', bind: 'costChosenPower' };
   if (/^the greatest amount of damage dealt by a (?:single )?source to a (?:single )?permanent or player this turn$/.test(p)) return { kind: 'b101-tally', what: 'maxDamage' };   // Impact Resonance
+  if (/^the amount of damage dealt to (?:it|this creature) this turn by other sources named .+$/.test(p)) return { kind: 'b101-tally', what: 'damageByName' };   // Blazing Effigy
+  if ((m = p.match(/^the exiled card'?s (toughness|power|mana value)$/))) return { kind: 'b101-last-moved-stat', stat: m[1] };   // Scour the Desert
   if (/^the amassed army'?s power$/.test(p)) return { kind: 'bound-power', bind: 'amassedArmy' };   // Foray of Orcs
   // What an activation cost discarded or sacrificed (ops.js remembers it before the card leaves).
   if (/^(?:the (?:discarded|exiled) card'?s|that card'?s) mana value$/.test(p)) return { kind: 'b101-discarded', what: 'mv' };
@@ -363,6 +369,14 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
       const mine = [...subs(me.card), ...(me.card.chosenCreatureType && /is the chosen type in addition/i.test(H.definitionFor(game, me.card)?.oracleText || '') ? [String(me.card.chosenCreatureType).toLowerCase()] : [])], p = alive.find(q => q.playerId === controllerId);   // Titan of Littjara is also the chosen type
       return (p?.deck?.battlefield || []).filter(c => c.instanceId !== me.card.instanceId && /\bcreature\b/i.test(H.definitionFor(game, c)?.typeLine || '') && mine.length && (() => { const t = subs(c); return t.length && (mine.includes('*') || t.includes('*') || mine.some(x => t.includes(x))); })()).length;
     }
+    case 'b101-last-moved-stat': {
+      const id = [].concat(bindings.lastMoved || []).slice(-1)[0], hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
+      const v = !d ? 0 : expr.stat === 'mana value' ? Number(d.manaValue ?? d.cmc ?? 0) : Number(expr.stat === 'power' ? d.power : d.toughness);
+      return Math.max(0, Number.isFinite(v) ? v : 0);
+    }
+    case 'b101-gained-control': return [].concat(bindings[expr.bind] || []).filter(id => { const h = H.locateCardInGame(game, id); return h && h.zone === 'battlefield' && (h.card.controllerId || h.player?.playerId) !== controllerId; }).length;   // Coveted Falcon: "one they gained control of this way"
+    case 'b101-devoured': { const me = H.locateCardInGame(game, bindings.sourceId); return Math.max(0, Number(me?.card?.devoured || 0)); }
+    case 'b101-event-auras': return (bindings.eventAuraControllers || []).filter(id => id === controllerId).length;
     case 'b101-prevented': return Math.max(0, Number((game.preventedCount || {})[`${game.turnNumber}:${expr.targetId || bindings[expr.bind]}`] || 0));
     case 'b101-cost-symbols': return Math.max(0, Number((bindings.sacrificedSymbols || {})[expr.color] || 0));
     case 'b101-mana-spent': {
@@ -387,6 +401,8 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-tally': {
       const t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
       if (!t) return 0;
+      if (expr.what === 'oppsHit') return new Set((t.combatHits || []).filter(h => h.controllerId === controllerId && h.playerId !== controllerId && (h.sourceId === bindings.sourceId || new RegExp(`\\b${expr.sub}\\b`, 'i').test(String(h.typeLine).split('—')[1] || ''))).map(h => h.playerId)).size;
+      if (expr.what === 'damageByName') { const me = H.locateCardInGame(game, bindings.sourceId), name = H.definitionFor(game, me?.card)?.name; return (t.damageRecords || []).filter(r => r.targetId === bindings.sourceId && r.sourceId !== bindings.sourceId && name && r.name === name).reduce((n, r) => n + r.amount, 0); }
       if (expr.what === 'maxDamage') return Math.max(0, ...Object.values(t.damagePairs || {}).map(Number));
       if (expr.what === 'milled') return Number(t.milled?.[expr.who === 'ref' ? (bindings[expr.playerBind] || bindings.eventPlayer) : controllerId] || 0);
       if (expr.what === 'entered') return (t.entered || []).filter(e => e.controllerId === controllerId && (!expr.other || e.id !== (bindings.eventCard || bindings.sourceId)) && (!expr.nontoken || !e.token) && expr.subs.some(x => x === 'creature' ? /\bCreature\b/i.test(e.typeLine) : new RegExp(`\\b${x}\\b`, 'i').test(e.typeLine))).length;
