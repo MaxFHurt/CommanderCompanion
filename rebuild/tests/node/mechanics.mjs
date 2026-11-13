@@ -673,4 +673,93 @@ section('game stats and awards');
   check('the finished game hands out awards', v.awards.some(a => a.label === 'Heavy Hitter' && a.playerId === t.P(0).playerId && a.detail === '4 damage dealt'), JSON.stringify(v.awards));
 }
 
+section('connive and forage (701.50, 701.61)');
+{
+  const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
+  const settle = (t, pick, seen = []) => {
+    for (let g = 0; g < 30; g++) {
+      t.passAll(); const d = t.decision(); if (!d) break; seen.push(d);
+      let v = pick(d);
+      if (v === undefined) { const open = (d.options || []).filter(o => !o.disabled); v = d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : open[0]?.id; }
+      const r = t.ctl.dispatch({ type: 'answer', key: d.key, value: v }, { playerId: d.playerId, isHost: false }); if (!r.ok) throw new Error(r.error);
+    }
+    return seen;
+  };
+  const setup = () => {
+    const t = newGame(['simic', 'simic']); t.keepAll();
+    for (let i = 0; i < 4; i++) { t.give(0, 'Forest', 'battlefield'); t.give(0, 'Island', 'battlefield'); }
+    for (const c of t.P(0).deck.hand.splice(0)) { c.zone = 'library'; t.P(0).deck.remainingLibrary.push(c); }
+    t.autoPass = false; return t;
+  };
+  const onTop = (t, name) => { const lib = t.P(0).deck.remainingLibrary, i = lib.findIndex(c => t.game.cardDefinitions[c.definitionId]?.name === name); lib.unshift(...lib.splice(i, 1)); return lib[0]; };
+  const cast = (t, text, pick, name = 'Opt') => { t.give(0, name); const c = asText(t, t.hand(0, name), text, { manaCost: '{U}' }); const r = t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error); return settle(t, pick); };
+  const bearOn = (t, text = '') => { const c = t.give(0, 'Llanowar Elves', 'battlefield'); asText(t, c, text); return t.P(0).deck.battlefield.find(x => x.instanceId === c.instanceId); };
+  const counters = c => Number(c.counters?.['+1/+1'] || 0);
+  const labelOf = o => o.label || '';
+  const target = bear => d => d.targeting ? bear.instanceId : undefined;
+
+  // Connive: draws first, the discard is asked of the conniving player and may be the card just drawn; counter only for a nonland card
+  for (const [pickName, expect, label] of [['Grizzly Bears', 1, 'a nonland card'], ['Forest', 0, 'a land']]) {
+    const t = setup(), bear = bearOn(t); t.give(0, 'Grizzly Bears'); onTop(t, 'Forest');
+    const handBefore = t.P(0).deck.hand.length, seen = [];
+    cast(t, 'Target creature you control connives.', d => { seen.push(d); if (/Discard/i.test(d.title || '')) return [d.options.find(o => labelOf(o) === pickName).id]; return target(bear)(d); });
+    const dd = seen.find(d => /Discard/i.test(d.title || ''));
+    check(`connive: the discard is asked of the player (hand + the drawn card), discarding ${label}`, !!dd && dd.playerId === t.P(0).playerId && dd.options.length >= 2, JSON.stringify(dd?.options?.map(labelOf)));
+    check(`connive: discarded ${label} → ${expect} counter(s)`, counters(bear) === expect && t.names(0, 'graveyard').includes(pickName), JSON.stringify([bear.counters, t.names(0, 'graveyard')]));
+    check('connive: drew one card, discarded one (hand size unchanged after Opt is cast)', t.P(0).deck.hand.length === handBefore, String(t.P(0).deck.hand.length - handBefore));
+  }
+  // Connive N: draw N, discard N, one counter per nonland card
+  {
+    const t = setup(), bear = bearOn(t); t.give(0, 'Grizzly Bears'); t.give(0, 'Divination'); onTop(t, 'Forest');
+    cast(t, 'Target creature you control connives two.', d => /Discard/i.test(d.title || '') ? d.options.filter(o => /Grizzly|Divination|Forest/.test(labelOf(o))).slice(0, 2).sort((a, b) => /Forest/.test(labelOf(b)) - /Forest/.test(labelOf(a))).map(o => o.id) : target(bear)(d));
+    const gy = t.names(0, 'graveyard');
+    const landsDiscarded = gy.filter(n => n === 'Forest').length, nonland = gy.filter(n => n === 'Grizzly Bears' || n === 'Divination').length;
+    check('connive 2: discards two, one counter per nonland card', gy.length >= 3 && counters(bear) === nonland && landsDiscarded + nonland === 2, JSON.stringify([bear.counters, gy]));
+  }
+  // The conniving creature is gone: draw and discard still happen, no counter, no error
+  {
+    const t = setup(); t.give(0, 'Grizzly Bears'); const hand0 = t.P(0).deck.hand.slice();
+    const fx = compileEffectText('It connives.', { sourceName: 'Test' });
+    const bears = t.hand(0, 'Grizzly Bears');
+    applyEffects(t.game, t.P(0).playerId, fx.effects, { eventCard: 'gone-creature', [fx.requirements[0].bind]: [bears.instanceId] });
+    check('connive with the creature gone: still draws and discards, no counter', t.names(0, 'graveyard').includes('Grizzly Bears') && t.P(0).deck.hand.length === hand0.length, JSON.stringify([t.names(0, 'graveyard'), t.P(0).deck.hand.length, hand0.length]));
+  }
+  // "Whenever a creature you control connives" fires
+  {
+    const t = setup(), bear = bearOn(t, 'Whenever a creature you control connives, you gain 3 life.'); t.give(0, 'Grizzly Bears'); const life = t.P(0).life;
+    cast(t, 'Target creature you control connives.', d => /Discard/i.test(d.title || '') ? [d.options.find(o => labelOf(o) === 'Grizzly Bears').id] : target(bear)(d));
+    check('the connive trigger fires', t.P(0).life === life + 3, `${life} → ${t.P(0).life}`);
+  }
+  // Forage: sacrifice a Food, exile three graveyard cards, the choice between them, and neither
+  const gyCards = (t, n) => { for (let k = 0; k < n; k++) { const c = t.P(0).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); } return t.P(0).deck.graveyard.slice(-n).map(c => c.instanceId); };
+  const food = t => { const c = t.give(0, 'Fog Bank', 'battlefield'); asText(t, c, '', { typeLine: 'Artifact — Food' }); return c; };
+  {
+    const t = setup(), f = food(t), ids = gyCards(t, 4).slice(0, 3), seen = [];
+    cast(t, 'Forage. Draw a card.', d => { seen.push(d); if (/forage/i.test(d.title || '') && d.kind === 'choose-one') return 'exile'; if (/forage/i.test(d.title || '') && d.kind === 'choose-many') return ids; });
+    check('forage with both possible: the player is asked which, then which cards', seen.some(d => d.kind === 'choose-one' && /forage/i.test(d.title)) && seen.some(d => d.kind === 'choose-many' && d.min === 3), JSON.stringify(seen.map(d => d.kind + ':' + d.title)));
+    check('forage (exile): the three chosen cards are exiled and the Food stays', ids.every(id => t.P(0).deck.exile.some(c => c.instanceId === id)) && t.P(0).deck.battlefield.some(c => c.instanceId === f.instanceId));
+  }
+  {
+    const t = setup(), f = food(t); gyCards(t, 3);
+    cast(t, 'Forage. Draw a card.', d => (/forage/i.test(d.title || '') && d.kind === 'choose-one') ? f.instanceId : undefined);
+    check('forage (sacrifice): the Food is sacrificed and nothing is exiled', !t.P(0).deck.battlefield.some(c => c.instanceId === f.instanceId) && t.P(0).deck.exile.length === 0 && t.P(0).deck.graveyard.length >= 3, JSON.stringify([t.P(0).deck.exile.length, t.names(0, 'graveyard')]));
+  }
+  {
+    const t = setup(), f = food(t), seen = [], life0 = t.P(0).life; // only the Food possible: no question
+    cast(t, 'You may forage. If you do, you gain 5 life.', d => { seen.push(d); return /forage\?|forage$/i.test(d.prompt || '') && d.kind === 'confirm' ? true : undefined; });
+    check('forage: a lone Food is sacrificed without asking, then "if you do" resolves', !t.P(0).deck.battlefield.some(c => c.instanceId === f.instanceId) && t.P(0).life === life0 + 5 && !seen.some(d => d.kind === 'choose-one'), JSON.stringify([t.P(0).life, seen.map(d => d.kind + ':' + d.prompt)]));
+  }
+  {
+    const t = setup(), life = t.P(0).life; gyCards(t, 2); // two graveyard cards, no Food: cannot forage
+    cast(t, 'You may forage. If you do, you gain 5 life.', d => d.kind === 'confirm' ? true : undefined);
+    check('forage impossible: nothing is exiled and "if you do" does not happen', t.P(0).deck.exile.length === 0 && t.P(0).life === life, `${life} → ${t.P(0).life}`);
+  }
+  {
+    const t = setup(); gyCards(t, 2);
+    const src = t.give(0, 'Fog Bank', 'battlefield'); asText(t, src, '{1}, Forage: Draw a card.', { typeLine: 'Artifact' });
+    const r = t.ctl.dispatch({ type: 'activate', instanceId: src.instanceId, abilityId: 'a0' }, t.as(0));
+    check('forage as a cost with neither possible: cannot be paid', !r.ok, JSON.stringify(r).slice(0, 160));
+  }
+}
+
 done();

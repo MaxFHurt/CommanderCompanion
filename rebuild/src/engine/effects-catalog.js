@@ -558,11 +558,21 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'explore', bind, choiceBind: choice });
     return true;
   }
-  if ((m = c.match(rx(`^(${selfAny}|It|Target creature you control|That creature) connives(?: ${N})?\\.?$`, 'i')))) {
-    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'creature you control') : subjectBind(m[1]);
+  if ((m = c.match(rx(`^(${selfAny}|It|That creature|(?:Up to one )?target (?:attacking )?creature(?: you control)?) connives(?: ${N})?\\.?$`, 'i')))) {
+    // Connive (701.50): the controller draws N, discards N (asked after the draw), +1/+1 counter per nonland card discarded.
+    const upTo = /^up to one /i.test(m[1]);
+    const scope = m[1].replace(/^up to one /i, '').toLowerCase();
+    const bind = /target/i.test(m[1]) ? H.targetRequirement(requirements, scope, m[1].replace(/^up to one /i, ''), upTo ? { optional: true } : {}) : subjectBind(m[1]);
     const n = m[2] ? num(m[2]) : 1, cardsBind = `discardCards${requirements.length}`;
     requirements.push({ kind: 'discard-cards', bind: cardsBind, scope: 'you', amount: n, plusDraw: typeof n === 'number' ? n : 0 });
-    effects.push({ kind: 'draw', scope: 'you', amount: n }, { kind: 'discard', scope: 'you', amount: n, cardsBind }, { kind: 'connive-counters', bind, cardsBind });
+    effects.push({ kind: 'draw', scope: 'you', amount: n }, { kind: 'discard', scope: 'you', amount: n, cardsBind }, { kind: 'connive-counters', bind, cardsBind, amount: n, ...(upTo ? { optionalTarget: true } : {}) });
+    return true;
+  }
+  // Forage (701.61): "exile three cards from your graveyard or sacrifice a Food", the player chooses which and what.
+  if (/^(?:you )?forage\.?$/i.test(c)) {
+    const bind = `forage${requirements.length}`;
+    requirements.push({ kind: 'forage', bind, label: 'forage' });
+    effects.push({ kind: 'forage', bind });
     return true;
   }
   if ((m = c.match(/^(?:you )?get ((?:\{E\})+)(?: \([^)]*\))?\s*\.?$/i)) || (m = c.match(rx(`^(?:you )?get ${N} \\{E\\}\\.?$`, 'i')))) {
@@ -737,10 +747,22 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
     }
     case 'connive-counters': {
       const ids = [].concat(bindings[effect.cardsBind] || []);
+      // The conniving creature may have left the battlefield: the draw and discard still happened, it just gets no counter (701.50b).
       const nonland = ids.filter(id => { const h = locateCardInGame(game, id); return h && !/\bLand\b/i.test(definitionFor(game, h.card)?.typeLine || ''); }).length;
       const hit = permanentAt(game, H.resolveBoundId(effect, bindings));
       if (hit && nonland) { H.addCounter(hit.card, '+1/+1', nonland); emit({ type: 'counter-added', sourceId: hit.card.instanceId, controllerId: hit.card.controllerId, counter: '+1/+1', amount: nonland }); }
+      const n = effect.amount == null ? 1 : resolveAmount(game, controllerId, effect.amount, bindings);
+      if (n > 0) emit({ type: 'connives', sourceId: hit?.card?.instanceId || H.resolveBoundId(effect, bindings) || bindings.sourceId, controllerId: hit?.card?.controllerId || controllerId, playerId: controllerId, amount: n });
       notes.push(nonland && hit ? `${name(hit.card)} connives and gets ${nonland} +1/+1 counter${nonland === 1 ? '' : 's'}.` : 'It connives.');
+      return true;
+    }
+    case 'forage': {
+      const pick = bindings[effect.bind];
+      if (!pick) { bindings.__notDone = true; notes.push('Nothing to forage with.'); return true; }
+      if (pick.how === 'exile') for (const id of pick.ids || []) { const h = locateCardInGame(game, id); if (h && h.zone === 'graveyard') moveCard(game, id, 'exile', { onEvent: emit }); }
+      else { const h = permanentAt(game, pick.id); if (!h) { bindings.__notDone = true; return true; } moveCard(game, pick.id, 'graveyard', { moveReason: 'sacrifice', onEvent: emit }); }
+      emit({ type: 'forage', playerId: controllerId, controllerId });
+      notes.push(`${controller?.displayName || 'You'} forage${pick.how === 'exile' ? 's: three cards exiled from the graveyard' : 's: a Food is sacrificed'}.`);
       return true;
     }
     case 'player-counter': {
@@ -817,6 +839,16 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB49(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB101(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (req.kind === 'forage') {
+    const gy = player.deck.graveyard || [], foods = (player.deck.battlefield || []).filter(c => /\bFood\b/.test(util.defOf(game, c)?.typeLine || ''));
+    const opts = [...(gy.length >= 3 ? [{ id: 'exile', label: 'Exile three cards from your graveyard' }] : []), ...foods.map(c => ({ id: c.instanceId, label: `Sacrifice ${util.defOf(game, c)?.name || 'a Food'}` }))];
+    if (!opts.length) { bindings[req.bind] = null; return true; }
+    const how = opts.length === 1 ? opts[0].id : ask(`${key}:how`, () => ({ ...base, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — forage`, prompt: 'Exile three cards from your graveyard, or sacrifice a Food?', options: opts }));
+    if (how !== 'exile') { bindings[req.bind] = { how: 'sacrifice', id: how }; return true; }
+    const ids = gy.length === 3 ? gy.map(c => c.instanceId) : [].concat(ask(`${key}:cards`, () => ({ ...base, cancellable: false, kind: 'choose-many', title: `${ctx.sourceName} — forage`, prompt: 'Choose three cards in your graveyard to exile.', options: gy.map(c => util.cardOption(game, c, player, 'Your graveyard')), min: 3, max: 3 })) || []);
+    bindings[req.bind] = { how: 'exile', ids: ids.slice(0, 3) };
+    return true;
+  }
   if (req.kind === 'explore') {
     // The top card is known now; nothing earlier in the same ability changes the library.
     const top = (player.deck.remainingLibrary || [])[0];
