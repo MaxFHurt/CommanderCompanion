@@ -313,7 +313,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       const xNow = req.xExpr != null ? Number(resolveAmount(game, player.playerId, req.xExpr, { ...bindings, sourceId: bindings.sourceId || ctx.source?.instanceId || null })) || 0 : Number(bindings.X || 0);
       const xv = v => (v === 'X' ? Math.max(0, xNow) : v);
       const max = Math.max(0, Number(xv(req.max) ?? 1)), min = Math.max(0, Number(xv(req.min) || 0));
-      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null);
+      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null).filter(r => !req.excludeBind || r.id !== bindings[req.excludeBind]);   // "other target creatures"
       bindings[req.bind] = rows.length
         ? ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: req.label || `Choose up to ${max}`, options: rows, min: Math.min(min, rows.length), max: Math.min(max, rows.length) }))
         : [];

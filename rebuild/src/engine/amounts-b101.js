@@ -63,6 +63,11 @@ export function parseCountB101(phrase) {
     if (e2.card && !e2.types.length) return null;   // "cards exiled this way": from a graveyard or a cost, not counted here
     return e2;
   }
+  if ((m = p.match(/^cards? (?:that were )?put into (target player'?s|that player'?s|their|your) graveyard from (?:their|your|that player'?s|the) library this turn$/))) return { kind: 'b101-tally', what: 'milled', ...(/^your$/.test(m[1]) ? {} : { who: 'ref' }) };
+  // Batch 3 part 2: counts kept from an event (life gained, creatures blocked, lands untapped as the turn began).
+  if (/^1 life you gained$/.test(p) || /^life you gained$/.test(p)) return { kind: 'binding', bind: 'eventAmount' };
+  if (/^creatures? (?:it|this creature)(?:'s| is| was) blocking$/.test(p)) return { kind: 'b101-blocking' };
+  if ((m = p.match(/^untapped lands (they|that player|you) controlled at the beginning of this turn$/))) return { kind: 'b101-turn-start-lands', mine: m[1] === 'you' };
   // Batch 3: what is among a group, own cards across zones, highest values.
   if ((m = p.match(/^creature types? among (?:non-([a-z]+) )?creatures you control$/))) return { kind: 'b101-types-among', not: m[1] || null };
   if (/^card types? among spells you'?ve cast this turn$/.test(p)) return { kind: 'b101-spell-types' };
@@ -198,6 +203,7 @@ export function parseAmountB101(phrase) {
   if ((m = p.match(/^the number of (white|blue|black|red|green) mana symbols? in the sacrificed (?:creature|permanent|artifact)'?s mana cost$/))) return { kind: 'b101-cost-symbols', color: COLORS[m[1]] };
   if ((m = p.match(/^(\d+) or (the greatest .+?),? whichever is greater$/))) { const b = parseAmountB101(m[2]); return b == null ? null : { kind: 'b101-math', op: 'max', a: Number(m[1]), b }; }   // Triumphant Chomp
   if ((m = p.match(/^(the number of .+?) in excess of (the number of .+)$/))) { const a = parseAmountB101(m[1]), b = parseAmountB101(m[2]); return a == null || b == null ? null : { kind: 'b101-math', op: 'minus', a, b }; }   // Superior Numbers
+  if (/^the amount of life you gained$/.test(p)) return { kind: 'binding', bind: 'eventAmount' };
   if (/^the amount of damage dealt to (?:it|this creature) this turn$/.test(p)) return { kind: 'binding', bind: 'eventDamage' };   // Tangled Colony (its last damage as it died)
   if (/^the damage already dealt to (?:it|this creature) this turn$/.test(p)) return { kind: 'b101-source-damage' };   // Whipkeeper
   if ((m = p.match(/^the number of times you descended this turn$/))) return { kind: 'b101-tally', what: 'descended' };
@@ -228,11 +234,11 @@ export function bindTargetControllerB101(expr, bind) {
 /** Give the "the player the sentence is about" parts of an amount their binding (a target player, or the trigger's player). */
 export function bindAmountPlayerB101(expr, bind) {
   if (!expr || typeof expr !== 'object') return expr;
-  if (((expr.kind === 'b101-n' || expr.kind === 'b101-chosen-type') && expr.who === 'ref' && !expr.playerBind) || (expr.kind === 'b101-domain' && expr.ref && !expr.playerBind) || expr.playerBind === '__ref') expr.playerBind = bind;
+  if (((expr.kind === 'b101-n' || expr.kind === 'b101-chosen-type' || expr.kind === 'b101-tally') && expr.who === 'ref' && !expr.playerBind) || (expr.kind === 'b101-domain' && expr.ref && !expr.playerBind) || expr.playerBind === '__ref') expr.playerBind = bind;
   for (const k of ['a', 'b', 'of']) if (expr[k] && typeof expr[k] === 'object') bindAmountPlayerB101(expr[k], bind);
   return expr;
 }
-export const amountNeedsPlayerB101 = expr => !!expr && typeof expr === 'object' && (((expr.kind === 'b101-n' || expr.kind === 'b101-chosen-type') && expr.who === 'ref' && !expr.playerBind) || (expr.kind === 'b101-domain' && expr.ref && !expr.playerBind) || expr.playerBind === '__ref' || ['a', 'b', 'of'].some(k => amountNeedsPlayerB101(expr[k])));
+export const amountNeedsPlayerB101 = expr => !!expr && typeof expr === 'object' && (((expr.kind === 'b101-n' || expr.kind === 'b101-chosen-type' || expr.kind === 'b101-tally') && expr.who === 'ref' && !expr.playerBind) || (expr.kind === 'b101-domain' && expr.ref && !expr.playerBind) || expr.playerBind === '__ref' || ['a', 'b', 'of'].some(k => amountNeedsPlayerB101(expr[k])));
 
 const SUBTYPE_OF = d => String(d?.typeLine || '').toLowerCase().split('—')[1] || '';
 function matchesB101(game, card, e, bindings, H) {
@@ -335,6 +341,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     }
     case 'b101-life-high': return Math.max(0, ...alive.filter(p => !expr.opponents || p.playerId !== controllerId).map(p => Number(p.life || 0)));
     case 'b101-commander-mv': return Math.max(0, ...((alive.find(p => p.playerId === controllerId)?.commanders || []).map(c => { const d = H.definitionFor(game, { definitionId: c.cardId || c.definitionId }); return Number(d?.manaValue ?? d?.cmc ?? 0); })));
+    case 'b101-turn-start-lands': { const p = expr.mine ? alive.find(q => q.playerId === controllerId) : alive.find(q => q.playerId === (bindings[expr.playerBind] || bindings.eventPlayer)); return Math.max(0, Number(p?.turnStartUntappedLands || 0)); }
     case 'b101-cost-symbols': return Math.max(0, Number((bindings.sacrificedSymbols || {})[expr.color] || 0));
     case 'b101-mana-spent': {
       const hit = H.locateCardInGame(game, bindings.sourceId), onStack = (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId || x.id === bindings.sourceId);
@@ -358,6 +365,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-tally': {
       const t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
       if (!t) return 0;
+      if (expr.what === 'milled') return Number(t.milled?.[expr.who === 'ref' ? (bindings[expr.playerBind] || bindings.eventPlayer) : controllerId] || 0);
       if (expr.what === 'entered') return (t.entered || []).filter(e => e.controllerId === controllerId && (!expr.other || e.id !== (bindings.eventCard || bindings.sourceId)) && (!expr.nontoken || !e.token) && expr.subs.some(x => x === 'creature' ? /\bCreature\b/i.test(e.typeLine) : new RegExp(`\\b${x}\\b`, 'i').test(e.typeLine))).length;
       if (expr.what === 'descended') return Number(t.descended?.[controllerId] || 0);
       if (expr.what === 'exiledOpp') return (t.exiled || []).filter(x => x.controllerId !== controllerId && /\bCreature\b/i.test(x.typeLine)).length;

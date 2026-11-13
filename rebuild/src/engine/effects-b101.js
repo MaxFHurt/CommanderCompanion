@@ -5,7 +5,7 @@
 // rules for that effect apply. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness } from './combat.js';
-import { parseCountB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101, listCardsB101 } from './amounts-b101.js';
+import { parseCountB101, bindTargetControllerB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101, listCardsB101 } from './amounts-b101.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -57,6 +57,25 @@ export function compileB101Clause(c, ctx) {
       effects.push({ kind: 'b101-unless-do', bind, mode, ...(t ? { deciderTarget: t.bind } : { deciderBind: 'eventPlayer' }), skip: r.effects.length, sourceName }, ...r.effects);
       return true;
     }
+  }
+  // --- "This creature gets +1/+1 until end of turn for each creature it's blocking." (Guardian of the Gateless): the count made as X.
+  if ((m = c.match(rx(`^(${SELF}|it) gets ([+-])1\\/([+-])1 until end of turn for each (creatures? (?:it|this creature)(?:'s| is) blocking)\\.?$`)))) {
+    const r = sub(`${cap(m[1])} gets ${m[2]}X/${m[3]}X until end of turn, where X is the number of ${m[4].replace(/^creature /i, 'creatures ')}.`);
+    if (r) return take(r);
+  }
+  // --- "Then draw a card for each tapped creature its controller controls." (Observed Stasis: the enchanted creature's controller)
+  if ((m = c.match(/^(?:Then )?draw a card for each (tapped|untapped)? ?(creatures?) its controller controls\.?$/i))) {
+    const expr = parseCountB101(`${(m[1] || '').toLowerCase()} creatures that creature's controller controls`.trim());
+    if (expr && expr.kind === 'b101-n') { bindTargetControllerB101(expr, '__attached'); effects.push({ kind: 'draw', scope: 'you', amount: expr }); return true; }
+  }
+  // --- "Destroy target creature and up to X other target creatures, where X is the number of Attractions you've visited this turn." (Black Hole)
+  // The game does not play Attractions, so what was visited this turn is asked of the player (it is their own fact).
+  if ((m = c.match(/^Destroy target creature and up to X other target creatures,? where X is the number of Attractions you'?ve visited this turn\.?$/i))) {
+    const first = H.targetRequirement(requirements, 'target creature', 'target creature'), bind = `multi${requirements.length + 1}`;
+    requirements.push({ kind: 'number', bind: 'X', label: "How many Attractions have you visited this turn?", min: 0, max: 99 },
+      { kind: 'multi-target', bind, scope: 'target creature', min: 0, max: 'X', excludeBind: first, label: 'Choose up to X other target creatures' });
+    effects.push({ kind: 'destroy', bind: first }, { kind: 'b101-each-bound', bind, effects: [{ kind: 'destroy', bind: '__each' }] });
+    return true;
   }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {

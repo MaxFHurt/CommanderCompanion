@@ -392,7 +392,8 @@ function triggerMatches(game, row, ability, event) {
     if (/becomes blocked/i.test(t) && self)
       return row.card.instanceId === event.attackerId;
     if (/blocks/i.test(t) && self)
-      return row.card.instanceId === event.blockerId;
+      // "Whenever this creature blocks" is once however many creatures it blocks; "blocks a creature" is once for each.
+      return row.card.instanceId === event.blockerId && !(event.extraBlock && !/\bblocks (?:a|an|that|target|another|each)\b/i.test(t));
     if (/a creature you control blocks/i.test(t))
       return event.controllerId === row.player.playerId;
     return false;
@@ -599,12 +600,12 @@ function dueDelayedTriggers(game, event) {
 /** What happened this turn, for "for each creature that died under your control this turn", "cards you've drawn this turn" … (build 101). */
 function tallyTurn(game, event) {
   const type = event?.type;
-  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change'].includes(type)) return;
+  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill'].includes(type)) return;
   if (type === 'zone-change' && !(event.to === 'exile' && event.from === 'battlefield')) return;
   const turn = Number(game.turnNumber || 0);
   if (game.turnTally?.turn !== turn) game.turnTally = { turn, died: [], draws: {}, discards: {}, tokens: {}, entered: [], attacked: {}, sacrificed: {}, descended: {}, countersOnMine: {}, exiled: [] };
   for (const k of ['entered']) game.turnTally[k] = game.turnTally[k] || [];
-  for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine']) game.turnTally[k] = game.turnTally[k] || {};
+  for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine', 'milled']) game.turnTally[k] = game.turnTally[k] || {};
   game.turnTally.exiled = game.turnTally.exiled || [];
   const t = game.turnTally, bump = (o, id) => { if (id) o[id] = Number(o[id] || 0) + 1; };
   if (type === 'dies') t.died.push({ controllerId: event.controllerId || null, ownerId: event.ownerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
@@ -614,6 +615,7 @@ function tallyTurn(game, event) {
   if (type === 'enters-battlefield') t.entered.push({ id: event.sourceId || null, controllerId: event.controllerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
   if (type === 'attacks' && event.controllerId && event.defenderId) t.attacked[event.controllerId] = [...new Set([...(t.attacked[event.controllerId] || []), event.defenderId])];
   if (type === 'sacrificed') bump(t.sacrificed, event.controllerId);
+  if (type === 'mill') bump(t.milled, event.playerId);   // Cruel Calculations: cards put into a graveyard from a library this turn
   // "the number of times you descended this turn" (a permanent card put into your graveyard from anywhere)
   if (type === 'put-into-graveyard' && !/\b(?:Instant|Sorcery)\b/.test(String(event.typeLine || '').split('—')[0])) bump(t.descended, event.ownerId);
   // "creatures that were exiled under your opponents' control this turn"

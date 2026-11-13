@@ -969,6 +969,6 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
 }
 // "This creature can block an additional creature this turn." (build 102): temporary extra blocks on the card.
 export function blockerCapacity(definition, card = null) { return blockerCapacityPrinted(definition) + (card?.temporaryEffects || []).filter(e => e?.kind === 'extra-blocks').reduce((n, e) => n + Number(e.amount || 0), 0); }
-function blockerCapacityPrinted(definition) { const text = String(definition?.oracleText || ''); const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
+function blockerCapacityPrinted(definition) { const text = String(definition?.oracleText || ''); if (/\bcan block any number of creatures\b/i.test(text)) return 99; const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
   return 1; const words = { one: 1, two: 2, three: 3, four: 4, five: 5 }; return 1 + (Number(m[1]) || words[m[1].toLowerCase()] || 0); }
 export function attackerMinimumBlockers(definition, instance = null) { return instanceKeyword(instance, definition, 'Menace') ? 2 : 1; }
