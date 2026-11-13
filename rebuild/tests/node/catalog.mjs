@@ -4,6 +4,7 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
+import { compileEffectText } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
 
@@ -3442,6 +3443,97 @@ section('build 102: "its power" is the right creature');
   const life = t.P(0).life, hand = t.P(0).deck.hand.length;
   cast(t, 'Grizzly Bears', 'When this creature enters, sacrifice another creature. You gain X life and draw X cards, where X is that creature\'s power.');
   check('Disciple of Bolas: a 3-power creature sacrificed, 3 life and 3 cards', t.P(0).life === life + 3 && t.P(0).deck.hand.length === hand + 3 && !t.bf(0, 'Fog Bank'), `${t.P(0).life - life} ${t.P(0).deck.hand.length - hand}`);
+}
+
+section('build 104: long tail batch 3 (sent-back cards re-read)');
+{
+  // Allies at Last / Common Goal: each chosen creature deals damage equal to its own power
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }), b = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Bear', power: '3', toughness: '3' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Up to two target creatures you control each deal damage equal to their power to target creature an opponent controls.', [[d => (d.options || []).some(o => o.id === a.instanceId) && d.kind === 'choose-many', () => [a.instanceId, b.instanceId]], tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('each deals damage equal to its own power: 2 + 3 = 5', Number(foe.damageMarked || 0) === 5, String(foe.damageMarked));
+}
+{
+  // Sunfall / Join the Collective: counted from what was exiled / destroyed this way
+  const t = setup();
+  onField(t, 'Grizzly Bears', ''); onField(t, 'Fog Bank', '', {}, 1); onField(t, 'Air Elemental', '', { typeLine: 'Creature — Bear' }, 1);
+  cast(t, 'Opt', 'Destroy all creatures. Create X 1/1 colorless Borg artifact creature tokens, where X is the number of nonartifact creatures destroyed this way.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const borgs = t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Borg');
+  check('Join the Collective: three destroyed, three Borg artifact creature tokens', borgs.length === 3 && /Artifact/.test(def(t, borgs[0]).typeLine), String(borgs.length));
+}
+{
+  // Painbringer-style cost counts are left to the player (this-way count without a moving instruction before it)
+  const r = compileEffectText('Target creature gets -X/-X until end of turn, where X is the number of cards exiled this way.', { sourceName: 'Test' });
+  check('"exiled this way" with nothing moved before it is not read', !r.supported, JSON.stringify(r.effects));
+}
+{
+  // Saavik / Hoshi Sato: creature types among non-Borg creatures
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Elf Warrior' }); onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }); onField(t, 'Mulldrifter', '', { typeLine: 'Creature — Borg Wizard' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Opt deals X damage to target creature, where X is the number of creature types among non-Borg creatures you control.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('creature types among non-Borg creatures: Elf, Warrior, Druid = 3', Number(foe.damageMarked || 0) === 3, String(foe.damageMarked));
+}
+{
+  // Triumphant Chomp: 2 or the greatest power among Dinosaurs, whichever is greater
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Dinosaur', power: '5', toughness: '5' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Opt deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"whichever is greater": a 5-power Dinosaur beats 2', Number(foe.damageMarked || 0) === 5, String(foe.damageMarked));
+}
+{
+  // Warkite Marauder: loses all abilities and becomes 0/1
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', 'Flying', { power: '4', toughness: '4', keywords: ['Flying'] }, 1);
+  cast(t, 'Opt', 'Target creature loses all abilities and has base power and toughness 0/1 until end of turn.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  const d = withOverlay(foe, def(t, foe));
+  check('"loses all abilities": 0/1 with no keywords', d.power === '0' && d.toughness === '1' && !(d.keywords || []).length && !d.oracleText, JSON.stringify([d.power, d.toughness, d.keywords]));
+}
+{
+  // Ayara: X is the sacrificed permanent's mana value (not this card's)
+  const r = compileEffectText("Test deals X damage to target opponent or battle and you gain X life, where X is the sacrificed permanent's mana value.", { sourceName: 'Test' });
+  check('"sacrificed permanent\'s mana value": X set before the damage', r.supported && r.effects[0].kind === 'set-x' && r.effects[0].amount.bind === 'sacrificedManaValue', JSON.stringify(r.effects[0]));
+}
+{
+  // Tokens with their own rules text, and artifact creature tokens
+  const r = compileEffectText('Create X 1/1 black Rat creature tokens with "This token can\'t block,"', { sourceName: 'Test' });
+  check('token with quoted rules text carries it', r.effects[0].oracleText === "This token can't block." && !r.effects[0].keywords.length, JSON.stringify(r.effects[0]));
+  const r2 = compileEffectText('Create a 1/1 colorless Borg artifact creature token.', { sourceName: 'Test' });
+  check('"Borg artifact creature token": subtype Borg, an artifact creature', r2.effects[0].name === 'Borg' && r2.effects[0].typeLine === 'Token Artifact Creature — Borg', r2.effects[0].typeLine);
+}
+{
+  // Superior Numbers / Weight of Spires: counts about the target's controller / a target opponent
+  const r = compileEffectText("Test deals damage to target creature equal to the number of nonbasic lands that creature's controller controls.", { sourceName: 'Test' });
+  check("\"that creature's controller controls\" is counted for the targeted creature", r.supported && r.effects[0].amount.controllerBind === 'target0', JSON.stringify(r.effects[0]));
+  const r2 = compileEffectText('Test deals damage to target creature equal to the number of creatures you control in excess of the number of creatures target opponent controls.', { sourceName: 'Test' });
+  check('"in excess of": a difference with its own target opponent', r2.supported && r2.requirements.some(q => q.kind === 'player'), JSON.stringify(r2.requirements));
+}
+{
+  // Gloom Ripper: one mandatory target and one optional; Ellie: self gains a keyword; Waiting in the Weeds: per player
+  const r = compileEffectText('Target creature you control gets +2/+0 until end of turn and up to one target creature an opponent controls gets -0/-2 until end of turn.', { sourceName: 'Test' });
+  check('two targets: only the second is optional', r.supported && !r.requirements[0].optional && r.requirements[1].optional, JSON.stringify(r.requirements.map(q => q.optional)));
+  const t = setup();
+  onField(t, 'Fog Bank', '', { typeLine: 'Basic Land — Forest' }); onField(t, 'Fog Bank', '', { typeLine: 'Basic Land — Forest' }, 1);
+  const before = [0, 1].map(i => t.P(i).deck.battlefield.filter(c => def(t, c).name === 'Cat').length);
+  cast(t, 'Opt', 'Each player creates a 1/1 green Cat creature token for each untapped Forest they control.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const after = [0, 1].map(i => t.P(i).deck.battlefield.filter(c => def(t, c).name === 'Cat').length);
+  check('each player gets Cats for their own untapped Forests (5 and 1)', after[0] - before[0] === 5 && after[1] - before[1] === 1, JSON.stringify(after));
+}
+{
+  // Ferrafor: "double each kind of counter"
+  const t = setup();
+  const c = onField(t, 'Grizzly Bears', '', {}); c.counters = { '+1/+1': 2, shield: 1 };
+  cast(t, 'Opt', 'Double the number of each kind of counter on target creature.', [tgt(c.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('every kind of counter doubled', c.counters['+1/+1'] === 4 && c.counters.shield === 2, JSON.stringify(c.counters));
+}
+{
+  // Cactus Preserve / Sorin: highest life total, commanders' mana value compile
+  for (const [txt, kind] of [['Create a number of 1/1 black Vampire Knight creature tokens with lifelink equal to the highest life total among all players.', 'b101-life-high'], ['Draw a card for each color among other artifacts you control.', 'b101-colors-among'], ['Draw a card for each card type among spells you\'ve cast this turn.', 'b101-spell-types'], ['Test deals X damage to each opponent, where X is the number of modified creatures you control other than this creature.', 'b101-n']]) {
+    const r = compileEffectText(txt, { sourceName: 'Test' });
+    check(`reads: ${txt.slice(0, 50)}`, r.supported && JSON.stringify(r.effects).includes(kind), JSON.stringify(r.effects).slice(0, 120));
+  }
 }
 
 done();

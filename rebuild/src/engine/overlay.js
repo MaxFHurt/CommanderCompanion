@@ -81,6 +81,7 @@ export function withOverlay(card, def) {
     out.typeLine = addTypes(out.typeLine, e.addTypes || [], e.subtypes || [], { replaceSubtypes: !!e.replaceSubtypes || (e.removeTypes || []).includes('Creature'), remove: e.removeTypes || [] });
     if (e.power !== undefined && e.power !== null) out.power = String(e.power);
     if (e.toughness !== undefined && e.toughness !== null) out.toughness = String(e.toughness);
+    if (e.loseAbilities) { out.oracleText = ''; out.keywords = []; }   // "loses all abilities" (Warkite Marauder)
     if (e.keywords?.length) out.keywords = [...new Set([...(out.keywords || []), ...e.keywords])];
     if (e.colors) out.colors = [...e.colors];
     if (e.addColors?.length) out.colors = [...new Set([...(out.colors || []), ...e.addColors])];
