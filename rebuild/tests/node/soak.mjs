@@ -3,24 +3,28 @@
 import { newGame } from './harness.mjs';
 
 const GAMES = Number(process.argv[2] || 25), TURNS = Number(process.argv[3] || 30);
-const pick = a => a[Math.floor(Math.random() * a.length)];
+// Seeded PRNG (mulberry32) for the bots' choices: SOAK_SEED env or 3rd arg replays a run; otherwise a random seed is picked.
+const SEED = Number(process.env.SOAK_SEED || process.argv[4] || (Math.random() * 2 ** 32) >>> 0) >>> 0;
+let _s = SEED;
+const rand = () => { _s = (_s + 0x6D2B79F5) | 0; let t = Math.imul(_s ^ (_s >>> 15), 1 | _s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const pick = a => a[Math.floor(rand() * a.length)];
 let problems = 0, actions = 0, finished = 0, guided = 0;
 
 function answerFor(d) {
   const open = (d.options || []).filter(o => !o.disabled);
   switch (d.kind) {
     case 'choose-one': return open.length ? pick(open).id : null;
-    case 'choose-many': { const n = Math.max(d.min || 0, Math.min(d.max ?? open.length, Math.floor(Math.random() * (open.length + 1)))); return [...open].sort(() => Math.random() - 0.5).slice(0, n).map(o => o.id); }
+    case 'choose-many': { const n = Math.max(d.min || 0, Math.min(d.max ?? open.length, Math.floor(rand() * (open.length + 1)))); return [...open].sort(() => rand() - 0.5).slice(0, n).map(o => o.id); }
     case 'number': return d.min || 0;
     case 'text': return (d.suggestions || ['Elf'])[0];
-    case 'confirm': return Math.random() < 0.7;
-    case 'arrange': return Math.random() < 0.5 ? { top: d.cards.map(c => c.id), other: [] } : { top: [], other: d.cards.map(c => c.id) };
+    case 'confirm': return rand() < 0.7;
+    case 'arrange': return rand() < 0.5 ? { top: d.cards.map(c => c.id), other: [] } : { top: [], other: d.cards.map(c => c.id) };
     default: return null;
   }
 }
 
 for (let g = 0; g < GAMES; g++) {
-  const decks = [...['white', 'simic', 'rakdos', 'red', 'lab']].sort(() => Math.random() - 0.5).slice(0, 2 + (g % 3));
+  const decks = [...['white', 'simic', 'rakdos', 'red', 'lab']].sort(() => rand() - 0.5).slice(0, 2 + (g % 3));
   const t = newGame(decks, { keepHands: true, autoPass: false, mode: g % 5 === 4 ? 'freeplay' : 'fully-tracked' });
   const game = t.game;
   const report = (what, extra = '') => { problems++; console.log(`PROBLEM game ${g} turn ${game.turnNumber}: ${what} ${extra}`.slice(0, 600)); };
@@ -30,30 +34,30 @@ for (let g = 0; g < GAMES; g++) {
     const i = game.players.findIndex(p => p.playerId === actor);
     const view = t.view(i), p = view.prompt, me = view.players[i];
     let intent = null;
-    if (p.kind === 'opening') intent = p.bottom ? { type: 'keep', bottom: me.hand.slice(0, p.bottom).map(c => c.id) } : (Math.random() < 0.15 && p.canMulligan ? { type: 'mulligan' } : { type: 'keep', bottom: [] });
+    if (p.kind === 'opening') intent = p.bottom ? { type: 'keep', bottom: me.hand.slice(0, p.bottom).map(c => c.id) } : (rand() < 0.15 && p.canMulligan ? { type: 'mulligan' } : { type: 'keep', bottom: [] });
     else if (p.kind === 'decision') intent = { type: 'answer', key: p.decision.key, value: answerFor(p.decision) };
     else if (p.kind === 'guided') { intent = { type: 'guided-done' }; guided++; }
     else if (p.kind === 'priority') {
       const ids = view.actions.respond.cards;
-      intent = ids.length && Math.random() < 0.5 ? { type: 'play', instanceId: pick(ids) } : { type: 'pass' };
+      intent = ids.length && rand() < 0.5 ? { type: 'play', instanceId: pick(ids) } : { type: 'pass' };
     } else if (p.kind === 'blocks') {
       const used = new Set(), assignments = [];
       for (const row of p.rows) {
         // Menace and similar: block with as many as the attacker needs, or not at all.
         const free = row.blockers.filter(x => !used.has(x.instanceId)).slice(0, row.minBlockers || 1);
-        if (free.length >= (row.minBlockers || 1) && Math.random() < 0.5) for (const b of free) { used.add(b.instanceId); assignments.push({ attackerId: row.attackerId, blockerId: b.instanceId }); }
+        if (free.length >= (row.minBlockers || 1) && rand() < 0.5) for (const b of free) { used.add(b.instanceId); assignments.push({ attackerId: row.attackerId, blockerId: b.instanceId }); }
       }
       intent = { type: 'block', assignments };
     } else if (p.kind === 'discard') intent = { type: 'discard', ids: me.hand.slice(0, p.need).map(c => c.id) };
     else if (p.kind === 'turn') {
       const playable = [...me.hand.filter(c => c.playable), ...me.command.filter(c => c.playable)];
       const abilities = me.battlefield.flatMap(c => (c.abilities || []).filter(a => a.legal && !a.mana).map(a => ({ c, a })));
-      if (view.actions.attack?.length && (view.actions.attack.some(a => a.mustAttack) || Math.random() < 0.8)) {
+      if (view.actions.attack?.length && (view.actions.attack.some(a => a.mustAttack) || rand() < 0.8)) {
         const foes = view.players.filter(q => q.playerId !== me.playerId && !q.eliminated);
-        intent = { type: 'attack', attacks: view.actions.attack.filter(a => a.mustAttack || Math.random() < 0.7).map(a => ({ instanceId: a.instanceId, defenderId: pick(a.defenders.filter(d => foes.some(f => f.playerId === d))) })) };
+        intent = { type: 'attack', attacks: view.actions.attack.filter(a => a.mustAttack || rand() < 0.7).map(a => ({ instanceId: a.instanceId, defenderId: pick(a.defenders.filter(d => foes.some(f => f.playerId === d))) })) };
         if (!intent.attacks.length) intent = { type: 'next-phase' };
-      } else if (playable.length && Math.random() < 0.85) intent = { type: 'play', instanceId: (playable.find(c => c.land) || pick(playable)).id };
-      else if (abilities.length && Math.random() < 0.3) { const x = pick(abilities); intent = { type: 'activate', instanceId: x.c.id, abilityId: x.a.id }; }
+      } else if (playable.length && rand() < 0.85) intent = { type: 'play', instanceId: (playable.find(c => c.land) || pick(playable)).id };
+      else if (abilities.length && rand() < 0.3) { const x = pick(abilities); intent = { type: 'activate', instanceId: x.c.id, abilityId: x.a.id }; }
       else intent = { type: 'next-phase' };
     } else if (p.kind === 'vote') intent = { type: 'vote', approve: true };
     else { report('nobody can act', JSON.stringify({ kind: p.kind, flow: { ...game.flow, op: game.flow.op?.type } })); break; }
@@ -78,5 +82,5 @@ for (let g = 0; g < GAMES; g++) {
   }
   if (game.status === 'complete') finished++;
 }
-console.log(`${GAMES} games, ${actions} actions, ${finished} finished, ${guided} by-hand resolutions, ${problems} problems`);
+console.log(`${GAMES} games, ${actions} actions, ${finished} finished, ${guided} by-hand resolutions, ${problems} problems${problems ? `, seed ${SEED}` : ''}`);
 process.exit(problems ? 1 : 0);

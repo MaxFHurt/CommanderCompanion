@@ -46,11 +46,31 @@ if [ -n "$DK" ]; then
   (cd "$W/proto/tests" && sh check.sh "$DK" live 2>&1 | sed -n '/^== check.sh/,$p') > "$OUT/deck"
   pkill -f "http.server 8765" 2>/dev/null
 fi
-for s in $NODE; do printf '%-15s %s\n' "$s" "$(node tests/node/$s.mjs 2>&1 | tail -1 | cut -c1-140)"; done > "$OUT/node"
-[ -n "$SOAK" ] && for i in 1 2 3; do echo "soak 40 #$i     $(node tests/node/soak.mjs 40 2>&1 | tail -1 | cut -c1-140)"; done >> "$OUT/node"
+node_one(){ printf '%-15s %s\n' "$1" "$(node tests/node/$1.mjs 2>&1 | tail -1 | cut -c1-140)"; }
+# Node suites + 3 soak runs run concurrently (at most 4 processes), each into its own file; summary order is unchanged.
+mkdir -p "$OUT/n"; JOBS=""
+for s in $NODE; do JOBS="$JOBS node:$s"; done
+[ -n "$SOAK" ] && for i in 1 2 3; do JOBS="$JOBS soak:$i"; done
+RUNNING=0
+for j in $JOBS; do
+  case "$j" in
+    node:*) (node_one "${j#node:}" > "$OUT/n/$j") & ;;
+    soak:*) (echo "soak 40 #${j#soak:}     $(node tests/node/soak.mjs 40 2>&1 | tail -1 | cut -c1-140)" > "$OUT/n/$j") & ;;
+  esac
+  RUNNING=$((RUNNING + 1))
+  [ "$RUNNING" -ge 4 ] && { wait; RUNNING=0; }
+done
+wait
+for j in $JOBS; do cat "$OUT/n/$j"; done > "$OUT/node"
+[ -n "$NODE_ONLY" ] && { echo "== node only ($(($(date +%s) - T0)) s)"; cat "$OUT/node"; exit 0; }
 if [ -n "$GP" ]; then
   python3 -c "import playwright" 2>/dev/null || pip install -q playwright==1.63.0
   (setsid nohup python3 -m http.server 4180 --bind 127.0.0.1 >/dev/null 2>&1 &); sleep 1
-  for t in $PY; do printf '%-15s %s\n' "$t" "$(python3 tests/$t.py 2>&1 | tail -1 | cut -c1-140)"; done > "$OUT/py"
+  for t in $PY; do
+    L=600; [ "$t" = pair_ui ] && L=180
+    timeout $L python3 tests/$t.py > "$OUT/py_$t" 2>&1; RC=$?
+    if [ "$RC" = 124 ]; then R="$t TIMED OUT after $L s"; else R=$(tail -1 "$OUT/py_$t" | cut -c1-140); fi
+    printf '%-15s %s\n' "$t" "$R"
+  done > "$OUT/py"
 fi
 echo "== suites ($(($(date +%s) - T0)) s)"; cat "$OUT"/deck "$OUT"/node "$OUT"/py 2>/dev/null
