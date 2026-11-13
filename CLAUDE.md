@@ -6,7 +6,8 @@
   Sonnet for normal coding; Opus/Fable only for hard design or debugging. Give each agent a short, self-contained brief that
   points at exact files (see `rebuild/INDEX.md`), not "read the codebase".
 - **Few agents at once.** Parallel agents share one usage limit; on 12 Nov eight agents hit it before writing any code.
-  Two or three at most, each with a narrow task.
+  Two or three at most, each with a narrow task, and **keep two or three busy at all times** (owner, 13 Nov: "Multiple agents
+  should be working all the time"): when one finishes, start the next roadmap task.
 - **Repetition burns tokens.** A command or check run more than twice becomes a skill (`.claude/skills/`) or a script.
   Existing: `deck-test` (Deck Builder tests), `release` (shipping a build).
 - **Compact** when the conversation is long and work is re-reading the same files.
