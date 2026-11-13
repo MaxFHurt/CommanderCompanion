@@ -3,7 +3,7 @@ Needs the static server on port 4180; this test starts and stops the Worker on p
 import asyncio, os, subprocess, sys, time, urllib.request
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(__file__))
-from shots import PHONE, IPAD, OUT
+from shots import PHONE, IPAD, OUT, STATIC
 from game_ui import new_page, fill_seat, check, results
 
 PORT = 8787
@@ -78,7 +78,7 @@ async def main():
             await a.set_viewport_size({'width': 1180, 'height': 820})
 
             # Copy code, and a QR code another phone can scan with the app's camera.
-            await a.context.grant_permissions(['clipboard-read', 'clipboard-write'], origin='http://127.0.0.1:4180')
+            await a.context.grant_permissions(['clipboard-read', 'clipboard-write'], origin=STATIC)
             await a.click('[data-share-act="copy"]')
             check('Copy code puts the code on the clipboard', (await a.evaluate('navigator.clipboard.readText()')) == code)
             link = await a.locator('[data-share-link]').get_attribute('data-share-link')
@@ -87,7 +87,7 @@ async def main():
             await a.locator('.share-code__qr').screenshot(path=qr_png)
             cam = await p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', f'--use-file-for-fake-video-capture={fake_camera(qr_png)}'])
             s1 = await new_page(cam, PHONE, Q)
-            await s1.context.grant_permissions(['camera'], origin='http://127.0.0.1:4180')
+            await s1.context.grant_permissions(['camera'], origin=STATIC)
             await open_online(s1)
             await s1.click('[data-act="scan"]')
             await s1.wait_for_selector('text=invited you', timeout=20000)

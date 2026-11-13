@@ -227,9 +227,9 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    `tests/style_diff.py` (and the Deck Builder's `cc-theme.css` appended sections into its base rules).
 2. Anything the real-device checks in section 1.4 turn up.
 
-## 7b. Profile page clean-up (owner, 10 Nov; next session)
+## 7b. Profile page clean-up (owner, 10 Nov; 7b.1 done, 7b.3 built, not live)
 
-1. **Profile page clean-up:** anything not about the player moves off the page or goes. List the page's sections and have the
+1. **(Done: Settings → Backup, built on branch claude/vibrant-faraday-9fv5in, build 104.)** **Profile page clean-up:** anything not about the player moves off the page or goes. List the page's sections and have the
    owner confirm what goes before removing anything.
 2. Sign-in and automatic saving: dropped (owner, 10 Nov: "If it's already transferable by profile key, then none of this is
    necessary"). The profile key already backs a linked device up automatically. Offered instead, not decided: a warning on a
@@ -238,6 +238,10 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    to the profile (optional, prompted on the profile page); a lost key is recovered with a one-time code sent to that email
    (Supabase on the owner's project; free at this volume). Phone (SMS) later if wanted: it needs a paid SMS service. The key
    keeps working as now; the email only finds the profile again. Checks: both apps' tests, recovery tried on a second device.
+   **Built (recovery branch, not released):** Settings → Backup → Online has a Recovery email row (add/change/remove) and "Lost your key? Recover by email";
+   `src/app/profile-recovery.js`, Supabase Auth email codes by plain fetch, table + row rules in `cloud/supabase-recovery.sql`.
+   **At release:** apply that SQL; paste the project's anon key into `SUPABASE_ANON_KEY`; Auth → Email templates show `{{ .Token }}`;
+   later a custom SMTP sender (the free default allows a few emails an hour). Test: `tests/recovery_ui.py`.
 
 ## 7c. Landing buttons: use the owner's original art (owner, 10 Nov)
 
@@ -248,7 +252,7 @@ least about 2,500 px wide, or SVG); put them in unchanged, check phone, iPad and
 landing stretches), and use the same art for the other screens' buttons (mode select, Profile, Settings use one stretched
 frame, ui/button-frame-large.png, with typed labels).
 
-## 7d. Clearer deck generation (built on the branch 10 Nov for Build 97: setup pop-up for empty decks, plan listed to add) (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
+## 7d. Clearer deck generation (Done, build 97, live in 98: setup pop-up for empty decks, plan listed to add) (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
 
 1. **Setup pop-up on first generation:** after choosing how to make a deck (the mode), the criteria (commander or colours,
    tier, mechanics/themes, owned cards, budget) open as a pop-up that walks the player through them the first time, instead of
