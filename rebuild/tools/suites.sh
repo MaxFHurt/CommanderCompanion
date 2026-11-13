@@ -38,6 +38,9 @@ echo "Node suites:  ${NODE:-none}${SOAK:+ + soak 40 x3}"
 echo "Browser:      $([ -n "$GP" ] && echo $PY || echo none)"
 [ "$MODE" = run ] || exit 0
 
+# every app file must be in precache.json (offline start): a new file left out breaks offline_ui (build 110)
+MISS=$(node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("precache.json","utf8"));const L=JSON.stringify(p);const w=d=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?w(d+"/"+e.name):[d+"/"+e.name]);console.log(w("src").filter(f=>f.endsWith(".js")&&!L.includes(f)).join(" "))')
+[ -n "$MISS" ] && echo "PRECACHE MISSING (run node tools/stamp.mjs): $MISS"
 T0=$(date +%s); OUT=$(mktemp -d); trap 'pkill -f "http.server 4180" 2>/dev/null; rm -rf "$OUT"' EXIT
 export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 # Deck Builder first, alone (it uses 3 of 4 cores); then the game suites.
