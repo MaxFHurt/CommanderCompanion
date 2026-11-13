@@ -74,6 +74,8 @@ export function withOverlay(card, def) {
   if (def && card?.attachedTo && /(?:^|\n)\s*Reconfigure\b/i.test(String(def.oracleText || ''))) def = { ...def, typeLine: String(def.typeLine || '').replace(/\s*\bCreature\b\s*/, ' ').replace(/\s+/g, ' ').trim() };
   // Prototype: cast for its prototype cost, it has that smaller power and toughness, mana cost and colour while on the battlefield or stack.
   if (def && card?.prototype) def = { ...def, power: card.prototype.power, toughness: card.prototype.toughness, manaCost: card.prototype.cost, manaValue: card.prototype.manaValue, colors: card.prototype.colors };
+  // Titan of Littjara: "This creature is the chosen type in addition to its other types."
+  if (def && card?.chosenCreatureType && /is the chosen type in addition to its other types/i.test(String(def.oracleText || ''))) def = { ...def, typeLine: addTypes(def.typeLine, [], [card.chosenCreatureType], {}) };
   const fx = (card?.temporaryEffects || []).filter(e => e?.kind === 'animate');
   if (!def || !fx.length) return def;
   const out = { ...def };

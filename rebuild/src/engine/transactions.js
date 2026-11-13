@@ -415,6 +415,14 @@ function payAbilityCosts(game, player, action, deck) {
     setTappedWithCapacity(game, player, card, false);
     emit(game, { type: 'untapped', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId });
   }
+  // "Remove all eyeball counters from this artifact" (a cost): counted by ops.js before it is paid.
+  for (const rc of action.costRemoveCounters || []) {
+    if (!rc.amount) continue;
+    card.counters = card.counters || {};
+    card.counters[rc.counter] = Math.max(0, Number(card.counters[rc.counter] || 0) - Number(rc.amount));
+    if (!card.counters[rc.counter]) delete card.counters[rc.counter];
+    emit(game, { type: 'counter-removed', sourceId: card.instanceId, controllerId: player.playerId, counter: rc.counter, amount: Number(rc.amount) });
+  }
   payMana(game, player, action.payment);
   if (action.energyCost) {
     player.counters = player.counters || {};
@@ -576,6 +584,7 @@ function resolveStackTop(game) {
         card.counters = card.counters || {};
         card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);
       }
+      card.devoured = 0;
       if (obj.asEntersChoices?.devour?.length) {
         // Devour: the chosen creatures still there are sacrificed; counters for each one sacrificed
         let n = 0;
@@ -586,6 +595,7 @@ function resolveStackTop(game) {
           n++;
         }
         if (n) { card.counters = card.counters || {}; card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + n * Number(obj.asEntersChoices.devourEach || 1); }
+        card.devoured = n;   // Skullmulcher: "for each creature it devoured"
       }
       if (obj.asEntersChoices?.haste)
         card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }];

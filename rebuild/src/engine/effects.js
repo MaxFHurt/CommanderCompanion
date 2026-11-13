@@ -137,6 +137,10 @@ function resetOnZoneChange(card) {
   delete card.blocking;
   delete card.unlockedFaces;   // Room doors lock again
 }
+/** Who controls each Aura attached to this permanent right now ("for each Aura you controlled that was attached to it", Hateful Eidolon). */
+export function auraControllersOn(game, id) {
+  return (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.attachedTo === id && /\bAura\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => c.controllerId || p.playerId));
+}
 export function moveCard(game, id, to, { controllerId = null, position = 'bottom', tapped = false, preserveCounters = false, onEvent = null, moveReason = null } = {}) {
   const hit = locateCardInGame(game, id);
   if (!hit || hit.zone === 'stack')
@@ -154,7 +158,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (!owner)
     throw new Error('Card owner is unavailable.');
   // Last-known information for "dies" abilities (undying, persist, blitz).
-  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0) };
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0), auraControllers: auraControllersOn(game, id) };
   if (!preserveCounters)
     resetOnZoneChange(card);
   if (card.pendingVoid) { delete card.pendingVoid; if (to === 'exile') card.counters = { ...(card.counters || {}), void: 1 }; }
@@ -214,7 +218,7 @@ function shuffled(array) {
 function markDamage(game, card, n) {
   const t = String(definitionFor(game, card)?.typeLine || '');
   const counter = /\bPlaneswalker\b/.test(t) && !/\bCreature\b/.test(t) ? 'loyalty' : /\bBattle\b/.test(t) && !/\bCreature\b/.test(t) ? 'defense' : null;
-  if (counter && n > 0) { card.counters = card.counters || {}; card.counters[counter] = Math.max(0, Number(card.counters[counter] || 0) - n); return; }
+  if (counter && n > 0) { card.counters = card.counters || {}; card.lastCounterBefore = Number(card.counters[counter] || 0); card.counters[counter] = Math.max(0, Number(card.counters[counter] || 0) - n); return; }
   card.damageMarked = Number(card.damageMarked || 0) + n;
 }
 /** Tap or untap; "if a permanent with a stun counter would become untapped, instead remove a stun counter from it".
@@ -603,6 +607,7 @@ function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(a
   if (shield.targetId !== targetId || Number(shield.amount || 0) <= 0)
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
+  if (shield.countPrevented) { game.preventedCount = game.preventedCount || {}; const k = `${game.turnNumber}:${targetId}`; game.preventedCount[k] = Number(game.preventedCount[k] || 0) + used; }   // "for each 1 damage prevented this way"
   shield.amount -= used;
   left -= used;
 } game.damagePrevention = (game.damagePrevention || []).filter(s => Number(s.amount || 0) > 0); return left; }
@@ -698,6 +703,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         // "Sacrifice it / them at the beginning of the next end step": the tokens or cards this effect just made or moved.
         if (e.fromBind === '__recent') out.ids = [...(bindings.lastCreated?.length ? bindings.lastCreated : bindings.lastMoved?.length ? bindings.lastMoved : [bindings.eventCard].filter(Boolean))];
         if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'binding' && bindings[e.amount.bind] !== undefined) out.amount = Number(bindings[e.amount.bind] || 0);
+        if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'b101-prevented') out.amount = { ...e.amount, targetId: bindings[e.amount.bind] };   // Sacred Boon: the damage prevented this turn for that creature
         return out;
       });
       const src = locateCardInGame(game, bindings.sourceId)?.card || (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId)?.card;
@@ -885,6 +891,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           p.counters.cardsDrawnThisTurn = Number(p.counters.cardsDrawnThisTurn || 0) + 1;
         }
         notes.push(`${p.displayName} draws ${moved} card${moved === 1 ? '' : 's'}.`);
+        bindings.drawnThisWay = moved;   // "the number of cards drawn this way" (Rise of the Deathbringer)
       }
       continue;
     }
@@ -893,8 +900,10 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const p of players) {
         const count = p.deck.hand.length;
         bindings[effect.countBind || 'thatMany'] = count;
+        bindings.discardedThisWay = Number(bindings.discardedThisWay || 0) + count;   // "the number of cards discarded this way"
         while (p.deck.hand.length) {
           const c = p.deck.hand.shift();
+          bindings.discardedCards = [...(bindings.discardedCards || []), c.instanceId];
           c.zone = 'graveyard';
           p.deck.graveyard.push(c);
           emit(bindings, { type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
@@ -921,6 +930,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           const [c] = p.deck.hand.splice(i, 1);
           c.zone = 'graveyard';
           p.deck.graveyard.push(c);
+          bindings.discardedCards = [...(bindings.discardedCards || []), c.instanceId];   // "the discarded card's mana value", "a nonland card this way"
           emit(bindings, { type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
         }
         notes.push(`${p.displayName} discards ${need} card${need === 1 ? '' : 's'}.`);
@@ -1019,6 +1029,16 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         p.statuses = (p.statuses || []).filter(x => x.toLowerCase() !== effect.status.toLowerCase());
       controller.statuses = [...(controller.statuses || []), effect.status];
       notes.push(`${controller.displayName} becomes ${effect.status === 'Monarch' ? 'the monarch' : effect.status}.`);
+      // Palace Jailer: "until an opponent becomes the monarch" — what it exiled comes back when someone else takes the crown.
+      if (effect.status === 'Monarch' && (game.monarchExiles || []).length) {
+        const keep = [];
+        for (const x of game.monarchExiles) {
+          if (x.jailerId === controllerId) { keep.push(x); continue; }
+          const hit = locateCardInGame(game, x.cardId);
+          if (hit && hit.zone === 'exile') { const moved = moveCard(game, x.cardId, 'battlefield', { controllerId: hit.card.ownerId, onEvent: e => emit(bindings, e) }); notes.push(`${cardName(game, moved.card)} returns to the battlefield.`); }
+        }
+        game.monarchExiles = keep;
+      }
       continue;
     }
     if (effect.kind === 'goad') {
@@ -1098,6 +1118,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         if (!th || th.zone !== 'battlefield')
           throw new Error('The chosen damage target is no longer legal.');
         markDamage(game, th.card, dealt);
+        if (dealt) emit(bindings, { type: 'damage-permanent', targetId, amount: dealt, sourceId, definitionId: src.card.definitionId, controllerId: src.card.controllerId || controllerId });   // the damage tallies (Rith, Impact Resonance, Blazing Effigy)
         notes.push(`${sd?.name || 'Creature'} deals ${dealt} damage to ${cardName(game, th.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
         checkLethal(game, targetId, notes, bindings);
       }
@@ -1118,6 +1139,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const ad = definitionFor(game, a.card), bd = definitionFor(game, b.card), ap = effectivePower(a.card, ad, game), bp = effectivePower(b.card, bd, game), toA = preventDamage(game, aId, bp), toB = preventDamage(game, bId, ap);
       a.card.damageMarked = Number(a.card.damageMarked || 0) + toA;
       b.card.damageMarked = Number(b.card.damageMarked || 0) + toB;
+      // Each creature dealt its damage as a source: the damage tallies (Rith, Impact Resonance, Blazing Effigy) see both.
+      if (toB) emit(bindings, { type: 'damage-permanent', targetId: bId, amount: toB, sourceId: aId, definitionId: a.card.definitionId, controllerId: a.card.controllerId || controllerId });
+      if (toA) emit(bindings, { type: 'damage-permanent', targetId: aId, amount: toA, sourceId: bId, definitionId: b.card.definitionId, controllerId: b.card.controllerId });
       notes.push(`${ad?.name || 'Creature'} and ${bd?.name || 'creature'} fight (${toB} and ${toA} damage dealt after prevention).`);
       checkLethal(game, aId, notes, bindings);
       checkLethal(game, bId, notes, bindings);
@@ -1179,7 +1203,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!targetId)
         throw new Error('Damage-prevention target is unavailable.');
       game.damagePrevention = game.damagePrevention || [];
-      game.damagePrevention.push({ targetId, amount, expires: effect.expires || 'cleanup' });
+      game.damagePrevention.push({ targetId, amount, expires: effect.expires || 'cleanup', ...(effect.countPrevented ? { countPrevented: true } : {}) });
       notes.push(`The next ${amount} damage to the chosen target is prevented.`);
       continue;
     }
@@ -1236,7 +1260,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         continue;
       }
       const to = effect.kind === 'exile' ? 'exile' : effect.kind === 'bounce' ? 'hand' : 'graveyard';
-      if (effect.kind === 'destroy' && regenerates(game, hit.card, notes)) continue;
+      if (effect.kind === 'destroy' && !effect.noRegen && regenerates(game, hit.card, notes)) continue;
       if (effect.kind === 'destroy' && Number(hit.card?.counters?.shield || 0) > 0) {
         hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);
         notes.push(`${name}'s shield counter prevents the destruction.`);
@@ -1422,7 +1446,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         throw new Error('The keyword target is no longer legal.');
       hit.card.temporaryEffects = hit.card.temporaryEffects || [];
       hit.card.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: effect.enabled !== false, expires: effect.expires || 'cleanup' });
-      notes.push(`${cardName(game, hit.card)} ${effect.enabled === false ? 'loses' : 'gains'} ${effect.keyword} until end of turn.`);
+      notes.push(`${cardName(game, hit.card)} ${effect.enabled === false ? 'loses' : 'gains'} ${effect.keyword}${effect.expires === 'permanent' ? '' : ' until end of turn'}.`);
       continue;
     }
     if (effect.kind === 'create-token') {
@@ -1463,6 +1487,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const n = cardName(game, hit.card);
       moveCard(game, targetId, effect.to, { controllerId: effect.controllerId || controllerId, position: effect.position || 'bottom', tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
       notes.push(`${n} moves to ${effect.to}.`);
+      if (effect.to === 'exile') bindings.exiledCard = targetId;   // "the exiled card's toughness" (Scour the Desert)
       continue;
     }
     if (effect.kind === 'choose-color') {
@@ -1743,6 +1768,9 @@ export function parseCondition(text) {
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i.test(t)) return { test: 'opp-excess-damage' };   // Rith, Liberated Primeval
+  if (/^its mana value is equal to the amount of unspent mana you have$/i.test(t)) return { test: 'mv-equals-pool' };   // Glissa Sunseeker
+  if (/^you have an enduring story$/i.test(t)) return { test: 'enduring-story' };
   if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
   if ((m = t.match(/^(?:it'?s|that creature is) (?:a|an) ([A-Z][a-z]+)$/))) return { test: 'it-is', type: m[1], bind: 'lastTarget' };
   if (/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i.test(t)) return { test: 'greatest-artifact-mv' };
@@ -1789,6 +1817,20 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'opponent-more-life') return game.players.some(p => !p.eliminated && p.playerId !== controllerId && Number(p.life || 0) > Number(me?.life || 0));
   if (effect.test === 'event-power') { const h = locateCardInGame(game, bindings.eventCard || bindings.sourceId); return !!h && effectivePower(h.card, definitionFor(game, h.card), game) >= (effect.min || 0); }
   if (effect.test === 'life') return Number(me?.life || 0) >= (effect.min || 0);
+  // "When you discard a nonland card this way": the card just discarded.
+  if (effect.test === 'discarded-nonland') { const id = (bindings.discardedCards || []).slice(-1)[0], h = id && locateCardInGame(game, id); return !!h && !/\bLand\b/.test(definitionFor(game, h.card)?.typeLine || ''); }
+  if (effect.test === 'opp-excess-damage') return game.turnTally?.turn === Number(game.turnNumber || 0) && (game.turnTally.excess || []).some(x => x.controllerId !== controllerId);
+  if (effect.test === 'mv-equals-pool') {
+    const id = ['target0', 'lastTarget', 'eventCard'].map(k => bindings[k]).find(Boolean), h = id && locateCardInGame(game, id), d = h && definitionFor(game, h.card);
+    const pool = Object.values(me?.mana?.floating || {}).reduce((n, v) => n + Math.max(0, Number(v) || 0), 0);
+    return !!d && Number(d.manaValue ?? d.cmc ?? 0) === pool;
+  }
+  if (effect.test === 'discarded-any') return (bindings.discardedCards || []).length > 0;
+  // Storied: three artifacts, legendary permanents and/or Sagas give "an enduring story for the rest of the game".
+  if (effect.test === 'enduring-story') {
+    if (me && !me.enduringStory && (me.deck?.battlefield || []).filter(c => /\bArtifact\b|\bSaga\b|\bLegendary\b/.test(definitionFor(game, c)?.typeLine || '')).length >= 3) me.enduringStory = true;
+    return !!me?.enduringStory;
+  }
   if (effect.test === 'unique-name') { const h = locateCardInGame(game, bindings.eventCard); const n = h && definitionFor(game, h.card)?.name; return !!n && !(me?.deck?.battlefield || []).some(c => c.instanceId !== h.card.instanceId && /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n) && !(me?.deck?.graveyard || []).some(c => /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n); }
   if (effect.test === 'source-cast') { const h = locateCardInGame(game, bindings.sourceId); return !!h?.card?.castMode || !!h?.card?.wasCast; }
   if (effect.test === 'control') {
@@ -3136,7 +3178,8 @@ export function compileEffectText(text, opts = {}) {
     if (COMPILE_DEPTH === 0 && hit.supported && JSON.stringify(hit.effects).includes('b101-this-way')) {
       const first = hit.effects.findIndex(e => JSON.stringify(e).includes('b101-this-way'));
       const moved = hit.effects.slice(0, first).some(e => e.kind === 'zone-each' || ((e.kind === 'exile-many' || e.kind === 'destroy-many') && !hit.requirements.some(q => q.bind === e.bind && /graveyard/i.test(q.scope || ''))));
-      if (!moved || /\bkicked\b/i.test(text)) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
+      const own = hit.effects.slice(0, first).some(e => e.kind === 'b101-exile-graveyard');   // Waste Management: its own exile, kicked or not
+      if (!own && (!moved || /\bkicked\b/i.test(text))) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     }
     if (COMPILE_CACHE.size > 20000) COMPILE_CACHE.clear();
     COMPILE_CACHE.set(key, hit);
@@ -3231,7 +3274,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     let dm = clause.match(/^(.+?),? at the beginning of the next turn'?s upkeep\.?$/i);
     if (dm) { delays.push({ from: parts.length, when: { event: 'upkeep', whose: 'any' } }); clause = `${dm[1]}.`; }
     else if ((dm = clause.match(/^At the beginning of (your|the) next (upkeep|main phase|precombat main phase|end step),\s*(.+)$/i))) {
-      delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any' } });
+      delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any', ...(/end step/i.test(dm[2]) ? { sameTurn: true } : {}) } });   // the next end step can be this turn's
       clause = dm[3].charAt(0).toUpperCase() + dm[3].slice(1);
     }
     // Pact of Negation: "pay {3}{U}{U}. If you don't, you lose the game." — paying is the player's choice; not paying does the rest.
@@ -3303,7 +3346,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
         else expr = thatOne ? { kind: 'b101-that-power' } : { kind: 'b101-its-power' };
       }
       if (expr != null && inner && inner.supported) {
-        for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
+        for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X' || r.total === 'X') r.xExpr = expr;   // counted as the choice is made
         parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });
         continue;
       }
@@ -3456,7 +3499,10 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
         parts.push({ effects: [], requirements: [], unsupported: [clause] });
         continue;
       }
-      parts.push(compileSingleClause(dependent[1], { sourceName }));
+      const dep = compileSingleClause(dependent[1], { sourceName });
+      // "…, where X is the number of card types the discarded card has": read as a whole sentence (the amount is worked out as it resolves).
+      const whereDep = dep.unsupported.length && /\bwhere X is\b/i.test(dependent[1]) ? compileEffectText(dependent[1], { sourceName }) : null;
+      parts.push(whereDep && whereDep.supported && whereDep.effects.length ? { effects: whereDep.effects, requirements: whereDep.requirements, unsupported: [] } : dep);
       continue;
     }
     // "Its controller may search their library for a basic land card, put it onto the battlefield tapped, then
