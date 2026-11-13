@@ -277,6 +277,12 @@ frame, ui/button-frame-large.png, with typed labels).
    needs Theme first, the land formula, no-play-data decks and building ahead reworked (five tests). Other way: generate with
    the strength values from the start. Owner to choose.
 
+## 7z. Last: optimise all the code (owner, 13 Nov: "When we are completely done with the roadmap all code needs optimization")
+
+After every other item is done: a pass over the whole codebase (game app src/, Deck Builder deck/, cloud/, tests) for speed,
+size and duplication, with no change in behaviour. Measure first (load time on a phone, bundle sizes, background-core time,
+suite time), change only what the numbers point to, and prove each step with the full suites and the benchmarks unchanged.
+
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
