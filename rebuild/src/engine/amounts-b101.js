@@ -58,6 +58,7 @@ export function parseCountB101(phrase) {
       else if (CARD_TYPES.includes(singularB101(w))) e2.types.push(singularB101(w));
       else return null;
     }
+    if (e2.card && !e2.types.length) return null;   // "cards exiled this way": from a graveyard or a cost, not counted here
     return e2;
   }
   // Batch 3: what is among a group, own cards across zones, highest values.
@@ -116,7 +117,7 @@ export function parseCountB101(phrase) {
   if ((m = p.match(/^(white|blue|black|red|green) mana symbols? in the mana costs of permanents you control$/))) return { kind: 'devotion', color: COLORS[m[1]] };
   if ((m = p.match(/^opponents? who controls? more (creatures|lands|artifacts) than you$/))) return { kind: 'b101-opponents-more', type: singularB101(m[1]) };
   if (/^colors? of mana spent to cast (?:this spell|it|this creature|this permanent)$/.test(p)) return { kind: 'b101-colors-spent' };
-  if (/^times? (?!you\b)[a-z' ,-]+ was kicked$/.test(p)) return { kind: 'b101-kicked' };
+  if (/^times? (?!you\b|that\b)[a-z' ,-]+ was kicked$/.test(p)) return { kind: 'b101-kicked' };
   if (/^basic land types? among lands you control$/.test(p)) return { kind: 'b101-domain' };
   if ((m = p.match(/^basic land types? among lands (they|that player|target player|target opponent) controls?$/))) return { kind: 'b101-domain', ref: true };
   if (/^colors? among permanents you control$/.test(p)) return { kind: 'b101-colors' };

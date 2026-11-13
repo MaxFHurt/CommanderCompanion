@@ -2453,7 +2453,8 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     // `with flying and "This token can't block."`: the words before the quote are keywords, the quote is the token's own rules text.
     const withText = m[5] || '', q = withText.indexOf('"');
     const kws = (q >= 0 ? withText.slice(0, q).replace(/\s*(?:,\s*)?(?:and\s*)?$/i, '') : withText).split(/,| and /).map(x => x.trim()).filter(Boolean);
-    const rules = q >= 0 ? withText.slice(q + 1).replace(/[",\s]+$/, '').replace(/([^.])$/, '$1.') : '';
+    const quotes = q >= 0 ? [...withText.slice(q).matchAll(/"([^"]*)"?/g)].map(x => x[1].replace(/[,\s]+$/, '').trim()).filter(x => x && !/^(?:and|,)$/i.test(x)) : [];
+    const rules = quotes.map(x => x.replace(/([^.])$/, '$1.')).join('\n');
     effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: tokenLine, keywords: kws, colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}) });
     return { effects, requirements, unsupported };
   }
@@ -3542,7 +3543,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       continue;
     }
     // "up to one target …": the same instruction, and choosing nothing is allowed.
-    if (/\bup to one target\b/i.test(clause) && !/counters? on up to one/i.test(clause) && !((clause.match(/\btarget\b/gi) || []).length > (clause.match(/\bup to one (?:other )?target\b/gi) || []).length)) {   // (not when another target in the sentence is not optional)
+    if (/\bup to one target\b/i.test(clause) && !/counters? on up to one/i.test(clause) && !(/ gets [+-][\dX]+\/[+-][\dX]+ until end of turn and up to one target\b/i.test(clause) && (clause.match(/\btarget\b/gi) || []).length > (clause.match(/\bup to one (?:other )?target\b/gi) || []).length)) {   // (not when another target in the sentence is not optional)
       const c = compileSingleClause(clause.replace(/\bup to one target\b/i, 'target'), { sourceName });
       if (!c.unsupported.length && c.effects.length) {
         const binds = new Set(c.requirements.filter(r => r.kind === 'target').map(r => r.bind));
