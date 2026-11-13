@@ -221,6 +221,21 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    cisweep 1,466 s -> 623 s and genstrong 727 s -> 250 s split across 3 processes; every number identical. Still open: the
    UI suite itself (about 650 s on 3 browsers) needs less work per test (fewer practice games, a smaller card library).
 
+## 6b. Game-plan aware Deck Builder (owner, 13 Nov)
+
+Owner: "The app needs to be gameplan aware for decks also. Some functions such as web-slinging instigate reactions from other
+effects. If I keep putting cards into my hand I'm either trying to force a discard OR I'm using spells that have an entering
+trigger. ... There are a lot of actions and interactions that are just looking for keywords and not actual gameplay aware."
+
+Today the Deck Builder reads cards mostly by keywords and EDHREC theme pages (themes, reasons, synergy, Fix menus). Goal: read
+what the deck actually does: chains of enablers and payoffs (bounce to hand → re-cast / enters triggers; filling the hand →
+discard outlets, madness, "no maximum hand size", or hand-size payoffs; sacrifice outlets → death triggers; tokens → enters
+triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow the deck's real game plan.
+1. Design first (owner approves before building): how plans are detected (game engine's compiled effects and triggers, section
+   5, rather than keywords), what each part of the app does with them, and how it is measured (owner's decks, the upgrade
+   benchmark, tournament match).
+2. Build in batches; each batch measured. Builds on 5.1-5.2 (engine readings, card interactions from triggers).
+
 ## 7. Look and layout
 
 1. **(Done, build 72: the last unused rules removed; the override sections had already been folded; pixel-identical.)** **Stylesheet cleanup:** fold `styles/app.css` override sections 16–32 into their base rules, checked pixel-for-pixel with
@@ -277,12 +292,6 @@ frame, ui/button-frame-large.png, with typed labels).
    needs Theme first, the land formula, no-play-data decks and building ahead reworked (five tests). Other way: generate with
    the strength values from the start. Owner to choose.
 
-## 7z. Last: optimise all the code (owner, 13 Nov: "When we are completely done with the roadmap all code needs optimization")
-
-After every other item is done: a pass over the whole codebase (game app src/, Deck Builder deck/, cloud/, tests) for speed,
-size and duplication, with no change in behaviour. Measure first (load time on a phone, bundle sizes, background-core time,
-suite time), change only what the numbers point to, and prove each step with the full suites and the benchmarks unchanged.
-
 ## 8. Needs the owner's approval before any work
 
 - **The corrections report** (rule corrections players send in, read with the dev PIN): nothing from it is fixed without the
@@ -290,6 +299,12 @@ suite time), change only what the numbers point to, and prove each step with the
 - Deck Builder "discuss first" items (section 6.1 and 6.2).
 
 ---
+
+## 99. Last of all: optimise all the code (owner, 13 Nov: "When we are completely done with the roadmap all code needs optimization")
+
+After ALL other roadmap work is done, including the rules long tail, the game-plan work (6b) and section 8 (owner, 13 Nov: "Make sure the optimize all code is at the end of ALL roadmap work"): a pass over the whole codebase (game app src/, Deck Builder deck/, cloud/, tests) for speed,
+size and duplication, with no change in behaviour. Measure first (load time on a phone, bundle sizes, background-core time,
+suite time), change only what the numbers point to, and prove each step with the full suites and the benchmarks unchanged.
 
 ## Done (recent, newest first)
 
