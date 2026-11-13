@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.103 (Deck Builder {"build": 212, "version": "0.9.67"})
+- **Live build:** 1.0.0-rebuild.104 (Deck Builder 0.9.68, build 213)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -58,6 +58,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 104 — 13 Nov 2026 (Deck Builder 0.9.68, build 213; app 1.0.0-rebuild.104): a batch of three small roadmap items
+- Owner, 13 Nov: batch builds (about 3-5 small items, or one large one) and test what a batch can break: new `tools/suites.sh` picks the suites from the changed files.
+- Card window: the lead swap opened from an upgrade row has the reason line "The swap this upgrade suggests" (deck/ui/cards.js wantHtml). Test UI-CW-02.
+- Path to Apex inside Show all details leaves out a Mana or Win route step that the Health list below already shows with its Fix button (deck/ui/upgrades.js). Test UI-APEX-02.
+- Profile clean-up (roadmap 7b.1): Load Profile, Save Profile and Online moved to a Backup section in Settings (src/ui/backup-section.js, settings-modal.js); the Deck Builder button left the Profile page (it is on the landing page). online_ui updated.
+- Tests (suites.sh: Deck Builder screens live, smoke, every browser suite): UI suite 147 passed, 1 failed side by side (UI-TAB-01, timing under load: passes alone 2 of 2); smoke 6; game_ui 28; flows_ui 29; net_ui 30; online_ui 41; offline_ui 5; pair_ui 5; challenge_ui 13; tracker_test 40; tracker_net_ui 44. Engine suites and benchmarks not run: no engine file changed.
 
 ### Build 102 — 12 Nov 2026 (Deck Builder 0.9.67, build 212; app 1.0.0-rebuild.102): the Upgrades tab count matches the list
 - Owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards that are
