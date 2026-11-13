@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.104 (Deck Builder 0.9.68, build 213)
+- **Live build:** 1.0.0-rebuild.105 (Deck Builder 0.9.68, build 213)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -58,6 +58,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 105 — 13 Nov 2026 (app 1.0.0-rebuild.105; Deck Builder unchanged, 0.9.68): recovery email (roadmap 7b.3)
+- Settings → Backup → Online: add, change or remove a recovery email; "Lost your key? Recover by email". The player gets a Supabase sign-in link; tapping it opens the app, which links the key (or, on a device without the key, asks for it), shows a recovered key with Copy and "Load this profile", or removes the link. The key itself is never in a link or email; the access token stays in memory.
+- Supabase (project Commander Companion): table profile_recovery (user_id → profile_key, row-level security: own row only); sign-in links return to the live app (site URL and allow-list set). Codes were planned, but the free plan locks the email template (it holds only a link), so the link is used. Limit: 2 emails an hour for the whole project (owner, 13 Nov: keep the built-in sender for now; a custom sender such as Resend lifts it).
+- Files: src/app/profile-recovery.js (new), src/ui/backup-section.js, src/main.js, cloud/supabase-recovery.sql; test tests/recovery_ui.py (new, 33 checks, Supabase faked).
+- Tests (suites.sh): smoke 6; game_ui 28; flows_ui 29; net_ui 30; online_ui 41; recovery_ui 33; offline_ui 5; pair_ui 5; challenge_ui 13; tracker_test 40; tracker_net_ui 44. Not tried with a real email (each send uses the project's hourly limit): owner to try once on the phone.
 
 ### Build 104 — 13 Nov 2026 (Deck Builder 0.9.68, build 213; app 1.0.0-rebuild.104): a batch of three small roadmap items
 - Owner, 13 Nov: batch builds (about 3-5 small items, or one large one) and test what a batch can break: new `tools/suites.sh` picks the suites from the changed files.
