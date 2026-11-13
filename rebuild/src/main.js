@@ -7,6 +7,7 @@ import { initProfileStore, loadProfile, saveAccountProfile } from './data/profil
 import { initPlaymats } from './data/playmats.js';
 import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
 import { startProfileSync } from './app/online-profile.js';
+import { readLinkReturn, handleLinkReturn } from './ui/backup-section.js';
 import { watchCardImages } from './ui/card-view.js';
 import { landingScreen } from './ui/screens/landing.js';
 import { modeSelectScreen } from './ui/screens/mode-select.js';
@@ -37,6 +38,7 @@ registerScreen('online', onlineScreen);
 async function start() {
   // Card images that fail to load fall back to the text version everywhere (screens and popups).
   watchCardImages(document);
+  const linkReturn = readLinkReturn();   // a tapped recovery-email link: token and ?recovery leave the address at once
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);
   try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch { /* not supported */ }
@@ -56,6 +58,7 @@ async function start() {
   registerServiceWorker();
   startUpdateChecks();
   startProfileSync();
+  handleLinkReturn(linkReturn);
 }
 
 function registerServiceWorker() {

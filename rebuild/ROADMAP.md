@@ -235,12 +235,12 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    necessary"). The profile key already backs a linked device up automatically. Offered instead, not decided: a warning on a
    device that is not linked (its data lives only there) and a reminder to keep the key safe.
 3. **Recovery email (owner, 10 Nov: "We should tie the profile to an email or phone number also"):** a player can add an email
-   to the profile (optional, prompted on the profile page); a lost key is recovered with a one-time code sent to that email
+   to the profile (optional, prompted on the profile page); a lost key is recovered with a sign-in link sent to that email
    (Supabase on the owner's project; free at this volume). Phone (SMS) later if wanted: it needs a paid SMS service. The key
    keeps working as now; the email only finds the profile again. Checks: both apps' tests, recovery tried on a second device.
    **Built (recovery branch, not released):** Settings → Backup → Online has a Recovery email row (add/change/remove) and "Lost your key? Recover by email";
-   `src/app/profile-recovery.js`, Supabase Auth email codes by plain fetch, table + row rules in `cloud/supabase-recovery.sql`.
-   **At release:** apply that SQL; paste the project's anon key into `SUPABASE_ANON_KEY`; Auth → Email templates show `{{ .Token }}`;
+   `src/app/profile-recovery.js`, Supabase Auth email links (magic link) by plain fetch; the tapped link returns to the app with ?recovery=link|recover|unlink and the token in the hash, table + row rules in `cloud/supabase-recovery.sql`.
+   **At release:** apply that SQL; paste the project's anon key into `SUPABASE_ANON_KEY`; Auth → URL Configuration: site_url and redirect allow-list `https://maxfhurt.github.io/CommanderCompanion/rebuild/**` (no template change; the free plan cannot edit it);
    later a custom SMTP sender (the free default allows a few emails an hour). Test: `tests/recovery_ui.py`.
 
 ## 7c. Landing buttons: use the owner's original art (owner, 10 Nov)

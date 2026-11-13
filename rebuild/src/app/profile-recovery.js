@@ -1,4 +1,4 @@
-// Recovery email: a lost profile key is found again with a one-time code sent to an email (Supabase Auth, no SDK).
+// Recovery email: a lost profile key is found again with a sign-in link sent to an email (Supabase Auth, no SDK).
 // The key keeps working exactly as before; the email only finds it. The access token lives only inside one flow.
 // Only the linked email (for display) is kept on this device, next to the online profile link.
 
@@ -38,27 +38,51 @@ async function call(path, { method = 'POST', body, token, headers = {} } = {}) {
   return data;
 }
 
-/** Send a one-time code (6 to 8 digits, set by the project) to the email. Creates the (hidden) account the first time. */
-export async function requestCode(email) {
-  await call('/auth/v1/otp', { body: { email: email.trim(), create_user: true } });
-}
+const PENDING_KEY = 'cc.recovery.pending';
+export const INTENTS = ['link', 'recover', 'unlink'];
 
-/** Check the code. Returns the access token, to use for this flow only. */
-export async function verifyCode(email, code) {
+/**
+ * Email a sign-in link (Supabase magic link; the free plan's template holds only a link, no code). The link opens this
+ * app with ?recovery=<intent>, and the access token arrives in the address hash. Creates the (hidden) account the first
+ * time. For "recover" no account is created: an email that was never linked gets "No profile is linked".
+ */
+export async function requestLink(email, intent) {
+  email = email.trim();
+  const redirect = location.origin + location.pathname + '?recovery=' + intent;
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify({ intent, email, at: Date.now() })); } catch { /* optional */ }
   try {
-    const data = await call('/auth/v1/verify', { body: { type: 'email', email: email.trim(), token: String(code).replace(/\D/g, '') } });
-    if (!data?.access_token) throw new RecoveryError('That code did not work.');
-    return data.access_token;
+    await call(`/auth/v1/otp?redirect_to=${encodeURIComponent(redirect)}`, { body: { email, create_user: intent !== 'recover' } });
   } catch (error) {
-    if (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 422) throw new RecoveryError('Wrong or expired code.', error.status);
+    if (intent === 'recover' && (error.status === 400 || error.status === 422)) throw new RecoveryError('No profile is linked to that email.', error.status);
     throw error;
   }
 }
 
-/** Save the profile key under the verified email (replaces an earlier one). */
+function pending() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || 'null'); } catch { return null; } }
+function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch { /* optional */ } }
+
+/**
+ * Called once at app start. When the address is a returning sign-in link, strips the token / error and ?recovery from the
+ * address at once and returns { intent, token, email, error }; otherwise null. The token is only handed on, never stored.
+ */
+export function readLinkReturn() {
+  const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const token = hash.get('access_token'), error = hash.get('error') || hash.get('error_description');
+  if (!token && !error) return null;
+  const url = new URL(location.href);
+  const asked = url.searchParams.get('recovery');
+  url.searchParams.delete('recovery'); url.hash = '';
+  history.replaceState(null, '', url);
+  const wait = pending(); clearPending();
+  const intent = INTENTS.includes(asked) ? asked : wait?.intent;
+  return { intent, token: error ? null : token, email: wait?.email || '', error: !!error };
+}
+
+/** Save the profile key under the verified email (replaces an earlier one). Returns the email. */
 export async function linkKey(token, key) {
   const user = await call('/auth/v1/user', { method: 'GET', token });
   await call(`${TABLE}?on_conflict=user_id`, { token, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: { user_id: user.id, profile_key: key, updated_at: new Date().toISOString() } });
+  return user.email || '';
 }
 
 /** Remove the link (the verified email's row). */
