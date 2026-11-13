@@ -1441,7 +1441,9 @@ if (RUN('UI-B144-02')) { try { if (SHARD) await RESET();
 // 102. Build 144: with Generate open, the deck for the settings shown is built ahead; pressing Build then opens it at once, and it is
 // the deck pressing Build would have built.
 const b144b = await page.evaluate(async () => { const out = {}, name = 'Kenrith, the Returned King'; wkGet(); S.draft = null; Object.assign(S.gen, {cmd:name, tier:'mid', mech:[], best:true, sets:[], partner:'', theme:false}); await loadEdh(name); openGenerate();
-  for (let i = 0; i < 300 && !(WK.spec && WK.cb.size === 0); i++) await new Promise(r => setTimeout(r, 100)); await WK.spec.p;
+  // an earlier test's deck view can still be loading its own commander's page and swap EDH after loadEdh above; the build ahead
+  // only starts for the commander shown, so re-ask for ours (the app does the same when Generate is opened again)
+  for (let i = 0; i < 300 && !(WK.spec && WK.cb.size === 0); i++) { if (i % 20 === 19 && !WK.spec && EDH.key !== name) { await loadEdh(name); genPrefetchSoon(); } await new Promise(r => setTimeout(r, 100)); } if (!WK.spec) return {noSpec:true, edh:EDH.key}; await WK.spec.p;
   // timed with the app's own setting (syncRecs off): the swap check then runs just after the deck is on screen, as players see it;
   // the suite's syncRecs switch would run it before the screen is drawn and time work no player waits for (0.9.26)
   const sync0 = S.syncRecs; S.syncRecs = false;
