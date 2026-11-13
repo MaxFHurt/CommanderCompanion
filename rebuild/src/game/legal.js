@@ -312,7 +312,7 @@ export function activationBlock(game, player, card, ability) {
 /** Where an activated ability works from: 'hand' (Channel — "Discard this card"), 'graveyard' ("Return this card from your graveyard …"), or the battlefield. */
 export function abilityZone(ability) {
   if (/\bDiscard this card\b/i.test(ability?.cost || '')) return 'hand';
-  if (/\bthis card from your graveyard\b/i.test(ability?.effect || '')) return 'graveyard';
+  if (/\bthis card from your graveyard\b/i.test(ability?.effect || '') || /\bExile this card from your graveyard\b/i.test(ability?.cost || '')) return 'graveyard';   // the cost form: Venom, Evil Unleashed
   if (/\bthis card from your hand\b/i.test(ability?.effect || '')) return 'hand';   // Talon Gates of Madara
   return 'battlefield';
 }

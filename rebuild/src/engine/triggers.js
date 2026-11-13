@@ -376,6 +376,12 @@ function triggerMatches(game, row, ability, event) {
       return event.controllerId === row.player.playerId && (event.attackers || []).length > 0;
     if (/^Whenever you attack with your commander/i.test(t))
       return attackedWithCommander(game, row, event);
+    // "Whenever you attack with one or more Faeries": at least one attacker of that kind (Talion's Messenger).
+    const aw = t.match(/^Whenever you attack with (?:one or more|a|an) ([A-Z][a-z]+?)s?(?:,|$| )/);
+    if (aw && !/^(?:creature|other|your|nonland)/i.test(aw[1]) && !/ves\b/i.test(aw[0])) {
+      const mine = (event.attackers || []).map(id => game.players.flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === id)).filter(Boolean);
+      return event.controllerId === row.player.playerId && (event.attackers || []).length > 0 && (!mine.length || mine.some(c => typeMatches(game.cardDefinitions?.[c.definitionId]?.typeLine || '', aw[1])));
+    }
     if (/^Whenever you attack/i.test(t))
       return event.controllerId === row.player.playerId && (event.attackers || []).length > 0;
   }

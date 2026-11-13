@@ -2016,6 +2016,13 @@ function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
   const r = compileSingleClauseRaw(clause, opts);
+  // "target Symbiote" / "target Zombie": a creature type alone names no card type, so the scope found no candidates; it is a creature of that type.
+  for (const q of r.requirements) {
+    const sm = q.kind === 'target' ? /^target ([a-z]+)( you control| an opponent controls| you don't control)?$/.exec(q.scope || '') : null, w = sm?.[1];
+    if (w && !/^(?:creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment|opponent|player|spell|ability|aura|vehicle|food|clue|treasure|blood|map|gold|junk|shard|incubator|powerstone|saga|class|case|room|attraction|siege|fortification|curse|shrine|cartouche|trap|contraption|nonland|permanents|creatures|nontoken|token)$/.test(w) && new RegExp(`\\btarget ${w}\\b`).test(String(clause).toLowerCase()) && new RegExp(`\\btarget ${w[0].toUpperCase()}${w.slice(1)}\\b`).test(String(clause))) q.scope = `target ${w} creature${sm[2] || ''}`;
+  }
+  // "target card exiled with Nyla": the game does not remember which cards a permanent exiled, so no card could ever be chosen: left for the player.
+  if (r.requirements.some(q => /\bexiled with\b/i.test(`${q.scope || ''} ${q.label || ''}`))) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
   if (r.requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`))) {
     // The older reading took more than the target; a build-101 wording may read the whole sentence ("A gets +2/+0 … and up to one target … gets -0/-2 …").
     const text = stripReminderText(normalizeClause(clause)), effects = [], requirements = [];
@@ -2502,11 +2509,11 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   }
   if ((m = c.match(/^Create (a|an|one|two|three|four|five|\d+) (Treasure|Food|Clue|Blood|Map) tokens?\.?$/i))) {
     const name = m[2], text = name === 'Treasure' ? '{T}, Sacrifice this artifact: Add one mana of any color.' : name === 'Clue' ? '{2}, Sacrifice this artifact: Draw a card.' : name === 'Food' ? '{2}, {T}, Sacrifice this artifact: You gain 3 life.' : '';
-    effects.push({ kind: 'create-token', amount: numberFromText(m[1]), name, typeLine: 'Token Artifact', oracleText: text });
+    effects.push({ kind: 'create-token', amount: numberFromText(m[1]), name, typeLine: `Token Artifact — ${name}`, oracleText: text });   // the subtype too, so "sacrifice a Food" / forage find it
     return { effects, requirements, unsupported };
   }
   if (/^Investigate\.?$/i.test(c)) {
-    effects.push({ kind: 'create-token', amount: 1, name: 'Clue', typeLine: 'Token Artifact', oracleText: '{2}, Sacrifice this artifact: Draw a card.' });
+    effects.push({ kind: 'create-token', amount: 1, name: 'Clue', typeLine: 'Token Artifact — Clue', oracleText: '{2}, Sacrifice this artifact: Draw a card.' });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create a token that'?s a copy of (target .+?)(?:, except .+)?\.?$/i))) {
@@ -2989,7 +2996,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
   if (/^Create a Food token or a Treasure token\.?$/i.test(c)) {
     const bind = `tokenKind${requirements.length}`;
     requirements.push({ kind: 'choose-text', bind, options: ['Food', 'Treasure'], label: 'Create which token?' });
-    effects.push({ kind: 'create-token', chooseBind: bind, amount: 1, name: 'Food', typeLine: 'Token Artifact', oracleText: '{2}, {T}, Sacrifice this artifact: You gain 3 life.',
+    effects.push({ kind: 'create-token', chooseBind: bind, amount: 1, name: 'Food', typeLine: 'Token Artifact — Food', oracleText: '{2}, {T}, Sacrifice this artifact: You gain 3 life.',
       alt: { Treasure: { name: 'Treasure', oracleText: '{T}, Sacrifice this artifact: Add one mana of any color.' } } });
     return true;
   }
@@ -3772,6 +3779,13 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     delete e.forPlayerBind; e.bind = targetedPlayer.bind;
     const r = merged.requirements.find(q => q.bind === e.cardsBind);
     if (r) { r.playerBind = targetedPlayer.bind; r.scope = 'target'; }
+  }
+  // "Target player discards a card. This creature deals damage to that player equal to …": "that player" is the targeted player, not the trigger's.
+  if (targetedPlayer && /\btarget (?:player|opponent)\b[^.]*\.[^.]*\bto that player\b/i.test(raw)) for (const e of merged.effects) if (e.kind === 'damage' && e.bind === 'eventPlayer') e.bind = targetedPlayer.bind;
+  // "Exile target creature card …, then create X tokens, where X is the exiled card's toughness": X is read after the card has moved.
+  for (let i = 0; i < merged.effects.length - 1; i++) {
+    const e = merged.effects[i];
+    if (e.kind === 'set-x' && e.amount?.kind === 'b101-last-moved-stat' && merged.effects[i + 1].kind === 'move-zone') { merged.effects.splice(i, 2, merged.effects[i + 1], e); i++; }
   }
   const lastStack = [...merged.requirements].reverse().find(r => r.kind === 'stack-target');
   for (const e of merged.effects) if (e.amount?.stackBind === 'lastStack' && lastStack) e.amount = { ...e.amount, stackBind: lastStack.bind };

@@ -358,7 +358,10 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-discarded': {
       // The card an activation cost discarded (ops.js), else the one(s) the effect discarded: its mana value, or how many card types it has.
       if (expr.what === 'mv' && bindings.costManaValue !== undefined) return Math.max(0, Number(bindings.costManaValue) || 0);
-      const id = (bindings.discardedCards || []).slice(-1)[0], hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
+      let id = (bindings.discardedCards || []).slice(-1)[0];
+      if (!id && expr.what === 'mv') id = bindings.exiledCard || [].concat(bindings.lastMoved || []).slice(-1)[0];   // "that card's mana value" after a card was returned, exiled or revealed (not discarded)
+      if (!id && expr.what === 'mv' && bindings.__lastManaValue !== undefined) return Math.max(0, Number(bindings.__lastManaValue) || 0);   // the card a reveal-and-take step just put in hand (Twilight Prophet)
+      const hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
       if (!d) return 0;
       if (expr.what === 'mv') return Math.max(0, Number(d.manaValue ?? d.cmc ?? 0));
       return ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'].filter(t => new RegExp(`\\b${t}\\b`).test(String(d.typeLine || '').split('—')[0])).length;
