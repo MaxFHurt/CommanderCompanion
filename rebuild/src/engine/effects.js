@@ -2,7 +2,7 @@
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
 import { withOverlay } from './overlay.js';
 import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
-import { compileCatalogClause, compileB101Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
+import { compileCatalogClause, compileB101Only, compileB110Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { parseConditionB110, conditionHoldsB110 } from './effects-b110.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
@@ -1789,7 +1789,7 @@ export function restoreGameSnapshot(game, snapshot) {
  * than you", "its power is 3 or greater", "you cast it" …: a condition test, or null if the wording is not understood. */
 export function parseCondition(text) {
   const t = String(text || '').trim().replace(/\.$/, '');
-  const counts = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, thirteen: 13, twenty: 20 };
+  const counts = { another: 1, a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, thirteen: 13, twenty: 20 };
   let m;
   if (/^(?:a card is exiled with (?:it|this [a-z]+)|there are cards exiled with (?:it|this [a-z]+))$/i.test(t)) return { test: 'has-linked' };
   if ((m = t.match(/^you control (\w+) or more lands with different names$/i))) return { test: 'distinct-lands', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
@@ -2050,6 +2050,16 @@ function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)
 // A target description that swallowed the rest of the sentence ("target opponent and you gain 4 life", "target
 // creature gets +1/+0 until end of turn and") was not understood: the sentence is tried again in two halves, or left
 // for the player.
+// Build 110: a limit in a target description the target choice cannot enforce ("with power less than the number of …"). Limits against the
+// source's own power or toughness ("less than or equal to this creature's power") are enforced by requirements.js.
+function unenforceableLimit(scope) {
+  const t = String(scope || '').toLowerCase();
+  for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
+    if (!/^(?: or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (?:power|toughness)\b/.test(t.slice(m.index + m[0].length))) return true;
+  }
+  return false;
+}
+const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
   const r = compileSingleClauseRaw(clause, opts);
@@ -2060,10 +2070,11 @@ function compileSingleClause(clause, opts = {}) {
   }
   // "target card exiled with Nyla": the game does not remember which cards a permanent exiled, so no card could ever be chosen: left for the player.
   if (r.requirements.some(q => !/^linked-/.test(q.kind) && /\bexiled with\b/i.test(`${q.scope || ''} ${q.label || ''}`))) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
-  if (r.requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`))) {
+  if (r.requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`) || SWALLOW_AND.test(`${q.scope || ''}`) || unenforceableLimit(q.scope))) {
     // The older reading took more than the target; a build-101 wording may read the whole sentence ("A gets +2/+0 … and up to one target … gets -0/-2 …").
     const text = stripReminderText(normalizeClause(clause)), effects = [], requirements = [];
     if (compileB101Only(text, { sourceName: opts.sourceName || 'Effect', effects, requirements }) && !requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`))) return { effects, requirements, unsupported: [] };
+    { const e2 = [], r2 = []; if (compileB110Only(text, { sourceName: opts.sourceName || 'Effect', effects: e2, requirements: r2 }) && !r2.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`) || SWALLOW_AND.test(`${q.scope || ''}`) || unenforceableLimit(q.scope))) return { effects: e2, requirements: r2, unsupported: [] }; }
     return { effects: [], requirements: [], unsupported: [text] };
   }
   return r;
@@ -3230,7 +3241,7 @@ export function compileEffectText(text, opts = {}) {
       if (!own && (!moved || /\bkicked\b/i.test(text))) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     }
     // Build 110: a target description that swallowed the next instruction ("target creature and create a Food token") was misread.
-    if (hit.supported && hit.requirements.some(q => /\bwith (?:mana value|power|toughness) (?:less|greater) than\b/i.test(`${q.scope || ''}`)))   // not a limit the target choice can enforce
+    if (hit.supported && hit.requirements.some(q => unenforceableLimit(q.scope)))   // not a limit the target choice can enforce
       hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     if (hit.supported && hit.requirements.some(q => /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i.test(`${q.scope || ''}`)))
       hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
@@ -3562,7 +3573,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     // shuffle." (Path to Exile, Assassin's Trophy): the game asks that player as the spell resolves (ops.js).
     // Conditions: "If you control a creature with power 4 or greater, draw a card." "Metalcraft — If you control three
     // or more artifacts, …" "if this artifact is tapped, it deals 1 damage to you." Checked as it resolves.
-    const cond = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?If (you control (a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
+    const cond = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?If (you control (another|a|an|no|one or more|two or more|three or more|four or more|five or more|six or more|seven or more|eight or more|nine or more|ten or more|thirteen or more|twenty or more) (.+?)|this (?:artifact|creature|permanent|land) is (?:un)?tapped|it'?s not your turn|it'?s your turn|you control your commander|a creature died this turn),\s*(.+)$/i);
     const genericIf = !/^If you do\b/i.test(clause) && clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?if (.+?), (.+)$/i);
     const genericCond0 = genericIf && !/\bwould\b|\binstead\b/i.test(clause) && parseCondition(genericIf[1]);
     const genericCond = genericCond0 && (!cond || genericCond0.test !== 'control') ? genericCond0 : null;
@@ -3577,7 +3588,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       const inner = compileSingleClause(cond[4].replace(/^it deals/i, 'This deals'), { sourceName });
       const innerAlt = !inner.unsupported.length ? inner : bridgePronoun(`${cond[4].charAt(0).toUpperCase()}${cond[4].slice(1)}`, parts, sourceName) || compileEffectText(cond[4], { sourceName });
       const counts = { a: 1, an: 1, no: 0, 'one or more': 1, 'two or more': 2, 'three or more': 3, 'four or more': 4, 'five or more': 5, 'six or more': 6, 'seven or more': 7, 'eight or more': 8, 'nine or more': 9, 'ten or more': 10, 'twenty or more': 20, 'thirteen or more': 13 };
-      const test = cond[2] ? { test: 'control', subject: `a ${cond[3]}`.replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /untapped/i.test(cond[1]) ? { test: 'source-untapped' } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /commander/i.test(cond[1]) ? { test: 'control-commander' } : /died/i.test(cond[1]) ? { test: 'creature-died' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
+      const test = cond[2] ? { test: 'control', subject: (/^another$/i.test(cond[2]) ? `another ${cond[3]}` : `a ${cond[3]}`).replace(/^a (an?) /i, 'a '), min: counts[cond[2].toLowerCase()], ...(/^no$/i.test(cond[2]) ? { none: true } : {}) } : /untapped/i.test(cond[1]) ? { test: 'source-untapped' } : /tapped/i.test(cond[1]) ? { test: 'source-tapped' } : /commander/i.test(cond[1]) ? { test: 'control-commander' } : /died/i.test(cond[1]) ? { test: 'creature-died' } : /not your turn/i.test(cond[1]) ? { test: 'not-your-turn' } : { test: 'your-turn' };
       if (test.test !== 'control' || parseSubject(test.subject.replace(/^a /, ''), null)) {
         if (test.test === 'control') test.subject = test.subject.replace(/^a /, '').replace(/(?<!plain)s$/i, '');
         if (!innerAlt.unsupported.length && innerAlt.effects.length) {

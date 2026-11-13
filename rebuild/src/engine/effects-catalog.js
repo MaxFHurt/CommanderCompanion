@@ -55,6 +55,12 @@ function selfNameRegex(sourceName) {
   const names = [...new Set([full, short].filter(n => n.length > 1))].sort((a, b) => b.length - a.length).map(esc);
   return names.length ? rx(`\\b(?:${names.join('|')})(?![\\w'])`, 'g') : null;
 }
+/** Only the build-110 wordings (effects-b110.js), for a sentence an older reading swallowed more than its target of. */
+export function compileB110Only(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  const c = re ? c0.replace(re, 'SELFNAME') : c0;
+  return compileB110Clause(c, { ...ctx0, selfAny: SELF_STATIC, restore: s => String(s).replace(/SELFNAME/g, ctx0.sourceName) });
+}
 /** Only the build-101 wordings (effects-b101.js), for a sentence an older reading swallowed more than its target of. */
 export function compileB101Only(c0, ctx0) {
   const re = selfNameRegex(ctx0.sourceName);

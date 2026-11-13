@@ -72,6 +72,8 @@ export function parseSubject(phrase, definition) {
       else if (a === 'attacking') out.attacking = true;
       else if (a === 'blocking') out.blocking = true;
       else if (a === 'modified') out.modified = true;
+      else if (a === 'tapped') out.tapped = true;
+      else if (a === 'untapped') out.untapped = true;
       else if (/^non/.test(a)) out.nonTypes.push(a.slice(3));
       else if (/^[A-Z]/.test(adj) || ['artifact', 'enchantment', 'legendary', 'snow', 'basic', 'land', 'creature'].includes(a)) out.allTypes.push(adj);   // "artifact creature": both
       else return null;
@@ -133,6 +135,8 @@ export function subjectMatches(game, row, subject, card, def, controllerId) {
     if (subject.manaValue.op === 'greater' ? v < subject.manaValue.n : v > subject.manaValue.n) return false;
   }
   if (subject.keywords.some(k => !cardHasKeyword(card, def, k.replace(/\b\w/g, c => c.toUpperCase()), game))) return false;
+  if (subject.tapped && !card.tapped) return false;
+  if (subject.untapped && card.tapped) return false;
   if (subject.attacking && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (subject.modified && !Object.values(card.counters || {}).some(Number) && !(game.players || []).some(p => (p.deck?.battlefield || []).some(c => c.attachedTo === card.instanceId))) return false;
   if (subject.chosenType && !(row.card.chosenCreatureType && typeWord(typeLine, row.card.chosenCreatureType))) return false;

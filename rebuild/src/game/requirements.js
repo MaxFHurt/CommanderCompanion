@@ -8,7 +8,7 @@
 import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catalog.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
-import { cardHasKeyword, effectivePower } from '../engine/combat.js';
+import { cardHasKeyword, effectivePower, effectiveToughness } from '../engine/combat.js';
 import { cardMatchesFilter, resolveAmount, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -169,12 +169,24 @@ function descriptorFits(game, card, def, scope) {
   return true;
 }
 
+
+/** "with power less than or equal to this creature's power" / "with mana value less than or equal to Carmen's power": a limit set by the source's own stat (build 110). */
+function sourceLimitFits(game, card, def, scope, source) {
+  const m = scope.match(/\bwith (mana value|power|toughness) (less|greater) than( or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)\b/);
+  if (!m) return true;
+  if (!source) return false;
+  const sd = defOf(game, source), lim = Number(m[4] === 'power' ? effectivePower(source, sd, game) : effectiveToughness(source, sd, game));
+  const v = m[1] === 'mana value' ? Number(def?.manaValue ?? def?.cmc ?? 0) : m[1] === 'power' ? Number(effectivePower(card, def, game)) : Number(effectiveToughness(card, def, game));
+  return m[2] === 'less' ? (m[3] ? v <= lim : v < lim) : (m[3] ? v >= lim : v > lim);
+}
+
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
 function matchesPermanentScope(game, card, scope, source = null) {
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (!descriptorFits(game, card, def, scope)) return false;
+  if (!sourceLimitFits(game, card, def, scope, source)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
@@ -222,6 +234,7 @@ export function candidatesFor(game, req, player, source = null) {
     for (const q of owners) for (const c of q.deck.graveyard || []) {
       const def = defOf(game, c), t = String(def?.typeLine || '');
       if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '')) || !manaValueFits(def, scope)) continue;
+      if (!sourceLimitFits(game, c, def, scope, source) || !descriptorFits(game, c, def, scope)) continue;
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;

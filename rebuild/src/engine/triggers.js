@@ -72,7 +72,7 @@ export function parseTriggeredAbilities(definition) {
   if (current)
     out.push(current);
   // The trigger ends at the first comma that does not continue a list ("Whenever you cast an Aura, Equipment, or Vehicle spell, …").
-  const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
+  const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); for (const nm of String(definition?.name || '').split(' // ')) { const ni = nm.includes(',') ? line.indexOf(nm) : -1; if (ni >= 0 && ni < at && ni + nm.length > at) at = line.indexOf(',', ni + nm.length); }   /* build 110: a comma inside the card's own name ("Whenever Cecily, Haunted Mage attacks") does not end the trigger */ while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
   return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /do this only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').replace(/\s*Do this only once each turn\.?\s*$/i, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
@@ -164,6 +164,7 @@ function spellFits(filter, spell) {
     const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w];
     if (color) return colors.includes(color);
     if (w === 'historic') return /artifact|legendary|saga/.test(type);
+    if (w === 'permanent') return !/instant|sorcery/.test(type);   // build 110: "a green permanent spell"
     if (w.startsWith('non')) return !type.includes(w.slice(3));
     return new RegExp(`\\b${escRe(w.replace(/s$/, ''))}`).test(type);
   }));

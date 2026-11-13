@@ -4336,7 +4336,7 @@ section('build 110 (long tail batch 4)');
   cast(t, 'Opt', "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.");
   const onbf = t.P(0).deck.battlefield.find(c => c.instanceId === land.instanceId);
   check('reveal top: a land goes onto the battlefield tapped, nothing drawn', !!onbf && onbf.tapped && t.P(0).deck.hand.length === hand0, JSON.stringify([!!onbf, onbf?.tapped, t.P(0).deck.hand.length, hand0]));
-  const nl = t.P(0).deck.remainingLibrary.find(c => !/Land/.test(t.game.cardDefinitions[c.definitionId]?.typeLine || '')); t.P(0).deck.remainingLibrary.splice(t.P(0).deck.remainingLibrary.indexOf(nl), 1); t.P(0).deck.remainingLibrary.unshift(nl);
+  const nl = t.P(0).deck.remainingLibrary.find(c => !/Land/.test(t.game.cardDefinitions[c.definitionId]?.typeLine || '') && t.game.cardDefinitions[c.definitionId]?.name !== 'Divination'); t.P(0).deck.remainingLibrary.splice(t.P(0).deck.remainingLibrary.indexOf(nl), 1); t.P(0).deck.remainingLibrary.unshift(nl);
   cast(t, 'Divination', "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.");
   check('reveal top: a nonland is drawn instead', t.P(0).deck.hand.some(c => c.instanceId === nl.instanceId));
 }
@@ -4346,7 +4346,7 @@ section('build 110 (long tail batch 4)');
   const cond = r.effects.find(e => e.kind === 'condition');
   check('"it has N or more counters": it is the permanent the counter went on', r.supported && cond?.bind === 'sourceId' && cond.min === 4, JSON.stringify(r.effects));
   const bad = compileEffectText('Put a +1/+1 counter on target creature and create a Food token.', { sourceName: 'Test Card' });
-  check('a target description that swallowed the next instruction is not read', !bad.supported);
+  check('a target description that swallowed the next instruction is not read as one target', !bad.supported || (bad.effects.some(e => e.kind === 'create-token') && !bad.requirements.some(q => /food/i.test(q.scope || ''))), JSON.stringify(bad.requirements));
 }
 {
   // Target descriptors: colours, non-X, tapped, without flying (used to be ignored) and the Auras that use them
@@ -4365,6 +4365,19 @@ section('build 110 (long tail batch 4)');
   check('exchange life totals with target opponent', t.P(0).life === 30 && t.P(1).life === 10, `${t.P(0).life}/${t.P(1).life}`);
   cast(t, 'Divination', "Target player's life total becomes 7.", [[d => (d.options || []).some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
   check("target player's life total becomes 7", t.P(1).life === 7, String(t.P(1).life));
+}
+
+{
+  // A limit set by the source's own power is enforced on the target choice
+  const t = setup();
+  const src = onField(t, 'Colossal Dreadmaw', '', { power: '4', toughness: '4' });
+  const small = onField(t, 'Grizzly Bears', '', {}, 1), big = onField(t, 'Llanowar Elves', '', { power: '6', toughness: '6' }, 1);
+  const ids = candidatesFor(t.game, { kind: 'target', scope: "target creature with power less than or equal to this creature's power" }, t.P(0), src).map(r => r.id);
+  check('power limit from the source: only creatures within it are offered', ids.includes(small.instanceId) && !ids.includes(big.instanceId), JSON.stringify(ids));
+  const r1 = compileEffectText("Target creature with power less than the number of cards in your graveyard gains flying until end of turn.", { sourceName: 'Test Card' });
+  check('a limit that cannot be enforced is not read', !r1.supported);
+  const r2 = compileEffectText('Tap target creature an opponent controls and put three stun counters on it.', { sourceName: 'Test Card' });
+  check('tap and stun counters: both instructions kept on one target', r2.supported && r2.effects.length === 2 && r2.effects[1].counter === 'stun' && r2.effects[1].bind === r2.effects[0].bind, JSON.stringify(r2.effects));
 }
 
 done();

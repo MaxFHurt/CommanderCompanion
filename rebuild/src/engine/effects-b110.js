@@ -118,6 +118,20 @@ export function compileB110Clause(c, ctx) {
   if ((m = c.match(rx(`^you may play up to ${N} additional lands this turn\\.?$`)))) { effects.push({ kind: 'extra-land-play', amount: num(m[1]) }); return true; }
   // --- "Each creature deals damage to itself equal to its power." (Wave of Reckoning)
   if (/^each creature deals damage to itself equal to its power\.?$/i.test(c)) { effects.push({ kind: 'b110-self-damage' }); return true; }
+  // --- "Tap up to one target creature and put a stun counter on it." / "Exile up to one target card from a graveyard and create a Food token." (two instructions; the target
+  // description must not run on into the second one)
+  if ((m = c.match(/^(Tap (?:up to one )?target [a-z ]+?(?: (?:an opponent|you don'?t|your opponents?) controls?)?) and put (a|an|one|two|three|\d+) ([+\-\/\da-z]+) counters? on (?:it|that creature)\.?$/i))) {
+    const r = sub(`${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.requirements.length === 1) {
+      effects.push(...r.effects, { kind: 'counter', bind: t.bind, counter: m[3].toLowerCase(), amount: num(m[2]), ...(t.optional ? { optionalTarget: true } : {}) });
+      requirements.push(...r.requirements);
+      return true;
+    }
+  }
+  if ((m = c.match(/^(Exile (?:up to one )?target [a-z ]*card from a graveyard) and ((?:create (?:a|an|one|two|\d+) [A-Za-z ]*?(?:Food|Treasure|Clue|Blood) tokens?|put (?:a|an|one|two|\d+) [+\-\/\da-z]+ counters? on (?:this [a-z]+|SELFNAME)|you gain \d+ life|draw a card))\.?$/i))) {
+    const a = sub(`${m[1]}.`), b = sub(`${cap(m[2])}.`);
+    if (a && b && !b.requirements.length) return take({ effects: [...a.effects, ...b.effects], requirements: a.requirements });
+  }
   return false;
 }
 
@@ -275,6 +289,11 @@ const cnt = w => numberFromText(w) ?? Number(w);
 /** "If" conditions made here (parseCondition in effects.js calls this after the build-49 ones). */
 export function parseConditionB110(t) {
   let m;
+  // "it was kicked" (the permanent that entered), "it wasn't cast"
+  if ((m = t.match(/^(?:it|this creature|this permanent|this artifact|this enchantment) (was|wasn'?t|were not) (kicked|cast)$/i))) return { test: 'b110-card-flag', flag: /kicked/i.test(m[2]) ? 'kicked' : 'wasCast', not: !/^was$/i.test(m[1]) };
+  if ((m = t.match(/^there are (\w+) or more ([a-z+\/\d-]+) counters on (?:it|this [a-z]+|[A-Z][A-Za-z ,'-]+)$/i)) && !/^(?:creature|artifact|land|card|cards)$/i.test(m[2])) return { test: 'b110-source-counters', min: cnt(m[1]), counter: m[2] };
+  if ((m = t.match(/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment|planeswalker|permanent) cards in your graveyard$/i))) return { test: 'b110-gy-type', min: cnt(m[1]), type: m[2].toLowerCase() };
+  if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
   return null;
@@ -288,6 +307,17 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
       const fits = w => w === 'permanent' ? !/\b(?:Instant|Sorcery)\b/.test(t) : w === 'nonland' ? !/\bLand\b/.test(t) : w === 'basic land' ? /\bBasic\b.*\bLand\b/.test(t) : new RegExp(`\\b${w}\\b`, 'i').test(t);
       return effect.words.some(fits);
     }
+    case 'b110-source-counters': return Number(locateCardInGame(game, bindings.sourceId)?.card?.counters?.[effect.counter] || 0) >= effect.min;
+    case 'b110-gy-type': {
+      const me = (game.players || []).find(p => p.playerId === controllerId);
+      return (me?.deck?.graveyard || []).filter(c => effect.type === 'permanent' ? !/\b(?:Instant|Sorcery)\b/.test(definitionFor(game, c)?.typeLine || '') : new RegExp(`\\b${effect.type}\\b`, 'i').test(definitionFor(game, c)?.typeLine || '')).length >= effect.min;
+    }
+    case 'b110-gy-types': {
+      const me = (game.players || []).find(p => p.playerId === controllerId), kinds = new Set();
+      for (const c of me?.deck?.graveyard || []) for (const w of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Land', 'Planeswalker', 'Sorcery', 'Kindred']) if (new RegExp(`\\b${w}\\b`).test(String(definitionFor(game, c)?.typeLine || '').split('—')[0])) kinds.add(w);
+      return kinds.size >= effect.min;
+    }
+    case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;
   }
