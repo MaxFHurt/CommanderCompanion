@@ -245,7 +245,7 @@ export function candidatesFor(game, req, player, source = null) {
       if (!req.spellFilter) return true;
       const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
       const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-      return req.spellFilter.split('|').some(w => w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+      return req.spellFilter.split('|').some(w => w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
         : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])
@@ -256,6 +256,14 @@ export function candidatesFor(game, req, player, source = null) {
       .filter(x => !req.notYours || x.controllerId !== player.playerId)
       // Rebuff the Wicked: "spell that targets a permanent you control" (its chosen targets include one of yours)
       .filter(x => !req.targetsYours || Object.values(x.effectBindings || {}).flat().some(id => typeof id === 'string' && (player.deck?.battlefield || []).some(c => c.instanceId === id)))
+      // Build 110: "that targets you / a creature / a permanent you control" (what its chosen targets are)
+      .filter(x => {
+        if (!req.targetsFilter) return true;
+        const ids = Object.values(x.effectBindings || {}).flat().filter(id => typeof id === 'string');
+        if (req.targetsFilter === 'you') return ids.includes(player.playerId);
+        if (req.targetsFilter === 'yours') return ids.some(id => (player.deck?.battlefield || []).some(c => c.instanceId === id));
+        return ids.some(id => game.players.some(q => (q.deck?.battlefield || []).some(c => c.instanceId === id && /\bCreature\b/.test(defOf(game, c)?.typeLine || ''))));
+      })
       .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)) || (req.orAbility && (x.kind === 'ability' || x.kind === 'trigger')))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }

@@ -132,6 +132,13 @@ export function compileB110Clause(c, ctx) {
     const a = sub(`${m[1]}.`), b = sub(`${cap(m[2])}.`);
     if (a && b && !b.requirements.length) return take({ effects: [...a.effects, ...b.effects], requirements: a.requirements });
   }
+  // --- "Counter target spell that targets you." (Dawn Charm) / "that targets a creature" (Confound) / "with mana value 4 or greater" (Disdainful Stroke)
+  if ((m = c.match(/^Counter target spell (?:that targets (you|a creature|a permanent you control)|with mana value (\d+) or greater)\.?$/i))) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', label: `target spell ${m[1] ? `that targets ${m[1]}` : `with mana value ${m[2]} or greater`}`, ...(m[1] ? { targetsFilter: m[1].toLowerCase() === 'you' ? 'you' : m[1].toLowerCase() === 'a creature' ? 'creature' : 'yours' } : { spellFilter: `mv>=${m[2]}` }) });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
   return false;
 }
 
@@ -157,6 +164,17 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     else if ((mm = body.match(rx(`^put ${N} ([a-z+\\/\\d-]+) counters? on (?:it|her|him)$`)))) eff = [{ kind: 'counter', bind, counter: mm[2], amount: num(mm[1]) }];
     else if (!/\b(?:it|its|that creature|them|her|him)\b/i.test(body)) { const r = sub(`${body.charAt(0).toUpperCase()}${body.slice(1)}.`); if (r) eff = r.effects; }
     if (eff && Number.isFinite(n)) return { part: { effects: [{ kind: 'condition', test: 'b110-event-counters', bind, min: n, counter: m[3], skip: eff.length }, ...eff], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // --- "If you attacked this turn, you may draw a card. If you do, discard a card." (Marauding Looter): the condition covers both sentences.
+  if ((m = c0.match(/^if (.+?), you may (.+?)\.?$/i)) && (mm = clean(clauses[i + 1]).match(/^If you do, (.+?)\.?$/i))) {
+    const probe = H.compileEffectText(`If ${m[1]}, draw a card.`, { sourceName });
+    const condEff = probe.supported && probe.effects[0]?.kind === 'condition' ? probe.effects[0] : null;
+    const whole = H.compileEffectText(`You may ${m[2]}. If you do, ${mm[1]}.`, { sourceName });
+    if (condEff && whole.supported && whole.effects.length) {
+      const { skip, ...cond } = condEff;
+      return { part: { effects: [{ ...cond, skip: whole.effects.length }, ...whole.effects], requirements: [...probe.requirements, ...whole.requirements], unsupported: [] }, consumed: 2 };
+    }
+    return { part: { effects: [], requirements: [], unsupported: [`${clean(clauses[i])} ${clean(clauses[i + 1])}`] }, consumed: 2 };
   }
   // --- "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card." (Thrasios, Track Down, Llanowar Empath)
   if ((m = c0.match(/^(you may )?reveal the top card of your library\.?$/i))) {

@@ -3431,7 +3431,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     }
     // "Draw a card if its power is 3 or greater. Otherwise, put two +1/+1 counters on it." (Tribute to the World Tree)
     const trailingIf = clause.match(/^(.+?) if (.+?)\.?$/i);
-    const trailingCond = trailingIf && !/\bwould\b/i.test(clause) && parseCondition(trailingIf[2]);
+    const trailingCond = trailingIf && !/\bwould\b/i.test(clause) && (c => (c && c.test === 'b110-card-flag' ? null : c))(parseCondition(trailingIf[2]));   // "Counter target spell if it was kicked": "it" is the target, not this card
     if (trailingCond) {
       const body = compileEffectText(`${trailingIf[1].charAt(0).toUpperCase()}${trailingIf[1].slice(1)}.`, { sourceName });
       if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...trailingCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: trailingCond }); continue; }
@@ -3837,6 +3837,8 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     const r = merged.requirements.find(q => q.bind === e.cardsBind);
     if (r) { r.playerBind = targetedPlayer.bind; r.scope = 'target'; }
   }
+  // Build 110: "Target opponent discards a card at random. … that player discards two cards at random instead."
+  if (targetedPlayer) for (const e of merged.effects) if (e.forPlayerBind === 'eventPlayer' && e.kind === 'b101-discard-random') e.forPlayerBind = targetedPlayer.bind;
   // "Target player discards a card. This creature deals damage to that player equal to …": "that player" is the targeted player, not the trigger's.
   if (targetedPlayer && /\btarget (?:player|opponent)\b[^.]*\.[^.]*\bto that player\b/i.test(raw)) for (const e of merged.effects) if (e.kind === 'damage' && e.bind === 'eventPlayer') e.bind = targetedPlayer.bind;
   // "Exile target creature card …, then create X tokens, where X is the exiled card's toughness": X is read after the card has moved.

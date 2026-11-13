@@ -74,7 +74,7 @@ export function parseSubject(phrase, definition) {
       else if (a === 'modified') out.modified = true;
       else if (a === 'tapped') out.tapped = true;
       else if (a === 'untapped') out.untapped = true;
-      else if (/^non/.test(a)) out.nonTypes.push(a.slice(3));
+      else if (/^non/.test(a)) out.nonTypes.push(a.slice(3).replace(/^-/, ''));   // "non-Human"
       else if (/^[A-Z]/.test(adj) || ['artifact', 'enchantment', 'legendary', 'snow', 'basic', 'land', 'creature'].includes(a)) out.allTypes.push(adj);   // "artifact creature": both
       else return null;
     }

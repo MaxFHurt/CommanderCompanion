@@ -195,7 +195,7 @@ export function catalogTriggerMatch(game, row, t, event, H) {
     case 'damage-player': case 'combat-damage-player': {
       if (/^Whenever you(?:'re| are) dealt damage/i.test(t)) return event.playerId === me;
       // Build 110: "Whenever an opponent is dealt noncombat damage" (Chandra's Spitfire), "Whenever a player is dealt damage".
-      if ((m = t.match(/^Whenever (an opponent|a player|another player|each opponent) (?:is|are) dealt (noncombat )?damage\b/i))) {
+      if ((m = t.match(/^Whenever (an opponent|a player|another player|each opponent) (?:is|are) dealt (noncombat )?damage$/i))) {
         if (event.type !== 'damage-player' && !(event.type === 'combat-damage-player' && !m[2])) return false;
         if (m[2] && event.combat) return false;
         return H.whoMatches(m[1], event.playerId, row);

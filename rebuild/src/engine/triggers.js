@@ -173,6 +173,7 @@ const STEP_EVENTS = { upkeep: 'upkeep', 'draw step': 'draw-step', 'precombat mai
 /** true / false when the trigger's wording is understood for this event; undefined to fall back to the older readers below. */
 function generalMatch(game, row, t, event) {
   let m;
+  if (/\benters or transforms into\b/i.test(t)) return false;   // build 110: the transform half is not read (which face it turns into), so the card stays by hand
   const extra = catalogTriggerMatch(game, row, t, event, { subjectEvent, whoMatches, eventCard, selfName: r => escRe(String(r.definition?.name || '').split(',')[0]) });
   if (extra !== undefined) return extra;
   switch (event.type) {
@@ -408,7 +409,7 @@ function triggerMatches(game, row, ability, event) {
     if (/a creature you control blocks/i.test(t))
       return event.controllerId === row.player.playerId;
     // Build 110: "Whenever a creature blocks", "Whenever another creature an opponent controls blocks" (the subject read by trigger-subject.js).
-    { const bm = t.match(/^(?:When|Whenever) (.+?) blocks\b/i); if (bm) { const r = subjectEvent(game, row, bm[1], event, event.blockerId); if (r !== undefined) return r; } }
+    { const bm = !/becomes blocked|blocked by/i.test(t) && t.match(/^(?:When|Whenever) (.+?) blocks\b/i); if (bm) { const r = subjectEvent(game, row, bm[1], event, event.blockerId); if (r !== undefined) return r; } }
     return false;
   }
   if (event.type === 'combat-damage-player') {
