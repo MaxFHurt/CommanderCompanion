@@ -214,6 +214,14 @@ function render() {
   // card pictures load as they come into view (owner, 12 Nov: "the card images in the deck list are taking forever to load"):
   // a 100-card list asked for every picture at once (about 15 MB of art crops on a phone), so the rows on screen waited behind
   // the rest, and each redraw while data arrives started the queue again
+  // pictures already on screen are kept: the old <img> nodes (loaded and decoded) are put back in place of the new ones with the same
+  // address, so a redraw does not make the phone decode or ask for them again
+  const oldImgs = new Map();
+  m.querySelectorAll('img[src]').forEach(im => {
+    if (!im.complete || !im.naturalWidth) return;
+    const k = im.getAttribute('src');
+    (oldImgs.get(k) || oldImgs.set(k, []).get(k)).push(im);
+  });
   m.innerHTML = (
     S.view === 'home'
       ? viewHome()
@@ -229,6 +237,15 @@ function render() {
                 ? viewLibrary()
                 : viewDeck()
   ).replace(/<img (?![^>]*\bloading=)/g, '<img loading="lazy" decoding="async" ');
+  if (oldImgs.size)
+    m.querySelectorAll('img[src]').forEach(im => {
+      const q = oldImgs.get(im.getAttribute('src'));
+      if (!q || !q.length) return;
+      const o = q.shift();
+      for (const at of [...o.attributes]) if (!im.hasAttribute(at.name)) o.removeAttribute(at.name);
+      for (const at of [...im.attributes]) if (o.getAttribute(at.name) !== at.value) o.setAttribute(at.name, at.value);
+      im.replaceWith(o);
+    });
   // a Back button on every page (owner, 1 Nov); an open deck has its own "All decks"
   if (S.view !== 'home' && !(S.view === 'decks' && S.open && cur()))
     m.insertAdjacentHTML('afterbegin', '<div class="row backrow"><button class="btn sm" data-act="go-back">← Back</button></div>');
