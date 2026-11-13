@@ -22,6 +22,9 @@
   keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
   per change while working; the full run once before the batch goes live.
 
+- **No card building for now** (owner, 13 Nov): no new card rules or mechanics (Connive, Forage, long-tail wordings …) from
+  this work until every other roadmap item is done or being worked on. The long-tail chat's own work is separate.
+
 ## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)
 - Ship only fully tested batches; anything that makes something worse is discussed with the owner first.
 - Never undo another session's work: `git fetch` and build on `origin/main` before pushing.
