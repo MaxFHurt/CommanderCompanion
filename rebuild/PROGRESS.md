@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.108 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.109 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -19,7 +19,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 The complete roadmap of every open change across the app is `ROADMAP.md`.
 
-1. **The card long tail:** 22,743 of 32,300 run by themselves (build 108). Work in batches of 500 newly automated cards,
+1. **The card long tail:** 22,845 of 32,300 run by themselves (build 109). Work in batches of 500 newly automated cards,
    and check in with the owner after each batch.
 2. **Profile sync:** the Deck Builder sends its edits when a deck is closed (build 54) and when the app is put away (build 59).
    A device that declines "Continue your game?" keeps its own game and uploads it next time it
@@ -36,6 +36,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 109 — 13 Nov 2026 (app 1.0.0-rebuild.109; Deck Builder unchanged, 0.9.71): long tail batch 3 complete; cards exiled with a permanent
+- Batch 3 part 2: the last 43 of batch 1's 94 sent-back cards (cost-linked counts, "unless" choices by another player, discard-linked "if you do", additional costs, Palace Jailer, Rith, Hateful Eidolon, Glissa's Retriever, Olivia …): all 94 automatic. A full audit caught three the part-2 agent had wrongly counted; fixed.
+- Review of 26 cards that passed without being read: 15 correct, 10 misread and fixed (Hellhole Rats hit the caster, Morbid Bloom made 0 tokens, "that card's mana value" read 0, "target Symbiote" had no candidates, Necropolis and Slumbering Tora costs were free, Venom could not activate from the graveyard), Nyla back to by hand (then restored below). Also fixed: Coveted Falcon control, Epochrasite counters, "next end step" a turn late, blocks triggers once per blocked creature, Pacifism-style auras, fight/bite damage events, sacrifice-a-subtype costs.
+- Cards exiled with a permanent (CR 607, 610.3): the exiling object records what it exiled (linkedExile / exiledBy), cleared on zone change with last-known information kept for leaves triggers; "return the exiled card", "until this leaves", "target/choose a card exiled with this", "you may play/cast cards exiled with this". 29 verified cards newly automatic (Nyla, Chaos Shrine's Black Crystal, The Darkness Crystal, Shelob, Gorex, Angel of Serenity …). Detention Sphere sent back to by hand (its "all other permanents with the same name" was always misread). Dino DNA stays by hand (6/6 Dinosaur copy).
+- Whole catalog 22,630 (build 107) → 22,845 of 32,300 (13 Nov Scryfall file); 0 lost against build 108.
+- Known gaps: Stalking Yeti's snow mana, banding, "exile target spell" on the stack.
+- Tests (suites.sh): game 254, mechanics 102, catalog 569, smoke 6, tracker 20, practice 20, rules-server 27, forge-triggers; soak 40 x3 0 problems; every browser suite (offline_ui failed until the new file was added to precache.json; suites.sh now warns about that). 432 s.
 
 ### Build 108 — 13 Nov 2026 (Deck Builder 0.9.71, build 216; app 1.0.0-rebuild.108): card rules, faster suites, device layout
 - Rules long tail batch 3 part 1: 51 of batch 1's 94 sent-back cards fixed (several creatures dealing damage equal to their own power, "this way" counts, creature types among creatures, Triumphant Chomp, Warkite Marauder, Iridescent Hornbeetle …); 62 more newly automatic (mostly tokens with rules text); misreads fixed (quoted token text stored as a keyword, Borg artifact creature token types, "the sacrificed creature's power", "double each kind of counter", "creature defending player controls"). Whole catalog 22,630 → 22,743 of 32,300 (13 Nov Scryfall file), 0 audit regressions. 43 sent-back cards remain (cost-linked counts, "unless" choices by another player, discard-linked "if you do", Palace Jailer, …): next.
