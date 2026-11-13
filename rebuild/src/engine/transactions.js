@@ -393,12 +393,14 @@ function putSpellOnStack(game, player, action, deck) {
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
+  const before = locate(deck, action.instanceId);
   for (const id of action.costExileIds || []) {
     const h = locateCardInGame(game, id);
     if (!h || !['battlefield', 'graveyard', 'hand'].includes(h.zone)) throw new Error('The card chosen to exile is gone.');   // graveyard: forage; hand: Jhoira
     moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
   }
-  const hit = locate(deck, action.instanceId);
+  // "Exile this card from your graveyard" as the cost: the source has gone to exile by now, but it still pays the rest.
+  const hit = (action.costExileIds || []).includes(action.instanceId) && before && before.z === action.fromZone ? { card: before.card, z: action.fromZone } : locate(deck, action.instanceId);
   // Channel (from the hand) and "return this card from your graveyard" abilities name the zone they work from.
   if (!hit || (hit.z !== 'battlefield' && !(action.fromZone && hit.z === action.fromZone)))
     throw new Error('Ability source must be on the battlefield');

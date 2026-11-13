@@ -779,6 +779,8 @@ function runActivate(game, op, ask) {
   if (!fromZone && abilityZone(ability) !== 'battlefield') throw new GameError(abilityZone(ability) === 'hand' ? 'That ability works only from your hand.' : 'That ability works only from your graveyard.');
   const legality = fromZone ? { legal: true, reasons: [] } : validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
   if (!legality.legal && !force) throw new GameError(legality.reasons[0], legality.reasons);
+  // From the graveyard the normal legality check is skipped, so "Activate only as a sorcery" is checked here (Venom, Evil Unleashed).
+  if (fromZone === 'graveyard' && !force && /\bActivate only as a sorcery\b/i.test(ability.effect || '') && !(game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length)) throw new GameError('Only as a sorcery: your main phase, with an empty stack.');
   if (ability.loyaltyDelta !== null && !force) {
     if (card.loyaltyUsedTurn === game.turnNumber) throw new GameError('A planeswalker can use only one loyalty ability each turn.');
     if (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length) throw new GameError('Loyalty abilities can be used only during your main phase while the stack is empty.');
@@ -850,9 +852,22 @@ function runActivate(game, op, ask) {
       } else costMoveIds.push(how);
     }
   }
+  if (fromZone === 'graveyard' && /\bExile this card from your graveyard\b/i.test(ability.cost || '')) costExileIds.push(card.instanceId);   // the card exiles itself as the cost
+  // "Exile a creature card from your graveyard" as the cost (Necropolis): "the exiled card" is that card.
+  const exGrave = String(ability.cost || '').match(/Exile an? ([a-z ]*?)card from your graveyard/i);
+  if (exGrave) {
+    const words = exGrave[1].trim().toLowerCase();
+    const rows = (player.deck.graveyard || []).filter(c => !words || cardFitsWords(defOf(game, c), words));
+    if (!rows.length && !force) throw new GameError(`You need a ${words ? `${words} ` : ''}card in your graveyard to exile.`);
+    if (rows.length) {
+      const id = rows.length === 1 ? rows[0].instanceId : ask('cost:exile-grave', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words ? `${words} ` : ''}card in your graveyard to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card' })) }));
+      costExileIds.push(id); bindings.lastMoved = [id];
+    }
+  }
   if (ability.discardCount && fromZone !== 'hand') {
-    const rows = player.deck.hand;
-    if (!rows.length) throw new GameError('You have no card to discard.');
+    const discardWords = ((String(ability.cost || '').match(/Discard\s+an?\s+([A-Za-z ]+?) card\b/i) || [])[1] || '').trim().toLowerCase();   // "Discard a Spirit or Arcane card" (Slumbering Tora)
+    const rows = player.deck.hand.filter(c => !discardWords || cardFitsWords(defOf(game, c), discardWords));
+    if (!rows.length) throw new GameError(`You have no ${discardWords ? `${discardWords} ` : ''}card to discard.`);
     const discardedId = ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) }));
     costMoveIds.push(discardedId);
     // Mercurial Chemister: "the discarded card's mana value".

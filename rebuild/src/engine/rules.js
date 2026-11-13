@@ -325,6 +325,9 @@ function spellTargetLegalityIssues({ game, player, definition, definitions } = {
   const issues = [];
   if (!/\btarget\b/i.test(text))
     return issues;
+  // A permanent spell's enters-trigger target, and any "up to one target … card", don't have to exist to cast it (Nyla with an empty graveyard).
+  if (!/\b(?:Instant|Sorcery)\b/i.test(String(definition?.typeLine || '').split('—')[0]) || /\bup to (?:one|two|three|\w+) target (?:creature )?cards?\b/i.test(text))
+    return issues;
   const graveRows = (ownerOnly = false) => {
     const players = ownerOnly ? [player] : (game?.players || []);
     return players.filter(Boolean).flatMap(p => p.deck?.graveyard || []);
@@ -738,7 +741,7 @@ export function parseActivatedAbilities(definition) {
       // "Sacrifice two Treasures" (Olivia, Opulent Outlaw): several permanents of one kind, chosen as the cost is paid.
       sacrificeMany: (m2 => (m2 ? { n: { a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }[m2[1].toLowerCase()] || Number(m2[1]), word: m2[2].replace(/s$/i, '').toLowerCase() } : null))(cost.match(/Sacrifice (two|three|four|five|six|\d+) (?!of\b)([A-Za-z]+?s?)(?=[,:]|$|\s*\{)/i) || cost.match(/Sacrifice (an?) (?!(?:creature|artifact|enchantment|land|permanent|planeswalker|nonland|another|other)\b)([A-Z][a-z]+)(?=[,:]|$|\s*\{)/)),
       discards: /Discard\b/i.test(cost),
-      discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) ? 1 : 0,
+      discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) || /Discard\s+an?\s+[A-Za-z ]+? card\b/i.test(cost) ? 1 : 0,
       lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
       energyCost: (cost.match(/\{E\}/gi) || []).length,
       loyaltyDelta,

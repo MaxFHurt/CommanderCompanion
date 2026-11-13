@@ -4023,4 +4023,123 @@ section('batch 3 part 2: others (2)');
   const seen = cast(t2, 'Opt', 'Test deals 1 damage to target creature.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === dr.instanceId), dr.instanceId], [d => /ward/i.test(d.title || ''), 'no']], { manaCost: '{G}', typeLine: 'Instant' });
   check('Rith: a Dragon with the granted ward asks the ward cost; declining counters the spell', seen.some(d => /ward/i.test(d.title || '')) && !Number(dr.damageMarked || 0), JSON.stringify(seen.map(d => d.title)));
 }
+
+section('long tail batch 3 part 2: review of the 26 newly automatic cards');
+{
+  const gyc = (t, name, extra = {}, i = 0) => { const c = t.P(i).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(i).deck.graveyard.push(c); const nid = 'x-' + name; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[c.definitionId], name, ...extra }; c.definitionId = nid; return c; };
+  const pick = (t, i) => [d => (d.options || []).some(o => o.id === t.P(i).playerId), () => t.P(i).playerId];
+  // Hellhole Rats: "that player" is the targeted player (the damage went to the caster)
+  {
+    const t = setup(); const l0 = t.P(0).life, l1 = t.P(1).life;
+    t.give(1, 'Divination'); const dv = t.hand(1, 'Divination'); t.game.cardDefinitions[dv.definitionId] = { ...t.game.cardDefinitions[dv.definitionId], manaValue: 3, cmc: 3 };
+    cast(t, 'Grizzly Bears', 'Haste\nWhen this creature enters, target player discards a card. This creature deals damage to that player equal to that card\'s mana value.', [pick(t, 1)], { manaCost: '{G}', typeLine: 'Creature — Rat', power: '2', toughness: '2', name: 'Hellhole Rats' });
+    check('Hellhole Rats: the targeted player discards and takes damage equal to the card\'s mana value (not the caster)', l1 - t.P(1).life === 3 && t.P(0).life === l0 && t.names(1, 'graveyard').includes('Divination'), `${l1 - t.P(1).life} ${l0 - t.P(0).life}`);
+  }
+  // Morbid Bloom: X read after the card is exiled
+  {
+    const t = setup(); const c = gyc(t, 'Big Guy', { typeLine: 'Creature — Beast', power: '4', toughness: '5' }, 1);
+    cast(t, 'Opt', 'Exile target creature card from a graveyard, then create X 1/1 green Saproling creature tokens, where X is the exiled card\'s toughness.', [[d => d.targeting, () => c.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Morbid Bloom' });
+    check('Morbid Bloom: five Saprolings for a toughness-5 card', t.P(0).deck.battlefield.filter(x => /Saproling/.test(def(t, x).name)).length === 5 && t.names(1, 'exile').includes('Big Guy'), t.names(0, 'battlefield').join());
+  }
+  // Volcanic Vision / Vengeful Rebirth: "that card's mana value" is the returned card
+  {
+    const t = setup(); const foe = onField(t, 'Air Elemental', '', { power: '1', toughness: '4' }, 1), mine = onField(t, 'Fog Bank', '', { power: '1', toughness: '4' });
+    const sp = gyc(t, 'Fireball', { typeLine: 'Instant', manaValue: 3, cmc: 3 });
+    cast(t, 'Opt', 'Return target instant or sorcery card from your graveyard to your hand. Volcanic Vision deals damage equal to that card\'s mana value to each creature your opponents control. Exile Volcanic Vision.', [[d => d.targeting, () => sp.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Volcanic Vision' });
+    check('Volcanic Vision: 3 damage to the opponent\'s creatures only, card back in hand, spell exiled', foe.damageMarked === 3 && !mine.damageMarked && t.names(0, 'hand').includes('Fireball') && t.names(0, 'exile').includes('Volcanic Vision'), JSON.stringify([foe.damageMarked, mine.damageMarked]));
+    const t2 = setup(); const big = gyc(t2, 'Bigthing', { typeLine: 'Creature — Beast', manaValue: 4, cmc: 4, power: '2', toughness: '2' }), l = t2.P(1).life;
+    cast(t2, 'Opt', 'Return target card from your graveyard to your hand. If you return a nonland card to your hand this way, Vengeful Rebirth deals damage equal to that card\'s mana value to any target.\nExile Vengeful Rebirth.', [[d => d.targeting && /graveyard/.test(d.key + d.title), () => big.instanceId], [d => d.targeting, () => t2.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Vengeful Rebirth' });
+    check('Vengeful Rebirth: 4 damage for a mana value 4 card', l - t2.P(1).life === 4 && t2.names(0, 'hand').includes('Bigthing'), String(l - t2.P(1).life));
+  }
+  // Twilight Prophet: X is the revealed card's mana value; nothing without the city's blessing
+  {
+    const t = setup();
+    onField(t, 'Grizzly Bears', 'At the beginning of your upkeep, if you have the city\'s blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card\'s mana value.', { name: 'Twilight Prophet', typeLine: 'Creature — Vampire Cleric' });
+    t.P(0).citysBlessing = true;
+    for (const [n, top] of t.P(0).deck.remainingLibrary.slice(0, 3).entries()) { const nid = 'x-top' + n; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[top.definitionId], name: 'TopCard' + n, manaValue: 5, cmc: 5, typeLine: 'Creature' }; top.definitionId = nid; }
+    const l0 = t.P(0).life, l1 = t.P(1).life;
+    t.end(0); t.end(1); settle(t);
+    check('Twilight Prophet: each opponent loses 5 and you gain 5 (the revealed card\'s mana value)', l1 - t.P(1).life === 5 && t.P(0).life - l0 === 5, `${l1 - t.P(1).life} ${t.P(0).life - l0}`);
+    const t2 = setup();
+    onField(t2, 'Grizzly Bears', 'At the beginning of your upkeep, if you have the city\'s blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card\'s mana value.', { name: 'Twilight Prophet', typeLine: 'Creature — Vampire Cleric' });
+    const h = t2.P(0).deck.hand.length; t2.end(0); t2.end(1); settle(t2);
+    check('Twilight Prophet: without the city\'s blessing the upkeep does nothing', t2.P(1).life === 40 && t2.P(0).deck.hand.length === h + 1, `${t2.P(1).life} ${t2.P(0).deck.hand.length - h}`);
+  }
+  // Nyla: castable with an empty graveyard; the second ability ("card exiled with Nyla") is not automatic (no card is remembered)
+  {
+    const t = setup(); const l = t.P(0).life;
+    cast(t, 'Grizzly Bears', 'When Nyla enters, exile up to one target creature card from your graveyard. If you do, you lose X life and create X Clue tokens, where X is that card\'s mana value.', [], { manaCost: '{G}', typeLine: 'Legendary Creature — Mole Beast', name: 'Nyla, Shirshu Sleuth' });
+    check('Nyla: can be cast with no creature card in the graveyard (up to one target); nothing happens', !!t.bf(0, 'Nyla, Shirshu Sleuth') && t.P(0).life === l, t.names(0, 'battlefield').join());
+    const t2 = setup(); const big = gyc(t2, 'Bigthing', { typeLine: 'Creature — Beast', manaValue: 3, cmc: 3 }); const l2 = t2.P(0).life;
+    cast(t2, 'Grizzly Bears', 'When Nyla enters, exile up to one target creature card from your graveyard. If you do, you lose X life and create X Clue tokens, where X is that card\'s mana value.', [[d => d.targeting, () => big.instanceId]], { manaCost: '{G}', typeLine: 'Legendary Creature — Mole Beast', name: 'Nyla, Shirshu Sleuth' });
+    check('Nyla: exiles the card, loses 3 life, makes 3 Clues', l2 - t2.P(0).life === 3 && t2.P(0).deck.battlefield.filter(x => /Clue/.test(def(t2, x).name)).length === 3, t2.names(0, 'battlefield').join());
+    const r = compileEffectText('Return target card exiled with Nyla to its owner\'s hand.', { sourceName: 'Nyla, Shirshu Sleuth' });
+    check('"target card exiled with …" is left for the player (nothing remembers which cards a permanent exiled)', !r.supported, JSON.stringify(r.unsupported));
+  }
+  // Creature-type targets: "target Symbiote", "target Faerie you control" (the scope had no card type, so nothing could be chosen)
+  {
+    const t = setup(); const sym = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Symbiote', power: '2', toughness: '2' });
+    const v = onField(t, 'Fog Bank', '{3}: Exile target creature card from a graveyard. When you do, put X +1/+1 counters on target Symbiote, where X is the exiled card\'s toughness.', { name: 'Venom, Deadly Devourer', typeLine: 'Legendary Creature — Symbiote Villain', power: '2', toughness: '2' });
+    const c = gyc(t, 'Big', { typeLine: 'Creature', power: '4', toughness: '5' }, 1);
+    activate(t, v, 0, [[d => d.targeting && /graveyard/.test(d.key + d.title), () => c.instanceId], [d => d.targeting, () => sym.instanceId]]);
+    check('Venom, Deadly Devourer: a target Symbiote can be chosen; it gets 5 counters (the exiled card\'s toughness)', sym.counters?.['+1/+1'] === 5 && t.names(1, 'exile').includes('Big'), JSON.stringify(sym.counters));
+    // Talion's Messenger
+    const t2 = setup();
+    const fa = onField(t2, 'Grizzly Bears', '', { typeLine: 'Creature — Faerie Noble', power: '1', toughness: '1' }), other = onField(t2, 'Llanowar Elves', '', { typeLine: 'Creature — Faerie', power: '1', toughness: '1', keywords: [] });
+    onField(t2, 'Air Elemental', 'Flying\nWhenever you attack with one or more Faeries, draw a card, then discard a card. When you discard a card this way, put a +1/+1 counter on target Faerie you control.', { name: "Talion's Messenger", typeLine: 'Creature — Faerie Noble', power: '2', toughness: '2' });
+    fa.summoningSick = false; fa.enteredTurn = -5; other.enteredTurn = -5;
+    t2.end(0); t2.autoPass = true; t2.end(1); t2.autoPass = false; t2.do(0, { type: 'next-phase' });
+    t2.do(0, { type: 'attack', attacks: [{ instanceId: fa.instanceId, defenderId: t2.P(1).playerId }] });
+    settle(t2, [[d => d.targeting, () => other.instanceId]]);
+    check('Talion\'s Messenger: attacking with a Faerie draws, discards and puts a counter on the chosen Faerie', other.counters?.['+1/+1'] === 1, JSON.stringify(other.counters));
+    const t3 = setup();
+    const bear = onField(t3, 'Grizzly Bears', '', { typeLine: 'Creature — Bear', power: '1', toughness: '1' }); onField(t3, 'Llanowar Elves', '', { typeLine: 'Creature — Faerie', power: '1', toughness: '1', keywords: [] });
+    onField(t3, 'Air Elemental', 'Flying\nWhenever you attack with one or more Faeries, draw a card, then discard a card.', { name: "Talion's Messenger", typeLine: 'Creature — Faerie Noble', power: '2', toughness: '2' });
+    bear.enteredTurn = -5; t3.end(0); t3.autoPass = true; t3.end(1); t3.autoPass = false; t3.do(0, { type: 'next-phase' });
+    const h3 = t3.P(0).deck.hand.length;
+    t3.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t3.P(1).playerId }] }); settle(t3);
+    check('Talion\'s Messenger: attacking only with a non-Faerie does not trigger it', t3.P(0).deck.hand.length === h3 && !t3.names(0, 'graveyard').length, `${t3.P(0).deck.hand.length - h3}`);
+  }
+  // Costs: "Exile a creature card from your graveyard" (Necropolis), "Discard a Spirit or Arcane card" (Slumbering Tora)
+  {
+    const t = setup(); const n = onField(t, 'Fog Bank', 'Defender\nExile a creature card from your graveyard: Put X +0/+1 counters on this creature, where X is the exiled card\'s mana value.', { name: 'Necropolis', typeLine: 'Artifact Creature — Wall', power: '0', toughness: '4' });
+    const c = gyc(t, 'Big', { typeLine: 'Creature', manaValue: 4, cmc: 4 });
+    activate(t, n, 0);
+    check('Necropolis: the creature card is exiled as the cost and X is its mana value (4 counters)', n.counters?.['+0/+1'] === 4 && t.names(0, 'exile').includes('Big') && !t.names(0, 'graveyard').includes('Big'), JSON.stringify(n.counters));
+    const t0 = setup(); const n0 = onField(t0, 'Fog Bank', 'Exile a creature card from your graveyard: Put X +0/+1 counters on this creature, where X is the exiled card\'s mana value.', { name: 'Necropolis', typeLine: 'Artifact Creature — Wall' });
+    const ab0 = parseActivatedAbilities(def(t0, n0))[0], r0 = t0.ctl.dispatch({ type: 'activate', instanceId: n0.instanceId, abilityId: ab0.id }, t0.as(0));
+    check('Necropolis: with no creature card in the graveyard the cost cannot be paid', !r0.ok, JSON.stringify(r0));
+    const t2 = setup(); const tora = onField(t2, 'Fog Bank', '{2}, Discard a Spirit or Arcane card: This artifact becomes an X/X Cat artifact creature until end of turn, where X is the discarded card\'s mana value.', { name: 'Slumbering Tora', typeLine: 'Artifact' });
+    t2.give(0, 'Divination'); const dv = t2.hand(0, 'Divination'); t2.game.cardDefinitions[dv.definitionId] = { ...t2.game.cardDefinitions[dv.definitionId], typeLine: 'Instant — Arcane', manaValue: 4, cmc: 4 };
+    t2.give(0, 'Opt'); const plain = t2.hand(0, 'Opt');
+    const seen = activate(t2, tora, 0, [[d => /discard/i.test(d.key + d.title), () => dv.instanceId]]);
+    check('Slumbering Tora: only an Arcane/Spirit card may be discarded; it becomes a 4/4', power(t2, tora) === 4 && tough(t2, tora) === 4 && seen.some(d => d.options && !d.options.some(o => o.id === plain.instanceId)), JSON.stringify([power(t2, tora), seen.map(d => (d.options || []).length)]));
+  }
+  // Venom, Evil Unleashed: activated from the graveyard, exiling itself as the cost; sorcery speed
+  {
+    const t = setup(); const v = gyc(t, 'Venom, Evil Unleashed', { typeLine: 'Legendary Creature — Symbiote Villain', oracleText: '{2}{G}, Exile this card from your graveyard: Put two +1/+1 counters on target creature. It gains deathtouch until end of turn. Activate only as a sorcery.' });
+    const c = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });
+    const ab = parseActivatedAbilities(def(t, v));
+    const r = t.ctl.dispatch({ type: 'activate', instanceId: v.instanceId, abilityId: ab[0].id }, t.as(0)); settle(t, [[d => d.targeting, () => c.instanceId]]);
+    check('Venom, Evil Unleashed: from the graveyard, exiles itself, two counters and deathtouch', r.ok && c.counters?.['+1/+1'] === 2 && has(t, c, 'Deathtouch') && t.names(0, 'exile').includes('Venom, Evil Unleashed'), JSON.stringify([r.error, c.counters]));
+    const t2 = setup(); const v2 = gyc(t2, 'Venom, Evil Unleashed', { typeLine: 'Legendary Creature — Symbiote Villain', oracleText: '{2}{G}, Exile this card from your graveyard: Put two +1/+1 counters on target creature. It gains deathtouch until end of turn. Activate only as a sorcery.' });
+    onField(t2, 'Grizzly Bears', '', {}); t2.end(0);
+    const r2 = t2.ctl.dispatch({ type: 'activate', instanceId: v2.instanceId, abilityId: parseActivatedAbilities(def(t2, v2))[0].id }, t2.as(0));
+    check('Venom, Evil Unleashed: not on the opponent\'s turn', !r2.ok, JSON.stringify(r2));
+  }
+  // Food / Clue tokens carry their subtype (forage and "sacrifice a Food" look for it)
+  {
+    const r = compileEffectText('Create a Food token.', { sourceName: 'X' }), r2 = compileEffectText('Create a Clue token.', { sourceName: 'X' });
+    check('Food and Clue tokens have their subtype in the type line', /— Food$/.test(r.effects[0].typeLine) && /— Clue$/.test(r2.effects[0].typeLine), r.effects[0].typeLine + ' | ' + r2.effects[0].typeLine);
+  }
+  // Ultron, Unlimited / Iron Monger: a creature you control connives
+  {
+    const t = setup();
+    const u = onField(t, 'Grizzly Bears', 'Whenever a creature you control connives, you may pay {1}. If you do, create a 2/2 colorless Robot Villain artifact creature token.', { typeLine: 'Legendary Artifact Creature — Robot Villain' });
+    const im = onField(t, 'Llanowar Elves', 'Whenever a creature you control connives, put a +1/+1 counter on each Villain you control.', { typeLine: 'Creature — Human Villain', keywords: [] });
+    cast(t, 'Opt', 'Target creature you control connives.', [[d => d.targeting, () => u.instanceId], [d => d.key === 'may-pay', 'pay']], { manaCost: '{U}' });
+    check('Ultron / Iron Monger: the connive trigger pays {1} for a Robot Villain token and puts a counter on every Villain', t.P(0).deck.battlefield.filter(x => x.token && /Villain/.test(def(t, x).name)).length === 1 && im.counters?.['+1/+1'] === 1, t.names(0, 'battlefield').slice(8).join());
+  }
+}
+
 done();
