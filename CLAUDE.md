@@ -23,7 +23,9 @@
 
 - **Batch releases** (owner, 13 Nov): group changes into one build so the full suite runs once per build, not per change, but
   keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
-  per change while working; the full run once before the batch goes live.
+  per change while working; the full run once before the batch goes live. **Never ship finished items one at a time**
+  (owner, 13 Nov: "Push build updates live in batches"): collect what the agents finish on the release branch and push one
+  build when the batch is full (or the owner asks).
 
 - **Order of work** (owner, 13 Nov; replaces "no card building for now"): (1) features and screens, (2) card rules and
   mechanics (long tail, Connive, Forage …), (3) judgement tools: deck score, card strength, mana rules, reasons, Fix picks,
