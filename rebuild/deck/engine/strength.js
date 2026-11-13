@@ -183,6 +183,22 @@ function strBuild(d, cap, casual, pool, core) {
     // the minimum, and the deck's finishers and protection are how it wins (owner, 12 Nov: fix the mana first)
     need = Object.fromEntries(STR_ROLES.map(r => [r, UP.strKeepJobs ? A0.roles[r] : Math.min(A0.T[r], A0.roles[r])])),
     winJob = c => isFinisher(c) || tags(c).roles.has('protect'),
+    // UP.strPips: a spell comes in only if the deck's lands are enough sources for its coloured pips at its mana value (Karsten's
+    // table, as the generator's mana base uses it, 2 short allowed), unless it asks no more than the card it replaces
+    src = (() => {
+      const o = {};
+      strSlots(d).forEach(c => {
+        if (tags(c).land) landColors(c).forEach(k => (o[k] = (o[k] || 0) + 1));
+      });
+      return o;
+    })(),
+    pipsOk = (cut, add) => {
+      if (!UP.strPips || tags(add).land) return true;
+      const p = pipNeed(add),
+        pc = pipNeed(cut),
+        mv = Math.max(1, Math.min(7, Math.round(add.cmc || 1)));
+      return Object.keys(p).every(k => p[k] <= (pc[k] || 0) || KARSTEN[Math.min(3, p[k])][mv - 1] <= (src[k] || 0) + 2);
+    },
     vv = c => strValue(c, d, casual),
     list = strSlots(d),
     done = [];
@@ -204,6 +220,7 @@ function strBuild(d, cap, casual, pool, core) {
         if (isL(add) && (UP.strLands === 0 || !landCovers(cut, add, ident))) continue;
         if (STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(add).roles.has(r) && rc[r] - 1 < need[r])) continue;
         if (UP.strKeepJobs && winJob(cut) && !winJob(add)) continue;
+        if (!pipsOk(cut, add)) continue;
         if (!best || g > best.g) best = {add, cut, g};
         break;
       }

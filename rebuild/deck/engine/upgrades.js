@@ -2165,6 +2165,7 @@ const UP = {
   strKeepLands: 1, // the strength finish keeps the generator's land count as a floor (owner, 12 Nov: fix the mana first)
   strKeepJobs: 1, // strength builds never lower the deck's ramp, draw, removal and wipe counts, nor trade away a finisher or protection
   strManaGuard: 1, // the strength finish adds lands back while its practice-game mana is below the deck as generated
+  strPips: 1, // strength picks need enough sources for their coloured pips (Karsten), as the generator's mana base does
   strLands: 0, // strength builds swap spells only (12 Nov): land strength ignores how a mana base works together (mono-red Mountains gave way to off-colour fetches; five-colour fetches to shocks, stuck on colour 9% -> 27%), and leaving lands to the mana base kept tournament match (Apex 66.8% -> 66.7%) with better mana
   sjx: 1,
   tierPolish: 1, // generated Mid / Budget decks: the polish rounds after they are made from the Apex build (UP.polish rounds)
