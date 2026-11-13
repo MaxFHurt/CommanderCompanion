@@ -4380,4 +4380,16 @@ section('build 110 (long tail batch 4)');
   check('tap and stun counters: both instructions kept on one target', r2.supported && r2.effects.length === 2 && r2.effects[1].counter === 'stun' && r2.effects[1].bind === r2.effects[0].bind, JSON.stringify(r2.effects));
 }
 
+{
+  // "Whenever this creature enters or transforms into <front face>": fires on transforming into that face, not the other
+  const t = setup();
+  const faces = [{ name: 'Test Front', oracleText: 'Whenever this creature enters or transforms into Test Front, you gain 2 life.\n{0}: Transform this creature.' }, { name: 'Test Back', oracleText: '{0}: Transform this creature.' }];
+  const c = onField(t, 'Grizzly Bears', 'Whenever this creature enters or transforms into Test Front, you gain 2 life.\n{0}: Transform this creature.', { cardFaces: faces, typeLine: 'Creature — Human Werewolf' });
+  const life0 = t.P(0).life;
+  activate(t, c, 0);
+  const mid = t.P(0).life;
+  activate(t, c, 0);
+  check('enters-or-transforms: turning into the other face does nothing; turning back into the named face gains 2', mid === life0 && t.P(0).life === life0 + 2, `${life0} -> ${mid} -> ${t.P(0).life}`);
+}
+
 done();

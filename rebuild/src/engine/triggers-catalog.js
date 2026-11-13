@@ -163,6 +163,8 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       }
       return undefined;
     case 'transformed':
+      // Build 110: "Whenever this creature enters or transforms into Huntmaster of the Fells": the transform leg, only into that face.
+      if ((m = t.match(/^When(?:ever)? (.+?) enters or transforms into (.+)$/i))) return H.subjectEvent(game, row, m[1], event) && String(event.faceName || '').toLowerCase() === m[2].trim().toLowerCase();
       if ((m = t.match(/^When(?:ever)? (.+?) transforms(?: into .+)?$/i))) return H.subjectEvent(game, row, m[1].replace(/ transforms into .+$/i, ''), event);
       return undefined;
     case 'crewed':

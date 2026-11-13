@@ -173,7 +173,7 @@ const STEP_EVENTS = { upkeep: 'upkeep', 'draw step': 'draw-step', 'precombat mai
 /** true / false when the trigger's wording is understood for this event; undefined to fall back to the older readers below. */
 function generalMatch(game, row, t, event) {
   let m;
-  if (/\benters or transforms into\b/i.test(t)) return false;   // build 110: the transform half is not read (which face it turns into), so the card stays by hand
+  if (/\benters or transforms into\b/i.test(t) && event.type !== 'enters-battlefield' && event.type !== 'transformed') return false;   // build 110: entering or transforming into that face
   const extra = catalogTriggerMatch(game, row, t, event, { subjectEvent, whoMatches, eventCard, selfName: r => escRe(String(r.definition?.name || '').split(',')[0]) });
   if (extra !== undefined) return extra;
   switch (event.type) {

@@ -55,6 +55,7 @@ tabcount. They serve a checkout with `python3 -m http.server <port>` from `rebui
 |---|---|
 | Status, batch log, sent-back list (94 by hand, start batch 3 with them) | PROGRESS.md "Where it stands", "Long tail, batch 2" / "Build 101" entries |
 | Batch 1-2 wordings | src/engine/effects-b101.js · compileB101Clause, compileB101Sequence (hooked in effects-catalog.js after b49), applyB101, gatherB101 |
+| Batch 4 wordings (build 110) | src/engine/effects-b110.js · compileB110Clause / compileB110Sequence / applyB110 / gatherB110 / parseConditionB110 (hooked in effects-catalog.js after b101; conditions in effects.js). Target descriptors (colours, non-X, tapped, without flying, limits set by the source's power): src/game/requirements.js descriptorFits / sourceLimitFits; untap locks and "for as long as … remains tapped": game/flow.js noUntapHolds, engine/combat.js pruneWhileTapped |
 | Amounts in card text | src/engine/amounts-b101.js |
 | "where X is …", pronouns, "it" after a token | src/engine/effects.js · b101-per-player, COMPILE_DEPTH, __lastMade |
 | Per-turn tallies | src/engine/triggers.js · tallyTurn |

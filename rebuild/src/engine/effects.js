@@ -1087,7 +1087,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       }
       hit.card.activeFaceIndex = Number(hit.card.activeFaceIndex || 0) === 0 ? 1 : 0;
       notes.push(`${base.name} transforms into ${base.cardFaces[hit.card.activeFaceIndex]?.name || 'its other face'}.`);
-      emit(bindings, { type: 'transformed', sourceId: hit.card.instanceId, definitionId: hit.card.definitionId, controllerId: hit.card.controllerId });
+      emit(bindings, { type: 'transformed', sourceId: hit.card.instanceId, definitionId: hit.card.definitionId, controllerId: hit.card.controllerId, faceName: base.cardFaces[hit.card.activeFaceIndex]?.name || null });
       continue;
     }
     if (effect.kind === 'unpreventable') {
