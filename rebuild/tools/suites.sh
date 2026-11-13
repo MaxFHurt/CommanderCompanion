@@ -12,7 +12,7 @@ DK=""; GN=""; GP=""
 dk(){ case ",$DK," in *",$1,"*) ;; *) DK="${DK:+$DK,}$1";; esac; }
 for f in $FILES; do
   case "$f" in
-    *.md|tools/longtail/*|tools/suites.sh) ;;                               # docs, tools: nothing
+    *.md|tools/longtail/*|tools/suites.sh|deck/engine.min.js) ;;                               # docs, tools: nothing
     deck/tools/tests/*) dk screens ;;                                       # test edits: the UI suite proves them
     deck/ui/*|deck/index.html|deck/cc-theme.css|deck/manifest.json|deck/version.json|deck/app.min.js) dk screens ;;
     deck/engine/upgrades.js|deck/engine/score.js|deck/engine/mana.js) dk upgrade; dk screens ;;
