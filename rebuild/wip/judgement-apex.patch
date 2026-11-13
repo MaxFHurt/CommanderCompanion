@@ -1,0 +1,706 @@
+diff --git a/rebuild/CHAT_HANDOFF.md b/rebuild/CHAT_HANDOFF.md
+new file mode 100644
+index 0000000..c8b0006
+--- /dev/null
++++ b/rebuild/CHAT_HANDOFF.md
+@@ -0,0 +1,40 @@
++# Chat handoff (13 Nov 2026)
++
++Read `CLAUDE.md` (working rules) and `rebuild/INDEX.md` (where things are) first. Answers short.
++
++## State
++- **Live:** Build 102 (app 1.0.0-rebuild.102, Deck Builder 0.9.67 build 212) on `main`.
++- **Working branch** `claude/admiring-meitner-6k7j06` = main + CLAUDE.md, INDEX.md, skills `deck-test` / `release`
++  (`rebuild/deck/tools/tests/suite/run.sh`, `release.sh`). Not on main yet: ships with the next build.
++- **Open work, branch `team/apex2`** (not live; = working branch + the commits below):
++  1. *Score matches the strongest version* (owner, 12 Nov): with card strength on, the score players see (`evalFor` →
++     `evaluateDeck(…, {str:true})`) counts each spell's strength for the deck in synergy (vs the strength Apex build's average
++     spell, `strTopSpell`) and uses strength power as card quality; the next-level box uses the strength builds (`strRefParts`).
++     Swap/generation scoring unchanged.
++  2. *Generated decks finished on the strength build* (owner's Apex report: generated Apex showed power 66 with 28 upgrades):
++     `strFinish` in engine/strength.js, called from `genRun` (ui/storage.js); skips owned-only, dollar-budget and
++     no-play-data decks; Theme first only swaps on-theme for on-theme; `ensureEdh` leaves the EDHREC slot alone while Generate
++     is open; build-ahead re-reads its commander's page. Test UI-APEX-01.
++  3. *Mana rules* (owner: "Fix the mana first"), settings in engine/upgrades.js `UP`: `strLands 0` (strength builds don't swap
++     lands), `strKeepJobs 1` (never lower ramp/draw/removal/wipe counts or trade away finishers/protection), `strPips 1`
++     (Karsten colour sources), `strKeepLands 1` (generator's land count is the floor), `strManaGuard 1` (adds lands back while
++     practice-game mana is below the generated deck's).
++
++## Measured (live data, scripts in /home/user/dc-test/live, may be gone in a new container)
++- Tournament match (10 commanders, generator given the button's themes): Apex 64.9% → 71.2%, core 64.6% → 69.1%; Mid 42.6% → 45.8%.
++- New score: finished Apex decks 90-95 vs generator 86-93. Mana part generator → finished: Turtles 89→88, Atraxa 100→94,
++  Krenko 94→93, Ur-Dragon 91→78 (rocks replace land ramp; practice "short of lands" counts lands only), Edgar 96→92, Yuriko 97→97.
++- **Upgrade benchmark drops with the mana rules** (they also shape the live upgrade list): test Mid agreement@5 0.245 → 0.178;
++  per rule: strLands→0.190, strPips→0.206, strKeepJobs→0.222 when each is turned off; all off = 0.245.
++
++## Waiting on the owner (asked 12 Nov)
++- A: mana rules everywhere (recommended; benchmark drops as above) · B: mana rules only when generating (upgrade list as live;
++  generated decks list a few mana-unsafe swaps, power < 100) · C: ship the score change alone.
++
++## Then
++- Full run on team/apex2 (`sh rebuild/deck/tools/tests/suite/run.sh full`) had 5 UI failures to fix: UI-SCORE-01, UI-ALT-01,
++  UI-B94-01 (likely the score change: check what each reads), UI-TAB-01 (check why it fails on this branch), UI-ASYNC-01 (known
++  flake: rerun alone). Fix, rerun, then ship with the `release` skill (next: app 103, Deck Builder build 213 / 0.9.68), merging
++  team/apex2 into the working branch first. Update ROADMAP 7f.3 and 7f.5.
++- Owner checks still open: decklist images on the phone (Build 100 lazy loading), ROADMAP 7f.2.
++- Another chat works the rules long tail (src/engine): stay out.
+diff --git a/rebuild/deck/engine/practice.js b/rebuild/deck/engine/practice.js
+index b0646fb..9088301 100644
+--- a/rebuild/deck/engine/practice.js
++++ b/rebuild/deck/engine/practice.js
+@@ -240,6 +240,7 @@ function simulate0(d, games, seed) {
+       spent: [0, 0, 0, 0, 0, 0, 0, 0],
+       colourStuck: 0,
+       screw: 0,
++      short: 0,
+       flood: 0,
+       landsT4: [],
+       noPlayT3: 0,
+@@ -401,6 +402,7 @@ function simulate0(d, games, seed) {
+             Object.assign({}, x, {
+               sickNow: x.sick,
+               tappedNow: !!x.tappedRock,
++              at: turn,
+               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
+             })
+           );
+@@ -445,6 +447,9 @@ function simulate0(d, games, seed) {
+       if (turn === 4) R.landsT4.push(L);
+       if (turn === 3 && !spent && !cmdT) R.noPlayT3++;
+       if (turn === 5 && L < 4) R.screw++;
++      // short of mana (the score with card strength reads this): a mana rock or creature counts as a source from the turn after it
++      // was cast, as land ramp does; fewer than 3 lands on turn 5 is short whatever else is out
++      if (turn === 5 && (L < 3 || L + bf.reduce((a, s) => a + (!s.land && s.mana && s.at < turn ? s.mana : 0), 0) < 4)) R.short++;
+       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
+     }
+     R.cmdTurn.push(cmdT || 11);
+@@ -463,6 +468,7 @@ function simulate0(d, games, seed) {
+     manaUsedBy6: +(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
+     colourStuck: +(R.colourStuck / n).toFixed(3),
+     screwT5: +(R.screw / n).toFixed(3),
++    shortT5: +(R.short / n).toFixed(3),
+     floodT8: +(R.flood / n).toFixed(3),
+     mulligan: +(R.mull / n).toFixed(3),
+     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)
+@@ -486,6 +492,7 @@ function practiceGames(d, games, seed) {
+       spent: [0, 0, 0, 0, 0, 0, 0, 0],
+       colourStuck: 0,
+       screw: 0,
++      short: 0,
+       flood: 0,
+       landsT4: [],
+       noPlayT3: 0,
+@@ -665,6 +672,7 @@ function practiceGames(d, games, seed) {
+             Object.assign({}, x, {
+               sickNow: x.sick,
+               tappedNow: !!x.tappedRock,
++              at: turn,
+               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
+             })
+           );
+@@ -712,6 +720,9 @@ function practiceGames(d, games, seed) {
+       if (turn === 4) R.landsT4.push(L);
+       if (turn === 3 && !spent && !cmdT) R.noPlayT3++;
+       if (turn === 5 && L < 4) R.screw++;
++      // short of mana (the score with card strength reads this): a mana rock or creature counts as a source from the turn after it
++      // was cast, as land ramp does; fewer than 3 lands on turn 5 is short whatever else is out
++      if (turn === 5 && (L < 3 || L + bf.reduce((a, s) => a + (!s.land && s.mana && s.at < turn ? s.mana : 0), 0) < 4)) R.short++;
+       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
+     }
+     R.cmdTurn.push(cmdT || 11);
+@@ -733,6 +744,7 @@ function practiceGames(d, games, seed) {
+     manaUsedBy6: +(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
+     colourStuck: +(R.colourStuck / n).toFixed(3),
+     screwT5: +(R.screw / n).toFixed(3),
++    shortT5: +(R.short / n).toFixed(3),
+     floodT8: +(R.flood / n).toFixed(3),
+     mulligan: +(R.mull / n).toFixed(3),
+     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)
+diff --git a/rebuild/deck/engine/score.js b/rebuild/deck/engine/score.js
+index 2c84256..c1ef572 100644
+--- a/rebuild/deck/engine/score.js
++++ b/rebuild/deck/engine/score.js
+@@ -290,7 +290,14 @@ function evaluateDeck(d, opt) {
+     if (!f && ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)) f = 0.7;
+     return f;
+   };
+-  const synOf = c => {
++  // Owner, 12 Nov ("make the score match the strongest version of the deck"): with card strength (opt.str, the score players see),
++  // a spell also counts by how strong it is for this deck, against the average spell of its strongest build (engine/strength.js),
++  // so the staples strong decks run (Sol Ring, tutors) no longer lower the score of a deck that plays them
++  const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
++    topS = SRx ? strTopSpell(d, SRx) : 0,
++    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false) / topS) : 0);
++  const synOf = c => Math.max(synOf0(c), strSyn(c));
++  const synOf0 = c => {
+     const x = hasE ? incOf(c) : null,
+       l = x ? Math.max(0, Math.min(1, 3 * x.syn + 0.25 * x.inc)) : 0;
+     let t = 0;
+@@ -359,14 +366,19 @@ function evaluateDeck(d, opt) {
+   // UP.rld 2 (Build 143): extra ramp makes up for missing lands, but does not count as flood: whether ramp floods the deck is
+   // what the mana part's practice games measure, and counting it here too marked down the cheap ramp players add
+   if (ld < -1) pen += (-ld - 1) * 0.15;
+-  else if ((UP.rld === 2 ? A.lands - T.lands : ld) > 2) pen += ((UP.rld === 2 ? A.lands - T.lands : ld) - 2) * 0.06;
++  // with card strength (opt.str): lands over the curve's target are not marked here; whether they flood the deck is what the mana
++  // part's practice games measure (as UP.rld 2 does for ramp). Strength picks are cheaper spells, so the target falls while the
++  // deck keeps the generator's land count on purpose (UP.strKeepLands). Too few lands still count.
++  else if (!SRx && (UP.rld === 2 ? A.lands - T.lands : ld) > 2) pen += ((UP.rld === 2 ? A.lands - T.lands : ld) - 2) * 0.06;
+   const inter = spells.filter(c => {
+     const r = tags(c).roles;
+     return r.has('removal') || r.has('wipe') || r.has('counter');
+   }).length;
+   if (inter < 8) pen += (8 - inter) * 0.03;
+   // Cards whose condition the deck barely meets (Divine Visitation without creature tokens, a Dinosaur lord with few Dinosaurs).
+-  const weak = weakHere(d),
++  // with card strength: a card this commander's strong decks play at least half as much as the strongest build's average spell
++  // is supported by the deck, whatever its text asks for (the text check misses how strong decks enable it)
++  const weak = weakHere(d).filter(w => !(SRx && find(w.n) && strSyn(find(w.n)) >= 0.5)),
+     dead = [...new Set(weak.map(w => w.n))];
+   pen += Math.min(0.4, dead.length * 0.06);
+   const bal = Math.max(0, 1 - pen / 2.5);
+@@ -403,6 +415,23 @@ function evaluateDeck(d, opt) {
+       why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
+     }
+   }
++  // with card strength (opt.str): card quality is the deck's power, from replacement level (0) to its strongest build (100)
++  if (SRx) {
++    const pw = SRx.top > SRx.floor ? (100 * (strMean(d, strSlots(d)) - SRx.floor)) / (SRx.top - SRx.floor) : null;
++    if (pw != null) {
++      qExact = Math.max(0, Math.min(100, pw));
++      qOver = Math.max(0, pw - 100);
++      qPct = Math.round(qExact);
++      qTier = null;
++      why.quality = qPct + '% of the way from replacement level to this deck’s strongest build (card strength: how often strong decks that could play each card do)';
++      // a Budget or Mid deck also reads against the strongest build at its price level, on the same scale
++      const TB = (d.tier === 'budget' || d.tier === 'mid') && SRx[d.tier] && SRx[d.tier].list ? (100 * (strMean(d, SRx[d.tier].list) - SRx.floor)) / (SRx.top - SRx.floor) : null;
++      if (TB != null && TB > 0) {
++        qTier = {tier: d.tier, pct: Math.round(Math.max(0, Math.min(100, (100 * pw) / TB)))};
++        why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
++      }
++    }
++  }
+   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.
+   const cb = COMBOS.list.length ? combosOf(d, ctx.ident) : {full: [], near: []},
+     wins = cb.full.filter(x => x.win),
+@@ -460,13 +489,16 @@ function evaluateDeck(d, opt) {
+   // An unfinished deck (opt.partial) is not played out: practice games with a part of a deck say nothing about its mana.
+   const S = opt.partial ? null : opt.sim || simulate(d, opt.games || 300, opt.seed || 7);
+   // Running short of lands and drawing too many cost the same; mana spent counts up to about a land a turn plus a little ramp.
++  // with card strength: short of mana counts mana rocks and creatures as sources from the turn after they are cast (practice.js
++  // shortT5), so rocks that stand in for land ramp are not read as missing mana; fewer than 3 lands on turn 5 is still short
++  const scr = S ? (SRx && S.shortT5 != null ? S.shortT5 : S.screwT5) : 0;
+   let mana = 0;
+   if (S) {
+     mana = Math.max(
+       0,
+       Math.min(
+         1,
+-        0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)
++        0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * scr - S.floodT8)
+       )
+     );
+     why.mana =
+@@ -476,8 +508,8 @@ function evaluateDeck(d, opt) {
+       S.manaUsedBy6 +
+       ' mana used by turn 6, stuck on colour ' +
+       Math.round(100 * S.colourStuck) +
+-      '%, short of lands ' +
+-      Math.round(100 * S.screwT5) +
++      (SRx && S.shortT5 != null ? '%, short of mana ' : '%, short of lands ') +
++      Math.round(100 * scr) +
+       '%, flooded ' +
+       Math.round(100 * S.floodT8) +
+       '%';
+@@ -606,6 +638,7 @@ function evaluateDeck(d, opt) {
+       : [];
+   return {
+     total: Math.round(total),
++    str: !!SRx, // measured with card strength (the score players see); swaps are measured on the plain scale (plainBase)
+     qShow,
+     other: +other.toFixed(3),
+     exact: +exact.toFixed(3),
+diff --git a/rebuild/deck/engine/strength.js b/rebuild/deck/engine/strength.js
+index a04d23e..74d4535 100644
+--- a/rebuild/deck/engine/strength.js
++++ b/rebuild/deck/engine/strength.js
+@@ -176,9 +176,29 @@ function strSlots(d) {
+ }
+ // a build from the deck: the weakest slot swapped for the strongest card allowed while it gains (cap: price limit or null)
+ function strBuild(d, cap, casual, pool, core) {
+-  const isL = c => tags(c).land,
++  const ident = ctxOf(d).ident,
++    isL = c => tags(c).land,
+     A0 = analyze(d),
+-    need = Object.fromEntries(STR_ROLES.map(r => [r, Math.min(A0.T[r], A0.roles[r])])),
++    // UP.strKeepJobs: the deck's own counts are the floor (not only the formula's targets): a 9-mana commander needs more ramp than
++    // the minimum, and the deck's finishers and protection are how it wins (owner, 12 Nov: fix the mana first)
++    need = Object.fromEntries(STR_ROLES.map(r => [r, UP.strKeepJobs ? A0.roles[r] : Math.min(A0.T[r], A0.roles[r])])),
++    winJob = c => isFinisher(c) || tags(c).roles.has('protect'),
++    // UP.strPips: a spell comes in only if the deck's lands are enough sources for its coloured pips at its mana value (Karsten's
++    // table, as the generator's mana base uses it, 2 short allowed), unless it asks no more than the card it replaces
++    src = (() => {
++      const o = {};
++      strSlots(d).forEach(c => {
++        if (tags(c).land) landColors(c).forEach(k => (o[k] = (o[k] || 0) + 1));
++      });
++      return o;
++    })(),
++    pipsOk = (cut, add) => {
++      if (!UP.strPips || tags(add).land) return true;
++      const p = pipNeed(add),
++        pc = pipNeed(cut),
++        mv = Math.max(1, Math.min(7, Math.round(add.cmc || 1)));
++      return Object.keys(p).every(k => p[k] <= (pc[k] || 0) || KARSTEN[Math.min(3, p[k])][mv - 1] <= (src[k] || 0) + 2);
++    },
+     vv = c => strValue(c, d, casual),
+     list = strSlots(d),
+     done = [];
+@@ -195,7 +215,12 @@ function strBuild(d, cap, casual, pool, core) {
+       for (const cut of cutsOf[isL(add)]) {
+         const g = vin - vv(cut);
+         if (g <= 1e-4) break;
++        // a land only replaces a land whose deck colours it also makes (the Fix menus' rule, Build 137): strong decks of other
++        // colours run Polluted Delta and Reliquary Tower, but in a mono-red deck they would take the place of its Mountains
++        if (isL(add) && (UP.strLands === 0 || !landCovers(cut, add, ident))) continue;
+         if (STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(add).roles.has(r) && rc[r] - 1 < need[r])) continue;
++        if (UP.strKeepJobs && winJob(cut) && !winJob(add)) continue;
++        if (!pipsOk(cut, add)) continue;
+         if (!best || g > best.g) best = {add, cut, g};
+         break;
+       }
+@@ -236,6 +261,31 @@ function strengthRef(d) {
+   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
+   return R;
+ }
++// the average strength value of the spells in a deck's strongest build (the scale the score's synergy part reads strength on)
++function strTopSpell(d, SR) {
++  if (SR.topS == null) {
++    const sp = SR.apex.list.filter(c => !tags(c).land);
++    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false), 0) / sp.length : 0;
++  }
++  return SR.topS;
++}
++// the strength builds scored as players see the score (opt.str), for "What keeps it below the next level"
++function strRefParts(d, SR) {
++  if (SR.parts) return SR.parts;
++  const out = {parts: {}};
++  for (const t of ['budget', 'mid', 'apex']) {
++    const u = JSON.parse(JSON.stringify(d)),
++      cnt = new Map();
++    SR[t].list.forEach(c => cnt.set(c.n, (cnt.get(c.n) || 0) + 1));
++    delete u.plan;
++    u.tier = t;
++    u.cards = [...cnt].map(([n, q]) => ({n, q, l: false}));
++    const e = evaluateDeck(u, {games: 100, str: true, strRef: SR});
++    out[t] = +e.exact.toFixed(2);
++    out.parts[t] = e.parts;
++  }
++  return (SR.parts = out);
++}
+ function strMean(d, list) {
+   return list.length ? list.reduce((a, c) => a + strValue(c, d, false), 0) / list.length : 0;
+ }
+@@ -293,6 +343,133 @@ function strPicks(d, SR) {
+   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
+   return SR.picks;
+ }
++// A generated deck finished on the strength scale (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says
++// it's deck power 66 with 28 cards on the upgrade page"): deck power and the upgrade list measure a deck against its strength
++// builds, so a deck generated at a price level takes that level's strength build's swaps (the same rule-following picks the
++// upgrade list shows), again until the build finds nothing more. An Apex deck is then its own Apex build (power 100, no Apex
++// rows); Mid and Budget are their builds. Cards in keep (the player's own picks) and locked cards stay. Returns the swaps made.
++function strFinish(d, tier, keep) {
++  if (!strengthOn(d) || !TIERS[tier]) return 0;
++  // Theme first: the theme stays ahead of strength, so an on-theme card is only ever replaced by another on-theme card
++  const TH = d.themeFirst ? themeCtx(d) : null,
++    onT = c => !!c && themeOf(c, TH),
++    themeOk = (cut, add) => !TH || !onT(find(cut)) || onT(find(add));
++  // the pieces of the deck's winning combos stay (UP.strKeepCombos): a combo is a finisher spread over two or three cards, and
++  // each piece alone rates low on strength, so the finish broke them (Winota 5 winning combos -> 1, tournament match 75.0% -> 74.7%)
++  if (UP.strKeepCombos && COMBOS.list.length) {
++    keep = new Set(keep || []);
++    combosOf(d, ctxOf(d).ident).full.filter(x => x.win).forEach(x => x.keys.forEach(k => keep.add(k)));
++  }
++  const casual = tier !== 'apex',
++    cap = TIERS[tier].cap,
++    kept = n => keep && keep.has(keyOf(n));
++  // practice-game mana (the score's mana part), to check the finished deck against the deck as generated
++  const manaOf = () => {
++    const S = simulate(d, 200, 7);
++    return Math.max(0, Math.min(1, 0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)));
++  };
++  const mana0 = UP.strManaGuard ? manaOf() : 0;
++  let n = 0;
++  // the generator's land count is the floor (UP.strKeepLands): strength picks are cheaper spells, so the land formula would cut
++  // lands, and practice games then came up short of lands more often (Krenko 35 -> 33 lands, mana 100 -> 89)
++  const lands0 = analyze(d).lands;
++  for (let round = 0; round < 8; round++) {
++    const SR = strengthRef(d);
++    if (!SR || SR.top <= SR.floor) break;
++    const P = strPicks(d, SR),
++      L = (P[tier] || []).filter(s => !kept(s.cut) && themeOk(s.cut, s.add));
++    let k = 0;
++    for (const s of L) {
++      const e = entryOf(d, s.cut);
++      if (!e || e.l || entryOf(d, s.add)) continue;
++      cutCard(d, e.n, 1);
++      addCard(d, s.add, 1);
++      k++;
++    }
++    // the swaps change the spells, so the land count follows the deck's own land formula again (the generator's rule): spare
++    // basics give way to the strongest spells allowed, or the weakest spells (not the deck's core, not a job it is short of)
++    // to basics, whose colours are then split by what the spells need
++    const A = analyze(d),
++      diff = A.lands - (UP.strKeepLands ? Math.max(A.T.lands, lands0) : A.T.lands);
++    if (Math.abs(diff) > 1) {
++      const ok = strOk(d),
++        vv = c => strValue(c, d, casual);
++      if (diff > 1) {
++        const adds = SR.pool.filter(c => ok(c) && !tags(c).land && (!TH || onT(c)) && (cap === Infinity || (c.p != null && c.p <= cap))).sort((a, b) => vv(b) - vv(a));
++        for (let i = 0; i < diff - 1 && adds[i]; i++) {
++          // a spare basic first; a deck without basics (five colours) loses its weakest land instead
++          const b =
++            d.cards.filter(e => BASICS[e.n] && !e.l).sort((x, y) => y.q - x.q)[0] ||
++            d.cards
++              .filter(e => !e.l && !kept(e.n) && find(e.n) && tags(find(e.n)).land)
++              .sort((x, y) => vv(find(x.n)) - vv(find(y.n)))[0];
++          if (!b) break;
++          cutCard(d, b.n, 1);
++          addCard(d, adds[i].n, 1);
++          k++;
++        }
++      } else {
++        const A2 = analyze(d),
++          need = r => Math.min(A2.T[r], A2.roles[r]),
++          cuts = strSlots(d)
++            .filter((c, i, a) => a.indexOf(c) === i && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
++            .sort((a, b) => vv(a) - vv(b));
++        let left = -diff - 1;
++        for (const c of cuts) {
++          if (!left) break;
++          if (STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < need(r))) continue;
++          cutCard(d, c.n, 1);
++          addCard(d, BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes', 1);
++          left--;
++          k++;
++        }
++      }
++      try {
++        const mp = manaPlan(d);
++        if (mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
++      } catch (e) {}
++    }
++    n += k;
++    if (!k) break;
++  }
++  // mana guard (owner, 12 Nov: "Fix the mana first"): while the finished deck's practice games run worse on mana than the deck as
++  // generated did, its weakest spell (not its core, not a job it needs) gives way to a land of the colour its spells need most,
++  // kept only when the games get better; at most three lands
++  if (n && UP.strManaGuard) {
++    const SR = strengthRef(d);
++    let m = manaOf();
++    for (let i = 0; i < 3 && SR && m < mana0 - 0.005; i++) {
++      const A2 = analyze(d),
++        vv = c => strValue(c, d, casual),
++        cut = strSlots(d)
++          .filter((c, j, a) => a.indexOf(c) === j && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
++          .filter(c => !STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < Math.min(A2.T[r], A2.roles[r])))
++          .sort((a, b) => vv(a) - vv(b))[0];
++      if (!cut) break;
++      const mp = manaPlan(d),
++        col = Object.keys(mp.want || {}).sort((a, b) => (mp.want[b] || 0) - (mp.have[b] || 0) - ((mp.want[a] || 0) - (mp.have[a] || 0)))[0],
++        land = BASIC_OF[col] || BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes',
++        snap = JSON.stringify(d.cards);
++      cutCard(d, cut.n, 1);
++      addCard(d, land, 1);
++      const m2 = manaOf();
++      if (m2 <= m) {
++        d.cards = JSON.parse(snap);
++        break;
++      }
++      m = m2;
++      n++;
++    }
++  }
++  // the basics' colours follow what the new spells need (the generator's split was for its own spells)
++  // (only a re-split: a plan that would also change how many lands there are is left out)
++  if (n)
++    try {
++      const mp = manaPlan(d);
++      if (mp.changes.length && mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
++    } catch (e) {}
++  return n;
++}
+ // A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
+ // measure many swaps (the upgrade list, the Fix menus, See alternatives). Null when strength is off.
+ function strGainFn(d, SR) {
+@@ -335,6 +512,7 @@ function strengthPaths(d, R) {
+   // deck needs
+   const fits = (cutC, c) => {
+     if (!cutC || !c || !!tags(cutC).land !== !!tags(c).land) return false;
++    if (tags(c).land && (UP.strLands === 0 || !landCovers(cutC, c, ctxOf(d).ident))) return false;
+     return !STR_ROLES.some(r => tags(cutC).roles.has(r) && !tags(c).roles.has(r) && A0.roles[r] - 1 < Math.min(A0.T[r], A0.roles[r]));
+   };
+   const pick = (cut, add, t, held) => {
+diff --git a/rebuild/deck/engine/upgrades.js b/rebuild/deck/engine/upgrades.js
+index 5179e78..709391f 100644
+--- a/rebuild/deck/engine/upgrades.js
++++ b/rebuild/deck/engine/upgrades.js
+@@ -683,7 +683,22 @@ function cmpOf(e) {
+   return UP.unc && e && e.cmp != null ? e.cmp : e.exact;
+ }
+ // Both measures of one swap from a single evaluation (Build 140): [past the maximum (or exact when UP.unc is off), exact].
++// The score players see counts card strength (evaluateDeck opt.str); a swap is measured as before, on the plain score, so a
++// base read with card strength gets its plain score once (same practice games) and every swap is compared with that, not with
++// a score on another scale (that put a constant -2 on every swap: Wakanda quality 83 with strength, 71 without)
++function plainBase(d, base, apex) {
++  if (!base || !base.str) return base;
++  if (!base.plain)
++    try {
++      const p = evaluateDeck(d, {apex, sim: base.sim});
++      base.plain = {exact: p.exact, cmp: p.cmp, sim: p.sim};
++    } catch (e) {
++      return base;
++    }
++  return base.plain;
++}
+ function swapScore2(d, base, apex, cut, add, q) {
++  base = plainBase(d, base, apex);
+   const u = JSON.parse(JSON.stringify(d));
+   delete u.plan;
+   cutCard(u, cut, q || 1);
+@@ -697,6 +712,7 @@ function swapScore2(d, base, apex, cut, add, q) {
+   }
+ }
+ function swapScore(d, base, apex, cut, add, q, exactOnly) {
++  base = plainBase(d, base, apex);
+   const u = JSON.parse(JSON.stringify(d));
+   delete u.plan;
+   cutCard(u, cut, q || 1);
+@@ -760,7 +776,7 @@ function* scoreCheckG(d, R, o) {
+   if (!R || d.format !== 'commander' || !find(d.commander)) return R;
+   let base;
+   try {
+-    base = o.base || evaluateDeck(d, {apex: o.apex, games: 300});
++    base = plainBase(d, o.base || evaluateDeck(d, {apex: o.apex, games: 300}), o.apex);
+   } catch (e) {
+     return R;
+   }
+@@ -2162,6 +2178,12 @@ const UP = {
+   bsP: 9,
+   starve: 0.08,
+   lfix: 1,
++  strKeepLands: 1, // the strength finish keeps the generator's land count as a floor (owner, 12 Nov: fix the mana first)
++  strKeepCombos: 1, // the strength finish keeps the pieces of the deck's winning combos (a combo is a finisher in two or three cards)
++  strKeepJobs: 1, // strength builds never lower the deck's ramp, draw, removal and wipe counts, nor trade away a finisher or protection
++  strManaGuard: 1, // the strength finish adds lands back while its practice-game mana is below the deck as generated
++  strPips: 1, // strength picks need enough sources for their coloured pips (Karsten), as the generator's mana base does
++  strLands: 0, // strength builds swap spells only (12 Nov): land strength ignores how a mana base works together (mono-red Mountains gave way to off-colour fetches; five-colour fetches to shocks, stuck on colour 9% -> 27%), and leaving lands to the mana base kept tournament match (Apex 66.8% -> 66.7%) with better mana
+   sjx: 1,
+   tierPolish: 1, // generated Mid / Budget decks: the polish rounds after they are made from the Apex build (UP.polish rounds)
+   polishSlot: 0, // generated Mid / Budget decks: polish only swaps a stand-in for another card serving the same Apex slot
+diff --git a/rebuild/deck/tools/tests/suite/ui-test.groups.json b/rebuild/deck/tools/tests/suite/ui-test.groups.json
+index fa30dae..fccd0bf 100644
+--- a/rebuild/deck/tools/tests/suite/ui-test.groups.json
++++ b/rebuild/deck/tools/tests/suite/ui-test.groups.json
+@@ -1 +1 @@
+-[["UI-BUNDLE"], ["UI-DEV"], ["UI-READS-01"], ["UI-ID-01"], ["UI-EX-01", "UI-EX-02", "UI-EX-05a", "UI-EX-04", "UI-EX-05"], ["UI-EX-03"], ["UI-LAYOUT-1", "UI-EX-06", "UI-LAYOUT-2"], ["UI-TIER-01"], ["UI-CAP-01"], ["UI-AIM-01"], ["UI-MIX-01"], ["UI-COMBO-01"], ["UI-SCORE-01"], ["UI-GEN-01"], ["UI-GEN-02"], ["UI-SET-01"], ["UI-BUD-01"], ["UI-GEN-03"], ["UI-GEN-THEME-01"], ["UI-UPX-01"], ["UI-SET-02"], ["UI-FIX-01"], ["UI-BUY-01"], ["UI-AN-01"], ["UI-LACK-01"], ["UI-ALT-01"], ["UI-IPAD-01"], ["UI-FIT-01"], ["UI-TYPE-01"], ["UI-STATS-01"], ["UI-PLAN-02"], ["UI-PLAN-03"], ["UI-SYM-01"], ["UI-B78-01"], ["UI-ASYNC-01"], ["UI-B81-01"], ["UI-B81-02"], ["UI-B81-03", "UI-B134-01"], ["UI-B84-01"], ["UI-B85-01"], ["UI-B86-01"], ["UI-B87-01"], ["UI-B88-01"], ["UI-B89-01"], ["UI-B90-01"], ["UI-B91-01"], ["UI-B92-01"], ["UI-B93-01"], ["UI-B94-01"], ["UI-B95-01"], ["UI-B96-01"], ["UI-B97-01"], ["UI-B98-01"], ["UI-B99-01"], ["UI-B100-01"], ["UI-B101-01"], ["UI-B102-01", "UI-HPOP-01"], ["UI-B103-01"], ["UI-B105-01"], ["UI-B106-01"], ["UI-B107-01"], ["UI-B108-01"], ["UI-B109-01"], ["UI-B110-01"], ["UI-B111-01"], ["UI-B112-01"], ["UI-B113-01"], ["UI-B114-01"], ["UI-B115-01"], ["UI-B116-01"], ["UI-B117-01"], ["UI-B118-01"], ["UI-B119-01", "UI-B119-02"], ["UI-B120-01"], ["UI-B121-01"], ["UI-B122-01"], ["UI-B123-01"], ["UI-B123-02"], ["UI-B124-01"], ["UI-B125-01"], ["UI-B126-01"], ["UI-B127-01"], ["UI-B129-01"], ["UI-B130-01"], ["UI-B131-01"], ["UI-B132-01"], ["UI-B133-01"], ["UI-B135-01"], ["UI-B135-01b"], ["UI-B136-01"], ["UI-B137-01"], ["UI-B138-01"], ["UI-B139-01"], ["UI-B140-01"], ["UI-B140-02"], ["UI-B140-03"], ["UI-B141-01"], ["UI-B141-02"], ["UI-B141-03"], ["UI-B141-04"], ["UI-NH-01"], ["UI-B142-01"], ["UI-B142-02"], ["UI-B143-01"], ["UI-B143-02"], ["UI-B143-03"], ["UI-B144-01"], ["UI-B144-02"], ["UI-B145-01"], ["UI-B146-01"], ["UI-B146-02"], ["UI-B147-01"], ["UI-B148-01"], ["UI-B156-01"], ["UI-B157-01"], ["UI-B158-01"], ["UI-B160-01"], ["UI-B161-01"], ["UI-B162-01"], ["UI-B164-01"], ["UI-IPAD-02"], ["UI-B165-01"], ["UI-B192-01"], ["UI-B195-01"], ["UI-B196-01"], ["UI-B197-01"], ["UI-B198-01"], ["UI-B197-02"], ["UI-HIST-02"], ["UI-CW-01"], ["UI-CW-02"], ["UI-APEX-02"], ["UI-TYPE-02"], ["UI-POP-01"], ["UI-PROF-01"], ["UI-SETUP-01"], ["UI-FLIP-01"], ["UI-NAME-01"], ["UI-TAB-01"]]
+\ No newline at end of file
++[["UI-BUNDLE"], ["UI-DEV"], ["UI-READS-01"], ["UI-ID-01"], ["UI-EX-01", "UI-EX-02", "UI-EX-05a", "UI-EX-04", "UI-EX-05"], ["UI-EX-03"], ["UI-LAYOUT-1", "UI-EX-06", "UI-LAYOUT-2"], ["UI-TIER-01"], ["UI-CAP-01"], ["UI-AIM-01"], ["UI-MIX-01"], ["UI-COMBO-01"], ["UI-SCORE-01"], ["UI-GEN-01"], ["UI-GEN-02"], ["UI-SET-01"], ["UI-BUD-01"], ["UI-GEN-03"], ["UI-GEN-THEME-01"], ["UI-UPX-01"], ["UI-SET-02"], ["UI-FIX-01"], ["UI-BUY-01"], ["UI-AN-01"], ["UI-LACK-01"], ["UI-ALT-01"], ["UI-IPAD-01"], ["UI-FIT-01"], ["UI-TYPE-01"], ["UI-STATS-01"], ["UI-PLAN-02"], ["UI-PLAN-03"], ["UI-SYM-01"], ["UI-B78-01"], ["UI-ASYNC-01"], ["UI-B81-01"], ["UI-B81-02"], ["UI-B81-03", "UI-B134-01"], ["UI-B84-01"], ["UI-B85-01"], ["UI-B86-01"], ["UI-B87-01"], ["UI-B88-01"], ["UI-B89-01"], ["UI-B90-01"], ["UI-B91-01"], ["UI-B92-01"], ["UI-B93-01"], ["UI-B94-01"], ["UI-B95-01"], ["UI-B96-01"], ["UI-B97-01"], ["UI-B98-01"], ["UI-B99-01"], ["UI-B100-01"], ["UI-B101-01"], ["UI-B102-01", "UI-HPOP-01"], ["UI-B103-01"], ["UI-B105-01"], ["UI-B106-01"], ["UI-B107-01"], ["UI-B108-01"], ["UI-B109-01"], ["UI-B110-01"], ["UI-B111-01"], ["UI-B112-01"], ["UI-B113-01"], ["UI-B114-01"], ["UI-B115-01"], ["UI-B116-01"], ["UI-B117-01"], ["UI-B118-01"], ["UI-B119-01", "UI-B119-02"], ["UI-B120-01"], ["UI-B121-01"], ["UI-B122-01"], ["UI-B123-01"], ["UI-B123-02"], ["UI-B124-01"], ["UI-B125-01"], ["UI-B126-01"], ["UI-B127-01"], ["UI-B129-01"], ["UI-B130-01"], ["UI-B131-01"], ["UI-B132-01"], ["UI-B133-01"], ["UI-B135-01"], ["UI-B135-01b"], ["UI-B136-01"], ["UI-B137-01"], ["UI-B138-01"], ["UI-B139-01"], ["UI-B140-01"], ["UI-B140-02"], ["UI-B140-03"], ["UI-B141-01"], ["UI-B141-02"], ["UI-B141-03"], ["UI-B141-04"], ["UI-NH-01"], ["UI-B142-01"], ["UI-B142-02"], ["UI-B143-01"], ["UI-B143-02"], ["UI-B143-03"], ["UI-B144-01"], ["UI-B144-02"], ["UI-B145-01"], ["UI-B146-01"], ["UI-B146-02"], ["UI-B147-01"], ["UI-B148-01"], ["UI-B156-01"], ["UI-B157-01"], ["UI-B158-01"], ["UI-B160-01"], ["UI-B161-01"], ["UI-B162-01"], ["UI-B164-01"], ["UI-IPAD-02"], ["UI-B165-01"], ["UI-B192-01"], ["UI-B195-01"], ["UI-B196-01"], ["UI-B197-01"], ["UI-B198-01"], ["UI-B197-02"], ["UI-HIST-02"], ["UI-CW-01"], ["UI-CW-02"], ["UI-APEX-02"], ["UI-TYPE-02"], ["UI-POP-01"], ["UI-PROF-01"], ["UI-SETUP-01"], ["UI-FLIP-01"], ["UI-NAME-01"], ["UI-TAB-01"], ["UI-APEX-01"]]
+\ No newline at end of file
+diff --git a/rebuild/deck/tools/tests/suite/ui-test.mjs b/rebuild/deck/tools/tests/suite/ui-test.mjs
+index 5acd844..35b5527 100644
+--- a/rebuild/deck/tools/tests/suite/ui-test.mjs
++++ b/rebuild/deck/tools/tests/suite/ui-test.mjs
+@@ -382,13 +382,17 @@ const al = await page.evaluate(async () => { const out = {}; const wait = async
+   const w = S.profile.decks.find(x => /Doom Prevails/i.test(x.name)); S.deckId = w.id; S.tab = 'up'; await loadEdh(w.commander); await loadThemes(w.commander, w.aims); render(); await new Promise(r => setTimeout(r, 400));
+   out.deck = w.name; out.upButtons = document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]').length; let U = [], p = null, t = null, R = recsFor(w);
+   for (const ub of [...document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]')].slice(0, 10)){ const v = ub.dataset.v.split('|'); t = v[2]; p = R.paths[+v[1]].opts[t]; ub.click(); await wait(); U = names(); if (U.length) break; $('#modal').hidden = true; }
+-  out.upAlts = U.length; if (!U.length) return out; out.pick = p.add + ' ' + p.dScore;
++  out.upAlts = U.length; if (!U.length) return out; out.pick = p.add + ' ' + p.dScore; out.t = t;
+   const shown = [...document.querySelectorAll('#modal .opt.alt')].map(o => /([+−])(\d+(?:\.\d)?) (?:score|power)/.exec(o.textContent)).map(m => m ? (m[1] === '+' ? 1 : -1) * +m[2] : null);
+-  out.scores = shown; out.upRule = U.every(n => band(n) === band(p.add) && !w.cards.some(e => e.n === n)) && shown.every(v => v != null && v > 0 && v >= 0.5 * p.dScore - 0.05);
++  out.scores = shown;
++  // Mid and Budget picks (card strength) are chosen by the casual rating (strength with this commander's play rate), so their
++  // alternatives keep at least half the pick's gain on that rating and add power; Apex ones keep half the pick's power gain
++  const cas = (t === 'mid' || t === 'budget') && R.str, cv = n => strValue(find(n), w, true), half = n => cv(n) - cv(p.cut) >= 0.5 * (cv(p.add) - cv(p.cut)) - 1e-9;
++  out.upRule = U.every(n => band(n) === band(p.add) && !w.cards.some(e => e.n === n)) && shown.every(v => v != null && v > 0 && (cas || v >= 0.5 * p.dScore - 0.05)) && (!cas || U.every(half));
+   const before = JSON.stringify(w.cards), cut = p.cut; document.querySelector('#modal [data-act="alt-use"]').click(); await new Promise(r => setTimeout(r, 400));
+   const R2 = recsFor(w), L2 = R2.paths.find(x => x.cut === cut); out.upUsed = JSON.stringify(w.cards) === before && !!L2 && !!L2.opts[t] && L2.opts[t].add === U[0] && !!(w.recP || {})[norm(U[0])];
+   return out; });
+-T('UI-ALT-01', 'See alternatives: on plan and upgrade picks; same job and price band, never worse than the card in the slot and at least half as good as the pick, each with its score change; choosing one makes it that tier’s suggestion without adding it to the deck', al.planButtons > 0 && al.planAlts > 0 && al.planRule && al.planText && al.planUsed && al.upButtons > 0 && al.upAlts > 0 && al.upRule && al.upUsed, JSON.stringify(al));
++T('UI-ALT-01', 'See alternatives: on plan and upgrade picks; same job and price band, never worse than the card in the slot and at least half as good as the pick (Mid and Budget picks: on the casual rating they are picked by), each with its score change; choosing one makes it that tier’s suggestion without adding it to the deck', al.planButtons > 0 && al.planAlts > 0 && al.planRule && al.planText && al.planUsed && al.upButtons > 0 && al.upAlts > 0 && al.upRule && al.upUsed, JSON.stringify(al));
+ } catch (e) { QUIET = false; T('UI-ALT-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+ if (RUN('UI-IPAD-01')) { try { if (SHARD) await RESET();
+ // 23. iPad window closed and reopened: the app comes back at full width with no resize event. The two-pane layout returns.
+@@ -1687,6 +1691,24 @@ const b197 = await page.evaluate(async () => { const out = {};
+   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+ T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
+ } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
++if (RUN('UI-APEX-01')) { try { if (SHARD) await RESET();
++// Build 100 (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says it's deck power 66 with 28 cards on the
++// upgrade page"): a deck generated at a price level is that level's strength build, the scale its power is measured on: Apex at
++// power 100 with no Apex swaps left; Mid at the Mid build's mark.
++const ap1 = await page.evaluate(async () => { const out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
++  const name = 'Heroes in a Half Shell';
++  for (const t of ['apex', 'mid']) {
++    S.draft = null; const nd = await startPlan(name, [], null, null, {fill: t}); const d = S.draft || nd; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
++    for (let i = 0; i < 100 && !(STRENGTH.cmd && STRENGTH.cmd.size && strengthPower(d)); i++) await wait(100);
++    const P = strengthPower(d), SR = strengthRef(d), picks = SR ? strPicks(d, SR)[t] : null;
++    S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await wait(300); render();
++    const strip = (document.querySelector('.statbar') || {}).textContent || '';
++    out[t] = {power: P && +P.power.toFixed(1), mid: P && +P.mid.toFixed(1), left: picks ? picks.length : -1, strip: +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1), finished: genRun.str, cards: d.cards.reduce((a, x) => a + x.q, 0)};
++    S.profile.decks = S.profile.decks.filter(x => x !== d);
++  }
++  S.view = 'home'; render(); return out; });
++T('UI-APEX-01', 'Build 100: a generated Apex deck is its own Apex build (power 100, no Apex swaps left; the strip agrees) and a generated Mid deck sits at its Mid mark', ap1.apex.power >= 99 && ap1.apex.left === 0 && ap1.apex.strip >= 99 && ap1.apex.cards === 99 && ap1.mid.cards === 99 && Math.abs(ap1.mid.power - ap1.mid.mid) <= 3 && ap1.mid.left === 0, JSON.stringify(ap1));
++} catch (e) { QUIET = false; T('UI-APEX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+ if (RUN('UI-TAB-01')) { try { if (SHARD) await RESET();
+ // Build 101 (owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards
+ // that are currently in the deck that need to be replaced"): the tab's number is the number of upgrades the page lists ("Upgrade
+diff --git a/rebuild/deck/ui/base.js b/rebuild/deck/ui/base.js
+index 6fde5a4..16103e7 100644
+--- a/rebuild/deck/ui/base.js
++++ b/rebuild/deck/ui/base.js
+@@ -695,6 +695,9 @@ function themeDefaults(d) {
+   return true;
+ }
+ function ensureEdh() {
++  // while Generate (or its building window) is open it reads the commander being generated: the deck open behind it does not
++  // take the one EDHREC slot back meanwhile (that dropped the deck built ahead, and the strength finish read the wrong page)
++  if (!$('#modal').hidden && document.querySelector('#modal #genmode, #modal #genbuild, #modal #themebuild')) return;
+   const d = S.view === 'decks' && S.open ? cur() : null,
+     c = d && d.format === 'commander' ? find(d.commander) : null;
+   if (!c) return;
+diff --git a/rebuild/deck/ui/storage.js b/rebuild/deck/ui/storage.js
+index ad03bbf..105d76f 100644
+--- a/rebuild/deck/ui/storage.js
++++ b/rebuild/deck/ui/storage.js
+@@ -478,7 +478,7 @@ async function loadSavedLibrary() {
+     autoUpdate(null, hadRows ? 'Saved card data was from an older version of the app' : 'No card data was saved in this browser');
+   else checkReleases();
+   loadCombos();
+-  loadStrength();
++  loadStrength.wait = loadStrength();
+   loadPrices();
+   loadAltNames();
+   bracketTags();
+@@ -1025,6 +1025,44 @@ function genKey(j) {
+   ]);
+ }
+ async function genRun(nd, seeds, ownOnly, ownAll, fill) {
++  // the card strength file is read once at launch: a deck generated before it arrives waits for it (up to 20 s)
++  if (fill && UP.str && !STRENGTH.cards && loadStrength.wait) await Promise.race([loadStrength.wait, new Promise(r => setTimeout(r, 20000))]);
++  // a deck generated at a price level is finished on the strength scale its power is measured on (strFinish); not for decks
++  // of owned cards only or with a dollar budget, whose limits the strength picks don't know (Theme first keeps its theme there)
++  const fin = fill && TIERS[fill] && UP.strGen !== 0 && !ownOnly && !(nd.budget && nd.budget.total) && typeof strFinish === 'function' && UP.str && STRENGTH.cards && nd.format === 'commander';
++  // the scale moves with the commander's page and the deck's themes (an automatic deck takes the page's top themes when it
++  // arrives), so both are in place before the deck is built and finished, not swapped in afterwards
++  // card strength leans on what a commander's players run, so a commander without play data of its own (built from its
++  // creature type's and theme's pages) is not finished: it would only bring in staples. Decided before anything waits, so a
++  // page set up for this build is the one it reads.
++  const playData = () => EDH.key === nd.commander && EDH.state === 'ok' && EDH.map && EDH.map.size && EDH.decks > 0 && !(EDH.fall || []).length;
++  let go = fin;
++  if (go)
++    try {
++      for (let i = 0; i < 3 && !(EDH.key === nd.commander && EDH.state); i++) await loadEdh(nd.commander); // another deck's page may take the slot meanwhile
++      if (!playData()) go = false;
++      else {
++        if (themeDefaults(nd)) nd.aimAuto = true;
++        if ((nd.aims || []).some(a => isEdhAim(a) && !(EDH.tmap || {})[a.slice(4)])) await loadThemes(nd.commander, nd.aims);
++      }
++    } catch (e) {
++      go = false;
++    }
++  const G = await genRun0(nd, seeds, ownOnly, ownAll, fill);
++  if (G && go)
++    try {
++      for (let i = 0; i < 3 && EDH.key !== nd.commander; i++) await loadEdh(nd.commander); // a deck left open may have taken the one EDHREC slot while this one was built
++      await loadThemes(nd.commander, nd.aims);
++      await loadStrengthCmd(nd.commander);
++      if (!playData()) return G;
++      const keep = new Set((seeds || []).map(x => keyOf(typeof x === 'string' ? x : x.n)));
++      genRun.str = strFinish(nd, fill, keep);
++    } catch (e) {
++      console.warn('Strength finish failed:', e);
++    }
++  return G;
++}
++async function genRun0(nd, seeds, ownOnly, ownAll, fill) {
+   const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
+   if (!wkGet()) return local();
+   const job = genJob(nd, seeds, ownOnly, ownAll, fill),
+@@ -1059,7 +1097,7 @@ async function genRun(nd, seeds, ownOnly, ownAll, fill) {
+     });
+     while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value);
+   }
+-  genRun.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
++  genRun.last = genRun0.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
+   return {n: r.n, k: r.k};
+ }
+ // Stop a build made ahead that is no longer wanted (the worker stops it at its next step).
+@@ -1086,6 +1124,8 @@ async function genPrefetch() {
+     if (EDH.key !== c.n || EDH.state !== 'ok') return;
+     aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]);
+   } else aims = await edhAimsFor(c);
++  // the one EDHREC slot may have been taken by the deck open behind Generate while this waited: read this commander's page again
++  if (EDH.key !== c.n && S.gen.cmd === c.n && !g.mech.length) aims = await edhAimsFor(c);
+   if (S.gen.cmd !== c.n || $('#modal').hidden || EDH.key !== c.n || thinkThen.busy) return;
+   const p = find(g.partner);
+   const nd = planDeck(
+diff --git a/rebuild/deck/ui/upgrades.js b/rebuild/deck/ui/upgrades.js
+index 2213bb8..2c96ee2 100644
+--- a/rebuild/deck/ui/upgrades.js
++++ b/rebuild/deck/ui/upgrades.js
+@@ -2281,13 +2281,14 @@ function evalFor(d) {
+       .join('|')
+   ].join('#');
+   const ar = apexFor(d),
+-    k2 = key + '#' + (ar ? 'apex' : 'pending');
++    st = typeof strengthOn === 'function' && strengthOn(d),
++    k2 = key + '#' + (ar ? 'apex' : 'pending') + (st ? '#str' + STRENGTH.date + ':' + STRENGTH.cmd.size : '');
+   const old = EVC.get(d.id);
+   if (old && old.key === k2) return old.v;
+   const sim = old && old.base === key && old.v ? old.v.sim : undefined; // same cards: the practice games need not be replayed
+   let v = null;
+   try {
+-    v = evaluateDeck(d, {games: 300, apex: ar, sim});
++    v = evaluateDeck(d, {games: 300, apex: ar, sim, str: st}); // the score players see measures against the strongest build (owner, 12 Nov)
+   } catch (e) {}
+   EVC.set(d.id, {key: k2, base: key, v});
+   return v;
+@@ -2709,6 +2710,16 @@ function statsHtml(d, A, R, mode) {
+   // Budget and Mid builds marked (engine/strength.js)
+   const SP = typeof strengthOn === 'function' && strengthOn(d) ? strengthPower(d) : null;
+   const T0r = (apexFor(d) || {}).tot,
++    // what keeps the deck below the next level: with card strength, against the strength builds scored the same way
++    GR = SP
++      ? (() => {
++          try {
++            return strRefParts(d, strengthRef(d));
++          } catch (x) {
++            return null;
++          }
++        })()
++      : T0r,
+     T0 = refOrder(T0r),
+     pw = SP ? SP.power : e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
+@@ -2785,7 +2796,7 @@ function statsHtml(d, A, R, mode) {
+         ', all-under-$12 ' +
+         Math.round(SP.mid) +
+         '.</p>' +
+-        (e && T0r ? gapHtml(e, T0r, lvl) : '')
++        (e && GR ? gapHtml(e, GR, lvl) : '')
+       : pw != null
+       ? '<p class="note" style="margin:0">Power <b>' +
+             Math.round(pwr) +
+@@ -2800,7 +2811,7 @@ function statsHtml(d, A, R, mode) {
+             ', all-under-$12 ' +
+             Math.round(pctOf(T0.mid)) +
+             '.</p>' +
+-            gapHtml(e, T0r, lvl)
++            gapHtml(e, GR, lvl)
+       : '';
+   // Deck health in one line (owner, 1 Nov): red = needs attention now (any bad), yellow = needs attention (any warn), green =
+   // healthy; ignored alerts and info (Interaction) never set the colour. It names the problem areas; tapping it opens the pop-up.

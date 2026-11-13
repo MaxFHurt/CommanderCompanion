@@ -1,0 +1,191 @@
+diff --git a/rebuild/deck/engine/core.js b/rebuild/deck/engine/core.js
+index da1b159..3743cf8 100644
+--- a/rebuild/deck/engine/core.js
++++ b/rebuild/deck/engine/core.js
+@@ -798,6 +798,48 @@ function aimLabel(a, tribe) {
+   }
+   return a === 'tribal' ? (tribe || 'Creature type') + ' tribal' : (THEMES[a] || {label: a}).label;
+ }
++// Does the card itself do what the plan label says (its own text, type or role)? Popularity on a theme page earns no label (reason
++// text only; the score still counts it). A plan with no test here falls back to its own word in the card's text or type.
++const OWN_THEME = {
++  'plus-1-plus-1-counters': 'counters', 'go-wide': 'tokens', tokens: 'tokens', lifegain: 'lifegain', graveyard: 'graveyard',
++  'self-mill': 'mill', mill: 'mill', blink: 'blink', voltron: 'voltron', burn: 'burn', clones: 'clones', theft: 'theft',
++  stax: 'stax', 'pillow-fort': 'pillowfort', topdeck: 'topdeck', 'x-spells': 'xspells', spellslinger: 'spells',
++  enchantress: 'enchantments', flying: 'flying', aggro: 'aggro'
++};
++const OWN_ROLE = {ramp: 'ramp', 'mana-rocks': 'ramp', rock: 'ramp', 'big-mana': 'ramp', 'card-draw': 'draw', counterspells: 'counter'};
++const OWN_RE = {
++  burn: /deals? (\d+|X|that much|damage equal)[^.]*damage to (each opponent|each player|target (player|opponent)|any target|that player)|each opponent loses \d+ life/i,
++  discard: /(target player|target opponent|each opponent|each player|that player|an opponent) (?:\w+ ){0,3}discards?\b|\bwhenever (?:you|a player|an opponent|one or more players?|another player) discards?|\bmadness\b|you may discard/i,
++  'self-discard': /\bwhenever you discard|\bmadness\b|\bdiscards? your hand/i,
++  lifegain: /\bgains? (\d+|X|that much|twice|life)[^.]*life|\blifelink\b|gain life|whenever you gain|drain/i,
++  cycling: /\bcycling\b|whenever you cycle/i,
++  populate: /\bpopulate\b|create a token that'?s a copy|copy of (?:target|a|each|another)[^.]{0,30}\btoken|token copy|copies of tokens?/i,
++  equipment: /\bequip\b|equipped creature|\bEquipment\b/i,
++  lifedrain: /each opponent loses \d+ life|loses? (\d+|X) life[^.]*you gain/i,
++  'land-destruction': /destroy target (nonbasic )?land|destroy all lands|each player sacrifices a land/i,
++  'lands-matter': /\blands? (enters|you control)|additional land|lands? from your graveyard|\blandfall\b|search your library for [^.]*land/i,
++  landfall: /\blandfall\b|whenever a land (enters|you control)/i,
++  'group-slug': /each opponent loses|damage to each (opponent|player)/i,
++  wheels: /each player discards (their|his or her) hand|discards? their hand[^.]*draws?/i,
++  looting: /draw a card, then discard|discard a card, then draw|\bconnives?\b/i,
++  connive: /\bconnives?\b/i
++};
++function ownAim(c, slug, ctx) {
++  if (!c) return false;
++  const o = c.o || '',
++    t = frontType(c),
++    tg = tags(c);
++  if (slug === 'combo') return !!(ctx && typeof comboFor === 'function' && comboFor(c, ctx));
++  if (slug === 'control') return tg.roles.has('counter') || tg.roles.has('removal') || tg.roles.has('wipe');
++  if (OWN_ROLE[slug]) return tg.roles.has(OWN_ROLE[slug]);
++  if (OWN_RE[slug]) return OWN_RE[slug].test(o) || (slug === 'equipment' && /Equipment/.test(t));
++  if (slug === 'legends') return /\bLegendary\b/.test(t) || /\blegendary\b/i.test(o);
++  if (slug === 'artifacts') return /\bArtifact\b/.test(t) || /\bartifacts?\b/i.test(o);
++  if (OWN_THEME[slug])
++    return (tg.th[OWN_THEME[slug]] || 0) >= 0.7 && (slug !== 'tokens' || /\btokens?\b|populate|amass|incubate|investigate|treasure|food|clue/i.test(o));
++  const w = slug.replace(/-/g, ' ').replace(/ies$/, 'y').replace(/s$/, '');
++  return new RegExp('\\b' + w + '(s|ies)?\\b', 'i').test(o + ' ' + t);
++}
+ // "Heroes: in 84% of Heroes decks" — the share of the commander's decks built around that theme that run the card.
+ function themeWhy(a, c) {
+   const m = EDH.tmap && EDH.tmap[a.slice(4)],
+diff --git a/rebuild/deck/engine/upgrades.js b/rebuild/deck/engine/upgrades.js
+index 5179e78..129120e 100644
+--- a/rebuild/deck/engine/upgrades.js
++++ b/rebuild/deck/engine/upgrades.js
+@@ -131,12 +131,32 @@ function comboFor(c, ctx) {
+   const others = cb.names.filter(n => n !== c.n).map(n => n.split(',')[0]);
+   return 'Combo with ' + others.join(' + ') + (cb.what ? ': ' + cb.what : '');
+ }
++// Reason text for an upgrade row: what ties the card to the commander's own mechanic first; otherwise what the card does (its job);
++// then the plan labels and the play data. Text only: nothing here feeds a score or a pick.
++const LEAD_LABEL = {
++  wipe: 'A board wipe', removal: 'Removal', counter: 'A counterspell', tutor: 'A tutor', draw: 'Card draw', ramp: 'Mana ramp',
++  protect: 'Protects your board', cost: 'Cost reducer'
++};
++function whyOrder(c, b, pre) {
++  const eng = b.eng || [],
++    rest = b.why.filter(w => !eng.includes(w)),
++    pop = rest.filter(w => /^In \d+% of /.test(w)),
++    weak = rest.filter(w => /^(Proven staple|Works with \d|Commander strategy)/.test(w)),
++    strong = rest.filter(w => !pop.includes(w) && !weak.includes(w));
++  let lead = [];
++  if (!eng.length && !tags(c).land) {
++    const j = JOB_ORDER.find(x => jobsOf(c.n).includes(x));
++    if (j && LEAD_LABEL[j]) lead = [LEAD_LABEL[j]];
++  }
++  return eng.concat(lead, strong, pre, pop, weak).filter((w, i, L) => L.indexOf(w) === i);
++}
+ const KEYMAP = () => KEYMAP.m || (KEYMAP.m = new Map(LIB.map(x => [x._k, x])));
+ function baseScore(c, d, ctx) {
+   let s = 0,
+     hit = false,
+     a0 = 0;
+-  const why = [];
++  const why = [],
++    eng = []; // reasons that tie the card to the commander's own mechanic (shown first)
+   // Little or no play data for this commander (obscure or new; UP.th*): the deck's own mechanics count more and generic power
+   // (tournament staples, Game Changers, tutors, the most-played staples) less, so the build follows the commander's plan.
+   const thinE = d.format === 'commander' && (!ctx.edh || !ctx.edh.map || ctx.edh.map.size < 60),
+@@ -150,7 +170,8 @@ function baseScore(c, d, ctx) {
+       s += kA * AIM_K * (AIM_W[i] || 1) * m;
+       if (m >= 0.7) {
+         hit = true;
+-        why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe));
++        // reason text only: a theme-page label needs the card itself to do that (ownAim); the score above is unchanged
++        if ((!isEdhAim(a) && a !== 'lifegain') || ownAim(c, isEdhAim(a) ? a.slice(4) : a, ctx)) why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe));
+       }
+     }
+   });
+@@ -158,7 +179,7 @@ function baseScore(c, d, ctx) {
+     if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1) {
+       s += 2;
+       hit = true;
+-      why.push('Commander strategy');
++      if (!isEdhAim(a) || ownAim(c, a.slice(4), ctx)) why.push('Commander strategy');
+     }
+   });
+   // the commander's engine (Build 139): shown as the reason only (adding it to the value, UP.kwB, did not pass the benchmark;
+@@ -168,13 +189,14 @@ function baseScore(c, d, ctx) {
+     if (f.v) {
+       if (f.v >= 0.8) why.unshift(f.why);
+       else why.push(f.why);
++      eng.push(f.why);
+     }
+   }
+   // a combo with the commander, or with cards a quarter of its players run (Commander Spellbook): said as a reason only;
+   // combos already count in the deck score (21 Oct)
+   {
+     const cb = comboFor(c, ctx);
+-    if (cb) why.push(cb);
++    if (cb) (why.push(cb), eng.push(cb));
+   }
+   // engine v2 (UP.xPlan): a card that fits another plan this commander's players build (beyond the deck's own plans) counts a
+   // little, so the small packages players add are found too; the deck's own plans still lead (owner, 21 Oct)
+@@ -183,7 +205,7 @@ function baseScore(c, d, ctx) {
+     if (xp) {
+       s += UP.xPlan;
+       hit = true;
+-      why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
++      if (!isEdhAim(xp) || ownAim(c, xp.slice(4), ctx)) why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
+     }
+   }
+   // 0.9.49 (roadmap 5.2): the card feeds or is fed by cards already in the deck (the card window's "Works with": creatures dying,
+@@ -200,6 +222,7 @@ function baseScore(c, d, ctx) {
+       s += UP.syn * Math.min(2, y.n);
+       hit = true;
+       why.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
++      eng.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
+     }
+   }
+   // engine v2 (UP.optW): what the commander's stronger decks (EDHREC's bracket 4 page) run more often than its decks overall,
+@@ -299,7 +322,7 @@ function baseScore(c, d, ctx) {
+       }
+     }
+   }
+-  return {s, hit, why, a: a0};
++  return {s, hit, why, a: a0, eng};
+ }
+ function splitBasics(k, ctx) {
+   const cols = ctx.ident.length ? ctx.ident : [];
+@@ -463,7 +486,7 @@ function recommend(d, swaps, fillOnly) {
+       if (!best) break;
+       best.used = true;
+       const q = std ? Math.min(nAdd, /Legendary/.test(best.c.t) ? 2 : 4) : 1;
+-      const why = best.b.why.slice(0, 2);
++      const why = whyOrder(best.c, best.b, []).slice(0, 2);
+       if (bw)
+         why.push(
+           bw === 'fin' ? 'A way to win' : bw === 'prot' ? 'Protects your plan' : 'Fills ' + ROLE_LABEL[bw].toLowerCase() + ' gap'
+@@ -2446,7 +2469,7 @@ function upgradePaths(d, opt) {
+       add: a.n,
+       q: e.q,
+       fix: true,
+-      why: baseScore(a, dd, ctx).why.slice(0, 2),
++      why: whyOrder(a, baseScore(a, dd, ctx), []).slice(0, 2),
+       cutWhy: [why],
+       gc: !!a.gc
+     });
+@@ -2600,10 +2623,16 @@ function upgradePaths(d, opt) {
+   };
+   const whyAdd = (a, cu) => {
+     const pa = PA(a.c),
+-      why = comboWhy(a.c)
+-        .concat(pa ? ['Added in ' + pct(pa.inc) + '% of ' + preDecks + 'decks built from ' + preName] : [])
+-        .concat(isNew(a.c) ? ['New card · not enough play data yet'] : [])
+-        .concat(baseScore(a.c, dd, ctx).why);
++      bs = baseScore(a.c, dd, ctx),
++      why = comboWhy(a.c).concat(
++        whyOrder(
++          a.c,
++          bs,
++          (pa ? ['Added in ' + pct(pa.inc) + '% of ' + preDecks + 'decks built from ' + preName] : []).concat(
++            isNew(a.c) ? ['New card · not enough play data yet'] : []
++          )
++        )
++      );
+     const gap = a.jobs.find(j => !cu.jobs.includes(j) && (cnt[j] || 0) < K.T * 0.75);
+     if (gap && why.length < 2 && JOB_LABEL[gap]) why.push('Adds ' + JOB_LABEL[gap]);
+     return why.slice(0, 2);
