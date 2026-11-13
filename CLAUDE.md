@@ -18,6 +18,10 @@
   it needs to change. Use your best judgement and we will adjust later"). For design/wording choices inside a roadmap item, pick
   the sensible option, build it, and report what you chose. Still ask before pushing `main` and for anything off the roadmap.
 
+- **Batch releases** (owner, 13 Nov): group changes into one build so the full suite runs once per build, not per change, but
+  keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
+  per change while working; the full run once before the batch goes live.
+
 ## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)
 - Ship only fully tested batches; anything that makes something worse is discussed with the owner first.
 - Never undo another session's work: `git fetch` and build on `origin/main` before pushing.
