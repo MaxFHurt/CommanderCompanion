@@ -16,10 +16,23 @@ function fitNav() {
       const q = x.getBoundingClientRect();
       if (q.width && (q.right > Math.min(r.right, vw) + 1 || q.left < Math.max(r.left, 0) - 1)) return true;
     }
+    // the logo / title must not run into the buttons either (iPad portrait: they overlapped though nothing left the screen)
+    const br = top.querySelectorAll('.brand img, .brand b');
+    for (const e of br) {
+      const a = e.getBoundingClientRect();
+      if (!a.width || !a.height) continue;
+      for (const x of top.querySelectorAll('.nav button')) {
+        const q = x.getBoundingClientRect();
+        if (q.width && a.left < q.right - 1 && a.right > q.left + 1 && a.top < q.bottom - 1 && a.bottom > q.top + 1) return true;
+      }
+    }
     return false;
   };
   if (over()) top.classList.add('tight');
   if (over()) top.classList.add('tighter');
+  // the home pill is as tall as the other buttons (its width follows from that height)
+  const ob = top.querySelector('.nav button:not(.cc-home)'), oh = ob ? ob.getBoundingClientRect().height : 0;
+  if (oh) top.style.setProperty('--nh', Math.round(oh) + 'px');
 }
 function navHtml() {
   const b = (v, label, name) =>
