@@ -158,7 +158,7 @@ export const accountSectionHtml = () => {
 export function bindAccountSection(el, { close, reopen } = {}) {
   on(el, 'click', '[data-account]', async (event, b) => {
     const act = b.dataset.account;
-    if (act === 'signup' || act === 'signin') { close?.(); return openSignIn(act, () => reopen?.()); }
+    if (act === 'signup' || act === 'signin') { close?.(); return openSignIn(act); }
     if (act === 'connect') { close?.(); await connectNow(); return; }
     if (act === 'signout') {
       if (!await confirmDialog({ title: 'Sign out', message: 'Sign out on this device? Your profile stays on this device and in your account; this device stops saving online until you sign in again.', confirmLabel: 'Sign out' })) return;

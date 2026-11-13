@@ -238,6 +238,13 @@ what each part does, the owner's rules, open notes, and the roadmap.
   same Worker under a private 12-letter key (`/profiles/KEY`, kept 2 years after last use). A linked device saves
   again by itself when the start screen opens and the profile changed (`src/app/online-profile.js`); if
   another device saved first it never overwrites — the player chooses. Load on a new device with the key.
+- **Accounts** (owner, 13 Nov; replaces build 105's recovery email): first launch (no `cc.auth`, no `cc.welcome.done`) shows
+  the welcome screen (`src/ui/screens/welcome.js`): Sign up / Sign in / Skip. Sign-in is an emailed 6-digit code (Supabase
+  Auth REST, `src/app/account.js`; refresh token kept in `cc.auth`); the account keeps the online profile key
+  (`profile_recovery`), so keys are never typed. `connectAccount` joins device and account; nothing is replaced without a
+  backup copy first (`keepBackupCopy`, IndexedDB `cc.backup.*`, listed in `cc.backups`, restorable in Settings → Backup →
+  Advanced, which is also the only place the key shows). UI: `src/ui/account-ui.js`. Tests: `tests/accounts_ui.py`; all
+  other UI tests answer the welcome screen via `tests/shots.py`. SQL: `cloud/supabase-accounts.sql`.
 - **Combat (build 32):** "Whenever ~ deals combat damage" (no "to a player") and "… to a creature" fire when
   attacking or blocking, once per damage step (`combat-damage-dealt` event). Creatures can attack planeswalkers
   and battles (`targetId` on an attacker; defending player = the planeswalker's controller / battle's protector).
