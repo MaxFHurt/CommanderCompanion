@@ -1887,10 +1887,29 @@ function genBuilding(c) {
     '<div class="grp"><p class="note think" id="genbuild-msg" style="margin:0">Getting ready…</p><p class="note" style="margin:0">This takes a few seconds (longer on a phone). The new deck opens here when it is ready.</p></div></div></div>';
   $('#modal').hidden = false;
 }
+// The player's last Generate choices (tier, Best overall, Theme first) are kept; first time: Theme first on, Best off, and the
+// open deck's price level (else Mid). Owner, 13 Nov: generated decks must stick to the theme, not default to Apex.
+const GEN_LAST = 'cc.gen.last';
+function genDefaults() {
+  let l = null;
+  try {
+    l = JSON.parse(localStorage.getItem(GEN_LAST) || 'null');
+  } catch (e) {}
+  const d = typeof cur === 'function' ? cur() : null,
+    t = l && TIERS[l.tier] ? l.tier : d && TIERS[d.tier] ? d.tier : 'mid',
+    best = l ? !!l.best : false;
+  return {tier: t, best, theme: l ? !!l.theme && !best : true, mech: [], warn: ''};
+}
+function genRemember() {
+  const g = S.gen;
+  try {
+    localStorage.setItem(GEN_LAST, JSON.stringify({tier: g.tier, best: !!g.best, theme: !!g.theme}));
+  } catch (e) {}
+}
 function openGenerate() {
   genPrefetchSoon();
-  S.gen = Object.assign({tier: 'apex', best: true, theme: false, mech: [], warn: ''}, S.gen);
-  if (!TIERS[S.gen.tier]) S.gen.tier = 'apex';
+  S.gen = Object.assign(genDefaults(), S.gen);
+  if (!TIERS[S.gen.tier]) S.gen.tier = 'mid';
   if (!S.setList && !S.setErr)
     ensureSets().then(() => {
       if (S.setList && !$('#modal').hidden && $('#gen-q')) openGenerate();
@@ -2509,7 +2528,8 @@ function setupHtml(d) {
       ).join('') +
       '</div><p class="note" style="margin:0">' +
       (d.tier === 'apex' ? 'Apex: the strongest cards, at any price.' : d.tier === 'mid' ? 'Mid: nothing over $12.' : 'Budget: precon level, nothing over $3.') +
-      ' Every price level is listed for each card either way; this is the level the deck aims for.</p>',
+      ' Every price level is listed for each card either way; this is the level the deck aims for.</p>' +
+      themeFirstToggle(d),
     ready1
   );
   const s3 = step(
@@ -2573,10 +2593,12 @@ async function setupGo(d) {
   if (el) el.classList.add('think');
   let G = null;
   try {
+    d.planTier = TIERS[d.tier] ? d.tier : 'apex';
     G = await genRun(d, [], null, ownSet(), null);
   } catch (e) {
     console.warn('Plan failed:', e);
   } finally {
+    delete d.planTier;
     if (el) el.classList.remove('think');
     setStatus('');
   }

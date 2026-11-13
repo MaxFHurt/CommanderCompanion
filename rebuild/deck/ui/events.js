@@ -766,6 +766,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       break;
     case 'new-deck': {
       const nd = newDeck({format: v, name: v === 'commander' ? 'New Commander deck' : 'New Standard deck', src: 'scratch'});
+      nd.themeFirst = true; // owner, 13 Nov: generated decks stick to the commander's theme unless the player turns it off
       S.setup = {id: nd.id};   // the setup pop-up walks through the build first (drawn by render)
       break;
     }
@@ -1815,6 +1816,7 @@ function handleAct(act, v, n, pArg, cutArg) {
     case 'gen-tier':
       S.gen.tier = TIERS[v] ? v : 'apex';
       S.gen.warn = '';
+      genRemember();
       openGenerate();
       return;
     case 'gen-best': {
@@ -1833,6 +1835,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         g.mechOpen = false;
       }
       g.best = !g.best;
+      genRemember();
       openGenerate();
       return;
     }
@@ -1845,6 +1848,7 @@ function handleAct(act, v, n, pArg, cutArg) {
           'Theme first puts the commander’s own set and creature types ahead of the strongest cards from any set, so Best overall was switched off. Theme first and mechanics can be used together.';
       }
       g.theme = !g.theme;
+      genRemember();
       openGenerate();
       return;
     }
@@ -2050,7 +2054,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       openDycb();
       return;
     case 'dycb-gen': {
-      S.gen = Object.assign({tier: 'apex', best: true, theme: false, mech: [], warn: ''}, S.gen || {}, {
+      S.gen = Object.assign(genDefaults(), S.gen || {}, {
         cmd: n,
         partner: '',
         own: true

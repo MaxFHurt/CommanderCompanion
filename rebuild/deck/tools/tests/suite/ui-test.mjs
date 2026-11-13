@@ -262,7 +262,7 @@ T('UI-BUD-01', 'Generate at Budget with a total budget: the box appears only for
 if (RUN('UI-GEN-03')) { try { if (SHARD) await RESET();
 // 15b. How to build it: Best overall / Theme first / mechanics are switches that combine where they can, with an alert when a choice
 // switches another off; the deck is filled at the chosen price level and is more on theme than Best overall.
-const g4 = await page.evaluate(async () => { S.draft = null; S.gen = {cmd:'Captain America, Team Leader', partner:'', sets:[], setsMust:false}; openGenerate(); await loadEdh(S.gen.cmd); await loadThemes(S.gen.cmd, (EDH.tags || []).slice(0, 3).map(t => 'edh:' + t.slug)); openGenerate(); const M = () => document.querySelector('#modal');   /* 9 Nov: the theme pages are loaded first, so both builds see them (under load they could arrive between the two) */
+const g4 = await page.evaluate(async () => { S.draft = null; S.gen = {cmd:'Captain America, Team Leader', partner:'', sets:[], setsMust:false, best:true, theme:false, tier:'apex'}; openGenerate(); await loadEdh(S.gen.cmd); await loadThemes(S.gen.cmd, (EDH.tags || []).slice(0, 3).map(t => 'edh:' + t.slug)); openGenerate(); const M = () => document.querySelector('#modal');   /* 9 Nov: the theme pages are loaded first, so both builds see them (under load they could arrive between the two) */
   const o = {start:{best:S.gen.best, theme:S.gen.theme}}; M().querySelector('[data-act="gen-theme"]').click(); o.theme = {best:S.gen.best, theme:S.gen.theme, alert:/Best overall was switched off/.test(M().innerText)};
   M().querySelector('[data-act="gen-mechon"]').click(); const mb = M().querySelector('[data-act="gen-mech"]'); if (mb) mb.click(); o.mech = {n:S.gen.mech.length, theme:S.gen.theme, noAlert:!M().querySelector('#genmode [role="alert"]')};
   M().querySelector('[data-act="gen-best"]').click(); o.best = {best:S.gen.best, theme:S.gen.theme, mech:S.gen.mech.length, alert:/were switched off/.test(M().innerText)};
@@ -272,6 +272,23 @@ const g4 = await page.evaluate(async () => { S.draft = null; S.gen = {cmd:'Capta
   const b = await startPlan('Captain America, Team Leader', [], null, null, {fill:'mid', aims:d.aims}); o.bestOn = b.cards.map(e => find(e.n)).filter(c => c && !tags(c).land && themeOf(c, T)).length; return o; });
 T('UI-GEN-03', 'Generate options: Theme first switches Best overall off (with an alert), Theme first and mechanics combine, Best overall switches both off (with an alert); a Mid Theme-first deck is filled with nothing over $12 and is more on theme than Best overall', g4.start && g4.start.best && g4.theme && !g4.theme.best && g4.theme.theme && g4.theme.alert && g4.mech && g4.mech.n === 1 && g4.mech.theme && g4.best && g4.best.best && !g4.best.theme && !g4.best.mech && g4.best.alert && g4.deck && g4.deck.cards === 99 && g4.deck.themeFirst && !g4.deck.over12 && g4.deck.tab === 'list' && g4.deck.onTheme > g4.bestOn, JSON.stringify(g4));
 } catch (e) { QUIET = false; T('UI-GEN-03', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-GEN-THEME-01')) { try { if (SHARD) await RESET();
+// Owner, 13 Nov: generated decks must stick to the theme and not always be Apex. The Generate panel keeps the last price level,
+// Best overall and Theme first choices; first time: Theme first on, Best overall off.
+const gt = await page.evaluate(async () => { const o = {}; try { localStorage.removeItem('cc.gen.last'); } catch (e) {} S.draft = null; S.gen = undefined;
+  const M = () => document.querySelector('#modal'); S.gen = {cmd:'Captain America, Team Leader', partner:'', sets:[], setsMust:false}; openGenerate();
+  o.first = {theme:S.gen.theme, best:S.gen.best, tier:S.gen.tier};
+  await loadEdh(S.gen.cmd); await loadThemes(S.gen.cmd, (EDH.tags || []).slice(0, 3).map(t => 'edh:' + t.slug)); openGenerate();
+  M().querySelector('[data-act="gen-tier"][data-v="budget"]').click(); o.set = {theme:S.gen.theme, best:S.gen.best, tier:S.gen.tier};
+  M().hidden = true; S.gen = undefined; S.gen = {cmd:'Captain America, Team Leader', partner:'', sets:[], setsMust:false}; openGenerate();
+  o.kept = {theme:S.gen.theme, best:S.gen.best, tier:S.gen.tier, tierOn:!!M().querySelector('[data-act="gen-tier"][data-v="budget"].pri'), themeOn:!!M().querySelector('[data-act="gen-theme"].on')};
+  M().querySelector('[data-act="gen-go"]').click();
+  for (let i = 0; i < 900 && !(S.draft && S.draft.cards.length); i++) await new Promise(r => setTimeout(r, 200)); const d = S.draft; if (!d) return o;
+  const T = themeCtx(d), sp = d.cards.map(e => find(e.n)).filter(c => c && !tags(c).land && !isBasic(c.n));
+  o.deck = {tier:d.tier, themeFirst:!!d.themeFirst, share:+(sp.filter(c => themeOf(c, T)).length / sp.length).toFixed(2), over3:d.cards.filter(e => { const c = find(e.n); return c && !isBasic(c.n) && c.p != null && c.p >= 3 && !ownSet().has(c._n); }).length};
+  try { localStorage.removeItem('cc.gen.last'); } catch (e) {} return o; });
+T('UI-GEN-THEME-01', 'Generate panel: first time Theme first is on and Best overall off; the price level and switches chosen are kept when it is opened again; a Budget Theme-first deck is Budget, under $3 a card and mostly on theme', gt.first && gt.first.theme && !gt.first.best && gt.set && gt.set.tier === 'budget' && gt.kept && gt.kept.tier === 'budget' && gt.kept.tierOn && gt.kept.themeOn && !gt.kept.best && gt.deck && gt.deck.tier === 'budget' && gt.deck.themeFirst && !gt.deck.over3 && gt.deck.share > 0.3, JSON.stringify(gt));
+} catch (e) { QUIET = false; T('UI-GEN-THEME-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-UPX-01')) { try { if (SHARD) await RESET();
 // 16. Card search marks cards that are suggested upgrades for one of the player's decks; the card shows which deck and what it replaces.
 const u1 = await page.evaluate(async () => { S.draft = null; S.view = 'search'; render(); for (let i = 0; i < 100 && (UPX.busy || !UPX.map.size); i++) await new Promise(r => setTimeout(r, 200));
@@ -1803,12 +1820,14 @@ if (RUN('UI-SETUP-01')) { try { if (SHARD) await RESET();
   a.typing = await page.evaluate(() => document.activeElement.id === 'su-q' && !$('#su-res').hidden);
   await page.click('#su-res button'); await page.waitForTimeout(500);
   Object.assign(a, await page.evaluate(() => { const d = cur(), out = {}; out.cmd = /Atraxa/.test(d.commander) && !!$('#setup-pop'); out.aims = d.aims.length > 0;
-    $('#setup-pop [data-act="tier"][data-v="mid"]').click(); out.tier = cur().tier === 'mid' && !!$('#setup-pop [data-act="tier"][data-v="mid"].pri');
+    out.tfDefault = cur().themeFirst === true && !!$('#setup-pop [data-act="theme-first"].on');
+    $('#setup-pop [data-act="tier"][data-v="budget"]').click(); out.tier = cur().tier === 'budget' && !!$('#setup-pop [data-act="tier"][data-v="budget"].pri');
     $('#setup-pop [data-act="mech-list"]').click(); out.list = !$('#setup-pop') && /Mechanics/.test($('#modal').textContent);
     $('#modal [data-act="close"]').click(); out.back = !!$('#setup-pop') && !$('#modal').hidden; out.goOn = !$('[data-act="su-go"]').disabled;
     $('[data-act="su-go"]').click(); return out; }));
   a.planned = await wait(() => !!(cur().plan && cur().plan.length) && S.tab === 'up' && !$('#status').classList.contains('think'));
-  Object.assign(a, await page.evaluate(() => { const d = cur(), n = d.plan.reduce((s, x) => s + x.q, 0); return {full: n >= 90, empty: d.cards.length === 0, closed: $('#modal').hidden && !S.setup, shown: /Build in progress/.test($('#main').textContent)}; }));
+  Object.assign(a, await page.evaluate(() => { const d = cur(), n = d.plan.reduce((s, x) => s + x.q, 0); return {full: n >= 90, empty: d.cards.length === 0, closed: $('#modal').hidden && !S.setup, shown: /Build in progress/.test($('#main').textContent), budgetPlan: d.tier === 'budget' && !d.planTier && d.plan.every(x => { const c = find(planPick(x, d.tier)); return !c || isBasic(c.n) || tags(c).land || c.p == null || c.p < 3; }),
+    onTheme: (() => { const T = themeCtx(d), sp = d.plan.map(x => find(x.a)).filter(c => c && !tags(c).land && !isBasic(c.n)); return sp.length ? sp.filter(c => themeOf(c, T)).length / sp.length : 0; })() > 0.3}; }));
   const b = await page.evaluate(() => { const out = {}; S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="standard"]').click();
     $('#setup-pop [data-act="color"][data-v="R"]').click(); $('#setup-pop [data-act="color"][data-v="G"]').click(); out.colors = cur().colors.join('') === 'RG';
     out.needsMech = $('[data-act="su-go"]').disabled; $('#setup-pop [data-act="mech-list"]').click(); $('#modal [data-act="mech-add"]').click(); $('#modal [data-act="close"]').click();
@@ -1819,7 +1838,7 @@ if (RUN('UI-SETUP-01')) { try { if (SHARD) await RESET();
     document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); render(); const esc = $('#modal').hidden && !S.setup;
     S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="commander"]').click(); $('#setup-pop [data-act="su-skip"]').click(); render();
     const skip = $('#modal').hidden && !S.setup; S.draft = null; S.view = 'decks'; S.open = false; render(); return {esc, skip}; });
-  T('UI-SETUP-01', 'New empty deck: setup pop-up walks through commander (typing keeps focus), price level and mechanics (the list returns to the pop-up); Show the cards to add lists a full build on Upgrades with nothing put in the deck; Standard needs colors and a mechanic; Escape and Skip close it', Object.values(a).every(Boolean) && a.goOff && Object.values(b).every(x => x === true || x === false) && b.colors && b.needsMech && b.go && b.planned && b.empty && b.n && c.esc && c.skip, JSON.stringify({a, b, c}));
+  T('UI-SETUP-01', 'New empty deck: setup pop-up walks through commander (typing keeps focus), price level (Theme first on by default) and mechanics (the list returns to the pop-up); Show the cards to add lists a full build at the chosen price level (Budget: every card under $3) on Upgrades, mostly on theme, with nothing put in the deck; Standard needs colors and a mechanic; Escape and Skip close it', Object.values(a).every(Boolean) && a.goOff && Object.values(b).every(x => x === true || x === false) && b.colors && b.needsMech && b.go && b.planned && b.empty && b.n && c.esc && c.skip, JSON.stringify({a, b, c}));
 } catch (e) { QUIET = false; T('UI-SETUP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 // Build 97 (owner, 11 Nov: "I don't see a flip function in the deck builder"): a two-sided card's pop-up has a Flip chip that
 // shows the other face (picture and face note) and flips back; the card data marks two-sided cards by layout (no pictures in it).

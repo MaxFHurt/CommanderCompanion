@@ -407,7 +407,8 @@ const STAPLES = [
 ];
 function* buildPlanG(d, seeds, ownOnly, ownAll) {
   const tmp = JSON.parse(JSON.stringify(d));
-  tmp.tier = 'apex';
+  tmp.tier = d.planTier || 'apex'; // the setup pop-up plans at the deck's own price level; everything else at Apex
+  delete tmp.planTier;
   tmp.cards = [];
   delete tmp.plan;
   const cmd = find(d.commander),
