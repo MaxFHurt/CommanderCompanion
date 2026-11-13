@@ -1,17 +1,21 @@
-# Working rules (owner, 13 Nov 2026) — apply every session
+# Working rules (owner, 12 Nov 2026)
 
-1. **Orchestrator + sub agents.** The main session orchestrates: plans, decides, reviews, reports. It delegates
-   self-contained work (searches, test runs, batch edits, research) to sub agents (Agent tool).
-2. **Cheapest model that can do the job.** Pick per task: `haiku` for searching, reading, running tests, mechanical
-   edits; `sonnet` for normal coding/debugging; `opus` only for hard design or reasoning. Default to the lowest.
-   Don't spawn an agent when one direct tool call is cheaper.
-3. **Repetition becomes a skill.** Any action repeated across sessions or several times in one goes into
-   `.claude/skills/<name>/SKILL.md` (or a script under `rebuild/tools/`). Existing: `ship-build`, `run-checks`.
-4. **Compact** when context grows long or the same files/output keep being re-read.
-5. **Look things up via `RESOURCE_MAP.md`** — go straight to the file/section/line it names; grep before reading;
-   read line ranges, never whole large files (HANDOFF/PROGRESS/ROADMAP are 350-540 lines; *.min.js, keywords.json,
-   CompRules, *.gz are huge — never read them). Update the map when you learn where something lives.
-6. **Concise answers.** Short and to the point unless the owner asks for detail.
+## How to work
+- **One session is the orchestrator.** It plans, delegates, merges, tests and ships. Sub-agents do the work.
+- **Delegate to the cheapest model that can do the task.** Haiku for searching, reading, running tests, mechanical edits;
+  Sonnet for normal coding; Opus/Fable only for hard design or debugging. Give each agent a short, self-contained brief that
+  points at exact files (see `rebuild/INDEX.md`), not "read the codebase".
+- **Few agents at once.** Parallel agents share one usage limit; on 12 Nov eight agents hit it before writing any code.
+  Two or three at most, each with a narrow task.
+- **Repetition burns tokens.** A command or check run more than twice becomes a skill (`.claude/skills/`) or a script.
+  Existing: `deck-test` (Deck Builder tests), `release` (shipping a build).
+- **Compact** when the conversation is long and work is re-reading the same files.
+- **Find things through `rebuild/INDEX.md`**, then read only the lines needed (grep, `sed -n a,bp`). Don't skim whole files
+  or the long docs (HANDOFF.md, PROGRESS.md, deck/ROADMAP.md are logs; read only the section you need).
+- **Answers: short and to the point**, unless the owner asks for more.
 
-Owner's project rules (never push `main` without a yes, update PROGRESS.md every push, art rules…):
-`rebuild/HANDOFF.md` §2 (lines ~162-193).
+## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)
+- Ship only fully tested batches; anything that makes something worse is discussed with the owner first.
+- Never undo another session's work: `git fetch` and build on `origin/main` before pushing.
+- Every push updates PROGRESS.md; release steps are in the `release` skill.
+- The rules long tail (rebuild/src/engine, ~9,670 cards left) has its own chat: stay out of it unless asked. Its map: `rebuild/INDEX.md` "Rules long tail".
