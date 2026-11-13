@@ -21,7 +21,7 @@ const INJECT = ([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)
 const RESET = async () => { if (await page.evaluate(() => !(typeof DBINFO !== 'undefined' && DBINFO.source === 'full' && LIB.length > 20000))) await page.evaluate(INJECT, [cards, tags]); return page.evaluate(() => { try { window.planOnly = async (n, seeds) => { const nd = planDeck(n, null, null, {}); if (!nd) return null; await genRun(nd, seeds || [], null, ownSet()); openDraft(nd); S.tab = 'up'; S.planShow = 0; return nd; }; if (S.cores !== 1){ S.cores = 1; wkRestart(); }   /* 10 Nov: no text box left focused or search list open by the last test (a redraw waits while you type) */ try { const a = document.activeElement; if (a && a.blur) a.blur(); document.querySelectorAll('.ddl').forEach(x => (x.hidden = true)); render.key = 0; clearTimeout(render.wait); render.since = 0; } catch (e) {}   /* grouped runs share 4 cores: one background helper per browser */ $('#modal').hidden = true; const c = $('#confirm'); if (c) c.hidden = true; askConfirm.pending = null; if (S.draft && !S.profile.decks.includes(S.draft)) S.draft = null; S.profile.decks = S.profile.decks.filter(Boolean); const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); if (w) S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'up'; S.syncRecs = true; S.upView = 'list'; render(); } catch (e) {} }).then(() => page.evaluate(async () => { for (let i = 0; i < 600; i++){ const R = typeof recsFor !== 'undefined' && recsFor.v; if (!R || R.pending || (R.pool && !R.poolDone)) { await new Promise(r => setTimeout(r, 100)); continue; } break; } })); };   // where UI-ID-01 leaves the app: Wakanda on Upgrades, its whole-card search finished (it re-sorts the list when done)
 const results = []; const T = (id, desc, pass, detail) => { if (QUIET) return; results.push({id, desc, pass, detail}); console.log((pass ? 'PASS' : 'FAIL'), id.padEnd(9), desc, detail ? '— ' + detail : ''); };
 const errs = [];
-const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:1300, height:900}}); const page = await ctx.newPage();
+const IMGREQ = []; const b = await chromium.launch(); const ctx = await b.newContext({viewport:{width:1300, height:900}}); const page = await ctx.newPage();
 page.on('pageerror', e => errs.push('pageerror: ' + e.message));
 await ctx.route('**/*', route => { const u = route.request().url();
   if (u.startsWith('http://127.0.0.1')) return route.continue();
@@ -37,6 +37,7 @@ await ctx.route('**/*', route => { const u = route.request().url();
   if (/fonts\.(googleapis|gstatic)\.com/.test(u)) return route.fulfill({status:200, contentType:'text/css', body:''});
   if (/card-data\/strength\.json\.gz/.test(u)) { const f = path.join(STRDIR, 'strength.json.gz'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/octet-stream', body:fs.readFileSync(f)}) : route.abort(); }
   if (/card-data\/strength\/[a-z0-9-]+\.json/.test(u)) { const sl = /strength\/([a-z0-9-]+)\.json/.exec(u)[1], f = path.join(STRDIR, 'strength', sl + '.json'); if (process.env.STRLOG) fs.appendFileSync(process.env.STRLOG, sl + '\n'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
+  if (/^https:\/\/cards\.scryfall\.io\//.test(u)) { IMGREQ.push(u); return route.fulfill({status:200, contentType:'image/gif', body:Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')}); }
   return route.abort(); });
 await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await page.waitForTimeout(1200);
 // Full card data from the snapshot, loaded the way the app loads its own download.
@@ -1702,6 +1703,21 @@ const tab1 = await page.evaluate(async () => { const out = {}, wait = ms => new 
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-TAB-01', 'Build 101: the Upgrades tab counts the cards the page lists to replace (the same N as "Upgrade 1 of N"), not only the deck’s own price level', tab1.tab > 0 && tab1.tab === tab1.sheets, JSON.stringify(tab1));
 } catch (e) { QUIET = false; T('UI-TAB-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-IMG-01')) { try { if (SHARD) await RESET();
+// Roadmap 7f.2 (owner: "decklist images take forever" on the phone): a decklist row asks for the art crop (the smallest art-only
+// picture Scryfall serves, shown 44x31), never the full card picture; a redraw after a swap keeps the <img> nodes already on
+// screen, so nothing already shown is asked for or decoded again.
+const im1 = await page.evaluate(async () => { const d = S.profile.decks.find(x => x.cards.length > 30 && x.commander) || S.profile.decks.find(x => x.cards.length > 30); if (!d) return {none: true};
+  S.open = d.id; S.view = 'decks'; S.tab = 'cards'; render(); await new Promise(r => setTimeout(r, 400));
+  const rows = [...document.querySelectorAll('.dl img')]; rows.forEach(i => i.loading = 'eager'); await new Promise(r => setTimeout(r, 600));
+  const kinds = [...new Set(rows.map(i => (/scryfall\.io\/([a-z_]+)\//.exec(i.src) || [])[1]).filter(Boolean))], before = rows.filter(i => i.complete && i.naturalWidth).length;
+  window.__img0 = rows.slice(0, 12); const srcs = window.__img0.map(i => i.getAttribute('src'));
+  const e = d.cards.find(x => !isBasic(x.n)); render(); await new Promise(r => setTimeout(r, 300));
+  const after = [...document.querySelectorAll('.dl img')], same = window.__img0.filter(o => o.isConnected).length;
+  return {rows: rows.length, kinds, loaded: before, kept: same, of: window.__img0.length, again: after.filter(i => !i.complete).length}; });
+const req0 = IMGREQ.length; await page.evaluate(() => { render(); }); await page.waitForTimeout(500); const reqAfter = IMGREQ.length - req0;
+T('UI-IMG-01', 'Roadmap 7f.2: decklist rows use the art crop size (not normal/large/png); a redraw keeps the pictures already shown and asks for none again', !im1.none && im1.rows > 0 && im1.kinds.join() === 'art_crop' && im1.kept === im1.of && reqAfter === 0, JSON.stringify(im1) + ' redrawRequests=' + reqAfter + ' totalImageRequests=' + IMGREQ.length);
+} catch (e) { QUIET = false; T('UI-IMG-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-NAME-01')) { try { if (SHARD) await RESET();
 // Build 100 (owner, 12 Nov: "heralds of the shredder still reads as vigor"): a card pictured in the deck's themed printing
 // (the commander's set) is named as that printing in the decklist, also in a deck that is not a precon (a generated deck).
