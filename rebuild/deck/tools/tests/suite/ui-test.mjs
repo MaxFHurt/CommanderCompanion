@@ -39,7 +39,9 @@ await ctx.route('**/*', route => { const u = route.request().url();
   if (/card-data\/strength\/[a-z0-9-]+\.json/.test(u)) { const sl = /strength\/([a-z0-9-]+)\.json/.exec(u)[1], f = path.join(STRDIR, 'strength', sl + '.json'); if (process.env.STRLOG) fs.appendFileSync(process.env.STRLOG, sl + '\n'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
   if (/^https:\/\/cards\.scryfall\.io\//.test(u)) { IMGREQ.push(u); return route.fulfill({status:200, contentType:'image/gif', body:Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')}); }
   return route.abort(); });
-await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await page.waitForTimeout(1200);
+// wait for a state instead of sleeping: same ceiling as the old fixed sleep (never slower), proceeds as soon as the page is ready
+const until = (p, f, ms, arg) => p.waitForFunction(f, arg, {timeout: ms, polling: 50}).catch(() => {});
+await page.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await until(page, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1200);
 // Full card data from the snapshot, loaded the way the app loads its own download.
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); }
   useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; S.recFresh = true; window.planOnly = async (n, seeds) => { const nd = planDeck(n, null, null, {}); if (!nd) return null; await genRun(nd, seeds || [], null, ownSet()); openDraft(nd); S.tab = 'up'; S.planShow = 0; return nd; }; const t = JSON.parse(tg); useTags(t); }, [cards, tags]);
@@ -57,7 +59,7 @@ if (RUN('UI-BUNDLE')) { try { if (SHARD) await RESET();
   T('UI-BUNDLE', 'The live bundles are made from the current readable files (else run sh tools/build.sh) and the page’s file list matches files.json', app && eng && same, JSON.stringify({app, engine:eng, fileList:same})); }
 } catch (e) { QUIET = false; T('UI-BUNDLE', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-DEV')) { try { if (SHARD) await RESET();
-{ const p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message)); await p2.goto('http://127.0.0.1:' + port + '/index.html?dev=1', {waitUntil:'load'}); await p2.waitForTimeout(1500);
+{ const p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message)); await p2.goto('http://127.0.0.1:' + port + '/index.html?dev=1', {waitUntil:'load'}); await until(p2, () => window.DEV && typeof handleAct === 'function', 1500);
   const r2 = await p2.evaluate(() => ({dev:window.DEV, fns:typeof handleAct === 'function' && typeof poolPromote === 'function' && typeof render === 'function'})); await p2.close();
   T('UI-DEV', 'With ?dev=1 the page runs the readable files, with no page errors', r2.dev === true && r2.fns && !e2.length, JSON.stringify(r2) + ' ' + e2.join(' | ')); }
 } catch (e) { QUIET = false; T('UI-DEV', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -66,7 +68,7 @@ if (RUN('UI-READS-01')) { try { if (SHARD) await RESET();
 // card data puts them back (none read again), they match a fresh reading, and the background core reuses them too.
 { await page.evaluate(async () => { for (let i = 0; i < 1800 && !READS.saved; i++) await new Promise(r => setTimeout(r, 100)); });
   const saved = await page.evaluate(() => READS.saved), main = await page.evaluate(() => JSON.stringify(Object.assign({gen: warmTags.gen, complete: DBINFO.complete, src: DBINFO.source, noReads: S.noReads}, READS))), p2 = await ctx.newPage(), e2 = []; p2.on('pageerror', e => e2.push(e.message));
-  await p2.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await p2.waitForTimeout(800); await p2.evaluate(INJECT, [cards, tags]);
+  await p2.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await until(p2, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 800); await p2.evaluate(INJECT, [cards, tags]);
   const r = await p2.evaluate(async () => { for (let i = 0; i < 1200 && !READS.ms; i++) await new Promise(r => setTimeout(r, 50));
     const ser = t => JSON.stringify([t.land, Object.entries(t.th), [...t.roles]]), fser = f => f ? JSON.stringify([[...f.makes], [...f.uses], [...f.roles]]) : '';
     let diff = 0, fdiff = 0, n = 0; const ex = [];
@@ -83,8 +85,8 @@ if (RUN('UI-READS-01')) { try { if (SHARD) await RESET();
 if (RUN('UI-ID-01')) { try { if (SHARD) await RESET();
 
 // 1. Native precon loader, Wakanda (alternate printed names) — the path that recommended installed cards before.
-await page.evaluate(async () => { window.__save = async (slug, label) => { await loadPreconLive(slug, label); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); return d; }; await __save('wakanda-forever', 'Wakanda Forever'); }); await page.waitForTimeout(800);
-await page.evaluate(async () => { const d = cur(); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(800);
+await page.evaluate(async () => { window.__save = async (slug, label) => { await loadPreconLive(slug, label); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); return d; }; await __save('wakanda-forever', 'Wakanda Forever'); }); await until(page, () => S.profile.decks.some(x => /Wakanda/i.test(x.name)), 800);
+await page.evaluate(async () => { const d = cur(); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 800);
 const w = await page.evaluate(() => { const d = cur(), R = recsFor(d), adds = R.paths.flatMap(L => Object.values(L.opts).map(p => p.add));
   return {name:d.name, size:analyze(d).size, unknown:analyze(d).unknown, installed:adds.filter(n => !!entryOf(d, n)), rows:R.paths.length, apex:R.paths.filter(L => L.opts.apex).length}; });
 T('UI-ID-01', 'Precon loader (Wakanda): every card recognised, no installed card recommended', w.size === 100 && !w.unknown.length && !w.installed.length && w.rows > 0 && w.apex === w.rows, JSON.stringify(w));
@@ -112,7 +114,7 @@ T('UI-EX-05a', 'Other held picks are untouched by an exclusion', (() => { const 
 if (RUN('UI-EX-03')) { try { if (SHARD) await RESET();
 
 // 4. Another deck is unaffected; an alternate printed title of an excluded card stays excluded.
-const other = await page.evaluate(async () => { const d2 = await __save('avengers-assemble', 'Avengers Assemble'); return {dismissed:(d2.dismissed || []).length, id:d2.id}; }); await page.waitForTimeout(500);
+const other = await page.evaluate(async () => { const d2 = await __save('avengers-assemble', 'Avengers Assemble'); return {dismissed:(d2.dismissed || []).length, id:d2.id}; }); await until(page, () => S.profile.decks.some(x => /Avengers/i.test(x.name)), 500);
 const alt = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; await loadEdh(d.commander); ruleOut(d, 'Vibranium Dynamo'); const d2 = { ...d, cards:d.cards.filter(e => e.n !== 'Thran Dynamo' && e.n !== 'Vibranium Dynamo') }; d2.cards.push({n:'Sol Ring', q:0}); d2.cards = d2.cards.filter(e => e.q);
   const R = upgradePaths(d2); return {shown:R.paths.some(L => Object.values(L.opts).some(p => p.add === 'Thran Dynamo'))}; });
 T('UI-EX-03', 'Another deck keeps its own (empty) exclusions; excluding “Vibranium Dynamo” also excludes Thran Dynamo', other.dismissed === 0 && !alt.shown, JSON.stringify({other, alt}));
@@ -120,19 +122,19 @@ T('UI-EX-03', 'Another deck keeps its own (empty) exclusions; excluding “Vibra
 if (RUN('UI-EX-04')) { try { if (SHARD) await RESET();
 
 // 5. Allow it again: the exclusion is cleared and the card is eligible (not forced in).
-await page.evaluate(() => { S.tab = 'up'; render(); }); await page.waitForTimeout(300);
+await page.evaluate(() => { S.tab = 'up'; render(); }); await until(page, () => !!document.querySelector('[data-act="undismiss"]'), 300);
 const allowBtn = await page.evaluate(n => { const b = [...document.querySelectorAll('[data-act="undismiss"]')].find(x => x.dataset.n === n); return b ? {text:b.textContent, aria:b.getAttribute('aria-label')} : null; }, btn.n);
 const heading = await page.evaluate(() => document.body.innerText.includes('EXCLUDED CARDS FOR THIS DECK') || document.body.innerText.toLowerCase().includes('excluded cards for this deck'));
-await page.evaluate(n => { const b = [...document.querySelectorAll('[data-act="undismiss"]')].find(x => x.dataset.n === n); if (b) b.click(); }, btn.n); await page.waitForTimeout(300);
+await page.evaluate(n => { const b = [...document.querySelectorAll('[data-act="undismiss"]')].find(x => x.dataset.n === n); if (b) b.click(); }, btn.n); await until(page, n => !(cur().dismissed || []).includes(n), 300, btn.n);
 const allowed = await page.evaluate(n => ({dismissed:(cur().dismissed || []).includes(n), toast:(document.querySelector('#toast') || {}).textContent || ''}), btn.n);
 T('UI-EX-04', 'Allow-again control is labelled per card; using it clears the exclusion', !!allowBtn && allowBtn.aria === 'Allow ' + btn.n + ' in recommendations' && heading && !allowed.dismissed && allowed.toast.includes('allowed in this deck’s recommendations'), JSON.stringify({allowBtn, heading, allowed}));
 } catch (e) { QUIET = false; T('UI-EX-04', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-EX-05')) { try { if (SHARD) await RESET();
 
 // 6. Exclusions persist through a reload of the same (throwaway) profile; holds come back unchanged.
-await page.evaluate(n => { ruleOut(cur(), n); touch(); }, btn.n); await page.waitForTimeout(1500);
+await page.evaluate(n => { ruleOut(cur(), n); touch(); }, btn.n); await until(page, () => !PROF.dirty, 1500);
 const held1 = await page.evaluate(() => JSON.stringify(cur().recP || {}));
-await page.reload({waitUntil:'load'}); await page.waitForTimeout(1500);
+await page.reload({waitUntil:'load'}); await until(page, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1500);
 const persisted = await page.evaluate(n => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); return {excluded:!!d && (d.dismissed || []).includes(n), held:JSON.stringify(d && d.recP || {})}; }, btn.n);
 T('UI-EX-05', 'Exclusions and holds survive a reload (existing storage, 80-entry limit unchanged)', persisted.excluded && persisted.held === held1, 'held picks ' + Object.keys(JSON.parse(held1)).length);
 } catch (e) { QUIET = false; T('UI-EX-05', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -151,12 +153,12 @@ await mctx.route('**/*', route => { const u = route.request().url(); if (u.start
   if (/card-data\/strength\/[a-z0-9-]+\.json/.test(u)) { const sl = /strength\/([a-z0-9-]+)\.json/.exec(u)[1], f = path.join(STRDIR, 'strength', sl + '.json'); if (process.env.STRLOG) fs.appendFileSync(process.env.STRLOG, sl + '\n'); return fs.existsSync(f) ? route.fulfill({status:200, contentType:'application/json', body:fs.readFileSync(f)}) : route.fulfill({status:404, body:''}); }
   if (/fonts\.(googleapis|gstatic)\.com/.test(u)) return route.fulfill({status:200, contentType:'text/css', body:''}); return route.abort(); });
 const mp = await mctx.newPage(); mp.on('pageerror', e => errs.push('mobile pageerror: ' + e.message));
-await mp.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await mp.waitForTimeout(1000);
+await mp.goto('http://127.0.0.1:' + port + '/index.html', {waitUntil:'load'}); await until(mp, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1000);
 await mp.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); } useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; S.recFresh = true; useTags(JSON.parse(tg)); }, [cards, tags]);
-await mp.evaluate(async () => { await loadPreconLive('wakanda-forever', 'Wakanda Forever'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await mp.waitForTimeout(700);
+await mp.evaluate(async () => { await loadPreconLive('wakanda-forever', 'Wakanda Forever'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(mp, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 700);
 geo = await mp.evaluate(() => { const o = document.querySelector('.opt [data-act="dismiss"]'); if (!o) return null; const s = o.parentElement.querySelector('[data-act="swap"]'), a = o.getBoundingClientRect(), c = s.getBoundingClientRect();
   const overlap = !(a.right <= c.left || c.right <= a.left || a.bottom <= c.top || c.bottom <= a.top); o.scrollIntoView({block:'center'}); return {coarse:matchMedia('(pointer:coarse)').matches, overlap, dismissH:Math.round(a.height), swapH:Math.round(c.height), dismissW:Math.round(a.width), swapW:Math.round(c.width), pageScrollX:document.documentElement.scrollWidth > innerWidth + 1}; });
-await mp.waitForTimeout(300); { const opt = await mp.$('.opt [data-act="dismiss"]'); if (opt){ const box = await (await opt.evaluateHandle(e => e.closest('.path'))).boundingBox(); if (box) await mp.screenshot({path:OUT + '/' + label + '-mobile.png', clip:{x:0, y:Math.max(0, box.y - 8), width:390, height:Math.min(1400, box.height + 16)}}); } }
+await until(mp, () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 300); { const opt = await mp.$('.opt [data-act="dismiss"]'); if (opt){ const box = await (await opt.evaluateHandle(e => e.closest('.path'))).boundingBox(); if (box) await mp.screenshot({path:OUT + '/' + label + '-mobile.png', clip:{x:0, y:Math.max(0, box.y - 8), width:390, height:Math.min(1400, box.height + 16)}}); } }
 const lay = await mp.evaluate(() => (() => { let bad = 0, n = 0; [...document.querySelectorAll('.paths .path')].slice(0, 6).forEach(path => { const k = [...path.children].map(e => e.getBoundingClientRect()).filter(r => r.height > 0); n++;
   for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) if (k[i].top < k[j].bottom - 1 && k[j].top < k[i].bottom - 1 && k[i].left < k[j].right - 1 && k[j].left < k[i].right - 1) bad++; }); return {cards:n, overlaps:bad}; })());
 T('UI-LAYOUT-1', 'Touch phone: no parts of an upgrade card overlap (first 6 cards)', lay.cards > 0 && !lay.overlaps, JSON.stringify(lay));
@@ -170,7 +172,7 @@ await mctx.close();
 // 8. Tier display: empty tiers give reasons; Apply all applies a validated package and keeps 100 cards.
 // the reload in step 6 dropped the injected card data: load it again and reopen the Wakanda deck
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); } useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; S.recFresh = true; useTags(JSON.parse(tg)); }, [cards, tags]);
-await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(700);
+await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 700);
 const lay2 = await page.evaluate(() => (() => { let bad = 0, n = 0; [...document.querySelectorAll('.paths .path')].slice(0, 6).forEach(path => { const k = [...path.children].map(e => e.getBoundingClientRect()).filter(r => r.height > 0); n++;
   for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) if (k[i].top < k[j].bottom - 1 && k[j].top < k[i].bottom - 1 && k[i].left < k[j].right - 1 && k[j].left < k[i].right - 1) bad++; }); return {cards:n, overlaps:bad}; })());
 T('UI-LAYOUT-2', 'Desktop: no parts of an upgrade card overlap (first 6 cards)', lay2.cards > 0 && !lay2.overlaps, JSON.stringify(lay2));
@@ -181,7 +183,7 @@ T('UI-TIER-01', 'Empty tiers show their reason on the page', tiers.empty > 0 && 
 } catch (e) { QUIET = false; T('UI-TIER-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-CAP-01')) { try { if (SHARD) await RESET();
 // 9. "Best deck with every new card under $3": shown in the Budget box; Apply adds only cards under $3 each; deck stays valid.
-await page.evaluate(async () => { await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d0 = S.draft; S.profile.decks.unshift(d0); S.draft = null; S.deckId = d0.id; touch(); const d = cur(); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(900);
+await page.evaluate(async () => { await loadPreconLive('avengers-assemble', 'Avengers Assemble'); const d0 = S.draft; S.profile.decks.unshift(d0); S.draft = null; S.deckId = d0.id; touch(); const d = cur(); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 900);
 await page.evaluate(() => { handleAct('cap-show', 'budget'); });
 const cap = await page.evaluate(() => { const d = cur(), before = new Set(d.cards.map(e => keyOf(e.n))), box = document.querySelector('[data-act="swap-cap"][data-v="budget"]'), shown = !!box && /every new card under \$3/.test(box.closest('.capbox').textContent);
   if (box) box.click(); const added = d.cards.filter(e => !before.has(keyOf(e.n))).map(e => ({n:e.n, p:(find(e.n) || {}).p}));
@@ -189,21 +191,21 @@ const cap = await page.evaluate(() => { const d = cur(), before = new Set(d.card
 T('UI-CAP-01', 'Budget box offers “best deck with every new card under $3”; Apply adds only cards under $3 each and the deck stays a valid 100', cap.shown && cap.added > 0 && !cap.over.length && cap.size === 100 && !cap.v.length && /under \$3 each/.test(cap.toast), JSON.stringify(cap));
 } catch (e) { QUIET = false; T('UI-CAP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-AIM-01')) { try { if (SHARD) await RESET();
-await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(700);
+await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 700);
 // 10. Mechanics: a deck takes its commander's own themes (what players build it around); reordering them steers the picks.
-await page.evaluate(async () => { await loadPreconLive('doom-prevails', 'Doom Prevails'); const d0 = S.draft; S.profile.decks.unshift(d0); S.draft = null; S.deckId = d0.id; touch(); const d = cur(); S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); ensureEdh(); }); await page.waitForTimeout(1500);
+await page.evaluate(async () => { await loadPreconLive('doom-prevails', 'Doom Prevails'); const d0 = S.draft; S.profile.decks.unshift(d0); S.draft = null; S.deckId = d0.id; touch(); const d = cur(); S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); ensureEdh(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 1500);
 const aimA = await page.evaluate(() => { const d = cur(); return {aims:d.aims.slice(), auto:d.aimAuto, labels:d.aims.map(a => aimLabel(a)), loaded:Object.keys(EDH.tmap), picks:recsFor(d).paths.map(L => L.opts.apex && L.opts.apex.add)}; });
-await page.evaluate(() => { S.tab = 'build'; render(); }); await page.waitForTimeout(300);
-await page.evaluate(() => { const c = document.querySelector('[data-act="build-custom"]'); if (c) c.click(); }); await page.waitForTimeout(300);
+await page.evaluate(() => { S.tab = 'build'; render(); }); await until(page, () => !!document.querySelector('[data-act="build-custom"]'), 300);
+await page.evaluate(() => { const c = document.querySelector('[data-act="build-custom"]'); if (c) c.click(); }); await until(page, () => !!document.querySelector('[data-act="mech-list"]'), 300);
 const shown = await page.evaluate(() => { const t = document.body.innerText; return cur().aims.map(a => aimLabel(a)).every(l => t.includes(l)) && !!document.querySelector('[data-act="mech-list"]') && (openMechList(), /mechanics \(how players build it\)/.test(document.querySelector('#modal').textContent)) && (($('#modal').hidden = true), true); });
-await page.evaluate(() => { const b = document.querySelector('[data-act="aim-down"][data-v="0"]'); if (b) b.click(); }); await page.waitForTimeout(1500);
+await page.evaluate(() => { const b = document.querySelector('[data-act="aim-down"][data-v="0"]'); if (b) b.click(); }); await until(page, a => cur().aims[0] !== a, 1500, aimA.aims[0]);
 const aimB = await page.evaluate(() => { const d = cur(); return {aims:d.aims.slice(), auto:d.aimAuto, picks:recsFor(d).paths.map(L => L.opts.apex && L.opts.apex.add)}; });
 const diff = aimB.picks.filter(x => !aimA.picks.includes(x)).length + aimA.picks.filter(x => !aimB.picks.includes(x)).length;
 T('UI-AIM-01', 'Mechanics are the commander’s own themes (shown, with its other themes offered first); reordering them is kept and changes the picks', aimA.aims.length && aimA.aims.every(a => a.startsWith('edh:')) && aimA.auto === true && shown && aimB.auto === false && aimB.aims[0] === aimA.aims[1] && diff > 0,
   JSON.stringify({before:aimA.labels, loaded:aimA.loaded, shown, after:aimB.aims, changedPicks:diff}));
 } catch (e) { QUIET = false; T('UI-AIM-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-MIX-01')) { try { if (SHARD) await RESET();
-await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(700);
+await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); }); await until(page, () => S.tab === 'up' && !!document.querySelector('.paths .path'), 700);
 const applied = await page.evaluate(() => { const d = cur(); window.__mix = JSON.stringify(d); const n0 = recsFor(d).paths.length; const b = document.querySelector('[data-act="swap-all"][data-v="apex"]'); b.click(); { const cf = document.querySelector('#confirm'); if (cf && !cf.hidden) cf.querySelector('[data-act="conf-yes"]').click(); } return {n0, size:analyze(d).size, v:validateDeck(d).map(x => x.key), toast:(document.querySelector('#toast') || {}).textContent}; });
 T('UI-MIX-01', 'Apply all (Apex) makes the swaps as one checked package; the deck stays a valid 100 cards', applied.size === 100 && !applied.v.length && /Made \d+ Apex swap/.test(applied.toast), JSON.stringify(applied));
 await page.evaluate(() => { const d = cur(); Object.keys(d).forEach(k => delete d[k]); Object.assign(d, JSON.parse(window.__mix)); delete window.__mix; recsFor.k = null; render(); });   // the other tests use Wakanda as built
@@ -215,7 +217,7 @@ T('UI-COMBO-01', 'Combo data (Commander Spellbook, via the card-data branch) loa
 } catch (e) { QUIET = false; T('UI-COMBO-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-SCORE-01')) { try { if (SHARD) await RESET();
 // 12. Deck score: five categories with reasons, how the commander works (reviewed profile), how the deck wins.
-await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; await loadEdh(d.commander); render(); }); await page.waitForTimeout(900);
+await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'stats'; await loadEdh(d.commander); render(); });
 for (let i = 0; i < 40 && await page.evaluate(() => !/% of the (?:way to the )?Apex build/.test(document.body.textContent)); i++) await page.waitForTimeout(250);
 const sc = await page.evaluate(() => { const det = document.querySelector('#score-more'); if (det) det.open = true; const t = document.body.textContent; return {score:/Deck score · \d+ of 100/.test(t), cats:['Synergy', 'Balance', 'Card quality', 'Win routes', 'Mana and curve'].every(x => t.includes(x)), profile:null, wins:null, apex:(/Card quality: (\d+)% of the (?:way to the )?Apex build/.exec(t) || [])[1], tierLine:/% of the best build with every card under \$(3|12)/.test(t), tier:cur().tier}; });
 { const gp = await page.evaluate(() => { S.tab = 'up'; render(); const det = document.querySelector('#plan-more'); if (det) det.open = true; const t = det ? det.textContent : '';   /* 0.9.20: the game plan moved to Upgrades */
@@ -304,7 +306,7 @@ if (RUN('UI-SET-02')) { try { if (SHARD) await RESET();
 const s1 = await page.evaluate(async () => { S.draft = null; const d = S.profile.decks.find(x => /Doom/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'build'; d.custom = true; render();
   const inp = document.querySelector('#dset-add'); if (!inp) return {input:false}; inp.value = 'msh'; inp.dispatchEvent(new Event('change', {bubbles:true})); for (let i = 0; i < 30 && !SETCARDS.has('msh'); i++) await new Promise(r => setTimeout(r, 100));
   document.querySelector('[data-act="dset-must"]').click(); touch(); await new Promise(r => setTimeout(r, 1700)); return {id:d.id, sets:d.sets, must:d.setsMust}; });
-await page.reload({waitUntil:'load'}); await page.waitForTimeout(1500);
+await page.reload({waitUntil:'load'}); await until(page, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1500);
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); } useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; S.recFresh = true; useTags(JSON.parse(tg)); }, [cards, tags]);
 const s2 = await page.evaluate(async id => { const d = S.profile.decks.find(x => x.id === id); S.deckId = id; S.view = 'decks'; S.open = true; S.tab = 'up'; await loadEdh(d.commander); render(); for (let i = 0; i < 30 && !SETCARDS.has('msh'); i++) await new Promise(r => setTimeout(r, 100));
   const R = recsFor(d), adds = R.paths.flatMap(P => Object.values(P.opts).filter(Boolean).map(p => p.add)).map(find).filter(Boolean);
@@ -330,7 +332,7 @@ const w1 = await page.evaluate(async () => { S.draft = null; S.view = 'search'; 
   const sel = document.querySelector('#want-deck'); if (!sel) return {box:false}; const chosen = sel.value, disabled = [...sel.options].filter(o => o.disabled).map(o => o.textContent);
   const offDeck = S.profile.decks.find(x => wantFit(x, c)); document.querySelector('[data-act="want-add"]').click(); await new Promise(r => setTimeout(r, 200));
   const d = S.profile.decks.find(x => x.id === chosen); return {card:c.n, upgradeDeckChosen:L.some(x => x.id === chosen), disabled, offDeckDisabled:!offDeck || disabled.some(t => t.startsWith(offDeck.name)), added:(d.want || []).some(x => x.n === c.n), btn:!!document.querySelector('[data-act="want-undo"]'), deckId:chosen}; });
-await page.reload({waitUntil:'load'}); await page.waitForTimeout(1500);
+await page.reload({waitUntil:'load'}); await until(page, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1500);
 await page.evaluate(([raw, tg]) => { const rows = []; for (const o of JSON.parse(raw)){ const c = fromScryfall(o); if (c) rows.push(c); } const best = new Map(); for (const c of rows){ const k = norm(c.n), x = best.get(k); if (!x || (x.p == null && c.p != null)) best.set(k, c); } useFull([...best.values()], '2026-10-06', true); S.noAsk = true; S.upView = 'list'; S.autoYes = new Set(['swap', 'swap-top', 'swap-a3', 'want', 'fix-swap', 'swap-cap', 'add-to-deck', 'consider-in']); S.syncRecs = true; S.recFresh = true; useTags(JSON.parse(tg)); }, [cards, tags]);
 const w2 = await page.evaluate(async ([id, name]) => { const d = S.profile.decks.find(x => x.id === id); S.deckId = id; S.view = 'decks'; S.open = true; S.tab = 'buy'; await loadEdh(d.commander); render(); await new Promise(r => setTimeout(r, 400));
   const t = document.body.textContent, inPanel = /Added by you/.test(t) && t.includes(name), inText = buyText(d).includes('// Added by you\n1 ' + name);
@@ -993,7 +995,7 @@ if (RUN('UI-B116-01')) { try { if (SHARD) await RESET();
 // 66. Build 116: phone layout. On phones (portrait and landscape) the home tagline is hidden and a Continue card for the last
 // deck shows above the tiles; the header reads the full name; iPad (portrait and landscape) and desktop are unchanged.
 const b116 = {}; { const w = await page.evaluate(() => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); recentAdd(d.id); return d.name; });
-  for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 844, 390], ['ipadP', 820, 1180], ['ipadL', 1180, 820], ['desk', 1300, 900]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);
+  for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 844, 390], ['ipadP', 820, 1180], ['ipadL', 1180, 820], ['desk', 1300, 900]]){ await page.setViewportSize({width:vw, height:vh}); await until(page, w => window.innerWidth === w && new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 150, vw);
     b116[k] = await page.evaluate(n => { S.view = 'home'; S.open = false; $('#modal').hidden = true; render(); const c = document.querySelector('.continue');
       return {hero:getComputedStyle(document.querySelector('.hero')).display !== 'none', cont:!!c && getComputedStyle(c).display !== 'none', name:!!c && c.textContent.includes(n), brand:document.querySelector('.brand').innerText.replace(/\s+/g, ' ').trim()}; }, w); }
   await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { S.view = 'decks'; S.open = true; render(); }); }
@@ -1003,7 +1005,7 @@ if (RUN('UI-B117-01')) { try { if (SHARD) await RESET();
 // 67. Build 117: phones. The Continue card sits under the three home tiles, just above Profile, with no extra deck buttons; on a
 // phone held sideways the deck screen is one column, the page itself scrolls (no fixed-height boxes) and the deck buttons
 // stay on one row. iPad landscape keeps its two panes and fixed working area.
-const b117 = {}; { for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 844, 390], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);
+const b117 = {}; { for (const [k, vw, vh] of [['phoneP', 390, 844], ['phoneL', 844, 390], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await until(page, w => window.innerWidth === w && new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 150, vw);
     b117[k] = await page.evaluate(() => { S.view = 'home'; S.open = false; $('#modal').hidden = true; render(); const m = document.querySelector('#main'), kids = [...m.querySelectorAll('.tiles.home3, .continue, [data-v="profile"]')].map(e => e.matches('.continue') ? 'continue' : e.matches('.tiles') ? 'tiles' : 'profile');
       const out = {order:kids.join('>'), extra:document.querySelectorAll('.continue .recent').length};
       const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render(); fitWork(); const w = document.querySelector('.work'), bar = document.querySelector('.row.bar');
@@ -1294,7 +1296,7 @@ if (RUN('UI-B140-02')) { try { if (SHARD) await RESET();
 // 90. Build 140 (owner's iPhone screenshots): on an upright phone, also with large text (320 wide), the deck tabs stay inside the
 // panel (a second row when needed), the page scrolls instead of a fixed-height box, and nothing spills past the panel's frame;
 // the card count stays on one line. iPad portrait and landscape keep the fixed working area.
-const b140p = {}; { for (const [k, vw, vh] of [['phone', 390, 844], ['big', 320, 693], ['ipadP', 820, 1180], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await page.waitForTimeout(150);
+const b140p = {}; { for (const [k, vw, vh] of [['phone', 390, 844], ['big', 320, 693], ['ipadP', 820, 1180], ['ipadL', 1180, 820]]){ await page.setViewportSize({width:vw, height:vh}); await until(page, w => window.innerWidth === w && new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 150, vw);
     b140p[k] = {}; for (const tab of ['list', 'up']) b140p[k][tab] = await page.evaluate(t => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = t; $('#modal').hidden = true; render(); fitWork();
       const w = document.querySelector('.work'), tabs = document.querySelector('.tabs'), tr = tabs.getBoundingClientRect(), pr = tabs.closest('.panel').getBoundingClientRect();
       const kids = [...tabs.closest('.panel').querySelectorAll('button, input, .tab')].filter(e => e.offsetParent), out = kids.filter(e => { const r = e.getBoundingClientRect(); return r.bottom > pr.bottom + 2 || r.right > pr.right + 2; }).length;
@@ -1820,10 +1822,10 @@ if (RUN('UI-PROF-01')) { try { if (SHARD) await RESET();
     render(); out.redrawn = !!$('#settings-pop') && !$('#modal').hidden;
     pop.querySelector('[data-act="close"]') && $('#settings-pop [data-act="close"]').click(); out.closed = $('#modal').hidden && !S.settingsOpen;
     render(); out.stays = $('#modal').hidden; S.view = 'decks'; render(); return out; });
-  await page.setViewportSize({width: 600, height: 340}); await page.waitForTimeout(300);
+  await page.setViewportSize({width: 600, height: 340}); await until(page, w => window.innerWidth === w && new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 300, 600);
   const nav = await page.evaluate(() => { fitNav(); const t = document.querySelector('header.top'), R = t.getBoundingClientRect(), vw = document.documentElement.clientWidth;
     return {tight: t.classList.contains('tight'), off: [...t.querySelectorAll('button')].filter(x => { const q = x.getBoundingClientRect(); return q.width && (q.right > Math.min(R.right, vw) + 1); }).length, named: !!t.querySelector('[data-v="profile"][aria-label="Profile"]')}; });
-  await page.setViewportSize({width: 1300, height: 900}); await page.waitForTimeout(300);
+  await page.setViewportSize({width: 1300, height: 900}); await until(page, w => window.innerWidth === w && new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))), 300, 1300);
   const wide = await page.evaluate(() => { fitNav(); return !document.querySelector('header.top').classList.contains('tight'); });
   T('UI-PROF-01', 'Profile: player things only (no Upgrade engine, Card database or saved-decks list); Settings pop-up has both, survives a redraw and closes; top bar: icons only on a narrow sideways phone with nothing past the edge, full labels on a wide screen', Object.values(r).every(Boolean) && nav.tight && !nav.off && nav.named && wide, JSON.stringify({r, nav, wide}));
 } catch (e) { QUIET = false; T('UI-PROF-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1834,9 +1836,9 @@ if (RUN('UI-SETUP-01')) { try { if (SHARD) await RESET();
   const wait = async f => { for (let i = 0; i < 600 && !(await page.evaluate(f)); i++) await page.waitForTimeout(250); return page.evaluate(f); };
   const a = await page.evaluate(() => { const out = {}; S.view = 'deck'; S.open = false; render(); document.querySelector('[data-act="new-deck"][data-v="commander"]').click();
     out.pop = !!$('#setup-pop') && !$('#modal').hidden; out.goOff = $('[data-act="su-go"]').disabled; return out; });
-  await page.click('#su-q'); await page.keyboard.type('Atraxa, Praetors'); await page.waitForTimeout(400);
+  await page.click('#su-q'); await page.keyboard.type('Atraxa, Praetors'); await until(page, () => !!document.querySelector('#su-res') && !document.querySelector('#su-res').hidden, 400);
   a.typing = await page.evaluate(() => document.activeElement.id === 'su-q' && !$('#su-res').hidden);
-  await page.click('#su-res button'); await page.waitForTimeout(500);
+  await page.click('#su-res button'); await until(page, () => !!$('#setup-pop') && /Atraxa/.test(cur().commander), 500);
   Object.assign(a, await page.evaluate(() => { const d = cur(), out = {}; out.cmd = /Atraxa/.test(d.commander) && !!$('#setup-pop'); out.aims = d.aims.length > 0;
     out.tfDefault = cur().themeFirst === true && !!$('#setup-pop [data-act="theme-first"].on');
     $('#setup-pop [data-act="tier"][data-v="budget"]').click(); out.tier = cur().tier === 'budget' && !!$('#setup-pop [data-act="tier"][data-v="budget"].pri');
@@ -1883,7 +1885,7 @@ const pop1 = await page.evaluate(async () => { const d = S.profile.decks.find(x 
   const q = $('#add-q'); q.value = 'Sol'; q.dispatchEvent(new Event('input', {bubbles: true}));
   out.listOpen = !$('#add-res').hidden; render(); await new Promise(r => setTimeout(r, 50)); out.afterBg = !!$('#add-res') && !$('#add-res').hidden && $('#add-q').value === 'Sol';
   return out; });
-await page.mouse.click(5, 385); await page.waitForTimeout(500);
+await page.mouse.click(5, 385); await until(page, () => !$('#add-res') || $('#add-res').hidden, 500);
 pop1.closedOutside = await page.evaluate(() => !$('#add-res') || $('#add-res').hidden);
 await page.setViewportSize({width:1300, height:900}); await page.evaluate(() => { const q = $('#add-q'); if (q) q.value = ''; render(); });
 T('UI-POP-01', 'Pop-ups on a phone held sideways: a card window keeps everything in its scrolling body (the card details are not squeezed away); a background redraw leaves an open search list alone; a tap outside closes it', pop1.kids.join() === 'ph,mbody' && pop1.body > 150 && pop1.more && pop1.listOpen && pop1.afterBg && pop1.closedOutside, JSON.stringify(pop1));
@@ -1955,7 +1957,7 @@ T('UI-B165-01', 'Version 0.9.20: Path to Apex, the meter and the game plan are o
 } catch (e) { QUIET = false; T('UI-B165-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
 { const id = await page.evaluate(() => { const w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = w.id; S.view = 'decks'; S.open = true; S.tab = 'buy'; render(); return w.id; });
-  await page.reload({waitUntil:'load'}); await page.waitForTimeout(1200);
+  await page.reload({waitUntil:'load'}); await until(page, () => window.BUILD && typeof useFull === 'function' && typeof S === 'object' && S.profile && S.profile.decks && document.body.children.length > 0, 1200);
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
   T('UI-IPAD-02', 'If the page is reloaded while in the background, it reopens the same deck on the same tab instead of the home screen', st.view === 'decks' && st.open && st.deckId === id && st.tab === 'buy' && st.editing, JSON.stringify(st)); }
 } catch (e) { QUIET = false; T('UI-IPAD-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
