@@ -893,8 +893,10 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       for (const p of players) {
         const count = p.deck.hand.length;
         bindings[effect.countBind || 'thatMany'] = count;
+        bindings.discardedThisWay = Number(bindings.discardedThisWay || 0) + count;   // "the number of cards discarded this way"
         while (p.deck.hand.length) {
           const c = p.deck.hand.shift();
+          bindings.discardedCards = [...(bindings.discardedCards || []), c.instanceId];
           c.zone = 'graveyard';
           p.deck.graveyard.push(c);
           emit(bindings, { type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
@@ -921,6 +923,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
           const [c] = p.deck.hand.splice(i, 1);
           c.zone = 'graveyard';
           p.deck.graveyard.push(c);
+          bindings.discardedCards = [...(bindings.discardedCards || []), c.instanceId];   // "the discarded card's mana value", "a nonland card this way"
           emit(bindings, { type: 'discard', playerId: p.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine: definitionFor(game, c)?.typeLine || '' });
         }
         notes.push(`${p.displayName} discards ${need} card${need === 1 ? '' : 's'}.`);
@@ -1743,6 +1746,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^you have an enduring story$/i.test(t)) return { test: 'enduring-story' };
   if (/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i.test(t)) return { test: 'unique-name' };
   if ((m = t.match(/^(?:it'?s|that creature is) (?:a|an) ([A-Z][a-z]+)$/))) return { test: 'it-is', type: m[1], bind: 'lastTarget' };
   if (/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i.test(t)) return { test: 'greatest-artifact-mv' };
@@ -1789,6 +1793,14 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'opponent-more-life') return game.players.some(p => !p.eliminated && p.playerId !== controllerId && Number(p.life || 0) > Number(me?.life || 0));
   if (effect.test === 'event-power') { const h = locateCardInGame(game, bindings.eventCard || bindings.sourceId); return !!h && effectivePower(h.card, definitionFor(game, h.card), game) >= (effect.min || 0); }
   if (effect.test === 'life') return Number(me?.life || 0) >= (effect.min || 0);
+  // "When you discard a nonland card this way": the card just discarded.
+  if (effect.test === 'discarded-nonland') { const id = (bindings.discardedCards || []).slice(-1)[0], h = id && locateCardInGame(game, id); return !!h && !/\bLand\b/.test(definitionFor(game, h.card)?.typeLine || ''); }
+  if (effect.test === 'discarded-any') return (bindings.discardedCards || []).length > 0;
+  // Storied: three artifacts, legendary permanents and/or Sagas give "an enduring story for the rest of the game".
+  if (effect.test === 'enduring-story') {
+    if (me && !me.enduringStory && (me.deck?.battlefield || []).filter(c => /\bArtifact\b|\bSaga\b|\bLegendary\b/.test(definitionFor(game, c)?.typeLine || '')).length >= 3) me.enduringStory = true;
+    return !!me?.enduringStory;
+  }
   if (effect.test === 'unique-name') { const h = locateCardInGame(game, bindings.eventCard); const n = h && definitionFor(game, h.card)?.name; return !!n && !(me?.deck?.battlefield || []).some(c => c.instanceId !== h.card.instanceId && /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n) && !(me?.deck?.graveyard || []).some(c => /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n); }
   if (effect.test === 'source-cast') { const h = locateCardInGame(game, bindings.sourceId); return !!h?.card?.castMode || !!h?.card?.wasCast; }
   if (effect.test === 'control') {
@@ -3456,7 +3468,10 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
         parts.push({ effects: [], requirements: [], unsupported: [clause] });
         continue;
       }
-      parts.push(compileSingleClause(dependent[1], { sourceName }));
+      const dep = compileSingleClause(dependent[1], { sourceName });
+      // "…, where X is the number of card types the discarded card has": read as a whole sentence (the amount is worked out as it resolves).
+      const whereDep = dep.unsupported.length && /\bwhere X is\b/i.test(dependent[1]) ? compileEffectText(dependent[1], { sourceName }) : null;
+      parts.push(whereDep && whereDep.supported && whereDep.effects.length ? { effects: whereDep.effects, requirements: whereDep.requirements, unsupported: [] } : dep);
       continue;
     }
     // "Its controller may search their library for a basic land card, put it onto the battlefield tapped, then

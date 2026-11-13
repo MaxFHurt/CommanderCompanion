@@ -77,6 +77,11 @@ export function compileB101Clause(c, ctx) {
     effects.push({ kind: 'destroy', bind: first }, { kind: 'b101-each-bound', bind, effects: [{ kind: 'destroy', bind: '__each' }] });
     return true;
   }
+  // --- "When you discard a nonland card this way, ~ deals damage equal to that card's mana value to target creature or planeswalker." (Fiery Encore)
+  if ((m = c.match(/^When you discard an? (nonland )?card this way,? (.+)$/i))) {
+    const r = sub(m[2]);
+    if (r) { effects.push({ kind: 'condition', test: m[1] ? 'discarded-nonland' : 'discarded-any', skip: r.effects.length }, ...r.effects); requirements.push(...r.requirements); return true; }
+  }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
     const expr = parseCountB101(m[1]);
@@ -488,6 +493,10 @@ export function compileB101Clause(c, ctx) {
 export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
   const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
   let m;
+  // "Draw X cards, where X is the number of cards discarded this way. If you have an enduring story, ~ deals X damage to each opponent." (Balin, Loremaster)
+  if ((m = c0.match(/^Draw X cards,? where X is the number of cards discarded this way\.?$/i)) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^If you have an enduring story, (?:.+?) deals X damage to each opponent\.?$/i))) {
+    return { part: { effects: [{ kind: 'set-x', amount: { kind: 'binding', bind: 'discardedThisWay' } }, { kind: 'draw', scope: 'you', amount: 'X' }, { kind: 'condition', test: 'enduring-story', skip: 1 }, { kind: 'damage-each', amount: 'X', creatures: null, players: 'opponents', sourceName }], requirements: [], unsupported: [] }, consumed: 2 };
+  }
   // "A creature destroyed this way can't be regenerated." (Essence Vortex): the destroy before it can't be stopped by a regeneration shield.
   if (/^(?:It|That creature|A creature destroyed this way|Creatures destroyed this way) can'?t be regenerated\.?$/i.test(c0)) {
     const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'destroy');

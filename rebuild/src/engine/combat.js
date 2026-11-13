@@ -353,6 +353,7 @@ function stateBasedDeaths(game, events, onEvent) {
   }
 }
 function resolveStep(game, cs, step, events, onEvent) {
+  cs.damageSteps = Number(cs.damageSteps || 0) + 1;   // "one or more … deal combat damage" triggers once for each damage step
   const queue = [];
   for (const a of cs.attackers) {
     const attackerPlayer = locatePlayer(game, a.playerId), defender = locatePlayer(game, a.defenderId), attacker = locateCard(attackerPlayer, a.instanceId);

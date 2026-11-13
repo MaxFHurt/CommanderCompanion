@@ -860,6 +860,15 @@ function runActivate(game, op, ask) {
     const picked = rows.length ? ask('cost:sacrifice-any', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose any number of other ${anySac[1].trim()} creatures to sacrifice.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) })) : [];
     costMoveIds.push(...(picked || [])); bindings.costCount = 1 + (picked || []).length;
   }
+  if (ability.sacrificeMany) {
+    const { n, word } = ability.sacrificeMany;
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${word}s?\\b`, 'i').test(`${defOf(game, c)?.typeLine || ''} ${defOf(game, c)?.name || ''}`));   // a Treasure token's type line has no subtype: its name does
+    if (rows.length < n && !force) throw new GameError(`You need ${n} ${word}s to sacrifice.`);
+    if (rows.length) {
+      const picked = rows.length === n ? rows.map(c => c.instanceId) : ask('cost:sacrifice-many', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose ${n} ${word}s to sacrifice.`, min: n, max: n, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+      costMoveIds.push(...picked); bindings.costCount = picked.length;
+    }
+  }
   const rmAll = String(ability.cost || '').match(/Remove all ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
   if (rmAll) {
     const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));

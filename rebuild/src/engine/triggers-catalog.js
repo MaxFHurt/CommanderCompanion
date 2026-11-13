@@ -44,6 +44,19 @@ export function catalogTriggerMatch(game, row, t, event, H) {
     row.card.kutzilStamp = stamp;
     return true;
   }
+  // Olivia, Opulent Outlaw: "Whenever one or more outlaws you control deal combat damage to a player" (once for each player damaged in a damage step).
+  // Outlaws are Assassins, Mercenaries, Pirates, Rogues and Warlocks; any other type word is read as that creature type.
+  if ((m = t.match(/^Whenever one or more ([A-Za-z]+?)s? you control deal combat damage to a player\b/i)) && !/^creature$/i.test(m[1])) {
+    if (event.type !== 'combat-damage-player' || event.controllerId !== me) return false;
+    const src = (game.players || []).flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === event.sourceId);
+    const d = src && game.cardDefinitions?.[src.definitionId], subs = /^outlaw$/i.test(m[1]) ? ['Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock'] : [m[1]];
+    const line = String(d?.typeLine || ''), sub = line.split('—')[1] || '';
+    if (!src || !d || !(subs.some(x => new RegExp(`\\b${x}\\b`, 'i').test(sub)) || (/\bchangeling\b/i.test(d.oracleText || '') && /\bCreature\b/.test(line)))) return false;
+    const stamp = `${game.turnNumber}:${event.playerId}:${game.combatState?.damageSteps || 0}`;
+    if (row.card.batchDamageStamp === stamp) return false;
+    row.card.batchDamageStamp = stamp;
+    return true;
+  }
   // Mutate: "Whenever this creature mutates"
   if (/^Whenever (?:this creature|SELF|[A-Z][^,]*) mutates\b/i.test(t) && /mutates$/i.test(t)) return event.type === 'mutated' && event.sourceId === self;
   // Kardur: "Whenever an attacking creature dies"

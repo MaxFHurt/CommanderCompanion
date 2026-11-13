@@ -735,6 +735,8 @@ export function parseActivatedAbilities(definition) {
       requiresUntap: /\{Q\}/i.test(cost),
       sacrificesSelf: /Sacrifice\s+(?:this permanent|this creature|this artifact|this enchantment|this land|this planeswalker|~)\b/i.test(cost) || new RegExp(`Sacrifice\\s+${String(definition?.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(cost),
       sacrificeRequirement: (cost.match(/Sacrifice\s+(?:an?\s+|another\s+)?(creature|artifact|enchantment|land|permanent)(?: or (artifact|creature|enchantment|land))?\b/i) || []).slice(1, 3).filter(Boolean).join(' or ').toLowerCase() || null,   // "Sacrifice another creature or artifact" (Ayara)
+      // "Sacrifice two Treasures" (Olivia, Opulent Outlaw): several permanents of one kind, chosen as the cost is paid.
+      sacrificeMany: (m2 => (m2 ? { n: { a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }[m2[1].toLowerCase()] || Number(m2[1]), word: m2[2].replace(/s$/i, '').toLowerCase() } : null))(cost.match(/Sacrifice (two|three|four|five|six|\d+) (?!of\b)([A-Za-z]+?s?)(?=[,:]|$|\s*\{)/i) || cost.match(/Sacrifice (an?) (?!(?:creature|artifact|enchantment|land|permanent|planeswalker|nonland|another|other)\b)([A-Z][a-z]+)(?=[,:]|$|\s*\{)/)),
       discards: /Discard\b/i.test(cost),
       discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) ? 1 : 0,
       lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
@@ -838,6 +840,10 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     reasons.push('Not enough loyalty to pay this activation cost.');
   if (ability?.discards && player && (player.deck?.hand?.length || 0) < Math.max(1, ability.discardCount || 1))
     reasons.push('Not enough cards in hand to pay this activation cost.');
+  if (ability?.sacrificeMany && player) {
+    const have = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b${ability.sacrificeMany.word}s?\\b`, 'i').test(((d => `${d?.typeLine || ''} ${d?.name || ''}`)(definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])))).length;
+    if (have < ability.sacrificeMany.n) reasons.push(`You need ${ability.sacrificeMany.n} ${ability.sacrificeMany.word}s to sacrifice.`);
+  }
   if (ability?.sacrificeRequirement && player && !ability?.sacrificesSelf) {
     const need = String(ability.sacrificeRequirement);
     const candidates = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b(?:${need.replace(/ or /g, '|')})\\b`, 'i').test((definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])?.typeLine || ''));

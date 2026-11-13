@@ -64,6 +64,8 @@ export function parseCountB101(phrase) {
     return e2;
   }
   if ((m = p.match(/^cards? (?:that were )?put into (target player'?s|that player'?s|their|your) graveyard from (?:their|your|that player'?s|the) library this turn$/))) return { kind: 'b101-tally', what: 'milled', ...(/^your$/.test(m[1]) ? {} : { who: 'ref' }) };
+  if (/^cards? discarded this way$/.test(p)) return { kind: 'binding', bind: 'discardedThisWay' };
+  if (/^card types? the discarded card has$/.test(p)) return { kind: 'b101-discarded', what: 'types' };
   // Batch 3 part 2: counts kept from an event (life gained, creatures blocked, lands untapped as the turn began).
   if (/^1 life you gained$/.test(p) || /^life you gained$/.test(p)) return { kind: 'binding', bind: 'eventAmount' };
   if (/^creatures? (?:it|this creature)(?:'s| is| was) blocking$/.test(p)) return { kind: 'b101-blocking' };
@@ -199,7 +201,7 @@ export function parseAmountB101(phrase) {
   if ((m = p.match(/^(\d+) times (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: Number(m[1]) }; }
   if (/^(?:that spell'?s|its) mana value$/.test(p)) return { kind: 'binding', bind: 'eventManaValue' };
   // What an activation cost discarded or sacrificed (ops.js remembers it before the card leaves).
-  if (/^the (?:discarded|exiled) card'?s mana value$/.test(p)) return { kind: 'binding', bind: 'costManaValue' };
+  if (/^(?:the (?:discarded|exiled) card'?s|that card'?s) mana value$/.test(p)) return { kind: 'b101-discarded', what: 'mv' };
   if ((m = p.match(/^the number of (white|blue|black|red|green) mana symbols? in the sacrificed (?:creature|permanent|artifact)'?s mana cost$/))) return { kind: 'b101-cost-symbols', color: COLORS[m[1]] };
   if ((m = p.match(/^(\d+) or (the greatest .+?),? whichever is greater$/))) { const b = parseAmountB101(m[2]); return b == null ? null : { kind: 'b101-math', op: 'max', a: Number(m[1]), b }; }   // Triumphant Chomp
   if ((m = p.match(/^(the number of .+?) in excess of (the number of .+)$/))) { const a = parseAmountB101(m[1]), b = parseAmountB101(m[2]); return a == null || b == null ? null : { kind: 'b101-math', op: 'minus', a, b }; }   // Superior Numbers
@@ -342,6 +344,14 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-life-high': return Math.max(0, ...alive.filter(p => !expr.opponents || p.playerId !== controllerId).map(p => Number(p.life || 0)));
     case 'b101-commander-mv': return Math.max(0, ...((alive.find(p => p.playerId === controllerId)?.commanders || []).map(c => { const d = H.definitionFor(game, { definitionId: c.cardId || c.definitionId }); return Number(d?.manaValue ?? d?.cmc ?? 0); })));
     case 'b101-turn-start-lands': { const p = expr.mine ? alive.find(q => q.playerId === controllerId) : alive.find(q => q.playerId === (bindings[expr.playerBind] || bindings.eventPlayer)); return Math.max(0, Number(p?.turnStartUntappedLands || 0)); }
+    case 'b101-discarded': {
+      // The card an activation cost discarded (ops.js), else the one(s) the effect discarded: its mana value, or how many card types it has.
+      if (expr.what === 'mv' && bindings.costManaValue !== undefined) return Math.max(0, Number(bindings.costManaValue) || 0);
+      const id = (bindings.discardedCards || []).slice(-1)[0], hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
+      if (!d) return 0;
+      if (expr.what === 'mv') return Math.max(0, Number(d.manaValue ?? d.cmc ?? 0));
+      return ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'].filter(t => new RegExp(`\\b${t}\\b`).test(String(d.typeLine || '').split('—')[0])).length;
+    }
     case 'b101-cost-symbols': return Math.max(0, Number((bindings.sacrificedSymbols || {})[expr.color] || 0));
     case 'b101-mana-spent': {
       const hit = H.locateCardInGame(game, bindings.sourceId), onStack = (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId || x.id === bindings.sourceId);
