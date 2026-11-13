@@ -5,7 +5,7 @@
 export const SUPABASE_URL = 'https://wdngytwilqxcdoqtefgg.supabase.co';
 // The project's public (anon) key: safe to ship, access is limited by the row rules in cloud/supabase-recovery.sql.
 // OWNER: paste it here at release (Supabase dashboard -> Project Settings -> API).
-export const SUPABASE_ANON_KEY = 'PASTE_SUPABASE_ANON_KEY';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indkbmd5dHdpbHF4Y2RvcXRlZmdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQwNzI4ODIsImV4cCI6MjEwOTY0ODg4Mn0.ilEw4jDoDMwedxdjtYlDVEgKAfGGg5EqIwYPnk9aa6g';
 
 const EMAIL_KEY = 'cc-recovery-email';
 const TABLE = '/rest/v1/profile_recovery';
