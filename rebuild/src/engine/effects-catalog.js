@@ -14,6 +14,7 @@ import { librarySearchSpec, searchFilter } from '../game/library-search.js';
 import { compileLinkedClause, applyLinked, gatherLinked } from './effects-linked.js';
 import { compileB49Clause, compileB49Sequence, applyB49, gatherB49 } from './effects-b49.js';
 import { compileB101Clause, compileB101Sequence, applyB101, gatherB101 } from './effects-b101.js';
+import { compileB110Clause, applyB110, gatherB110 } from './effects-b110.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -619,6 +620,7 @@ function compileCatalogClauseInner(c, ctx) {
   if (compileLinkedClause(c, ctx)) return true;
   if (compileB49Clause(c, ctx)) return true;
   if (compileB101Clause(c, ctx)) return true;
+  if (compileB110Clause(c, ctx)) return true;
   return false;
 }
 
@@ -826,7 +828,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyLinked(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes);
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyLinked(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes) || applyB110(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -861,6 +863,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB49(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB101(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (gatherB110(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherLinked(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'forage') {
     const gy = player.deck.graveyard || [], foods = (player.deck.battlefield || []).filter(c => /\bFood\b/.test(util.defOf(game, c)?.typeLine || ''));

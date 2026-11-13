@@ -137,11 +137,44 @@ function manaValueFits(def, scope) {
   return m[2] === 'less' ? v <= Number(m[1]) : v >= Number(m[1]);
 }
 
+
+/** Descriptor words of a target phrase (build 110): "red or green creature", "nonblack creature", "non-Wall creature", "tapped creature",
+ *  "snow land", "creature without flying", "creature with flying". Colour and type words used to be ignored. */
+const KW_WORDS = 'flying|reach|trample|haste|vigilance|deathtouch|lifelink|menace|first strike|double strike|hexproof|shroud|indestructible|defender|flash';
+function descriptorFits(game, card, def, scope) {
+  const m = scope.match(/\btarget (?:another |other )?(.*?)\b(?:creature|permanent|artifact|enchantment|land|planeswalker|battle)s?\b/);
+  const colors = def?.colors || [], t = String(def?.typeLine || '').toLowerCase(), pre = (m ? m[1] : '').trim();
+  if (pre) {
+    const words = pre.split(/\s+/).filter(w => w && w !== 'or' && w !== 'and');
+    const want = words.filter(w => COLOR_WORDS[w]).map(w => COLOR_WORDS[w]);
+    if (want.length && !want.some(c => colors.includes(c))) return false;
+    for (const w of words) {
+      const n = w.match(/^non-?(white|blue|black|red|green)$/);
+      if (n && colors.includes(COLOR_WORDS[n[1]])) return false;
+      const sn = w.match(/^non-?([a-z]+)$/);
+      if (sn && !n && !/^(?:token|land|creature|artifact|enchantment|basic|legendary|planeswalker|commander|permanent|human)$/.test(sn[1]) && new RegExp(`\\b${sn[1]}s?\\b`).test(t.split('—')[1] || '')) return false;
+      if (w === 'tapped' && !card.tapped) return false;
+      if (w === 'untapped' && card.tapped) return false;
+      if (w === 'colorless' && colors.length) return false;
+      if (w === 'multicolored' && colors.length < 2) return false;
+      if (w === 'snow' && !/\bsnow\b/.test(t)) return false;
+    }
+    const subs = pre.match(/non-([a-z]+)/g);
+    if (subs) for (const x of subs) { const sn = x.slice(4); if (!['token','land','creature','artifact','enchantment','basic','legendary','white','blue','black','red','green'].includes(sn) && new RegExp(`\\b${sn}s?\\b`).test(t.split('—')[1] || '')) return false; }
+  }
+  const wo = scope.match(new RegExp(`\\bwithout (${KW_WORDS})\\b`));
+  if (wo && cardHasKeyword(card, def, wo[1], game)) return false;
+  const wi = scope.match(new RegExp(`\\bwith (${KW_WORDS})\\b`));
+  if (wi && !cardHasKeyword(card, def, wi[1], game)) return false;
+  return true;
+}
+
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
 function matchesPermanentScope(game, card, scope, source = null) {
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
+  if (!descriptorFits(game, card, def, scope)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;

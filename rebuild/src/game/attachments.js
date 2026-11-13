@@ -29,12 +29,15 @@ export function enchantSupported(phrase) {
   const s = String(phrase || '').toLowerCase().trim();
   if (/^(?:player|opponent|creature card in (?:a|your) graveyard)$/.test(s)) return true;
   const one = '(?:basic |legendary |nonland |noncreature |nonbasic )?(?:creature|land|artifact|enchantment|planeswalker|permanent|vehicle|equipment|battle|forest|island|swamp|mountain|plains)';
-  return new RegExp(`^${one}(?:(?:, | or |, or )${one})*(?: you control| an opponent controls| you don't control)?$`).test(s);
+  if (new RegExp(`^${one}(?:(?:, | or |, or )${one})*(?: you control| an opponent controls| you don't control)?$`).test(s)) return true;
+  // Build 110: colours, "non-Wall", tapped, snow; "without flying", "with power 3 or less" (requirements.js descriptorFits reads them).
+  const color = '(?:white|blue|black|red|green)', adj = `(?:${color}(?: or ${color})?|non-?(?!commander)[a-z]+|tapped|untapped|snow|artifact|legendary)`;
+  return new RegExp(`^(?:${adj} )*(?:creature|land|permanent|artifact|enchantment)(?: without (?:flying|reach|trample|haste|vigilance|first strike|deathtouch|lifelink)| with power \\d+ or (?:less|greater)| with mana value \\d+ or (?:less|greater))?(?: you control| an opponent controls| you don't control)?$`).test(s);
 }
 
 export function enchantTarget(def) {
   if (!/\bAura\b/i.test(def?.typeLine || '')) return null;
-  const m = String(def?.oracleText || '').match(/^Enchant ([a-z ]+?)(?:\s*\(|$)/im);
+  const m = String(def?.oracleText || '').match(/^Enchant ([a-z0-9' -]+?)(?:\s*\(|$)/im);
   return m ? m[1].trim().toLowerCase() : 'creature';
 }
 

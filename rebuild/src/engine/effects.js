@@ -4,6 +4,7 @@ import { withOverlay } from './overlay.js';
 import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, compileB101Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
+import { parseConditionB110, conditionHoldsB110 } from './effects-b110.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
@@ -1354,7 +1355,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       const rows = [];
       for (const p of (player ? [player] : game.players.filter(x => !x.eliminated && (effect.scope === 'all' || x.playerId !== controllerId))))
         for (const c of p.deck?.battlefield || [])
-          if (cardMatchesFilter(game, c, effect.filter || 'creature'))
+          if (cardMatchesFilter(game, c, effect.filter || 'creature') && !(effect.other && c.instanceId === bindings.sourceId))
             rows.push(c);
       for (const c of rows) {
         addCounter(c, effect.counter || '+1/+1', counterCount(game, c.controllerId, effect.counter || '+1/+1', amount, { creature: isCreature(definitionFor(game, c)) }));
@@ -1825,7 +1826,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
-  return parseConditionB49(t);
+  return parseConditionB49(t) || parseConditionB110(t);
 }
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
@@ -1899,6 +1900,8 @@ function conditionHolds(game, controllerId, effect, bindings) {
   if (effect.test === 'last-turn-spells') { const s = game.lastTurnSpells || { total: 0, most: 0 }; return effect.none ? s.total === 0 : s.most >= (effect.atLeast || 2); }
   const b49 = conditionHoldsB49(game, controllerId, effect, bindings);
   if (b49 !== undefined) return b49;
+  const b110 = conditionHoldsB110(game, controllerId, effect, bindings);
+  if (b110 !== undefined) return b110;
   return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {
@@ -2508,7 +2511,8 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Put (a|an|one|two|\d+) (\+1\/\+1|[A-Za-z]+) counters? on each ([A-Z][a-z]+) creature you control\.?$/i))) {
-    effects.push({ kind: 'counter-each', scope: 'you', filter: `creature|type:${m[3].toLowerCase()}`, counter: m[2], amount: numberFromText(m[1]) });
+    if (/^other$/i.test(m[3])) effects.push({ kind: 'counter-each', scope: 'you', filter: 'creature', other: true, counter: m[2], amount: numberFromText(m[1]) });
+    else effects.push({ kind: 'counter-each', scope: 'you', filter: `creature|type:${m[3].toLowerCase()}`, counter: m[2], amount: numberFromText(m[1]) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^All creatures get ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i))) {
@@ -2959,7 +2963,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
   if ((m = c.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on each (.+?)\.?$/i)) && !/^of /i.test(m[3])) {
     const filter = filterFromNoun(m[3]);
     if (!filter) return false;
-    effects.push({ kind: 'counter-each', scope: scopeOfPhrase(m[3]), filter, counter: m[2], amount: numberFromText(m[1]) });
+    effects.push({ kind: 'counter-each', scope: scopeOfPhrase(m[3]), filter, counter: m[2], amount: numberFromText(m[1]), ...(/^(?:each |all )?other\b/i.test(m[3]) ? { other: true } : {}) });
     return true;
   }
   if ((m = c.match(/^Put (a|an|one|two|three|\d+) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on each of up to (two|three|four|\d+) target (.+?)\.?$/i))) {

@@ -104,11 +104,25 @@ function conditionalSelf(game, card, def) {
   }
   return out;
 }
+/** "… for as long as ~ remains tapped" (build 110): effects registered in game.whileTapped end when their source untaps or leaves. */
+export function pruneWhileTapped(game) {
+  const regs = game?.whileTapped;
+  if (!regs?.length) return;
+  const keep = [];
+  for (const r of regs) {
+    const src = (game.players || []).flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === r.sourceId);
+    if (src?.tapped) { keep.push(r); continue; }
+    for (const p of game.players || []) for (const c of p.deck?.battlefield || []) if ((c.temporaryEffects || []).some(e => e?.whileTappedOf === r.sourceId)) c.temporaryEffects = c.temporaryEffects.filter(e => e?.whileTappedOf !== r.sourceId);
+  }
+  game.whileTapped = keep;
+}
 function rawPower(card, def, game) {
+  pruneWhileTapped(game);
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
   return numStat(def?.power) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'power') + anthem.power + self.power + conditionalSelf(game, card, def).power;
 }
 function rawToughness(card, def, game) {
+  pruneWhileTapped(game);
   const anthem = continuousPtBonus(game, card), self = selfScalingPt(game, card, def);
   return numStat(def?.toughness) + Number(card?.counters?.['+1/+1'] || 0) - Number(card?.counters?.['-1/-1'] || 0) + temporaryPt(card, 'toughness') + anthem.toughness + self.toughness + conditionalSelf(game, card, def).toughness;
 }
@@ -123,6 +137,7 @@ export function effectiveToughness(card, def, game = null) {
 /** "Your life total can't change" (Teferi's Protection until your next turn, Flare of Fortitude this turn). */
 export function lifeFixed(game, p) { return !!p?.lifeLocked && (p.lifeLockedTurn == null || p.lifeLockedTurn === game?.turnNumber); }
 export function cardHasKeyword(card, def, name, game = null) {
+  pruneWhileTapped(game);
   const n = String(name || ''), low = n.toLowerCase();
   // "loses hexproof and indestructible until end of turn" (Shadowspear) wins over every source of the keyword.
   if ((card?.temporaryEffects || []).some(e => e?.kind === 'keyword' && e.enabled === false && String(e.keyword || '').toLowerCase() === low))
