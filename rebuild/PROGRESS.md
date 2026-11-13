@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.106 (Deck Builder 0.9.69, build 214)
+- **Live build:** 1.0.0-rebuild.107 (Deck Builder 0.9.70, build 215)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -58,6 +58,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 107 — 13 Nov 2026 (Deck Builder 0.9.70, build 215; app 1.0.0-rebuild.107): power bar agrees with Build stats; faster decklist pictures
+- Owner, 13 Nov: swaps "drastically dropped the deck score on the upgrades page power bar but didn't drop nearly as much on the stats page"; chose "Deck score vs Apex". The bar was the mean card strength (EDHREC play rates by bracket, squared); it is now 100 x deck score / Apex build's score, capped at 100, with Budget and Mid marks on the same scale. Upgrade picks unchanged (strengthPower). ui/upgrades.js; UI-POWER-01 (new), UI-B164-01 updated.
+- Decklist pictures (roadmap 7f.2): every redraw rebuilt the page and threw away loaded <img> nodes; they are now kept (ui/cards.js render) and the page preconnects to cards.scryfall.io. Rows already used the small art crop; the service worker already cached images. UI-IMG-01 (new).
+- UI-B144-02: a stale EDHREC load from an earlier test left the build-ahead spec empty; the test now re-asks (test-only, not player-visible).
+- Tests (suites.sh, screens live, with other jobs on the CPU): UI suite 146 passed, 3 failed side by side (UI-SET-01, UI-PLAN-03, UI-B144-02); all 3 pass alone. Quick check 12.
+- Note: on the Turtle Power precon the Budget and Mid marks sit at 98 and 100 of Apex: the reference builds score close together; to revisit with the strength work (build 108).
 
 ### Build 106 — 13 Nov 2026 (Deck Builder 0.9.69, build 214; app 1.0.0-rebuild.106): generated decks keep the price level and the theme
 - Owner, 13 Nov: "The generated decks always being apex and not sticking to the deck theme destroys a great thing." Cause: the Generate panel reset to Apex + Best overall (Theme first off) every time it opened; the empty-deck setup pop-up had no Theme first.
