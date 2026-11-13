@@ -1236,7 +1236,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         continue;
       }
       const to = effect.kind === 'exile' ? 'exile' : effect.kind === 'bounce' ? 'hand' : 'graveyard';
-      if (effect.kind === 'destroy' && regenerates(game, hit.card, notes)) continue;
+      if (effect.kind === 'destroy' && !effect.noRegen && regenerates(game, hit.card, notes)) continue;
       if (effect.kind === 'destroy' && Number(hit.card?.counters?.shield || 0) > 0) {
         hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);
         notes.push(`${name}'s shield counter prevents the destruction.`);

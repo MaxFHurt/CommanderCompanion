@@ -4,6 +4,7 @@
 // game already runs (the same effect for another subject, another player or several targets), so the game's own
 // rules for that effect apply. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { effectivePower, effectiveToughness } from './combat.js';
 import { parseCountB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101, listCardsB101 } from './amounts-b101.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
@@ -41,6 +42,21 @@ export function compileB101Clause(c, ctx) {
   if ((m = c.match(/^(?:Then )?put X ((?:[+-]\d+\/[+-]\d+|[a-z]+) counters on .+)$/i)) && !/\btwo\b/i.test(m[1])) {
     const r = sub(`Put two ${m[1]}`);
     if (r && r.effects.some(e => e.amount === 2)) { r.effects.forEach(e => { if (e.amount === 2) e.amount = 'X'; }); if (!r.requirements.some(q => q.kind === 'number')) r.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }); return take(r); }
+  }
+  // --- "… unless its controller pays life equal to its toughness / has it deal damage to them / unless they sacrifice a creature":
+  // the other player's choice, asked of them as the effect resolves (requirement b101-unless), then done as that player.
+  if ((m = c.match(rx(`^(Destroy target [a-z ]+?) unless its controller (pays life equal to its toughness|has ${SELFP} deal damage to them equal to (?:his|her|its) power)\\.?$`)))
+    || (m = c.match(rx(`^(that player loses life equal to the number of creatures they control) unless they (sacrifice a creature of their choice)\\.?$`)))) {
+    const mode = /pays life/i.test(m[2]) ? 'life-toughness' : /deal damage/i.test(m[2]) ? 'damage-power' : 'sacrifice';
+    const whole = /^that player/i.test(m[1]) ? H.compileEffectText(`${cap(m[1])}.`, { sourceName }) : null;   // "that player" is the trigger's player, read as a whole sentence
+    const r = whole ? (whole.supported ? { effects: whole.effects, requirements: whole.requirements } : null) : sub(`${m[1]}.`);
+    const t = mode === 'sacrifice' ? null : r?.requirements.find(q => q.kind === 'target');
+    if (r && (mode === 'sacrifice' || t)) {
+      const bind = `unless${requirements.length}`;
+      requirements.push(...r.requirements, { kind: 'b101-unless', bind, mode, ...(t ? { deciderTarget: t.bind } : { deciderBind: 'eventPlayer' }), sourceName, label: 'Decide' });
+      effects.push({ kind: 'b101-unless-do', bind, mode, ...(t ? { deciderTarget: t.bind } : { deciderBind: 'eventPlayer' }), skip: r.effects.length, sourceName }, ...r.effects);
+      return true;
+    }
   }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
@@ -453,6 +469,11 @@ export function compileB101Clause(c, ctx) {
 export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
   const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
   let m;
+  // "A creature destroyed this way can't be regenerated." (Essence Vortex): the destroy before it can't be stopped by a regeneration shield.
+  if (/^(?:It|That creature|A creature destroyed this way|Creatures destroyed this way) can'?t be regenerated\.?$/i.test(c0)) {
+    const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'destroy');
+    if (d) { d.noRegen = true; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
+  }
   // "~ deals 2 damage to that land's controller." — the controller of what was targeted before, or of the trigger's card.
   if ((m = c0.match(/^(?:.+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[1]) !== null) {
     const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'stack-target');
@@ -553,6 +574,24 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
     case 'b101-damage-others':
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-each', amount: effect.amount, filter: `creature|not-id:${String(bindings.sourceId || '').toLowerCase()}`, creatures: 'all', players: effect.players, sourceName: effect.sourceName }], bindings));
       return true;
+    case 'b101-unless-do': {
+      // The player the choice was asked of did it (or not); what follows is skipped when they did.
+      const ans = bindings[effect.bind];
+      if (!ans || ans === 'no') return true;
+      const decider = unlessDecider(game, effect, bindings);
+      if (!decider) return true;
+      let did = false;
+      if (effect.mode === 'life-toughness') {
+        const hit = locateCardInGame(game, bindings[effect.deciderTarget]), n = hit ? Math.max(0, Number(effectiveToughness(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
+        if (Number(decider.life || 0) >= n) { notes.push(...H.applyEffectsUnsafe(game, decider.playerId, [{ kind: 'life', scope: 'you', amount: n, deltaSign: -1 }], bindings)); notes.push(`${decider.displayName} pays ${n} life.`); did = true; }
+      } else if (effect.mode === 'damage-power') {
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: { kind: 'source-power' }, playerId: decider.playerId, sourceName: effect.sourceName }], bindings)); did = true;
+      } else if (effect.mode === 'sacrifice' && locateCardInGame(game, ans)) {
+        notes.push(...H.applyEffectsUnsafe(game, decider.playerId, [{ kind: 'sacrifice', targetId: ans, soft: true }], bindings)); did = true;
+      }
+      if (did) { bindings.skipEffects = effect.skip || 0; notes.push('It was paid for.'); }
+      return true;
+    }
     case 'b101-discard-chosen':
     case 'b101-sac-unless-discard': {
       if (!controller) return true;
@@ -591,9 +630,32 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
   }
 }
 
+/** The player an "unless" choice belongs to: the controller of the targeted card, or the trigger's player. */
+function unlessDecider(game, req, bindings) {
+  if (req.deciderTarget) { const hit = locateCardInGame(game, bindings[req.deciderTarget]); const id = hit?.card?.controllerId || hit?.player?.playerId; return playerById(game, id) || null; }
+  return playerById(game, bindings[req.deciderBind]) || null;
+}
+
 /** Requirement kinds made above, asked by requirements.js. Returns true when handled. */
 export function gatherB101(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
+  if (req.kind === 'b101-unless') {
+    // "… unless its controller pays life equal to its toughness": asked of that player, on their own device.
+    const q = unlessDecider(game, req, bindings), src = locateCardInGame(game, bindings.sourceId);
+    if (!q || q.eliminated) { bindings[req.bind] = 'no'; return true; }
+    const who = { ...base, playerId: q.playerId, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — ${q.displayName}` };
+    if (req.mode === 'life-toughness') {
+      const hit = locateCardInGame(game, bindings[req.deciderTarget]), n = hit ? Math.max(0, Number(effectiveToughness(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
+      bindings[req.bind] = !hit ? 'no' : ask(key, () => ({ ...who, prompt: `Pay ${n} life to keep ${definitionFor(game, hit.card)?.name || 'your creature'}?`, options: [{ id: 'pay', label: `Pay ${n} life`, disabled: Number(q.life || 0) < n }, { id: 'no', label: 'Don\u2019t pay (it is destroyed)' }] }));
+    } else if (req.mode === 'damage-power') {
+      const n = src ? Math.max(0, Number(effectivePower(src.card, definitionFor(game, src.card), game) || 0)) : 0;
+      bindings[req.bind] = ask(key, () => ({ ...who, prompt: `Have ${req.sourceName} deal ${n} damage to you to stop the effect?`, options: [{ id: 'do', label: `Take ${n} damage` }, { id: 'no', label: 'Don\u2019t (it is destroyed)' }] }));
+    } else {
+      const rows = (q.deck.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || ''));
+      bindings[req.bind] = !rows.length ? 'no' : ask(key, () => ({ ...who, prompt: 'Sacrifice a creature to stop the life loss?', options: [...rows.map(c => ({ id: c.instanceId, label: `Sacrifice ${definitionFor(game, c)?.name || 'a creature'}`, instanceId: c.instanceId, definitionId: c.definitionId })), { id: 'no', label: 'Don\u2019t sacrifice' }] }));
+    }
+    return true;
+  }
   if (req.kind === 'b101-hand-cards') {
     // The player's own cards: private, chosen by them as the effect resolves.
     const rows = (player.deck.hand || []).filter(card => !req.filter || new RegExp(`\\b${req.filter}\\b`, 'i').test(util.defOf(game, card)?.typeLine || ''));
