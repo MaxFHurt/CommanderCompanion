@@ -40,6 +40,16 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ---
 
+## Order of work (owner, 13 Nov: "All judgement tools should come last on actual changes, right before the code
+optimization. That way we don't have to rework anything later due to new mechanics.")
+
+1. **Features and screens** that are not judgement: 1.4 device checks, 4, 4b, 7, 7b, 7c, 7f.2, test-suite speed.
+2. **Card rules and mechanics**: section 2 (the long tail, the mechanics still by hand: Connive, Forage …).
+3. **Judgement tools**, once the rules are complete: deck score, card strength and the power bar's marks, mana rules,
+   upgrade reasons, Fix menu picks, generator picks, game-plan awareness (6, 6b, 7f.3, 7f.5, 5.1-5.2). Parked work for this
+   step: `rebuild/wip/README.md`.
+4. **Optimise all the code** (section 99), after everything else.
+
 ## 1. Check first after the reset (owed from the minimum-testing week)
 
 1. **(Done, build 68.)** **Run every suite once on the live build** (the full list above, plus `offline_ui.py`, `pair_ui.py`, and the Deck Builder

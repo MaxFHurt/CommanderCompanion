@@ -25,11 +25,15 @@
   keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
   per change while working; the full run once before the batch goes live.
 
-- **No card building for now** (owner, 13 Nov): no new card rules or mechanics (Connive, Forage, long-tail wordings …) from
-  this work until every other roadmap item is done or being worked on. The long-tail chat's own work is separate.
+- **Order of work** (owner, 13 Nov; replaces "no card building for now"): (1) features and screens, (2) card rules and
+  mechanics (long tail, Connive, Forage …), (3) judgement tools: deck score, card strength, mana rules, reasons, Fix picks,
+  generator picks, game-plan awareness: last of the real changes, so new mechanics never force rework, (4) optimise all code.
+  Judgement work in progress was parked in `rebuild/wip/` (see its README). See `rebuild/ROADMAP.md` "Order of work".
+- **This session also runs the other chats' tasks** (owner, 13 Nov), including the rules long tail and `team/apex2`.
 
 ## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)
 - Ship only fully tested batches; anything that makes something worse is discussed with the owner first.
 - Never undo another session's work: `git fetch` and build on `origin/main` before pushing.
 - Every push updates PROGRESS.md; release steps are in the `release` skill.
-- The rules long tail (rebuild/src/engine, ~9,670 cards left) has its own chat: stay out of it unless asked. Its map: `rebuild/INDEX.md` "Rules long tail".
+- The rules long tail (rebuild/src/engine, ~9,670 cards left): map in `rebuild/INDEX.md` "Rules long tail"; owner's rules for it:
+  batches of 500 newly automated cards, check in after each; misread cards go back to by hand and must then be fixed.
