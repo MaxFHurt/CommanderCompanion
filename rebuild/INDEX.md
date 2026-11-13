@@ -11,6 +11,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Open work | ROADMAP.md (sections 1-8; 7e-7f = latest owner reports) |
 | Game test list | HANDOFF.md §6 |
 | Deck Builder tests | deck/tools/tests/suite/README.md, check.sh |
+| Which suites a batch needs (and runs them) | tools/suites.sh [base] plan\|run |
 | Release steps | `.claude/skills/release/SKILL.md` |
 
 ## Deck Builder (`deck/`; sources in engine/ and ui/, bundled by `sh deck/tools/build.sh` into app.min.js / engine.min.js)
