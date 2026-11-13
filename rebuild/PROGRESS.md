@@ -7,10 +7,10 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.102 (Deck Builder {"build": 212, "version": "0.9.67"})
+- **Live build:** 1.0.0-rebuild.103 (Deck Builder {"build": 212, "version": "0.9.67"})
 - **Top 1,000:** 1,000 run by themselves (all done).
-- **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; long-tail batch 2, on the branch,
-  not yet live). Live build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
+- **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
+  Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
   handful of cards. Of the 272 cards batch 1 sent back to "by hand" for being misread, 178 now run correctly; 94 remain.
 - **Status: paused** (owner, 1 Nov: "pause all other work … until I have data to press forward with"). Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. Pick up from "Paused: not finished" below when the owner says go.
@@ -179,7 +179,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 ### Build 90 — 2 Nov 2026
 - Deck Builder 0.9.56 (build 201): card quality shown as the deck's rating against its Apex build by what the cards do (synergy, balance, ways to win, mana), not popularity; Budget and Mid decks keep their under-$3/$12 line. Upgrade picks unchanged: scoring picks by it lowered the benchmark (0.221/0.203/0.287), so the owner chose display only (UP.qEff stays 0).
 
-### Long tail, batch 2 — 12 Nov 2026 (branch only; check-in at 500, owner's rule)
+### Build 103 — 13 Nov 2026: long tail, batch 2 (owner, 13 Nov: send it live)
 - **679 more cards run by themselves** (21,958 → 22,630 of 32,300; one misread card sent back). Owner, 12 Nov: batches of
   500; fix the cards sent back; nothing left by hand.
 - **Amounts read from the text** (new `src/engine/amounts-b101.js`): whose cards ("you control", "your opponents control",
