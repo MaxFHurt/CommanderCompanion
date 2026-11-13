@@ -731,7 +731,7 @@ export function parseActivatedAbilities(definition) {
       requiresTap: /\{T\}/i.test(cost),
       requiresUntap: /\{Q\}/i.test(cost),
       sacrificesSelf: /Sacrifice\s+(?:this permanent|this creature|this artifact|this enchantment|this land|this planeswalker|~)\b/i.test(cost) || new RegExp(`Sacrifice\\s+${String(definition?.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(cost),
-      sacrificeRequirement: (cost.match(/Sacrifice\s+(?:an?\s+)?(creature|artifact|enchantment|land|permanent)\b/i) || [])[1] || null,
+      sacrificeRequirement: (cost.match(/Sacrifice\s+(?:an?\s+|another\s+)?(creature|artifact|enchantment|land|permanent)(?: or (artifact|creature|enchantment|land))?\b/i) || []).slice(1, 3).filter(Boolean).join(' or ').toLowerCase() || null,   // "Sacrifice another creature or artifact" (Ayara)
       discards: /Discard\b/i.test(cost),
       discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) ? 1 : 0,
       lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
@@ -837,7 +837,7 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     reasons.push('Not enough cards in hand to pay this activation cost.');
   if (ability?.sacrificeRequirement && player && !ability?.sacrificesSelf) {
     const need = String(ability.sacrificeRequirement);
-    const candidates = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b${need}\\b`, 'i').test((definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])?.typeLine || ''));
+    const candidates = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b(?:${need.replace(/ or /g, '|')})\\b`, 'i').test((definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])?.typeLine || ''));
     if (!candidates.length)
       reasons.push(`No legal ${need.toLowerCase()} is available to sacrifice.`);
   }

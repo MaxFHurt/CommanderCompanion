@@ -138,12 +138,13 @@ function manaValueFits(def, scope) {
 }
 
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
-function matchesPermanentScope(game, card, scope) {
+function matchesPermanentScope(game, card, scope, source = null) {
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
+  if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
   if (/with a counter on it/.test(scope) && !Object.values(card.counters || {}).some(v => Number(v) > 0)) return false;
   if (/\bnontoken\b/.test(scope) && card.token) return false;
   if (/\btoken\b/.test(scope.replace(/\bnontoken\b/g, '')) && !card.token) return false;
@@ -152,9 +153,17 @@ function matchesPermanentScope(game, card, scope) {
   const sub = scope.match(/target (?:another |other )?([a-z]+) (?:creature|you control|an opponent controls)/);
   if (sub && !/^(attacking|blocking|tapped|untapped|nontoken|token|legendary|nonlegendary|basic|nonbasic|white|blue|black|red|green|colorless|multicolored|monocolored|noncreature|nonland|nonartifact|nonblack|nonwhite|nonblue|nonred|nongreen|artifact|enchantment|land|creature|planeswalker|battle|permanent|equipped|enchanted|modified|face-down|other|another|unblocked|blocked)$/.test(sub[1])
     && !new RegExp(`\\b${sub[1]}s?\\b`, 'i').test(t.split('—')[1] || '') && !/\bChangeling\b/.test(def?.oracleText || '')) return false;
+  // Yasova Dragonclaw: "with power less than Yasova Dragonclaw's power" (this card's power, as it is now)
+  if (/with power less than [a-z' ,-]*'s power/.test(scope)) { const sp = source ? Number(effectivePower(source, defOf(game, source), game)) : 0; if (!(Number(effectivePower(card, def, game)) < sp)) return false; }
   const pw = scope.match(/with power (\d+) or (less|greater)/);
   if (pw) { const p = Number(effectivePower(card, def, game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
   return true;
+}
+
+/** Is `card` blocking `source`, or blocked by it? */
+function blockedPair(game, source, card) {
+  if (!source) return false;
+  return Object.values(game.combatState?.blocks || {}).some(b => (b?.assignments || []).some(x => (x.attackerId === source.instanceId && x.blockerId === card.instanceId) || (x.blockerId === source.instanceId && x.attackerId === card.instanceId)));
 }
 
 /** Legal choices for a single-target style requirement. */
@@ -205,12 +214,15 @@ export function candidatesFor(game, req, player, source = null) {
     }
     if (/any target|any other target|creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment/.test(scope)) {
       const anyTarget = /any (?:other )?target/.test(scope);
-      const dontControl = /you don'?t control|an opponent controls|your opponents control/.test(scope);
-      const owners = dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
+      const defending = /defending player controls/.test(scope);   // "target creature defending player controls": the player this attacker is attacking
+      const defenderId = defending && source ? (game.combatState?.attackers || []).find(a => a.instanceId === source.instanceId)?.defenderId : null;
+      const dontControl = defending || /you don'?t control|an opponent controls|your opponents control/.test(scope);
+      const owners = defenderId && alivePlayers(game).some(q => q.playerId === defenderId) ? alivePlayers(game).filter(q => q.playerId === defenderId) : dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
       for (const q of owners) for (const c of q.deck.battlefield || []) {
         if (anyTarget) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
-        } else if (!matchesPermanentScope(game, c, scope)) continue;
+        } else if (!matchesPermanentScope(game, c, scope, source)) continue;
+        if (/blocking or blocked by it/.test(scope) && !blockedPair(game, source, c)) continue;   // Steadfast Armasaur: a creature blocking it or blocked by it
         if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }

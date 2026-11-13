@@ -131,7 +131,7 @@ function emit(game, event) {
 /** Leaving the battlefield: remember counters for "dies" abilities, then reset the card. */
 function leaveBattlefield(card, to = 'graveyard') {
   delete card.temporaryGrants;
-  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0) };
   card.damageMarked = 0;
   card.deathtouchDamage = false;
   card.counters = {};
@@ -388,6 +388,7 @@ function putSpellOnStack(game, player, action, deck) {
   // the colours of mana spent on it (Sunburst)
   stackObject.colorsSpent = [...new Set([...Object.entries(action.payment || {}).filter(([k, v]) => /^[WUBRG]$/.test(k) && Number(v) > 0).map(([k]) => k), ...(action.payment?.__sourceAssignments || []).map(a => a.color).filter(c => /^[WUBRG]$/.test(c))])];
   const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
+  stackObject.manaSpentCount = manaSpent;   // "the amount of mana spent to cast this spell"
   emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }

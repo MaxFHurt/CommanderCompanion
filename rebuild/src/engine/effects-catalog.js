@@ -53,6 +53,12 @@ function selfNameRegex(sourceName) {
   const names = [...new Set([full, short].filter(n => n.length > 1))].sort((a, b) => b.length - a.length).map(esc);
   return names.length ? rx(`\\b(?:${names.join('|')})(?![\\w'])`, 'g') : null;
 }
+/** Only the build-101 wordings (effects-b101.js), for a sentence an older reading swallowed more than its target of. */
+export function compileB101Only(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  const c = re ? c0.replace(re, 'SELFNAME') : c0;
+  return compileB101Clause(c, { ...ctx0, selfAny: SELF_STATIC, restore: s => String(s).replace(/SELFNAME/g, ctx0.sourceName) });
+}
 export function compileCatalogClause(c0, ctx0) {
   const re = selfNameRegex(ctx0.sourceName);
   const c = re ? c0.replace(re, 'SELFNAME') : c0;
@@ -943,7 +949,7 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   if ((m = c0.match(/^Each player discards all the cards in their hand, then draws that many cards( minus one)?\.?$/i)))
     return { part: { effects: [{ kind: 'twister', discard: true, draw: 'that-many', minus: m[1] ? 1 : 0 }], requirements: [], unsupported: [] }, consumed: 1 };
   // Look at / reveal the top N cards, then distribute them.
-  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?\.?$/i))) {
+  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?(,? then put them back in any order)?\.?$/i))) {
     const amount = /^card$/i.test(m[2]) ? 1 : num(m[2]);
     const reveal = /reveal/i.test(m[1]);
     const amountExpr = m[4] ? whereXExpr(m[4]) : null;
@@ -959,8 +965,8 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const playerReq = /target/.test(whose) ? { kind: 'player', bind: `digPlayer${i}`, scope: /opponent/.test(whose) ? 'opponent' : 'player', label: whose.replace(/'s$/, '') } : null;
     const ofPlayer = playerReq ? playerReq.bind : /that player/.test(whose) ? 'eventPlayer' : null;
     const picks = [];
-    let rest = null, k = 1;
-    for (; k <= 3 && i + k < clauses.length; k++) {
+    let rest = m[6] ? { to: 'top', order: 'any' } : null, k = 1;   // "… then put them back in any order"
+    for (; !m[6] && k <= 3 && i + k < clauses.length; k++) {
       const s = next(k);
       const p = parsePick(s);
       if (p) { picks.push(p.pick); if (p.rest) { rest = p.rest; k++; break; } continue; }
@@ -1666,7 +1672,10 @@ function compileRound3(c, ctx, subjectBind) {
   // "the sacrificed creature's power" (a sacrifice cost): Greater Good, Altar of Dementia.
   if (/the sacrificed (?:creature|permanent|artifact)'s (power|toughness|mana value)/i.test(c)) {
     const stat = /power/i.test(c) ? 'sacrificedPower' : /toughness/i.test(c) ? 'sacrificedToughness' : 'sacrificedManaValue';
-    const inner = H.compileSingleClause(ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life').replace(/damage equal to X\b/i, 'X damage')), { sourceName });
+    const swapped = ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life').replace(/damage equal to X\b/i, 'X damage'));
+    // "Ayara deals X damage to target opponent or battle and you gain X life": both halves read as one instruction, X set first.
+    const whole = / and /.test(swapped) ? H.compileEffectText(swapped.replace(/,? where X is X\.?$/i, '.'), { sourceName }) : null;
+    const inner = whole?.supported && whole.effects.length ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : H.compileSingleClause(swapped, { sourceName });
     if (!inner.unsupported.length && inner.effects.length) {
       effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: stat } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')));
       return true;

@@ -792,7 +792,7 @@ function runActivate(game, op, ask) {
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
   if (ability.sacrificeRequirement && !ability.sacrificesSelf) {
     const type = ability.sacrificeRequirement;
-    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${type === 'permanent' ? '' : type}`, 'i').test(defOf(game, c)?.typeLine || ''));
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b(?:${type === 'permanent' ? '' : type.replace(/ or /g, '|')})`, 'i').test(defOf(game, c)?.typeLine || ''));
     if (!rows.length) throw new GameError(`You have no ${type.toLowerCase()} to sacrifice.`);
     const sacrificedId = ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) }));
     // "the sacrificed creature's power" (Greater Good, Altar of Dementia, Ayli): remembered before it leaves.
@@ -1146,7 +1146,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;
