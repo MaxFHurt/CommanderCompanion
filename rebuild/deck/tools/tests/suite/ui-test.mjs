@@ -1886,6 +1886,24 @@ const hist2 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x.id !== d.id); S.view = 'home'; touch(); render(); return out; });
 T('UI-HIST-02', 'Deck history: a change from another window or device keeps the earlier cards as a version, and not twice when that device kept it', hist2.kept && hist2.once && /another device/.test(hist2.label || ''), JSON.stringify(hist2));
 } catch (e) { QUIET = false; T('UI-HIST-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-POWER-01')) { try { if (SHARD) await RESET();
+// 13 Nov (owner): the Upgrades power bar is this deck's deck score as a share of its Apex build's score, the number Build stats shows.
+const pow1 = await page.evaluate(async () => { const out = {}; const sleep = ms => new Promise(r => setTimeout(r, ms));
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  const ready = async () => { for (let i = 0; i < 200 && !(apexFor(d) && apexFor(d).tot && apexFor(d).tot.apex > 0); i++) { await sleep(100); if (i % 10 === 0) render(); } EVC.delete(d.id); S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await sleep(200); render(); };
+  const read = () => { const strip = (document.querySelector('.statbar') || {}).textContent || '', e = evalFor(d), T = refOrder(apexFor(d).tot); return {bar: +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1), exact: e.exact, total: e.total, apex: T.apex, want: Math.round(Math.min(100, 100 * e.exact / T.apex))}; };
+  await ready(); const a = read(); out.a = a; out.eq = a.bar === a.want;
+  S.tab = 'stats'; render(); out.statsScore = +((/Deck score(\d+)/.exec((document.querySelector('#stats-more .sgrid') || {}).textContent || '') || [])[1]); out.statsEq = out.statsScore === a.total && a.bar === Math.round(Math.min(100, 100 * out.statsScore / a.apex));
+  S.tab = 'up'; render();
+  /* swap out the deck's strongest non-land card for a plain one */
+  const base0 = evalFor(d).exact, cands = d.cards.filter(x => { const c = find(x.n); return c && !tags(c).land && x.n !== d.commander; }).slice(0, 40); let strong = null, drop = 0;
+  for (const x of cands) { const q = x.q, n = x.n; cutCard(d, n, q); EVC.delete(d.id); const v = base0 - evalFor(d).exact; addCard(d, n, q); if (v > drop) { drop = v; strong = {n}; } }
+  EVC.delete(d.id);
+  out.cut = strong && strong.n; if (strong) { const q = d.cards.find(x => x.n === strong.n).q; cutCard(d, strong.n, q); addCard(d, 'Forest', q); }
+  await ready(); const b = read(); out.b = b; out.moved = Math.sign(b.exact - a.exact) === Math.sign(b.bar - a.bar) && b.exact !== a.exact; out.dEq = Math.abs((b.exact - a.exact) * 100 / a.apex - (b.bar - a.bar)) <= 1.01;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-POWER-01', 'The Upgrades power bar is the deck score as a share of the Apex build’s score (same number as Build stats); swapping out a strong card moves bar and score together by 100×Δscore/apexScore', pow1.eq && pow1.statsEq && pow1.moved && pow1.dEq, JSON.stringify(pow1));
+} catch (e) { QUIET = false; T('UI-POWER-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B164-01')) { try { if (SHARD) await RESET();
 // Deck power (owner, 30 Oct): the deck score as a share of this deck's Apex build's score, Budget and Mid builds marked the same
 // way, on the strip and the meter, and what keeps the deck below the next level, part by part.
@@ -1896,8 +1914,7 @@ const b164 = await page.evaluate(async () => { const out = {};
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
   out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.leg = leg; out.marks = /Apex\s*100/.test(leg);
   const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);
-  /* 0.9.59: with card strength on (UP.str), power is the deck's card strength from replacement level (0) to its Apex build (100), the Budget and Mid builds marked the same way */
-  if (strengthOn(d)) { const SP = strengthPower(d); out.str = true; out.match = out.power === Math.round(SP.power); out.floor = new RegExp('Budget\\s*' + Math.round(SP.budget)).test(leg) && new RegExp('Mid\\s*' + Math.round(SP.mid)).test(leg); }   /* 30 Oct: power is the share of the Apex build's score */
+  /* 13 Nov: the bar is the deck score against the Apex build's score even with card strength on (UP-POWER-01 checks it against the stats page) */
   openDeckPop(); out.gaps = [...document.querySelectorAll('#modal .gapbox li')].map(x => x.textContent.slice(0, 40)); $('#modal').hidden = true;   /* 0.9.29: in Show all details */ out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
   S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });

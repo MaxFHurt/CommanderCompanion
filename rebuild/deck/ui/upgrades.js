@@ -2543,7 +2543,7 @@ function tmeterHtml(qp, mk, lvl, sc, power) {
     lab = (k, name, v) => '<span class="tml ' + k + '"><i></i>' + name + ' <b>' + v + '</b></span>';
   return (
     '<div class="tmeter" role="img" aria-label="' +
-    (power ? 'Deck power ' + qp + ' (Budget build 70, Mid 85, Apex 100); ' : 'Card quality ' + qp + '% of the Apex build; ') +
+    (power ? 'Deck power ' + qp + ' (deck score as a share of the Apex build); ' : 'Card quality ' + qp + '% of the Apex build; ') +
     lvlName(lvl) +
     ' level"><i><b style="width:' +
     x(qp).toFixed(1) +
@@ -2707,31 +2707,23 @@ function statsHtml(d, A, R, mode) {
   // (Apex = 100). Card quality alone could put a strong deck below Budget. Before the references are scored, card quality stands in.
   // UP.str (roadmap 6.1): power by card strength, from replacement level (0) to this deck's Apex build (100), with its own
   // Budget and Mid builds marked (engine/strength.js)
-  const SP = typeof strengthOn === 'function' && strengthOn(d) ? strengthPower(d) : null;
+  // (Owner, 13 Nov: the bar is the deck score against the Apex build's score, so it always agrees with Build stats; strengthPower still drives picks and gains, not this bar.)
   const T0r = (apexFor(d) || {}).tot,
     T0 = refOrder(T0r),
-    pw = SP ? SP.power : e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+    pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
     // the apex deck's power"; "appear to make progress, not be a belittling or demeaning stat", and no false information).
     // The Budget and Mid builds are marked the same way. (Before: Budget 70, Mid 85, Apex 100 with a steep curve below Budget.)
     pwr = pw,
     pctOf = v => (T0 && T0.apex > 0 ? (100 * v) / T0.apex : null),
     pc = v => Math.max(0, Math.min(100, Math.round(v)));
-  const mk = SP ? {budget: SP.budget, mid: SP.mid} : pw != null ? {budget: pctOf(T0.budget), mid: pctOf(T0.mid)} : q.marks,
-    qp = pw != null ? pc(pwr) : q.vsApex;
+  const mk = pw != null ? {budget: pctOf(T0.budget), mid: pctOf(T0.mid)} : q.marks,
+    qp = pw != null ? pc(pwr) : null;   // until the Apex reference is scored: the pending note (as the stats page waits)
   // the level compares unrounded scores (0.9.3 fix: 95.6% of Apex and a Budget mark at 95.74% both rounded to 96 read as Budget)
   const lvl =
     qp == null || !mk
       ? ''
-      : SP
-        ? pw >= 99.5
-          ? 'Apex'
-          : pw >= SP.mid
-            ? 'Mid'
-            : pw >= SP.budget
-              ? 'Budget'
-              : 'Starter'
-        : pw != null
+      : pw != null
         ? pw >= 99.5
           ? 'Apex'
           : e.exact >= T0.mid
@@ -2761,7 +2753,7 @@ function statsHtml(d, A, R, mode) {
           qp,
           mk,
           lvl,
-          SP ? {you: Math.round(pwr), budget: Math.round(SP.budget), mid: Math.round(SP.mid), apex: 100} : pw != null ? {you: Math.round(pwr), budget: Math.round(pctOf(T0.budget)), mid: Math.round(pctOf(T0.mid)), apex: 100} : null,
+          pw != null ? {you: Math.round(pwr), budget: Math.round(pctOf(T0.budget)), mid: Math.round(pctOf(T0.mid)), apex: 100} : null,
           pw != null
         ) +
         (pw != null
@@ -2777,16 +2769,7 @@ function statsHtml(d, A, R, mode) {
   // everything else about where the deck stands, in the Show all details pop-up (owner, 1 Nov: one line on the page, the
   // full picture a tap away)
   const popTop =
-    SP
-      ? '<p class="note" style="margin:0">Power <b>' +
-        Math.round(pwr) +
-        '</b> by card strength, where this deck’s Apex build is 100. The best all-under-$3 build reaches ' +
-        Math.round(SP.budget) +
-        ', all-under-$12 ' +
-        Math.round(SP.mid) +
-        '.</p>' +
-        (e && T0r ? gapHtml(e, T0r, lvl) : '')
-      : pw != null
+    pw != null
       ? '<p class="note" style="margin:0">Power <b>' +
             Math.round(pwr) +
             '</b>, that is ' +
@@ -2823,7 +2806,7 @@ function statsHtml(d, A, R, mode) {
       popHealthHtml(H, ign, fixable, pw != null ? leadLine(lvl, pwr, mk.budget, mk.mid) : '')
   );
   const strip =
-    '<div class="statbar" role="status" aria-live="polite"><span>' +
+    '<div class="statbar" role="status" aria-live="polite"><span' + (pwr != null ? ' title="Deck score as a share of this deck’s Apex build"' : '') + '>' +
     (pwr != null
       ? 'Power <b>' +
         Math.round(pwr) +
@@ -2892,9 +2875,7 @@ function statsHtml(d, A, R, mode) {
       ? statDelta(e.total, B && B.score) + (B && B.score !== e.total ? '<span class="note"> since ' + B.at + '</span>' : '')
       : '') +
     '</div>' +
-    (SP
-      ? '<div><small>Power</small><b>' + Math.round(SP.power) + '</b><span class="note">Apex 100</span></div>'
-      : '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>') +
+    '<div><small>Card quality</small><b>' + (qp == null ? '—' : qp + '%') + '</b><span class="note">of Apex</span></div>' +
     '<div><small>Bracket</small><b>' +
     (A.ctx.bracket || '—') +
     '</b><span class="note">' +
