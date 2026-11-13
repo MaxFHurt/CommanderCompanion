@@ -64,6 +64,7 @@ export function parseCountB101(phrase) {
     return e2;
   }
   if ((m = p.match(/^cards? (?:that were )?put into (target player'?s|that player'?s|their|your) graveyard from (?:their|your|that player'?s|the) library this turn$/))) return { kind: 'b101-tally', what: 'milled', ...(/^your$/.test(m[1]) ? {} : { who: 'ref' }) };
+  if (/^other creatures? you control that shares? a creature type with (?:it|this creature)$/.test(p)) return { kind: 'b101-sharing' };   // Titan of Littjara
   if (/^cards? discarded this way$/.test(p)) return { kind: 'binding', bind: 'discardedThisWay' };
   if (/^card types? the discarded card has$/.test(p)) return { kind: 'b101-discarded', what: 'types' };
   // Batch 3 part 2: counts kept from an event (life gained, creatures blocked, lands untapped as the turn began).
@@ -202,6 +203,8 @@ export function parseAmountB101(phrase) {
   if (/^(?:that spell'?s|its) mana value$/.test(p)) return { kind: 'binding', bind: 'eventManaValue' };
   // Monstrous Emergence, Close Encounter: the creature chosen (or card revealed) as an additional cost, its power read as it was chosen (ops.js).
   if (/^the power of (?:the creature you chose or the card you revealed|the chosen creature or card)$/.test(p)) return { kind: 'binding', bind: 'costChosenPower' };
+  if (/^the greatest amount of damage dealt by a (?:single )?source to a (?:single )?permanent or player this turn$/.test(p)) return { kind: 'b101-tally', what: 'maxDamage' };   // Impact Resonance
+  if (/^the amassed army'?s power$/.test(p)) return { kind: 'bound-power', bind: 'amassedArmy' };   // Foray of Orcs
   // What an activation cost discarded or sacrificed (ops.js remembers it before the card leaves).
   if (/^(?:the (?:discarded|exiled) card'?s|that card'?s) mana value$/.test(p)) return { kind: 'b101-discarded', what: 'mv' };
   if ((m = p.match(/^the number of (white|blue|black|red|green) mana symbols? in the sacrificed (?:creature|permanent|artifact)'?s mana cost$/))) return { kind: 'b101-cost-symbols', color: COLORS[m[1]] };
@@ -354,6 +357,13 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
       if (expr.what === 'mv') return Math.max(0, Number(d.manaValue ?? d.cmc ?? 0));
       return ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'].filter(t => new RegExp(`\\b${t}\\b`).test(String(d.typeLine || '').split('—')[0])).length;
     }
+    case 'b101-sharing': {
+      const me = H.locateCardInGame(game, bindings.eventCard || bindings.sourceId), subs = c => { const d = H.definitionFor(game, c); return /changeling/i.test(d?.oracleText || '') ? ['*'] : SUBTYPE_OF(d).trim().split(/\s+/).filter(Boolean); };
+      if (!me) return 0;
+      const mine = [...subs(me.card), ...(me.card.chosenCreatureType && /is the chosen type in addition/i.test(H.definitionFor(game, me.card)?.oracleText || '') ? [String(me.card.chosenCreatureType).toLowerCase()] : [])], p = alive.find(q => q.playerId === controllerId);   // Titan of Littjara is also the chosen type
+      return (p?.deck?.battlefield || []).filter(c => c.instanceId !== me.card.instanceId && /\bcreature\b/i.test(H.definitionFor(game, c)?.typeLine || '') && mine.length && (() => { const t = subs(c); return t.length && (mine.includes('*') || t.includes('*') || mine.some(x => t.includes(x))); })()).length;
+    }
+    case 'b101-prevented': return Math.max(0, Number((game.preventedCount || {})[`${game.turnNumber}:${expr.targetId || bindings[expr.bind]}`] || 0));
     case 'b101-cost-symbols': return Math.max(0, Number((bindings.sacrificedSymbols || {})[expr.color] || 0));
     case 'b101-mana-spent': {
       const hit = H.locateCardInGame(game, bindings.sourceId), onStack = (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId || x.id === bindings.sourceId);
@@ -377,6 +387,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     case 'b101-tally': {
       const t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
       if (!t) return 0;
+      if (expr.what === 'maxDamage') return Math.max(0, ...Object.values(t.damagePairs || {}).map(Number));
       if (expr.what === 'milled') return Number(t.milled?.[expr.who === 'ref' ? (bindings[expr.playerBind] || bindings.eventPlayer) : controllerId] || 0);
       if (expr.what === 'entered') return (t.entered || []).filter(e => e.controllerId === controllerId && (!expr.other || e.id !== (bindings.eventCard || bindings.sourceId)) && (!expr.nontoken || !e.token) && expr.subs.some(x => x === 'creature' ? /\bCreature\b/i.test(e.typeLine) : new RegExp(`\\b${x}\\b`, 'i').test(e.typeLine))).length;
       if (expr.what === 'descended') return Number(t.descended?.[controllerId] || 0);

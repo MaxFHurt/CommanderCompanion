@@ -82,6 +82,23 @@ export function compileB101Clause(c, ctx) {
     const r = sub(m[2]);
     if (r) { effects.push({ kind: 'condition', test: m[1] ? 'discarded-nonland' : 'discarded-any', skip: r.effects.length }, ...r.effects); requirements.push(...r.requirements); return true; }
   }
+  // --- "~ deals damage equal to its power to target creature an opponent controls and that creature deals damage equal to its power to ~" (Stalking Yeti): a fight.
+  if ((m = c.match(rx(`^(?:If it'?s on the battlefield, )?(?:${SELF}|it|${SELFP}) deals damage equal to its power to (target creature[^.]*?) and that creature deals damage equal to its power to (?:${SELF}|it|${SELFP})\\.?$`)))) {
+    const r = sub(`This creature fights ${m[1]}.`);
+    if (r) return take(r);
+  }
+  // --- "~ deals 15 damage to target creature an opponent controls and that creature deals damage equal to its power to you." (Form of the Dinosaur)
+  if ((m = c.match(rx(`^(${SELFP}) deals ${N} damage to (target creature[^.]*?) and that creature deals damage equal to its power to you\\.?$`)))) {
+    const r = sub(`${m[1]} deals ${m[2]} damage to ${m[3]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.requirements.length === 1) {
+      requirements.push(...r.requirements);
+      effects.push({ kind: 'b101-bite-back', bind: t.bind, amount: num(m[2]), sourceName });
+      return true;
+    }
+  }
+  // --- "Exile it with three time counters on it and it gains suspend." (Epochrasite, when it dies) / "Put two time counters on it and it gains vanishing." (Maelstrom Djinn)
+  if ((m = c.match(rx(`^Exile (?:it|${SELF}) with ${N} time counters? on it and it gains suspend\\.?$`)))) { effects.push({ kind: 'b101-suspend-self', amount: num(m[1]) }); return true; }
+  if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|${SELF}) and it gains vanishing\\.?$`)))) { effects.push({ kind: 'b101-gain-vanishing', amount: num(m[1]) }); return true; }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
     const expr = parseCountB101(m[1]);
@@ -497,6 +514,12 @@ export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
   if ((m = c0.match(/^Draw X cards,? where X is the number of cards discarded this way\.?$/i)) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^If you have an enduring story, (?:.+?) deals X damage to each opponent\.?$/i))) {
     return { part: { effects: [{ kind: 'set-x', amount: { kind: 'binding', bind: 'discardedThisWay' } }, { kind: 'draw', scope: 'you', amount: 'X' }, { kind: 'condition', test: 'enduring-story', skip: 1 }, { kind: 'damage-each', amount: 'X', creatures: null, players: 'opponents', sourceName }], requirements: [], unsupported: [] }, consumed: 2 };
   }
+  // "Prevent the next 3 damage that would be dealt to target creature this turn. At the beginning of the next end step, put a +0/+1 counter on that creature for each 1 damage prevented this way." (Sacred Boon)
+  if (/^Prevent the next \d+ damage that would be dealt to target creature this turn\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^At the beginning of the next end step, put a ([+-]\d+\/[+-]\d+) counter on that creature for each 1 damage prevented this way\.?$/i))) {
+    const whole = H.compileEffectText(`${c0} At the beginning of the next end step, put a ${m[1]} counter on that creature.`, { sourceName });
+    const pd = whole.effects.find(e => e.kind === 'prevent-damage'), dl = whole.effects.find(e => e.kind === 'delay'), ct = dl?.effects?.find(e => e.kind === 'counter');
+    if (whole.supported && pd && ct) { pd.countPrevented = true; ct.amount = { kind: 'b101-prevented', bind: pd.bind }; return { part: { effects: whole.effects, requirements: whole.requirements, unsupported: [] }, consumed: 2 }; }
+  }
   // "A creature destroyed this way can't be regenerated." (Essence Vortex): the destroy before it can't be stopped by a regeneration shield.
   if (/^(?:It|That creature|A creature destroyed this way|Creatures destroyed this way) can'?t be regenerated\.?$/i.test(c0)) {
     const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'destroy');
@@ -602,6 +625,32 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
     case 'b101-damage-others':
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-each', amount: effect.amount, filter: `creature|not-id:${String(bindings.sourceId || '').toLowerCase()}`, creatures: 'all', players: effect.players, sourceName: effect.sourceName }], bindings));
       return true;
+    case 'b101-suspend-self': {
+      // The card that just died goes to exile with time counters and suspend (it is cast free when the last comes off).
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'graveyard' || hit.card.token) { notes.push('It is no longer in the graveyard.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: hit.card.instanceId, to: 'exile' }], bindings));
+      const now = locateCardInGame(game, bindings.sourceId);
+      if (now && now.zone === 'exile') { now.card.counters = { ...(now.card.counters || {}), time: Number(effect.amount || 0) }; now.card.suspended = true; notes.push(`${definitionFor(game, now.card)?.name || 'It'} is exiled with ${effect.amount} time counters and suspend.`); }
+      return true;
+    }
+    case 'b101-gain-vanishing': {
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
+      hit.card.counters = { ...(hit.card.counters || {}), time: Number(hit.card.counters?.time || 0) + Number(effect.amount || 0) };
+      hit.card.gainedVanishing = true;   // keyword-triggers-b49.js: vanishing at each upkeep
+      notes.push(`${definitionFor(game, hit.card)?.name || 'It'} gets ${effect.amount} time counters and vanishing.`);
+      return true;
+    }
+    case 'b101-bite-back': {
+      // The damage first, then the creature (its power as it was, even if it just died) deals that much to you.
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The target is no longer on the battlefield.'); return true; }
+      const d = definitionFor(game, hit.card), power = Math.max(0, Number(effectivePower(hit.card, d, game) || 0));
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: effect.amount, bind: effect.bind, sourceName: effect.sourceName }], bindings));
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: power, playerId: controllerId, sourceName: d?.name || 'The creature' }], bindings));
+      return true;
+    }
     case 'b101-unless-do': {
       // The player the choice was asked of did it (or not); what follows is skipped when they did.
       const ans = bindings[effect.bind];

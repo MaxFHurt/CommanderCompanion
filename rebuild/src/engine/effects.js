@@ -603,6 +603,7 @@ function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(a
   if (shield.targetId !== targetId || Number(shield.amount || 0) <= 0)
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
+  if (shield.countPrevented) { game.preventedCount = game.preventedCount || {}; const k = `${game.turnNumber}:${targetId}`; game.preventedCount[k] = Number(game.preventedCount[k] || 0) + used; }   // "for each 1 damage prevented this way"
   shield.amount -= used;
   left -= used;
 } game.damagePrevention = (game.damagePrevention || []).filter(s => Number(s.amount || 0) > 0); return left; }
@@ -698,6 +699,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         // "Sacrifice it / them at the beginning of the next end step": the tokens or cards this effect just made or moved.
         if (e.fromBind === '__recent') out.ids = [...(bindings.lastCreated?.length ? bindings.lastCreated : bindings.lastMoved?.length ? bindings.lastMoved : [bindings.eventCard].filter(Boolean))];
         if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'binding' && bindings[e.amount.bind] !== undefined) out.amount = Number(bindings[e.amount.bind] || 0);
+        if (e.amount && typeof e.amount === 'object' && e.amount.kind === 'b101-prevented') out.amount = { ...e.amount, targetId: bindings[e.amount.bind] };   // Sacred Boon: the damage prevented this turn for that creature
         return out;
       });
       const src = locateCardInGame(game, bindings.sourceId)?.card || (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId)?.card;
@@ -1182,7 +1184,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       if (!targetId)
         throw new Error('Damage-prevention target is unavailable.');
       game.damagePrevention = game.damagePrevention || [];
-      game.damagePrevention.push({ targetId, amount, expires: effect.expires || 'cleanup' });
+      game.damagePrevention.push({ targetId, amount, expires: effect.expires || 'cleanup', ...(effect.countPrevented ? { countPrevented: true } : {}) });
       notes.push(`The next ${amount} damage to the chosen target is prevented.`);
       continue;
     }
@@ -3243,7 +3245,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     let dm = clause.match(/^(.+?),? at the beginning of the next turn'?s upkeep\.?$/i);
     if (dm) { delays.push({ from: parts.length, when: { event: 'upkeep', whose: 'any' } }); clause = `${dm[1]}.`; }
     else if ((dm = clause.match(/^At the beginning of (your|the) next (upkeep|main phase|precombat main phase|end step),\s*(.+)$/i))) {
-      delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any' } });
+      delays.push({ from: parts.length, when: { event: /upkeep/i.test(dm[2]) ? 'upkeep' : /end step/i.test(dm[2]) ? 'end-step' : 'precombat-main-start', whose: /your/i.test(dm[1]) ? 'owner' : 'any', ...(/end step/i.test(dm[2]) ? { sameTurn: true } : {}) } });   // the next end step can be this turn's
       clause = dm[3].charAt(0).toUpperCase() + dm[3].slice(1);
     }
     // Pact of Negation: "pay {3}{U}{U}. If you don't, you lose the game." — paying is the player's choice; not paying does the rest.
@@ -3315,7 +3317,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
         else expr = thatOne ? { kind: 'b101-that-power' } : { kind: 'b101-its-power' };
       }
       if (expr != null && inner && inner.supported) {
-        for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X') r.xExpr = expr;   // counted as the choice is made
+        for (const r of inner.requirements) if (r.max === 'X' || r.min === 'X' || r.amount === 'X' || r.total === 'X') r.xExpr = expr;   // counted as the choice is made
         parts.push({ effects: [{ kind: 'set-x', amount: expr }, ...inner.effects], requirements: inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')), unsupported: [] });
         continue;
       }

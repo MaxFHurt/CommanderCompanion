@@ -798,6 +798,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         army = [...controller.deck.battlefield].reverse().find(c => /\bArmy\b/.test(definitionFor(game, c)?.typeLine || ''));
       }
       if (army) { H.addCounter(army, '+1/+1', n); emit({ type: 'counter-added', sourceId: army.instanceId, controllerId, counter: '+1/+1', amount: n }); }
+      if (army) bindings.amassedArmy = army.instanceId;   // "the amassed Army's power" (Foray of Orcs)
       if (army) bindings.lastCreated = [...(bindings.lastCreated || []).filter(id => id !== army.instanceId), army.instanceId];   // "the amassed Army"
       notes.push(`${controller.displayName} amasses ${n}.`);
       return true;
