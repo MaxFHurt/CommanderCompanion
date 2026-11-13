@@ -45,6 +45,8 @@ export function parseCountB101(phrase) {
   if (!p) return null;
   const e = { kind: 'b101-n', who: null, zone: 'battlefield', alts: [], adj: [] };
   let m;
+  // Rith, the Awakener: "for each permanent of that color" (the color just chosen; effects.js keeps it as bindings.chosenColor).
+  if (/^(?:the number of )?permanents? of (?:that|the chosen) color$/.test(p)) return { kind: 'b101-n', who: 'all', zone: 'battlefield', alts: [{ types: [], subs: [], permanent: true }], adj: [], chosenColor: true };
   // "for each creature sacrificed this way" after a cost that sacrificed them (rules.js writes "as a cost"; ops.js counts it).
   if (/^(?:the )?(?:number of )?[a-z+\-\/0-9 ]+? (?:exiled|sacrificed|removed) as a cost$/.test(p)) return { kind: 'binding', bind: 'costCount' };
   // "creatures exiled this way", "nonartifact creatures destroyed this way", "nontoken creature you controlled that was destroyed this way".
@@ -265,6 +267,7 @@ function matchesB101(game, card, e, bindings, H) {
   if (e.not && e.not.includes('token') && card.token) return false;
   const colors = d?.colors || [];
   if (e.colors && !e.colors.some(c => colors.includes(c))) return false;
+  if (e.chosenColor && !colors.includes(bindings.chosenColor)) return false;
   if (e.name && String(d?.name || '').toLowerCase() !== e.name) return false;
   for (const a of e.adj) {
     if (a === 'tapped' && !card.tapped) return false;
@@ -468,6 +471,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     }
     case 'b101-mutations': { const hit = H.locateCardInGame(game, bindings.sourceId); return Math.max(0, (hit?.card?.mutatedWith || []).length); }
     case 'b101-players': return alive.length;
+    case 'b101-opps-poison': return alive.filter(p => p.playerId !== controllerId && Number(p.poison || 0) >= expr.n).length;
     case 'b101-player-counter': return Number(alive.find(p => p.playerId === controllerId)?.counters?.[expr.counter] || 0);
     case 'b101-colors-spent': {
       const hit = H.locateCardInGame(game, bindings.sourceId), onStack = (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId || x.id === bindings.sourceId);
