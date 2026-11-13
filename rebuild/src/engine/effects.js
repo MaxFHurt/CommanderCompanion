@@ -3364,7 +3364,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     }
     // "You may pay {4}. If you do, untap this artifact." (Mana Vault, Mentor of the Meek): the controller is asked to pay
     // as it resolves (ops.js); "You may sacrifice another creature. If you do, …": a yes/no choice, then both or neither.
-    const nextDo = clauses[clauses.indexOf(clause) + 1]?.match(/^If you do,?\s*(.+)$/i);
+    const nextDo = clauses[clauses.indexOf(clause) + 1]?.match(/^(?:If|When) you do,?\s*(.+)$/i);
     const lifePay = nextDo && clause.match(/^(?:Then )?you may pay (\d+|one|two|three|four|five) life\.?$/i);
     if (lifePay) {
       const inner = compileEffectText(nextDo[1], { sourceName });
@@ -3396,7 +3396,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
         const bind = `mayDo${parts.length}`;
         const req = [{ kind: 'yes-no', bind, label: `${mayDo[1].replace(/\.$/, '')}?` }];
         // A sacrifice that could not be made means "if you do" is false: the rest is skipped.
-        const firstFx = first.effects.map(e => (['sacrifice-many', 'discard'].includes(e.kind) ? { ...e, requireDone: true } : e));
+        const firstFx = first.effects.map(e => (['sacrifice-many', 'discard', 'forage'].includes(e.kind) ? { ...e, requireDone: true } : e));
         const guard = firstFx.some(e => e.requireDone) ? [{ kind: 'condition', test: 'done', skip: then.effects.length }] : [];
         parts.push({ effects: [{ kind: 'condition', test: 'chosen', bind, skip: firstFx.length + guard.length + then.effects.length }, ...firstFx, ...guard, ...then.effects], requirements: [...req, ...first.requirements, ...then.requirements], unsupported: [] });
         skipNextClause = true;

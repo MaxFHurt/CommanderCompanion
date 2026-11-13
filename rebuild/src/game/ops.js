@@ -1272,6 +1272,15 @@ function runResolve(game, op, ask) {
       searches.push({ searcher, pick });
     }
   }
+  // Connive as the last step: draw now, ask the discard after the draw (own op, runConnive), so replaced draws and draw
+  // effects come first. Not asked up front. (Connive followed by more steps keeps the up-front question.)
+  {
+    const fx = top.effects || [], n = fx.length, [d, x, c] = fx.slice(-3);
+    if (n >= 3 && d?.kind === 'draw' && x?.kind === 'discard' && x.cardsBind && c?.kind === 'connive-counters' && c.cardsBind === x.cardsBind) {
+      top.effects = [...fx.slice(0, -3), d, { kind: 'connive-defer', bind: c.bind, amount: c.amount ?? d.amount, ...(c.optionalTarget ? { optionalTarget: true } : {}) }];
+      top.resolveReqs = (top.resolveReqs || []).filter(r => r.bind !== x.cardsBind);
+    }
+  }
   const bindings = { ...(top.effectBindings || {}), selfStackId: top.id, selfFromZone: top.fromZone || null };
   gatherRequirements(game, { player, sourceName: name, cancellable: false }, top.resolveReqs || [], bindings, ask, 'resolve');
   // "… unless that player pays {1}": ask them; if they pay, the effect does not happen.
@@ -1492,6 +1501,35 @@ function runDredgeDraw(game, op, ask) {
   if (pick) commit(game, { type: 'dredge', playerId: player.playerId, instanceId: pick.id, amount: pick.n, label: `${player.displayName} dredges ${pick.name} (mills ${pick.n}).` });
   else commit(game, { type: 'draw', playerId: player.playerId, label: `${player.displayName} draws a card.` });
 }
+/** Connive (701.50): after the draw, the player chooses the discard(s); a +1/+1 counter for each nonland card discarded. */
+function runConnive(game, op, ask) {
+  const { creatureId, amount } = op.args;
+  const player = playerById(game, op.playerId);
+  const hit = creatureId ? (game.players || []).map(p => ({ p, c: (p.deck.battlefield || []).find(c => c.instanceId === creatureId) })).find(x => x.c) : null;
+  const cname = hit ? defOf(game, hit.c)?.name : 'It';
+  const hand = player.deck.hand, need = Math.min(amount, hand.length);
+  const ids = need === 0 ? [] : need === hand.length ? hand.map(c => c.instanceId)
+    : [].concat(ask('connive', () => ({ playerId: player.playerId, cancellable: false, kind: 'choose-many', private: true, source: cname, title: `${cname} — Connive`,
+      prompt: `${player.displayName}: choose ${plural(need, 'card')} to discard.`,
+      options: hand.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })), min: need, max: need })));
+  let nonland = 0;
+  for (const id of ids) {
+    const i = hand.findIndex(c => c.instanceId === id); if (i < 0) continue;
+    const [c] = hand.splice(i, 1); c.zone = 'graveyard'; player.deck.graveyard.push(c);
+    const typeLine = defOf(game, c)?.typeLine || '';
+    if (!/\bLand\b/.test(typeLine)) nonland++;
+    queueTriggers(game, { type: 'discard', playerId: player.playerId, sourceId: c.instanceId, definitionId: c.definitionId, typeLine });
+  }
+  // If the creature left the battlefield, the discard still happened; it just gets no counter (701.50b).
+  const live = creatureId ? (game.players || []).map(p => (p.deck.battlefield || []).find(c => c.instanceId === creatureId)).find(Boolean) : null;
+  if (live && nonland) {
+    live.counters = live.counters || {}; live.counters['+1/+1'] = Number(live.counters['+1/+1'] || 0) + nonland;
+    queueTriggers(game, { type: 'counter-added', sourceId: live.instanceId, controllerId: live.controllerId, counter: '+1/+1', amount: nonland });
+  }
+  log(game, `${cname} connives${live && nonland ? ` and gets ${plural(nonland, '+1/+1 counter')}` : ''}.`);
+  queueTriggers(game, { type: 'connives', sourceId: creatureId, controllerId: op.args.controllerId || player.playerId, playerId: player.playerId, amount });
+}
+
 function runDrawChoice(game, op, ask) {
   const player = playerById(game, op.playerId);
   const rows = player.deck.remainingLibrary;
@@ -1738,4 +1776,4 @@ function runSpecial(game, top, player, ask) {
   after();
 }
 
-export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice, 'dredge-draw': runDredgeDraw, 'legend-rule': runLegendRule };
+export const OPS = { play: runPlay, activate: runActivate, trigger: runTrigger, resolve: runResolve, 'draw-choice': runDrawChoice, connive: runConnive, 'dredge-draw': runDredgeDraw, 'legend-rule': runLegendRule };

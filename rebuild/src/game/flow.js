@@ -474,6 +474,8 @@ export function settle(game) {
   for (let guard = 0; guard < 400; guard++) {
     // Re-read every pass: a failed engine commit restores the game and replaces these objects.
     const f = game.flow;
+    // Connive's discard comes right after its draw, before state-based actions and before triggers go on the stack.
+    if (!f.op && f.stage === 'play' && (game.pendingConnives || []).length && game.status !== 'complete') { const c = game.pendingConnives.shift(); startOp(game, 'connive', c.playerId, { creatureId: c.creatureId, amount: c.amount, controllerId: c.controllerId }, { system: true }); continue; }
     syncAttachments(game);
     if (!f.op && game.status !== 'complete') stateBasedActions(game);
     if (game.status !== 'complete') evaluateLosses(game);

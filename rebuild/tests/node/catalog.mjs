@@ -142,7 +142,7 @@ section('round 1: spells that exile or return themselves, keyword actions');
   const t = setup();
   t.give(0, 'Grizzly Bears');
   let disc = null;
-  cast(t, 'Llanowar Elves', 'When this creature enters, it connives.', [['discard', d => { disc = d; const bear = d.options.find(o => o.label === 'Grizzly Bears'); return [bear.id]; }]]);
+  cast(t, 'Llanowar Elves', 'When this creature enters, it connives.', [['connive', d => { disc = d; const bear = d.options.find(o => o.label === 'Grizzly Bears'); return [bear.id]; }]]);
   check('connive: draw, the player discards (a nonland) → +1/+1 counter', disc && t.names(0, 'graveyard').includes('Grizzly Bears') && Number(t.bf(0, 'Llanowar Elves').counters?.['+1/+1'] || 0) === 1, JSON.stringify(t.bf(0, 'Llanowar Elves')?.counters));
 }
 {
@@ -2774,7 +2774,7 @@ section('round 52: rules features (legend rule, ward on abilities, phasing, muta
   const bear = onField(t, 'Grizzly Bears', '');
   t.give(0, 'Divination');
   const seen = [];
-  cast(t, 'Opt', 'Target creature you control connives.', [[d => d.targeting, () => bear.instanceId], [d => { seen.push(d.title); return /Discard/i.test(d.title || ''); }, d => [d.options.find(o => /Divination/.test(o.label || ''))?.id].filter(Boolean)]], { manaCost: '{U}' });
+  cast(t, 'Opt', 'Target creature you control connives.', [[d => d.targeting, () => bear.instanceId], [d => { seen.push(d.title); return /Connive|Discard/i.test(d.title || ''); }, d => [d.options.find(o => /Divination/.test(o.label || ''))?.id].filter(Boolean)]], { manaCost: '{U}' });
   check('Connive: draw, discard a nonland card, +1/+1 counter', Number(bear.counters?.['+1/+1'] || 0) === 1, JSON.stringify([bear.counters, seen]));
 }
 
