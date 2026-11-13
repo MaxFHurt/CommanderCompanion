@@ -1,6 +1,6 @@
 // Backup: Load Profile, Save Profile and Online. Shown in the Settings modal; works from any screen.
 
-import { html, on, $ } from './dom.js';
+import { html, on, $, setHtml } from './dom.js';
 import { go, currentScreen } from '../app/router.js';
 import { toast } from './toast.js';
 import { openModal, confirmDialog } from './modal.js';
@@ -9,6 +9,7 @@ import { initDeckStore } from '../data/deck-store.js';
 import { initPlaymats } from '../data/playmats.js';
 import { saveProfileBackupFile, restoreProfileBackupFile } from '../data/profile-backup.js';
 import { onlineProfileLink, saveProfileOnline, loadProfileOnline, unlinkOnlineProfile, formatKey, cleanKey } from '../app/online-profile.js';
+import { recoveryEmail, setRecoveryEmail, validEmail, requestCode, verifyCode, linkKey, unlinkKey, findKey } from '../app/profile-recovery.js';
 
 /** Re-read the stores after the profile was replaced, and redraw the screen behind the modal if it shows profile data. */
 async function reloadStores() {
@@ -61,6 +62,7 @@ export function openOnlineProfile(onLoaded) {
       <p class="modal__message">This profile is saved online. Its key:</p>
       <p class="lobby__code"><b class="chrome-text" data-profile-key style="font-size:3.2rem;letter-spacing:.12em;white-space:nowrap">${formatKey(link.key)}</b></p>
       <p class="muted">Keep this key private — anyone with it can load your profile. On another device: Settings → Backup → Online → enter the key. Last saved ${when(link.savedAt)}. It saves again by itself after changes, whenever you return to the start screen.</p>
+      <div data-recovery></div>
       <div class="row row--wrap">
         <button type="button" class="btn btn--confirm" data-online="save">Save now</button>
         <button type="button" class="btn" data-online="load">Load the online copy</button>
@@ -71,9 +73,15 @@ export function openOnlineProfile(onLoaded) {
       <div class="row row--wrap"><button type="button" class="btn btn--confirm" data-online="save">Save my profile online</button></div>
       <h4 class="section-title">Already saved it on another device?</h4>
       <label class="field">Profile key<input class="input input--code" data-key maxlength="14" placeholder="ABCD-EFGH-JKLM" autocomplete="off" autocapitalize="characters"></label>
-      <div class="row row--wrap"><button type="button" class="btn" data-online="load-key">Load profile</button></div>`,
+      <div class="row row--wrap"><button type="button" class="btn" data-online="load-key">Load profile</button></div>
+      <div data-recovery></div>`,
     actions: [{ label: 'Close', kind: 'cancel' }],
     onMount(el, { close }) {
+      recoveryArea($('[data-recovery]', el), link, async key => {
+        if (!await confirmDialog({ title: 'Load Profile', message: 'Replace the profile, saved decks and playmats on this device with the online copy?', confirmLabel: 'Load Profile', danger: true })) return;
+        await loadProfileOnline(key);
+        close(); await onLoaded(); toast('Profile loaded.');
+      });
       on(el, 'click', '[data-online]', async (event, b) => {
         const act = b.dataset.online;
         try {
@@ -106,4 +114,101 @@ export function openOnlineProfile(onLoaded) {
       });
     }
   });
+}
+
+/**
+ * Recovery email inside the Online Profile modal. With a key: show / add / change / remove the email.
+ * Without one: "Lost your key?" email -> code -> onFound(key). One small step machine; the access token only lives
+ * inside one step chain and is dropped afterwards.
+ */
+function recoveryArea(area, link, onFound) {
+  if (!area) return;
+  const draw = markup => setHtml(area, markup);
+  const err = message => { const e = $('[data-rec-error]', area); if (e) e.textContent = message; };
+  const guard = fn => async (...args) => {
+    try { await fn(...args); } catch (error) { err(error.message || 'That did not work.'); }
+  };
+  const idle = () => {
+    const email = link ? recoveryEmail() : '';
+    if (link) {
+      draw(email ? html`
+        <h4 class="section-title">Recovery email</h4>
+        <p class="muted">If you lose the key, <b data-rec-email>${email}</b> can find it again.</p>
+        <div class="row row--wrap"><button type="button" class="btn" data-rec="start">Change</button><button type="button" class="btn" data-rec="remove">Remove</button></div>
+        <p class="muted" data-rec-error></p>` : html`
+        <h4 class="section-title">Recovery email</h4>
+        <p class="muted">Optional. If you lose the key, a code sent to this email finds it again.</p>
+        <div class="row row--wrap"><button type="button" class="btn" data-rec="start">Add recovery email</button></div>
+        <p class="muted" data-rec-error></p>`);
+    } else {
+      draw(html`
+        <h4 class="section-title">Lost your key?</h4>
+        <div class="row row--wrap"><button type="button" class="btn" data-rec="start">Recover by email</button></div>
+        <p class="muted" data-rec-error></p>`);
+    }
+  };
+  const askEmail = () => draw(html`
+    <h4 class="section-title">${link ? 'Recovery email' : 'Lost your key?'}</h4>
+    <label class="field">Email<input class="input" type="email" data-rec-input autocomplete="email" placeholder="you@example.com"></label>
+    <div class="row row--wrap"><button type="button" class="btn btn--confirm" data-rec="send">Send code</button><button type="button" class="btn" data-rec="cancel">Cancel</button></div>
+    <p class="muted" data-rec-error></p>`);
+  const askCode = email => draw(html`
+    <h4 class="section-title">${link ? 'Recovery email' : 'Lost your key?'}</h4>
+    <p class="muted">We sent a code to ${email}.</p>
+    <label class="field">Code<input class="input input--code" data-rec-input inputmode="numeric" maxlength="8" autocomplete="one-time-code" placeholder="Code"></label>
+    <div class="row row--wrap"><button type="button" class="btn btn--confirm" data-rec="verify" data-email="${email}">Verify</button><button type="button" class="btn" data-rec="cancel">Cancel</button></div>
+    <p class="muted" data-rec-error></p>`);
+
+  on(area, 'click', '[data-rec]', guard(async (event, b) => {
+    const act = b.dataset.rec;
+    const value = () => ($('[data-rec-input]', area)?.value || '').trim();
+    if (act === 'start') return askEmail();
+    if (act === 'cancel') return idle();
+    if (act === 'send') {
+      const email = value();
+      if (!validEmail(email)) return err('Enter a valid email address.');
+      b.disabled = true;
+      try { await requestCode(email); } catch (error) { b.disabled = false; throw error; }
+      return askCode(email);
+    }
+    if (act === 'verify') {
+      const email = b.dataset.email, code = value();
+      if (!/^\d{6,8}$/.test(code)) return err('Enter the code from the email.');
+      b.disabled = true;
+      try {
+        let token = await verifyCode(email, code);
+        if (link) {
+          await linkKey(token, link.key);
+          setRecoveryEmail(email); token = null;
+          toast('Recovery email saved.');
+          return idle();
+        }
+        const key = await findKey(token); token = null;
+        if (!key) { b.disabled = false; return err('No profile is linked to that email.'); }
+        await onFound(key);
+      } catch (error) { b.disabled = false; throw error; }
+      return;
+    }
+    if (act === 'remove') {
+      const email = recoveryEmail();
+      if (!await confirmDialog({ title: 'Remove recovery email', message: `Stop using ${email} to find this key? You get a code by email to confirm.`, confirmLabel: 'Send code' })) return;
+      await requestCode(email);
+      askCode(email);
+      $('[data-rec="verify"]', area).dataset.rec = 'verify-remove';
+      return;
+    }
+    if (act === 'verify-remove') {
+      const email = b.dataset.email, code = value();
+      if (!/^\d{6,8}$/.test(code)) return err('Enter the code from the email.');
+      b.disabled = true;
+      try {
+        const token = await verifyCode(email, code);
+        await unlinkKey(token);
+        setRecoveryEmail('');
+        toast('Recovery email removed.');
+      } catch (error) { b.disabled = false; throw error; }
+      return idle();
+    }
+  }));
+  idle();
 }

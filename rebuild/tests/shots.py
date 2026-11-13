@@ -12,7 +12,8 @@ from playwright.async_api import async_playwright
 PHONE = dict(viewport={'width': 844, 'height': 390}, device_scale_factor=2, is_mobile=True, has_touch=True)
 IPAD = dict(viewport={'width': 1180, 'height': 820}, device_scale_factor=1.5, is_mobile=True, has_touch=True)
 OUT = os.environ.get('SHOTS_DIR', '/home/claude/shots/')
-URL = 'http://127.0.0.1:4180/index.html'
+STATIC = os.environ.get('CC_STATIC', 'http://127.0.0.1:4180')   # tests may use another port
+URL = STATIC + '/index.html'
 NAMES = ['Aaron', 'Lex', 'Charlie', 'Diana', 'Evan', 'Faye']
 
 
