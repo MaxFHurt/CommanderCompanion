@@ -14,9 +14,11 @@
   or the long docs (HANDOFF.md, PROGRESS.md, deck/ROADMAP.md are logs; read only the section you need).
 - **Answers: short and to the point**, unless the owner asks for more.
 
-- **Roadmap items: decide, don't ask** (owner, 13 Nov: "I don't want to make the decisions twice; if it's on the roadmap I know
-  it needs to change. Use your best judgement and we will adjust later"). For design/wording choices inside a roadmap item, pick
-  the sensible option, build it, and report what you chose. Still ask before pushing `main` and for anything off the roadmap.
+- **Roadmap items: decide wording and layout, ask on results** (owner, 13 Nov). Wording, layout and small UI choices inside a
+  roadmap item: pick the sensible option, build it, report what you chose ("I don't want to make the decisions twice").
+  Ask first (owner, 13 Nov: "I don't want you making the calls on your own") on anything that changes results or picks
+  between approaches: scores, ratings, generator or upgrade picks, benchmark trade-offs, other chats' pending choices.
+  Always ask before pushing `main` and for anything off the roadmap.
 
 - **Batch releases** (owner, 13 Nov): group changes into one build so the full suite runs once per build, not per change, but
   keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
