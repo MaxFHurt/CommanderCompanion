@@ -3023,7 +3023,8 @@ function apexTips(d, A, R, e, HA, lvl, noHealth) {   // noHealth: in Show all de
         '</button>'
     });
   const near = (e.combos.near || []).filter(x => x.x.win && find(x.miss) && !entryOf(d, x.miss)).slice(0, 1);
-  if (near.length && !e.combos.win.length)
+  // same for a Win routes problem: the Health list's Fix menu offers the combo's missing card
+  if (near.length && !e.combos.win.length && !(noHealth && HA.some(x => x.k === 'Win routes' && x.s !== 'good' && x.s !== 'info')))
     T.push({
       w: 2,
       h: '<b>Win route:</b> one card from a combo (' + esc(near[0].x.what.toLowerCase()) + '): add ' + esc(near[0].miss) + '.',
