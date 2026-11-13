@@ -730,7 +730,9 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
     case 'each-id': {
       const ids = [].concat(bindings[effect.bind] || []);
       if (!ids.length) { notes.push('No targets were chosen.'); return true; }
-      for (const id of ids) { bindings[effect.innerBind] = id; notes.push(...H.applyEffectsUnsafe(game, controllerId, effect.effects, bindings)); }
+      // "Target opponent gains control of any number of target permanents you control" (Coveted Falcon): done as that player.
+      const who = (effect.forPlayerBind && playerById(game, bindings[effect.forPlayerBind])?.playerId) || controllerId;
+      for (const id of ids) { bindings[effect.innerBind] = id; notes.push(...H.applyEffectsUnsafe(game, who, effect.effects, bindings)); }
       return true;
     }
     case 'next-spell-keyword':

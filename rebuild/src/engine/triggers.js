@@ -188,6 +188,7 @@ function generalMatch(game, row, t, event) {
         return subjectEvent(game, row, m[1] + (m[2] ? (/your/i.test(m[2]) ? ' you control' : ' an opponent controls') : ''), event);
       return undefined;
     case 'dies':
+      if ((m = t.match(/^(?:When|Whenever) an enchanted creature (?:dies|die)\b/i))) return /\bCreature\b/.test(event.typeLine || '') && (event.auraControllers || event.last?.auraControllers || []).length > 0;   // Hateful Eidolon
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:dies|die)\b/i))) return subjectEvent(game, row, m[1], event);
       return undefined;
     case 'leaves-battlefield':
@@ -640,7 +641,7 @@ function tallyTurn(game, event) {
       if (event.targetId) {
         const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId) || (game.stack || []).map(x => x.card).find(c => c?.instanceId === event.sourceId);
         t.damageRecords = t.damageRecords || [];
-        t.damageRecords.push({ sourceId: event.sourceId, name: String(game.cardDefinitions?.[src?.definitionId || event.definitionId]?.name || ''), targetId: event.targetId, amount: Number(event.amount) });
+        t.damageRecords.push({ sourceId: event.sourceId, name: String(game.cardDefinitions?.[event.definitionId || src?.definitionId]?.name || ''), targetId: event.targetId, amount: Number(event.amount) });
       }
     }
     return;
@@ -660,6 +661,7 @@ function tallyTurn(game, event) {
 }
 export function queueTriggers(game, event) {
   // The Auras attached to a creature as it dies (still attached now): "for each Aura you controlled that was attached to it".
+  if (event?.type === 'dies' && event.last?.auraControllers) event.auraControllers = event.last.auraControllers;
   if (event?.type === 'dies' && event.sourceId && !event.auraControllers)
     event.auraControllers = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.attachedTo === event.sourceId && /\bAura\b/.test(game.cardDefinitions?.[c.definitionId]?.typeLine || '')).map(c => c.controllerId || p.playerId));
   recordStat(game, event);

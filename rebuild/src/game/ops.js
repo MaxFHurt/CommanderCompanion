@@ -718,7 +718,10 @@ function wardCosts(game, player, ids) {
       const text = String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '');
       const m = c && text.match(/(?:^|\n|,\s*)Ward\s*(?:[—-]\s*)?((?:\{[^}]+\})+)/i);
       const life = c && text.match(/(?:^|\n|,\s*)Ward\s*[—-]\s*Pay (\d+) life/i);
+      // Rith, Liberated Primeval: "Other Dragons you control have ward {2}." (a granted ward: the same cost as the card's own).
+      const granted = c && !m && !life ? (p.deck?.battlefield || []).filter(g => g.instanceId !== id).map(g => String(defOf(game, g)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/Other ([A-Z][a-z]+)s you control have ward ((?:\{[^}]+\})+)/)).find(g => g && new RegExp(`\\b${g[1]}\\b`).test(String(defOf(game, c)?.typeLine || '').split('—')[1] || '')) : null;
       if (m) out.push({ id, name: defOf(game, c)?.name || 'It', cost: m[1] });
+      else if (granted) out.push({ id, name: defOf(game, c)?.name || 'It', cost: granted[2] });
       else if (life) out.push({ id, name: defOf(game, c)?.name || 'It', cost: '', life: Number(life[1]) });
     }
   }
@@ -1484,7 +1487,9 @@ function runResolve(game, op, ask) {
       if (start > 1) { card.counters.lore = start - 1; }   // read ahead: only the chosen chapter triggers
       addLore(game, card, 1);
     }
-    const counters = /for each time it was kicked/i.test(text) ? null : entersWithCountersSpec(cardDef);
+    // Epochrasite: "enters with three +1/+1 counters on it if you didn't cast it from your hand" (only when it came from elsewhere).
+    const notFromHand = /counters? on it if you didn'?t cast it from your hand/i.test(text) && top.fromZone === 'hand';
+    const counters = /for each time it was kicked/i.test(text) || notFromHand ? null : entersWithCountersSpec(cardDef);
     if (counters) {
       const amount = counters.amount === 'X' ? Number(top.effectBindings?.X || 0) : Number(counters.amount || 0);
       card.counters = card.counters || {};

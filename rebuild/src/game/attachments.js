@@ -9,7 +9,10 @@ const KEYWORDS = ['flying', 'first strike', 'double strike', 'deathtouch', 'hast
 export function attachmentGrants(def) {
   // Static lines only: "{1}: Enchanted creature gets +3/+3 until end of turn." is an activated ability, not a bonus.
   const text = String(def?.oracleText || '').split('\n').filter(line => !/until end of turn|^[^"]*?:\s/i.test(line)).join('\n');
-  const out = { power: 0, toughness: 0, keywords: [] };
+  const out = { power: 0, toughness: 0, keywords: [], restrictions: [], loseAbilities: false };
+  // "Enchanted creature can't attack or block." (Pacifism, Observed Stasis), "… loses all abilities."
+  for (const m of text.matchAll(/(?:Equipped|Enchanted) creature (?:loses all abilities and )?can'?t (attack or block|attack|block)\b/ig)) out.restrictions.push(`cant-${m[1].toLowerCase().replace(' or ', '-or-')}`);
+  if (/(?:Enchanted|Equipped) creature loses all abilities\b/i.test(text)) out.loseAbilities = true;
   const pt = text.match(/(?:Equipped|Enchanted) (?:creature|permanent) gets ([+-]\d+)\/([+-]\d+)/i);
   if (pt) { out.power = Number(pt[1]); out.toughness = Number(pt[2]); }
   for (const m of text.matchAll(/(?:Equipped|Enchanted) (?:creature|permanent) (?:gets [+-]\d+\/[+-]\d+ and )?(?:has|gains) ([^.\n]+)/ig)) {
@@ -126,6 +129,8 @@ export function syncAttachments(game) {
     host.card.temporaryEffects = host.card.temporaryEffects || [];
     if (grants.power || grants.toughness) host.card.temporaryEffects.push({ kind: 'pt', power: grants.power, toughness: grants.toughness, source: 'attachment' });
     for (const keyword of grants.keywords) host.card.temporaryEffects.push({ kind: 'keyword', keyword, enabled: true, source: 'attachment' });
+    for (const restriction of grants.restrictions) host.card.temporaryEffects.push({ kind: 'combat-restriction', restriction, source: 'attachment' });
+    if (grants.loseAbilities) host.card.temporaryEffects.push({ kind: 'animate', loseAbilities: true, addTypes: [], subtypes: [], keywords: [], colors: null, source: 'attachment' });
   }
   return changed;
 }

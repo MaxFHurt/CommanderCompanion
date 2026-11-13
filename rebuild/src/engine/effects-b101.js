@@ -542,6 +542,16 @@ export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
     const pd = whole.effects.find(e => e.kind === 'prevent-damage'), dl = whole.effects.find(e => e.kind === 'delay'), ct = dl?.effects?.find(e => e.kind === 'counter');
     if (whole.supported && pd && ct) { pd.countPrevented = true; ct.amount = { kind: 'b101-prevented', bind: pd.bind }; return { part: { effects: whole.effects, requirements: whole.requirements, unsupported: [] }, consumed: 2 }; }
   }
+  // "Put a +1/+1 counter on ~. It gains flying until end of turn." (Estinien Varlineau): "it" is the creature just named, not the spell that triggered this.
+  {
+    const nm = String(sourceName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), short = String(sourceName || '').split(',')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const named = new RegExp(`^Put (?:a|an|one|two|three|\\d+) (?:[+-]\\d+\\/[+-]\\d+|[a-z]+) counters? on (?:this (?:creature|permanent|artifact|enchantment)|${nm}|${short})\\.?$`, 'i');
+    const nxt = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim();
+    if (named.test(c0) && /^It (?:gains|has) [a-z ,]+ until end of turn\.?$/i.test(nxt)) {
+      const a = H.compileEffectText(c0, { sourceName }), b = H.compileEffectText(nxt.replace(/^It /i, 'This creature '), { sourceName });
+      if (a.supported && b.supported && a.effects.length && b.effects.length) return { part: { effects: [...a.effects, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
+    }
+  }
   // "Choose up to one target creature you don't control with flying. This creature gets +X/+0 until end of turn, where X is …, then you may have this creature fight that creature." (Kraul Harpooner)
   if (/^Choose up to one target creature you don'?t control with flying\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^(This creature gets \+X\/\+0 until end of turn, where X is the number of creature cards in your graveyard), then you may have this creature fight that creature\.?$/i))) {
     const a = H.compileEffectText(c0, { sourceName }), b = H.compileEffectText(`${m[1]}.`, { sourceName }), t = a.requirements.find(q => q.kind === 'target');

@@ -137,6 +137,10 @@ function resetOnZoneChange(card) {
   delete card.blocking;
   delete card.unlockedFaces;   // Room doors lock again
 }
+/** Who controls each Aura attached to this permanent right now ("for each Aura you controlled that was attached to it", Hateful Eidolon). */
+export function auraControllersOn(game, id) {
+  return (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.attachedTo === id && /\bAura\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => c.controllerId || p.playerId));
+}
 export function moveCard(game, id, to, { controllerId = null, position = 'bottom', tapped = false, preserveCounters = false, onEvent = null, moveReason = null } = {}) {
   const hit = locateCardInGame(game, id);
   if (!hit || hit.zone === 'stack')
@@ -154,7 +158,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (!owner)
     throw new Error('Card owner is unavailable.');
   // Last-known information for "dies" abilities (undying, persist, blitz).
-  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0) };
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0), auraControllers: auraControllersOn(game, id) };
   if (!preserveCounters)
     resetOnZoneChange(card);
   if (card.pendingVoid) { delete card.pendingVoid; if (to === 'exile') card.counters = { ...(card.counters || {}), void: 1 }; }
@@ -1114,6 +1118,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
         if (!th || th.zone !== 'battlefield')
           throw new Error('The chosen damage target is no longer legal.');
         markDamage(game, th.card, dealt);
+        if (dealt) emit(bindings, { type: 'damage-permanent', targetId, amount: dealt, sourceId, definitionId: src.card.definitionId, controllerId: src.card.controllerId || controllerId });   // the damage tallies (Rith, Impact Resonance, Blazing Effigy)
         notes.push(`${sd?.name || 'Creature'} deals ${dealt} damage to ${cardName(game, th.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
         checkLethal(game, targetId, notes, bindings);
       }
@@ -1134,6 +1139,9 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const ad = definitionFor(game, a.card), bd = definitionFor(game, b.card), ap = effectivePower(a.card, ad, game), bp = effectivePower(b.card, bd, game), toA = preventDamage(game, aId, bp), toB = preventDamage(game, bId, ap);
       a.card.damageMarked = Number(a.card.damageMarked || 0) + toA;
       b.card.damageMarked = Number(b.card.damageMarked || 0) + toB;
+      // Each creature dealt its damage as a source: the damage tallies (Rith, Impact Resonance, Blazing Effigy) see both.
+      if (toB) emit(bindings, { type: 'damage-permanent', targetId: bId, amount: toB, sourceId: aId, definitionId: a.card.definitionId, controllerId: a.card.controllerId || controllerId });
+      if (toA) emit(bindings, { type: 'damage-permanent', targetId: aId, amount: toA, sourceId: bId, definitionId: b.card.definitionId, controllerId: b.card.controllerId });
       notes.push(`${ad?.name || 'Creature'} and ${bd?.name || 'creature'} fight (${toB} and ${toA} damage dealt after prevention).`);
       checkLethal(game, aId, notes, bindings);
       checkLethal(game, bId, notes, bindings);
@@ -1479,6 +1487,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const n = cardName(game, hit.card);
       moveCard(game, targetId, effect.to, { controllerId: effect.controllerId || controllerId, position: effect.position || 'bottom', tapped: !!effect.tapped, onEvent: e => emit(bindings, e) });
       notes.push(`${n} moves to ${effect.to}.`);
+      if (effect.to === 'exile') bindings.exiledCard = targetId;   // "the exiled card's toughness" (Scour the Desert)
       continue;
     }
     if (effect.kind === 'choose-color') {

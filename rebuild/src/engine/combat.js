@@ -331,7 +331,7 @@ function stateBasedDeaths(game, events, onEvent) {
           continue;
         bf.splice(i, 1);
         const exiledInstead = graveyardDestination(game, c) === 'exile';   // before its temporary effects are cleared (Unearth, Suplex)
-        const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null };
+        const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null, auraControllers: game.players.flatMap(q => (q.deck?.battlefield || []).filter(a => a.attachedTo === c.instanceId && /\bAura\b/.test(game.cardDefinitions?.[a.definitionId]?.typeLine || '')).map(a => a.controllerId || q.playerId)) };
         c.zone = 'graveyard';
         c.tapped = false;
         c.damageMarked = 0;

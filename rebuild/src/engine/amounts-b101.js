@@ -370,7 +370,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
       return (p?.deck?.battlefield || []).filter(c => c.instanceId !== me.card.instanceId && /\bcreature\b/i.test(H.definitionFor(game, c)?.typeLine || '') && mine.length && (() => { const t = subs(c); return t.length && (mine.includes('*') || t.includes('*') || mine.some(x => t.includes(x))); })()).length;
     }
     case 'b101-last-moved-stat': {
-      const id = [].concat(bindings.lastMoved || []).slice(-1)[0], hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
+      const id = bindings.exiledCard || [].concat(bindings.lastMoved || []).slice(-1)[0], hit = id && H.locateCardInGame(game, id), d = hit && H.definitionFor(game, hit.card);
       const v = !d ? 0 : expr.stat === 'mana value' ? Number(d.manaValue ?? d.cmc ?? 0) : Number(expr.stat === 'power' ? d.power : d.toughness);
       return Math.max(0, Number.isFinite(v) ? v : 0);
     }
