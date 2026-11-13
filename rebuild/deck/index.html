@@ -421,7 +421,7 @@ a{color:var(--glow)}
   .continue .tile img{height:52px;width:76px;flex-basis:76px}
   /* deck screen: the page scrolls (no fixed-height boxes), one compact row of deck buttons, smaller tabs */
   .work{height:auto!important} .app.editing .work .scroll{overflow:visible;flex:none;min-height:0;max-height:none}
-  .row.bar{flex-wrap:wrap;gap:5px;align-items:stretch} .row.bar>.btn{padding:5px 10px;font-size:11px} .row.bar .note{display:none}
+  .row.bar{flex-wrap:nowrap;overflow-x:auto;gap:5px;align-items:stretch;scrollbar-width:none;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)} .row.bar::-webkit-scrollbar{display:none} .row.bar>.btn{flex:0 0 auto} .row.bar>.btn{padding:5px 10px;font-size:11px} .row.bar .note{display:none}
   .tabs .tab{padding:4px 8px;font-size:13px} .tabs .tab em{font-size:10px;padding:0 5px}
   /* stay clear of the notch without the full safe-area band */
   .app{padding-inline:max(8px,env(safe-area-inset-left,0px)) max(8px,env(safe-area-inset-right,0px))}
