@@ -889,6 +889,9 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
       const players = /your graveyard/i.test(effect) ? [player] : (game?.players || []);
       targetFound = players.filter(Boolean).some(q => (q.deck?.graveyard || []).length > 0);
     }
+    // "target card exiled with this artifact": needs a card this permanent still holds in exile (607.2a).
+    if (/target (?:[a-z ]+? )?card (?:you own )?(?:with mana value \w+ )?exiled with\b/i.test(effect))
+      targetFound = (instance?.linkedExile || []).some(id => (game?.players || []).some(q => (q.deck?.exile || []).some(x => x.instanceId === id && x.exiledBy === instance.instanceId)));
     return targetFound;
     };
     const targetFound = (ability.modes?.length ? ability.modes : [String(ability.effect || '')]).some(hasTarget);

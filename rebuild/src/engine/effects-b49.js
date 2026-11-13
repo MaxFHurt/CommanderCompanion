@@ -2,7 +2,7 @@
 // compileB49Clause(c, ctx) is tried by effects-catalog.js before it gives up on a sentence; compileB49Sequence sees the
 // sentences around it (and the parts compiled so far); applyB49 runs the effect kinds made here and gatherB49 asks the
 // resolve-time questions. Every choice stays with the player who makes it in the rules.
-import { numberFromText, locateCardInGame, moveCard, definitionFor, resolveAmount, parseCondition, checkCondition, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, exiledWith, moveCard, definitionFor, resolveAmount, parseCondition, checkCondition, catalogHelpers as H } from './effects.js';
 import { refreshManaSource } from './transactions.js';
 import { effectivePower, effectiveToughness } from './combat.js';
 import { cardFitsWords } from './effects-catalog.js';
@@ -1438,7 +1438,7 @@ export function gatherB49(game, ctx, req, bindings, ask, key, title, base, util)
   }
   if (req.kind === 'b49-play-exiled') {
     const src = locateCardInGame(game, bindings.sourceId)?.card;
-    const id = src?.hideawayId, hit = id && locateCardInGame(game, id);
+    const id = src?.hideawayId || exiledWith(game, bindings.sourceId)[0]?.instanceId, hit = id && locateCardInGame(game, id);
     bindings[req.bind] = null;
     if (!hit || hit.zone !== 'exile') return true;
     if (req.cond && !checkCondition(game, player.playerId, req.cond, bindings)) return true;   // the condition isn't met: nothing to ask

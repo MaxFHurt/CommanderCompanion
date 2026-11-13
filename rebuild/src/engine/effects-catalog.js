@@ -11,6 +11,7 @@ import {
 import { effectiveToughness, effectivePower } from './combat.js';
 const effectivePowerOf = (game, card) => effectivePower(card, definitionFor(game, card), game);
 import { librarySearchSpec, searchFilter } from '../game/library-search.js';
+import { compileLinkedClause, applyLinked, gatherLinked } from './effects-linked.js';
 import { compileB49Clause, compileB49Sequence, applyB49, gatherB49 } from './effects-b49.js';
 import { compileB101Clause, compileB101Sequence, applyB101, gatherB101 } from './effects-b101.js';
 
@@ -58,6 +59,10 @@ export function compileB101Only(c0, ctx0) {
   const re = selfNameRegex(ctx0.sourceName);
   const c = re ? c0.replace(re, 'SELFNAME') : c0;
   return compileB101Clause(c, { ...ctx0, selfAny: SELF_STATIC, restore: s => String(s).replace(/SELFNAME/g, ctx0.sourceName) });
+}
+export function compileLinkedOnly(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  return compileLinkedClause(re ? c0.replace(re, 'SELFNAME') : c0, ctx0);
 }
 export function compileCatalogClause(c0, ctx0) {
   const re = selfNameRegex(ctx0.sourceName);
@@ -611,6 +616,7 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'create-token', amount: 1, name: 'Powerstone', typeLine: 'Token Artifact — Powerstone', oracleText: '{T}: Add {C}. This mana can\'t be spent to cast a nonartifact spell.', tapped: true });
     return true;
   }
+  if (compileLinkedClause(c, ctx)) return true;
   if (compileB49Clause(c, ctx)) return true;
   if (compileB101Clause(c, ctx)) return true;
   return false;
@@ -820,7 +826,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes);
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyLinked(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -855,6 +861,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB49(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB101(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (gatherLinked(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'forage') {
     const gy = player.deck.graveyard || [], foods = (player.deck.battlefield || []).filter(c => /\bFood\b/.test(util.defOf(game, c)?.typeLine || ''));
     const opts = [...(gy.length >= 3 ? [{ id: 'exile', label: 'Exile three cards from your graveyard' }] : []), ...foods.map(c => ({ id: c.instanceId, label: `Sacrifice ${util.defOf(game, c)?.name || 'a Food'}` }))];
@@ -1355,11 +1362,18 @@ export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, 
   return false;
 }
 
+export const STATIC_LINKED_PLAY = /(?:^|\n)(?:[A-Z][A-Za-z ]+ — )?You may play lands and cast spells from among cards exiled with (?:this [a-z]+|[^.\n]+?)\.?(?:\n|$)/;
 /** Can this player play this exiled card now because an effect allowed it (impulse draw)? */
 export function exilePlayPermission(game, player, card) {
   const p = card?.playPermission;
-  if (!p || card.zone !== 'exile' || p.playerId !== player.playerId) return null;
-  return p;
+  if (p && card.zone === 'exile' && p.playerId === player.playerId) return p;
+  // Static "You may play lands and cast spells from among cards exiled with this creature." (Nightveil Specter, Body Thief):
+  // the permanent that exiled it, while its controller controls it on the battlefield (607.2a).
+  if (card?.zone === 'exile' && card.exiledBy) {
+    const src = (player.deck?.battlefield || []).find(x => x.instanceId === card.exiledBy && (x.linkedExile || []).includes(card.instanceId));
+    if (src && STATIC_LINKED_PLAY.test(String(definitionFor(game, src)?.oracleText || '').replace(/\([^()]*\)/g, ''))) return { playerId: player.playerId, until: 'static', castOnly: false, free: false, static: true };
+  }
+  return null;
 }
 
 /** At the end of each turn: permissions that last "this turn" end; "until the end of your next turn" ends after that turn. */
@@ -2256,18 +2270,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} creates ${n === 1 ? 'a token copy' : `${n} token copies`} of ${d.name}.`);
       return true;
     }
-    case 'return-linked': {
-      const src = locateCardInGame(game, bindings.sourceId)?.card;
-      const list = [...(src?.linkedExile || [])];
-      if (src) src.linkedExile = [];
-      for (const id of list) {
-        const hit = locateCardInGame(game, id);
-        if (!hit || hit.zone !== 'exile') continue;
-        moveCard(game, id, effect.to === 'hand' ? 'hand' : 'battlefield', { controllerId: hit.card.ownerId, onEvent: emit });
-        notes.push(`${name(hit.card)} returns ${effect.to === 'hand' ? "to its owner's hand" : 'to the battlefield'}.`);
-      }
-      return true;
-    }
+    case 'return-linked': return applyLinked(game, controllerId, { kind: 'linked-move', select: 'all', to: effect.to === 'hand' ? 'hand' : 'battlefield', owner: true }, bindings, notes);
     case 'return-ids': {
       // The cards just moved or made; otherwise the card the trigger is about ("Whenever a creature dies, … return that card").
       const event = [bindings.eventCard].filter(id => id && ['exile', 'graveyard'].includes(locateCardInGame(game, id)?.zone));

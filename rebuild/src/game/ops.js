@@ -91,7 +91,7 @@ export function effectRunsByItself(text, sourceName = 'Card') {
  */
 function announceTargets(game, player, reqs, bindings, sourceId, kind) {
   const ids = [];
-  for (const r of reqs || []) if (['target', 'player', 'multi-target', 'graveyard-target', 'stack-target'].includes(r.kind)) ids.push(...[].concat(bindings[r.bind] || []));
+  for (const r of reqs || []) if (['target', 'player', 'multi-target', 'graveyard-target', 'stack-target', 'linked-target'].includes(r.kind)) ids.push(...[].concat(bindings[r.bind] || []));
   let crime = false;
   for (const id of new Set(ids.filter(x => typeof x === 'string'))) {
     const q = (game.players || []).find(p => p.playerId === id);
@@ -1212,7 +1212,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null, eventAuraControllers: ev.auraControllers || [] };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventLinked: ev.sourceId && ev.sourceId === trigger.sourceId ? (ev.last?.linkedExile || null) : null, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null, eventAuraControllers: ev.auraControllers || [] };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;

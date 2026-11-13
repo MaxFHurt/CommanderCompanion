@@ -720,20 +720,12 @@ function queueTriggersInner(game, event) {
   }
   // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
   if (event?.type === 'leaves-battlefield' && event.sourceId) {
-    const gone = (game.players || []).flatMap(p => ['graveyard', 'exile', 'hand', 'commandZone', 'remainingLibrary'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
-    const toHand = gone?.untilLeavesExileHand || [];
-    if (toHand.length) {
-      gone.untilLeavesExileHand = [];
-      for (const id of toHand) if ((game.players || []).some(p => (p.deck?.exile || []).some(c => c.instanceId === id))) moveCard(game, id, 'hand', { onEvent: e => queueTriggers(game, e) });
-    }
-    const back = gone?.untilLeavesExile || [];
-    if (back.length) {
-      gone.untilLeavesExile = [];
-      gone.linkedExile = (gone.linkedExile || []).filter(id => !back.includes(id));
-      for (const id of back) {
-        const owner = (game.players || []).find(p => (p.deck?.exile || []).some(c => c.instanceId === id));
-        if (owner) moveCard(game, id, 'battlefield', { controllerId: owner.playerId, onEvent: e => queueTriggers(game, e) });
-      }
+    const lki = event.last || {};   // what it exiled, read before the zone change made it a new object (400.7)
+    const toHand = lki.untilLeavesExileHand || [];
+    for (const id of toHand) if ((game.players || []).some(p => (p.deck?.exile || []).some(c => c.instanceId === id && c.exiledBy === event.sourceId))) moveCard(game, id, 'hand', { onEvent: e => queueTriggers(game, e) });
+    for (const id of lki.untilLeavesExile || []) {
+      const owner = (game.players || []).find(p => (p.deck?.exile || []).some(c => c.instanceId === id && c.exiledBy === event.sourceId));
+      if (owner) moveCard(game, id, 'battlefield', { controllerId: owner.playerId, onEvent: e => queueTriggers(game, e) });
     }
   }
   // Madness: a discarded card with madness is exiled instead, and its madness trigger goes on the stack.

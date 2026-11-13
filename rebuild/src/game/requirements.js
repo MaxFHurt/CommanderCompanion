@@ -9,7 +9,7 @@ import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catal
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
-import { cardMatchesFilter, resolveAmount } from '../engine/effects.js';
+import { cardMatchesFilter, resolveAmount, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -79,7 +79,7 @@ export class Need {
 }
 
 /** Requirement kinds answered while casting/activating (targets are locked in then). */
-const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute', 'b101-gy-cards']);
+const CAST_TIME = new Set(['linked-target', 'target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute', 'b101-gy-cards']);
 
 export function splitRequirements(requirements = []) {
   const cast = [], resolve = [];
@@ -173,6 +173,16 @@ export function candidatesFor(game, req, player, source = null) {
   if (req.kind === 'player') {
     const rows = scope === 'opponent' ? opponentsOf(game, player.playerId) : alivePlayers(game);
     return rows.filter(q => req.notTargeted || canTargetPlayer(game, q, player, source)).map(playerOption);   // "an opponent" (not "target") ignores hexproof
+  }
+  if (req.kind === 'linked-target') {
+    // "target card exiled with this permanent" (607.2a): only what the source itself exiled and still holds in exile.
+    const sid = req.sourceId || source?.instanceId;
+    for (const c of sid ? exiledWith(game, sid) : []) {
+      const d = defOf(game, c);
+      if (req.filter && !cardFitsWords(d, req.filter)) continue;
+      out.push(cardOption(game, c, game.players.find(q => q.playerId === c.ownerId) || player, 'Exiled with this permanent'));
+    }
+    return out;
   }
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
@@ -445,7 +455,8 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
 
     // Single choice: target, player, graveyard-target, stack-target.
-    let rows = candidatesFor(game, req, player, ctx.source || null);
+    let rows = candidatesFor(game, req.kind === 'linked-target' ? { ...req, sourceId: bindings.sourceId } : req, player, ctx.source || null);
+    if (req.mvX) rows = rows.filter(r => { const d = defOf(game, locateCardInGame(game, r.id)?.card); return Number(d?.manaValue ?? d?.cmc ?? 0) === Number(bindings.X || 0); });
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
     if (req.notSource && bindings.sourceId) rows = rows.filter(r => r.id !== bindings.sourceId);   // "another"
     // "creature card with mana value equal to that spell's mana value" (Krile Baldesion): the spell the trigger is about.

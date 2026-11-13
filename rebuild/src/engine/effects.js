@@ -2,7 +2,7 @@
 // Design rule: an automated effect must mutate authoritative game state or fail loudly.
 import { withOverlay } from './overlay.js';
 import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
-import { compileCatalogClause, compileB101Only, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
+import { compileCatalogClause, compileB101Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
@@ -136,6 +136,24 @@ function resetOnZoneChange(card) {
   delete card.attacking;
   delete card.blocking;
   delete card.unlockedFaces;   // Room doors lock again
+  delete card.linkedExile; delete card.untilLeavesExile; delete card.untilLeavesExileHand; delete card.exiledBy;   // 400.7: a new object remembers nothing it exiled
+}
+/** The object whose effect is resolving right now: cards it moves into exile are "exiled with" it (607.2). */
+let EXILER = null, CUR = null;
+/** Cards still exiled with this object (607.2a): remembered by the exiler, and each must still be the same object in exile. */
+export function exiledWith(game, sourceId) {
+  const src = locateCardInGame(game, sourceId)?.card;
+  return (src?.linkedExile || []).map(id => locateCardInGame(game, id)).filter(h => h && h.zone === 'exile' && h.card.exiledBy === sourceId).map(h => h.card);
+}
+function rememberExiled(game, card, to, from) {
+  if (from === 'exile') return;
+  if (CUR) (CUR.lastExiled = CUR.lastExiled || []).push(card.instanceId);
+  if (!EXILER || EXILER === card.instanceId) return;
+  const src = locateCardInGame(game, EXILER)?.card;
+  if (!src) return;
+  card.exiledBy = EXILER;
+  const keep = (src.linkedExile || []).filter(id => locateCardInGame(game, id)?.card?.exiledBy === EXILER && locateCardInGame(game, id)?.zone === 'exile');
+  src.linkedExile = [...keep, card.instanceId];
 }
 /** Who controls each Aura attached to this permanent right now ("for each Aura you controlled that was attached to it", Hateful Eidolon). */
 export function auraControllersOn(game, id) {
@@ -158,7 +176,9 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (!owner)
     throw new Error('Card owner is unavailable.');
   // Last-known information for "dies" abilities (undying, persist, blitz).
-  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0), auraControllers: auraControllersOn(game, id) };
+  const last = { linkedExile: card.linkedExile, untilLeavesExile: card.untilLeavesExile, untilLeavesExileHand: card.untilLeavesExileHand, counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0), auraControllers: auraControllersOn(game, id) };
+  // "Sacrifice this land. If you do, return each card exiled with it": the rest of the resolution reads what it held (last-known information).
+  if (CUR && CUR.sourceId === id && last.linkedExile?.length) CUR.eventLinked = [...new Set([...(CUR.eventLinked || []), ...last.linkedExile])];
   if (!preserveCounters)
     resetOnZoneChange(card);
   if (card.pendingVoid) { delete card.pendingVoid; if (to === 'exile') card.counters = { ...(card.counters || {}), void: 1 }; }
@@ -169,6 +189,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   }
   clearCastState(card, to);
   card.zone = to;
+  if (to === 'exile') rememberExiled(game, card, to, from);
   if (to === 'battlefield') {
     card.controllerId = controllerId || owner.playerId;
     card.enteredTurn = game.turnNumber;
@@ -621,6 +642,12 @@ function rememberLast(game, bindings, hit, def) {
   bindings.__lastManaValue = Math.max(0, Number(def?.manaValue ?? def?.cmc ?? 0));
 }
 function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
+  const outer = EXILER, outerCur = CUR;
+  EXILER = bindings.sourceId || null; CUR = bindings;
+  try { return applyEffectsBody(game, controllerId, effects, bindings); }
+  finally { EXILER = outer; CUR = outerCur; }
+}
+function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
   const controller = game.players.find(p => p.playerId === controllerId);
   if (!controller)
     throw new Error('Effect controller is unavailable.');
@@ -1276,7 +1303,6 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       // Remember what a permanent exiled ("return the exiled card", "until this leaves the battlefield").
       const linker = effect.kind === 'exile' && targetId !== bindings.sourceId ? locateCardInGame(game, bindings.sourceId) : null;
       if (linker && linker.zone === 'battlefield') {
-        linker.card.linkedExile = [...(linker.card.linkedExile || []), targetId];
         if (effect.untilLeaves) linker.card.untilLeavesExile = [...(linker.card.untilLeavesExile || []), targetId];
       }
       moveCard(game, targetId, to, { moveReason: effect.kind === 'sacrifice' ? 'sacrifice' : null, onEvent: e => emit(bindings, e) });
@@ -1764,6 +1790,7 @@ export function parseCondition(text) {
   const t = String(text || '').trim().replace(/\.$/, '');
   const counts = { a: 1, an: 1, no: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, thirteen: 13, twenty: 20 };
   let m;
+  if (/^(?:a card is exiled with (?:it|this [a-z]+)|there are cards exiled with (?:it|this [a-z]+))$/i.test(t)) return { test: 'has-linked' };
   if ((m = t.match(/^you control (\w+) or more lands with different names$/i))) return { test: 'distinct-lands', min: counts[m[1].toLowerCase()] ?? Number(m[1]) };
   const sing = w => /plains$/i.test(w) ? w : w.replace(/s$/, '');
   if ((m = t.match(/^you control (a|an|no|(\w+) or more) (.+)$/i)) && parseSubject(sing(m[3]), null)) return { test: 'control', subject: sing(m[3]), min: m[2] ? (counts[m[2].toLowerCase()] ?? Number(m[2])) : 1, ...(/^no$/i.test(m[1]) ? { none: true } : {}) };
@@ -1803,6 +1830,7 @@ export function parseCondition(text) {
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
+  if (effect.test === 'has-linked') return exiledWith(game, bindings.sourceId).length > 0;
   if (effect.test === 'distinct-lands') return new Set((me?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => definitionFor(game, c)?.name)).size >= (effect.min || 1);
   if (effect.test === 'graveyard-count') return (me?.deck?.graveyard || []).length >= (effect.min || 1);
   if (effect.test === 'gained-life') { const g = game.gainedLifeTurn?.[controllerId]; return !!g && g.turn === game.turnNumber && g.n >= (effect.min || 1); }
@@ -2028,7 +2056,7 @@ function compileSingleClause(clause, opts = {}) {
     if (w && !/^(?:creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment|opponent|player|spell|ability|aura|vehicle|food|clue|treasure|blood|map|gold|junk|shard|incubator|powerstone|saga|class|case|room|attraction|siege|fortification|curse|shrine|cartouche|trap|contraption|nonland|permanents|creatures|nontoken|token)$/.test(w) && new RegExp(`\\btarget ${w}\\b`).test(String(clause).toLowerCase()) && new RegExp(`\\btarget ${w[0].toUpperCase()}${w.slice(1)}\\b`).test(String(clause))) q.scope = `target ${w} creature${sm[2] || ''}`;
   }
   // "target card exiled with Nyla": the game does not remember which cards a permanent exiled, so no card could ever be chosen: left for the player.
-  if (r.requirements.some(q => /\bexiled with\b/i.test(`${q.scope || ''} ${q.label || ''}`))) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
+  if (r.requirements.some(q => !/^linked-/.test(q.kind) && /\bexiled with\b/i.test(`${q.scope || ''} ${q.label || ''}`))) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
   if (r.requirements.some(q => SWALLOWED.test(`${q.scope || ''} ${q.filter || ''}`))) {
     // The older reading took more than the target; a build-101 wording may read the whole sentence ("A gets +2/+0 … and up to one target … gets -0/-2 …").
     const text = stripReminderText(normalizeClause(clause)), effects = [], requirements = [];
@@ -2047,6 +2075,9 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   if (/^Choose (?:one|two|three|four|five|any number|one or more)\s*[—-]/i.test(c))
     return { effects, requirements, unsupported: [c] };
   let m;
+  // "Exiled with" wordings (effects-linked.js) read before the older wordings misread them.
+  if (/\ball other permanents with the same name\b/i.test(c) && /\bexile\b/i.test(c)) return { effects: [], requirements: [], unsupported: [c] };   // Detention Sphere: the other permanents with that name are not exiled by the older reading
+  if (/\bexiled\b/i.test(c) && compileLinkedOnly(c, { sourceName, effects, requirements })) return { effects, requirements, unsupported };
   // Draw.
   if ((m = c.match(/^(You|Target player|Target opponent|Each player|Each opponent) draws? (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|cards? equal to the number of .+|cards? equal to the greatest power among .+|cards? equal to the greatest toughness among .+|that many cards?)(?: cards?)?\.?$/i))) {
     const scope = scopeFromSubject(m[1]);

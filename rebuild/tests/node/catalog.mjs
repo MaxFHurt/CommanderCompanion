@@ -7,6 +7,7 @@ import { withOverlay } from '../../src/engine/overlay.js';
 import { compileEffectText } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
+import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -4074,7 +4075,7 @@ section('long tail batch 3 part 2: review of the 26 newly automatic cards');
     cast(t2, 'Grizzly Bears', 'When Nyla enters, exile up to one target creature card from your graveyard. If you do, you lose X life and create X Clue tokens, where X is that card\'s mana value.', [[d => d.targeting, () => big.instanceId]], { manaCost: '{G}', typeLine: 'Legendary Creature — Mole Beast', name: 'Nyla, Shirshu Sleuth' });
     check('Nyla: exiles the card, loses 3 life, makes 3 Clues', l2 - t2.P(0).life === 3 && t2.P(0).deck.battlefield.filter(x => /Clue/.test(def(t2, x).name)).length === 3, t2.names(0, 'battlefield').join());
     const r = compileEffectText('Return target card exiled with Nyla to its owner\'s hand.', { sourceName: 'Nyla, Shirshu Sleuth' });
-    check('"target card exiled with …" is left for the player (nothing remembers which cards a permanent exiled)', !r.supported, JSON.stringify(r.unsupported));
+    check('"target card exiled with …" is read: a choice among the cards this permanent exiled', r.supported && r.requirements[0]?.kind === 'linked-target', JSON.stringify(r.unsupported));
   }
   // Creature-type targets: "target Symbiote", "target Faerie you control" (the scope had no card type, so nothing could be chosen)
   {
@@ -4178,6 +4179,91 @@ section('long tail batch 3 part 2: review of the 26 newly automatic cards');
   settle(t, [['mayDo', true]]);
   const b = t.P(0).deck.battlefield.find(x => x.definitionId && def(t, x).name === 'Llanowar Elves');
   check('Olivia, Mobilized for War: counter and Vampire', !!b && Number(b.counters?.['+1/+1'] || 0) === 1 && t.names(0, 'graveyard').includes('Island'), JSON.stringify([b?.counters, t.names(0, 'graveyard')]));
+}
+
+section('exiled with: records on the exiling object (607, 610.3, 400.7)');
+const gyx = (t, name, i = 1) => { const lib = t.P(i).deck.remainingLibrary, at = lib.findLastIndex(x => /Land/.test(t.game.cardDefinitions[x.definitionId]?.typeLine || '')), c = lib.splice(at < 0 ? lib.length - 1 : at, 1)[0]; c.zone = 'graveyard'; t.P(i).deck.graveyard.push(c); const nid = 'x-' + name; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[c.definitionId], name, typeLine: 'Creature — Test', manaValue: 2, cmc: 2, power: '2', toughness: '2' }; c.definitionId = nid; return c; };
+{
+  // Dino DNA style: exile into a record, then a target "card exiled with this", then the record resets on a zone change
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears'), g2 = gyx(t, 'Llanowar Elves');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{1}: Return target card exiled with this artifact to its owner\'s hand.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  check('exiled with: the card is exiled and remembered', t.names(1, 'exile').includes('Grizzly Bears') && (art.linkedExile || []).includes(g1.instanceId));
+  const seen = [];
+  art.tapped = false;
+  activate(t, art, 1, [[d => d.targeting || d.kind === 'choose-one', d => { seen.push(d.options.map(o => o.id)); return g1.instanceId; }]]);
+  check('exiled with: "target card exiled with this" offers only that card, and returns it to hand', t.names(1, 'hand').includes('Grizzly Bears') && seen.length === 1 && seen[0].length === 1 && seen[0][0] === g1.instanceId, JSON.stringify(seen));
+}
+{
+  // Choose among exactly the exiled cards; another source's exile is not offered
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears'), g2 = gyx(t, 'Llanowar Elves'), g3 = gyx(t, 'Fog Bank');
+  onField(t, 'Grizzly Bears', '', {}, 1); const a = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{2}: Put a creature card exiled with this artifact onto the battlefield under your control.', { typeLine: 'Artifact' });
+  const b = onField(t, 'Fog Bank', '{T}: Exile target creature card from a graveyard.', { typeLine: 'Artifact' });
+  activate(t, a, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]); a.tapped = false;
+  activate(t, a, 0, [[d => d.targeting || d.kind === 'choose-one', () => g2.instanceId]]);
+  activate(t, b, 0, [[d => d.targeting || d.kind === 'choose-one', () => g3.instanceId]]);
+  const offered = [];
+  activate(t, a, 1, [[d => d.kind === 'choose-one', d => { offered.push(...d.options.map(o => o.id)); return g2.instanceId; }]]);
+  check('exiled with: choose among exactly the cards this exiled', offered.length === 2 && offered.includes(g1.instanceId) && offered.includes(g2.instanceId) && !offered.includes(g3.instanceId), JSON.stringify(offered));
+  check('exiled with: the chosen creature enters under your control', !!t.bf(0, 'Llanowar Elves') && t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(1,'graveyard'), t.names(1,'hand'), t.names(0,'graveyard'), t.game.log.slice(-4)]));
+  // zone change: a new object remembers nothing (400.7)
+  const keep = a.linkedExile.slice();
+  const mv = t.game.players[0].deck.battlefield.splice(t.game.players[0].deck.battlefield.indexOf(a), 1)[0];
+  void keep; void mv;
+}
+{
+  // "until leaves": all cards exiled with it come back; the creature's own ETB exile is recorded
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  t.give(0, 'Opt'); const ring = asText(t, t.hand(0, 'Opt'), 'When this creature enters, exile target creature an opponent controls.\nWhen this creature leaves the battlefield, return all cards exiled with it to the battlefield under their owners\' control.', { typeLine: 'Creature — Wizard', manaCost: '{1}', power: '1', toughness: '1' });
+  t.ctl.dispatch({ type: 'play', instanceId: ring.instanceId }, t.as(0)); settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  check('exiled with: ETB exile recorded on the creature', t.names(1, 'exile').includes('Grizzly Bears') && (ring.linkedExile || []).includes(bear.instanceId));
+  cast(t, 'Divination', 'Destroy target creature.', [[d => d.targeting, () => ring.instanceId]]);
+  check('exiled with: leaves trigger returns the exiled cards (last-known record)', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'));
+  check('exiled with: the new object (graveyard) starts empty', !(t.game.players[0].deck.graveyard.find(c => c.instanceId === ring.instanceId)?.linkedExile || []).length);
+}
+{
+  // "until leaves": a returning permanent is a new object, so a later "return the exiled card" finds nothing
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{1}: Return all cards exiled with this artifact to their owners\' hands.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  cast(t, 'Opt', "Return target artifact to its owner's hand.", [[d => d.targeting, () => art.instanceId]]);
+  const back = t.game.players[0].deck.hand.find(c => c.instanceId === art.instanceId);
+  check('exiled with: a card that left and re-entered is a new object (record empty)', !!back && !(back.linkedExile || []).length, JSON.stringify(back?.linkedExile));
+}
+{
+  // Play the exiled card this turn: permission only for what this exiled
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard. You may play the exiled card this turn.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  const ex = t.game.players[1].deck.exile.find(c => c.instanceId === g1.instanceId);
+  check('exiled with: "you may play the exiled card this turn" grants permission', ex?.playPermission?.playerId === t.P(0).playerId, JSON.stringify(ex?.playPermission));
+}
+
+{
+  // Static: "You may play lands and cast spells from among cards exiled with this creature" (exilePlayPermission)
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  const sp = onField(t, 'Fog Bank', 'You may play lands and cast spells from among cards exiled with this creature.\n{T}: Exile target creature card from a graveyard.');
+  activate(t, sp, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  const ex = t.game.players[1].deck.exile.find(c => c.instanceId === g1.instanceId);
+  check('exiled with: static permission to cast cards exiled with this creature', ex && !!exilePlayPermission(t.game, t.P(0), ex) && !exilePlayPermission(t.game, t.P(1), ex));
+  const other = onField(t, 'Llanowar Elves', '');
+  check('exiled with: …but not for a permanent that did not exile it', !other.linkedExile);
+}
+
+{
+  // Safe Haven: sacrifice itself, then return each card it exiled (last-known information)
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const land = onField(t, 'Fog Bank', '{T}: Exile target creature card from a graveyard.\n{2}, {T}: Sacrifice this land. Return each card exiled with this land to the battlefield under its owner\'s control.', { typeLine: 'Land' });
+  activate(t, land, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]); land.tapped = false;
+  activate(t, land, 1);
+  check('exiled with: sacrifice then return reads what the sacrificed permanent exiled', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'battlefield'), t.names(1, 'exile')]));
 }
 
 done();
