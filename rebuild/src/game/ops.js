@@ -797,6 +797,7 @@ function runActivate(game, op, ask) {
     const sacrificedId = ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) }));
     // "the sacrificed creature's power" (Greater Good, Altar of Dementia, Ayli): remembered before it leaves.
     const sac = rows.find(c => c.instanceId === sacrificedId);
+    if (sac) { bindings.sacrificedSymbols = Object.fromEntries(['W', 'U', 'B', 'R', 'G'].map(k => [k, (String(defOf(game, sac)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(x => x.includes(k)).length])); }   // Fiery Bombardment: red mana symbols in its mana cost
     if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
     costMoveIds.push(sacrificedId);
   }
@@ -836,9 +837,34 @@ function runActivate(game, op, ask) {
   if (ability.discardCount && fromZone !== 'hand') {
     const rows = player.deck.hand;
     if (!rows.length) throw new GameError('You have no card to discard.');
-    costMoveIds.push(ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) })));
+    const discardedId = ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+    costMoveIds.push(discardedId);
+    // Mercurial Chemister: "the discarded card's mana value".
+    const gone = rows.find(c => c.instanceId === discardedId);
+    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
   }
 
+  // Costs that count what they used (the effect's "… this way" reads bindings.costCount, rules.js writes it "as a cost"):
+  // "Exile any number of cards from your graveyard" (Painbringer), "Sacrifice this creature and any number of other
+  // non-Eldrazi creatures" (Emrakul's Evangel), "Remove all eyeball counters from this artifact" (Jar of Eyeballs, Catti-brie).
+  const costRemoveCounters = [];
+  const anyEx = String(ability.cost || '').match(/Exile any number of ([a-z ]*?)cards? from your graveyard/i);
+  if (anyEx) {
+    const words = anyEx[1].trim().toLowerCase(), rows = (player.deck.graveyard || []).filter(c => !words || cardFitsWords(defOf(game, c), words));
+    const picked = rows.length ? ask('cost:exile-any', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose any number of ${words ? `${words} ` : ''}cards in your graveyard to exile.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your graveyard', instanceId: c.instanceId, definitionId: c.definitionId })) })) : [];
+    costExileIds.push(...(picked || [])); bindings.costCount = (picked || []).length;
+  }
+  const anySac = String(ability.cost || '').match(/Sacrifice (?:this [a-z]+|~) and any number of other ([a-z -]*?)creatures?/i);
+  if (anySac && ability.sacrificesSelf) {
+    const words = `${anySac[1].trim().toLowerCase()} creature`, rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && cardFitsWords(defOf(game, c), words));
+    const picked = rows.length ? ask('cost:sacrifice-any', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose any number of other ${anySac[1].trim()} creatures to sacrifice.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) })) : [];
+    costMoveIds.push(...(picked || [])); bindings.costCount = 1 + (picked || []).length;
+  }
+  const rmAll = String(ability.cost || '').match(/Remove all ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
+  if (rmAll) {
+    const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));
+    costRemoveCounters.push({ counter: rmAll[1], amount: n }); bindings.costCount = n;
+  }
   const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
   const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;
@@ -848,7 +874,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 

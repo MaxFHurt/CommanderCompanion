@@ -719,7 +719,10 @@ export function parseActivatedAbilities(definition) {
     const full = [a.text, ...a.continuations].join('\n');
     const m = a.text.match(/^(.+?):\s*(.*)$/s);
     const cost = (m?.[1] || '').trim();
-    const effect = [m?.[2] || '', ...a.continuations].filter(Boolean).join('\n').trim();
+    // "…, where X is the number of cards exiled this way" after a cost that exiled, sacrificed or removed them: the cost's count
+    // (ops.js remembers it as costCount), written "as a cost" so the amount reader can tell it from an effect's own "this way".
+    let effect = [m?.[2] || '', ...a.continuations].filter(Boolean).join('\n').trim();
+    if (/\b(?:Exile|Sacrifice|Remove)\b/.test(cost) && /\b(?:exiled|sacrificed|removed) this way\b/i.test(effect)) effect = effect.replace(/\b(exiled|sacrificed|removed) this way\b/gi, '$1 as a cost');
     const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim());
     const chooseMatch = effect.match(/Choose\s+(one|two|three|one or more)\s*[—-]/i);
     const loyaltyMatch = cost.match(/^([+−-])\s*(\d+)$/);
@@ -737,7 +740,7 @@ export function parseActivatedAbilities(definition) {
       lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
       energyCost: (cost.match(/\{E\}/gi) || []).length,
       loyaltyDelta,
-      hasX: /\{X\}|\bX\b/.test(cost) || /\bX\b/.test(effect),
+      hasX: /\{X\}|\bX\b/.test(cost) || (/\bX\b/.test(effect) && !/\bwhere X is\b/i.test(effect)),   // "where X is …" is worked out, not chosen
       needsTarget: /\btarget\b/i.test(effect),
       modes,
       modeCount: chooseMatch ? chooseMatch[1].toLowerCase() : null,

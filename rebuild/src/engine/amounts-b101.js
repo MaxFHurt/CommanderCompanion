@@ -45,6 +45,8 @@ export function parseCountB101(phrase) {
   if (!p) return null;
   const e = { kind: 'b101-n', who: null, zone: 'battlefield', alts: [], adj: [] };
   let m;
+  // "for each creature sacrificed this way" after a cost that sacrificed them (rules.js writes "as a cost"; ops.js counts it).
+  if (/^(?:the )?(?:number of )?[a-z+\-\/0-9 ]+? (?:exiled|sacrificed|removed) as a cost$/.test(p)) return { kind: 'binding', bind: 'costCount' };
   // "creatures exiled this way", "nonartifact creatures destroyed this way", "nontoken creature you controlled that was destroyed this way".
   if ((m = p.match(/^(?:(?:the )?(?:number of )?)?(.+?) (?:that (?:was|were) )?(?:exiled|destroyed|sacrificed|put into (?:a|your|their) graveyard) this way$/)) && !/\b(?:target|your opponents?|in)\b/.test(m[1].replace(/ you controlled$/, ''))) {
     let mine = false;
@@ -186,9 +188,14 @@ export function parseAmountB101(phrase) {
   const p = String(phrase || '').toLowerCase().trim().replace(/\.$/, '').replace(/\s+/g, ' ');
   let m;
   if (lit(p) != null) return lit(p);
+  // What an activation cost exiled, sacrificed or removed (rules.js writes "this way" as "as a cost"; ops.js counts it).
+  if (/^(?:the )?(?:total )?number of [a-z+\-\/0-9 ]+? (?:exiled|sacrificed|removed) as a cost$/.test(p)) return { kind: 'binding', bind: 'costCount' };
   if ((m = p.match(/^(twice|two times|three times|four times|five times|ten times) (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: { twice: 2, 'two times': 2, 'three times': 3, 'four times': 4, 'five times': 5, 'ten times': 10 }[m[1]] }; }
   if ((m = p.match(/^(\d+) times (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: Number(m[1]) }; }
   if (/^(?:that spell'?s|its) mana value$/.test(p)) return { kind: 'binding', bind: 'eventManaValue' };
+  // What an activation cost discarded or sacrificed (ops.js remembers it before the card leaves).
+  if (/^the (?:discarded|exiled) card'?s mana value$/.test(p)) return { kind: 'binding', bind: 'costManaValue' };
+  if ((m = p.match(/^the number of (white|blue|black|red|green) mana symbols? in the sacrificed (?:creature|permanent|artifact)'?s mana cost$/))) return { kind: 'b101-cost-symbols', color: COLORS[m[1]] };
   if ((m = p.match(/^(\d+) or (the greatest .+?),? whichever is greater$/))) { const b = parseAmountB101(m[2]); return b == null ? null : { kind: 'b101-math', op: 'max', a: Number(m[1]), b }; }   // Triumphant Chomp
   if ((m = p.match(/^(the number of .+?) in excess of (the number of .+)$/))) { const a = parseAmountB101(m[1]), b = parseAmountB101(m[2]); return a == null || b == null ? null : { kind: 'b101-math', op: 'minus', a, b }; }   // Superior Numbers
   if (/^the amount of damage dealt to (?:it|this creature) this turn$/.test(p)) return { kind: 'binding', bind: 'eventDamage' };   // Tangled Colony (its last damage as it died)
@@ -328,6 +335,7 @@ export function evalAmountB101(game, controllerId, expr, bindings, H) {
     }
     case 'b101-life-high': return Math.max(0, ...alive.filter(p => !expr.opponents || p.playerId !== controllerId).map(p => Number(p.life || 0)));
     case 'b101-commander-mv': return Math.max(0, ...((alive.find(p => p.playerId === controllerId)?.commanders || []).map(c => { const d = H.definitionFor(game, { definitionId: c.cardId || c.definitionId }); return Number(d?.manaValue ?? d?.cmc ?? 0); })));
+    case 'b101-cost-symbols': return Math.max(0, Number((bindings.sacrificedSymbols || {})[expr.color] || 0));
     case 'b101-mana-spent': {
       const hit = H.locateCardInGame(game, bindings.sourceId), onStack = (game.stack || []).find(x => x.card?.instanceId === bindings.sourceId || x.id === bindings.sourceId);
       return Number(onStack?.manaSpentCount ?? hit?.card?.manaSpentCount ?? 0) || 0;
