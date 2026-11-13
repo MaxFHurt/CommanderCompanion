@@ -3029,7 +3029,8 @@ function apexTips(d, A, R, e, HA, lvl, noHealth) {   // noHealth: in Show all de
       h: '<b>Win route:</b> one card from a combo (' + esc(near[0].x.what.toLowerCase()) + '): add ' + esc(near[0].miss) + '.',
       b: '<button class="btn sm" data-act="card" data-n="' + esc(near[0].miss) + '">View card</button>'
     });
-  if (e.sim && e.sim.colourStuck > 0.15)
+  // in Show all details the Health list below already names a Mana problem, with its own Fix button: say it once there
+  if (e.sim && e.sim.colourStuck > 0.15 && !(noHealth && HA.some(x => x.k === 'Mana' && x.s !== 'good' && x.s !== 'info')))
     T.push({
       w: 2 * e.sim.colourStuck * 5,
       h:

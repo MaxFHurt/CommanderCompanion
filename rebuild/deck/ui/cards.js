@@ -762,6 +762,7 @@ function wantHtml(d, c) {
   let h =
     lab +
     note +
+    (b.row ? '<p class="note swapwhy" style="margin:0">The swap this upgrade suggests</p>' : '') +
     '<div class="swaphero">' +
     side(b.n, 'out', 'Take out') +
     '<span class="arrow" aria-hidden="true">→</span>' +

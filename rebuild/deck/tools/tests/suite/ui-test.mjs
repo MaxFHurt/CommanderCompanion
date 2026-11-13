@@ -1741,6 +1741,27 @@ const cw1 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   $('#modal').hidden = true; return out; });
 T('UI-CW-01', 'Card window: a spell for a full Commander deck opens at once ("Thinking…"), then shows the same best swap as measured directly', cw1.thinking && cw1.filled && cw1.same, JSON.stringify(cw1));
 } catch (e) { QUIET = false; T('UI-CW-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-CW-02')) { try { if (SHARD) await RESET();
+// Roadmap 6.2: the card window's lead swap, when opened from an upgrade row, says "The swap this upgrade suggests"; opened plain, it does not.
+const cw2 = await page.evaluate(async () => { const d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander) && analyze(x).size >= analyze(x).T.size); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'list'; render();
+  const c = LIB.find(x => !x.gc && x.cmd && x.ci.length && x.ci.every(z => ctxOf(d).ident.includes(z)) && !entryOf(d, x.n) && !tags(x).land && x.r && x.r < 500); const out = {};
+  const cut = d.cards.find(e => e.n !== d.commander && find(e.n) && !tags(find(e.n)).land).n;
+  const wait = async () => { for (let i = 0; i < 100 && document.querySelector('#want-think'); i++) await new Promise(r => setTimeout(r, 50)); };
+  S.rowCut = cut; openCard(c.n); await wait(); out.row = !!document.querySelector('#modal .swaphero') && /The swap this upgrade suggests/.test($('#modal').textContent) && /This upgrade’s swap/.test($('#modal').textContent);
+  $('#modal').hidden = true; S.rowCut = null; openCard(c.n); await wait(); out.plain = !!document.querySelector('#modal .swaphero') && !/The swap this upgrade suggests/.test($('#modal').textContent);
+  $('#modal').hidden = true; return out; });
+T('UI-CW-02', 'Card window: lead swap opened from an upgrade row has the reason line "The swap this upgrade suggests"; opened plain it does not', cw2.row && cw2.plain, JSON.stringify(cw2));
+} catch (e) { QUIET = false; T('UI-CW-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-APEX-02')) { try { if (SHARD) await RESET();
+// Roadmap 6.2: in Show all details the Path to Apex does not repeat a Mana problem the Health list below already shows; outside it still does.
+const ap2 = await page.evaluate(() => { const d = S.profile.decks.find(x => x.format === 'commander' && find(x.commander)); const out = {};
+  const e = {combos: {near: [], win: []}, sim: {colourStuck: 0.5}}, R = {paths: [], pending: false}, A = {};
+  const HA = [{k: 'Mana', s: 'warn', t: 'x'}];
+  out.pop = !/<b>Mana:<\/b>/.test(apexTips(d, A, R, e, HA, 'Mid', true));
+  out.page = /<b>Mana:<\/b>/.test(apexTips(d, A, R, e, HA, 'Mid', false));
+  out.noHealthItem = /<b>Mana:<\/b>/.test(apexTips(d, A, R, e, [], 'Mid', true)); return out; });
+T('UI-APEX-02', 'Path to Apex inside Show all details leaves out a Mana step the Health list below shows; kept when Health has no Mana item or outside the pop-up', ap2.pop && ap2.page && ap2.noHealthItem, JSON.stringify(ap2));
+} catch (e) { QUIET = false; T('UI-APEX-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-TYPE-02')) { try { if (SHARD) await RESET();
 // Owner, 10 Nov: background loading redraws closed a text box while typing. A background redraw waits while you type, and any
 // redraw keeps the box focused with its text and cursor.
