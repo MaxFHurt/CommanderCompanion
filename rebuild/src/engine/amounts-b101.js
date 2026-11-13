@@ -200,6 +200,8 @@ export function parseAmountB101(phrase) {
   if ((m = p.match(/^(twice|two times|three times|four times|five times|ten times) (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: { twice: 2, 'two times': 2, 'three times': 3, 'four times': 4, 'five times': 5, 'ten times': 10 }[m[1]] }; }
   if ((m = p.match(/^(\d+) times (.+)$/))) { const a = parseAmountB101(m[2]); return a == null ? null : { kind: 'b101-math', op: 'times', a, b: Number(m[1]) }; }
   if (/^(?:that spell'?s|its) mana value$/.test(p)) return { kind: 'binding', bind: 'eventManaValue' };
+  // Monstrous Emergence, Close Encounter: the creature chosen (or card revealed) as an additional cost, its power read as it was chosen (ops.js).
+  if (/^the power of (?:the creature you chose or the card you revealed|the chosen creature or card)$/.test(p)) return { kind: 'binding', bind: 'costChosenPower' };
   // What an activation cost discarded or sacrificed (ops.js remembers it before the card leaves).
   if (/^(?:the (?:discarded|exiled) card'?s|that card'?s) mana value$/.test(p)) return { kind: 'b101-discarded', what: 'mv' };
   if ((m = p.match(/^the number of (white|blue|black|red|green) mana symbols? in the sacrificed (?:creature|permanent|artifact)'?s mana cost$/))) return { kind: 'b101-cost-symbols', color: COLORS[m[1]] };

@@ -26,7 +26,7 @@ import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
-import { adjustGeneric, additionalCost, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
+import { adjustGeneric, additionalCost, choosePowerRows, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
 import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { cardFitsWords } from '../engine/effects-catalog.js';
 import { effectivePower } from '../engine/combat.js';
@@ -398,7 +398,7 @@ function runPlay(game, op, ask) {
 
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
-  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null;
+  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
   // Force of Will / Force of Negation: exile a blue card from your hand instead of paying mana.
   if (mode.exileColor) {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(mode.exileColor))
@@ -434,6 +434,18 @@ function runPlay(game, op, ask) {
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
     if (!rows.length && !force) throw new GameError(`You need a ${addCost.filters.join(' or ')} to sacrifice.`);
     if (rows.length) sacrificeForCost = ask('cost:sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: `${addCost.label} to cast it.`, options: rows }));
+  } else if (addCost?.kind === 'choose-power') {
+    // The creature chosen (or the creature card revealed) stays where it is; its power is what the spell uses.
+    const rows = choosePowerRows(game, player, card, addCost);
+    if (!rows.length && !force) throw new GameError('You need a creature you control or a creature card to choose.');
+    if (rows.length) {
+      const picked = ask('cost:choose-power', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: `${addCost.label}.`, options: rows.map(r => ({ id: r.card.instanceId, label: defOf(game, r.card)?.name || 'Creature', sub: `${r.zone === 'battlefield' ? 'You control it' : r.zone === 'hand' ? 'Reveal it from your hand' : 'Warped, in exile'} · power ${r.zone === 'battlefield' ? effectivePower(r.card, defOf(game, r.card), game) : (Number(defOf(game, r.card)?.power) || 0)}`, instanceId: r.card.instanceId, definitionId: r.card.definitionId })) }));
+      const row = rows.find(r => r.card.instanceId === picked);
+      if (row) {
+        costChosenPower = Math.max(0, row.zone === 'battlefield' ? effectivePower(row.card, defOf(game, row.card), game) : (Number(defOf(game, row.card)?.power) || 0));
+        if (row.zone === 'hand') log(game, `${player.displayName} reveals ${defOf(game, row.card)?.name || 'a creature card'} from their hand.`, { type: 'cast' });
+      }
+    }
   } else if (addCost?.kind === 'discard') {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId)
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
@@ -647,6 +659,7 @@ function runPlay(game, op, ask) {
   const fixed = permanent && !faceDown ? [...new Set(tapManaAbilities(def).flatMap(a => a.options))] : [];
   // Fling, Bone Splinters (build 77): "the sacrificed creature's power" for a spell's sacrifice cost, remembered before it leaves.
   if (sacrificeForCost) { const sac = player.deck.battlefield.find(c => c.instanceId === sacrificeForCost); if (sac) { const sd = defOf(game, sac); bindings.sacrificedPower = Math.max(0, effectivePower(sac, sd, game)); bindings.sacrificedToughness = Math.max(0, Number(sd?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(sd?.manaValue ?? sd?.cmc ?? 0); } }
+  if (costChosenPower !== null) bindings.costChosenPower = costChosenPower;   // Monstrous Emergence: the chosen creature's (or revealed card's) power
   const stackId = newId('stack');
   const where = commander ? ' from the command zone' : card.zone === 'graveyard' ? ' from the graveyard' : card.zone === 'exile' ? ' from exile' : '';
   const shown = faceDown ? 'a face-down creature' : def.name;
