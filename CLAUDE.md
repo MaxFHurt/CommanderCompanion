@@ -14,6 +14,10 @@
   or the long docs (HANDOFF.md, PROGRESS.md, deck/ROADMAP.md are logs; read only the section you need).
 - **Answers: short and to the point**, unless the owner asks for more.
 
+- **Roadmap items: decide, don't ask** (owner, 13 Nov: "I don't want to make the decisions twice; if it's on the roadmap I know
+  it needs to change. Use your best judgement and we will adjust later"). For design/wording choices inside a roadmap item, pick
+  the sensible option, build it, and report what you chose. Still ask before pushing `main` and for anything off the roadmap.
+
 ## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)
 - Ship only fully tested batches; anything that makes something worse is discussed with the owner first.
 - Never undo another session's work: `git fetch` and build on `origin/main` before pushing.
