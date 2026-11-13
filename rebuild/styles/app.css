@@ -265,6 +265,24 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .landing button:active:not(:disabled) { filter: brightness(1.35); }
 .landing__foot { grid-column: 1 / -1; font: 700 0.95rem var(--font-head); letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; padding-left: 1rem; }
 
+/* Welcome (first launch: sign up, sign in or skip) */
+.welcome {
+  position: absolute; inset: 0; overflow: auto;
+  display: grid; grid-template-columns: 0.9fr 1.1fr; column-gap: 2rem; align-items: center;
+  padding: calc(1.4rem + var(--safe-t)) max(3rem, var(--safe-r)) calc(1rem + var(--safe-b)) max(3rem, var(--safe-l));
+  background: #06040b url("../assets/img/ui/background.webp") center / cover no-repeat;
+}
+.welcome__brand { display: grid; place-items: center; min-height: 0; }
+.welcome__brand img { max-height: 70vh; width: auto; max-width: 100%; object-fit: contain; }
+.welcome__panel {
+  display: grid; gap: 0.8rem; align-content: start; padding: 1.2rem 1.4rem;
+  border: solid transparent; border-width: 0.8rem 0.95rem;
+  border-image: url("../assets/img/ui/button-frame-large.png") 34 70 34 70 / 1.85rem 3.85rem stretch;
+  background: linear-gradient(180deg, #170f2e 0%, #0a0714 100%) padding-box;
+}
+.welcome__actions { display: grid; gap: 0.8rem; }
+@media (max-width: 700px) { .welcome { grid-template-columns: 1fr; } .welcome__brand img { max-height: 24vh; } }
+
 /* ── 7. Mode select ──────────────────────────────────────────────────────────── */
 .mode-select {
   position: absolute; inset: 0;

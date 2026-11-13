@@ -7,7 +7,16 @@ screenshots for visual checking. Needs a static server on port 4180:
 import asyncio
 import os
 import sys
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright, Browser
+
+# The first-launch welcome screen (sign up / sign in / skip) is answered for every test page unless a test asks for it
+# with browser.new_context(welcome=True) (tests/accounts_ui.py). Every UI test imports this module.
+_new_context = Browser.new_context
+async def _context(self, *args, welcome=False, **kw):
+    ctx = await _new_context(self, *args, **kw)
+    if not welcome: await ctx.add_init_script("try { localStorage.getItem('cc.welcome.done') || localStorage.setItem('cc.welcome.done', 'test') } catch (e) {}")
+    return ctx
+Browser.new_context = _context
 
 PHONE = dict(viewport={'width': 844, 'height': 390}, device_scale_factor=2, is_mobile=True, has_touch=True)
 IPAD = dict(viewport={'width': 1180, 'height': 820}, device_scale_factor=1.5, is_mobile=True, has_touch=True)

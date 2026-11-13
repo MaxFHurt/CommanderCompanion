@@ -53,7 +53,7 @@ export function openSettings() {
         close();
         openSettings();
       });
-      bindBackupSection(el, { close });
+      bindBackupSection(el, { close, reopen: openSettings });
       on(el, 'click', '[data-dev-report]', () => { close(); openDevReport(); });
       on(el, 'click', '[data-toggle]', (event, button) => {
         const key = button.dataset.toggle;

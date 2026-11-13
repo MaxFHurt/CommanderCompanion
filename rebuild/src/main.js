@@ -7,7 +7,9 @@ import { initProfileStore, loadProfile, saveAccountProfile } from './data/profil
 import { initPlaymats } from './data/playmats.js';
 import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
 import { startProfileSync } from './app/online-profile.js';
-import { readLinkReturn, handleLinkReturn } from './ui/backup-section.js';
+import { needsWelcome, startAuth } from './app/account.js';
+import { readAuthReturn, handleAuthReturn } from './ui/account-ui.js';
+import { welcomeScreen } from './ui/screens/welcome.js';
 import { watchCardImages } from './ui/card-view.js';
 import { landingScreen } from './ui/screens/landing.js';
 import { modeSelectScreen } from './ui/screens/mode-select.js';
@@ -34,11 +36,12 @@ registerScreen('game', gameScreen);
 registerScreen('lobby', lobbyScreen);
 registerScreen('join', joinScreen);
 registerScreen('online', onlineScreen);
+registerScreen('welcome', welcomeScreen);
 
 async function start() {
   // Card images that fail to load fall back to the text version everywhere (screens and popups).
   watchCardImages(document);
-  const linkReturn = readLinkReturn();   // a tapped recovery-email link: token and ?recovery leave the address at once
+  const authReturn = readAuthReturn();   // a tapped sign-in link: the tokens leave the address at once
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);
   try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch { /* not supported */ }
@@ -51,14 +54,15 @@ async function start() {
   if (invite) { const url = new URL(location.href); for (const k of ['join', 'room', 'table']) url.searchParams.delete(k); history.replaceState(null, '', url); }
   if (shouldResumeAfterUpdate()) go('game', { resume: true });
   else if (invite) { go('landing'); goToJoin(invite, go); }
-  else if (!back || !go(back.screen, back.params)) go('landing');
+  else if (!back || !go(back.screen, back.params)) go(needsWelcome() && !authReturn ? 'welcome' : 'landing');   // first launch: sign up, sign in or skip
   window.__ccReady = true;
   window.__ccVersion = VERSION;
   document.getElementById('bootError').hidden = true;
   registerServiceWorker();
   startUpdateChecks();
+  startAuth();
   startProfileSync();
-  handleLinkReturn(linkReturn);
+  handleAuthReturn(authReturn);
 }
 
 function registerServiceWorker() {
