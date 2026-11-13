@@ -89,7 +89,93 @@ export function compileB110Clause(c, ctx) {
       return take({ effects: [...r.effects, { kind: 'b110-while-tapped' }], requirements: r.requirements });
     }
   }
+  // --- Life totals: "Exchange life totals with target opponent." / "Target player's life total becomes 10." / "Players can't gain life this turn."
+  if (/^exchange life totals with target opponent\.?$/i.test(c)) { const r = sub("Exchange your life total with target opponent's life total."); if (r) return take(r); }
+  if ((m = c.match(/^(target player|target opponent)'s life total becomes (\d+|one|two|three|five|ten|twenty|forty)\.?$/i))) {
+    const bind = `player${requirements.length}`;
+    requirements.push({ kind: 'player', bind, scope: /opponent/i.test(m[1]) ? 'opponent' : 'player', label: m[1].toLowerCase() });
+    effects.push({ kind: 'set-life', scope: 'target', bind, amount: num(m[2]) });
+    return true;
+  }
+  if (/^players can'?t gain life this turn\.?$/i.test(c)) { effects.push({ kind: 'b110-no-lifegain' }); return true; }
+  // --- Combat restrictions on whole groups.
+  if (/^creatures your opponents control can'?t block this turn\.?$/i.test(c)) { effects.push({ kind: 'restrict-each', filter: 'creature', opponentsOf: true, restriction: 'cant-block' }); return true; }
+  if ((m = c.match(/^(creatures|attacking creatures) you control can'?t be blocked this turn\.?$/i))) { effects.push({ kind: 'b110-yours-unblockable', attackingOnly: /^attacking/i.test(m[1]) }); return true; }
+  // --- Hands and libraries.
+  if ((m = c.match(/^(each player|each opponent) discards their hand\.?$/i))) { effects.push({ kind: 'discard-hand', scope: /player/i.test(m[1]) ? 'each-player' : 'each-opponent' }); return true; }
+  if ((m = c.match(/^put all (creatures|artifacts|enchantments|lands|nonland permanents|permanents) on the bottom of their owners'? libraries\.?$/i))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: m[1].toLowerCase().replace(/^nonland permanents$/, 'permanent|non:land').replace(/s$/, ''), to: 'library' });
+    return true;
+  }
+  if ((m = c.match(/^(Destroy|Exile) all (creatures|artifacts|enchantments|permanents|lands) with mana value (\d+) or (less|greater)\.?$/))) {
+    effects.push({ kind: 'zone-each', scope: 'all', filter: `${m[2].replace(/s$/, '')}|mv${m[4] === 'less' ? '<=' : '>='}${m[3]}`, to: m[1] === 'Destroy' ? 'graveyard' : 'exile', ...(m[1] === 'Destroy' ? { destroy: true } : {}) });
+    return true;
+  }
+  if ((m = c.match(/^return all (artifact|creature|enchantment|land) and (artifact|creature|enchantment|land) cards from your graveyard to (the battlefield|your hand)\.?$/i))) {
+    effects.push({ kind: 'graveyard-zone-each', scope: 'you', filter: `${m[1].toLowerCase()} or ${m[2].toLowerCase()}`, to: /battlefield/i.test(m[3]) ? 'battlefield' : 'hand', ...(/battlefield/i.test(m[3]) ? { tapped: false } : {}) });
+    return true;
+  }
+  if ((m = c.match(rx(`^you may play up to ${N} additional lands this turn\\.?$`)))) { effects.push({ kind: 'extra-land-play', amount: num(m[1]) }); return true; }
+  // --- "Each creature deals damage to itself equal to its power." (Wave of Reckoning)
+  if (/^each creature deals damage to itself equal to its power\.?$/i.test(c)) { effects.push({ kind: 'b110-self-damage' }); return true; }
   return false;
+}
+
+/** Sentences read together (effects-catalog.js calls this after the build-101 ones). Returns { part, consumed } or null. */
+export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
+  const clean = x => String(x || '').replace(/\([^()]*\)/g, '').trim();
+  const c0 = clean(clauses[i]);
+  let m, mm;
+  const sub = text => {
+    let r = H.compileSingleClause(text, { sourceName });
+    if (!ok(r)) { const whole = H.compileEffectText(text, { sourceName }); r = whole.supported ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : r; }
+    return ok(r) && !r.requirements.length ? r : null;
+  };
+  // --- "Put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card." / "Then if she has nine or more time counters on her, sacrifice her." (Ordeal of Nylea, Kes)
+  // "it" is the permanent the counter just went onto (or the trigger's card when no counter was put in this ability).
+  if ((m = c0.match(/^(?:Then )?if (it|she|he|they) (?:has|have) (\w+) or more ([a-z+\/\d-]+) counters? on (?:it|her|him|them), (.+?)\.?$/i)) && !/^(?:When|If) you do\b/i.test(clean(clauses[i + 1]))) {
+    const prior = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'counter' && e.bind).pop();
+    const bind = prior ? prior.bind : 'eventCard', n = numberFromText(m[2]) ?? Number(m[2]);
+    const body = m[4].replace(/\.$/, '');
+    let eff = null;
+    if (/^sacrifice (?:it|her|him|them)$/i.test(body)) eff = [{ kind: 'sacrifice', bind }];
+    else if (/^sacrifice (?:this (?:creature|permanent|artifact|enchantment|Aura|land)|SELFNAME)$/i.test(body) || (body.toLowerCase().startsWith('sacrifice ') && body.slice(10).toLowerCase() === String(sourceName).toLowerCase())) eff = [{ kind: 'sacrifice', bind: 'sourceId' }];
+    else if ((mm = body.match(rx(`^put ${N} ([a-z+\\/\\d-]+) counters? on (?:it|her|him)$`)))) eff = [{ kind: 'counter', bind, counter: mm[2], amount: num(mm[1]) }];
+    else if (!/\b(?:it|its|that creature|them|her|him)\b/i.test(body)) { const r = sub(`${body.charAt(0).toUpperCase()}${body.slice(1)}.`); if (r) eff = r.effects; }
+    if (eff && Number.isFinite(n)) return { part: { effects: [{ kind: 'condition', test: 'b110-event-counters', bind, min: n, counter: m[3], skip: eff.length }, ...eff], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // --- "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card." (Thrasios, Track Down, Llanowar Empath)
+  if ((m = c0.match(/^(you may )?reveal the top card of your library\.?$/i))) {
+    const cond = clean(clauses[i + 1]).match(/^If it(?:'s| is) an? ((?:[a-z-]+ )?(?:land|creature|permanent|nonland|artifact|enchantment|instant|sorcery)(?: or (?:[a-z-]+ )?(?:land|creature|permanent|nonland|artifact|enchantment|instant|sorcery))*) card, (.+?)\.?$/i);
+    if (!cond) return null;
+    const body = text => {
+      const t = text.replace(/\.$/, '');
+      if (/^put it into your hand$/i.test(t)) return { effects: [{ kind: 'move-zone', bind: 'revealedTop', to: 'hand' }] };
+      if (/^put it onto the battlefield( tapped)?$/i.test(t)) return { effects: [{ kind: 'move-zone', bind: 'revealedTop', to: 'battlefield', tapped: /tapped/i.test(t) }] };
+      if (/\b(?:it|its|that card)\b/i.test(t)) return null;
+      const r = sub(`${t.charAt(0).toUpperCase()}${t.slice(1)}.`);
+      return r ? { effects: r.effects } : null;
+    };
+    const yes = body(cond[2]);
+    if (!yes) return null;
+    const words = cond[1].toLowerCase().split(/ or /);
+    const out = [];
+    const reqs = [];
+    let consumed = 2;
+    if (m[1]) { reqs.push({ kind: 'yes-no', bind: `revealMay${i}`, label: 'Reveal the top card of your library?' }); }
+    out.push({ kind: 'b110-reveal-top', ...(m[1] ? { mayBind: `revealMay${i}` } : {}) });
+    out.push({ kind: 'condition', test: 'b110-revealed-type', words, skip: yes.effects.length }, ...yes.effects);
+    const other = clean(clauses[i + 2]).match(/^Otherwise, (.+?)\.?$/i);
+    if (other) {
+      if (m[1]) return null;
+      const no = body(other[1]);
+      if (!no) return null;
+      out.push({ kind: 'condition', test: 'b110-revealed-type', words, negate: true, skip: no.effects.length }, ...no.effects);
+      consumed = 3;
+    }
+    return { part: { effects: out, requirements: reqs, unsupported: [] }, consumed };
+  }
+  return null;
 }
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
@@ -113,6 +199,7 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
     case 'b110-own-move': {
       const ids = [].concat(bindings[effect.cardsBind] || []);
       for (const id of ids) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: id, to: effect.to }], bindings));
+      bindings.lastMoved = ids;
       if (!ids.length) notes.push('No card is chosen.');
       return true;
     }
@@ -120,6 +207,7 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       const q = playerById(game, bindings[effect.playerBind]), top = q?.deck?.remainingLibrary?.[0];
       if (!top) { notes.push('The library is empty.'); return true; }
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: top.instanceId, to: 'exile' }], bindings));
+      bindings.lastMoved = [top.instanceId];
       return true;
     }
     case 'b110-while-tapped': {
@@ -130,6 +218,38 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
         for (const e of c.temporaryEffects || []) if (e?.expires === 'b110-tapped' && !e.whileTappedOf) e.whileTappedOf = src?.card?.instanceId || bindings.sourceId;
       if (!game.whileTapped.some(r => r.sourceId === (src?.card?.instanceId || bindings.sourceId))) game.whileTapped.push({ sourceId: src?.card?.instanceId || bindings.sourceId });
       pruneWhileTapped(game);
+      return true;
+    }
+    case 'b110-no-lifegain':
+      game.noLifeGain = { turn: game.turnNumber };
+      notes.push('Players can’t gain life this turn.');
+      return true;
+    case 'b110-yours-unblockable': {
+      let n = 0;
+      const me = playerById(game, controllerId);
+      for (const c of me?.deck?.battlefield || []) {
+        if (!H.cardMatchesFilter(game, c, effect.attackingOnly ? 'creature|attacking' : 'creature')) continue;
+        c.temporaryEffects = [...(c.temporaryEffects || []), { kind: 'combat-restriction', restriction: 'cant-be-blocked', expires: 'cleanup' }]; n++;
+      }
+      notes.push(`${n} creature${n === 1 ? '' : 's'} can’t be blocked this turn.`);
+      return true;
+    }
+    case 'b110-self-damage': {
+      const ids = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => H.cardMatchesFilter(game, c, 'creature')).map(c => c.instanceId));
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') continue;
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-from-selected-creature', sourceId: id, targetId: id }], bindings));
+      }
+      return true;
+    }
+    case 'b110-reveal-top': {
+      const me = playerById(game, controllerId), top = me?.deck?.remainingLibrary?.[0];
+      delete bindings.revealedTop;
+      if (effect.mayBind && bindings[effect.mayBind] !== true && bindings[effect.mayBind] !== 'yes') { notes.push('The top card is not revealed.'); return true; }
+      if (!top) { notes.push('The library is empty.'); return true; }
+      bindings.revealedTop = top.instanceId;
+      notes.push(`${me.displayName} reveals ${definitionFor(game, top)?.name || 'a card'}.`);
       return true;
     }
     default: return false;
@@ -155,14 +275,19 @@ const cnt = w => numberFromText(w) ?? Number(w);
 /** "If" conditions made here (parseCondition in effects.js calls this after the build-49 ones). */
 export function parseConditionB110(t) {
   let m;
-  if ((m = t.match(/^it has (\w+) or more ([a-z+\/\d-]+) counters? on it$/i))) return { test: 'b110-event-counters', min: cnt(m[1]), counter: m[2] };
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
   return null;
 }
 export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
   switch (effect.test) {
-    case 'b110-event-counters': return Number(locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card?.counters?.[effect.counter] || 0) >= effect.min;
+    case 'b110-event-counters': return Number(locateCardInGame(game, bindings[effect.bind] || effect.bind || bindings.eventCard || bindings.sourceId)?.card?.counters?.[effect.counter] || 0) >= effect.min;
+    case 'b110-revealed-type': {
+      const hit = bindings.revealedTop && locateCardInGame(game, bindings.revealedTop), t = String(definitionFor(game, hit?.card)?.typeLine || '');
+      if (!hit) return false;
+      const fits = w => w === 'permanent' ? !/\b(?:Instant|Sorcery)\b/.test(t) : w === 'nonland' ? !/\bLand\b/.test(t) : w === 'basic land' ? /\bBasic\b.*\bLand\b/.test(t) : new RegExp(`\\b${w}\\b`, 'i').test(t);
+      return effect.words.some(fits);
+    }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;
   }

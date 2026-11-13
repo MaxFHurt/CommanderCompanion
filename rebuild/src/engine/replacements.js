@@ -50,6 +50,7 @@ export function counterCount(game, controllerId, counter, count, { creature = tr
 /** Life actually gained. */
 export function lifeGainAmount(game, playerId, amount) {
   if (amount <= 0) return amount;
+  if (game.noLifeGain?.turn === game.turnNumber) return 0;   // "Players can't gain life this turn" (build 110)
   let n = amount;
   for (const { p, text } of permanents(game)) {
     if (p.playerId === playerId && /If you would gain life, you gain twice that much life instead/i.test(text)) n *= 2;

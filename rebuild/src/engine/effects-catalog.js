@@ -14,7 +14,7 @@ import { librarySearchSpec, searchFilter } from '../game/library-search.js';
 import { compileLinkedClause, applyLinked, gatherLinked } from './effects-linked.js';
 import { compileB49Clause, compileB49Sequence, applyB49, gatherB49 } from './effects-b49.js';
 import { compileB101Clause, compileB101Sequence, applyB101, gatherB101 } from './effects-b101.js';
-import { compileB110Clause, applyB110, gatherB110 } from './effects-b110.js';
+import { compileB110Clause, compileB110Sequence, applyB110, gatherB110 } from './effects-b110.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -960,6 +960,8 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   if (b49) return b49;
   const b101 = compileB101Sequence(clauses, i, { sourceName, parts });
   if (b101) return b101;
+  const b110 = compileB110Sequence(clauses, i, { sourceName, parts });
+  if (b110) return b110;
   const next = k => String(clauses[i + k] || '').replace(/\([^()]*\)/g, '').trim();
   let m;
   const drawnBefore = parts.flatMap(p => p.effects || []).filter(e => e.kind === 'draw' && (e.scope || 'you') === 'you' && !e.bind && typeof e.amount === 'number').reduce((n, e) => n + e.amount, 0);

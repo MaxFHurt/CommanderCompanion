@@ -406,6 +406,8 @@ function triggerMatches(game, row, ability, event) {
       return row.card.instanceId === event.blockerId && !(event.extraBlock && !/\bblocks (?:a|an|that|target|another|each)\b/i.test(t));
     if (/a creature you control blocks/i.test(t))
       return event.controllerId === row.player.playerId;
+    // Build 110: "Whenever a creature blocks", "Whenever another creature an opponent controls blocks" (the subject read by trigger-subject.js).
+    { const bm = t.match(/^(?:When|Whenever) (.+?) blocks\b/i); if (bm) { const r = subjectEvent(game, row, bm[1], event, event.blockerId); if (r !== undefined) return r; } }
     return false;
   }
   if (event.type === 'combat-damage-player') {
@@ -773,6 +775,14 @@ const WIDE_VARIANTS = [
   { token: true, event: { token: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
+/** Colours a trigger names ("another green creature", "a white or blue spell"): the wide probe's cards have them (build 110). */
+function probeColors(ability) {
+  const map = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  return [...new Set((String(ability?.trigger || '').toLowerCase().match(/\b(?:white|blue|black|red|green)\b/g) || []).map(w => map[w]))];
+}
+/** "mana value 6 or greater" / "toughness 4 or greater" in a trigger: the wide probe's cards meet it (build 110). */
+function probeManaValue(ability) { const m = String(ability?.trigger || '').match(/mana value (\d+) or (greater|less)/i); return m ? Number(m[1]) : 3; }
+function probeToughness(ability) { const m = String(ability?.trigger || '').match(/toughness (\d+) or (greater|less)/i); return m ? String(m[1]) : '1'; }
 function wideProbeTypes(ability) {
   const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w))), ...(/\boutlaws?\b/i.test(String(ability?.trigger || '')) ? ['Rogue'] : [])].join(' ');   // outlaws: Assassins, Mercenaries, Pirates, Rogues, Warlocks
   return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
@@ -780,7 +790,7 @@ function wideProbeTypes(ability) {
 function probeTrigger(definition, ability, types, events, variants) {
   const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
   // Probe cards: every common type; the Elemental Dragon is big, black and flying, for "with power 4 or greater" and similar.
-  const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
+  const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: i >= PROBE_TYPES.length ? probeManaValue(ability) : 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: i >= PROBE_TYPES.length ? probeToughness(ability) : '1', colors: /Dragon/.test(t) ? ['B'] : (i >= PROBE_TYPES.length ? probeColors(ability) : []), keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
   me.commanders = types.map((_, i) => ({ cardId: `probe-${i}` }));   // "your commander" (Tome of Legends): the probe cards are this player's commanders
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };

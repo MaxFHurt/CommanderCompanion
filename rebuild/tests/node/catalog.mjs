@@ -4266,4 +4266,105 @@ const gyx = (t, name, i = 1) => { const lib = t.P(i).deck.remainingLibrary, at =
   check('exiled with: sacrifice then return reads what the sacrificed permanent exiled', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'battlefield'), t.names(1, 'exile')]));
 }
 
+section('build 110 (long tail batch 4)');
+{
+  // "each other X you control": the source itself gets no counter (it used to match nothing / include itself)
+  const t = setup();
+  const dr = onField(t, 'Grizzly Bears', 'Whenever this creature enters, put a +1/+1 counter on each other Dragon creature you control.\n{1}: Put a +1/+1 counter on each other Dragon creature you control.', { typeLine: 'Creature — Dragon' });
+  const d2 = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Dragon' });
+  const d3 = onField(t, 'Fog Bank', '', { typeLine: 'Creature — Wall' });
+  activate(t, dr, 0);
+  check('each other Dragon you control: others get the counter, not this one, not a Wall', (d2.counters?.['+1/+1'] || 0) === 1 && !(dr.counters?.['+1/+1']) && !(d3.counters?.['+1/+1']), JSON.stringify([d2.counters, dr.counters, d3.counters]));
+}
+{
+  // Ice Floe: the tapped creature stays tapped while the source stays tapped; frees when the source untaps
+  const t = setup();
+  const floe = onField(t, 'Fog Bank', '{T}: Tap target creature. It doesn\'t untap during its controller\'s untap step for as long as this land remains tapped.', { typeLine: 'Land' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, floe, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  check('untap lock: the creature is tapped and locked', bear.tapped && (bear.temporaryEffects || []).some(e => e.kind === 'no-untap-while'));
+  t.do(0, { type: 'end-turn' }); t.passAll(); t.discardIfNeeded(0); t.passAll();
+  t.do(1, { type: 'end-turn' }); t.passAll(); t.discardIfNeeded(1); t.passAll();
+  check('untap lock: still tapped on its controller\'s untap step while the source stays tapped', bear.tapped, String(bear.tapped));
+}
+{
+  // Tawnos's Weaponry: +1/+1 for as long as the artifact remains tapped
+  const t = setup();
+  const art = onField(t, 'Sol Ring', '{2}, {T}: Target creature gets +1/+1 for as long as this artifact remains tapped.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '');
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  check('while tapped: +1/+1 now', power(t, bear) === 3, String(power(t, bear)));
+  art.tapped = false;
+  check('while tapped: ends when the artifact untaps', power(t, bear) === 2, String(power(t, bear)));
+}
+{
+  // "Target opponent exiles a card from their hand": the opponent chooses
+  const t = setup();
+  t.give(1, 'Grizzly Bears'); t.give(1, 'Llanowar Elves');
+  const picked = t.P(1).deck.hand.find(c => c.definitionId && t.game.cardDefinitions[c.definitionId]?.name === 'Llanowar Elves');
+  const seen = cast(t, 'Opt', 'Target opponent exiles a card from their hand.', [[d => d.playerId === t.P(1).playerId && d.kind === 'choose-many', () => [picked.instanceId]]]);
+  check('own exile: asked of the opponent, who exiles the card they chose', seen.some(d => d.playerId === t.P(1).playerId) && t.names(1, 'exile').includes('Llanowar Elves') && !t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(1, 'exile'), seen.map(d => d.playerId)]));
+}
+{
+  // Detain: can't attack, block or have abilities activated until your next turn
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '{1}: This creature gets +1/+1 until end of turn.', {}, 1);
+  cast(t, 'Opt', 'Detain target creature an opponent controls.', [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const ab = parseActivatedAbilities(def(t, bear))[0];
+  check('detain: the detained creature has the restriction and the marker', (bear.temporaryEffects || []).some(e => e.kind === 'detained') && (bear.temporaryEffects || []).some(e => e.restriction === 'cant-attack-or-block'));
+}
+{
+  // Players can't gain life this turn
+  const t = setup();
+  cast(t, 'Opt', "Players can't gain life this turn.");
+  const before = t.P(0).life;
+  cast(t, 'Divination', 'You gain 3 life.');
+  check("can't gain life: the life gain does nothing this turn", t.P(0).life === before, `${before} -> ${t.P(0).life}`);
+}
+{
+  // "Put target card from your graveyard on top of your library"
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears', 0);
+  cast(t, 'Opt', 'Put target card from your graveyard on top of your library.', [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  check('graveyard card to the top of the library', t.P(0).deck.remainingLibrary[0]?.instanceId === g1.instanceId, String(t.P(0).deck.remainingLibrary[0]?.instanceId));
+}
+{
+  // Reveal the top card: land -> battlefield tapped, otherwise draw
+  const t = setup();
+  const lib = t.P(0).deck.remainingLibrary; const land = lib.find(c => /Land/.test(t.game.cardDefinitions[c.definitionId]?.typeLine || '')); lib.splice(lib.indexOf(land), 1); lib.unshift(land);
+  const hand0 = t.P(0).deck.hand.length;
+  cast(t, 'Opt', "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.");
+  const onbf = t.P(0).deck.battlefield.find(c => c.instanceId === land.instanceId);
+  check('reveal top: a land goes onto the battlefield tapped, nothing drawn', !!onbf && onbf.tapped && t.P(0).deck.hand.length === hand0, JSON.stringify([!!onbf, onbf?.tapped, t.P(0).deck.hand.length, hand0]));
+  const nl = t.P(0).deck.remainingLibrary.find(c => !/Land/.test(t.game.cardDefinitions[c.definitionId]?.typeLine || '')); t.P(0).deck.remainingLibrary.splice(t.P(0).deck.remainingLibrary.indexOf(nl), 1); t.P(0).deck.remainingLibrary.unshift(nl);
+  cast(t, 'Divination', "Reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.");
+  check('reveal top: a nonland is drawn instead', t.P(0).deck.hand.some(c => c.instanceId === nl.instanceId));
+}
+{
+  // Counter-conditioned sacrifice names the right permanent (Ordeal, quest counters on the enchantment itself)
+  const r = compileEffectText('Put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card.', { sourceName: 'Test Card' });
+  const cond = r.effects.find(e => e.kind === 'condition');
+  check('"it has N or more counters": it is the permanent the counter went on', r.supported && cond?.bind === 'sourceId' && cond.min === 4, JSON.stringify(r.effects));
+  const bad = compileEffectText('Put a +1/+1 counter on target creature and create a Food token.', { sourceName: 'Test Card' });
+  check('a target description that swallowed the next instruction is not read', !bad.supported);
+}
+{
+  // Target descriptors: colours, non-X, tapped, without flying (used to be ignored) and the Auras that use them
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { colors: ['B'] }, 1), b = onField(t, 'Llanowar Elves', '', { colors: ['R'] }, 1), c = onField(t, 'Fog Bank', '', { colors: ['G'], keywords: ['Flying'] }, 1);
+  const ids = scope => candidatesFor(t.game, { kind: 'target', scope }, t.P(0)).map(r => r.id);
+  check('target nonblack creature: the black one is not offered', !ids('target nonblack creature').includes(a.instanceId) && ids('target nonblack creature').includes(b.instanceId));
+  check('target red or green creature', ids('target red or green creature').includes(b.instanceId) && ids('target red or green creature').includes(c.instanceId) && !ids('target red or green creature').includes(a.instanceId));
+  check('target creature without flying', !ids('target creature without flying').includes(c.instanceId) && ids('target creature without flying').includes(a.instanceId));
+}
+{
+  // Exchange life totals / set a player's life total
+  const t = setup();
+  t.P(0).life = 10; t.P(1).life = 30;
+  cast(t, 'Opt', 'Exchange life totals with target opponent.', [[d => d.kind === 'choose-one' && d.targeting, () => t.P(1).playerId]]);
+  check('exchange life totals with target opponent', t.P(0).life === 30 && t.P(1).life === 10, `${t.P(0).life}/${t.P(1).life}`);
+  cast(t, 'Divination', "Target player's life total becomes 7.", [[d => (d.options || []).some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
+  check("target player's life total becomes 7", t.P(1).life === 7, String(t.P(1).life));
+}
+
 done();

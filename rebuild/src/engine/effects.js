@@ -3229,6 +3229,11 @@ export function compileEffectText(text, opts = {}) {
       const own = hit.effects.slice(0, first).some(e => e.kind === 'b101-exile-graveyard');   // Waste Management: its own exile, kicked or not
       if (!own && (!moved || /\bkicked\b/i.test(text))) hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     }
+    // Build 110: a target description that swallowed the next instruction ("target creature and create a Food token") was misread.
+    if (hit.supported && hit.requirements.some(q => /\bwith (?:mana value|power|toughness) (?:less|greater) than\b/i.test(`${q.scope || ''}`)))   // not a limit the target choice can enforce
+      hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
+    if (hit.supported && hit.requirements.some(q => /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i.test(`${q.scope || ''}`)))
+      hit = { ...hit, supported: false, effects: [], requirements: [], unsupported: [String(text)] };
     if (COMPILE_CACHE.size > 20000) COMPILE_CACHE.clear();
     COMPILE_CACHE.set(key, hit);
   }
