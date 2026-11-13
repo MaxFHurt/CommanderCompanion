@@ -68,6 +68,18 @@ export function compileB101Clause(c, ctx) {
     const expr = parseCountB101(`${(m[1] || '').toLowerCase()} creatures that creature's controller controls`.trim());
     if (expr && expr.kind === 'b101-n') { bindTargetControllerB101(expr, '__attached'); effects.push({ kind: 'draw', scope: 'you', amount: expr }); return true; }
   }
+  // --- "Return up to X target cards from your graveyard to your hand, where X is the number of opponents who have three or more poison counters." (Glissa's Retriever)
+  if ((m = c.match(/^Return up to X target cards from your graveyard to your hand,? where X is the number of opponents who have (three|\d+) or more poison counters\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: '', max: 0, min: 0, maxExpr: { kind: 'b101-opps-poison', n: num(m[1]) }, label: 'up to X cards in your graveyard (X: opponents with 3 or more poison counters)' });
+    effects.push({ kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
+  // --- "Put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types." (Olivia, Mobilized for War)
+  if ((m = c.match(/^(Put a \+1\/\+1 counter on (?:that creature|it)), (?:it|that creature) (gains haste until end of turn), and (?:it|that creature) (becomes an? [A-Z][a-z]+ in addition to its other types)\.?$/))) {
+    const who = /that creature/.test(m[1]) ? 'That creature' : 'It', parts = [`${m[1]}.`, `${who} ${m[2]}.`, `${who} ${m[3]}.`].map(x => sub(x));
+    if (parts.every(Boolean)) { for (const r of parts) { effects.push(...r.effects); requirements.push(...r.requirements); } return true; }
+  }
   // --- "Destroy target creature and up to X other target creatures, where X is the number of Attractions you've visited this turn." (Black Hole)
   // The game does not play Attractions, so what was visited this turn is asked of the player (it is their own fact).
   if ((m = c.match(/^Destroy target creature and up to X other target creatures,? where X is the number of Attractions you'?ve visited this turn\.?$/i))) {

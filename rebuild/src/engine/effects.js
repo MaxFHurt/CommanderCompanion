@@ -1252,6 +1252,12 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const hit = locateCardInGame(game, targetId);
       // "Return Research the Deep to its owner's hand." — a resolving spell goes to the hand instead of the graveyard.
       if (effect.kind === 'bounce' && targetId === bindings.sourceId && (hit?.zone === 'stack' || (!hit && game.resolvingSpellId === targetId))) { game.spellToHand = targetId; notes.push('It returns to its owner\u2019s hand as it finishes resolving.'); continue; }
+      // "When this creature dies, exile it." (Glissa's Retriever): the card that just died is exiled from the graveyard.
+      if (effect.kind === 'exile' && effect.bind === 'eventCard' && hit?.zone === 'graveyard') {
+        moveCard(game, targetId, 'exile', { onEvent: e => emit(bindings, e) });
+        notes.push(`${definitionFor(game, hit.card)?.name || 'It'} is exiled from the graveyard.`);
+        continue;
+      }
       if (!hit || hit.zone !== 'battlefield')
         throw new Error('The selected permanent is no longer on the battlefield.');
       const d = definitionFor(game, hit.card), name = d?.name || 'Permanent';
@@ -1498,7 +1504,7 @@ function applyEffectsUnsafe(game, controllerId, effects = [], bindings = {}) {
       const color = effect.color || bindings[effect.colorBind || 'color'];
       if (!['W', 'U', 'B', 'R', 'G'].includes(color))
         throw new Error('A legal color must be chosen.');
-      hit.card.chosenColor = color;
+      hit.card.chosenColor = color; bindings.chosenColor = color;
       notes.push(`${cardName(game, hit.card)} has ${color} chosen.`);
       continue;
     }

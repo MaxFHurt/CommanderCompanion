@@ -4142,4 +4142,42 @@ section('long tail batch 3 part 2: review of the 26 newly automatic cards');
   }
 }
 
+{
+  // Rith, the Awakener: pay {2}{G}, choose a color, a 1/1 Saproling for each permanent of that color
+  const t = setup();
+  const rith = onField(t, 'Grizzly Bears', 'Whenever this creature deals combat damage to a player, you may pay {2}{G}. If you do, choose a color, then create a 1/1 green Saproling creature token for each permanent of that color.', { power: '2', toughness: '2' });
+  onField(t, 'Llanowar Elves', '', { power: '2', toughness: '2' }); onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1);
+  t.end(0); t.autoPass = true; t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.autoPass = false;
+  t.do(0, { type: 'attack', attacks: [{ instanceId: rith.instanceId, defenderId: t.P(1).playerId }] });
+  t.passAll(); t.do(1, { type: 'block', assignments: [] });
+  const seen = settle(t, [['may-pay', 'pay'], [d => /color/i.test(`${d.key} ${d.prompt || ''}`), 'G']]);
+  const saps = t.P(0).deck.battlefield.filter(x => x.token && /Saproling/.test(def(t, x).name || def(t, x).typeLine || '')).length;
+  check('Rith, the Awakener: two green permanents, two Saprolings', saps === 2, `${saps} ${JSON.stringify(seen.map(d => d.key))}`);
+}
+
+{
+  // Glissa's Retriever: exiles itself, then up to X cards back, X = opponents with three or more poison counters
+  for (const poison of [2, 3]) {
+    const t = setup();
+    const gr = onField(t, 'Grizzly Bears', 'When this creature dies, exile it. When you do, return up to X target cards from your graveyard to your hand, where X is the number of opponents who have three or more poison counters.', { power: '2', toughness: '2' });
+    const elf = t.give(0, 'Llanowar Elves', 'graveyard'); t.P(1).poison = poison;
+    cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => gr.instanceId], [d => d.kind === 'choose-many', () => [elf.instanceId]]], { manaCost: '{3}{G}', typeLine: 'Instant' });
+    settle(t);
+    check(`Glissa's Retriever: ${poison} poison: itself exiled, ${poison >= 3 ? 'one card returned' : 'none returned'}`, !!t.hand(0, 'Llanowar Elves') === (poison >= 3) && t.names(0, 'exile').includes('Grizzly Bears'), `${JSON.stringify(t.names(0, 'hand'))} ${JSON.stringify(t.names(0, 'exile'))}`);
+  }
+}
+
+{
+  // Olivia, Mobilized for War: discard, then the creature gets a counter, haste and Vampire
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever another creature you control enters, you may discard a card. If you do, put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types.', { typeLine: 'Legendary Creature — Vampire Knight' });
+  t.give(0, 'Island');
+  cast(t, 'Llanowar Elves', '', [['mayDo', true]], { manaCost: '{G}', typeLine: 'Creature — Elf', power: '1', toughness: '1' });
+  settle(t, [['mayDo', true]]);
+  const b = t.P(0).deck.battlefield.find(x => x.definitionId && def(t, x).name === 'Llanowar Elves');
+  check('Olivia, Mobilized for War: counter and Vampire', !!b && Number(b.counters?.['+1/+1'] || 0) === 1 && t.names(0, 'graveyard').includes('Island'), JSON.stringify([b?.counters, t.names(0, 'graveyard')]));
+}
+
 done();

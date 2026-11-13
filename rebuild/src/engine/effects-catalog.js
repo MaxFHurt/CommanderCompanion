@@ -2633,7 +2633,7 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
   if (req.kind === 'graveyard-multi') {
     const coming = (player.deck.remainingLibrary || []).slice(0, Number(req.plusMill || 0));
     const rows = [...(player.deck.graveyard || []), ...coming].filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
-    const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
+    const max = Math.min(req.maxExpr ? resolveAmount(game, player.playerId, req.maxExpr, bindings) : req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
     bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(Number(req.min || 0), max), max })) : [];
     return true;
   }
