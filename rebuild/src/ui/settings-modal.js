@@ -6,6 +6,7 @@ import { loadSettings, saveSettings } from '../data/store.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { devReport, reportText } from '../net/corrections.js';
 import { toast } from './toast.js';
+import { backupSectionHtml, bindBackupSection } from './backup-section.js';
 
 const GUIDANCE = [
   ['coach', 'Coach', 'Explains each step, highlights what you can play and suggests a next move.'],
@@ -39,6 +40,7 @@ export function openSettings() {
           <span class="option__end">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
         </button>
       </div>
+      ${backupSectionHtml()}
       <p class="muted">Commander Companion ${VERSION} • ${BUILD_DATE}</p>
       <div class="option-list">
         <button type="button" class="option" data-dev-report>
@@ -51,6 +53,7 @@ export function openSettings() {
         close();
         openSettings();
       });
+      bindBackupSection(el, { close });
       on(el, 'click', '[data-dev-report]', () => { close(); openDevReport(); });
       on(el, 'click', '[data-toggle]', (event, button) => {
         const key = button.dataset.toggle;
