@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.105 (Deck Builder 0.9.68, build 213)
+- **Live build:** 1.0.0-rebuild.106 (Deck Builder 0.9.69, build 214)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -58,6 +58,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 106 — 13 Nov 2026 (Deck Builder 0.9.69, build 214; app 1.0.0-rebuild.106): generated decks keep the price level and the theme
+- Owner, 13 Nov: "The generated decks always being apex and not sticking to the deck theme destroys a great thing." Cause: the Generate panel reset to Apex + Best overall (Theme first off) every time it opened; the empty-deck setup pop-up had no Theme first.
+- Generate panel: remembers the player's last price level, Best overall and Theme first per device (localStorage cc.gen.last); first time: Theme first on, Best off, price level = the open deck's, else Mid (deck/ui/deck.js genDefaults, genRemember; ui/events.js).
+- Setup pop-up (7d): Theme first switch, on by default; the plan records the deck's tier (d.planTier; engine/generator.js buildPlanG; other callers still Apex).
+- Tests: UI-SETUP-01 (Budget plan: every card under $3, over 30% on theme), UI-GEN-THEME-01 (new: choices kept, Budget + on theme), UI-GEN-03 pinned to Apex/Best. suites.sh (screens, generator live): UI suite 148 passed, 1 failed side by side (UI-STATS-01, known flake: passes alone); accept 39 x 2; genstrong (typicality 0.407, score 92.9) and tourney (match 59%, core 58%) identical to live build 105. UI-B144-02 fails in a combined targeted run with or without this change (WK.spec null): to look into.
 
 ### Build 105 — 13 Nov 2026 (app 1.0.0-rebuild.105; Deck Builder unchanged, 0.9.68): recovery email (roadmap 7b.3)
 - Settings → Backup → Online: add, change or remove a recovery email; "Lost your key? Recover by email". The player gets a Supabase sign-in link; tapping it opens the app, which links the key (or, on a device without the key, asks for it), shows a recovered key with Copy and "Load this profile", or removes the link. The key itself is never in a link or email; the access token stays in memory.
