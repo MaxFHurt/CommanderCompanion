@@ -260,7 +260,7 @@ export function candidatesFor(game, req, player, source = null) {
       if (!req.spellFilter) return true;
       const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
       const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-      return req.spellFilter.split('|').some(w => w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+      return req.spellFilter.split('|').some(w => w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === (w.slice(3) === 'X' ? Number(LIMIT_BINDINGS?.X ?? 0) : Number(w.slice(3)))   // (build 111: "mana value X")
         : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])

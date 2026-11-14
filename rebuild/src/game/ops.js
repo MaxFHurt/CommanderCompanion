@@ -823,7 +823,8 @@ function runActivate(game, op, ask) {
   const bindings = { sourceId: card.instanceId };
   const xInCost = /\{X\}/i.test(ability.cost);
   const xIsSacrificed = /Sacrifice an? [a-z ]+? with mana value X\b/i.test(ability.cost || '');   // Scrap Welder: X is the sacrificed card's mana value, not chosen
-  if (ability.hasX && !xIsSacrificed) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
+  const xIsDiscarded = /Discard an? [a-z ]*?card with mana value X\b/i.test(ability.cost || '');   // Kozilek, the Great Distortion: X is the discarded card's mana value (build 111)
+  if (ability.hasX && !xIsSacrificed && !xIsDiscarded) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
@@ -893,7 +894,8 @@ function runActivate(game, op, ask) {
     // Mercurial Chemister: "the discarded card's mana value".
     const gone = rows.find(c => c.instanceId === discardedId);
     if (gone) bindings.costDiscardedTypeLine = defOf(game, gone)?.typeLine || '';   // Land's Edge: "if the discarded card was a land card"
-    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
+    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));
+    if (gone && xIsDiscarded) bindings.X = bindings.costManaValue;
   }
 
   // Costs that count what they used (the effect's "… this way" reads bindings.costCount, rules.js writes it "as a cost"):

@@ -789,7 +789,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'prevent-combat') {
       game.combatPrevention = (game.combatPrevention || []).filter(x => x.turn === game.turnNumber);
       const id = ['card', 'by-card', 'to-card'].includes(effect.scope) ? resolveBoundId(effect, bindings) : null;
-      game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id });
+      game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id, ...(effect.limit != null ? { limit: effect.limit } : {}) });
       notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : effect.scope === 'by-card' ? 'Combat damage that creature would deal is prevented this turn.' : effect.scope === 'to-card' ? 'Combat damage to that creature is prevented this turn.' : 'Combat damage to and from that creature is prevented this turn.');
       continue;
     }

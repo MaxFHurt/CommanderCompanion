@@ -5122,4 +5122,19 @@ section('batch 5 (build 111): Valiant, Mice');
   check('Mice you control: the Mouse gets +1/+0, the Elf does not', power(t, a) === 3 && power(t, b) === 1, JSON.stringify([power(t, a), power(t, b)]));
 }
 
+section('batch 5 (build 111): named tokens, combat prevention scopes');
+{
+  const t = setup(); const keep = onField(t, 'Fog Bank', '{2}{R}, {T}, Sacrifice this land: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.', { typeLine: 'Land', name: 'Kher Keep' });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.', { sourceName: 'Kher Keep' }).effects, { sourceId: keep.instanceId });
+  const tok = t.P(0).deck.battlefield.find(c => c.token && /Kobold/.test(def(t, c).typeLine));
+  check('Kher Keep: a 0/1 red Kobold named Kobolds of Kher Keep (not renamed after the land)', !!tok && def(t, tok).name === 'Kobolds of Kher Keep' && power(t, tok) === 0 && tough(t, tok) === 1, JSON.stringify(tok && [def(t, tok).name, power(t, tok), tough(t, tok)]));
+}
+{
+  const t = setup();
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Prevent all combat damage that would be dealt this turn by creatures with power 3 or less.', { sourceName: 'Vine Snare' }).effects, { sourceId: null });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Prevent all combat damage that would be dealt to players this turn.', { sourceName: 'Defend the Hearth' }).effects, { sourceId: null });
+  const cp = t.game.combatPrevention || [];
+  check('combat prevention: the power limit and the players scope are recorded for this turn', cp.some(x => x.scope === 'power-le' && x.limit === 3) && cp.some(x => x.scope === 'players'), JSON.stringify(cp));
+}
+
 done();

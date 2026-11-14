@@ -49,6 +49,48 @@ export function compileB111Clause(c, ctx) {
   // --- "Prevent all damage that would be dealt to creatures this turn." (Forfend, Blinding Fog) / "… by creatures your opponents control" (Thwart the Enemy)
   if (/^Prevent all damage that would be dealt to creatures this turn\.?$/i.test(c)) { effects.push({ kind: 'b111-prevent-all', toCreatures: true }); return true; }
   if (/^Prevent all damage that would be dealt this turn by creatures your opponents control\.?$/i.test(c)) { effects.push({ kind: 'b111-prevent-all', fromOpponentCreatures: true }); return true; }
+  // --- "Target Merfolk can't be blocked this turn." (Daughter of the Deep): a creature type as the target.
+  if ((m = c.match(/^Target ([A-Z][a-z]+) (can'?t be blocked this turn)\.?$/))) {
+    const r = H.compileEffectText(`Target creature ${m[2]}.`, { sourceName });
+    const t = r.supported && r.requirements.find(q => q.kind === 'target');
+    if (t && r.effects.length) { t.scope = `target ${m[1].toLowerCase()} creature`; t.label = t.scope; effects.push(...r.effects); requirements.push(...r.requirements); return true; }
+  }
+  // --- Named creature tokens: "Create a 0/1 red Kobold creature token named Kobolds of Kher Keep." / "Create Marit Lage, a legendary 20/20 black Avatar creature token with flying and indestructible."
+  {
+    const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+    const colorsOf = txt => (txt.match(/\b(white|blue|black|red|green)\b/gi) || []).map(w => COL[w.toLowerCase()]);
+    const kws = txt => (txt || '').split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    if ((m = c.match(/^Create (a|an|one|two|three|four|X|\d+) (\d+)\/(\d+) (colorless|(?:white|blue|black|red|green)(?: and (?:white|blue|black|red|green))?) ((?:[A-Z][a-z]+ )+?)(artifact )?creature tokens? named ([A-Z][^.]*?)(?: with ([a-z ,]+))?\.?$/))) {
+      const types = m[5].trim();
+      effects.push({ kind: 'create-token', amount: num(m[1]), power: Number(m[2]), toughness: Number(m[3]), name: ctx.restore ? ctx.restore(m[7]) : m[7], typeLine: `Token ${m[6] ? 'Artifact ' : ''}Creature — ${types}`, keywords: kws(m[8]), colors: /colorless/i.test(m[4]) ? [] : colorsOf(m[4]) });
+      return true;
+    }
+    if ((m = c.match(/^Create ([A-Z][A-Za-z' ,]*?), (a|an) (legendary )?(\d+)\/(\d+) (colorless|(?:white|blue|black|red|green)) ((?:[A-Z][a-z]+ )+?)(artifact )?creature token(?: with ([a-z ,]+))?\.?$/))) {
+      effects.push({ kind: 'create-token', amount: 1, power: Number(m[4]), toughness: Number(m[5]), name: m[1], typeLine: `${m[3] ? 'Legendary ' : ''}Token ${m[8] ? 'Artifact ' : ''}Creature — ${m[7].trim()}`, keywords: kws(m[9]), colors: /colorless/i.test(m[6]) ? [] : colorsOf(m[6]) });
+      return true;
+    }
+  }
+  // --- "Target player gains twice X life." (Heliod's Intervention)
+  if ((m = c.match(/^(Target player|You) gains? twice X life\.?$/i))) {
+    const e = { kind: 'life', scope: 'you', amount: { kind: 'times', n: 2, of: 'X' }, deltaSign: 1 };
+    if (/^target/i.test(m[1])) { e.bind = H.playerRequirement(requirements, 'player', 'Target player'); }
+    effects.push(e); return true;
+  }
+  // --- "Counter target spell with mana value X." (Spell Blast, Kozilek, the Great Distortion)
+  if (/^Counter target spell with mana value X\.?$/i.test(c)) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', spellFilter: 'mv=X', label: 'target spell with mana value X' });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  // --- Combat damage prevention: "… dealt to players" (Defend the Hearth), "… target creature would deal" (Falling Timber), "… dealt to and dealt by …" (Cephalid Illusionist), "… by creatures with power 4 or less" (Vine Snare)
+  if (/^Prevent all combat damage that would be dealt to players this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'players' }); return true; }
+  if ((m = c.match(/^Prevent all combat damage ((?:another )?target creature) would deal this turn\.?$/i))) { effects.push({ kind: 'prevent-combat', scope: 'by-card', bind: H.targetRequirement(requirements, m[1].toLowerCase(), m[1].toLowerCase()) }); return true; }
+  if ((m = c.match(rx(`^Prevent all combat damage that would be dealt to and dealt by (target creature you control|${SELFP}) this turn\\.?$`)))) {
+    effects.push({ kind: 'prevent-combat', scope: 'card', bind: /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature you control', 'target creature you control') : 'sourceId' });
+    return true;
+  }
+  if ((m = c.match(/^Prevent all combat damage that would be dealt this turn by creatures with power (\d+) or less\.?$/i))) { effects.push({ kind: 'prevent-combat', scope: 'power-le', limit: Number(m[1]) }); return true; }
   // --- "Target player can't play lands this turn." (Turf Wound, Pardic Miner)
   if ((m = c.match(/^(target player|target opponent|your opponents|each opponent|players|each player) can'?t play lands this turn\.?$/i))) {
     if (/^target/i.test(m[1])) effects.push({ kind: 'b111-no-lands', scope: 'target', bind: H.playerRequirement(requirements, /opponent/i.test(m[1]) ? 'opponent' : 'player', cap(m[1])) });
@@ -126,6 +168,11 @@ export function compileB111Sequence(clauses, i, { sourceName, parts = [] }) {
   if (/^Destroy all Equipment attached to that creature\.?$/i.test(c0)) {
     const prior = [...parts.flatMap(p => p.effects || [])].reverse().find(e => typeof e.bind === 'string' && /^target\d*$/.test(e.bind));
     if (prior) return { part: { effects: [{ kind: 'b111-destroy-equipment', bind: prior.bind }], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // --- "<Source> deals 1 damage to each of up to three target creatures. Those creatures can't block this turn." (Wrap in Flames)
+  if (/^Those creatures can'?t block this turn\.?$/i.test(c0)) {
+    const prior = [...parts.flatMap(p => p.effects || [])].reverse().find(e => e.kind === 'b101-each-bound' && /^multi/.test(e.bind || ''));
+    if (prior) return { part: { effects: [{ kind: 'restrict-many', bind: prior.bind, restriction: 'cant-block' }], requirements: [], unsupported: [] }, consumed: 1 };
   }
   // --- "Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way." (Scent of Ivy, Ivy Seer, …)
   if ((m = c0.match(/^Reveal any number of (white|blue|black|red|green) cards in your hand\.?$/i))) {
