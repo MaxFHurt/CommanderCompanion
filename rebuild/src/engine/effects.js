@@ -519,6 +519,19 @@ function makeToken(game, controller, effect, serial) {
     };
   return { instanceId: `${controller.playerId}:${tokenDefId}:${Date.now()}:${serial}:${Math.random().toString(36).slice(2, 7)}`, definitionId: tokenDefId, ownerId: controller.playerId, controllerId: controller.playerId, zone: 'battlefield', tapped: !!effect.tapped, counters: {}, attachments: [], temporaryEffects: [], enteredTurn: game.turnNumber, controlSinceTurn: game.turnNumber, token: true };
 }
+/** A token that enters attacking (it was never declared as an attacker, so "whenever … attacks" doesn't trigger for it): it attacks the player the triggering
+ *  creature attacks, else the one your other attackers attack, else your first opponent. Outside combat it just enters. */
+function enterAttacking(game, controllerId, token, bindings) {
+  const cs = game.combatState;
+  if (!cs || !Array.isArray(cs.attackers) || !/combat|attackers|blockers|damage/.test(String(game.phase))) return;
+  const by = id => cs.attackers.find(a => a.instanceId === id);
+  const opp = (game.players || []).find(p => !p.eliminated && p.playerId !== controllerId);
+  const defenderId = by(bindings.eventCard)?.defenderId || by(bindings.sourceId)?.defenderId || bindings.defendingPlayer || cs.attackers.find(a => a.playerId === controllerId)?.defenderId || opp?.playerId;
+  if (!defenderId) return;
+  cs.attackers.push({ playerId: controllerId, instanceId: token.instanceId, defenderId, targetId: null, blocksConfirmed: false });
+  if (!(cs.defenders || []).includes(defenderId)) cs.defenders = [...(cs.defenders || []), defenderId];
+  token.attacking = defenderId; token.attackedTurn = game.turnNumber;
+}
 function checkLethal(game, targetId, notes, bindings) {
   const hit = locateCardInGame(game, targetId);
   if (!hit || hit.zone !== 'battlefield')
@@ -1529,6 +1542,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
         if (effect.tapped) token.tapped = true;
         controller.deck.battlefield.push(token);
         bindings.lastCreated = [...(bindings.lastCreated || []), token.instanceId];
+        if (effect.attacking) enterAttacking(game, controllerId, token, bindings);   // build 112: "that's (tapped and) attacking"
         emit(bindings, { type: 'token-created', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '' });
         emit(bindings, { type: 'enters-battlefield', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '', token: true });
       }
@@ -2635,9 +2649,20 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     const kws = (q >= 0 ? withText.slice(0, q).replace(/\s*(?:,\s*)?(?:and\s*)?$/i, '') : withText).split(/,| and /).map(x => x.trim()).filter(Boolean);
     const quotes = q >= 0 ? [...withText.slice(q).matchAll(/"([^"]*)"?/g)].map(x => x[1].replace(/[,\s]+$/, '').trim()).filter(x => x && !/^(?:and|,)$/i.test(x)) : [];
     const rules = quotes.map(x => x.replace(/([^.])$/, '$1.')).join('\n');
-    // build 112: "with vigilance that's attacking" (Inquisitorial Rosette) is not a keyword: the token enters attacking, which this reading can't do.
-    if (kws.some(k => /\b(?:that'?s|attacking|tapped)\b/i.test(k))) { unsupported.push(c); return { effects, requirements, unsupported }; }
-    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: tokenLine, keywords: kws, colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}) });
+    // build 112: "with vigilance that's attacking" / "with lifelink that are tapped and attacking" (Brimaz, Leonin Warleader, Geist of Saint Traft) used to be read as
+    // keywords; the tokens now enter (tapped and) attacking. "… that's blocking that creature" stays by hand.
+    let attacking = false, tappedTok = false, named = null;
+    const kw2 = [];
+    for (let k of kws) {
+      const nm = k.match(/^(.*?)\s*\bnamed ([A-Z][A-Za-z' -]+?)(\s+(?:that'?s|that are)\b.*)?$/);   // "with flying named Ballistic Boulder that's tapped and attacking"
+      if (nm) { named = nm[2].trim(); k = `${nm[1]}${nm[3] || ''}`.trim(); if (!k) continue; }
+      const am = k.match(/^(.*?)\s*\b(?:that'?s|that are)\s+(tapped and )?attacking(?: that player)?$/i);
+      if (am) { attacking = true; tappedTok = !!am[2]; if (am[1]) kw2.push(am[1].trim()); }
+      else if (/^attacking(?: that player)?$/i.test(k) && kw2.length && /that are tapped$|that'?s tapped$/i.test(kw2[kw2.length - 1])) { attacking = true; tappedTok = true; kw2[kw2.length - 1] = kw2[kw2.length - 1].replace(/\s*(?:that are|that'?s) tapped$/i, ''); }
+      else kw2.push(k);
+    }
+    if (kw2.some(k => /\b(?:that'?s|that are|attacking|blocking|tapped)\b/i.test(k))) { unsupported.push(c); return { effects, requirements, unsupported }; }
+    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: named || subtype, typeLine: tokenLine, keywords: kw2.filter(Boolean), colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}), ...(attacking ? { attacking: true, tapped: tappedTok } : {}) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create (a|an|one|two|three|four|five|\d+) (Treasure|Food|Clue|Blood|Map) tokens?\.?$/i))) {

@@ -5358,4 +5358,15 @@ section('batch 5 (build 112): your choice of, +A/-B or -A/+B, finality');
   check('Rite of the Moth: returned with a finality counter', Number(live?.counters?.finality || 0) === 1, JSON.stringify(live?.counters));
 }
 
+section('batch 5 (build 112): tokens that enter attacking');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.game.phase = 'declare-attackers';
+  t.game.combatState = { attackers: [{ playerId: t.P(0).playerId, instanceId: bear.instanceId, defenderId: t.P(1).playerId, targetId: null, blocksConfirmed: false }], defenders: [t.P(1).playerId], blocks: {} };
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Create two 1/1 white Cat creature tokens with lifelink that are tapped and attacking.', { sourceName: 'Leonin Warleader' }).effects, { sourceId: bear.instanceId, eventCard: bear.instanceId });
+  const cats = t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Cat');
+  check('Leonin Warleader: two lifelink Cats enter tapped and attacking the same player', cats.length === 2 && cats.every(c => c.tapped && c.attacking === t.P(1).playerId && has(t, c, 'lifelink')) && t.game.combatState.attackers.length === 3, JSON.stringify(cats.map(c => [c.tapped, c.attacking, def(t, c).keywords])));
+}
+
 done();

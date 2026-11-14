@@ -31,6 +31,7 @@ function massGroup(c) {
   }
   if ((m = c.match(/^(?:All|Each) (other )?([A-Z][a-z]+)(?: creatures)? (gets? .+|gains? .+)$/)) && !NOT_TYPE.test(m[2]))
     return { scope: 'all', filter: `creature|anysub:${sub(m[2])}`, other: !!m[1], rest: m[3] };
+  if ((m = c.match(/^(Other |All other )?creatures (gets? .+|gains? .+)$/i))) return { scope: 'all', filter: 'creature', other: !!m[1], rest: m[2] };   // Harvester of Misery
   if ((m = c.match(/^(Other )?creatures (you control|your opponents control) (gets? .+|gains? .+)$/i))) return { scope: /opponents/i.test(m[2]) ? 'opponents' : 'you', filter: 'creature', other: !!m[1], rest: m[3] };
   if ((m = c.match(/^(Other )?[Nn]on-([A-Z][a-z]+) creatures you control (gets? .+|gains? .+)$/))) return { scope: 'you', filter: `creature|nonsub:${sub(m[2])}`, other: !!m[1], rest: m[3] };   // Emeria's Call
   if ((m = c.match(/^Each non-([A-Z][a-z]+) creature (gets .+|gains .+)$/))) return { scope: 'all', filter: `creature|nonsub:${sub(m[1])}`, other: false, rest: m[2] };   // Olivia's Wrath
@@ -275,6 +276,11 @@ export function compileB112Clause(c, ctx) {
     const r = H.compileEffectText(`Return up to ${m[1]} target creatures to their owners' hands.`, { sourceName });
     const t = r.supported && !r.unsupported.length && r.requirements.length === 1 && r.requirements[0].kind === 'multi-target' && r.requirements[0];
     if (t) { t.scope = 'target creature an opponent controls'; t.label = `Choose up to ${m[1]} creatures your opponents control`; effects.push(...r.effects); requirements.push(t); return true; }
+  }
+  // --- "Create two 1/1 white Soldier creature tokens that are tapped and attacking." (Hero of Bladehold, Falconer-style tokens without a keyword)
+  if ((m = c.match(/^(Create .+? tokens?) (?:that'?s|that are) (tapped and )?attacking\.?$/i)) && !/\bwith\b|"/.test(m[1])) {
+    const r = H.compileEffectText(`${m[1]}.`, { sourceName });
+    if (r.supported && !r.unsupported.length && r.effects.length === 1 && r.effects[0].kind === 'create-token' && /Creature/.test(r.effects[0].typeLine || '')) { effects.push({ ...r.effects[0], attacking: true, tapped: !!m[2] }); requirements.push(...r.requirements); return true; }
   }
   // --- Empower Jace N (2026): "Put N loyalty counters on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with "[−1]: Surveil 1" and "[−3]: Draw a card."" X amounts go through the amount reader.
   if ((m = prep.replace(/\s*\(Put [^)]*Jace token[^)]*\)\s*/i, '').match(/^Empower Jace (\d+|X)(?:, where X is (.+?))?\.?$/i))) {
