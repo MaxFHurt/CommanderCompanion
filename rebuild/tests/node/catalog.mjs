@@ -4602,4 +4602,26 @@ section('build 110 (long tail batch 4)');
   check('Gerrard: died this turn: creature and artifact come back, Gerrard is exiled', bf(fresh.instanceId) && bf(sol.instanceId) && !bf(g.instanceId) && !bf(old.instanceId) && ex(g.instanceId), JSON.stringify([bf(fresh.instanceId), bf(sol.instanceId), bf(g.instanceId), bf(old.instanceId), ex(g.instanceId)]));
 }
 
+{
+  // "Return target creature card from your graveyard to the battlefield. It gains haste": the returned card gets it
+  const t = setup();
+  const g = t.give(0, 'Grizzly Bears'); t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(g), 1); g.zone = 'graveyard'; t.P(0).deck.graveyard.push(g);
+  cast(t, 'Opt', 'Return target creature card from your graveyard to the battlefield. It gains haste until end of turn.', [[d => d.options?.some(o => o.id === g.instanceId), () => g.instanceId]]);
+  const back = t.P(0).deck.battlefield.find(c => c.instanceId === g.instanceId);
+  check('return from graveyard + "It gains haste": the returned creature has haste', !!back && has(t, back, 'haste'), JSON.stringify([!!back]));
+}
+
+{
+  // Scrap Welder: X is the mana value of the artifact sacrificed as the cost; the target must be cheaper
+  const t = setup();
+  const sw = onField(t, 'Grizzly Bears', '{T}, Sacrifice an artifact with mana value X: Return target artifact card with mana value less than X from your graveyard to the battlefield. It gains haste until end of turn.', { typeLine: 'Artifact Creature — Construct' });
+  const sac = onField(t, 'Sol Ring', '', { typeLine: 'Artifact', manaValue: 3, cmc: 3 });
+  const toGrave = (name, mv) => { const g = t.give(0, name); t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(g), 1); g.zone = 'graveyard'; t.P(0).deck.graveyard.push(g); Object.assign(t.game.cardDefinitions[g.definitionId], { manaValue: mv, cmc: mv, typeLine: 'Artifact' }); return g; };
+  const two = toGrave('Llanowar Elves', 2), three = toGrave('Colossal Dreadmaw', 3);
+  const seen = activate(t, sw, 0, [[d => d.options?.some(o => o.id === two.instanceId), () => two.instanceId], [d => d.key === 'cost:sacrifice', () => sac.instanceId]]);
+  const offered = seen.filter(d => d.key !== 'cost:sacrifice').flatMap(d => (d.options || []).map(o => o.id));
+  const back = t.P(0).deck.battlefield.find(c => c.instanceId === two.instanceId);
+  check('Scrap Welder: sacrificing MV 3 offers the MV 2 artifact, not the MV 3; it returns with haste', offered.includes(two.instanceId) && !offered.includes(three.instanceId) && !!back && has(t, back, 'haste') && !seen.some(d => d.kind === 'number'), JSON.stringify([offered.length, !!back]));
+}
+
 done();

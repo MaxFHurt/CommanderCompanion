@@ -816,7 +816,8 @@ function runActivate(game, op, ask) {
   }
   const bindings = { sourceId: card.instanceId };
   const xInCost = /\{X\}/i.test(ability.cost);
-  if (ability.hasX) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
+  const xIsSacrificed = /Sacrifice an? [a-z ]+? with mana value X\b/i.test(ability.cost || '');   // Scrap Welder: X is the sacrificed card's mana value, not chosen
+  if (ability.hasX && !xIsSacrificed) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
@@ -829,6 +830,7 @@ function runActivate(game, op, ask) {
     const sac = rows.find(c => c.instanceId === sacrificedId);
     if (sac) { bindings.sacrificedSymbols = Object.fromEntries(['W', 'U', 'B', 'R', 'G'].map(k => [k, (String(defOf(game, sac)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(x => x.includes(k)).length])); }   // Fiery Bombardment: red mana symbols in its mana cost
     if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
+    if (xIsSacrificed && sac) bindings.X = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0);
     costMoveIds.push(sacrificedId);
   }
   // "Exile a creature you control" as part of the cost (The Soul Stone).

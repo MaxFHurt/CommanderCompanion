@@ -2072,6 +2072,7 @@ export function limitOf(text) {
   if (!m) return null;
   const self = m[4].match(/^(?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)$/);
   let expr = self ? { kind: 'b110-source-stat', stat: self[1] } : parseAmountB101(m[4].replace(/\.$/, ''));
+  if (!expr && /^x$/i.test(m[4].trim().replace(/\.$/, ''))) expr = 'X';   // Scrap Welder: "less than X" (X = the sacrificed artifact's mana value)
   // "the number of colors of mana spent to cast this creature": the trailing "to cast …" belongs to the amount
   if (!expr) { const full = low.match(/^with (?:mana value|power|toughness) (?:less|greater) than(?: or equal to)? (.+?)\.?$/); if (full) expr = parseAmountB101(full[1]); }
   return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
@@ -3817,7 +3818,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // Build 102: "Create a 0/0 Fractal token. Put X +1/+1 counters on it." / "Manifest the top card …, then put X counters on
   // it": "it" is the permanent just made, not this card. "Choose target creature. … that creature": the chosen target.
   {
-    const made = merged.effects.findIndex(e => e.kind === 'create-token' || e.kind === 'manifest' || e.kind === 'amass' || e.kind === 'incubate');
+    const made = merged.effects.findIndex(e => e.kind === 'create-token' || e.kind === 'manifest' || e.kind === 'amass' || e.kind === 'incubate' || (e.kind === 'return-from-graveyard' && e.to === 'battlefield'));   // "Return target creature card from your graveyard to the battlefield. It gains haste": it = the returned card
     const creatureTargets = merged.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
     merged.effects.forEach((e, at) => {
       if (e.bind !== 'eventCard' && e.bind !== 'thatCard') return;
