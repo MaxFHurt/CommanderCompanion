@@ -169,6 +169,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   // Unearth: "If it would leave the battlefield, exile it instead of putting it anywhere else."
   if (hit.zone === 'battlefield' && to !== 'battlefield' && (hit.card.temporaryEffects || []).some(e => e?.kind === 'exile-if-leaves')) to = 'exile';
   const from = hit.zone;
+  if (from === 'graveyard' && hit.player?.playerId) game.leftGraveyard = { ...(game.leftGraveyard || {}), [hit.player.playerId]: game.turnNumber };   // Gau: "a card left your graveyard this turn"
   const fromController = hit.card.controllerId || hit.player?.playerId;
   const wasTapped = !!hit.card.tapped;
   const [card] = hit.array.splice(hit.index, 1);
@@ -762,6 +763,12 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (bindings.skipEffects > 0) { bindings.skipEffects--; continue; }
+    // Unforge: what the Equipment (or Aura) was attached to just before it was destroyed, kept for the rest of the ability.
+    if (effect.kind === 'remember-host') {
+      const hit = locateCardInGame(game, bindings[effect.bind]), host = hit?.card?.attachedTo && locateCardInGame(game, hit.card.attachedTo);
+      bindings[effect.as] = host && host.zone === 'battlefield' && (effect.type !== 'creature' || /\bCreature\b/.test(definitionFor(game, host.card)?.typeLine || '')) ? host.card.instanceId : null;
+      continue;
+    }
     if (effect.kind === 'remember-controller') {
       const id = bindings[effect.bind];
       const hit = locateCardInGame(game, id), onStack = (game.stack || []).find(x => x.id === id);
@@ -901,7 +908,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
           const dc = pick && p.deck.graveyard.find(c => c.instanceId === pick.id);
           if (dc && p.deck.remainingLibrary.length >= pick.n) {
             for (let k = 0; k < pick.n; k++) { const m = p.deck.remainingLibrary.shift(); m.zone = 'graveyard'; p.deck.graveyard.push(m); emit(bindings, { type: 'mill', playerId: p.playerId, sourceId: m.instanceId, definitionId: m.definitionId, amount: 1 }); }
-            p.deck.graveyard.splice(p.deck.graveyard.indexOf(dc), 1); dc.zone = 'hand'; p.deck.hand.push(dc);
+            p.deck.graveyard.splice(p.deck.graveyard.indexOf(dc), 1); dc.zone = 'hand'; p.deck.hand.push(dc); game.leftGraveyard = { ...(game.leftGraveyard || {}), [p.playerId]: game.turnNumber };
             notes.push(`${p.displayName} dredges ${cardName(game, dc)} (mills ${pick.n}) instead of drawing.`);
             continue;
           }
@@ -1101,6 +1108,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       let n = 0;
       for (const p of game.players.filter(x => effect.scope !== 'opponents' || x.playerId !== controllerId)) {
         for (const c of p.deck.graveyard.splice(0)) { c.zone = 'exile'; p.deck.exile.push(c); n++; }
+        if (n) game.leftGraveyard = { ...(game.leftGraveyard || {}), [p.playerId]: game.turnNumber };
       }
       notes.push(`${n} graveyard card${n === 1 ? '' : 's'} exiled.`);
       continue;
@@ -1830,6 +1838,14 @@ export function parseCondition(text) {
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
   return parseConditionB49(t) || parseConditionB110(t);
 }
+/** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
+const INTERVENING = /^(?:b110-(?:amount|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
+export function interveningIfFails(game, controllerId, effects, bindings) {
+  const fx = (effects || []).filter(e => e.kind !== 'set-x'), first = fx[0];
+  if (!first || first.kind !== 'condition' || first.skip < fx.length - 1 || !INTERVENING.test(first.test || '')) return false;
+  const holds = conditionHolds(game, controllerId, first, bindings);
+  return first.negate ? !!holds : !holds;
+}
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
@@ -2080,6 +2096,13 @@ export function limitOf(text) {
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
+  // "you may have this creature deal 3 damage to target creature" (Sand Strangler): the older damage wording took "You may have this creature" as the source and never asked.
+  const mayHave = stripReminderText(normalizeClause(clause)).match(/^You may have (SELFNAME|this [a-z]+|it|that creature) (deal .+)$/i);
+  if (mayHave) {
+    const inner = compileSingleClause(`${mayHave[1]} ${mayHave[2].replace(/^deal\b/i, 'deals')}`, opts);
+    if (inner.unsupported.length || !inner.effects.length) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
+    return { effects: [{ kind: 'condition', test: 'chosen', bind: 'mayDoHave', skip: inner.effects.length }, ...inner.effects], requirements: [{ kind: 'yes-no', bind: 'mayDoHave', label: `Have ${mayHave[1].replace(/^SELFNAME$/, opts.sourceName || 'it')} ${mayHave[2].replace(/\.$/, '')}?` }, ...inner.requirements], unsupported: [] };
+  }
   const r = compileSingleClauseRaw(clause, opts);
   // "gains protection from the color of your choice": the older reading granted a keyword naming no colour (build 110 asks which colour).
   if (r.effects.some(e => e.kind === 'grant-keyword' && /protection from the colou?r of (?:your|its controller'?s) choice/i.test(e.keyword || ''))) {
@@ -3606,6 +3629,8 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       // "If it's a Spirit, put a +1/+1 counter on it." — "it" is the creature targeted earlier.
       const bridgedBody = genericCond.test === 'it-is' && bridgePronoun(bodyText, parts, sourceName);
       const body = bridgedBody && !bridgedBody.unsupported.length ? { ...bridgedBody, supported: true } : compileEffectText(bodyText, { sourceName });
+      // Sawblade Skinripper: "that much" is what the condition counted, not the amount of the event that triggered it.
+      if (genericCond.thatMuch) for (const e of body.effects || []) if (e.amount?.kind === 'binding' && e.amount.bind === 'eventAmount') e.amount = genericCond.thatMuch;
       if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...genericCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: genericCond }); continue; }
     }
     if (cond && !/^If you do\b/i.test(clause)) {

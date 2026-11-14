@@ -467,8 +467,21 @@ export function parseConditionB110(t) {
   if (/^(?:it|this creature) was kicked twice$/i.test(t)) return { test: 'b110-kick-count', min: 2 };
   if ((m = t.match(/^you control at least (\w+) other ([A-Z][a-z]+)s$/))) return { test: 'control', subject: `another ${m[2]}`, min: cnt(m[1]) };
   // Land's Edge: "If the discarded card was a land card" (the card discarded as the cost: ops.js remembers its type line)
-  if ((m = t.match(/^the discarded card was an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[1].toLowerCase() };
+  if ((m = t.match(/^the discarded card (was|wasn'?t) an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[2].toLowerCase(), ...(/n'?t$/i.test(m[1]) ? { not: true } : {}) };
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
+  // Build 110 review (the "If <condition>, X deals N damage" cards that used to lose their condition)
+  if (/^you(?:'|’)re the monarch$/i.test(t)) return { test: 'b110-monarch' };
+  if (/^you put a counter on a creature this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'countersPut' }, min: 1 };   // Lasting Tarfire
+  if (/^a planeswalker entered the battlefield under your control this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'entered', other: false, nontoken: false, subs: ['planeswalker'] }, min: 1 };   // Oath of Chandra
+  if (/^a card left your graveyard this turn$/i.test(t)) return { test: 'b110-left-graveyard' };   // Gau, Feral Youth
+  if (/^you sacrificed one or more permanents this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'sacrificed' }, min: 1, thatMuch: { kind: 'b101-tally', what: 'sacrificed' } };   // Sawblade Skinripper
+  if (/^you(?:'|’)ve played a land or cast a spell this turn from anywhere other than your hand$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'nonHandPlays' }, min: 1 };   // Spider-Man 2099
+  if ((m = t.match(/^that spell has mana value (\w+) or (greater|less)$/i))) return { test: 'b110-event-mv', n: cnt(m[1]), less: /less/i.test(m[2]) };   // Herald of Ilharg
+  if ((m = t.match(/^(\w+) or more damage was dealt to (?:it|this creature) this turn$/i))) return { test: 'b110-event-damage', min: cnt(m[1]) };   // Burning-Eye Zubera
+  if ((m = t.match(/^\{([WUBRG])\} was spent to cast (?:it|this spell|this creature)$/i))) return { test: 'b49-color-spent', color: m[1].toUpperCase() };   // Steamcore Weird
+  if ((m = t.match(/^you control an? ([A-Z][a-z]+) or there is an? \1 card in your graveyard$/))) return { test: 'b110-control-or-gy', word: m[1] };   // Sand Strangler
+  if (/^this (?:creature|permanent|artifact|enchantment) is on the battlefield$/i.test(t)) return { test: 'b110-source-here' };   // Durkwood Tracker
+  if ((m = t.match(/^that (land|creature|permanent|artifact|enchantment) (?:was|is) an? (snow|legendary|basic) (?:land|creature|permanent|artifact|enchantment)$/i))) return { test: 'b110-target-word', word: m[2][0].toUpperCase() + m[2].slice(1).toLowerCase() };   // Icequake
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
   return null;
@@ -494,7 +507,22 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
     }
     case 'b110-hand-at-most': return ((game.players || []).find(p => p.playerId === controllerId)?.deck?.hand || []).length <= effect.n;
     case 'b110-kick-count': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; return Number(c?.kickCount ?? (c?.kicked ? 1 : 0)) >= effect.min; }
-    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; return effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); }
+    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; const is = effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); return effect.not ? !is : is; }
+    case 'b110-monarch': return !!(game.players || []).find(p => p.playerId === controllerId)?.statuses?.includes('Monarch');
+    case 'b110-left-graveyard': return game.leftGraveyard?.[controllerId] === game.turnNumber;
+    case 'b110-event-mv': { const mv = Number(bindings.eventManaValue || 0); return effect.less ? mv <= effect.n : mv >= effect.n; }
+    case 'b110-event-damage': {
+      // damage marked on it when it died (last-known information), or dealt to it so far this turn
+      const id = bindings.eventCard || bindings.sourceId, t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
+      const dealt = (t?.damageRecords || []).filter(r => r.targetId === id).reduce((n, r) => n + Number(r.amount || 0), 0);
+      return Math.max(Number(bindings.eventDamage || 0), dealt, Number(locateCardInGame(game, id)?.card?.damageMarked || 0)) >= effect.min;
+    }
+    case 'b110-control-or-gy': {
+      const me = (game.players || []).find(p => p.playerId === controllerId), has = c => new RegExp(`\\b${effect.word}\\b`).test(definitionFor(game, c)?.typeLine || '');
+      return (me?.deck?.battlefield || []).some(has) || (me?.deck?.graveyard || []).some(has);
+    }
+    case 'b110-source-here': return locateCardInGame(game, bindings.sourceId)?.zone === 'battlefield';
+    case 'b110-target-word': { const id = bindings.lastTarget || bindings.target0 || bindings.thatCard; const h = id && locateCardInGame(game, id); return !!h && new RegExp(`\\b${effect.word}\\b`).test(definitionFor(game, h.card)?.typeLine || ''); }   // the target as it last was (Icequake: the land destroyed, now in the graveyard)
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;

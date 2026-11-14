@@ -11,7 +11,7 @@ import {
   basicLandManaColor, isBasicLand, tapManaAbilities, entersBattlefieldTapped
 } from '../engine/rules.js';
 import { asEntersChoiceSpec, entersWithCountersSpec, modalSpellSpec, spellSupport } from '../engine/abilities.js';
-import { compileEffectText, parseCondition, checkCondition } from '../engine/effects.js';
+import { compileEffectText, parseCondition, checkCondition, interveningIfFails } from '../engine/effects.js';
 import { availableModalTriggerModes, recordModalTriggerModeChoice, queueTriggers } from '../engine/triggers.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import {
@@ -931,16 +931,24 @@ function runActivate(game, op, ask) {
     const n = have <= 1 ? have : Math.max(1, Math.min(have, Number(ask('cost:remove-counters', () => ({ ...base, kind: 'number', title: `${def.name} — pay cost`, prompt: `How many ${rmSome[1]} counters do you remove?`, min: 1, max: have })) || 1)));
     costRemoveCounters.push({ counter: rmSome[1], amount: n }); bindings.costCount = n;
   }
-  const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
+  let manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
   const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;
   const pool = playerManaAvailability(player, game);
   if (onlyColor) { for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) if (c !== onlyColor) pool[c] = 0; pool.__flex = (pool.__flex || []).filter(f => f.options.includes(onlyColor)).map(f => ({ ...f, options: [onlyColor] })); }
-  const plan = planMana(pool, manaText, xInCost ? Number(bindings.X || 0) : 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - Number(ability.lifeCost || 0)) });
+  // Tidal Control: "Pay 2 life or {2}": the player who activates picks one (the only one they can pay, if there is only one).
+  let lifeCostNow = Number(ability.lifeCost || 0);
+  if (ability.costChoice) {
+    const { life, mana } = ability.costChoice, lifeOk = Number(player.life || 0) >= life, manaOk = planMana(pool, mana, 0, { lifeAvailable: 0 }).ok;
+    const withLife = lifeOk && (!manaOk || ask('cost:life-or-mana', () => ({ ...base, cancellable: true, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Pay ${life} life or ${mana}?`, options: [{ id: 'life', label: `Pay ${life} life` }, { id: 'mana', label: `Pay ${mana}` }] })) === 'life');
+    lifeCostNow = withLife ? life : 0;
+    manaText = withLife ? '' : adjustGeneric(mana, -activationReduction(game, player, ability));
+  }
+  const plan = planMana(pool, manaText, xInCost ? Number(bindings.X || 0) : 0, { lifeAvailable: Math.max(0, Number(player.life || 0) - lifeCostNow) });
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    anyPlayer, sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    anyPlayer, sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: lifeCostNow, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 
@@ -1254,6 +1262,8 @@ function runTrigger(game, op, ask) {
     search = librarySearchSpec(String(text).replace(/^[^,]*\b(?:When|Whenever|At)\b[^,]*,\s*/i, ''));
     if (search) compiled = { supported: true, effects: [], requirements: [], unsupported: [] };
   }
+  // "When X, if Y, …": the condition is checked now (it would not have triggered otherwise); the effect checks it again as it resolves.
+  if (compiled?.supported && !trigger.modal?.modes?.length && interveningIfFails(game, player.playerId, compiled.effects, bindings)) { log(game, `${name} triggers, but its condition is not met.`); return drop(); }
   if (compiled?.supported) {
     const split = splitRequirements(compiled.requirements || []);
     resolve = split.resolve;

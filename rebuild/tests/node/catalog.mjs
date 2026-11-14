@@ -4,11 +4,12 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
-import { compileEffectText, applyEffects } from '../../src/engine/effects.js';
+import { compileEffectText, applyEffects, moveCard } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor, protectionsOf } from '../../src/game/requirements.js';
 import { abilityRows } from '../../src/game/legal.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
+import { queueTriggers } from '../../src/engine/triggers.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -4689,6 +4690,116 @@ section('build 110 (long tail batch 4)');
     return life - t.P(1).life;
   };
   check('intervening if (hand empty): 2 damage with an empty hand, none with a card in hand', run(false) === 2 && run(true) === 0, JSON.stringify([run(false), run(true)]));
+}
+
+
+section('batch 4 review: "If <condition>, X deals N damage" keeps its condition (15 cards sent back)');
+{
+  // effect text played straight through the resolver: opponent's life lost
+  const lose = (t, text, bindings = {}, name = 'Test Card') => {
+    const r = compileEffectText(text, { sourceName: name });
+    if (!r.supported) return 'unsupported';
+    const before = t.P(1).life;
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, ...bindings });
+    return before - t.P(1).life;
+  };
+  const ev = (t, e) => queueTriggers(t.game, e);
+  // Court of Embereth: "Then if you're the monarch, deals X damage where X is the number of creatures you control"
+  { const t = setup(); onField(t, 'Grizzly Bears', ''); const txt = 'Create a 3/1 red Knight creature token. Then if you\'re the monarch, this enchantment deals X damage to each opponent, where X is the number of creatures you control.';
+    const a = lose(t, txt); t.P(0).statuses = [...(t.P(0).statuses || []), 'Monarch']; const b = lose(t, txt);
+    check('Court of Embereth: no damage unless you are the monarch, then one per creature (bears + 2 knights)', a === 0 && b === 3, JSON.stringify([a, b])); }
+  // Lasting Tarfire: "if you put a counter on a creature this turn"
+  { const t = setup(); const txt = 'If you put a counter on a creature this turn, this enchantment deals 2 damage to each opponent.';
+    const bear = onField(t, 'Grizzly Bears', ''); const a = lose(t, txt);
+    ev(t, { type: 'counter-added', targetId: bear.instanceId, sourceId: null, controllerId: t.P(0).playerId, counter: 'stun', amount: 1 }); const b = lose(t, txt);
+    const t2 = setup(); const opp = onField(t2, 'Grizzly Bears', '', {}, 1); queueTriggers(t2.game, { type: 'counter-added', targetId: opp.instanceId, sourceId: onField(t2, 'Fog Bank', '').instanceId, controllerId: t2.P(1).playerId, counter: '+1/+1', amount: 1 });
+    check('Lasting Tarfire: needs a counter you put on a creature (any kind), not just any counter', a === 0 && b === 2 && lose(t2, txt) === 2, JSON.stringify([a, b])); 
+    const t3 = setup(); const opp3 = onField(t3, 'Grizzly Bears', '', {}, 1); queueTriggers(t3.game, { type: 'counter-added', targetId: opp3.instanceId, sourceId: onField(t3, 'Fog Bank', '', {}, 1).instanceId, controllerId: t3.P(1).playerId, counter: '+1/+1', amount: 1 });
+    check("Lasting Tarfire: a counter the opponent put does not count for you", lose(t3, txt) === 0); }
+  // Oath of Chandra: a planeswalker entered under your control this turn
+  { const t = setup(); const txt = 'If a planeswalker entered the battlefield under your control this turn, this enchantment deals 2 damage to each opponent.';
+    ev(t, { type: 'enters-battlefield', sourceId: 'x', controllerId: t.P(1).playerId, typeLine: 'Legendary Planeswalker — Jace' }); const a = lose(t, txt);
+    ev(t, { type: 'enters-battlefield', sourceId: 'y', controllerId: t.P(0).playerId, typeLine: 'Creature — Bear' }); const b = lose(t, txt);
+    ev(t, { type: 'enters-battlefield', sourceId: 'z', controllerId: t.P(0).playerId, typeLine: 'Legendary Planeswalker — Chandra' }); const c = lose(t, txt);
+    check('Oath of Chandra: only a planeswalker entering under your control counts', a === 0 && b === 0 && c === 2, JSON.stringify([a, b, c])); }
+  // Gau: a card left your graveyard this turn
+  { const t = setup(); const txt = 'Gau deals damage equal to its power to each opponent.'; const cond = 'If a card left your graveyard this turn, ' + txt.charAt(0).toLowerCase() + txt.slice(1);
+    const gau = onField(t, 'Grizzly Bears', '', { power: '3' }); const c0 = t.give(0, 'Forest', 'graveyard'); const bindings = { sourceId: gau.instanceId };
+    const a = lose(t, cond.replace('Gau', 'Test Card'), bindings);
+    moveCard(t.game, c0.instanceId, 'exile'); const b = lose(t, cond.replace('Gau', 'Test Card'), bindings);
+    check('Gau: nothing before a card leaves your graveyard, then damage equal to its power', a === 0 && b === 3, JSON.stringify([a, b])); }
+  // Sawblade Skinripper: that much = permanents sacrificed this turn
+  { const t = setup(); const txt = 'If you sacrificed one or more permanents this turn, this creature deals that much damage to any target.'; const r = compileEffectText(txt, { sourceName: 'Sawblade Skinripper' });
+    const dmg = r.effects.find(e => e.kind === 'damage');
+    ev(t, { type: 'sacrificed', sourceId: 'a', controllerId: t.P(0).playerId, typeLine: 'Creature' }); ev(t, { type: 'sacrificed', sourceId: 'b', controllerId: t.P(0).playerId, typeLine: 'Enchantment' }); ev(t, { type: 'sacrificed', sourceId: 'c', controllerId: t.P(1).playerId, typeLine: 'Land' });
+    const before = t.P(1).life; applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: t.P(1).playerId });
+    check('Sawblade Skinripper: damage equals the permanents you sacrificed this turn (2, not the opponent\'s)', dmg?.amount?.what === 'sacrificed' && before - t.P(1).life === 2, JSON.stringify([dmg?.amount, before - t.P(1).life])); }
+  // Spider-Man 2099: cast from somewhere other than your hand
+  { const t = setup(); const txt = 'If you\'ve played a land or cast a spell this turn from anywhere other than your hand, Spider-Man 2099 deals 3 damage to any target.';
+    const run = () => { const r = compileEffectText(txt, { sourceName: 'Spider-Man 2099' }); const before = t.P(1).life; applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: t.P(1).playerId }); return before - t.P(1).life; };
+    ev(t, { type: 'spell-cast', sourceId: 'q', controllerId: t.P(0).playerId, fromZone: 'hand' }); const a = run();
+    ev(t, { type: 'spell-cast', sourceId: 'r', controllerId: t.P(0).playerId, fromZone: 'graveyard' }); const b = run();
+    check('Spider-Man 2099: a spell cast from your hand does not count, one cast from the graveyard does', a === 0 && b === 3, JSON.stringify([a, b])); }
+  // Herald of Ilharg: that spell has mana value 5 or greater
+  { const t = setup(); const txt = 'If that spell has mana value 5 or greater, this creature deals 4 damage to each opponent.';
+    const a = lose(t, txt, { eventManaValue: 4 }), b = lose(t, txt, { eventManaValue: 5 });
+    check('Herald of Ilharg: the damage needs a spell with mana value 5 or more', a === 0 && b === 4, JSON.stringify([a, b])); }
+  // Grab the Prize: the discarded card wasn't a land
+  { const t = setup(); const txt = "If the discarded card wasn't a land card, Grab the Prize deals 2 damage to each opponent.";
+    const a = lose(t, txt, { costDiscardedTypeLine: 'Basic Land — Forest' }), b = lose(t, txt, { costDiscardedTypeLine: 'Creature — Bear' });
+    check("Grab the Prize: no damage when the discarded card was a land, 2 when it wasn't", a === 0 && b === 2, JSON.stringify([a, b])); }
+  // Icequake: snow land (the target as it last was) -> its controller takes 1
+  { const run = typeLine => { const t = setup(); const land = onField(t, 'Forest', '', { typeLine }, 1); const r = compileEffectText('Destroy target land. If that land was a snow land, Icequake deals 1 damage to that land\'s controller.', { sourceName: 'Icequake' });
+      const before = [t.P(0).life, t.P(1).life]; applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: land.instanceId });
+      return [before[0] - t.P(0).life, before[1] - t.P(1).life, t.names(1, 'graveyard').length]; };
+    const snow = run('Basic Snow Land — Forest'), plain = run('Basic Land — Forest');
+    check("Icequake: a snow land's controller takes 1 (not the caster); a plain land's controller takes nothing", snow.join() === '0,1,1' && plain.join() === '0,0,1', JSON.stringify([snow, plain])); }
+  // Unforge: damage to the creature the Equipment was attached to
+  { const run = attach => { const t = setup(); const bear = onField(t, 'Grizzly Bears', '', { toughness: '9' }, 1); const eq = onField(t, 'Fog Bank', '', { typeLine: 'Artifact — Equipment' }, 1); if (attach) eq.attachedTo = bear.instanceId;
+      const r = compileEffectText('Destroy target Equipment. If that Equipment was attached to a creature, Unforge deals 2 damage to that creature.', { sourceName: 'Unforge' });
+      applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: eq.instanceId }); return [t.names(1, 'graveyard').includes('Fog Bank'), Number(bear.damageMarked || 0)]; };
+    const a = run(true), b = run(false);
+    check('Unforge: the equipment is destroyed; 2 damage to the creature it was attached to, none if unattached', a.join() === 'true,2' && b.join() === 'true,0', JSON.stringify([a, b])); }
+  // Burning-Eye Zubera / Steamcore Weird / Sand Strangler / Herald: the whole trigger is conditional (checked when it triggers)
+  {     const strangler = 'When this creature enters, if you control a Desert or there is a Desert card in your graveyard, you may have this creature deal 3 damage to target creature.';
+    { const t = setup(); const victim = onField(t, 'Grizzly Bears', '', { toughness: '9' }, 1); t.give(0, 'Forest', 'graveyard');
+      const ask = cast(t, 'Grizzly Bears', strangler, [[d => d.kind === 'confirm', () => true], [d => d.targeting || d.kind === 'choose-one', () => victim.instanceId]]);
+      check('Sand Strangler: without a Desert the trigger does not even go on the stack (no question asked)', !ask.some(d => d.kind === 'confirm') && !Number(victim.damageMarked || 0), JSON.stringify(ask.map(d => d.kind))); }
+    { const t = setup(); const victim = onField(t, 'Grizzly Bears', '', { toughness: '9' }, 1); const desert = t.give(0, 'Forest', 'graveyard'); t.game.cardDefinitions[desert.definitionId] = { ...t.game.cardDefinitions[desert.definitionId], typeLine: 'Land — Desert' };
+      const ask = cast(t, 'Grizzly Bears', strangler, [[d => d.kind === 'confirm', () => true], [d => d.targeting || d.kind === 'choose-one', () => victim.instanceId]]);
+      check('Sand Strangler: with a Desert card in your graveyard you are asked, and 3 damage goes to the target creature', ask.some(d => d.kind === 'confirm') && Number(victim.damageMarked || 0) === 3, JSON.stringify([ask.map(d => d.kind), victim.damageMarked])); }
+    { const t = setup(); const victim = onField(t, 'Grizzly Bears', '', { toughness: '9' }, 1); const desert = t.give(0, 'Forest', 'graveyard'); t.game.cardDefinitions[desert.definitionId] = { ...t.game.cardDefinitions[desert.definitionId], typeLine: 'Land — Desert' };
+      cast(t, 'Grizzly Bears', strangler, [[d => d.kind === 'confirm', () => false], [d => d.targeting || d.kind === 'choose-one', () => victim.instanceId]]);
+      check('Sand Strangler: answering no deals nothing ("you may")', !Number(victim.damageMarked || 0), String(victim.damageMarked)); }
+    // Steamcore Weird: {R} was spent to cast it
+    const weird = 'When this creature enters, if {R} was spent to cast it, it deals 2 damage to any target.';
+    { const t = setup(); const life = t.P(1).life; cast(t, 'Grizzly Bears', weird, [[d => d.targeting || d.kind === 'choose-one', () => t.P(1).playerId]]);
+      check('Steamcore Weird: cast without red mana (Forest/Island), the trigger does nothing', t.P(1).life === life, String(t.P(1).life)); }
+    { const t = setup(); const old = t.P(0).deck.battlefield.slice(); const forest = old.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Forest'); t.game.cardDefinitions[forest.definitionId] = { ...t.game.cardDefinitions[forest.definitionId], typeLine: 'Basic Land — Mountain', oracleText: '({T}: Add {R}.)' }; for (let i = 0; i < 3; i++) t.give(0, 'Forest', 'battlefield'); for (const c of old) c.tapped = true;
+      const life = t.P(1).life; cast(t, 'Grizzly Bears', weird, [[d => d.targeting || d.kind === 'choose-one', () => t.P(1).playerId]], { manaCost: '{1}{R}' });
+      check('Steamcore Weird: cast with red mana, 2 damage to the chosen target', life - t.P(1).life === 2, String(life - t.P(1).life)); }
+    // Burning-Eye Zubera: died with 4 or more damage on it
+    { const dies = dmg => { const t = setup(); const z = onField(t, 'Grizzly Bears', 'When this creature dies, if 4 or more damage was dealt to it this turn, this creature deals 3 damage to any target.', { toughness: '9' }); z.damageMarked = dmg;
+        const life = t.P(1).life; cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting && (d.options || []).some(o => o.id === z.instanceId), () => z.instanceId], [d => d.targeting || d.kind === 'choose-one', () => t.P(1).playerId]]); return life - t.P(1).life; };
+      const a = dies(3), b = dies(4);
+      check('Burning-Eye Zubera: dying with 3 damage does nothing, with 4 it deals 3', a === 0 && b === 3, JSON.stringify([a, b])); }
+  }
+  // Durkwood Tracker: both creatures deal damage equal to their power
+  { const t = setup(); const tracker = onField(t, 'Grizzly Bears', '{1}{G}, {T}: If this creature is on the battlefield, it deals damage equal to its power to target attacking creature. That creature deals damage equal to its power to this creature.', { power: '3', toughness: '5' });
+    const foe = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf', power: '2', toughness: '9' }, 1); foe.attacking = true; t.game.combatState = { attackers: [{ instanceId: foe.instanceId, defenderId: t.P(0).playerId }], defenders: [], damage: [] };
+    try { activate(t, tracker, 0, [[d => d.targeting || d.kind === 'choose-one', () => foe.instanceId]]); } catch (e) { check('Durkwood Tracker: activation ran', false, String(e.stack).slice(0, 600)); }
+    check('Durkwood Tracker: 3 damage to the attacker and 2 back to the Tracker', Number(foe.damageMarked || 0) === 3 && Number(tracker.damageMarked || 0) === 2, JSON.stringify([foe.damageMarked, tracker.damageMarked])); }
+  // Tidal Control: pay 2 life OR {2}
+  { const mk = (life, mana) => { const t = setup(); const tc = onField(t, 'Fog Bank', 'Pay 2 life or {2}: Counter target red or green spell. Any player may activate this ability.', { typeLine: 'Enchantment' });
+      const ab = parseActivatedAbilities(def(t, tc))[0]; return { t, tc, ab }; };
+    const { t, tc, ab } = mk();
+    check('Tidal Control: parsed as a choice of costs, no life owed up front', ab.costChoice?.life === 2 && ab.costChoice?.mana === '{2}' && ab.lifeCost === 0, JSON.stringify([ab.costChoice, ab.lifeCost])); }
+  { const t = setup(); const tc = onField(t, 'Fog Bank', 'Pay 2 life or {2}: Counter target red or green spell. Any player may activate this ability.', { typeLine: 'Enchantment' });
+    const legal = () => abilityRows(t.game, t.P(1), tc).map(r => r.legal);
+    const none = legal().join();   // the opponent has no lands but 40 life: pays life
+    t.P(1).life = 1; const poor = legal().join();   // 1 life and no lands: neither
+    t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield'); const rich = legal().join();   // two lands: pays {2}
+    check('Tidal Control: the opponent can activate with life only, mana only, and not with neither', none === 'true' && poor === 'false' && rich === 'true', JSON.stringify([none, poor, rich])); }
 }
 
 done();

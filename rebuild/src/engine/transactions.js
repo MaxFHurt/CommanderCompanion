@@ -277,6 +277,7 @@ function putSpellOnStack(game, player, action, deck) {
   const allowed = Array.isArray(action.fromZones) && action.fromZones.length ? action.fromZones : ['hand', 'commandZone'];
   const { card, from } = removeFromZone(deck, action.instanceId, allowed);
   delete card.gySeen;
+  if (from === 'graveyard') game.leftGraveyard = { ...(game.leftGraveyard || {}), [player.playerId]: game.turnNumber };
   payMana(game, player, action.payment);
   if (Number.isInteger(action.activeFaceIndex))
     card.activeFaceIndex = action.activeFaceIndex;
@@ -286,6 +287,7 @@ function putSpellOnStack(game, player, action, deck) {
     if (i < 0)
       throw new Error('A graveyard card chosen to pay the cost is gone.');
     const [gone] = deck.graveyard.splice(i, 1);
+    game.leftGraveyard = { ...(game.leftGraveyard || {}), [player.playerId]: game.turnNumber };
     gone.zone = 'exile';
     deck.exile.push(gone);
   }
@@ -894,6 +896,7 @@ export function createTransactionEngine(game) {
         const at = deck.graveyard.findIndex(c => c.instanceId === action.instanceId);
         const [card] = deck.graveyard.splice(at, 1);
         delete card.gySeen;
+        game.leftGraveyard = { ...(game.leftGraveyard || {}), [player.playerId]: game.turnNumber };
         card.zone = 'hand'; deck.hand.push(card);
         emit(game, { type: 'zone-change', sourceId: card.instanceId, definitionId: card.definitionId, from: 'graveyard', to: 'hand', controllerId: player.playerId, ownerId: card.ownerId });
       }

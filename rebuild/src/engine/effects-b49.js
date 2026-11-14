@@ -684,6 +684,7 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
       if (effect.withSelf && (controller.deck.battlefield || []).some(c => c.instanceId === bindings.sourceId)) moveCard(game, bindings.sourceId, 'library', { onEvent: e => H.emit(bindings, e) });
       for (const p of who) {
         const moved = p.deck.graveyard.splice(0);
+        if (moved.length) game.leftGraveyard = { ...(game.leftGraveyard || {}), [p.playerId]: game.turnNumber };
         for (const c of moved) { c.zone = 'library'; p.deck.remainingLibrary.push(c); }
         H.shuffle(p.deck.remainingLibrary);
         notes.push(`${p.displayName} shuffles ${moved.length} card${moved.length === 1 ? '' : 's'} from their graveyard into their library.`);
@@ -692,7 +693,9 @@ export function applyB49(game, controllerId, effect, bindings, notes) {
     }
     case 'shuffle-hand-graveyard': {
       const lib = controller.deck.remainingLibrary;
+      const gyBefore = controller.deck.graveyard.length;
       const moved = [...controller.deck.hand.splice(0), ...controller.deck.graveyard.splice(0)];
+      if (gyBefore) game.leftGraveyard = { ...(game.leftGraveyard || {}), [controller.playerId]: game.turnNumber };
       for (const c of moved) { c.zone = 'library'; lib.push(c); }
       H.shuffle(lib);
       notes.push(`${controller.displayName} shuffles ${moved.length} card${moved.length === 1 ? '' : 's'} from their hand and graveyard into their library.`);
