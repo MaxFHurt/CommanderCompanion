@@ -909,6 +909,7 @@ export function cardFitsWords(def, words) {
     for (const part of a.split(/[ ,]+/).filter(Boolean)) {
       if (part.startsWith('non')) { if (rx(`\\b${part.slice(3).replace(/-/g, '')}\\b`).test(t)) ok = false; continue; }
       if (part === 'permanent') { if (/\binstant\b|\bsorcery\b/.test(t)) ok = false; continue; }
+      if (/^outlaws?$/.test(part)) { if (!/\b(?:assassin|mercenary|pirate|rogue|warlock)\b/.test(t)) ok = false; continue; }   // build 111
       if (part === 'historic') { if (!/legendary|artifact|saga/.test(t)) ok = false; continue; }
       if (!rx(`\\b${esc(part.replace(/s$/, ''))}s?\\b`).test(t)) ok = false;
     }

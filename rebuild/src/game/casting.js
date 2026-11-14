@@ -197,6 +197,7 @@ export function additionalCost(def) {
   if ((m = text.match(/As an additional cost to cast this spell, sacrifice (?:a|an) ([a-z ]+?)(?: or (?:a|an)? ?([a-z ]+?))?\./i)))
     return { kind: 'sacrifice', filters: [m[1], m[2]].filter(Boolean).map(x => x.trim().toLowerCase()), label: `Sacrifice a ${[m[1], m[2]].filter(Boolean).join(' or ')}` };
   if (/As an additional cost to cast this spell, discard a card\./i.test(text)) return { kind: 'discard', label: 'Discard a card' };
+  if (/As an additional cost to cast this spell, discard X cards\./i.test(text)) return { kind: 'discard-x', label: 'Discard X cards' };   // Restless Dreams, Nostalgic Dreams: X is the number discarded (build 111)
   // Monstrous Emergence, Close Encounter: choose a creature you control or reveal a creature card from your hand (or a warped one in exile); its power is used by the spell.
   if ((m = text.match(/As an additional cost to cast this spell, choose a creature you control or (reveal a creature card from your hand|a warped creature card you own in exile)\./i)))
     return { kind: 'choose-power', warped: /warped/i.test(m[1]), label: /warped/i.test(m[1]) ? 'Choose a creature you control or a warped creature card you own in exile' : 'Choose a creature you control or reveal a creature card from your hand' };

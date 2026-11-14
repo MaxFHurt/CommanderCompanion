@@ -445,7 +445,14 @@ function runPlay(game, op, ask) {
     if (!rows.length && !force) throw new GameError(`You need a ${mode.altSacrifice} to sacrifice.`);
     if (rows.length) sacrificeForCost = ask('cost:alt-sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Sacrifice a ${mode.altSacrifice} instead of paying its mana cost.`, options: rows }));
   }
-  if (addCost?.kind === 'sacrifice') {
+  if (addCost?.kind === 'discard-x') {
+    const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId)
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    const n = rows.length ? Number(ask('cost:discard-x-n', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — discard X cards`, prompt: 'Choose X: you discard that many cards as you cast it.', min: 0, max: rows.length }))) : 0;
+    const picked = n > 0 ? (n === rows.length ? rows.map(r => r.id) : [].concat(ask('cost:discard-x', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-many', source: def.name, title: `${def.name} — additional cost`, prompt: `Discard ${n} card${n === 1 ? '' : 's'}.`, options: rows, min: n, max: n })))) : [];
+    for (const id of picked) altPayOps.push({ op: 'discard', id });
+    altPayX = n;
+  } else if (addCost?.kind === 'sacrifice') {
     const rows = player.deck.battlefield.filter(c => addCost.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
     if (!rows.length && !force) throw new GameError(`You need a ${addCost.filters.join(' or ')} to sacrifice.`);
@@ -563,7 +570,7 @@ function runPlay(game, op, ask) {
     bindings.X = ask('x', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: force ? 99 : Math.max(0, Math.floor(pool / printed.X)) }));
     xExtra = bindings.X * printed.X;
   } else if (printed.X && free) bindings.X = 0;
-  const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && printed.X)));
+  const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && (printed.X || altPayX != null))));
   const guidedPicks = guided ? guidedTargets(game, player, castDef, guided.oracleText || castDef.oracleText, bindings, ask) : [];
   if (guided) guided.targets = guidedPicks;
   try {

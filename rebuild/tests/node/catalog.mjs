@@ -5177,4 +5177,16 @@ section('batch 5 (build 111): Sacrifice X as a cost');
   check('Sacrifice X Squirrels: X = 2, two Squirrels are sacrificed as the cost (the source stays)', left <= 1 && power(t, bear) >= 0, JSON.stringify([left, power(t, bear)]));
 }
 
+section('batch 5 (build 111): discard X as an additional cost, Return X');
+{
+  // Restless Dreams: discard two cards, return two creature cards from the graveyard
+  const t = setup();
+  for (const n of ['Mulldrifter', 'Llanowar Elves']) { t.give(0, n); const c = t.hand(0, n); moveCard(t.game, c.instanceId, 'graveyard'); }
+  t.give(0, 'Air Elemental'); t.give(0, 'Forest');
+  const handBefore = t.P(0).deck.hand.length;
+  const gyIds = t.P(0).deck.graveyard.filter(c => ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
+  cast(t, 'Opt', 'As an additional cost to cast this spell, discard X cards.\nReturn X target creature cards from your graveyard to your hand.', [[d => d.key.includes('discard-x-n'), () => 2], [d => d.key.includes('cost:discard-x') && d.kind === 'choose-many', d => d.options.slice(0, 2).map(o => o.id)], [d => d.kind === 'choose-many' && /graveyard/i.test(d.prompt + d.title), d => d.options.slice(0, d.max).map(o => o.id)]], { manaCost: '{G}', typeLine: 'Sorcery' });
+  check('Restless Dreams: X = 2 discards two cards and returns up to two creature cards', t.P(0).deck.hand.length === handBefore && t.P(0).deck.graveyard.length === 3, JSON.stringify([handBefore, t.P(0).deck.hand.length, t.P(0).deck.graveyard.map(c => def(t, c).name)]));
+}
+
 done();
