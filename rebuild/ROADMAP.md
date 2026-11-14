@@ -273,6 +273,10 @@ least about 2,500 px wide, or SVG); put them in unchanged, check phone, iPad and
 landing stretches), and use the same art for the other screens' buttons (mode select, Profile, Settings use one stretched
 frame, ui/button-frame-large.png, with typed labels).
 
+Also with the new art (owner, 14 Nov: "Yes enlarge the small buttons but not yet. When I get you the assets"): buttons under
+36 px tall (Deck Builder `.btn.sm` 30-31 px, Swap, Close; game top bar and Back 25-26 px on iPhone sideways; tests/devices_ui.py
+tap-target check) are enlarged to at least 36 px in the same pass, so the button art is reworked once.
+
 ## 7d. Clearer deck generation (Done, build 97, live in 98: setup pop-up for empty decks, plan listed to add) (owner, 10 Nov: "If you don't know where to look, you don't know where to start")
 
 1. **Setup pop-up on first generation:** after choosing how to make a deck (the mode), the criteria (commander or colours,
