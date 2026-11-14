@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.112 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.113 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -36,6 +36,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 113 — 14 Nov 2026 (app 1.0.0-rebuild.113; Deck Builder unchanged, 0.9.71): rules long tail batch 5 complete
+- 23,523 → 23,871 of 32,300 run by themselves (batch 5: 515 new); every newly passing card's compiled effects read.
+- New mechanics: prepared (src/game/prepare.js), day and night (src/game/daynight.js; daybound faces switch, Day/Night in the turn header), Empower Jace, Cipher, Endure, Harmonize, spells on the stack as targets; group pumps/keywords by type, "Until end of turn" sentences, typed targets, "for each" pumps, finality counters, "gains your choice of" asks; new file src/engine/effects-b112.js.
+- Misreads fixed in older cards: "Other/Attacking/Blocking/Tapped creatures get" read as a creature type (about 12); "gains your choice of" granted every keyword (17); attacking tokens never attacked (9: Hero of Bladehold, Geist of Saint Traft …); Venser, Unsubstantiate, Jeskai Revelation, Divide by Zero could not target spells; 7 single-card fixes.
+- Back to by hand, to fix in batch 6: Urza's Avenger (banding), Brimaz (token enters blocking).
+- Tests (suites.sh): game 254, mechanics 102, catalog 731, smoke 6, tracker 20, practice 20, rules-server 27, forge-triggers 301/302; soak 40 x3 0 problems; every browser suite; Deck Builder screens 147/149 (UI-STATS-01, UI-ASYNC-01 known flakes, both pass alone).
 
 ### Build 112 — 14 Nov 2026 (app 1.0.0-rebuild.112; Deck Builder unchanged, 0.9.71): rules long tail batch 5, part A
 - Owner, 14 Nov: "Push every build live when it's proven bug free."
