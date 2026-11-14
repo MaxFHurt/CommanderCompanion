@@ -5073,4 +5073,39 @@ section('batch 5 (build 111): alternative costs (lands, cards from hand, tapping
   check('Commandeer: reads as a spell steal on the stack', compileEffectText('Gain control of target noncreature spell. You may choose new targets for it.', { sourceName: 'Commandeer' }).effects[0].kind === 'b111-steal-spell');
 }
 
+section('batch 5 (build 111): reveal-X, same name, creature type, descriptors, Equipment');
+{
+  // Scent of Ivy: reveal two green cards -> +2/+2
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '');
+  for (const n of ['Mulldrifter', 'Llanowar Elves']) { t.give(0, n); asText(t, t.hand(0, n), '', { colors: ['G'] }); }
+  const ids = t.P(0).deck.hand.filter(c => (def(t, c).colors || []).includes('G') && ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
+  cast(t, 'Opt', 'Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way.', [[d => d.kind === 'choose-many' && /Reveal/.test(d.prompt), () => ids], [d => d.targeting, () => bear.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Scent of Ivy: two green cards revealed -> +2/+2', power(t, bear) === 4, String(power(t, bear)));
+}
+{
+  // Echoing Courage: every creature with the same name
+  const t = setup(); const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Mulldrifter', '', { name: 'Grizzly Bears', typeLine: 'Creature — Bear' }), o = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  cast(t, 'Opt', 'Target creature and all other creatures with the same name as that creature get +2/+2 until end of turn.', [[d => d.targeting, () => a.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Echoing Courage: both Grizzly Bears get +2/+2, the Elf does not', power(t, a) === 4 && power(t, b) === 4 && power(t, o) === 1, JSON.stringify([power(t, a), power(t, b), power(t, o)]));
+}
+{
+  // Defensive Maneuvers: chosen type only
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Bear' }), elf = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }), eo = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }, 1);
+  cast(t, 'Opt', 'Creatures of the creature type of your choice get +0/+4 until end of turn.', [[d => /creature type/i.test(d.prompt + d.title), () => 'Elf']], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Defensive Maneuvers: every Elf (either player) gets +0/+4, the Bear does not', tough(t, elf) === 5 && tough(t, eo) === 5 && tough(t, bear) === 2, JSON.stringify([tough(t, elf), tough(t, eo), tough(t, bear)]));
+}
+{
+  // Blastfire Bolt: the Equipment on the creature is destroyed
+  const t = setup(); const bear = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' }, 1), sword = onField(t, 'Fog Bank', '', { typeLine: 'Artifact — Equipment' }, 1); sword.attachedTo = bear.instanceId;
+  cast(t, 'Opt', 'This spell deals 1 damage to target creature. Destroy all Equipment attached to that creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Blastfire Bolt: the attached Equipment is destroyed', !t.bf(1, 'Fog Bank'), JSON.stringify(t.names(1, 'battlefield')));
+}
+{
+  // The Seedcore: only 1/1 targets offered
+  const t = setup(); const one = onField(t, 'Grizzly Bears', '', { power: '1', toughness: '1' }), two = onField(t, 'Llanowar Elves', '', { power: '2', toughness: '2', typeLine: 'Creature — Elf' });
+  const seen = cast(t, 'Opt', 'Target 1/1 creature gets +2/+1 until end of turn.', [[d => d.targeting, () => one.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Target 1/1 creature: the 1/1 is offered, the 2/2 is not', offered.includes(one.instanceId) && !offered.includes(two.instanceId), JSON.stringify(offered.length));
+}
+
 done();

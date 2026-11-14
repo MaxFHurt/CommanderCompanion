@@ -34,6 +34,7 @@ export function evalAmountB111(game, controllerId, amount, bindings) {
       const p = playerById(game, bindings[amount.playerBind] || controllerId);
       return Math.floor((p?.deck?.remainingLibrary?.length || 0) / 2);
     }
+    case 'b111-count': return [].concat(bindings[amount.bind] || []).length;
     default: return 0;
   }
 }
@@ -80,6 +81,28 @@ export function compileB111Clause(c, ctx) {
     effects.push({ kind: 'condition', test: 'b111-stack-mv-x', stackBind: bind, skip: 1 }, { kind: 'counter-spell', bind });
     return true;
   }
+  // --- "Target red or green creature gets -2/-0 until end of turn." / "Target 1/1 creature gets +2/+1 until end of turn." (Wilderness Hypnotist, The Seedcore): the descriptor is a limit on the target.
+  if ((m = c.match(/^Target ((?:white|blue|black|red|green)(?: or (?:white|blue|black|red|green))?|\d+\/\d+) (creature) (gets .+)$/i))) {
+    const r = H.compileEffectText(`Target creature ${m[3]}`, { sourceName });
+    const t = r.supported && r.requirements.find(q => q.kind === 'target');
+    if (t && r.effects.length) {
+      t.scope = `target ${m[1].toLowerCase()} creature`; t.label = t.scope;
+      effects.push(...r.effects); requirements.push(...r.requirements);
+      return true;
+    }
+  }
+  // --- "Target creature and all other creatures with the same name as that creature get +2/+2 until end of turn." (Echoing Courage, Bile Blight)
+  if ((m = c.match(/^Target creature and all other creatures with the same name as that creature get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i))) {
+    effects.push({ kind: 'b111-pump-same-name', bind: H.targetRequirement(requirements, 'target creature', 'target creature'), power: Number(m[1]), toughness: Number(m[2]) });
+    return true;
+  }
+  // --- "Creatures of the creature type of your choice get +X/+X until end of turn." (Tribal Unity, Witch's Vengeance)
+  if ((m = c.match(/^Creatures of the creature type of your choice get ([+-](?:\d+|X))\/([+-](?:\d+|X)) until end of turn\.?$/i))) {
+    const bind = `creatureType${requirements.length}`;
+    requirements.push({ kind: 'creature-type-choice', bind, label: 'Choose a creature type' });
+    effects.push({ kind: 'choose-creature-type', bind }, { kind: 'b111-pump-type', power: m[1], toughness: m[2] });
+    return true;
+  }
   // --- "Sacrifice this creature at the beginning of the next end step." (Pyric Salamander, Varchild's Crusader)
   if ((m = c.match(rx(`^Sacrifice (${SELFP}) at the beginning of the next end step\\.?$`)))) {
     effects.push({ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'sacrifice', bind: 'sourceId' }], requirements: [] });
@@ -99,6 +122,24 @@ export function compileB111Sequence(clauses, i, { sourceName, parts = [] }) {
     return { part: { effects: [{ kind: 'b111-steal-spell', stackBind: bind }, { kind: 'retarget-stack', stackBind: bind, bind: pick }],
       requirements: [{ kind: 'stack-target', bind, scope: 'spell', spellFilter: f || null, label: `target ${m[1]}spell`.replace(/\s+/g, ' ') }, { kind: 'retarget-stack', bind: pick, stackBind: bind, single: false, mustChange: false }], unsupported: [] }, consumed: 2 };
   }
+  // --- "<Source> deals 5 damage to target creature. Destroy all Equipment attached to that creature." (Blastfire Bolt, Turn to Slag, Fires of Mount Doom)
+  if (/^Destroy all Equipment attached to that creature\.?$/i.test(c0)) {
+    const prior = [...parts.flatMap(p => p.effects || [])].reverse().find(e => typeof e.bind === 'string' && /^target\d*$/.test(e.bind));
+    if (prior) return { part: { effects: [{ kind: 'b111-destroy-equipment', bind: prior.bind }], requirements: [], unsupported: [] }, consumed: 1 };
+  }
+  // --- "Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way." (Scent of Ivy, Ivy Seer, …)
+  if ((m = c0.match(/^Reveal any number of (white|blue|black|red|green) cards in your hand\.?$/i))) {
+    const c1 = clean(clauses[i + 1]);
+    const bind = `reveal${i}`, color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()];
+    const base = { effects: [{ kind: 'set-x', amount: { kind: 'b111-count', bind } }], requirements: [{ kind: 'b111-reveal-hand', bind, color, label: `any number of ${m[1].toLowerCase()} cards in your hand to reveal` }], unsupported: [] };
+    let mm;
+    if ((mm = c1.match(/^(.+?), where X is the number of cards revealed this way\.?$/i))) {
+      const r = H.compileEffectText(`${mm[1]}.`, { sourceName });
+      if (r.supported && r.effects.length) return { part: { effects: [...base.effects, ...r.effects], requirements: [...base.requirements, ...r.requirements.filter(q => !(q.kind === 'number' && q.bind === 'X'))], unsupported: [] }, consumed: 2 };
+    }
+    if ((mm = c1.match(/^You gain (\d+) life for each card revealed this way\.?$/i)))
+      return { part: { effects: [...base.effects, { kind: 'life', scope: 'you', amount: { kind: 'times', n: Number(mm[1]), of: 'X' }, deltaSign: 1 }], requirements: base.requirements, unsupported: [] }, consumed: 2 };
+  }
   return null;
 }
 
@@ -115,6 +156,28 @@ export function applyB111(game, controllerId, effect, bindings, notes) {
       if (!obj) { notes.push('The spell is no longer on the stack.'); return true; }
       obj.controllerId = controllerId;
       notes.push(`${obj.label || 'The spell'} is now controlled by ${playerById(game, controllerId)?.displayName || 'you'}.`);
+      return true;
+    }
+    case 'b111-pump-same-name': {
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('That creature is no longer on the battlefield.'); return true; }
+      const name = definitionFor(game, hit.card)?.name;
+      const ids = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.instanceId === hit.card.instanceId || (definitionFor(game, c)?.name === name && /\bcreature\b/i.test(definitionFor(game, c)?.typeLine || ''))).map(c => c.instanceId));
+      for (const id of ids) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'pump', bind: 'b111Id', power: effect.power, toughness: effect.toughness, expires: 'cleanup' }], { ...bindings, b111Id: id }));
+      return true;
+    }
+    case 'b111-pump-type': {
+      const type = String(bindings.chosenCreatureType || '').trim();
+      if (!type) { notes.push('No creature type was chosen.'); return true; }
+      const ids = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => { const d = definitionFor(game, c); return /\bcreature\b/i.test(d?.typeLine || '') && (new RegExp(`\\b${type.replace(/[^A-Za-z' -]/g, '')}s?\\b`, 'i').test(String(d?.typeLine || '').split('—').slice(1).join(' ')) || /\bChangeling\b/i.test(d?.oracleText || '')); }).map(c => c.instanceId));
+      for (const id of ids) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'pump', bind: 'b111Id', power: effect.power, toughness: effect.toughness, expires: 'cleanup' }], { ...bindings, b111Id: id }));
+      return true;
+    }
+    case 'b111-destroy-equipment': {
+      const id = bindings[effect.bind];
+      const eq = (game.players || []).flatMap(p => p.deck?.battlefield || []).filter(c => c.attachedTo === id && /\bEquipment\b/i.test(definitionFor(game, c)?.typeLine || ''));
+      for (const c of eq) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'destroy', bind: 'b111Id' }], { ...bindings, b111Id: c.instanceId }));
+      if (!eq.length) notes.push('No Equipment is attached to it.');
       return true;
     }
     case 'b111-no-lands': {
@@ -152,5 +215,11 @@ export function applyB111(game, controllerId, effect, bindings, notes) {
 }
 
 export function gatherB111(game, ctx, req, bindings, ask, key, title, base, util) {
+  if (req.kind === 'b111-reveal-hand') {
+    // "Reveal any number of <colour> cards in your hand": the caster picks which (none is allowed); the number is what the spell then counts.
+    const me = ctx.player, rows = (me.deck.hand || []).filter(c => (util.defOf(game, c)?.colors || []).includes(req.color));
+    bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, playerId: me.playerId, kind: 'choose-many', private: true, title, prompt: `Reveal ${req.label}.`, options: rows.map(c => util.cardOption(game, c, me, util.defOf(game, c)?.typeLine || '')), min: 0, max: rows.length }))) : [];
+    return true;
+  }
   return false;
 }

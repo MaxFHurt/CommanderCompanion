@@ -153,6 +153,8 @@ function descriptorFits(game, card, def, scope) {
       if (n && colors.includes(COLOR_WORDS[n[1]])) return false;
       const sn = w.match(/^non-?([a-z]+)$/);
       if (sn && !n && !/^(?:token|land|creature|artifact|enchantment|basic|legendary|planeswalker|commander|permanent|human)$/.test(sn[1]) && new RegExp(`\\b${sn[1]}s?\\b`).test(t.split('—')[1] || '')) return false;
+      const pt = w.match(/^(\d+)\/(\d+)$/);   // "target 1/1 creature" (build 111)
+      if (pt && (Number(effectivePower(card, def, game)) !== Number(pt[1]) || Number(effectiveToughness(card, def, game)) !== Number(pt[2]))) return false;
       if (w === 'tapped' && !card.tapped) return false;
       if (w === 'untapped' && card.tapped) return false;
       if (w === 'colorless' && colors.length) return false;
