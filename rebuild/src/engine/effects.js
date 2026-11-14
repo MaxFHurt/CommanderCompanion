@@ -3862,7 +3862,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // "You may choose new targets for the copy.": the copy asks its controller as it resolves.
   for (const x of [...merged.effects].filter(e => e.kind === 'retarget-flag')) {
     const at = merged.effects.indexOf(x);
-    for (const e of merged.effects.slice(0, at)) if (e.kind === 'copy-stack') e.retarget = true;
+    for (const e of merged.effects.slice(0, at)) { if (e.kind === 'copy-stack') e.retarget = true; if (e.kind === 'delay') for (const x of e.effects || []) if (x.kind === 'copy-stack') x.retarget = true; }   // also the copy a delayed trigger will make
     merged.effects.splice(at, 1);
   }
   // "If that creature would die this turn, exile it instead": it must be in place before the damage is dealt.
