@@ -15,6 +15,10 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - **Status: active** (owner, 13 Nov): order of work in `ROADMAP.md`. Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. The open items are in "Paused: not finished" below.
 
+## Long tail, batch 4 sent-back fixes (unreleased)
+
+- 23,344 -> 23,358 of 32,300 (0 lost vs the 23,344 audit). Fixed: several-card searches (Tiamat, Rampant Rejuvenator, Omenpath Journey, Oreskos Explorer, Prismatic Undercurrents, Kyoshi Island Plaza, Burning-Rune Demon), Composer of Spring, Court of Bounty, Fblthp the Lost, Alchemist's Talent (mana tagged by source; also Smaug, Jaded Sell-Sword, Hired Hexblade), Scion of Draco (real colour keywords). Still by hand: Sporocyst (cast X not carried to its enter trigger), Fblthp Knows the Way (its text never defines X).
+
 ## Paused: not finished
 
 The complete roadmap of every open change across the app is `ROADMAP.md`.

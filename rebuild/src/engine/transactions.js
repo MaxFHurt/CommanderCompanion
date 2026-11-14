@@ -149,7 +149,7 @@ function leaveBattlefield(card, to = 'graveyard') {
   return last;
 }
 /** What kind of source made a mana ("mana from a Treasure was spent"): the subtypes after the dash of its type line (Treasure, Food, Clue …). */
-function sourceTag(game, card) { const t = String(defFor(game, card)?.typeLine || '').split('—')[1]; return t ? t.trim().split(/\s+/).filter(x => /^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(x)).join(' ') || null : null; }
+function sourceTag(game, card) { const d = defFor(game, card), t = `${String(d?.typeLine || '').split('—')[1] || ''} ${/^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(d?.name || '') ? d.name : ''}`; return t.trim() ? t.trim().split(/\s+/).filter(x => /^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(x)).join(' ') || null : null; }
 function payMana(game, player, payment) {
   player.mana.spentTags = [];
   if (!payment)
@@ -516,7 +516,7 @@ function putAbilityOnStack(game, player, action, deck) {
 function applySearchResult(game, player, obj) {
   const deck = player.deck;
   // Several colours at once: "Add {W}{U}." (Signets), "For each color among permanents you control, add one mana of that color." (Bloom Tender)
-  const tag = (() => { const t = String(game.cardDefinitions?.[obj.sourceDefinitionId]?.typeLine || '').split('—')[1]; return t ? t.trim().split(/\s+/).filter(x => /^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(x)).join(' ') || null : null; })();
+  const tag = sourceTag(game, { definitionId: obj.sourceDefinitionId });
   if (obj.manaMix?.length)
     for (const c of obj.manaMix) addMana(player, c, 1, tag);
   else if (obj.manaColor)
