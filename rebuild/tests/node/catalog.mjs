@@ -5,7 +5,8 @@ import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/en
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
 import { compileEffectText, applyEffects } from '../../src/engine/effects.js';
-import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
+import { canTarget, canTargetPlayer, candidatesFor, protectionsOf } from '../../src/game/requirements.js';
+import { abilityRows } from '../../src/game/legal.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 
@@ -4632,6 +4633,37 @@ section('build 110 (long tail batch 4)');
   const seen = activate(t, sm, 0, [[d => d.key === 'cost:remove-counters', () => 2], [d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
   const offered = seen.filter(d => d.kind !== 'number').flatMap(d => (d.options || []).map(o => o.id));
   check('Simic Manipulator: remove 2 counters -> power 2 offered, 3 not; counters left 1; creature taken', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId) && sm.counters['+1/+1'] === 1 && t.P(0).deck.battlefield.some(c => c.instanceId === lo.instanceId), JSON.stringify([offered.length, sm.counters]));
+}
+
+{
+  // Any player may activate this ability: an opponent uses Feral Hydra's ability, paying with their own mana, and it resolves for them
+  const t = setup();
+  const hydra = onField(t, 'Fog Bank', '{3}: Put a +1/+1 counter on this creature. Any player may activate this ability.', { typeLine: 'Creature — Hydra', power: '1', toughness: '1' });
+  for (let i = 0; i < 3; i++) t.give(1, 'Forest', 'battlefield');
+  const rows = abilityRows(t.game, t.P(1), hydra);
+  check('any player: the opponent is offered the ability on your permanent', rows.length === 1 && rows[0].legal, JSON.stringify(rows.map(r => [r.ability.id, r.legal, r.reasons])));
+  const ab = parseActivatedAbilities(def(t, hydra))[0];
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: hydra.instanceId, abilityId: ab.id }, t.as(1));
+  settle(t, []);
+  check('any player: the counter lands on the permanent, paid by the activator', r.ok && Number(hydra.counters?.['+1/+1'] || 0) === 1 && t.P(1).deck.battlefield.filter(c => c.tapped).length === 3 && t.P(0).deck.battlefield.filter(c => c.tapped).length === 0, JSON.stringify([r.ok, r.error, hydra.counters]));
+  const own = parseActivatedAbilities(def(t, hydra)).length;
+  const lonely = onField(t, 'Colossal Dreadmaw', '{3}: Put a +1/+1 counter on this creature.', { typeLine: 'Creature — Hydra' });
+  check('a normal ability is not offered to the opponent', abilityRows(t.game, t.P(1), lonely).length === 0 && own === 1, '');
+}
+
+{
+  // "gains protection from the color of your choice" asks for the colour (it used to grant a keyword that named none); "its controller's choice": the target's controller picks
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const mor = onField(t, 'Fog Bank', '{T}: Target creature you control gains protection from the color of your choice until end of turn.', { typeLine: 'Creature — Human Cleric' });
+  const seen = activate(t, mor, 0, [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === bear.instanceId), () => bear.instanceId], [d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === 'red'), () => 'red']]);
+  check('Mother of Runes style: a colour is asked and the target is protected from it', seen.some(d => (d.options || []).some(o => o.id === 'red')) && protectionsOf(t.game, bear).has('R') && !protectionsOf(t.game, bear).has('U'), JSON.stringify([...protectionsOf(t.game, bear)]));
+  const t2 = setup();
+  const victim = onField(t2, 'Grizzly Bears', '', {}, 1);
+  const wish = onField(t2, 'Fog Bank', '{2}: Target creature gains protection from the color of its controller\'s choice until end of turn.', { typeLine: 'Creature — Human Wizard' });
+  const seen2 = activate(t2, wish, 0, [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === victim.instanceId), () => victim.instanceId], [d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === 'green'), () => 'green']]);
+  const ask2 = seen2.find(d => (d.options || []).some(o => o.id === 'green'));
+  check("Wishmonger style: the target's controller (not the activator) chooses the colour", ask2 && ask2.playerId === t2.P(1).playerId && protectionsOf(t2.game, victim).has('G'), JSON.stringify([ask2?.playerId, [...protectionsOf(t2.game, victim)]]));
 }
 
 done();

@@ -182,6 +182,11 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       if (own) {
         extra.abilities = abilityRows(game, p, c).map(r => ({ id: r.ability.id, text: r.ability.text, cost: r.ability.cost, mana: r.ability.manaAbility, legal: r.legal && !block, reason: block || r.reasons[0] || '' }));
       }
+      else if (me && !me.eliminated) {
+        // Someone else's permanent: the abilities any player may activate (Xantcha, Feral Hydra, Warmonger …).
+        const rows = abilityRows(game, me, c);
+        if (rows.length) extra.abilities = rows.map(r => ({ id: r.ability.id, text: r.ability.text, cost: r.ability.cost, mana: false, legal: r.legal && !block, reason: block || r.reasons[0] || '' }));
+      }
       return cardView(game, c, defs, extra);
     });
     const row = {

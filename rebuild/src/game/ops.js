@@ -15,7 +15,7 @@ import { compileEffectText, parseCondition, checkCondition } from '../engine/eff
 import { availableModalTriggerModes, recordModalTriggerModeChoice, queueTriggers } from '../engine/triggers.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import {
-  COLOR_NAMES, GameError, defOf, definitionsMap, faceDefinition, findInPlayer, isLand, isInstantOrSorcery,
+  COLOR_NAMES, GameError, defOf, definitionsMap, faceDefinition, findCard, findInPlayer, isLand, isInstantOrSorcery,
   log, newId, opponentsOf, playerById, plural
   , FUSE_FACE, hasFuse
 } from './helpers.js';
@@ -771,12 +771,15 @@ export function queueSpecialTrigger(game, player, card, def, t, stackId = null) 
 
 function runActivate(game, op, ask) {
   const player = playerById(game, op.playerId);
-  const hit = findInPlayer(player, op.args.instanceId);
+  let hit = findInPlayer(player, op.args.instanceId), anyPlayer = false;
+  // "Any player may activate this ability": the source can be another player's permanent; the activator pays and controls the ability.
+  if (!hit) { const other = findCard(game, op.args.instanceId); if (other && other.zone === 'battlefield') { hit = other; anyPlayer = true; } }
   if (!hit) throw new GameError('That card is no longer available.');
   const card = hit.card, def = defOf(game, card), force = !!op.args.force;
-  if (String(op.args.abilityId || '').startsWith('special:')) return runSpecialAction(game, op, ask, player, card, def, force);
+  if (String(op.args.abilityId || '').startsWith('special:')) { if (anyPlayer) throw new GameError('That card is not yours to use.'); return runSpecialAction(game, op, ask, player, card, def, force); }
   const ability = parseActivatedAbilities(def).find(a => a.id === op.args.abilityId);
   if (!ability) throw new GameError('That ability is not available.');
+  if (anyPlayer && !/Any player may activate this ability/i.test(ability.text)) throw new GameError('Only its controller can activate that ability.');
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
 
   const fromZone = !ability.manaAbility && hit.zone !== 'battlefield' && abilityZone(ability) === hit.zone ? hit.zone : null;
@@ -802,7 +805,7 @@ function runActivate(game, op, ask) {
   if (restricted && !force) throw new GameError(restricted);
   if (/Activate only once each turn|only once each turn|^Boast\b/i.test(ability.text)) card.activatedTurn = { ...(card.activatedTurn || {}), [ability.id]: game.turnNumber };
   if (/Activate (?:this ability )?no more than \w+(?: times)? each turn/i.test(ability.text)) { const was = card.activatedCount?.[ability.id]; card.activatedCount = { ...(card.activatedCount || {}), [ability.id]: { turn: game.turnNumber, n: was?.turn === game.turnNumber ? was.n + 1 : 1 } }; }
-  if (/Activate only as a sorcery/i.test(ability.text) && !force
+  if (/(?:Activate|but) only as a sorcery/i.test(ability.text) && !force
     && (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length)) {
     throw new GameError('This ability can be used only during your main phase while the stack is empty.');
   }
@@ -936,7 +939,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    anyPlayer, sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 

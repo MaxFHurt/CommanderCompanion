@@ -2081,6 +2081,12 @@ const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
   const r = compileSingleClauseRaw(clause, opts);
+  // "gains protection from the color of your choice": the older reading granted a keyword naming no colour (build 110 asks which colour).
+  if (r.effects.some(e => e.kind === 'grant-keyword' && /protection from the colou?r of (?:your|its controller'?s) choice/i.test(e.keyword || ''))) {
+    const text = stripReminderText(normalizeClause(clause)), effects = [], requirements = [];
+    if (compileB110Only(text, { sourceName: opts.sourceName || 'Effect', effects, requirements }) && effects.length) return { effects, requirements, unsupported: [] };
+    return { effects: [], requirements: [], unsupported: [text] };
+  }
   // "target Symbiote" / "target Zombie": a creature type alone names no card type, so the scope found no candidates; it is a creature of that type.
   for (const q of r.requirements) {
     const sm = q.kind === 'target' ? /^target ([a-z]+)( you control| an opponent controls| you don't control)?$/.exec(q.scope || '') : null, w = sm?.[1];
@@ -2102,7 +2108,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   let c = stripReminderText(normalizeClause(clause));
   if (!c)
     return { effects, requirements, unsupported };
-  if (/^(?:Activate only|Activate no more than|This ability|Cast this spell|Play this ability|Do this only)\b/i.test(c))
+  if (/^(?:Activate only|Activate no more than|This ability|Cast this spell|Play this ability|Do this only|Any player may activate this ability)\b/i.test(c))
     return { effects, requirements, unsupported };
   if (/^Choose (?:one|two|three|four|five|any number|one or more)\s*[—-]/i.test(c))
     return { effects, requirements, unsupported: [c] };

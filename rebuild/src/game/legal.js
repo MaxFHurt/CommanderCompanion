@@ -274,6 +274,17 @@ export function activationRules(text) {
     }
     else return null;
   }
+  // "Any player may activate this ability [but only during their draw step]." (Xantcha, Well of Knowledge, Infinite Hourglass …): every player may use it, and the timing words apply to the player who does.
+  for (const m of String(text || '').matchAll(/Any player may activate this ability(?: but only ([^.(]+))?\./gi)) {
+    rules.push({ kind: 'any-player' });
+    const r = (m[1] || '').trim();
+    if (!r || /^as a sorcery$/i.test(r)) continue;   // a sorcery-speed rule is checked with the timing rules
+    if (/^during their draw step$/i.test(r)) rules.push({ kind: 'own-step', phase: 'draw' });
+    else if (/^during any upkeep step$/i.test(r)) rules.push({ kind: 'any-step', phase: 'upkeep' });
+    else if (/^during their turn$/i.test(r)) rules.push({ kind: 'your-turn' });
+    else if (/^during their turn before the end step$/i.test(r)) rules.push({ kind: 'your-turn-before-end' });
+    else return null;
+  }
   // "Activate no more than twice each turn." (Fire-Belly Changeling, Vampire Bats)
   for (const m of String(text || '').matchAll(/Activate (?:this ability )?no more than (twice|three times|four times) each turn\./gi))
     rules.push({ kind: 'max', n: { twice: 2, 'three times': 3, 'four times': 4 }[m[1].toLowerCase()] });
@@ -293,6 +304,9 @@ export function activationBlock(game, player, card, ability) {
     if (r.kind === 'once' && card?.activatedTurn?.[ability.id] === game.turnNumber) return 'Only once each turn.';
     if (r.kind === 'max' && card?.activatedCount?.[ability.id]?.turn === game.turnNumber && card.activatedCount[ability.id].n >= r.n) return `No more than ${r.n === 2 ? 'twice' : `${r.n} times`} each turn.`;
     if (r.kind === 'your-turn' && game.activePlayerId !== player.playerId) return 'Only during your turn.';
+    if (r.kind === 'own-step' && !(game.activePlayerId === player.playerId && game.phase === r.phase)) return `Only during your ${r.phase} step.`;
+    if (r.kind === 'any-step' && game.phase !== r.phase) return `Only during an ${r.phase} step.`;
+    if (r.kind === 'your-turn-before-end' && !(game.activePlayerId === player.playerId && !['end-step', 'cleanup'].includes(game.phase))) return 'Only during your turn before the end step.';
     if (r.kind === 'combat' && !/combat|attackers|blockers|damage/.test(String(game.phase || ''))) return 'Only during combat.';
     if (r.kind === 'upkeep' && !(game.activePlayerId === player.playerId && game.phase === 'upkeep')) return 'Only during your upkeep.';
     if (r.kind === 'blessing' && !player.citysBlessing) return 'Only if you have the city’s blessing (ten permanents with ascend).';
@@ -326,15 +340,25 @@ export function abilityRows(game, player, card) {
   const inHand = card.zone === 'hand';
   const zone = card.zone === 'hand' || card.zone === 'graveyard' ? card.zone : 'battlefield';
   const payable = cost => planMana(playerManaAvailability(player, game), (String(cost || '').match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), 0, { lifeAvailable: Number(player.life || 0) }).ok;
+  // Someone else's permanent: only the abilities any player may activate (Xantcha, Feral Hydra, Warmonger …).
+  const foreign = zone === 'battlefield' && !(player.deck?.battlefield || []).some(c => c.instanceId === card.instanceId);
+  if (foreign) return parseActivatedAbilities(def).filter(a => !a.manaAbility && /Any player may activate this ability/i.test(a.text)).map(ability => {
+    const check = validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
+    const sorcery = /(?:Activate|but) only as a sorcery/i.test(ability.text);
+    if (sorcery && check.legal && (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length)) return { ability, legal: false, reasons: ['Only during your main phase while the stack is empty.'], fromHand: false };
+    const restricted = activationBlock(game, player, card, ability);
+    if (restricted && check.legal) return { ability, legal: false, reasons: [restricted], fromHand: false };
+    return { ability, legal: check.legal, reasons: check.reasons, fromHand: false };
+  });
   return [...specialRows(game, player, card).filter(r => zone !== 'graveyard' || /^special:(?:unearth|scavenge|encore|embalm|eternalize)$/.test(r.ability.id)), ...parseActivatedAbilities(def)
     .filter(ability => (inHand && ability.manaAbility ? HAND_MANA_COST.test(String(ability.cost || '').trim()) : abilityZone(ability) === zone))
     .map(ability => {
       const fromZone = zone !== 'battlefield' && !ability.manaAbility;
-      const instantSpeed = !/Activate only as a sorcery/i.test(ability.text) || (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length);
+      const instantSpeed = !/(?:Activate|but) only as a sorcery/i.test(ability.text) || (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length);
       const check = fromZone ? { legal: payable(ability.cost) && instantSpeed, reasons: [!payable(ability.cost) && 'Not enough mana.', !instantSpeed && 'Only during your main phase while the stack is empty.'].filter(Boolean) }
         : inHand ? { legal: true, reasons: [] }
         : validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
-      const sorcery = /Activate only as a sorcery/i.test(ability.text) || ability.loyaltyDelta !== null;
+      const sorcery = /(?:Activate|but) only as a sorcery/i.test(ability.text) || ability.loyaltyDelta !== null;
       if (sorcery && check.legal) {
         if (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length) {
           return { ability, legal: false, reasons: ['Only during your main phase while the stack is empty.'], fromHand: inHand };

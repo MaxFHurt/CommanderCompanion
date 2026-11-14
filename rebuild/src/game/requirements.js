@@ -301,6 +301,7 @@ export function candidatesFor(game, req, player, source = null) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
         } else if (!matchesPermanentScope(game, c, scope, source, player)) continue;
         if (/blocking or blocked by it/.test(scope) && !blockedPair(game, source, c)) continue;   // Steadfast Armasaur: a creature blocking it or blocked by it
+        if (/\bit'?s blocking\b/.test(scope) && !Object.values(game.combatState?.blocks || {}).some(b => (b?.assignments || []).some(x => x.blockerId === source?.instanceId && x.attackerId === c.instanceId))) continue;   // Wall of Vipers: the creature this one is blocking
         if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }

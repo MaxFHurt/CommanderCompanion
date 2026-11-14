@@ -139,6 +139,35 @@ export function compileB110Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- "Destroy this enchantment." / "Destroy this creature and target creature it's blocking." (Aether Storm, Lethal Vapors, Wall of Vipers): the source destroys itself.
+  if ((m = c.match(rx(`^Destroy ${SELFP}\\.?$`)))) { effects.push({ kind: 'destroy', bind: 'sourceId' }); return true; }
+  if ((m = c.match(rx(`^Destroy ${SELFP} and (target creature it'?s blocking)\\.?$`)))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'destroy', bind: 'sourceId' }, { kind: 'destroy', bind });
+    return true;
+  }
+  // --- "The next time this creature would deal damage to you this turn, prevent that damage." (Mercenaries; any player may activate: "you" is the activator)
+  if ((m = c.match(rx(`^The next time ${SELFP} would deal damage to you this turn, prevent that damage\\.?$`)))) { effects.push({ kind: 'b110-prevent-from', bind: 'sourceId', to: 'you', once: true }); return true; }
+  // --- "Target creature you control gains protection from the color of your choice until end of turn." (Mother of Runes, Gods Willing, Wishmonger: "its controller's choice")
+  //     The older reading granted a keyword that names no colour, so nothing was protected.
+  if ((m = c.match(rx(`^(target [a-z ,']+?|${SELFP}|it) gains protection from the colou?r of (your|its controller'?s) choice until end of turn\\.?$`)))) {
+    const probe = /^target/i.test(m[1]) ? sub(`${cap(m[1])} gains protection from red until end of turn.`) : null;
+    const tReq = probe?.requirements.find(q => q.kind === 'target');
+    if (/^target/i.test(m[1]) ? !!tReq : true) {
+      if (tReq) requirements.push(...probe.requirements);
+      const bind = tReq ? tReq.bind : /^it$/i.test(m[1]) ? 'b101It' : 'sourceId';
+      const colorBind = `pickedColor${requirements.length}`;
+      requirements.push({ kind: 'b110-pick-color', bind: colorBind, whoBind: /^its/i.test(m[2]) ? bind : null, label: 'a color for protection' });
+      effects.push({ kind: 'b110-grant-protection-choice', bind, colorBind });
+      return true;
+    }
+  }
+  // --- Xantcha, Sleeper Agent: "<name>'s controller loses 2 life and you draw a card." (any player may activate it: "you" is the activator)
+  if ((m = c.match(rx(`^${SELFP}'s controller loses ${N} life(?: and you draw ${N} cards?)?\\.?$`)))) {
+    effects.push({ kind: 'remember-controller', bind: 'sourceId', as: 'sourceController' }, { kind: 'life', scope: 'you', amount: num(m[1]), deltaSign: -1, forPlayerBind: 'sourceController' });
+    if (m[2]) effects.push({ kind: 'draw', scope: 'you', amount: num(m[2]) });
+    return true;
+  }
   // --- Gerrard, Weatherlight Hero: "exile it and return to the battlefield all artifact and creature cards in your graveyard that were put there from the battlefield this turn."
   if ((m = c.match(rx(`^(exile it and )?return to the battlefield all ((?:artifact|creature|enchantment|land|planeswalker)(?: (?:and|or) (?:artifact|creature|enchantment|land|planeswalker))*) cards in your graveyard that were put there from the battlefield this turn\\.?$`)))) {
     effects.push({ kind: 'b110-return-died-this-turn', exileSelf: !!m[1], types: m[2].toLowerCase().split(/ (?:and|or) /) });
@@ -303,6 +332,13 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       if (!back.length) notes.push('No cards came back.');
       return true;
     }
+    case 'b110-grant-protection-choice': {
+      const color = bindings[effect.colorBind], id = bindings[effect.bind] || bindings.sourceId;
+      const hit = locateCardInGame(game, id);
+      if (!color || !hit || hit.zone !== 'battlefield') { notes.push('Nothing gains protection.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'grant-keyword', targetId: id, keyword: `protection from ${color}`, enabled: true, expires: 'cleanup' }], bindings));
+      return true;
+    }
     case 'b110-flicker-tapped': {
       const hit = locateCardInGame(game, bindings[effect.bind]);
       if (!hit || hit.zone !== 'battlefield') { notes.push('No target.'); return true; }
@@ -397,6 +433,12 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
     const n = Math.min(Number(req.amount) || 1, rows.length);
     bindings[req.bind] = !n ? [] : rows.length === n && req.zone === 'graveyard' ? rows.map(c => c.instanceId)
       : ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: req.zone === 'hand', title: `${ctx.sourceName} — ${q.displayName}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your ${req.zone} to exile.`, options: rows.map(card => util.cardOption(game, card, q, `Your ${req.zone}`)), min: n, max: n }));
+    return true;
+  }
+  if (req.kind === 'b110-pick-color') {
+    // "the color of your choice" / "of its controller's choice": the named player picks one of the five colours as the effect resolves.
+    const who = req.whoBind ? (locateCardInGame(game, bindings[req.whoBind])?.card?.controllerId || ctx.player.playerId) : ctx.player.playerId;
+    bindings[req.bind] = ask(key, () => ({ ...base, playerId: who, kind: 'choose-one', title, prompt: 'Choose a color.', options: ['white', 'blue', 'black', 'red', 'green'].map(c => ({ id: c, label: cap(c) })) }));
     return true;
   }
   if (req.kind === 'b110-pick-source') {

@@ -400,7 +400,9 @@ function payAbilityCosts(game, player, action, deck) {
     moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
   }
   // "Exile this card from your graveyard" as the cost: the source has gone to exile by now, but it still pays the rest.
-  const hit = (action.costExileIds || []).includes(action.instanceId) && before && before.z === action.fromZone ? { card: before.card, z: action.fromZone } : locate(deck, action.instanceId);
+  let hit = (action.costExileIds || []).includes(action.instanceId) && before && before.z === action.fromZone ? { card: before.card, z: action.fromZone } : locate(deck, action.instanceId);
+  // "Any player may activate this ability": the source is another player's permanent.
+  if (!hit && action.anyPlayer) { const g = locateCardInGame(game, action.instanceId); if (g && g.zone === 'battlefield') hit = { card: g.card, z: 'battlefield' }; }
   // Channel (from the hand) and "return this card from your graveyard" abilities name the zone they work from.
   if (!hit || (hit.z !== 'battlefield' && !(action.fromZone && hit.z === action.fromZone)))
     throw new Error('Ability source must be on the battlefield');
