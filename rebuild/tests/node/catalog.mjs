@@ -4,7 +4,7 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
-import { compileEffectText } from '../../src/engine/effects.js';
+import { compileEffectText, applyEffects } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
@@ -4418,6 +4418,21 @@ section('build 110 (long tail batch 4)');
   sh.tapped = false; power(t, bear);
   const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
   check('control while tapped: taken, then returned when the source untaps', mine && theirs, JSON.stringify([mine, theirs]));
+}
+
+{
+  // Circle of Protection: the chosen red source's next damage to you is prevented, once
+  const t = setup();
+  const cop = onField(t, 'Fog Bank', '{1}: The next time a red source of your choice would deal damage to you this turn, prevent that damage.', { typeLine: 'Enchantment' });
+  const red = onField(t, 'Grizzly Bears', '', { colors: ['R'] }, 1), green = onField(t, 'Llanowar Elves', '', { colors: ['G'] }, 1);
+  const seen = activate(t, cop, 0, [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === red.instanceId), () => red.instanceId]]);
+  check('chosen source: only red sources are offered', seen.some(d => (d.options || []).some(o => o.id === red.instanceId)) && !seen.some(d => (d.options || []).some(o => o.id === green.instanceId)));
+  const hit = (src) => applyEffects(t.game, t.P(1).playerId, [{ kind: 'damage', amount: 3, bind: 'tgt', sourceName: 'x' }], { sourceId: src.instanceId, tgt: t.P(0).playerId });
+  const life0 = t.P(0).life;
+  hit(green); const afterGreen = t.P(0).life;
+  hit(red); const afterRed = t.P(0).life;
+  hit(red); const afterRed2 = t.P(0).life;
+  check('damage prevention from a chosen source: other sources hit, the chosen one once not', afterGreen === life0 - 3 && afterRed === afterGreen && afterRed2 === afterRed - 3, JSON.stringify([life0, afterGreen, afterRed, afterRed2]));
 }
 
 done();
