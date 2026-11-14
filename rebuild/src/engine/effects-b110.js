@@ -1,8 +1,9 @@
 // Card wordings added in build 110 (rules long tail, batch 4). Same hook points as effects-b101.js:
 // compileB110Clause(c, ctx) is tried right after the build-101 wordings; applyB110 runs the effect kinds made here and
 // gatherB110 asks the requirement kinds made here. Most wordings are read as an instruction the game already runs.
-import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, definitionFor, resolveAmount, moveCard, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness, pruneWhileTapped } from './combat.js';
+import { resyncManaSource } from './transactions.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -11,6 +12,7 @@ const playerById = (game, id) => (game.players || []).find(p => p.playerId === i
 const ok = inner => inner && !inner.unsupported.length && inner.effects.length;
 const rxCache = new Map();
 const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
+const LAND_TYPE_NAMES = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token))';
 
 /** One sentence. Pushes onto ctx.effects / ctx.requirements and returns true when understood. */
@@ -27,6 +29,61 @@ export function compileB110Clause(c, ctx) {
   const pronounBind = s => rx(`^${SELF}$`).test(s) ? 'sourceId' : /^(?:it|he|she|they)$/i.test(s) ? 'b101It' : 'b101That';
   let m;
 
+  // --- "Return it to your hand." (Enduring Renewal, Zodiac Dragon, Unquenchable Fury): the card the trigger is about (the earlier target, if there is one)
+  if (/^Return (?:it|that card) to your hand\.?$/i.test(c)) {
+    effects.push({ kind: 'move-zone', bind: 'b101It', to: 'hand' });
+    return true;
+  }
+  // --- "Put any number of target creature cards from your graveyard on top of your library." (Gravepurge, Bone Harvest): the order you choose them in is the order they go on top (the last one chosen ends on top).
+  if ((m = c.match(/^Put any number of target ([a-z ]+?) cards? from your graveyard on top of your library\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[1].trim(), max: 99, min: 0, label: `any number of ${m[1].trim()} cards in your graveyard (the last one you choose goes on top of your library)` });
+    effects.push({ kind: 'b110-graveyard-to-top', bind });
+    return true;
+  }
+  // --- Colour changes: "One or more target creatures become black until end of turn." (Touch of Darkness), "Any number of target creatures become the
+  // color of your choice …" (Sway of Illusion), "Target creature becomes the color or colors of your choice until end of turn." (Quickchange).
+  if ((m = c.match(/^(One or more|Any number of) target creatures become (white|blue|black|red|green|the color of your choice)( until end of turn)?\.?$/i))) {
+    const bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: /^one/i.test(m[1]) ? 1 : 0, max: 99, label: `Choose ${m[1].toLowerCase()} target creatures` });
+    const fixed = /^the color/i.test(m[2]) ? null : [m[2].toLowerCase()], colorBind = fixed ? null : `pickedColor${requirements.length}`;
+    if (!fixed) requirements.push({ kind: 'b110-pick-color', bind: colorBind });
+    effects.push({ kind: 'b110-recolor', bind, ...(fixed ? { colors: fixed } : { colorBind }), expires: m[3] ? 'cleanup' : null });
+    return true;
+  }
+  if ((m = c.match(/^(?:Until end of turn, )?(target (?:creature|permanent)(?: you control)?) becomes the (color|color or colors) of your choice( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), colorBind = `pickedColor${requirements.length}`;
+    requirements.push({ kind: /or colors/i.test(m[2]) ? 'b110-pick-colors' : 'b110-pick-color', bind: colorBind });
+    effects.push({ kind: 'b110-recolor', bind, colorBind, expires: m[3] || /^Until end of turn/i.test(c) ? 'cleanup' : null });
+    return true;
+  }
+  if ((m = c.match(rx(`^(${SELFP}) gets ([+-]\\d+)\\/([+-]\\d+) and becomes the color of your choice until end of turn\\.?$`)))) {
+    const pump = sub(`${cap(m[1])} gets ${m[2]}/${m[3]} until end of turn.`);
+    if (pump) {
+      take(pump);
+      const colorBind = `pickedColor${requirements.length}`;
+      requirements.push({ kind: 'b110-pick-color', bind: colorBind });
+      effects.push({ kind: 'b110-recolor', bind: 'sourceId', colorBind, expires: 'cleanup' });
+      return true;
+    }
+  }
+  // --- Land types (CR 305.7): "Target land becomes the basic land type of your choice until end of turn." (Reef Shaman, Mystic Compass),
+  // "… becomes an Island until end of turn" (Tidal Warrior), "… of your choice in addition to its other types" (Navigator's Compass).
+  if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes the basic land type of your choice( in addition to its other types)?( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), choice = `landType${requirements.length}`;
+    requirements.push({ kind: 'choose-text', bind: choice, options: LAND_TYPE_NAMES, label: 'Choose a basic land type' });
+    effects.push({ kind: 'b110-land-type', bind, choiceBind: choice, add: !!m[2], until: !!m[3] || /^Until end of turn/i.test(c) });
+    return true;
+  }
+  if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes an? (Plains|Island|Swamp|Mountain|Forest)( in addition to its other types)?( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1]));
+    effects.push({ kind: 'b110-land-type', bind, types: [cap(m[2].toLowerCase())], add: !!m[3], until: !!m[4] || /^Until end of turn/i.test(c) });
+    return true;
+  }
+  if (/^Lands you control gain all basic land types until end of turn\.?$/i.test(c)) {
+    effects.push({ kind: 'b110-land-type', each: true, types: LAND_TYPE_NAMES, add: true, until: true });
+    return true;
+  }
   // --- "It / That creature / Target creature doesn't untap during its controller's untap step for as long as ~ remains tapped" (Ice Floe, Thalakos Dreamsower)
   // / "… for as long as you control ~" (Merchant Raiders): a lock that ends when the condition stops.
   if ((m = c.match(rx(`^(it|that (?:creature|land|permanent|artifact)|target [a-z ]+?) doesn'?t untap during (?:its|their) controller'?s untap step for as long as (${SELFP} remains tapped|you control ${SELFP})\\.?$`)))) {
@@ -241,6 +298,16 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     if (!ok(r)) { const whole = H.compileEffectText(text, { sourceName }); r = whole.supported ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : r; }
     return ok(r) && !r.requirements.length ? r : null;
   };
+  // --- "Flame Spill deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead." (the sentence after a damage effect)
+  if (/^Excess damage is dealt to that creature'?s controller instead\.?$/i.test(c0)) {
+    const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'damage' && e.bind);
+    if (d) { d.excessTo = 'controller'; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
+  }
+  // --- "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy." (Galvanic Iteration, Sword of Wealth and Power, Ral, Teach by Example)
+  if (/^When you next cast an? instant or sorcery spell this turn, copy that spell\.?$/i.test(c0)) {
+    const more = /^You may choose new targets for the copy\.?$/i.test(clean(clauses[i + 1]));
+    return { part: { effects: [{ kind: 'delay', when: { event: 'spell-cast', whose: 'owner', sameTurn: true, spell: 'instant or sorcery' }, effects: [{ kind: 'copy-stack', bind: 'eventStackId', soft: true, retarget: more }], requirements: [] }], requirements: [], unsupported: [] }, consumed: more ? 2 : 1 };
+  }
   // --- "Put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card." / "Then if she has nine or more time counters on her, sacrifice her." (Ordeal of Nylea, Kes)
   // "it" is the permanent the counter just went onto (or the trigger's card when no counter was put in this ability).
   if ((m = c0.match(/^(?:Then )?if (it|she|he|they) (?:has|have) (\w+) or more ([a-z+\/\d-]+) counters? on (?:it|her|him|them), (.+?)\.?$/i)) && !/^(?:When|If) you do\b/i.test(clean(clauses[i + 1]))) {
@@ -301,6 +368,42 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
   switch (effect.kind) {
+    case 'b110-graveyard-to-top': {
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        moveCard(game, id, 'library', { position: 'top', onEvent: e => H.emit(bindings, e) });
+        notes.push(`${definitionFor(game, hit.card)?.name || 'A card'} is put on top of ${(game.players || []).find(p => p.playerId === hit.card.ownerId)?.displayName || 'its owner'}'s library.`);
+      }
+      return true;
+    }
+    case 'b110-recolor': {
+      const CODE = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      const names = effect.colors || [].concat(bindings[effect.colorBind] || []);
+      const colors = names.map(n => CODE[String(n).toLowerCase()]).filter(Boolean);
+      const ids = [].concat(bindings[effect.bind] || (effect.bind === 'sourceId' ? bindings.sourceId : []));
+      if (!colors.length) { notes.push('No color was chosen.'); return true; }
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); continue; }
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'animate', addTypes: [], subtypes: [], keywords: [], colors, ...(effect.expires ? { expires: effect.expires } : {}) }];
+        notes.push(`${definitionFor(game, hit.card)?.name || 'It'} becomes ${names.join(' and ')}${effect.expires ? ' until end of turn' : ''}.`);
+      }
+      return true;
+    }
+    case 'b110-land-type': {
+      const types = effect.types || [bindings[effect.choiceBind]].filter(Boolean);
+      const ids = effect.each ? ((game.players || []).find(p => p.playerId === controllerId)?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => c.instanceId) : [bindings[effect.bind]];
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield' || !/\bLand\b/.test(definitionFor(game, hit.card)?.typeLine || '')) { notes.push('That land is no longer there.'); continue; }
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'land-type', types, set: !effect.add, ...(effect.until ? { expires: 'cleanup' } : {}), sourceId: bindings.sourceId || null }];
+        hit.card.landTypeChanged = true;
+        resyncManaSource(game, hit.player, hit.card);
+        notes.push(`${definitionFor(game, hit.card)?.name || 'The land'} ${effect.add ? 'is also' : 'becomes'} ${types.length > 1 ? 'every basic land type' : `${/^[AEIOU]/.test(types[0]) ? 'an' : 'a'} ${types[0]}`}${effect.until ? ' until end of turn' : ''}.`);
+      }
+      return true;
+    }
     case 'b110-lock-untap': {
       const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind), src = locateCardInGame(game, bindings.sourceId);
       if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
@@ -435,6 +538,11 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
       : ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: req.zone === 'hand', title: `${ctx.sourceName} — ${q.displayName}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your ${req.zone} to exile.`, options: rows.map(card => util.cardOption(game, card, q, `Your ${req.zone}`)), min: n, max: n }));
     return true;
   }
+  if (req.kind === 'b110-pick-colors') {
+    // "the color or colors of your choice": one or more of the five colours
+    bindings[req.bind] = ask(key, () => ({ ...base, playerId: ctx.player.playerId, kind: 'choose-many', title, prompt: 'Choose one or more colors.', min: 1, max: 5, options: ['white', 'blue', 'black', 'red', 'green'].map(c => ({ id: c, label: cap(c) })) }));
+    return true;
+  }
   if (req.kind === 'b110-pick-color') {
     // "the color of your choice" / "of its controller's choice": the named player picks one of the five colours as the effect resolves.
     const who = req.whoBind ? (locateCardInGame(game, bindings[req.whoBind])?.card?.controllerId || ctx.player.playerId) : ctx.player.playerId;
@@ -467,8 +575,21 @@ export function parseConditionB110(t) {
   if (/^(?:it|this creature) was kicked twice$/i.test(t)) return { test: 'b110-kick-count', min: 2 };
   if ((m = t.match(/^you control at least (\w+) other ([A-Z][a-z]+)s$/))) return { test: 'control', subject: `another ${m[2]}`, min: cnt(m[1]) };
   // Land's Edge: "If the discarded card was a land card" (the card discarded as the cost: ops.js remembers its type line)
-  if ((m = t.match(/^the discarded card was an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[1].toLowerCase() };
+  if ((m = t.match(/^the discarded card (was|wasn'?t) an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[2].toLowerCase(), ...(/n'?t$/i.test(m[1]) ? { not: true } : {}) };
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
+  // Build 110 review (the "If <condition>, X deals N damage" cards that used to lose their condition)
+  if (/^you(?:'|’)re the monarch$/i.test(t)) return { test: 'b110-monarch' };
+  if (/^you put a counter on a creature this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'countersPut' }, min: 1 };   // Lasting Tarfire
+  if (/^a planeswalker entered the battlefield under your control this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'entered', other: false, nontoken: false, subs: ['planeswalker'] }, min: 1 };   // Oath of Chandra
+  if (/^a card left your graveyard this turn$/i.test(t)) return { test: 'b110-left-graveyard' };   // Gau, Feral Youth
+  if (/^you sacrificed one or more permanents this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'sacrificed' }, min: 1, thatMuch: { kind: 'b101-tally', what: 'sacrificed' } };   // Sawblade Skinripper
+  if (/^you(?:'|’)ve played a land or cast a spell this turn from anywhere other than your hand$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'nonHandPlays' }, min: 1 };   // Spider-Man 2099
+  if ((m = t.match(/^that spell has mana value (\w+) or (greater|less)$/i))) return { test: 'b110-event-mv', n: cnt(m[1]), less: /less/i.test(m[2]) };   // Herald of Ilharg
+  if ((m = t.match(/^(\w+) or more damage was dealt to (?:it|this creature) this turn$/i))) return { test: 'b110-event-damage', min: cnt(m[1]) };   // Burning-Eye Zubera
+  if ((m = t.match(/^\{([WUBRG])\} was spent to cast (?:it|this spell|this creature)$/i))) return { test: 'b49-color-spent', color: m[1].toUpperCase() };   // Steamcore Weird
+  if ((m = t.match(/^you control an? ([A-Z][a-z]+) or there is an? \1 card in your graveyard$/))) return { test: 'b110-control-or-gy', word: m[1] };   // Sand Strangler
+  if (/^this (?:creature|permanent|artifact|enchantment) is on the battlefield$/i.test(t)) return { test: 'b110-source-here' };   // Durkwood Tracker
+  if ((m = t.match(/^that (land|creature|permanent|artifact|enchantment) (?:was|is) an? (snow|legendary|basic) (land|creature|permanent|artifact|enchantment)$/i))) return { test: 'b110-target-word', word: m[2][0].toUpperCase() + m[2].slice(1).toLowerCase(), noun: m[3].toLowerCase() };   // Icequake
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
   return null;
@@ -494,7 +615,22 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
     }
     case 'b110-hand-at-most': return ((game.players || []).find(p => p.playerId === controllerId)?.deck?.hand || []).length <= effect.n;
     case 'b110-kick-count': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; return Number(c?.kickCount ?? (c?.kicked ? 1 : 0)) >= effect.min; }
-    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; return effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); }
+    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; const is = effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); return effect.not ? !is : is; }
+    case 'b110-monarch': return !!(game.players || []).find(p => p.playerId === controllerId)?.statuses?.includes('Monarch');
+    case 'b110-left-graveyard': return game.leftGraveyard?.[controllerId] === game.turnNumber;
+    case 'b110-event-mv': { const mv = Number(bindings.eventManaValue || 0); return effect.less ? mv <= effect.n : mv >= effect.n; }
+    case 'b110-event-damage': {
+      // damage marked on it when it died (last-known information), or dealt to it so far this turn
+      const id = bindings.eventCard || bindings.sourceId, t = game.turnTally?.turn === Number(game.turnNumber || 0) ? game.turnTally : null;
+      const dealt = (t?.damageRecords || []).filter(r => r.targetId === id).reduce((n, r) => n + Number(r.amount || 0), 0);
+      return Math.max(Number(bindings.eventDamage || 0), dealt, Number(locateCardInGame(game, id)?.card?.damageMarked || 0)) >= effect.min;
+    }
+    case 'b110-control-or-gy': {
+      const me = (game.players || []).find(p => p.playerId === controllerId), has = c => new RegExp(`\\b${effect.word}\\b`).test(definitionFor(game, c)?.typeLine || '');
+      return (me?.deck?.battlefield || []).some(has) || (me?.deck?.graveyard || []).some(has);
+    }
+    case 'b110-source-here': return locateCardInGame(game, bindings.sourceId)?.zone === 'battlefield';
+    case 'b110-target-word': { const id = bindings.lastTarget || bindings.target0 || bindings.thatCard; const h = id && locateCardInGame(game, id); const tl = definitionFor(game, h?.card)?.typeLine || ''; return !!h && new RegExp(`\\b${effect.word}\\b`).test(tl) && (!effect.noun || effect.noun === 'permanent' || new RegExp(`\\b${effect.noun}\\b`, 'i').test(tl)); }   // the target as it last was (Icequake: the land destroyed, now in the graveyard)
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;

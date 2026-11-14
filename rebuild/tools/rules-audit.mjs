@@ -39,7 +39,7 @@ function staticVerdict(line, def) {
   const words = text.replace(/\([^()]*\)/g, '').trim().split(/\s*,\s*/);
   const terms = words.map(w => KEYWORDS.find(k => new RegExp(`^${k.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(w)));
   // Static lines the game applies elsewhere (cost changes in casting.js and rules.js activationReduction).
-  const STATIC_AUTO = [/^(?:[A-Z][a-z]+ — )?Equipment you control have equip \{0\}(?: as long as you control three or more artifacts)?\.?$/i, /^[A-Za-z ,]*spells you cast cost \{\d+\} less to cast\.?$/i, /^Equip abilities you activate cost \{\d+\} less to activate\.?$/i, /^(?:[A-Z][A-Za-z ]+ — )?You may play lands and cast spells from among cards exiled with this [a-z]+\.?$/];   // read by exilePlayPermission (effects-catalog.js)
+  const STATIC_AUTO = [/^Domain — This spell costs \{\d+\} less to cast for each basic land type among lands you control\.?$/i, /^Domain — [^.]*?(?:power and toughness are each|power is|toughness is) equal to (?:twice )?the number of basic land types among lands you control\.?$/i, /^(?:[A-Z][a-z]+ — )?Equipment you control have equip \{0\}(?: as long as you control three or more artifacts)?\.?$/i, /^[A-Za-z ,]*spells you cast cost \{\d+\} less to cast\.?$/i, /^Equip abilities you activate cost \{\d+\} less to activate\.?$/i, /^(?:[A-Z][A-Za-z ]+ — )?You may play lands and cast spells from among cards exiled with this [a-z]+\.?$/];   // read by exilePlayPermission (effects-catalog.js)
   const sentences = text.replace(/\([^()]*\)/g, '').split(/(?<=\.)\s+/).map(x => x.trim()).filter(Boolean);
   if (sentences.length && sentences.every(x => STATIC_AUTO.some(r => r.test(x)))) return 'auto';
   // Echo and cumulative upkeep are automatic only for a mana cost (or "Pay N life" upkeep).
@@ -126,7 +126,7 @@ for (const [rank, card] of cards.entries()) {
     gaps.push(u.startsWith('Trigger: ') && (report.triggers || []).some(t => !t.fires && u.includes(t.text)) ? `Trigger: The game never fires "${(report.triggers.find(t => !t.fires && u.includes(t.text)) || {}).trigger}"` : u);
   }
   // "Pay 2 life or {2}" (Tidal Control): the game would charge both costs, so the card is not automatic.
-  for (const a of report.activated || []) if (/\bPay \d+ life or \{|\{[^}]+\} or pay \d+ life/i.test(a.ability?.cost || '')) gaps.push(`Activated: ${a.ability.text} (a choice between two costs)`);
+  for (const a of report.activated || []) if (!a.ability?.costChoice && /\bPay \d+ life or \{|\{[^}]+\} or pay \d+ life/i.test(a.ability?.cost || '')) gaps.push(`Activated: ${a.ability.text} (a choice between two costs)`);
   rows.push({ rank: rank + 1, name: card.name, type: def.typeLine, automated: !gaps.length, gaps, unverified, kinds: [...new Set(gaps.map(gapKind))] });
 }
 

@@ -1770,7 +1770,7 @@ function compileRound3(c, ctx, subjectBind) {
     if (compileCatalogClauseInner(`${m[1]}.`, ctx)) { effects.push({ kind: 'life', scope: 'you', amount: num(m[2]), deltaSign: 1 }); return true; }
   }
   // A library search inside a longer instruction or a mode (Verdant Confluence): the player chooses as it resolves.
-  if ((m = c.match(/^(?:you may )?search your library for .+$/i)) && !/ and \/or |each player|target player|that player/i.test(c)) {
+  if ((m = c.match(/^(?:you may )?search your library for .+$/i)) && !/ and \/or |each player|target player|that player|different names|up to X /i.test(c)) {   // several cards ("up to X … with different names") are not found one at a time here
     const spec = librarySearchSpec(ctx.restore(c));
     if (spec && spec.filterKey !== 'any' || /for (?:a|up to one) card\b/i.test(c)) {
       const bind = `search${requirements.length}`;

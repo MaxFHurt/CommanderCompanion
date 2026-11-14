@@ -3,7 +3,7 @@
 // sentences around it; applyB101 runs the effect kinds made here. Most wordings here are read as an instruction the
 // game already runs (the same effect for another subject, another player or several targets), so the game's own
 // rules for that effect apply. Every choice stays with the player who makes it in the rules.
-import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, definitionFor, resolveAmount, parseCondition, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness } from './combat.js';
 import { parseCountB101, bindTargetControllerB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101, listCardsB101 } from './amounts-b101.js';
 
@@ -597,6 +597,24 @@ export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
     if (d) { d.noRegen = true; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
   }
   // "~ deals 2 damage to that land's controller." — the controller of what was targeted before, or of the trigger's card.
+  // "If that land was a snow land, ~ deals 1 damage to that land's controller." (Icequake): the condition is checked as it resolves, on the card as it last was.
+  if ((m = c0.match(/^If (.+?), (?:.+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[2]) !== null && parseCondition(m[1])) {
+    const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'stack-target');
+    if (earlier) {
+      const as = `controllerOf${earlier.bind}`;
+      parts.forEach(p => { if (p.requirements?.includes(earlier) && !p.effects.some(e => e.kind === 'remember-controller' && e.as === as)) p.effects.unshift({ kind: 'remember-controller', bind: earlier.bind, as }); });
+      return { part: { effects: [{ kind: 'condition', ...parseCondition(m[1]), skip: 1 }, { kind: 'damage', amount: num(m[2]), bind: as, sourceName }], requirements: [], unsupported: [] }, consumed: 1 };
+    }
+  }
+  // "If that Equipment was attached to a creature, ~ deals 2 damage to that creature." (Unforge): the creature it was attached to just before it was destroyed.
+  if ((m = c0.match(/^If that (Equipment|Aura|permanent|artifact) was attached to an? (creature|permanent|land), (?:.+? )?deals (\w+) damage to (?:that creature|it)\.?$/i)) && num(m[3]) !== null) {
+    const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target');
+    if (earlier) {
+      const as = `hostOf${earlier.bind}`;
+      parts.forEach(p => { if (p.requirements?.includes(earlier) && !p.effects.some(e => e.kind === 'remember-host' && e.as === as)) p.effects.unshift({ kind: 'remember-host', bind: earlier.bind, as, type: m[2].toLowerCase() }); });
+      return { part: { effects: [{ kind: 'condition', test: 'b49-bound', bind: as, skip: 1 }, { kind: 'damage', amount: num(m[3]), bind: as, sourceName }], requirements: [], unsupported: [] }, consumed: 1 };
+    }
+  }
   if ((m = c0.match(/^(?:(?!If\b(?![^,]*? this way,)).+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[1]) !== null) {
     const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'stack-target');
     if (earlier) {

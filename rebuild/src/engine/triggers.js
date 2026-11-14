@@ -607,7 +607,8 @@ function dueDelayedTriggers(game, event) {
   const due = [], keep = [];
   for (const d of game.delayedTriggers || []) {
     const w = d.when || {};
-    const ready = event.type === w.event && Number(game.turnNumber || 0) > Number(w.afterTurn || 0) && (w.whose !== 'owner' || event.playerId === d.ownerId);
+    // spell-cast: "When you next cast an instant or sorcery spell this turn" (the event names its caster as controllerId; w.spell narrows the spell)
+    const ready = event.type === w.event && Number(game.turnNumber || 0) > Number(w.afterTurn || 0) && (w.whose !== 'owner' || (event.playerId || event.controllerId) === d.ownerId) && (!w.spell || new RegExp(`\\b(?:${w.spell.replace(/ or /g, '|')})\\b`, 'i').test(String(event.typeLine || '')));
     (ready ? due : keep).push(d);
   }
   if (!due.length) return [];
@@ -617,12 +618,12 @@ function dueDelayedTriggers(game, event) {
 /** What happened this turn, for "for each creature that died under your control this turn", "cards you've drawn this turn" … (build 101). */
 function tallyTurn(game, event) {
   const type = event?.type;
-  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill', 'combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent'].includes(type)) return;
+  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill', 'combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent', 'spell-cast'].includes(type)) return;
   if (type === 'zone-change' && !(event.to === 'exile' && event.from === 'battlefield')) return;
   const turn = Number(game.turnNumber || 0);
   if (game.turnTally?.turn !== turn) game.turnTally = { turn, died: [], draws: {}, discards: {}, tokens: {}, entered: [], attacked: {}, sacrificed: {}, descended: {}, countersOnMine: {}, exiled: [] };
   for (const k of ['entered']) game.turnTally[k] = game.turnTally[k] || [];
-  for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine', 'milled', 'damagePairs']) game.turnTally[k] = game.turnTally[k] || {};
+  for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine', 'milled', 'damagePairs', 'nonHandPlays', 'countersPut']) game.turnTally[k] = game.turnTally[k] || {};
   game.turnTally.exiled = game.turnTally.exiled || [];
   const t = game.turnTally, bump = (o, id) => { if (id) o[id] = Number(o[id] || 0) + 1; };
   if (type === 'dies') t.died.push({ controllerId: event.controllerId || null, ownerId: event.ownerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
@@ -632,6 +633,15 @@ function tallyTurn(game, event) {
   if (type === 'enters-battlefield') t.entered.push({ id: event.sourceId || null, controllerId: event.controllerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
   if (type === 'attacks' && event.controllerId && event.defenderId) t.attacked[event.controllerId] = [...new Set([...(t.attacked[event.controllerId] || []), event.defenderId])];
   if (type === 'sacrificed') bump(t.sacrificed, event.controllerId);
+  // Spider-Man 2099: "cast a spell this turn from anywhere other than your hand" (lands are only played from the hand here)
+  if (type === 'spell-cast' && event.fromZone && event.fromZone !== 'hand') bump(t.nonHandPlays, event.controllerId);
+  // Lasting Tarfire: "you put a counter on a creature this turn" (any kind; the one who put it: the source's controller, else the creature's)
+  if (type === 'counter-added' && Number(event.amount) > 0) {
+    const all = (game.players || []).flatMap(q => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => q.deck?.[z] || []).map(c => ({ c, q })));
+    const target = all.find(x => x.c.instanceId === (event.targetId || event.sourceId)), src = event.targetId && event.sourceId ? all.find(x => x.c.instanceId === event.sourceId) : null;
+    const placer = src ? (src.c.controllerId || src.q.playerId) : (event.controllerId || target?.q.playerId);
+    if (placer && target && /\bCreature\b/.test(defFor(game, target.c)?.typeLine || '')) bump(t.countersPut, placer);
+  }
   // Impact Resonance: "the greatest amount of damage dealt by a source to a permanent or player this turn" (damage from one source to one recipient adds up).
   // Rith: "a creature or planeswalker an opponent controlled was dealt excess damage this turn" (damage beyond what was lethal, worked out as it was dealt).
   if (['combat-damage-creature', 'damage-permanent'].includes(type) && Number(event.amount) > 0 && event.targetId) {

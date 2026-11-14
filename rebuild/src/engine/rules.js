@@ -742,7 +742,9 @@ export function parseActivatedAbilities(definition) {
       sacrificeMany: (m2 => (m2 ? { n: { a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }[m2[1].toLowerCase()] || Number(m2[1]), word: m2[2].replace(/s$/i, '').toLowerCase() } : null))(cost.match(/Sacrifice (two|three|four|five|six|\d+) (?!of\b)([A-Za-z]+?s?)(?=[,:]|$|\s*\{)/i) || cost.match(/Sacrifice (an?) (?!(?:creature|artifact|enchantment|land|permanent|planeswalker|nonland|another|other)\b)([A-Z][a-z]+)(?=[,:]|$|\s*\{)/)),
       discards: /Discard\b/i.test(cost),
       discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) || /Discard\s+an?\s+[A-Za-z ]+? card\b/i.test(cost) ? 1 : 0,
-      lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
+      // Tidal Control: "Pay 2 life or {2}": one or the other (the player who activates picks); no life is owed until they choose it.
+      costChoice: (m3 => (m3 ? { life: Number(m3[1]), mana: m3[2] } : null))(cost.match(/^Pay (\d+) life or ((?:\{[^}]+\})+)$/i)),
+      lifeCost: /^Pay \d+ life or (?:\{[^}]+\})+$/i.test(cost) ? 0 : Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
       energyCost: (cost.match(/\{E\}/gi) || []).length,
       loyaltyDelta,
       hasX: /\{X\}|\bX\b/.test(cost) || (/\bX\b/.test(effect) && !/\bwhere X is\b/i.test(effect)),   // "where X is …" is worked out, not chosen
@@ -821,7 +823,11 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     reasons.push('The source permanent is no longer on the battlefield to sacrifice.');
   const cost = String(ability?.cost || '');
   const manaCost = (cost.match(/\{(?:\d+|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join('');
-  if (manaCost && player) {
+  if (ability?.costChoice && player) {
+    // life or mana, whichever the player can pay
+    const lifeOk = Number(player.life || 0) >= ability.costChoice.life, manaOk = planMana(playerManaAvailability(player, game), ability.costChoice.mana, 0, { lifeAvailable: 0 }).ok;
+    if (!lifeOk && !manaOk) reasons.push(`Pay ${ability.costChoice.life} life or ${ability.costChoice.mana}: you can pay neither.`);
+  } else if (manaCost && player) {
     const red = activationReduction(game, player, ability);
     const reduced = red ? manaCost.replace(/\{(\d+)\}/, (_, n) => `{${Math.max(0, Number(n) - red)}}`).replace(/\{0\}/, '') : manaCost;
     const payment = planMana(playerManaAvailability(player, game), reduced, 0, { lifeAvailable: Math.max(0, Number(player?.life || 0) - Number(ability?.lifeCost || 0)) });

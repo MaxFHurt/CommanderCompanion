@@ -16,6 +16,7 @@ const FILTERS = [
 export function librarySearchSpec(effectText = '') {
   const text = String(effectText || '').replace(/\s+/g, ' ').trim();
   if (!/search your library/i.test(text)) return null;
+  if (/different names|up to X /i.test(text)) return null;   // several cards, one at a time with a condition: not found by this search (Fblthp, Knows the Way)
   let destination = 'hand';
   if (/put (?:that|it|the card|those cards|one)[^.]*onto the battlefield/i.test(text)) destination = 'battlefield';
   else if (/put (?:that|it|the card|those cards)[^.]*on top of your library/i.test(text) || /shuffle and put (?:that|the) card on top/i.test(text)) destination = 'library';

@@ -169,6 +169,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   // Unearth: "If it would leave the battlefield, exile it instead of putting it anywhere else."
   if (hit.zone === 'battlefield' && to !== 'battlefield' && (hit.card.temporaryEffects || []).some(e => e?.kind === 'exile-if-leaves')) to = 'exile';
   const from = hit.zone;
+  if (from === 'graveyard' && hit.player?.playerId) game.leftGraveyard = { ...(game.leftGraveyard || {}), [hit.player.playerId]: game.turnNumber };   // Gau: "a card left your graveyard this turn"
   const fromController = hit.card.controllerId || hit.player?.playerId;
   const wasTapped = !!hit.card.tapped;
   const [card] = hit.array.splice(hit.index, 1);
@@ -762,6 +763,12 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       continue;
     }
     if (bindings.skipEffects > 0) { bindings.skipEffects--; continue; }
+    // Unforge: what the Equipment (or Aura) was attached to just before it was destroyed, kept for the rest of the ability.
+    if (effect.kind === 'remember-host') {
+      const hit = locateCardInGame(game, bindings[effect.bind]), host = hit?.card?.attachedTo && locateCardInGame(game, hit.card.attachedTo);
+      bindings[effect.as] = host && host.zone === 'battlefield' && (effect.type !== 'creature' || /\bCreature\b/.test(definitionFor(game, host.card)?.typeLine || '')) ? host.card.instanceId : null;
+      continue;
+    }
     if (effect.kind === 'remember-controller') {
       const id = bindings[effect.bind];
       const hit = locateCardInGame(game, id), onStack = (game.stack || []).find(x => x.id === id);
@@ -901,7 +908,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
           const dc = pick && p.deck.graveyard.find(c => c.instanceId === pick.id);
           if (dc && p.deck.remainingLibrary.length >= pick.n) {
             for (let k = 0; k < pick.n; k++) { const m = p.deck.remainingLibrary.shift(); m.zone = 'graveyard'; p.deck.graveyard.push(m); emit(bindings, { type: 'mill', playerId: p.playerId, sourceId: m.instanceId, definitionId: m.definitionId, amount: 1 }); }
-            p.deck.graveyard.splice(p.deck.graveyard.indexOf(dc), 1); dc.zone = 'hand'; p.deck.hand.push(dc);
+            p.deck.graveyard.splice(p.deck.graveyard.indexOf(dc), 1); dc.zone = 'hand'; p.deck.hand.push(dc); game.leftGraveyard = { ...(game.leftGraveyard || {}), [p.playerId]: game.turnNumber };
             notes.push(`${p.displayName} dredges ${cardName(game, dc)} (mills ${pick.n}) instead of drawing.`);
             continue;
           }
@@ -1015,7 +1022,13 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       if (!targetId)
         throw new Error('A damage target was not chosen.');
       const victimCard = locateCardInGame(game, targetId);
-      const boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
+      let boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
+      // "Excess damage is dealt to that creature's controller instead" (Flame Spill; CR 120.4a: what is beyond lethal damage, counting damage already marked)
+      let excessAmt = 0, excessTo = null;
+      if (effect.excessTo && victimCard?.zone === 'battlefield' && /\bCreature\b/.test(definitionFor(game, victimCard.card)?.typeLine || '')) {
+        const lethal = Math.max(0, effectiveToughness(victimCard.card, definitionFor(game, victimCard.card), game) - Number(victimCard.card.damageMarked || 0));
+        excessAmt = Math.max(0, boosted - lethal); boosted -= excessAmt; excessTo = victimCard.card.controllerId || victimCard.player?.playerId || null;
+      }
       const dealt = preventDamage(game, targetId, boosted, bindings.sourceId);
       bindings.damageDealt = dealt;   // "You gain life equal to the damage dealt this way" (Corrupt)
       const prevented = boosted - dealt;
@@ -1035,6 +1048,14 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       notes.push(`${effect.sourceName || 'Effect'} deals ${dealt} damage to ${cardName(game, hit.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
       if (dealt)
         emit(bindings, { type: 'damage-permanent', targetId, amount: dealt, sourceId: bindings.sourceId || effect.sourceId || null, controllerId });
+      if (excessAmt > 0 && excessTo) {
+        const ep = game.players.find(x => x.playerId === excessTo), d2 = ep ? preventDamage(game, excessTo, excessAmt, bindings.sourceId) : 0;
+        if (ep && d2) {
+          if (!lifeFixed(game, ep)) ep.life = Math.max(0, Number(ep.life || 0) - d2);
+          notes.push(`The excess ${d2} damage is dealt to ${ep.displayName}.`);
+          emit(bindings, { type: 'damage-player', playerId: ep.playerId, amount: d2, sourceId: bindings.sourceId || effect.sourceId || null, controllerId, combat: false });
+        }
+      }
       checkLethal(game, targetId, notes, bindings);
       continue;
     }
@@ -1101,6 +1122,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       let n = 0;
       for (const p of game.players.filter(x => effect.scope !== 'opponents' || x.playerId !== controllerId)) {
         for (const c of p.deck.graveyard.splice(0)) { c.zone = 'exile'; p.deck.exile.push(c); n++; }
+        if (n) game.leftGraveyard = { ...(game.leftGraveyard || {}), [p.playerId]: game.turnNumber };
       }
       notes.push(`${n} graveyard card${n === 1 ? '' : 's'} exiled.`);
       continue;
@@ -1830,6 +1852,14 @@ export function parseCondition(text) {
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
   return parseConditionB49(t) || parseConditionB110(t);
 }
+/** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
+const INTERVENING = /^(?:b110-(?:amount|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
+export function interveningIfFails(game, controllerId, effects, bindings) {
+  const fx = (effects || []).filter(e => e.kind !== 'set-x'), first = fx[0];
+  if (!first || first.kind !== 'condition' || first.skip < fx.length - 1 || !INTERVENING.test(first.test || '')) return false;
+  const holds = conditionHolds(game, controllerId, first, bindings);
+  return first.negate ? !!holds : !holds;
+}
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
 function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
@@ -2080,6 +2110,13 @@ export function limitOf(text) {
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
+  // "you may have this creature deal 3 damage to target creature" (Sand Strangler): the older damage wording took "You may have this creature" as the source and never asked.
+  const mayHave = stripReminderText(normalizeClause(clause)).match(/^You may have (SELFNAME|this [a-z]+|it|that creature) (deal .+)$/i);
+  if (mayHave) {
+    const inner = compileSingleClause(`${mayHave[1]} ${mayHave[2].replace(/^deal\b/i, 'deals')}`, opts);
+    if (inner.unsupported.length || !inner.effects.length) return { effects: [], requirements: [], unsupported: [stripReminderText(normalizeClause(clause))] };
+    return { effects: [{ kind: 'condition', test: 'chosen', bind: 'mayDoHave', skip: inner.effects.length }, ...inner.effects], requirements: [{ kind: 'yes-no', bind: 'mayDoHave', label: `Have ${mayHave[1].replace(/^SELFNAME$/, opts.sourceName || 'it')} ${mayHave[2].replace(/\.$/, '')}?` }, ...inner.requirements], unsupported: [] };
+  }
   const r = compileSingleClauseRaw(clause, opts);
   // "gains protection from the color of your choice": the older reading granted a keyword naming no colour (build 110 asks which colour).
   if (r.effects.some(e => e.kind === 'grant-keyword' && /protection from the colou?r of (?:your|its controller'?s) choice/i.test(e.keyword || ''))) {
@@ -2666,6 +2703,9 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
       effects.push({ kind: 'add-mana', amount: symbols.length, color: symbols[0] });
       return { effects, requirements, unsupported };
     }
+    // {R}{G}: each colour in turn ("Add {R}{R}{R}{G}{G}{G}.")
+    for (const col of [...new Set(symbols)]) effects.push({ kind: 'add-mana', amount: symbols.filter(x => x === col).length, color: col });
+    return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Add (\{[WUBRGC]\}|one mana of any color|one mana of any type)(?: for each (.+))?\.?$/i))) {
     let color = null, colorBind = null;
@@ -3326,6 +3366,11 @@ function equalToAsX(clause) {
     .replace(/^(.*?\bdraws?) a card for each (.+?)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\b[Pp]ut) (?:a|an) ([+-]\d+\/[+-]\d+|[a-z]+) counter on (.+?) for each (.+?)\.$/i, '$1 X $2 counters on $3, where X is the number of $4.')
     .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
+    // Domain: "gets +1/+1 until end of turn for each basic land type among lands you control" (one more per type: X of them)
+    .replace(/^((?:Domain — )?Until end of turn, .+? gains? .+? and gets?) ([+-])1\/([+-])1 for each (basic land types? among lands you control)\.$/i, '$1 $2X/$3X, where X is the number of $4.')
+    .replace(/^((?:Domain — )?)Until end of turn, (this creature|target creature|[A-Z][^,]*?) (gets?) ([+-])1\/([+-])1 for each (basic land types? among lands you control)\.$/i, '$1$2 $3 $4X/$5X until end of turn, where X is the number of $6.')
+    .replace(/^((?:Domain — )?[^.]+? gets?) ([+-])1\/([+-])1 until end of turn for each (basic land types? among lands you control)\.$/i, '$1 $2X/$3X until end of turn, where X is the number of $4.')
+    .replace(/^((?:Domain — )?(?:Target player|Each opponent|You) discards?) a card for each (basic land types? among lands you control)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\bcreates?) a number of (.+? tokens(?: with [^.]+?)?) equal to ([^.,]+?)\.$/i, '$1 X $2, where X is $3.');
   if (x === clause) return clause;
   // Only when the wording as printed is not understood and the X form is (the readers use the whole sentence).
@@ -3448,6 +3493,14 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     if (insteadCond && prevPart && !prevPart.unsupported.length && prevPart.effects.length) {
       const alt = compileEffectText(insteadM[2].charAt(0).toUpperCase() + insteadM[2].slice(1), { sourceName });
       if (alt.supported) {
+        // The replacement reads its own choices: names shared with the sentence it replaces (target0, handCard0) are renamed so each is asked once, for the part that runs.
+        const taken = new Set(parts.flatMap(p => p.requirements || []).map(r => r.bind));
+        if (alt.requirements.some(r => taken.has(r.bind) && r.kind !== 'target')) { parts.push({ effects: [], requirements: [], unsupported: [clause] }); continue; }
+        for (const r of alt.requirements) if (taken.has(r.bind)) {
+          const old = r.bind, fresh = `${old}i${parts.length}`;
+          r.bind = fresh;
+          for (const e of alt.effects) for (const k of Object.keys(e)) if (e[k] === old && /bind$/i.test(k)) e[k] = fresh;
+        }
         prevPart.effects.unshift({ kind: 'condition', ...insteadCond, negate: true, skip: prevPart.effects.length });
         parts.push({ effects: [{ kind: 'condition', ...insteadCond, skip: alt.effects.length, failNote: ' ' }, ...alt.effects], requirements: alt.requirements, unsupported: [] });
         continue;
@@ -3606,6 +3659,8 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
       // "If it's a Spirit, put a +1/+1 counter on it." — "it" is the creature targeted earlier.
       const bridgedBody = genericCond.test === 'it-is' && bridgePronoun(bodyText, parts, sourceName);
       const body = bridgedBody && !bridgedBody.unsupported.length ? { ...bridgedBody, supported: true } : compileEffectText(bodyText, { sourceName });
+      // Sawblade Skinripper: "that much" is what the condition counted, not the amount of the event that triggered it.
+      if (genericCond.thatMuch) for (const e of body.effects || []) if (e.amount?.kind === 'binding' && e.amount.bind === 'eventAmount') e.amount = genericCond.thatMuch;
       if (body.supported) { parts.push({ effects: [{ kind: 'condition', ...genericCond, skip: body.effects.length }, ...body.effects], requirements: body.requirements, unsupported: [], cond: genericCond }); continue; }
     }
     if (cond && !/^If you do\b/i.test(clause)) {
@@ -3807,7 +3862,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // "You may choose new targets for the copy.": the copy asks its controller as it resolves.
   for (const x of [...merged.effects].filter(e => e.kind === 'retarget-flag')) {
     const at = merged.effects.indexOf(x);
-    for (const e of merged.effects.slice(0, at)) if (e.kind === 'copy-stack') e.retarget = true;
+    for (const e of merged.effects.slice(0, at)) { if (e.kind === 'copy-stack') e.retarget = true; if (e.kind === 'delay') for (const x of e.effects || []) if (x.kind === 'copy-stack') x.retarget = true; }   // also the copy a delayed trigger will make
     merged.effects.splice(at, 1);
   }
   // "If that creature would die this turn, exile it instead": it must be in place before the damage is dealt.
@@ -3837,7 +3892,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // (effects-b101.js). With a target earlier in the ability the pronoun is that target; with none it is the trigger's
   // card, but only when nothing earlier in the ability could have made or moved another card "it" might mean.
   {
-    const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay']);
+    const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay', 'move-zone']);
     merged.effects.forEach((e, at) => {
       for (const key of ['bind', 'sourceBind']) {
         if (e[key] !== 'b101It' && e[key] !== 'b101That') continue;

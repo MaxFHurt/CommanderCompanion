@@ -63,8 +63,8 @@ export function activatedAbilitySupport(definition, ability) {
       return { supported: true, kind: 'mana', compiled: null, reasons: [] };
     return { supported: false, kind: 'mana', reasons: ['Mana output could not be determined from this Oracle text.'], guidedFallback: true };
   }
-  // "Pay 2 life or {2}" (Tidal Control): a choice between two costs; the game would charge both, so it stays by hand.
-  if (/\bPay \d+ life or \{|\{[^}]+\} or pay \d+ life/i.test(ability.cost || ''))
+  // Other choices between two costs ("{2} or pay 2 life") are not automated; "Pay N life or {M}" is (rules.js costChoice, ops.js).
+  if (!ability.costChoice && /\bPay \d+ life or \{|\{[^}]+\} or pay \d+ life/i.test(ability.cost || ''))
     return { supported: false, kind: 'effect', reasons: ['A choice between two costs is not automated.'], guidedFallback: true };
   if (/search your library/i.test(ability.effect || ''))
     return { supported: true, kind: 'search', compiled: null, reasons: [] };

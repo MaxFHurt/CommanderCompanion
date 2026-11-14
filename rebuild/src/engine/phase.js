@@ -1,5 +1,5 @@
 import { expirePlayPermissions } from './effects-catalog.js';
-import { refreshManaSource } from './transactions.js';
+import { refreshManaSource, resyncManaSource } from './transactions.js';
 export const TURN_STEPS = ['untap', 'upkeep', 'draw', 'precombat-main', 'combat', 'postcombat-main', 'end-step', 'cleanup'];
 const LABELS = {
   untap: 'Untap', upkeep: 'Upkeep', draw: 'Draw', 'precombat-main': 'Main 1', combat: 'Combat', 'postcombat-main': 'Main 2', 'end-step': 'End Step', cleanup: 'Cleanup',
@@ -84,6 +84,7 @@ function cleanupTemporaryEffects(game) {
       c.damageMarked = 0;
       c.deathtouchDamage = false;
       c.temporaryEffects = (c.temporaryEffects || []).filter(e => e?.expires !== 'cleanup');
+      if (c.landTypeChanged && !c.temporaryEffects.some(e => e?.kind === 'land-type')) { delete c.landTypeChanged; resyncManaSource(game, p, c); }   // the land types change back: so does the mana
     }
   }
   game.damagePrevention = (game.damagePrevention || []).filter(e => e?.expires !== 'cleanup');
