@@ -5,6 +5,7 @@ import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, compileB101Only, compileB110Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { parseConditionB110, conditionHoldsB110 } from './effects-b110.js';
+import { parseConditionB112, conditionHoldsB112 } from './effects-b112.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
@@ -138,6 +139,7 @@ function resetOnZoneChange(card) {
   delete card.attacking;
   delete card.blocking;
   delete card.unlockedFaces;   // Room doors lock again
+  delete card.prepared; delete card.prepInit;   // a new object is not prepared (prepare.js)
   delete card.linkedExile; delete card.untilLeavesExile; delete card.untilLeavesExileHand; delete card.exiledBy;   // 400.7: a new object remembers nothing it exiled
 }
 /** The object whose effect is resolving right now: cards it moves into exile are "exiled with" it (607.2). */
@@ -1856,7 +1858,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
-  return parseConditionB49(t) || parseConditionB110(t);
+  return parseConditionB49(t) || parseConditionB110(t) || parseConditionB112(t);
 }
 /** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
 const INTERVENING = /^(?:b110-(?:amount|mana-from|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
@@ -1941,6 +1943,8 @@ export function conditionHolds(game, controllerId, effect, bindings) {
   if (b49 !== undefined) return b49;
   const b110 = conditionHoldsB110(game, controllerId, effect, bindings);
   if (b110 !== undefined) return b110;
+  const b112 = conditionHoldsB112(game, controllerId, effect, bindings);
+  if (b112 !== undefined) return b112;
   return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {

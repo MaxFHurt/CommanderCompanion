@@ -35,7 +35,7 @@ export function scryfallFromCompact(c) {
     });
     // split and adventure cards keep both costs on the card; the faces' type lines decide which kind it is
     const tl = String(c.t || '');
-    base.layout = c.df ? (/\bLand\b/.test(faces[1]?.type_line || '') || faces[1]?.mana_cost ? 'modal_dfc' : 'transform') : /Adventure/.test(faces[1]?.type_line || '') ? 'adventure' : / \/\/ /.test(tl) ? 'split' : 'normal';
+    base.layout = c.df ? (/\bLand\b/.test(faces[1]?.type_line || '') || faces[1]?.mana_cost ? 'modal_dfc' : 'transform') : /Adventure/.test(faces[1]?.type_line || '') ? 'adventure' : /\bCreature\b/.test(faces[0]?.type_line || '') && /\b(?:Instant|Sorcery)\b/.test(faces[1]?.type_line || '') && !/\bOmen\b/.test(faces[1]?.type_line || '') ? 'prepare' : / \/\/ /.test(tl) ? 'split' : 'normal';   // prepare: creature // its prepare spell
     base.card_faces = faces;
     if (c.df) { delete base.oracle_text; base.mana_cost = faces[0].mana_cost; base.type_line = faces[0].type_line; }
   }

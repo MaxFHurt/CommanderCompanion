@@ -12,6 +12,7 @@ import { syncAttachments } from '../../src/game/attachments.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 import { queueTriggers } from '../../src/engine/triggers.js';
+import { stateBasedActions } from '../../src/game/sba.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -5187,6 +5188,42 @@ section('batch 5 (build 111): discard X as an additional cost, Return X');
   const gyIds = t.P(0).deck.graveyard.filter(c => ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
   cast(t, 'Opt', 'As an additional cost to cast this spell, discard X cards.\nReturn X target creature cards from your graveyard to your hand.', [[d => d.key.includes('discard-x-n'), () => 2], [d => d.key.includes('cost:discard-x') && d.kind === 'choose-many', d => d.options.slice(0, 2).map(o => o.id)], [d => d.kind === 'choose-many' && /graveyard/i.test(d.prompt + d.title), d => d.options.slice(0, d.max).map(o => o.id)]], { manaCost: '{G}', typeLine: 'Sorcery' });
   check('Restless Dreams: X = 2 discards two cards and returns up to two creature cards', t.P(0).deck.hand.length === handBefore && t.P(0).deck.graveyard.length === 3, JSON.stringify([handBefore, t.P(0).deck.hand.length, t.P(0).deck.graveyard.map(c => def(t, c).name)]));
+}
+
+section('batch 5 (build 112): prepared');
+{
+  // Grave Researcher-style: becomes prepared, the copy of its spell is cast from exile for its own cost, then it is unprepared
+  const t = setup();
+  const faces = (front) => ({ layout: 'prepare', typeLine: 'Creature — Human Wizard', cardFaces: [{ faceIndex: 0, name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Human Wizard', oracleText: front }, { faceIndex: 1, name: 'Divination', manaCost: '{1}{U}', typeLine: 'Sorcery', oracleText: 'Draw two cards.' }] });
+  const front = 'At the beginning of your upkeep, this creature becomes prepared.';
+  const bear = onField(t, 'Grizzly Bears', front, faces(front));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('This creature becomes prepared.', { sourceName: 'Grizzly Bears' }).effects, { sourceId: bear.instanceId });
+  stateBasedActions(t.game);
+  const copy = t.P(0).deck.exile.find(c => c.preparedOf === bear.instanceId);
+  check('prepared: the creature is prepared and a castable copy of its spell is in exile', !!bear.prepared && !!copy && def(t, copy)?.name === 'Divination', JSON.stringify([bear.prepared, t.P(0).deck.exile.map(c => def(t, c)?.name)]));
+  const hand = t.P(0).deck.hand.length;
+  const r = copy ? t.ctl.dispatch({ type: 'play', instanceId: copy.instanceId }, t.as(0)) : { ok: false, error: 'no copy' };
+  settle(t);
+  check('prepared: casting the copy draws two, unprepares the creature, and the copy is gone', r.ok && t.P(0).deck.hand.length === hand + 2 && !bear.prepared && !t.P(0).deck.exile.some(c => c.preparedOf) && !t.P(0).deck.graveyard.some(c => c.preparedOf), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, bear.prepared]));
+  // the spell face can't be cast from hand
+  t.give(0, 'Mulldrifter'); const h = t.hand(0, 'Mulldrifter'); asText(t, h, front, { ...faces(front), definitionId: h.definitionId });
+  const pc = playCheck(t.game, t.P(0), h, 1);
+  const r2 = t.ctl.dispatch({ type: 'play', instanceId: h.instanceId, faceIndex: 1 }, t.as(0));
+  check('prepared: a prepare card in hand casts only its creature face', !r2.ok || !t.P(0).deck.hand.includes(h) && (t.game.stack || []).every(x => def(t, x.card || {})?.name !== 'Divination'), JSON.stringify([r2.ok, pc.legal]));
+}
+{
+  // "This creature enters prepared."; leaving the battlefield ends it and removes the copy
+  const t = setup();
+  const text = 'This creature enters prepared.';
+  const elf = onField(t, 'Llanowar Elves', text, { layout: 'prepare', cardFaces: [{ faceIndex: 0, name: 'Llanowar Elves', manaCost: '{G}', typeLine: 'Creature — Elf', oracleText: text }, { faceIndex: 1, name: 'Opt', manaCost: '{U}', typeLine: 'Instant', oracleText: 'Scry 1. Draw a card.' }] });
+  delete elf.prepInit; stateBasedActions(t.game);
+  const was = !!elf.prepared && t.P(0).deck.exile.some(c => c.preparedOf === elf.instanceId);
+  moveCard(t.game, elf.instanceId, 'graveyard'); stateBasedActions(t.game);
+  check('enters prepared: prepared on the battlefield; gone (and no copy) once it leaves', was && !elf.prepared && !t.P(0).deck.exile.some(c => c.preparedOf), JSON.stringify([was, elf.prepared]));
+  // a creature without a prepare spell can't become prepared
+  const bear = onField(t, 'Grizzly Bears', '', {}, 0);
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Target creature becomes prepared.', { sourceName: 'Skycoach Waypoint' }).effects, { target0: bear.instanceId });
+  check('prepared: only creatures with prepare spells can become prepared', !bear.prepared, JSON.stringify(bear.prepared));
 }
 
 done();

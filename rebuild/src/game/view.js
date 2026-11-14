@@ -176,6 +176,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       }
       if (c.castMode && c.castMode !== 'normal') extra.castMode = c.castMode;
       if (c.kicked) extra.kicked = Number(c.kickCount || 1);
+      if (c.prepared) extra.prepared = game.cardDefinitions[c.definitionId]?.cardFaces?.[1]?.name || true;
       if (goadersOf(game, c, p.playerId).size) extra.goaded = true;
       if (inCombat && attacking.has(c.instanceId)) extra.attacking = attacking.get(c.instanceId);
       if (inCombat && blocking.has(c.instanceId)) extra.blocking = blocking.get(c.instanceId);

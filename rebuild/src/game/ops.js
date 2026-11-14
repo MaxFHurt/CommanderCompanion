@@ -188,6 +188,7 @@ function askAsEnters(game, player, def, ask, source) {
 export function playableFaces(base) {
   const faces = base?.cardFaces || [];
   if (faces.length < 2) return [null];
+  if (base?.layout === 'prepare') return [0];   // a prepare spell is cast only as a copy while the creature is prepared (prepare.js)
   const out = [0];
   for (let i = 1; i < faces.length; i++) if (/\bLand\b/i.test(faces[i].typeLine || '') || faces[i].manaCost) out.push(i);
   return out;

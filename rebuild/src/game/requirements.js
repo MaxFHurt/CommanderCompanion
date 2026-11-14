@@ -201,6 +201,7 @@ function matchesPermanentScope(game, card, scope, source = null, player = null) 
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (!descriptorFits(game, card, def, scope)) return false;
   if (!sourceLimitFits(game, card, def, fullScope, source, player)) return false;
+  if (/\bthat attacked (?:or blocked )?this turn\b/.test(scope) && card.attackedTurn !== game.turnNumber && !(/or blocked/.test(scope) && card.blockedTurn === game.turnNumber)) return false;   // Hexhaven Dueling Arena, Divine Verdict-style limits
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;

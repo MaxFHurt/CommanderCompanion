@@ -57,6 +57,10 @@
 37. ☐ Forfend / Thwart the Enemy / Vine Snare / Defend the Hearth: damage that should be prevented is prevented for the rest of the turn.
 38. ☐ Mind Flayer, Helm of Possession, Sower of Temptation: the stolen creature returns when the condition ends (source leaves, untaps, or stops being controlled); Helm's ability is offered with an opposing creature in play.
 39. ☐ Valiant creature (Heartfire Hero): targeting it with your spell gives one counter the first time each turn only.
+## Rules long tail, batch 5 part B (build 112): prepared
+40. ☐ A prepare creature that "enters prepared" (Spellbook Seeker // Careful Study): once it is on the battlefield its details say "Prepared", and a card named after its spell (Careful Study) appears in your exile, castable for its own cost.
+41. ☐ Cast that exile copy → it resolves, the creature is no longer prepared, and the copy is gone (not in the graveyard). In hand, the card offers only its creature face.
+42. ☐ Grave Researcher (or any "becomes prepared" trigger) → after the trigger the creature shows "Prepared" and the copy appears in exile; if the creature leaves the battlefield the copy disappears.
 ## Accounts (build 110)
 A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
 A2. ☐ Close and reopen the app → expect no sign-in again.

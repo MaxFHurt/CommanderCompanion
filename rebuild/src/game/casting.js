@@ -302,6 +302,8 @@ export function castModes(game, player, card, def, base = null) {
   // Impulse draw: "You may play that card this turn." (and "… without paying its mana cost").
   const permit = zone === 'exile' ? exilePlayPermission(game, player, card) : null;
   if (permit && !(permit.castOnly && isLand(def)) && (def?.manaCost || isLand(def) || permit.free)) modes.push({ id: permit.free ? 'free-exile' : 'normal', cost: permit.free ? '' : (def.manaCost || '') });
+  // Prepared: the copy of a prepared creature's spell (prepare.js), cast for its own cost.
+  if (zone === 'exile' && card.preparedOf && card.controllerId === player.playerId && def?.manaCost !== undefined) modes.push({ id: 'normal', cost: def.manaCost || '' });
   if (zone === 'exile' && card.ownerId === player.playerId) {
     if (card.foretold && card.foretoldTurn !== game.turnNumber) {
       const cost = keywordCost(base?.oracleText || text, 'Foretell');
