@@ -462,7 +462,7 @@ function triggerMatches(game, row, ability, event) {
     if (!/^(?:When|Whenever).*\bdiscard/i.test(t))
       return false;
     const dd = eventSpellDef(game, event), dt = event.typeLine || dd?.typeLine || '';
-    if (/land cards?/i.test(t) && !typeMatches(dt, 'Land'))
+    if (/(?<!non)land cards?/i.test(t) && !typeMatches(dt, 'Land'))   // (build 111: "nonland card" used to need a land)
       return false;
     if (/nonland cards?/i.test(t) && typeMatches(dt, 'Land'))
       return false;
@@ -800,7 +800,7 @@ function probeManaValue(ability) { const m = String(ability?.trigger || '').matc
 function probeToughness(ability) { const m = String(ability?.trigger || '').match(/toughness (\d+) or (greater|less)/i); return m ? String(m[1]) : '1'; }
 function wideProbeTypes(ability) {
   const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w))), ...(/\boutlaws?\b/i.test(String(ability?.trigger || '')) ? ['Rogue'] : [])].join(' ');   // outlaws: Assassins, Mercenaries, Pirates, Rogues, Warlocks
-  return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
+  return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`, ...(/\bsnow\b/i.test(String(ability?.trigger || '')) ? ['Snow Creature — Elemental', 'Snow Land'] : [])];   // "another snow permanent you control" (build 111)
 }
 function probeTrigger(definition, ability, types, events, variants) {
   const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
@@ -809,7 +809,7 @@ function probeTrigger(definition, ability, types, events, variants) {
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
   me.commanders = types.map((_, i) => ({ cardId: `probe-${i}` }));   // "your commander" (Tome of Legends): the probe cards are this player's commanders
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };
-  for (const variant of variants) for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of [1, 2]) {
+  for (const variant of variants) for (const zone of ['battlefield', 'graveyard', 'hand', 'exile', 'command']) for (const attached of [false, true]) for (const castCount of (/\b(?:third|fourth)\b/i.test(String(ability?.trigger || '')) ? [1, 2, 3, 4] : [1, 2])) {
     game.activePlayerId = variant.oppTurn ? 'opp' : 'me';
     // attached: this card is an Aura or Equipment on the probe card ("equipped creature", "enchanted land").
     const row = { card: { instanceId: 'self', definitionId: definition.definitionId || 'self-def', counters: {}, triggerFireLedger: {}, chosenCreatureType: 'Dragon', saddledTurn: 3, harnessed: true }, definition, player: me, zone };

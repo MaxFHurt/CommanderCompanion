@@ -3215,6 +3215,9 @@ function compileThenClause(clause, opts) {
     compiled[0].effects.push({ kind: 'sacrifice', bind: src.sourceBind });
     compiled.splice(1, 1);
   }
+  // "Put a +1/+1 counter on ~, then it deals damage equal to its power to any target." (Captain Ripley Vance): "it" is the creature the counter went on, not the event's card (build 111).
+  if (compiled[0]?.effects?.some(e => e.kind === 'counter' && e.bind === 'sourceId') && compiled[1]?.effects?.[0]?.kind === 'damage-from-selected-creature' && compiled[1].effects[0].sourceBind === 'b101It')
+    compiled[1].effects[0] = { ...compiled[1].effects[0], sourceBind: 'sourceId' };
   return mergeCompiled(compiled);
 }
 function compileAndClause(clause, opts) {

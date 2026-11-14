@@ -5137,4 +5137,11 @@ section('batch 5 (build 111): named tokens, combat prevention scopes');
   check('combat prevention: the power limit and the players scope are recorded for this turn', cp.some(x => x.scope === 'power-le' && x.limit === 3) && cp.some(x => x.scope === 'players'), JSON.stringify(cp));
 }
 
+section('batch 5 (build 111): Cleave');
+{
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Cleave {2}{G}\nDestroy target [attacking] creature.', [[d => d.key.includes('castMode'), 'cleave'], [d => d.targeting, () => bear.instanceId]], { manaCost: '{1}{G}{G}{G}', typeLine: 'Instant' });
+  check('Cleave: cast for its cleave cost the bracketed word goes, so a creature that is not attacking is destroyed', !t.bf(1, 'Grizzly Bears'), JSON.stringify(t.names(1, 'battlefield')));
+}
+
 done();

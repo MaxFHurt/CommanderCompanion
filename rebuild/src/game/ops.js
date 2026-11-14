@@ -218,8 +218,8 @@ function giftText(t, gift) {
   return t.replace(/^\s+/, '');
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+export function castText(text, { kicked = false, overload = false, cleave = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Cleave|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -237,6 +237,8 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   // "deals 2 damage … If kicked, it deals 4 damage instead."
   t = t.replace(/deals (\w+) damage([^\u0000]*?)\.\s*\u0000(\w+)/g, (all, a, rest, b) => `deals ${b} damage${rest}.`);
   if (overload) t = t.replace(/\btarget\b/g, 'each').replace(/\bTarget\b/g, 'Each');
+  // Cleave (build 111): cast for its cleave cost, the words in square brackets are removed; cast normally, only the brackets go.
+  if (/(?:^|\n)\s*Cleave \{/i.test(String(text || ''))) t = cleave ? t.replace(/\s*\[[^\]]*\]/g, '') : t.replace(/[\[\]]/g, '');
   if (/\bgift (?:was|wasn'?t) promised\b/i.test(t)) t = giftText(t, gift);
   // Surge: "If this spell's surge cost was paid, …"
   if (/surge cost was paid/i.test(t)) t = giftText(t.replace(/If this spell'?s surge cost was paid, /gi, 'If the gift was promised, '), surged);
@@ -470,7 +472,7 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge', awaken: mode.id === 'awaken' ? Number(mode.awaken || 0) : 0 }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', cleave: mode.id === 'cleave', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge', awaken: mode.id === 'awaken' ? Number(mode.awaken || 0) : 0 }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
   const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');

@@ -83,6 +83,18 @@ export function compileB111Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- "Counter target spell that wasn't cast from its owner's hand." (Wash Away, cast without cleave)
+  if (/^Counter target spell that wasn'?t cast from its owner'?s hand\.?$/i.test(c)) {
+    const bind = `stack${requirements.length}`;
+    requirements.push({ kind: 'stack-target', bind, scope: 'spell', spellFilter: 'notfromhand', label: "target spell that wasn't cast from its owner's hand" });
+    effects.push({ kind: 'counter-spell', bind });
+    return true;
+  }
+  // --- "(You may) have target player mill two cards." (Iceberg Cancrix): the same as the player milling.
+  if ((m = c.match(/^(?:You may )?have (target player|target opponent|each opponent|each player) (mill|draw|discard) (.+)$/i))) {
+    const r = H.compileEffectText(`${cap(m[1])} ${m[2].toLowerCase()}s ${m[3]}`, { sourceName });
+    if (r.supported && r.effects.length) { effects.push(...r.effects); requirements.push(...r.requirements); return true; }
+  }
   // --- Combat damage prevention: "… dealt to players" (Defend the Hearth), "… target creature would deal" (Falling Timber), "… dealt to and dealt by …" (Cephalid Illusionist), "… by creatures with power 4 or less" (Vine Snare)
   if (/^Prevent all combat damage that would be dealt to players this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'players' }); return true; }
   if ((m = c.match(/^Prevent all combat damage ((?:another )?target creature) would deal this turn\.?$/i))) { effects.push({ kind: 'prevent-combat', scope: 'by-card', bind: H.targetRequirement(requirements, m[1].toLowerCase(), m[1].toLowerCase()) }); return true; }
@@ -157,7 +169,7 @@ export function compileB111Clause(c, ctx) {
 export function compileB111Sequence(clauses, i, { sourceName, parts = [] }) {
   const clean = x => String(x || '').replace(/\([^()]*\)/g, '').trim();
   const c0 = clean(clauses[i]);
-  let m;
+  let m, mm;
   // --- "Gain control of target noncreature spell. You may choose new targets for it." (Commandeer): the spell stays on the stack under your control.
   if ((m = c0.match(/^Gain control of target ((?:noncreature |instant or sorcery |instant |sorcery )?)spell\.?$/i)) && /^You may choose new targets for it\.?$/i.test(clean(clauses[i + 1]))) {
     const bind = 'stack0', pick = 'retarget1', f = m[1].trim().toLowerCase().replace(/ or /g, '|');
