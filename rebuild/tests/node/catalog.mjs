@@ -4863,6 +4863,18 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
   { const t = setup(); const dead = t.give(0, 'Grizzly Bears', 'graveyard'); const r = compileEffectText('Return it to your hand.', { sourceName: 'Enduring Renewal' });
     applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: 'x', eventCard: dead.instanceId });
     check('Enduring Renewal: the creature that went to the graveyard (the event card, not the source) returns to hand', t.P(0).deck.hand.some(c => c.instanceId === dead.instanceId), JSON.stringify(t.names(0, 'hand'))); }
+  // Galvanic Iteration: the next instant or sorcery you cast this turn is copied (once)
+  { const t = setup(); const r = compileEffectText('When you next cast an instant or sorcery spell this turn, copy that spell.', { sourceName: 'Galvanic Iteration' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null });
+    const life = t.P(0).life; cast(t, 'Opt', 'You gain 2 life.', [[d => d.kind === 'confirm', () => false]]);
+    const after1 = t.P(0).life - life; cast(t, 'Divination', 'You gain 2 life.', [[d => d.kind === 'confirm', () => false]]);
+    check('Galvanic Iteration: the first spell is copied (4 life), the second is not (2 more)', after1 === 4 && t.P(0).life - life === 6, JSON.stringify([after1, t.P(0).life - life])); }
+  // Gravepurge: any number of creature cards from the graveyard go on top, the last chosen on top
+  { const t = setup(); const a1 = t.give(0, 'Grizzly Bears', 'graveyard'), a2 = t.give(0, 'Llanowar Elves', 'graveyard');
+    const r = compileEffectText('Put any number of target creature cards from your graveyard on top of your library.', { sourceName: 'Gravepurge' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, graveMulti0: [a1.instanceId, a2.instanceId] });
+    const lib = t.P(0).deck.remainingLibrary;
+    check('Gravepurge: both creature cards left the graveyard; the one chosen last is on top', lib[0]?.instanceId === a2.instanceId && lib[1]?.instanceId === a1.instanceId && !t.names(0, 'graveyard').length, JSON.stringify([lib.slice(0, 2).map(c => c.instanceId), t.names(0, 'graveyard')])); }
   // domain pumps
   { const t = setup(); const r = compileEffectText('Domain — Target creature gets +1/+1 until end of turn for each basic land type among lands you control.', { sourceName: 'Gaea\'s Might' });
     const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });

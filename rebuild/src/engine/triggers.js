@@ -607,7 +607,8 @@ function dueDelayedTriggers(game, event) {
   const due = [], keep = [];
   for (const d of game.delayedTriggers || []) {
     const w = d.when || {};
-    const ready = event.type === w.event && Number(game.turnNumber || 0) > Number(w.afterTurn || 0) && (w.whose !== 'owner' || event.playerId === d.ownerId);
+    // spell-cast: "When you next cast an instant or sorcery spell this turn" (the event names its caster as controllerId; w.spell narrows the spell)
+    const ready = event.type === w.event && Number(game.turnNumber || 0) > Number(w.afterTurn || 0) && (w.whose !== 'owner' || (event.playerId || event.controllerId) === d.ownerId) && (!w.spell || new RegExp(`\\b(?:${w.spell.replace(/ or /g, '|')})\\b`, 'i').test(String(event.typeLine || '')));
     (ready ? due : keep).push(d);
   }
   if (!due.length) return [];

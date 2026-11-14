@@ -1,7 +1,7 @@
 // Card wordings added in build 110 (rules long tail, batch 4). Same hook points as effects-b101.js:
 // compileB110Clause(c, ctx) is tried right after the build-101 wordings; applyB110 runs the effect kinds made here and
 // gatherB110 asks the requirement kinds made here. Most wordings are read as an instruction the game already runs.
-import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, definitionFor, resolveAmount, moveCard, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness, pruneWhileTapped } from './combat.js';
 import { resyncManaSource } from './transactions.js';
 
@@ -32,6 +32,13 @@ export function compileB110Clause(c, ctx) {
   // --- "Return it to your hand." (Enduring Renewal, Zodiac Dragon, Unquenchable Fury): the card the trigger is about (the earlier target, if there is one)
   if (/^Return (?:it|that card) to your hand\.?$/i.test(c)) {
     effects.push({ kind: 'move-zone', bind: 'b101It', to: 'hand' });
+    return true;
+  }
+  // --- "Put any number of target creature cards from your graveyard on top of your library." (Gravepurge, Bone Harvest): the order you choose them in is the order they go on top (the last one chosen ends on top).
+  if ((m = c.match(/^Put any number of target ([a-z ]+?) cards? from your graveyard on top of your library\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[1].trim(), max: 99, min: 0, label: `any number of ${m[1].trim()} cards in your graveyard (the last one you choose goes on top of your library)` });
+    effects.push({ kind: 'b110-graveyard-to-top', bind });
     return true;
   }
   // --- Colour changes: "One or more target creatures become black until end of turn." (Touch of Darkness), "Any number of target creatures become the
@@ -296,6 +303,11 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'damage' && e.bind);
     if (d) { d.excessTo = 'controller'; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
   }
+  // --- "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy." (Galvanic Iteration, Sword of Wealth and Power, Ral, Teach by Example)
+  if (/^When you next cast an? instant or sorcery spell this turn, copy that spell\.?$/i.test(c0)) {
+    const more = /^You may choose new targets for the copy\.?$/i.test(clean(clauses[i + 1]));
+    return { part: { effects: [{ kind: 'delay', when: { event: 'spell-cast', whose: 'owner', sameTurn: true, spell: 'instant or sorcery' }, effects: [{ kind: 'copy-stack', bind: 'eventStackId', soft: true, retarget: more }], requirements: [] }], requirements: [], unsupported: [] }, consumed: more ? 2 : 1 };
+  }
   // --- "Put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card." / "Then if she has nine or more time counters on her, sacrifice her." (Ordeal of Nylea, Kes)
   // "it" is the permanent the counter just went onto (or the trigger's card when no counter was put in this ability).
   if ((m = c0.match(/^(?:Then )?if (it|she|he|they) (?:has|have) (\w+) or more ([a-z+\/\d-]+) counters? on (?:it|her|him|them), (.+?)\.?$/i)) && !/^(?:When|If) you do\b/i.test(clean(clauses[i + 1]))) {
@@ -356,6 +368,15 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
   switch (effect.kind) {
+    case 'b110-graveyard-to-top': {
+      for (const id of [].concat(bindings[effect.bind] || [])) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        moveCard(game, id, 'library', { position: 'top', onEvent: e => H.emit(bindings, e) });
+        notes.push(`${definitionFor(game, hit.card)?.name || 'A card'} is put on top of ${(game.players || []).find(p => p.playerId === hit.card.ownerId)?.displayName || 'its owner'}'s library.`);
+      }
+      return true;
+    }
     case 'b110-recolor': {
       const CODE = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
       const names = effect.colors || [].concat(bindings[effect.colorBind] || []);
