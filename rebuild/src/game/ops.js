@@ -889,6 +889,7 @@ function runActivate(game, op, ask) {
     costMoveIds.push(discardedId);
     // Mercurial Chemister: "the discarded card's mana value".
     const gone = rows.find(c => c.instanceId === discardedId);
+    if (gone) bindings.costDiscardedTypeLine = defOf(game, gone)?.typeLine || '';   // Land's Edge: "if the discarded card was a land card"
     if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
   }
 

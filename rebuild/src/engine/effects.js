@@ -2204,7 +2204,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Damage, fight.
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player or planeswalker|target opponent or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player or planeswalker|target opponent or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return { effects, requirements, unsupported };
@@ -2753,16 +2753,16 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Marrow Shards, Sandstorm: "deals 1 damage to each attacking creature."
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (attacking|blocking|attacking or blocking|tapped|untapped) creature\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (attacking|blocking|attacking or blocking|tapped|untapped) creature\.?$/i))) {
     const conds = m[2].toLowerCase().split(' or ');
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: conds.map(k => `creature|${k}`).join(' or '), creatures: 'all', players: null, sourceName });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: /planeswalker/i.test(m[2]) ? 'creature or planeswalker' : 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), creatures: null, players: /opponent/i.test(m[2]) ? 'opponents' : 'all', sourceName });
     return { effects, requirements, unsupported };
   }
@@ -2861,7 +2861,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
   }
   // Ability words: "Ferocious — You gain 4 life for each …" (a condition, if any, is read elsewhere).
-  if ((m = c.match(/^(?:Ferocious|Morbid|Raid|Revolt|Hellbent|Delirium|Spell mastery|Coven|Formidable|Alliance|Domain|Landfall|Constellation|Magecraft|Valiant|Heroic) — (?!If\b)(.+)$/))) {
+  if ((m = c.match(/^(?:Ferocious|Morbid|Raid|Revolt|Hellbent|Delirium|Spell mastery|Coven|Formidable|Alliance|Domain|Landfall|Constellation|Magecraft|Valiant|Heroic) — (?!If\b(?![^,]*? this way,))(.+)$/))) {
     const inner = compileSingleClause(m[1], { sourceName });
     if (inner.unsupported.length || !inner.effects.length) return false;
     effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
@@ -3043,17 +3043,17 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Damage to a wider set of targets ("target creature or planeswalker an opponent controls", "target attacking or blocking creature").
-  if ((m = c.match(rx(`^(?:This spell|${selfAny}|It|[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This spell|${selfAny}|It|(?!If\\b(?![^,]*? this way,))[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return true;
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? X damage to each (creature|creature and each player|player|opponent)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? X damage to each (creature|creature and each player|player|opponent)\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: 'X', filter: 'creature', creatures: /creature/i.test(m[1]) ? 'all' : null, players: /player/i.test(m[1]) ? 'all' : /opponent/i.test(m[1]) ? 'opponents' : null, sourceName });
     return true;
   }
   // "… deals damage equal to that creature's power to any target" (Terror of the Peaks): the creature that caused the trigger.
-  if ((m = c.match(/^(?:This creature|It|[A-Z][^.]*?) deals damage equal to that creature'?s power to (any target|target [^.]+?)\.?$/i))) {
+  if ((m = c.match(/^(?:This creature|It|(?!If\b(?![^,]*? this way,))[A-Z][^.]*?) deals damage equal to that creature'?s power to (any target|target [^.]+?)\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'damage', amount: { kind: 'event-card-power' }, bind, sourceName });
     return true;

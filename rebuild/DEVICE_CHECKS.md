@@ -31,4 +31,7 @@
 ## Card rules (build 108)
 19. ☐ Play a card that connives → expect the draw first, then a question asking which card to discard (the new card included).
 
+## Any player may activate (build 110)
+20. ☐ Two players: one controls Feral Hydra (or Warmonger, Xantcha), the other taps the permanent on their own phone → expect an ability button on the opponent's permanent, and using it asks the activating player (not the controller) for mana and choices.
+
 Reply with the numbers that failed and a screenshot.

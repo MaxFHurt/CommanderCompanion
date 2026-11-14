@@ -10,7 +10,7 @@ const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice
 const playerById = (game, id) => (game.players || []).find(p => p.playerId === id) || null;
 const ok = inner => inner && !inner.unsupported.length && inner.effects.length;
 const rxCache = new Map();
-const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) rxCache.set(k, (r = new RegExp(src, flags))); return r; };
+const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token))';
 
 /** One sentence. Pushes onto ctx.effects / ctx.requirements and returns true when understood. */
@@ -461,6 +461,8 @@ export function parseConditionB110(t) {
   if ((m = t.match(/^(?:it|this creature|this permanent|this artifact|this enchantment) (was|wasn'?t|were not) (kicked|cast)$/i))) return { test: 'b110-card-flag', flag: /kicked/i.test(m[2]) ? 'kicked' : 'wasCast', not: !/^was$/i.test(m[1]) };
   if ((m = t.match(/^there are (\w+) or more ([a-z+\/\d-]+) counters on (?:it|this [a-z]+|[A-Z][A-Za-z ,'-]+)$/i)) && !/^(?:creature|artifact|land|card|cards)$/i.test(m[2])) return { test: 'b110-source-counters', min: cnt(m[1]), counter: m[2] };
   if ((m = t.match(/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment|planeswalker|permanent) cards in your graveyard$/i))) return { test: 'b110-gy-type', min: cnt(m[1]), type: m[2].toLowerCase() };
+  // Land's Edge: "If the discarded card was a land card" (the card discarded as the cost: ops.js remembers its type line)
+  if ((m = t.match(/^the discarded card was an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[1].toLowerCase() };
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
@@ -485,6 +487,7 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
       for (const c of me?.deck?.graveyard || []) for (const w of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Land', 'Planeswalker', 'Sorcery', 'Kindred']) if (new RegExp(`\\b${w}\\b`).test(String(definitionFor(game, c)?.typeLine || '').split('—')[0])) kinds.add(w);
       return kinds.size >= effect.min;
     }
+    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; return effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); }
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;

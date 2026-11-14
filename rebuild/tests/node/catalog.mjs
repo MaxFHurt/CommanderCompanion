@@ -4666,4 +4666,17 @@ section('build 110 (long tail batch 4)');
   check("Wishmonger style: the target's controller (not the activator) chooses the colour", ask2 && ask2.playerId === t2.P(1).playerId && protectionsOf(t2.game, victim).has('G'), JSON.stringify([ask2?.playerId, [...protectionsOf(t2.game, victim)]]));
 }
 
+{
+  // Land's Edge: the damage happens only if the discarded card was a land; Tidal Control-style "Pay 2 life or {2}" is not read as both costs
+  const run = discardName => {
+    const t = setup();
+    const le = onField(t, 'Fog Bank', 'Discard a card: If the discarded card was a land card, this enchantment deals 2 damage to target player or planeswalker. Any player may activate this ability.', { typeLine: 'Enchantment' });
+    const c = t.give(0, discardName);
+    const life = t.P(1).life;
+    activate(t, le, 0, [[d => d.key === 'cost:discard', () => c.instanceId], [d => d.options?.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]]);
+    return life - t.P(1).life;
+  };
+  check("Land's Edge: discarding a land deals 2, discarding a spell deals 0", run('Forest') === 2 && run('Grizzly Bears') === 0, JSON.stringify([run('Forest'), run('Grizzly Bears')]));
+}
+
 done();

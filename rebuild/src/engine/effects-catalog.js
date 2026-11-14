@@ -1589,7 +1589,7 @@ function compileRound3(c, ctx, subjectBind) {
     effects.push({ kind: 'restrict-each', filter: `creature|${m[1] === 'without' ? 'nokeyword' : 'keyword'}:flying`, restriction: 'cant-block' });
     return true;
   }
-  if ((m = c.match(rx(`^(?:This spell|${selfAny}|[A-Z][^.]*?) deals ${N} damage to each creature (without|with) flying\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This spell|${selfAny}|(?!If\\b(?![^,]*? this way,))[A-Z][^.]*?) deals ${N} damage to each creature (without|with) flying\\.?$`, 'i')))) {
     effects.push({ kind: 'damage-each', amount: num(m[1]), filter: `creature|${m[2] === 'without' ? 'nokeyword' : 'keyword'}:flying`, creatures: 'all', players: null, sourceName });
     return true;
   }
