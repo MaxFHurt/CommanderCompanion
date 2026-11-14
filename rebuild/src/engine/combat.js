@@ -3,6 +3,7 @@ import { evaluateLosses } from './rules.js';
 import { clearCastState, applyEffects } from './effects.js';
 import { regenerates } from './effects-catalog.js';
 import { damageAmount, lifeGainAmount, graveyardDestination } from './replacements.js';
+import { shieldFitsB111 } from './effects-b111.js';
 const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Number(m[0]) : 0; };
 function tempEffects(card, kind) { return (card?.temporaryEffects || []).filter(e => e?.kind === kind && e?.enabled !== false); }
 function temporaryPt(card, key) { return tempEffects(card, 'pt').reduce((n, e) => n + Number(e?.[key] || 0), 0); }
@@ -273,7 +274,7 @@ function combatDamageAfterPrevention(game, targetId, amount, sourceId = null) { 
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0 || !shieldFitsB111(game, shield, targetId, sourceId))
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
   shield.amount = shield.oneShot ? 0 : shield.amount - used;   // "the next time … prevent that damage" is used up by the first damage

@@ -365,10 +365,14 @@ export function validatePlay({ game, player, definition, instance, kind = 'cast'
   const type = definition?.typeLine || '';
   const hasFlash = /\bFlash\b/i.test(String(definition?.oracleText || '')) || (definition?.keywords || []).some(k => String(k).toLowerCase() === 'flash');
   const instantSpeed = /\bInstant\b/i.test(type) || hasFlash || (player?.temporaryPermissions || []).some(x => x?.kind === 'flash');
+  if (kind !== 'land' && /Cast this spell only during (?:the )?combat\b/i.test(String(definition?.oracleText || '')) && !['begin-combat', 'declare-attackers', 'declare-blockers', 'combat-damage', 'end-combat'].includes(game?.phase))
+    reasons.push('This spell can be cast only during combat.');
   if (kind === 'land') {
     if (!active || !main || !stackEmpty)
       reasons.push('A land can normally be played only during your own main phase while the stack is empty.');
     const landLimit = (game.rulesConfig?.allowExtraLand ? 2 : 1) + Number(player.counters?.extraLandPlaysThisTurn || 0);
+    if (player.noLandPlayTurn === game.turnNumber)
+      reasons.push('You can\'t play lands this turn.');
     if ((player.counters?.landsPlayedThisTurn || 0) >= landLimit)
       reasons.push('Normal land play for this turn has already been used.');
   }

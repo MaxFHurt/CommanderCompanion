@@ -268,6 +268,7 @@ export function activationRules(text) {
     else if (/^if you have the city'?s blessing$/i.test(r)) rules.push({ kind: 'blessing' });
     else if ((x = r.match(/^if there are (one|two|three|four|five|six|seven|eight|\d+) or more cards in your graveyard$/i))) rules.push({ kind: 'graveyard', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
     else if ((x = r.match(/^if there are (four|five|\d+) or more card types among cards in your graveyard$/i))) rules.push({ kind: 'delirium', n: COUNT_WORDS[x[1].toLowerCase()] || Number(x[1]) });
+    else if ((x = r.match(/^if creatures you control have total power (\d+) or greater$/i))) rules.push({ kind: 'total-power', n: Number(x[1]) });   // Formidable (Shaman of Forgotten Ways)
     else if ((x = r.match(/^if you control (a|an|one or more|two or more|three or more|four or more|five or more|six or more|seven or more) (.+)$/i))) {
       if (!parseSubject(x[2].replace(/s$/, ''), null)) return null;
       rules.push({ kind: 'control', n: COUNT_WORDS[x[1].toLowerCase().split(' ')[0]] || 1, subject: x[2].replace(/s$/, '') });
@@ -307,13 +308,17 @@ export function activationBlock(game, player, card, ability) {
     if (r.kind === 'own-step' && !(game.activePlayerId === player.playerId && game.phase === r.phase)) return `Only during your ${r.phase} step.`;
     if (r.kind === 'any-step' && game.phase !== r.phase) return `Only during an ${r.phase} step.`;
     if (r.kind === 'your-turn-before-end' && !(game.activePlayerId === player.playerId && !['end-step', 'cleanup'].includes(game.phase))) return 'Only during your turn before the end step.';
-    if (r.kind === 'combat' && !/combat|attackers|blockers|damage/.test(String(game.phase || ''))) return 'Only during combat.';
+    if (r.kind === 'combat' && !['begin-combat', 'declare-attackers', 'declare-blockers', 'combat-damage', 'end-combat'].includes(game.phase)) return 'Only during combat.';   // (build 111: "precombat-main" used to count as combat)
     if (r.kind === 'upkeep' && !(game.activePlayerId === player.playerId && game.phase === 'upkeep')) return 'Only during your upkeep.';
     if (r.kind === 'blessing' && !player.citysBlessing) return 'Only if you have the city’s blessing (ten permanents with ascend).';
     if (r.kind === 'graveyard' && (player.deck?.graveyard || []).length < r.n) return `Only with ${r.n} or more cards in your graveyard.`;
     if (r.kind === 'delirium') {
       const types = new Set((player.deck?.graveyard || []).flatMap(c => (String(defOf(game, c)?.typeLine || '').split('—')[0].match(/Artifact|Battle|Creature|Enchantment|Instant|Kindred|Land|Planeswalker|Sorcery/g) || [])));
       if (types.size < r.n) return `Only with ${r.n} or more card types in your graveyard.`;
+    }
+    if (r.kind === 'total-power') {
+      const total = (player.deck?.battlefield || []).filter(c => (c.controllerId || player.playerId) === player.playerId && /\bcreature\b/i.test(defOf(game, c)?.typeLine || '')).reduce((n, c) => n + Math.max(0, Number(effectivePower(c, defOf(game, c), game)) || 0), 0);
+      if (total < r.n) return `Only if creatures you control have total power ${r.n} or greater.`;
     }
     if (r.kind === 'control') {
       const subject = parseSubject(r.subject, null);

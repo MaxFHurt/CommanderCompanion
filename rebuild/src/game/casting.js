@@ -10,6 +10,7 @@ import { checkCondition } from '../engine/effects.js';
 import { parseManaCost, validatePlay } from '../engine/rules.js';
 import { defOf, definitionsMap, isLand, opponentsOf } from './helpers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from '../engine/face-down.js';
+import { altPaySpecs, altPayAvailable } from './alt-costs.js';
 
 export { FACE_DOWN_ID, faceDownDefinition };
 
@@ -280,6 +281,7 @@ export function castModes(game, player, card, def, base = null) {
       modes.push({ id: 'alt-cost', cost: alt[3] || '', altLife: alt[4] ? Number(alt[4]) : 0, altLabel: alt[4] ? `Pay ${alt[4]} life instead` : `Pay ${alt[3]} instead` });
     }
   }
+  if (zone === 'hand') for (const spec of altPaySpecs(text)) if (altPayAvailable(game, player, card, spec)) modes.push({ id: 'alt-cost', cost: '', altPay: spec, altLabel: spec.label });
   if (zone === 'graveyard' && card.graveyardCastPermission?.turn === game.turnNumber && card.graveyardCastPermission.playerId === player.playerId && !isLand(def))
     modes.push({ id: card.graveyardCastPermission.free ? 'free-exile' : 'normal', cost: card.graveyardCastPermission.free ? '' : (def?.manaCost || '') });
   if (zone === 'graveyard') {

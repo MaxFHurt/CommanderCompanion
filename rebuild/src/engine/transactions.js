@@ -350,6 +350,16 @@ function putSpellOnStack(game, player, action, deck) {
     deck[to].push(gone);
     emit(game, { type: 'discard', playerId: player.playerId, sourceId: gone.instanceId, definitionId: gone.definitionId, cost: true });
   }
+  // Alternative costs of the "rather than pay this spell's mana cost" family (game/alt-costs.js).
+  for (const o of action.altPayOps || []) {
+    if (o.op === 'gain-life') { const q = game.players.find(x => x.playerId === o.playerId); if (q) { q.life += Number(o.amount || 0); emit(game, { type: 'life-gained', playerId: q.playerId, amount: Number(o.amount || 0), controllerId: q.playerId, sourceId: card.instanceId }); } continue; }
+    const at = locate(deck, o.id);
+    if (!at) throw new Error('A card chosen to pay the cost is gone.');
+    if (o.op === 'tap') { if (at.z !== 'battlefield' || at.card.tapped) throw new Error('The creature chosen to tap is gone.'); at.card.tapped = true; continue; }
+    if (o.op === 'discard') { const to = graveyardDestination(game, at.card); const [gone] = at.a.splice(at.i, 1); gone.zone = to; deck[to].push(gone); emit(game, { type: 'discard', playerId: player.playerId, sourceId: gone.instanceId, definitionId: gone.definitionId, cost: true }); continue; }
+    if (o.op === 'exile-gy') game.leftGraveyard = { ...(game.leftGraveyard || {}), [player.playerId]: game.turnNumber };
+    moveCard(game, o.id, o.op === 'return' ? 'hand' : o.op === 'sacrifice' ? 'graveyard' : 'exile', { onEvent: e => emit(game, { ...e, cost: true }), ...(o.op === 'sacrifice' ? { moveReason: 'sacrifice' } : {}) });
+  }
   delete card.onAdventure;
   delete card.foretold;
   delete card.foretoldTurn;
@@ -490,6 +500,7 @@ function payAbilityCosts(game, player, action, deck) {
       const def = defFor(game, selfHit.card), fromController = selfHit.card.controllerId || player.playerId, wasTapped = !!selfHit.card.tapped;
       const [sacrificed] = selfHit.a.splice(selfHit.i, 1);
       const last = leaveBattlefield(sacrificed);
+      action.sacLastCounters = { ...(last.counters || {}) };   // "the number of charge counters on this artifact" (Ratchet Bomb) reads what it had as it was sacrificed
       sacrificed.zone = 'graveyard';
       sacrificed.tapped = false;
       const owner = ownerFor(game, sacrificed, player);
@@ -509,6 +520,7 @@ function putAbilityOnStack(game, player, action, deck) {
   const obj = { id: action.stackId || `stack:${Date.now()}:${Math.random()}`, kind: 'ability', controllerId: player.playerId, sourceId: action.instanceId, sourceDefinitionId: source?.definitionId || action.sourceDefinitionId || null, effects: structuredClone(action.effects || []), effectBindings: structuredClone(action.effectBindings || {}), searchResult: structuredClone(action.searchResult || null), manaColor: action.manaColor || null, manaAmount: action.manaAmount || 1, label: action.label || 'Activated ability', guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString() };
   { const tag = sourceTag(game, { definitionId: obj.sourceDefinitionId }); if (tag) obj.effectBindings.sourceTag = tag; }
   if (globalThis.__dbg) console.log('ABIL', obj.sourceDefinitionId, JSON.stringify(obj.effectBindings), JSON.stringify(obj.effects));   // mana this ability adds remembers what made it (Treasure)
+  if (action.sacLastCounters) { obj.effectBindings = { ...(obj.effectBindings || {}), eventCounters: action.sacLastCounters }; delete action.sacLastCounters; }
   game.stack.push(obj);
   emit(game, { type: 'ability-activated', sourceId: action.instanceId, definitionId: obj.sourceDefinitionId, controllerId: player.playerId, stackId: obj.id });
   return obj;

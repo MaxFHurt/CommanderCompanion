@@ -31,6 +31,7 @@ import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { cardFitsWords } from '../engine/effects-catalog.js';
 import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
+import { stripAltPay, altPayChoose } from './alt-costs.js';
 
 /** Source qualities targeting checks need (protection, hexproof from a color). */
 const sourceOf = def => ({ colors: def?.colors || [], typeLine: def?.typeLine || '', name: def?.name || '' });
@@ -226,6 +227,7 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
   t = t.replace(/(?:If it'?s not your turn, )?You may (?:pay \d+ life and )?exile an? \w+ card from your hand rather than pay this spell'?s mana cost\.\s*/gi, '');
   t = t.replace(/(?:If [^,.]+, )?you may (?:pay (?:\{[^}]+\})+|pay \d+ life|sacrifice an? [a-z ]+?) rather than pay this spell'?s mana cost(?: if [^.]+)?\.\s*/gi, '');
+  t = stripAltPay(t);
   t = t.replace(/\s*If (?:this spell|it) was kicked, ([^.]+)\./gi, (all, clause) => {
     if (!kicked) return '';
     const dmg = clause.match(/^it deals (\w+) damage instead$/i);
@@ -409,7 +411,7 @@ function runPlay(game, op, ask) {
 
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
-  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
+  let altPayOps = [], altPayX = null, sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
   // Force of Will / Force of Negation: exile a blue card from your hand instead of paying mana.
   if (mode.exileColor) {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(mode.exileColor))
@@ -433,6 +435,7 @@ function runPlay(game, op, ask) {
     }
   }
   if (mode.altLife) lifeForCost += Number(mode.altLife);
+  if (mode.altPay) { const r = altPayChoose(game, player, card, mode.altPay, ask, def.name); altPayOps = r.ops; if (r.X != null) altPayX = r.X; }
   if (mode.altSacrifice) {
     const words = mode.altSacrifice.split(/\s+/);
     const fits = c => { const d = defOf(game, c), t = String(d?.typeLine || '').toLowerCase(); return words.every(w => w === 'nontoken' ? !c.token : w === 'token' ? !!c.token : /^(white|blue|black|red|green)$/.test(w) ? (d?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w]) : w === 'permanent' || t.includes(w)); };
@@ -540,7 +543,7 @@ function runPlay(game, op, ask) {
       if (picked.length && !affordable(extraCost)) throw new GameError('You can’t pay all of those splice costs.');
     }
   }
-  const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
+  const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : altPayX != null ? { X: altPayX } : {};
   // Addendum: "If you cast this spell during your main phase" (checked as it resolves).
   if (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase)) bindings.castInMain = true;
   if (giftTo) {
@@ -679,7 +682,7 @@ function runPlay(game, op, ask) {
     effectBindings: { ...bindings, sourceId: card.instanceId }, asEntersChoices: asEnters, guidedResolution: guided,
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
-    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
+    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, altPayOps, exileOnLeave: !!mode.exileAfter, adventure,
     offspring, squadCount, bargained: !!bargainId, disturbed: mode.id === 'disturb',
     bestowed: mode.id === 'bestow',
     prototype: mode.prototype ? { ...mode.prototype, manaValue: Object.entries(parseManaCost(mode.prototype.cost)).reduce((n, [k, v]) => n + (k === 'generic' ? Number(v) : ['W', 'U', 'B', 'R', 'G', 'C'].includes(k) ? Number(v) : 0), 0), colors: [...new Set((mode.prototype.cost.match(/\{([WUBRG])\}/g) || []).map(x => x[1]))] } : null,

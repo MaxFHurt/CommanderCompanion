@@ -9,6 +9,7 @@ import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestin
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
 import { parseCountB101, parseAmountB101, evalAmountB101, bindAmountPlayerB101, amountNeedsPlayerB101, bindTargetControllerB101 } from './amounts-b101.js';
+import { shieldFitsB111, evalAmountB111 } from './effects-b111.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -257,6 +258,7 @@ export function setTapped(card, tap) {
 /** Extra tests on a mass move: "that are one or more colors", "that aren't of the chosen type", "with mana value 2 or less". */
 function zoneEachExtra(game, card, effect, bindings) {
   const d = definitionFor(game, card);
+  if (effect.mvMode) { const v = Number(d?.manaValue ?? d?.cmc ?? 0), lim = Number(arguments[4] || 0); if (effect.mvMode === 'le' ? v > lim : v !== lim) return false; }   // "mana value X or less" / "equal to the number of charge counters" (build 111)
   if (effect.colored && !(d?.colors || []).length) return false;
   if (effect.notChosenType) {
     const t = String(bindings.chosenCreatureType || locateCardInGame(game, bindings.sourceId)?.card?.chosenCreatureType || '');
@@ -484,6 +486,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const v = resolveAmount(game, controllerId, amount.of, bindings);
     return amount.round === 'up' ? Math.ceil(v / 2) : Math.floor(v / 2);
   }
+  if (String(amount.kind).startsWith('b111-')) return evalAmountB111(game, controllerId, amount, bindings);
   const b101 = evalAmountB101(game, controllerId, amount, bindings, { definitionFor, locateCardInGame, effectivePower, effectiveToughness, hasKeyword, resolveAmount });
   if (b101 !== undefined) return b101;
   return 0;
@@ -630,7 +633,7 @@ function preventDamage(game, targetId, amount, sourceId = null) { let left = Mat
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0 || !shieldFitsB111(game, shield, targetId, sourceId))
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
   if (shield.countPrevented) { game.preventedCount = game.preventedCount || {}; const k = `${game.turnNumber}:${targetId}`; game.preventedCount[k] = Number(game.preventedCount[k] || 0) + used; }   // "for each 1 damage prevented this way"
@@ -1207,7 +1210,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       const ids = [];
       for (const p of players)
         for (const c of [...(p.deck?.battlefield || [])])
-          if (cardMatchesFilter(game, c, effect.filter || 'permanent') && zoneEachExtra(game, c, effect, bindings))
+          if (cardMatchesFilter(game, c, effect.filter || 'permanent') && zoneEachExtra(game, c, effect, bindings, amount))
             ids.push(c.instanceId);
       for (const id of ids) {
         const hit = locateCardInGame(game, id);

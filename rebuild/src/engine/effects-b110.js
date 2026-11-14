@@ -4,6 +4,7 @@
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, whereXExpr, moveCard, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness, pruneWhileTapped } from './combat.js';
 import { resyncManaSource } from './transactions.js';
+import { compileB111Clause, compileB111Sequence, applyB111, gatherB111 } from './effects-b111.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -285,7 +286,7 @@ export function compileB110Clause(c, ctx) {
       return true;
     }
   }
-  return false;
+  return compileB111Clause(c, ctx);
 }
 
 
@@ -453,7 +454,7 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     }
     return { part: { effects: out, requirements: reqs, unsupported: [] }, consumed };
   }
-  return null;
+  return compileB111Sequence(clauses, i, { sourceName, parts });
 }
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
@@ -629,7 +630,7 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       notes.push(`${me.displayName} reveals ${definitionFor(game, top)?.name || 'a card'}.`);
       return true;
     }
-    default: return false;
+    default: return applyB111(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -695,7 +696,7 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
     bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label}.`, options: rows })) : null;
     return true;
   }
-  return false;
+  return gatherB111(game, ctx, req, bindings, ask, key, title, base, util);
 }
 
 const cnt = w => numberFromText(w) ?? Number(w);
@@ -772,6 +773,7 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
     case 'b110-target-word': { const id = bindings.lastTarget || bindings.target0 || bindings.thatCard; const h = id && locateCardInGame(game, id); const tl = definitionFor(game, h?.card)?.typeLine || ''; return !!h && new RegExp(`\\b${effect.word}\\b`).test(tl) && (!effect.noun || effect.noun === 'permanent' || new RegExp(`\\b${effect.noun}\\b`, 'i').test(tl)); }   // the target as it last was (Icequake: the land destroyed, now in the graveyard)
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
+    case 'b111-stack-mv-x': return resolveAmount(game, controllerId, { kind: 'stack-mana-value', stackBind: effect.stackBind }, bindings) === resolveAmount(game, controllerId, 'X', bindings);
     default: return undefined;
   }
 }
