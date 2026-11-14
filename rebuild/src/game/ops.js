@@ -925,6 +925,17 @@ function runActivate(game, op, ask) {
       costMoveIds.push(...picked); bindings.costCount = picked.length;
     }
   }
+  // "Sacrifice X Squirrels / X other creatures / X lands" (build 111): X was chosen above; that many matching permanents are sacrificed as a cost.
+  { const sx = String(ability.cost || '').match(/Sacrifice X (other )?([A-Za-z -]+?)(?:,|$)/i);
+    if (sx && !ability.sacrificesSelf) {
+      const word = sx[2].trim().replace(/s$/i, ''), n = Math.max(0, Number(bindings.X || 0));
+      const rows = player.deck.battlefield.filter(c => (sx[1] || /^creature$/i.test(word) ? c.instanceId !== card.instanceId : true) && new RegExp(`\\b${word.replace(/[^A-Za-z -]/g, '')}s?\\b`, 'i').test(`${defOf(game, c)?.typeLine || ''} ${defOf(game, c)?.name || ''}`));
+      if (rows.length < n && !force) throw new GameError(`You need ${n} ${word.toLowerCase()}${n === 1 ? '' : 's'} to sacrifice.`);
+      if (n > 0 && rows.length) {
+        const picked = rows.length === n ? rows.map(c => c.instanceId) : ask('cost:sacrifice-x', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose ${n} ${word.toLowerCase()}${n === 1 ? '' : 's'} to sacrifice.`, min: Math.min(n, rows.length), max: Math.min(n, rows.length), options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+        costMoveIds.push(...[].concat(picked)); bindings.costCount = [].concat(picked).length;
+      }
+    } }
   const rmAll = String(ability.cost || '').match(/Remove all ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
   if (rmAll) {
     const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));

@@ -5168,4 +5168,13 @@ section('batch 5 (build 111): control for as long as …');
   check('Mind Flayer: the creature goes back when the source is gone', mine && theirs, JSON.stringify([mine, theirs]));
 }
 
+section('batch 5 (build 111): Sacrifice X as a cost');
+{
+  const t = setup(); const src = onField(t, 'Fog Bank', '{G}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.', { typeLine: 'Creature — Squirrel' });
+  const s1 = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Squirrel' }), s2 = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Squirrel' }), bear = onField(t, 'Mulldrifter', '', {}, 1);
+  activate(t, src, 0, [[d => d.kind === 'number', () => 2], [d => d.key.includes('sacrifice-x'), d => d.options.slice(0, 2).map(o => o.id)], [d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const left = t.P(0).deck.battlefield.filter(c => /Squirrel/.test(def(t, c).typeLine)).length;
+  check('Sacrifice X Squirrels: X = 2, two Squirrels are sacrificed as the cost (the source stays)', left <= 1 && power(t, bear) >= 0, JSON.stringify([left, power(t, bear)]));
+}
+
 done();

@@ -48,6 +48,15 @@
 29. ☐ Composer of Spring / Court of Bounty: with fewer than six enchantments (or not the monarch) expect one question offering lands only; with six enchantments (or as the monarch) one question offering creatures and lands.
 30. ☐ Scion of Draco with a white, a blue and a green creature → expect vigilance on the white one, hexproof on the blue one, trample on the green one (Scion itself has none).
 31. ☐ Alchemist's Talent at level 3: sacrifice a Treasure for mana, cast a spell with it → each opponent takes damage equal to its mana value; cast the same spell with lands only → no damage.
+## Rules long tail, batch 5 (build 111): alternative costs, prevention, reveal-X, control-while
+32. ☐ Hand holds Gush (or Daze, Fireblast, Foil, Snag) → expect an extra "Return two Islands / Sacrifice two Mountains / Discard an Island card … instead" cast option, then a question to pick the lands or cards; no mana is paid.
+33. ☐ Hand holds Blazing Shoal (or another Shoal) and a red card → expect "Exile a red card (mana value X) from your hand instead"; X is that card's mana value.
+34. ☐ With a Plains: Angelic Favor / Ramosian Rally offer "Tap an untapped creature you control instead"; Angelic Favor is refused outside combat.
+35. ☐ Cast Scent of Ivy (or a Seer's ability) → expect a choose-many of your green cards to reveal (none allowed); the pump equals the number chosen.
+36. ☐ Cleave card (Fierce Retribution): two cast options (normal, Cleave); with Cleave the bracketed word ("attacking") no longer limits the target.
+37. ☐ Forfend / Thwart the Enemy / Vine Snare / Defend the Hearth: damage that should be prevented is prevented for the rest of the turn.
+38. ☐ Mind Flayer, Helm of Possession, Sower of Temptation: the stolen creature returns when the condition ends (source leaves, untaps, or stops being controlled); Helm's ability is offered with an opposing creature in play.
+39. ☐ Valiant creature (Heartfire Hero): targeting it with your spell gives one counter the first time each turn only.
 ## Accounts (build 110)
 A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
 A2. ☐ Close and reopen the app → expect no sign-in again.

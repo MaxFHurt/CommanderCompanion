@@ -367,6 +367,8 @@ export function validatePlay({ game, player, definition, instance, kind = 'cast'
   const instantSpeed = /\bInstant\b/i.test(type) || hasFlash || (player?.temporaryPermissions || []).some(x => x?.kind === 'flash');
   if (kind !== 'land' && /Cast this spell only during (?:the )?combat\b/i.test(String(definition?.oracleText || '')) && !['begin-combat', 'declare-attackers', 'declare-blockers', 'combat-damage', 'end-combat'].includes(game?.phase))
     reasons.push('This spell can be cast only during combat.');
+  if (kind !== 'land' && /Cast this spell only during combat on an opponent'?s turn/i.test(String(definition?.oracleText || '')) && game?.activePlayerId === player?.playerId)
+    reasons.push('This spell can be cast only during an opponent\'s turn.');
   if (kind === 'land') {
     if (!active || !main || !stackEmpty)
       reasons.push('A land can normally be played only during your own main phase while the stack is empty.');

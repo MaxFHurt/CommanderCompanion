@@ -120,6 +120,13 @@ export function compileB111Clause(c, ctx) {
     const r = H.compileEffectText(`Gain control of ${m[1]}.`, { sourceName }), t = r.supported && r.requirements.find(q => q.kind === 'target');
     if (t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') { requirements.push(...r.requirements); effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'tapped' }); return true; }
   }
+  // --- "Return X target creature cards from your graveyard to your hand / the battlefield." (Death Denied, Shattered Crypt, Wake the Dead, Entreat the Dead)
+  if ((m = c.match(/^Return X target ([a-z ]*?)cards? from your graveyard to (your hand|the battlefield)\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: m[1].trim(), max: 'X', min: 0, label: `up to X ${m[1].trim()} cards in your graveyard (X as paid)` });
+    effects.push(/battlefield/i.test(m[2]) ? { kind: 'graveyard-to-battlefield-many', bind, tapped: false } : { kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
   // --- Combat damage prevention: "… dealt to players" (Defend the Hearth), "… target creature would deal" (Falling Timber), "… dealt to and dealt by …" (Cephalid Illusionist), "… by creatures with power 4 or less" (Vine Snare)
   if (/^Prevent all combat damage that would be dealt to players this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'players' }); return true; }
   if ((m = c.match(/^Prevent all combat damage ((?:another )?target creature) would deal this turn\.?$/i))) { effects.push({ kind: 'prevent-combat', scope: 'by-card', bind: H.targetRequirement(requirements, m[1].toLowerCase(), m[1].toLowerCase()) }); return true; }
