@@ -4435,4 +4435,13 @@ section('build 110 (long tail batch 4)');
   check('damage prevention from a chosen source: other sources hit, the chosen one once not', afterGreen === life0 - 3 && afterRed === afterGreen && afterRed2 === afterRed - 3, JSON.stringify([life0, afterGreen, afterRed, afterRed2]));
 }
 
+{
+  // Conspire: tap two untapped creatures sharing a colour with the spell, and the spell is copied
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { colors: ['U'] }), b = onField(t, 'Llanowar Elves', '', { colors: ['U'] });
+  const life0 = t.P(0).life;
+  cast(t, 'Opt', 'Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)\nYou gain 3 life.', [[d => d.key.includes('conspire'), () => [a.instanceId, b.instanceId]]], { colors: ['U'] });
+  check('conspire: both creatures tapped and the spell copied (6 life, not 3)', a.tapped && b.tapped && t.P(0).life === life0 + 6, `${life0} -> ${t.P(0).life} ${a.tapped}${b.tapped}`);
+}
+
 done();
