@@ -148,7 +148,10 @@ function leaveBattlefield(card, to = 'graveyard') {
   clearCastState(card, to);
   return last;
 }
+/** What kind of source made a mana ("mana from a Treasure was spent"): the subtypes after the dash of its type line (Treasure, Food, Clue …). */
+function sourceTag(game, card) { const d = defFor(game, card), t = `${String(d?.typeLine || '').split('—')[1] || ''} ${/^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(d?.name || '') ? d.name : ''}`; return t.trim() ? t.trim().split(/\s+/).filter(x => /^(?:Treasure|Food|Clue|Blood|Gold|Powerstone)$/.test(x)).join(' ') || null : null; }
 function payMana(game, player, payment) {
+  player.mana.spentTags = [];
   if (!payment)
     return;
   const lifePayment = Math.max(0, Number(payment.__lifePayment || 0));
@@ -182,7 +185,15 @@ function payMana(game, player, payment) {
     if (spare) addMana(player, color, spare);
   };
   const spend = (color, n) => { player.mana.floating[color] = Math.max(0, Number(player.mana.floating[color] || 0) - n); player.mana.available[color] = Math.max(0, Number(player.mana.available[color] || 0) - n); };
-  const fromPool = (color, need) => { const use = Math.min(need, Math.max(0, Number(player.mana.floating?.[color] || 0))); if (use) spend(color, use); return need - use; };
+  // Mana from a tagged source (a sacrificed Treasure) is spent first, and the tag goes with the spell ("if mana from a Treasure was spent to cast it").
+  const fromPool = (color, need) => {
+    const use = Math.min(need, Math.max(0, Number(player.mana.floating?.[color] || 0)));
+    if (use) {
+      spend(color, use);
+      for (let k = 0, left = use; k < (player.mana.tags || []).length && left > 0; ) { const t = player.mana.tags[k]; if (t.color === color) { player.mana.spentTags.push(t.tag); player.mana.tags.splice(k, 1); left--; } else k++; }
+    }
+    return need - use;
+  };
   player.mana.floating = player.mana.floating || { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
   for (const [color, raw] of Object.entries(payment)) {
     if (color.startsWith('__'))
@@ -238,7 +249,7 @@ function payMana(game, player, payment) {
     emit(game, { type: 'life-lost', playerId: player.playerId, amount: lifePayment, controllerId: player.playerId, phyrexianPayment: true });
   }
 }
-function addMana(player, color, amount = 1) { const n = Number(amount || 0); player.mana.available[color] = Number(player.mana.available[color] || 0) + n; player.mana.floating = player.mana.floating || { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }; player.mana.floating[color] = Number(player.mana.floating[color] || 0) + n; }
+function addMana(player, color, amount = 1, tag = null) { const n = Number(amount || 0); if (tag && n > 0) { player.mana.tags = player.mana.tags || []; for (let k = 0; k < n; k++) player.mana.tags.push({ color, tag }); } player.mana.available[color] = Number(player.mana.available[color] || 0) + n; player.mana.floating = player.mana.floating || { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }; player.mana.floating[color] = Number(player.mana.floating[color] || 0) + n; }
 function setTappedWithCapacity(game, player, card, nextTapped) { const next = !!nextTapped, prev = !!card.tapped; if (prev === next) {
   card.tapped = next;
   return;
@@ -346,6 +357,7 @@ function putSpellOnStack(game, player, action, deck) {
     card.castMode = action.castMode;
   delete card.plotted; delete card.plottedTurn; delete card.suspended; delete card.graveyardCastPermission;   // leaving exile/graveyard ends plot, suspend, permissions
   card.wasCast = true;   // "if you cast it" (The One Ring); forgotten when it changes zones again
+  card.castFromZone = action.fromZone || 'hand';   // Fblthp, the Lost: "was cast from your library"
   if (action.kicked) {
     card.kicked = true;
     card.kickCount = Number(action.kickCount || 1);
@@ -396,8 +408,9 @@ function putSpellOnStack(game, player, action, deck) {
   // the colours of mana spent on it (Sunburst)
   stackObject.colorsSpent = [...new Set([...Object.entries(action.payment || {}).filter(([k, v]) => /^[WUBRG]$/.test(k) && Number(v) > 0).map(([k]) => k), ...(action.payment?.__sourceAssignments || []).map(a => a.color).filter(c => /^[WUBRG]$/.test(c))])];
   const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
+  stackObject.manaFrom = [...new Set(player.mana.spentTags || [])];   // the kinds of source the mana came from (Treasure)
   stackObject.manaSpentCount = manaSpent;   // "the amount of mana spent to cast this spell"
-  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
+  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, manaFrom: stackObject.manaFrom, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
@@ -494,6 +507,8 @@ function putAbilityOnStack(game, player, action, deck) {
   const source = payAbilityCosts(game, player, action, deck);
   game.stack = game.stack || [];
   const obj = { id: action.stackId || `stack:${Date.now()}:${Math.random()}`, kind: 'ability', controllerId: player.playerId, sourceId: action.instanceId, sourceDefinitionId: source?.definitionId || action.sourceDefinitionId || null, effects: structuredClone(action.effects || []), effectBindings: structuredClone(action.effectBindings || {}), searchResult: structuredClone(action.searchResult || null), manaColor: action.manaColor || null, manaAmount: action.manaAmount || 1, label: action.label || 'Activated ability', guidedResolution: structuredClone(action.guidedResolution || null), createdAt: new Date().toISOString() };
+  { const tag = sourceTag(game, { definitionId: obj.sourceDefinitionId }); if (tag) obj.effectBindings.sourceTag = tag; }
+  if (globalThis.__dbg) console.log('ABIL', obj.sourceDefinitionId, JSON.stringify(obj.effectBindings), JSON.stringify(obj.effects));   // mana this ability adds remembers what made it (Treasure)
   game.stack.push(obj);
   emit(game, { type: 'ability-activated', sourceId: action.instanceId, definitionId: obj.sourceDefinitionId, controllerId: player.playerId, stackId: obj.id });
   return obj;
@@ -501,10 +516,11 @@ function putAbilityOnStack(game, player, action, deck) {
 function applySearchResult(game, player, obj) {
   const deck = player.deck;
   // Several colours at once: "Add {W}{U}." (Signets), "For each color among permanents you control, add one mana of that color." (Bloom Tender)
+  const tag = sourceTag(game, { definitionId: obj.sourceDefinitionId });
   if (obj.manaMix?.length)
-    for (const c of obj.manaMix) addMana(player, c, 1);
+    for (const c of obj.manaMix) addMana(player, c, 1, tag);
   else if (obj.manaColor)
-    addMana(player, obj.manaColor, obj.manaAmount || 1);
+    addMana(player, obj.manaColor, obj.manaAmount || 1, tag);
   const search = obj.searchResult;
   if (!search)
     return;
@@ -523,6 +539,7 @@ function applySearchResult(game, player, obj) {
   if (to === 'battlefield') {
     searched.controllerId = player.playerId;
     searched.enteredTurn = game.turnNumber;
+    searched.enteredFrom = 'library';
     searched.controlSinceTurn = game.turnNumber;
     searched.tapped = !!search.entersTapped;
   }
@@ -698,7 +715,7 @@ function rebuildAvailableFromSources(game, player) {
   }
   if (player.keepManaTurn === game.turnNumber) for (const c of Object.keys(fixed)) fixed[c] += Math.max(0, Number(player.mana.floating?.[c] || 0));
   player.mana.available = fixed;
-  if (!(player.keepManaTurn === game.turnNumber)) player.mana.floating = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };   // Birgi: kept until end of turn
+  if (!(player.keepManaTurn === game.turnNumber)) { player.mana.floating = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }; player.mana.tags = []; }   // Birgi: kept until end of turn
 }
 function resetManaAtBoundary(game) { for (const p of game.players || [])
   rebuildAvailableFromSources(game, p); }
@@ -1058,7 +1075,7 @@ export function createTransactionEngine(game) {
         if (opts.length && action.color && !opts.includes(action.color))
           throw new Error('That mana source cannot produce the chosen color.');
         setTappedWithCapacity(game, player, hit.card, true);
-        addMana(player, action.color, action.amount || 1);
+        addMana(player, action.color, action.amount || 1, sourceTag(game, hit.card));
         emit(game, { type: 'tapped', sourceId: hit.card.instanceId, definitionId: hit.card.definitionId, controllerId: player.playerId });
       }
       else if (action.type === 'activate-ability') {
@@ -1067,6 +1084,8 @@ export function createTransactionEngine(game) {
         if (!hit || hit.z !== 'battlefield')
           throw new Error('Ability source must be on the battlefield');
         const card = hit.card;
+        action.sourceDefinitionId = action.sourceDefinitionId || card.definitionId;   // the mana it adds is tagged with what made it (Treasure), also when the source is sacrificed as a cost
+        { const tag = sourceTag(game, card); if (tag) action.effectBindings = { ...(action.effectBindings || {}), sourceTag: tag }; }
         if (action.requiresTap) {
           if (card.tapped)
             throw new Error('Ability source is already tapped');

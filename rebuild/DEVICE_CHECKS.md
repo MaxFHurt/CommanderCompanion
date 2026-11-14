@@ -42,4 +42,11 @@
 25. ☐ Cast Flame Spill (4 damage) on a 2/2 → expect the creature to die and its controller to lose 2 life.
 26. ☐ Cast Touch of Darkness (or Sway of Illusion) on several creatures → expect them to show as black (or the colour you picked) until end of turn.
 
+## Library searches for several cards, instead-sentences, colour keywords, Treasure mana (build 110, batch 4 sent-back fixes)
+27. ☐ Play Tiamat (or Omenpath Journey, Oreskos Explorer) → expect one choose-many question listing the matching cards (several, up to the limit), names that repeat are refused, the chosen cards go to hand (or exile for Omenpath), and the library is shuffled.
+28. ☐ Play Burning-Rune Demon → expect "search?" then two cards of different names; the opponent's phone is asked which one goes to your hand (the other goes to your graveyard).
+29. ☐ Composer of Spring / Court of Bounty: with fewer than six enchantments (or not the monarch) expect one question offering lands only; with six enchantments (or as the monarch) one question offering creatures and lands.
+30. ☐ Scion of Draco with a white, a blue and a green creature → expect vigilance on the white one, hexproof on the blue one, trample on the green one (Scion itself has none).
+31. ☐ Alchemist's Talent at level 3: sacrifice a Treasure for mana, cast a spell with it → each opponent takes damage equal to its mana value; cast the same spell with lands only → no damage.
+
 Reply with the numbers that failed and a screenshot.

@@ -170,6 +170,7 @@ export function effectiveToughness(card, def, game = null) {
 }
 /** "Your life total can't change" (Teferi's Protection until your next turn, Flare of Fortitude this turn). */
 export function lifeFixed(game, p) { return !!p?.lifeLocked && (p.lifeLockedTurn == null || p.lifeLockedTurn === game?.turnNumber); }
+const COLOUR_KEYWORDS = /^Each creature you control has [a-z ]+ if it'?s (?:white|blue|black|red|green)\b/i;
 export function cardHasKeyword(card, def, name, game = null) {
   pruneWhileTapped(game);
   const n = String(name || ''), low = n.toLowerCase();
@@ -179,7 +180,7 @@ export function cardHasKeyword(card, def, name, game = null) {
   if ((def?.keywords || []).some(x => String(x).toLowerCase() === low))
     return true;
   // Keyword text on the card (lines that only grant it "as long as …" are checked by conditionalSelf below).
-  if (new RegExp(`\\b${n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '').split('\n').filter(l => !/\bas long as\b/i.test(l)).join('\n')))
+  if (new RegExp(`\\b${n.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i').test(String(def?.oracleText || '').split('\n').filter(l => !/\bas long as\b/i.test(l) && !COLOUR_KEYWORDS.test(l)).join('\n')))
     return true;
   if (tempEffects(card, 'keyword').some(e => e.enabled !== false && String(e.keyword || '').toLowerCase() === low))
     return true;
@@ -190,6 +191,14 @@ export function cardHasKeyword(card, def, name, game = null) {
     for (const { source, text } of staticSources(game, targetController))
       {
         for (const line of text.split('\n')) {
+          // Scion of Draco: "Each creature you control has vigilance if it's white, hexproof if it's blue, …" (per colour of the creature)
+          if (COLOUR_KEYWORDS.test(line)) {
+            for (const part of line.replace(/^Each creature you control has /i, '').replace(/\.$/, '').split(/,\s*(?:and\s+)?|\s+and\s+(?=[a-z ]+ if it)/i)) {
+              const g = part.trim().match(/^([a-z ]+?) if it'?s (white|blue|black|red|green)$/i);
+              if (g && g[1].toLowerCase() === low && (def?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[g[2].toLowerCase()])) return true;
+            }
+            continue;
+          }
           const m = line.match(/^(Other\s+)?(.*?creatures?) you control (?:get [+-]\d+\/[+-]\d+ and )?(?:have|gain) ([A-Za-z][A-Za-z ,-]+)(?:\.|$)/i);
           if (!m)
             continue;

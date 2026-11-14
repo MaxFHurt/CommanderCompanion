@@ -4880,6 +4880,88 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
     const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });
     applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: bear.instanceId });
     check("Domain pump (Gaea's Might): +1/+1 for each basic land type (Forest, Island = 2)", power(t, bear) === 4 && tough(t, bear) === 4, JSON.stringify([power(t, bear), tough(t, bear)])); }
+  // Several-card library searches (up to X, up to five with different names, exactly two with an opponent choosing, exile, dies trigger power)
+  const srch = d => d.kind === 'choose-many' && /search your library/i.test(d.title);
+  const saved = [], retype = (t, c, line) => { const d = def(t, c); saved.push([d, d.typeLine]); d.typeLine = line; }, restore = () => { for (const [d, line] of saved.splice(0)) d.typeLine = line; };   // definitions are shared between games
+  { const t = setup(); const lib = t.P(0).deck.remainingLibrary, by = n => lib.filter(c => def(t, c).name === n);
+    retype(t, by('Forest')[0], 'Basic Land — Dragon'); retype(t, by('Air Elemental')[0], 'Creature — Dragon'); retype(t, by('Elvish Visionary')[0], 'Creature — Dragon');
+    const f = by('Forest'), air = by('Air Elemental')[0], elf = by('Elvish Visionary')[0], prompts = [];
+    cast(t, 'Grizzly Bears', 'When this creature enters, search your library for up to five Dragon cards not named Grizzly Bears that each have different names, reveal them, put them into your hand, then shuffle.', [
+      [srch, d => { prompts.push([d.prompt, d.options.length, d.max]); return prompts.length === 1 ? [f[0].instanceId, f[1].instanceId, air.instanceId] : [f[0].instanceId, air.instanceId, elf.instanceId]; }]], { typeLine: 'Creature — Bear' });
+    const hand = t.names(0, 'hand');
+    check('Tiamat: the Dragons offered (at most the 3 different names); two of the same name is refused and asked again; then three different cards reach the hand', prompts.length === 2 && prompts[0][1] > 30 && prompts[0][2] === 3 && /different/.test(prompts[1][0]) && ['Forest', 'Air Elemental', 'Elvish Visionary'].every(n => hand.includes(n)), JSON.stringify([prompts, hand])); restore(); }
+
+  { const t = setup(); retype(t, t.P(0).deck.remainingLibrary.find(c => def(t, c).name === 'Evolving Wilds'), 'Land — Plains');
+    for (let i = 0; i < 3; i++) t.give(1, 'Forest', 'battlefield'); for (let i = 0; i < 3; i++) t.give(1, 'Island', 'battlefield');
+    t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield');   // 9 lands: one player has more than you
+    const before = t.names(0, 'hand').length, asks = [];
+    cast(t, 'Grizzly Bears', 'When this creature enters, search your library for up to X Plains cards, where X is the number of players who control more lands than you. Reveal those cards, put them into your hand, then shuffle.', [[srch, d => { asks.push([d.max, d.options.length]); return d.options.slice(0, d.max).map(o => o.id); }]], { typeLine: 'Creature — Cat Scout' });
+    const hand = t.names(0, 'hand');
+    check('Oreskos Explorer: X = 1 (one opponent has more lands), one Plains found into the hand', asks.length === 1 && asks[0][0] === 1 && hand.includes('Evolving Wilds') && asks[0][1] === 1, JSON.stringify([asks, hand])); restore(); }
+
+  { const t = setup(); const lib = t.P(0).deck.remainingLibrary, by = n => lib.filter(c => def(t, c).name === n), seen = [];
+    const air = by('Air Elemental')[0], elf = by('Elvish Visionary')[0], mull = by('Mulldrifter')[0], f = by('Forest');
+    cast(t, 'Grizzly Bears', 'When this creature enters, you may search your library for exactly two cards not named Grizzly Bears that have different names. If you do, reveal those cards. An opponent chooses one of them. Put the chosen card into your hand and the other into your graveyard, then shuffle.', [
+      [srch, d => { seen.push([d.playerId, d.min, d.max]); return [air.instanceId, elf.instanceId]; }],
+      [d => d.kind === 'choose-one' && /choose a card/i.test(d.title), d => { seen.push(['opp', d.playerId, d.options.map(o => o.label)]); return d.options.find(o => o.label === 'Elvish Visionary').id; }]], { typeLine: 'Creature — Demon' });
+    check('Burning-Rune Demon: exactly two found; the opponent chooses; Elvish Visionary to hand, Air Elemental to graveyard', seen[0][1] === 2 && seen[0][2] === 2 && seen[1][0] === 'opp' && seen[1][1] === t.P(1).playerId && t.names(0, 'hand').includes('Elvish Visionary') && !t.names(0, 'hand').includes('Air Elemental') && t.names(0, 'graveyard').includes('Air Elemental'), JSON.stringify([seen, t.names(0, 'hand'), t.names(0, 'graveyard')])); restore(); }
+
+  { const t = setup(); const f = t.P(0).deck.remainingLibrary.filter(c => def(t, c).name === 'Forest'), cmd = t.P(0).deck.remainingLibrary.find(c => def(t, c).name === 'Command Tower');
+    const isl = t.P(0).deck.remainingLibrary.filter(c => def(t, c).name === 'Island');
+    const e = cast(t, 'Fog Bank', 'When this enchantment enters, search your library for up to five land cards that have different names, exile them, then shuffle.\nAt the beginning of your end step, choose a card at random exiled with this enchantment and put it onto the battlefield tapped.',
+      [[srch, d => [f[0].instanceId, isl[0].instanceId, cmd.instanceId]]], { typeLine: 'Enchantment', manaCost: '{1}{G}', power: undefined, toughness: undefined });
+    const ex = t.names(0, 'exile');
+    check('Omenpath Journey: three lands with different names exiled (not put in hand); still in exile, linked to it', ex.length === 3 && ex.includes('Command Tower') && !t.names(0, 'hand').includes('Command Tower') && (t.bf(0, 'Fog Bank')?.linkedExile || []).length === 3, JSON.stringify([ex, t.bf(0, 'Fog Bank')?.linkedExile])); restore(); }
+
+  { const t = setup(); const f = t.P(0).deck.remainingLibrary.filter(c => def(t, c).name === 'Forest'); const before = t.bf ? 0 : 0; const lands = t.P(0).deck.battlefield.length;
+    cast(t, 'Fog Bank', 'When this enchantment enters, search your library for up to X basic land cards, where X is the number of Shrines you control. Put those cards onto the battlefield tapped, then shuffle.\nWhenever another Shrine you control enters, search your library for a basic land card, put it onto the battlefield tapped, then shuffle.',
+      [[srch, d => d.options.slice(0, d.max).map(o => o.id)]], { typeLine: 'Legendary Enchantment — Shrine', manaCost: '{1}{G}', power: undefined, toughness: undefined });
+    const tapped = t.P(0).deck.battlefield.filter(c => c.tapped && /Basic/.test(def(t, c).typeLine) && c.enteredTurn === t.game.turnNumber).length;
+    check('Kyoshi Island Plaza: X = 1 Shrine (itself): one basic land onto the battlefield tapped', t.P(0).deck.battlefield.length === lands + 2 && tapped >= 1, JSON.stringify([lands, t.P(0).deck.battlefield.length, tapped])); restore(); }
+
+  { const t = setup(); const rr = onField(t, 'Grizzly Bears', 'This creature enters with two +1/+1 counters on it.\nWhen this creature dies, search your library for up to X basic land cards, where X is this creature\'s power, put them onto the battlefield, then shuffle.', { power: '0', toughness: '0' });
+    rr.counters = { '+1/+1': 2 }; const lands = t.P(0).deck.battlefield.length, asks = [];
+    cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => rr.instanceId], [srch, d => { asks.push(d.max); return d.options.slice(0, d.max).map(o => o.id); }]], { manaCost: '{U}', typeLine: 'Instant' });
+    check('Rampant Rejuvenator: dies with two counters (power 2): up to 2 basic lands onto the battlefield', asks[0] === 2 && t.P(0).deck.battlefield.length === lands - 1 + 2, JSON.stringify([asks, lands, t.P(0).deck.battlefield.length])); restore(); }
+
+  // Court of Bounty / Composer of Spring: "If <condition>, instead you may put a creature or land card from your hand": only the sentence that runs is asked
+  { const run = monarch => { const t = setup(); const court = onField(t, 'Fog Bank', 'At the beginning of your upkeep, you may put a land card from your hand onto the battlefield. If you\'re the monarch, instead you may put a creature or land card from your hand onto the battlefield.', { typeLine: 'Enchantment' });
+      if (monarch) t.P(0).statuses = [...(t.P(0).statuses || []), 'Monarch'];
+      t.give(0, 'Mulldrifter'); t.give(0, 'Command Tower'); const asked = [];
+      t.autoPass = true; t.end(0); t.end(1); t.autoPass = false;
+      settle(t, [[d => /land card/i.test(d.prompt + d.title) && d.options, d => { asked.push(d.options.map(o => o.label)); const o = d.options.find(x => x.label === 'Mulldrifter') || d.options[0]; return d.kind === 'choose-many' ? [o.id] : o.id; }]]);
+      return { asked, bf: t.names(0, 'battlefield') }; };
+    const a = run(false), b = run(true);
+    check('Court of Bounty: not the monarch asks once, lands only (Command Tower); the monarch asks once, creatures too (Mulldrifter)', a.asked.length === 1 && a.asked[0].includes('Command Tower') && !a.asked[0].includes('Mulldrifter') && b.asked.length === 1 && b.asked[0].includes('Mulldrifter') && b.bf.includes('Mulldrifter'), JSON.stringify([a, b])); }
+  { const t = setup(); onField(t, 'Fog Bank', 'Constellation — Whenever an enchantment you control enters, you may put a land card from your hand onto the battlefield tapped. If you control six or more enchantments, instead you may put a creature or land card from your hand onto the battlefield tapped.', { typeLine: 'Creature — Satyr Bard' });
+    t.give(0, 'Mulldrifter'); t.give(0, 'Command Tower'); t.give(0, 'Evolving Wilds'); const asked = [];
+    cast(t, 'Naturalize', 'Hexproof', [[d => /land card/i.test(d.prompt + d.title) && d.options, d => { asked.push(d.options.map(o => o.label)); const o = d.options.find(x => x.label === 'Command Tower'); return d.kind === 'choose-many' ? [o.id] : o.id; }]], { typeLine: 'Enchantment', manaCost: '{G}' });
+    const tower = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Command Tower');
+    check('Composer of Spring: fewer than six enchantments: one question, lands only; the land enters tapped', asked.length === 1 && JSON.stringify(asked[0].sort()) === '["Command Tower","Evolving Wilds"]' && tower && tower.tapped, JSON.stringify([asked, t.names(0, 'battlefield')])); }
+  // Fblthp, the Lost: draws two when it entered from the library (or was cast from it), otherwise one
+  { const text = 'When this creature enters, draw a card. If it entered from your library or was cast from your library, draw two cards instead.';
+    const t = setup(); const before = t.P(0).deck.hand.length; cast(t, 'Grizzly Bears', text, [], { typeLine: 'Creature — Homunculus' });
+    const fromHand = t.P(0).deck.hand.length - before;
+    const t2 = setup(); const bear = t2.P(0).deck.remainingLibrary.find(c => def(t2, c).name === 'Elvish Visionary'); asText(t2, bear, text, { typeLine: 'Creature — Homunculus' });
+    const b2 = t2.P(0).deck.hand.length; cast(t2, 'Opt', 'Search your library for a creature card, put it onto the battlefield, then shuffle.', [[d => /search/i.test(d.title + d.prompt) && d.options, d => d.kind === 'choose-many' ? [bear.instanceId] : bear.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+    check('Fblthp, the Lost: one card when cast from hand, two when it entered from the library', fromHand === 1 && t2.P(0).deck.hand.length - b2 === 2, JSON.stringify([fromHand, t2.P(0).deck.hand.length - b2])); }
+  // Scion of Draco: colour-conditional keywords for each creature you control (and none for the colourless Scion itself)
+  { const t = setup(); const scion = onField(t, 'Fog Bank', "Flying\nEach creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green.", { typeLine: 'Artifact Creature — Dragon', colors: [], keywords: ['Flying'], power: '4', toughness: '4' });
+    const wu = onField(t, 'Grizzly Bears', '', { colors: ['W', 'U'], keywords: [] }), br = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf', colors: ['B', 'R'], keywords: [] }), g = onField(t, 'Mulldrifter', '', { colors: ['G'], keywords: [] }, 0);
+    const opp = onField(t, 'Air Elemental', '', { colors: ['W'], keywords: [] }, 1);
+    const ks = c => ['Vigilance', 'Hexproof', 'Lifelink', 'First strike', 'Trample'].filter(k => has(t, c, k)).join(',');
+    check('Scion of Draco: white-blue gets vigilance+hexproof, black-red lifelink+first strike, green trample; Scion itself and an opponent\'s white creature get nothing', ks(wu) === 'Vigilance,Hexproof' && ks(br) === 'Lifelink,First strike' && ks(g) === 'Trample' && ks(scion) === '' && ks(opp) === '', JSON.stringify([ks(wu), ks(br), ks(g), ks(scion), ks(opp)])); }
+  // Alchemist's Talent: mana from a Treasure is tagged in the pool and the tag goes with the spell cast
+  { const run = useTreasure => { const t = setup(); const text = "Whenever you cast a spell, if mana from a Treasure was spent to cast it, this enchantment deals damage equal to that spell's mana value to each opponent.";
+      onField(t, 'Fog Bank', text, { typeLine: 'Enchantment' });
+      applyEffects(t.game, t.P(0).playerId, compileEffectText('Create a Treasure token.', { sourceName: 'Test' }).effects, { sourceId: null });
+      const tr = t.P(0).deck.battlefield.find(c => c.token && /Treasure/.test(def(t, c).typeLine));
+      if (useTreasure) { const ab = parseActivatedAbilities(def(t, tr)).find(a => a.manaAbility); const r = t.ctl.dispatch({ type: 'activate', instanceId: tr.instanceId, abilityId: ab.id }, t.as(0)); if (!r.ok) throw new Error(r.error); settle(t, [[d => d.kind === 'choose-one' && /color/i.test(d.prompt + d.title), () => 'G']]); }
+      const life = t.P(1).life;
+      cast(t, 'Grizzly Bears', '', [], { typeLine: 'Creature — Bear', manaCost: '{1}{G}' });
+      return [life - t.P(1).life, !!t.bf(0, 'Grizzly Bears'), t.P(0).deck.battlefield.some(c => c.token && /Treasure/.test(def(t, c).typeLine))]; };
+    const a = run(true), b = run(false);
+    check("Alchemist's Talent: Grizzly Bears (mana value 2) paid with Treasure mana: 2 damage; paid with lands only: none", a[0] === 2 && a[1] && !a[2] && b[0] === 0 && b[1], JSON.stringify([a, b])); }
 }
 
 done();
