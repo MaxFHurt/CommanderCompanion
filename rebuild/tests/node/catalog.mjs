@@ -4374,7 +4374,7 @@ section('build 110 (long tail batch 4)');
   const small = onField(t, 'Grizzly Bears', '', {}, 1), big = onField(t, 'Llanowar Elves', '', { power: '6', toughness: '6' }, 1);
   const ids = candidatesFor(t.game, { kind: 'target', scope: "target creature with power less than or equal to this creature's power" }, t.P(0), src).map(r => r.id);
   check('power limit from the source: only creatures within it are offered', ids.includes(small.instanceId) && !ids.includes(big.instanceId), JSON.stringify(ids));
-  const r1 = compileEffectText("Target creature with power less than the number of cards in your graveyard gains flying until end of turn.", { sourceName: 'Test Card' });
+  const r1 = compileEffectText("Target creature with power less than the number of cards in target player's graveyard gains flying until end of turn.", { sourceName: 'Test Card' });
   check('a limit that cannot be enforced is not read', !r1.supported);
   const r2 = compileEffectText('Tap target creature an opponent controls and put three stun counters on it.', { sourceName: 'Test Card' });
   check('tap and stun counters: both instructions kept on one target', r2.supported && r2.effects.length === 2 && r2.effects[1].counter === 'stun' && r2.effects[1].bind === r2.effects[0].bind, JSON.stringify(r2.effects));
@@ -4483,6 +4483,7 @@ section('build 110 (long tail batch 4)');
   const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
   check('Lay Down Arms: 4 Plains -> mana value 4 offered, 6 not', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId), JSON.stringify(offered));
   check('Lay Down Arms: the target\'s controller gains 3 life, the caster does not', t.P(1).life === 43 && t.P(0).life === 40, `${t.P(0).life}/${t.P(1).life}`);
+  fd.typeLine = 'Basic Land — Forest';
 }
 {
   // Penance-style: only black or red sources can be chosen
@@ -4555,6 +4556,25 @@ section('build 110 (long tail batch 4)');
   const seen = activate(t, al, 0, [[d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
   const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
   check('Legacy\'s Allure (activated): power 2 offered with 2 counters, 6 not; the creature is taken', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId) && t.P(0).deck.battlefield.some(c => c.instanceId === lo.instanceId), JSON.stringify(offered));
+}
+
+{
+  // Temporary Insanity / Threaten: untap and take it until end of turn (not a "control of it" keyword); the limit counts your graveyard
+  const t = setup();
+  for (let i = 0; i < 3; i++) { const c = t.P(0).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(0).deck.graveyard.push(c); }
+  const lo = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1), hi = onField(t, 'Colossal Dreadmaw', '', { power: '6', toughness: '6' }, 1);
+  lo.tapped = true;
+  const seen = cast(t, 'Opt', 'Untap target creature with power less than the number of cards in your graveyard and gain control of it until end of turn. That creature gains haste until end of turn.', [[d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Temporary Insanity: power 2 < graveyard count offered, power 6 not; untapped and taken', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId) && !lo.tapped && t.P(0).deck.battlefield.some(c => c.instanceId === lo.instanceId), JSON.stringify([offered.length, lo.tapped]));
+}
+{
+  // Sundering Archaic (converge): the limit is the number of colours of mana spent on it
+  const t = setup();
+  const small = onField(t, 'Llanowar Elves', '', { manaValue: 1, cmc: 1 }, 1), big = onField(t, 'Colossal Dreadmaw', '', { manaValue: 5, cmc: 5 }, 1);
+  const seen = cast(t, 'Grizzly Bears', 'Converge — When this creature enters, exile target nonland permanent an opponent controls with mana value less than or equal to the number of colors of mana spent to cast this creature.', [[d => d.targeting || d.kind === 'choose-one', () => small.instanceId]]);
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Sundering Archaic: limit by colours spent -> mana value 1 offered, 5 not', offered.includes(small.instanceId) && !offered.includes(big.instanceId), JSON.stringify(offered));
 }
 
 done();

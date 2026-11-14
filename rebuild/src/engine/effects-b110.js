@@ -173,10 +173,11 @@ export function compileB110Clause(c, ctx) {
     const r = sub(`${m[1]}.`), q = r?.requirements.find(x => x.kind === 'multi-target'), e = r?.effects.find(x => x.bind === q?.bind);
     if (r && q && e && r.effects.length === 1) return take({ effects: [...r.effects, { kind: 'b101-each-bound', bind: q.bind, effects: [{ kind: 'counter', bind: '__each', counter: m[4].toLowerCase(), amount: num(m[3]) }] }], requirements: r.requirements });
   }
-  // --- "Untap target creature with power less than … and gain control of it until end of turn." (Temporary Insanity)
-  if ((m = c.match(/^untap (target creature with (?:power|toughness|mana value) (?:less|greater) than .+?) and gain control of it until end of turn\.?$/i))) {
-    const r = sub(`Untap ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
-    if (r && t) return take({ effects: [...r.effects, { kind: 'gain-control', bind: t.bind, untilEndOfTurn: true }], requirements: r.requirements });
+  // --- "Gain control of target creature with power less than … until end of turn." / "Untap target creature (with power less than …) and gain control of it until end of turn." (Threaten, Temporary Insanity)
+  //     The older reading made "control of it" a keyword the creature gains.
+  if ((m = c.match(/^(untap )?gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than .+?)?) until end of turn\.?$/i)) || (m = c.match(/^(untap) (target [a-z ,'-]+?(?: with (?:power|toughness|mana value) (?:less|greater) than .+?)?) and gain control of (?:it|that creature) until end of turn\.?$/i))) {
+    const r = sub(`Gain control of ${m[2]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') return take({ effects: [...(m[1] ? [{ kind: 'untap', bind: t.bind }] : []), { kind: 'gain-control', bind: t.bind, untilEndOfTurn: true }], requirements: r.requirements });
   }
   // --- "The next time a red source of your choice would deal damage to you this turn, prevent that damage." (Circle of Protection) / "Prevent all damage a source of your choice would deal this turn."
   {
