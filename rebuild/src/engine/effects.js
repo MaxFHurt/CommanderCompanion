@@ -9,6 +9,7 @@ import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestin
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
 import { parseCountB101, parseAmountB101, evalAmountB101, bindAmountPlayerB101, amountNeedsPlayerB101, bindTargetControllerB101 } from './amounts-b101.js';
+import { shieldFitsB111, evalAmountB111 } from './effects-b111.js';
 
 // Regular expressions built from a card's name are made once and kept (building them is the slow part of compiling).
 const RX_CACHE = new Map();
@@ -257,6 +258,7 @@ export function setTapped(card, tap) {
 /** Extra tests on a mass move: "that are one or more colors", "that aren't of the chosen type", "with mana value 2 or less". */
 function zoneEachExtra(game, card, effect, bindings) {
   const d = definitionFor(game, card);
+  if (effect.mvMode) { const v = Number(d?.manaValue ?? d?.cmc ?? 0), lim = Number(arguments[4] || 0); if (effect.mvMode === 'le' ? v > lim : v !== lim) return false; }   // "mana value X or less" / "equal to the number of charge counters" (build 111)
   if (effect.colored && !(d?.colors || []).length) return false;
   if (effect.notChosenType) {
     const t = String(bindings.chosenCreatureType || locateCardInGame(game, bindings.sourceId)?.card?.chosenCreatureType || '');
@@ -484,6 +486,7 @@ export function resolveAmount(game, controllerId, amount, bindings = {}) {
     const v = resolveAmount(game, controllerId, amount.of, bindings);
     return amount.round === 'up' ? Math.ceil(v / 2) : Math.floor(v / 2);
   }
+  if (String(amount.kind).startsWith('b111-')) return evalAmountB111(game, controllerId, amount, bindings);
   const b101 = evalAmountB101(game, controllerId, amount, bindings, { definitionFor, locateCardInGame, effectivePower, effectiveToughness, hasKeyword, resolveAmount });
   if (b101 !== undefined) return b101;
   return 0;
@@ -630,7 +633,7 @@ function preventDamage(game, targetId, amount, sourceId = null) { let left = Mat
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0 || !shieldFitsB111(game, shield, targetId, sourceId))
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
   if (shield.countPrevented) { game.preventedCount = game.preventedCount || {}; const k = `${game.turnNumber}:${targetId}`; game.preventedCount[k] = Number(game.preventedCount[k] || 0) + used; }   // "for each 1 damage prevented this way"
@@ -786,7 +789,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
     if (effect.kind === 'prevent-combat') {
       game.combatPrevention = (game.combatPrevention || []).filter(x => x.turn === game.turnNumber);
       const id = ['card', 'by-card', 'to-card'].includes(effect.scope) ? resolveBoundId(effect, bindings) : null;
-      game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id });
+      game.combatPrevention.push({ turn: game.turnNumber, scope: effect.scope, playerId: effect.scope === 'you' ? controllerId : null, cardId: id, ...(effect.limit != null ? { limit: effect.limit } : {}) });
       notes.push(effect.scope === 'all' ? 'All combat damage is prevented this turn.' : effect.scope === 'you' ? `Combat damage to ${controller.displayName} is prevented this turn.` : effect.scope === 'by-card' ? 'Combat damage that creature would deal is prevented this turn.' : effect.scope === 'to-card' ? 'Combat damage to that creature is prevented this turn.' : 'Combat damage to and from that creature is prevented this turn.');
       continue;
     }
@@ -1207,7 +1210,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       const ids = [];
       for (const p of players)
         for (const c of [...(p.deck?.battlefield || [])])
-          if (cardMatchesFilter(game, c, effect.filter || 'permanent') && zoneEachExtra(game, c, effect, bindings))
+          if (cardMatchesFilter(game, c, effect.filter || 'permanent') && zoneEachExtra(game, c, effect, bindings, amount))
             ids.push(c.instanceId);
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
@@ -2112,7 +2115,7 @@ export function limitOf(text) {
   return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
 }
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
-const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
+const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b|\bfor as long as\b/i;
 function compileSingleClause(clause, opts = {}) {
   // "you may have this creature deal 3 damage to target creature" (Sand Strangler): the older damage wording took "You may have this creature" as the source and never asked.
   const mayHave = stripReminderText(normalizeClause(clause)).match(/^You may have (SELFNAME|this [a-z]+|it|that creature) (deal .+)$/i);
@@ -3212,6 +3215,9 @@ function compileThenClause(clause, opts) {
     compiled[0].effects.push({ kind: 'sacrifice', bind: src.sourceBind });
     compiled.splice(1, 1);
   }
+  // "Put a +1/+1 counter on ~, then it deals damage equal to its power to any target." (Captain Ripley Vance): "it" is the creature the counter went on, not the event's card (build 111).
+  if (compiled[0]?.effects?.some(e => e.kind === 'counter' && e.bind === 'sourceId') && compiled[1]?.effects?.[0]?.kind === 'damage-from-selected-creature' && compiled[1].effects[0].sourceBind === 'b101It')
+    compiled[1].effects[0] = { ...compiled[1].effects[0], sourceBind: 'sourceId' };
   return mergeCompiled(compiled);
 }
 function compileAndClause(clause, opts) {
@@ -3540,7 +3546,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     }
     // "Create a 0/1 Eldrazi Spawn token. It has "Sacrifice this token: Add {C}."" — the token gets that ability.
     const quoted = clause.match(/^(?:It|They|That token|Those tokens|The token|The tokens) (?:has|have) "(.+)"\.?$/i);
-    const madeToken = quoted && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
+    const madeToken = quoted && !/\bbands? with\b/i.test(quoted[1]) && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
     if (madeToken) { madeToken.oracleText = [madeToken.oracleText, quoted[1].replace(/"$/, '')].filter(Boolean).join('\n'); continue; }
     // Tragic Slip: "Morbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
     const instead = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);

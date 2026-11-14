@@ -4964,4 +4964,229 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
     check("Alchemist's Talent: Grizzly Bears (mana value 2) paid with Treasure mana: 2 damage; paid with lands only: none", a[0] === 2 && a[1] && !a[2] && b[0] === 0 && b[1], JSON.stringify([a, b])); }
 }
 
+section('batch 5 (build 111): global prevention, land lock, library/graveyard wordings');
+{
+  // Forfend / Thwart the Enemy: shields for creatures, or from the opponents' creatures
+  const t = setup();
+  const mine = onField(t, 'Grizzly Bears', ''), theirs = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' }, 1);
+  cast(t, 'Fog Bank', 'Prevent all damage that would be dealt to creatures this turn.', [], { typeLine: 'Instant', manaCost: '{1}{G}' });
+  const hit = (src, tgt, who) => applyEffects(t.game, who, [{ kind: 'damage', amount: 2, bind: 'tgt', sourceName: 'x' }], { sourceId: src, tgt });
+  hit(theirs.instanceId, mine.instanceId, t.P(1).playerId); const life0 = t.P(0).life; hit(theirs.instanceId, t.P(0).playerId, t.P(1).playerId);
+  check('Forfend: damage to a creature is prevented, damage to a player is not', !(mine.damage > 0) && t.P(0).life === life0 - 2, JSON.stringify([mine.damage, life0, t.P(0).life]));
+}
+{
+  const t = setup();
+  const mine = onField(t, 'Grizzly Bears', ''), theirs = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' }, 1);
+  cast(t, 'Fog Bank', 'Prevent all damage that would be dealt this turn by creatures your opponents control.', [], { typeLine: 'Instant', manaCost: '{2}{G}' });
+  const hit = (src, tgt, who) => applyEffects(t.game, who, [{ kind: 'damage', amount: 2, bind: 'tgt', sourceName: 'x' }], { sourceId: src, tgt });
+  const life0 = t.P(0).life; hit(theirs.instanceId, t.P(0).playerId, t.P(1).playerId); const afterTheirs = t.P(0).life;
+  hit(mine.instanceId, t.P(1).playerId, t.P(0).playerId);
+  check('Thwart the Enemy: the opponent\'s creature deals no damage; mine still does', afterTheirs === life0 && t.P(1).life === 38, JSON.stringify([life0, afterTheirs, t.P(1).life]));
+}
+{
+  // Turf Wound: the chosen player can't play lands this turn
+  const t = setup(); t.give(0, 'Forest');
+  cast(t, 'Fog Bank', 'Target player can\'t play lands this turn.', [[d => d.options && d.options.some(o => o.id === t.P(0).playerId), () => t.P(0).playerId]], { typeLine: 'Instant', manaCost: '{2}{G}' });
+  const land = t.hand(0, 'Forest'); const r = t.ctl.dispatch({ type: 'play', instanceId: land.instanceId }, t.as(0));
+  check('Turf Wound: the player can\'t play a land this turn', !r.ok, JSON.stringify(r).slice(0, 120));
+}
+{
+  // Traumatize: half the library, rounded down
+  const t = setup(); const n = t.P(1).deck.remainingLibrary.length, gy = t.P(1).deck.graveyard.length;
+  cast(t, 'Fog Bank', 'Target player mills half their library, rounded down.', [[d => d.options && d.options.some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]], { typeLine: 'Sorcery', manaCost: '{3}{U}' });
+  check('Traumatize: the target mills half their library, rounded down', t.P(1).deck.graveyard.length - gy === Math.floor(n / 2) && t.P(1).deck.remainingLibrary.length === n - Math.floor(n / 2), JSON.stringify([n, t.P(1).deck.graveyard.length - gy]));
+}
+{
+  // Ratchet Bomb: destroys each nonland permanent whose mana value equals the charge counters (the bomb itself is sacrificed first)
+  const t = setup();
+  const bomb = onField(t, 'Fog Bank', '{T}: Put a charge counter on this artifact.\n{T}, Sacrifice this artifact: Destroy each nonland permanent with mana value equal to the number of charge counters on this artifact.', { typeLine: 'Artifact', manaCost: '{2}' });
+  bomb.counters = { charge: 2 };
+  const two = onField(t, 'Grizzly Bears', '', { manaValue: 2 }), three = onField(t, 'Llanowar Elves', '', { manaValue: 3 }, 1), two2 = onField(t, 'Mulldrifter', '', { manaValue: 2 }, 1);
+  activate(t, bomb, 1);
+  check('Ratchet Bomb: two charge counters destroy the two-mana-value permanents only', !t.bf(0, 'Grizzly Bears') && !t.bf(1, 'Mulldrifter') && !!t.bf(1, 'Llanowar Elves'), JSON.stringify([t.names(0, 'battlefield'), t.names(1, 'battlefield')]));
+}
+{
+  // Gaze of Granite: X = 2
+  const t = setup(); const lo = onField(t, 'Grizzly Bears', '', { manaValue: 2 }), hi = onField(t, 'Llanowar Elves', '', { manaValue: 4 });
+  cast(t, 'Fog Bank', 'Destroy each nonland permanent with mana value X or less.', [[d => d.kind === 'number', () => 2]], { typeLine: 'Sorcery', manaCost: '{X}{G}' });
+  check('Gaze of Granite: X = 2 destroys the two-mana-value creature, keeps the four', !t.bf(0, 'Grizzly Bears') && !!t.bf(0, 'Llanowar Elves'), JSON.stringify(t.names(0, 'battlefield')));
+}
+{
+  // Shallow Grave: the top creature card of the graveyard returns with haste, exiled at the next end step
+  const t = setup(); const a = t.give(0, 'Grizzly Bears'); const b = t.give(0, 'Mulldrifter');
+  for (const c of [a, b]) { const x = t.hand(0, c === a ? 'Grizzly Bears' : 'Mulldrifter'); moveCard(t.game, x.instanceId, 'graveyard'); }
+  cast(t, 'Fog Bank', 'Return the top creature card of your graveyard to the battlefield. That creature gains haste until end of turn. Exile it at the beginning of the next end step.', [], { typeLine: 'Instant', manaCost: '{1}{G}' });
+  const top = t.bf(0, 'Mulldrifter');
+  check('Shallow Grave: the card put in last (Mulldrifter) returns with haste; Grizzly Bears stays', !!top && has(t, top, 'Haste') && !t.bf(0, 'Grizzly Bears') && (t.game.delayedTriggers || []).length === 1, JSON.stringify([t.names(0, 'battlefield'), top && has(t, top, 'Haste')]));
+}
+{
+  // Biorhythm: each life total becomes the number of creatures that player controls
+  const t = setup(); onField(t, 'Grizzly Bears', ''); onField(t, 'Mulldrifter', ''); onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' }, 1);
+  cast(t, 'Fog Bank', 'Each player\'s life total becomes the number of creatures they control.', [], { typeLine: 'Sorcery', manaCost: '{6}{G}{G}' });
+  check('Biorhythm: 2 creatures and 1 creature', t.P(0).life === 2 && t.P(1).life === 1, JSON.stringify([t.P(0).life, t.P(1).life, t.names(1, 'battlefield')]));
+}
+{
+  // Brand: permanents I own come back
+  const t = setup(); const mine = onField(t, 'Grizzly Bears', '', {}, 1); mine.ownerId = t.P(0).playerId;
+  cast(t, 'Fog Bank', 'Gain control of all permanents you own.', [], { typeLine: 'Instant', manaCost: '{G}' });
+  check('Brand: the creature I own returns to my control', t.P(0).deck.battlefield.some(c => c.instanceId === mine.instanceId), JSON.stringify([t.names(0, 'battlefield'), t.names(1, 'battlefield')]));
+}
+
+section('batch 5 (build 111): alternative costs (lands, cards from hand, tapping, opponents\' life)');
+{
+  // Gush: return two Islands, no mana, draw two
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; }); const isl0 = t.P(0).deck.battlefield.filter(c => /Island/.test(def(t, c).typeLine)).length; const hand0 = t.P(0).deck.hand.length;
+  cast(t, 'Opt', "You may return two Islands you control to their owner's hand rather than pay this spell's mana cost.\nDraw two cards.", [[d => d.key.includes('castMode'), 'alt-cost']], { manaCost: '{4}{U}', typeLine: 'Instant' });
+  const isl1 = t.P(0).deck.battlefield.filter(c => /Island/.test(def(t, c).typeLine)).length;
+  check('Gush: two Islands returned to hand, two cards drawn, no mana paid', isl0 - isl1 === 2 && t.P(0).deck.hand.length === hand0 + 4, JSON.stringify([isl0, isl1, hand0, t.P(0).deck.hand.length]));
+}
+{
+  // Fireblast: sacrifice two Mountains (none: not offered)
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; }); t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), "You may sacrifice two Mountains rather than pay this spell's mana cost.\nTest Card deals 4 damage to any target.", { manaCost: '{4}{R}{R}', typeLine: 'Instant' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0)); const d = t.decision();
+  check('Fireblast: with no Mountains the alternative cost is not offered', !r.ok || !(d?.options || []).some(o => o.id === 'alt-cost'), JSON.stringify([r.ok, d?.options?.map(o => o.id)]));
+}
+{
+  // Blazing Shoal: exile a red card with mana value X from hand; the pump is +X/+0
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; }); const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Mulldrifter'); const red = t.hand(0, 'Mulldrifter'); asText(t, red, '', { colors: ['R'], manaValue: 3 });
+  cast(t, 'Opt', "You may exile a red card with mana value X from your hand rather than pay this spell's mana cost.\nTarget creature gets +X/+0 until end of turn.", [[d => d.key.includes('castMode'), 'alt-cost'], [d => d.targeting, () => bear.instanceId]], { manaCost: '{X}{R}{R}', typeLine: 'Instant' });
+  check('Blazing Shoal: the red card (mana value 3) is exiled, the creature gets +3/+0', power(t, bear) === 5 && t.names(0, 'exile').includes('Mulldrifter'), JSON.stringify([power(t, bear), t.names(0, 'exile')]));
+}
+{
+  // Angelic Favor: only with a Plains; tap an untapped creature instead of paying; only during combat
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; }); const bear = onField(t, 'Grizzly Bears', ''); onField(t, 'Forest', '', { typeLine: 'Basic Land — Plains' });
+  t.give(0, 'Opt'); asText(t, t.hand(0, 'Opt'), "Cast this spell only during combat.\nIf you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost.\nCreatures you control get +1/+1 until end of turn.", { manaCost: '{3}{W}', typeLine: 'Instant' });
+  const r0 = t.ctl.dispatch({ type: 'play', instanceId: t.hand(0, 'Opt').instanceId }, t.as(0));
+  const d0b = t.decision(); check('Angelic Favor: cannot be cast outside combat', !r0.ok || !d0b || (d0b.options || []).every(o => o.disabled), JSON.stringify([r0.ok, d0b?.options]).slice(0, 300));
+}
+{
+  // Invigorate: with a Forest, an opponent gains 3 life instead of paying; +4/+4
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; }); const bear = onField(t, 'Grizzly Bears', ''); const life = t.P(1).life;
+  cast(t, 'Opt', "If you control a Forest, rather than pay this spell's mana cost, you may have an opponent gain 3 life.\nTarget creature gets +4/+4 until end of turn.", [[d => d.key.includes('castMode'), 'alt-cost'], [d => d.targeting, () => bear.instanceId]], { manaCost: '{2}{G}{G}', typeLine: 'Instant' });
+  check('Invigorate: the opponent gains 3 life, the creature gets +4/+4, no mana paid', t.P(1).life === life + 3 && power(t, bear) === 6, JSON.stringify([t.P(1).life, life, power(t, bear)]));
+}
+{
+  // Commandeer: gain control of a noncreature spell on the stack
+  const t = setup(); t.P(0).deck.battlefield.forEach(c => { c.tapped = true; });
+  t.give(0, 'Mulldrifter'); t.give(0, 'Island'); const b1 = t.hand(0, 'Mulldrifter'); asText(t, b1, '', { colors: ['U'] }); const b2 = t.hand(0, 'Island'); asText(t, b2, '', { colors: ['U'], typeLine: 'Land' });
+  check('Commandeer: reads as a spell steal on the stack', compileEffectText('Gain control of target noncreature spell. You may choose new targets for it.', { sourceName: 'Commandeer' }).effects[0].kind === 'b111-steal-spell');
+}
+
+section('batch 5 (build 111): reveal-X, same name, creature type, descriptors, Equipment');
+{
+  // Scent of Ivy: reveal two green cards -> +2/+2
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '');
+  for (const n of ['Mulldrifter', 'Llanowar Elves']) { t.give(0, n); asText(t, t.hand(0, n), '', { colors: ['G'] }); }
+  const ids = t.P(0).deck.hand.filter(c => (def(t, c).colors || []).includes('G') && ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
+  cast(t, 'Opt', 'Reveal any number of green cards in your hand. Target creature gets +X/+X until end of turn, where X is the number of cards revealed this way.', [[d => d.kind === 'choose-many' && /Reveal/.test(d.prompt), () => ids], [d => d.targeting, () => bear.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Scent of Ivy: two green cards revealed -> +2/+2', power(t, bear) === 4, String(power(t, bear)));
+}
+{
+  // Echoing Courage: every creature with the same name
+  const t = setup(); const a = onField(t, 'Grizzly Bears', ''), b = onField(t, 'Mulldrifter', '', { name: 'Grizzly Bears', typeLine: 'Creature — Bear' }), o = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  cast(t, 'Opt', 'Target creature and all other creatures with the same name as that creature get +2/+2 until end of turn.', [[d => d.targeting, () => a.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Echoing Courage: both Grizzly Bears get +2/+2, the Elf does not', power(t, a) === 4 && power(t, b) === 4 && power(t, o) === 1, JSON.stringify([power(t, a), power(t, b), power(t, o)]));
+}
+{
+  // Defensive Maneuvers: chosen type only
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Bear' }), elf = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }), eo = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }, 1);
+  cast(t, 'Opt', 'Creatures of the creature type of your choice get +0/+4 until end of turn.', [[d => /creature type/i.test(d.prompt + d.title), () => 'Elf']], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Defensive Maneuvers: every Elf (either player) gets +0/+4, the Bear does not', tough(t, elf) === 5 && tough(t, eo) === 5 && tough(t, bear) === 2, JSON.stringify([tough(t, elf), tough(t, eo), tough(t, bear)]));
+}
+{
+  // Blastfire Bolt: the Equipment on the creature is destroyed
+  const t = setup(); const bear = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' }, 1), sword = onField(t, 'Fog Bank', '', { typeLine: 'Artifact — Equipment' }, 1); sword.attachedTo = bear.instanceId;
+  cast(t, 'Opt', 'This spell deals 1 damage to target creature. Destroy all Equipment attached to that creature.', [[d => d.targeting, () => bear.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Blastfire Bolt: the attached Equipment is destroyed', !t.bf(1, 'Fog Bank'), JSON.stringify(t.names(1, 'battlefield')));
+}
+{
+  // The Seedcore: only 1/1 targets offered
+  const t = setup(); const one = onField(t, 'Grizzly Bears', '', { power: '1', toughness: '1' }), two = onField(t, 'Llanowar Elves', '', { power: '2', toughness: '2', typeLine: 'Creature — Elf' });
+  const seen = cast(t, 'Opt', 'Target 1/1 creature gets +2/+1 until end of turn.', [[d => d.targeting, () => one.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Target 1/1 creature: the 1/1 is offered, the 2/2 is not', offered.includes(one.instanceId) && !offered.includes(two.instanceId), JSON.stringify(offered.length));
+}
+
+section('batch 5 (build 111): Valiant, Mice');
+{
+  // Heartfire Hero: the first time each turn a spell or ability I control targets it, a +1/+1 counter; the second time nothing
+  const t = setup(); const hero = onField(t, 'Grizzly Bears', 'Valiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it.');
+  const pump = nm => cast(t, nm, 'Target creature gets +1/+1 until end of turn.', [[d => d.targeting, () => hero.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  pump('Opt'); const after1 = Number(hero.counters?.['+1/+1'] || 0); pump('Naturalize'); const after2 = Number(hero.counters?.['+1/+1'] || 0);
+  check('Valiant: one counter for the first targeting this turn, none for the second', after1 === 1 && after2 === 1, JSON.stringify([after1, after2]));
+}
+{
+  const t = setup(); const a = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Mouse' }), b = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  cast(t, 'Opt', 'Mice you control get +1/+0 until end of turn.', [], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Mice you control: the Mouse gets +1/+0, the Elf does not', power(t, a) === 3 && power(t, b) === 1, JSON.stringify([power(t, a), power(t, b)]));
+}
+
+section('batch 5 (build 111): named tokens, combat prevention scopes');
+{
+  const t = setup(); const keep = onField(t, 'Fog Bank', '{2}{R}, {T}, Sacrifice this land: Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.', { typeLine: 'Land', name: 'Kher Keep' });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Create a 0/1 red Kobold creature token named Kobolds of Kher Keep.', { sourceName: 'Kher Keep' }).effects, { sourceId: keep.instanceId });
+  const tok = t.P(0).deck.battlefield.find(c => c.token && /Kobold/.test(def(t, c).typeLine));
+  check('Kher Keep: a 0/1 red Kobold named Kobolds of Kher Keep (not renamed after the land)', !!tok && def(t, tok).name === 'Kobolds of Kher Keep' && power(t, tok) === 0 && tough(t, tok) === 1, JSON.stringify(tok && [def(t, tok).name, power(t, tok), tough(t, tok)]));
+}
+{
+  const t = setup();
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Prevent all combat damage that would be dealt this turn by creatures with power 3 or less.', { sourceName: 'Vine Snare' }).effects, { sourceId: null });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Prevent all combat damage that would be dealt to players this turn.', { sourceName: 'Defend the Hearth' }).effects, { sourceId: null });
+  const cp = t.game.combatPrevention || [];
+  check('combat prevention: the power limit and the players scope are recorded for this turn', cp.some(x => x.scope === 'power-le' && x.limit === 3) && cp.some(x => x.scope === 'players'), JSON.stringify(cp));
+}
+
+section('batch 5 (build 111): Cleave');
+{
+  const t = setup(); const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', 'Cleave {2}{G}\nDestroy target [attacking] creature.', [[d => d.key.includes('castMode'), 'cleave'], [d => d.targeting, () => bear.instanceId]], { manaCost: '{1}{G}{G}{G}', typeLine: 'Instant' });
+  check('Cleave: cast for its cleave cost the bracketed word goes, so a creature that is not attacking is destroyed', !t.bf(1, 'Grizzly Bears'), JSON.stringify(t.names(1, 'battlefield')));
+}
+
+section('batch 5 (build 111): control for as long as …');
+{
+  // Helm of Possession: control only while you control it AND it stays tapped
+  const t = setup();
+  const helm = onField(t, 'Sol Ring', '{2}, {T}: Gain control of target creature for as long as you control this artifact and this artifact remains tapped.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, helm, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  helm.tapped = false; power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('Helm of Possession: taken while tapped, returned when it untaps', mine && theirs, JSON.stringify([mine, theirs]));
+}
+{
+  // Mind Flayer: control ends when the source leaves the battlefield
+  const t = setup();
+  const fl = onField(t, 'Fog Bank', 'When this creature enters, gain control of target creature for as long as you control this creature.', { typeLine: 'Creature — Octopus' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Gain control of target creature for as long as you control this creature.', { sourceName: 'Fog Bank' }).effects, { sourceId: fl.instanceId, target0: bear.instanceId });
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  moveCard(t.game, fl.instanceId, 'graveyard'); power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('Mind Flayer: the creature goes back when the source is gone', mine && theirs, JSON.stringify([mine, theirs]));
+}
+
+section('batch 5 (build 111): Sacrifice X as a cost');
+{
+  const t = setup(); const src = onField(t, 'Fog Bank', '{G}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.', { typeLine: 'Creature — Squirrel' });
+  const s1 = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Squirrel' }), s2 = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Squirrel' }), bear = onField(t, 'Mulldrifter', '', {}, 1);
+  activate(t, src, 0, [[d => d.kind === 'number', () => 2], [d => d.key.includes('sacrifice-x'), d => d.options.slice(0, 2).map(o => o.id)], [d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const left = t.P(0).deck.battlefield.filter(c => /Squirrel/.test(def(t, c).typeLine)).length;
+  check('Sacrifice X Squirrels: X = 2, two Squirrels are sacrificed as the cost (the source stays)', left <= 1 && power(t, bear) >= 0, JSON.stringify([left, power(t, bear)]));
+}
+
+section('batch 5 (build 111): discard X as an additional cost, Return X');
+{
+  // Restless Dreams: discard two cards, return two creature cards from the graveyard
+  const t = setup();
+  for (const n of ['Mulldrifter', 'Llanowar Elves']) { t.give(0, n); const c = t.hand(0, n); moveCard(t.game, c.instanceId, 'graveyard'); }
+  t.give(0, 'Air Elemental'); t.give(0, 'Forest');
+  const handBefore = t.P(0).deck.hand.length;
+  const gyIds = t.P(0).deck.graveyard.filter(c => ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
+  cast(t, 'Opt', 'As an additional cost to cast this spell, discard X cards.\nReturn X target creature cards from your graveyard to your hand.', [[d => d.key.includes('discard-x-n'), () => 2], [d => d.key.includes('cost:discard-x') && d.kind === 'choose-many', d => d.options.slice(0, 2).map(o => o.id)], [d => d.kind === 'choose-many' && /graveyard/i.test(d.prompt + d.title), d => d.options.slice(0, d.max).map(o => o.id)]], { manaCost: '{G}', typeLine: 'Sorcery' });
+  check('Restless Dreams: X = 2 discards two cards and returns up to two creature cards', t.P(0).deck.hand.length === handBefore && t.P(0).deck.graveyard.length === 3, JSON.stringify([handBefore, t.P(0).deck.hand.length, t.P(0).deck.graveyard.map(c => def(t, c).name)]));
+}
+
 done();

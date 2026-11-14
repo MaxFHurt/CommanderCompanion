@@ -31,6 +31,7 @@ import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { cardFitsWords } from '../engine/effects-catalog.js';
 import { effectivePower } from '../engine/combat.js';
 import { DUNGEONS } from '../data/dungeons.js';
+import { stripAltPay, altPayChoose } from './alt-costs.js';
 
 /** Source qualities targeting checks need (protection, hexproof from a color). */
 const sourceOf = def => ({ colors: def?.colors || [], typeLine: def?.typeLine || '', name: def?.name || '' });
@@ -217,8 +218,8 @@ function giftText(t, gift) {
   return t.replace(/^\s+/, '');
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
-export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+export function castText(text, { kicked = false, overload = false, cleave = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Cleave|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -226,6 +227,7 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   t = t.replace(/As an additional cost to cast this spell, [^.]+\.\s*/gi, '');
   t = t.replace(/(?:If it'?s not your turn, )?You may (?:pay \d+ life and )?exile an? \w+ card from your hand rather than pay this spell'?s mana cost\.\s*/gi, '');
   t = t.replace(/(?:If [^,.]+, )?you may (?:pay (?:\{[^}]+\})+|pay \d+ life|sacrifice an? [a-z ]+?) rather than pay this spell'?s mana cost(?: if [^.]+)?\.\s*/gi, '');
+  t = stripAltPay(t);
   t = t.replace(/\s*If (?:this spell|it) was kicked, ([^.]+)\./gi, (all, clause) => {
     if (!kicked) return '';
     const dmg = clause.match(/^it deals (\w+) damage instead$/i);
@@ -235,6 +237,8 @@ export function castText(text, { kicked = false, overload = false, gift = false,
   // "deals 2 damage … If kicked, it deals 4 damage instead."
   t = t.replace(/deals (\w+) damage([^\u0000]*?)\.\s*\u0000(\w+)/g, (all, a, rest, b) => `deals ${b} damage${rest}.`);
   if (overload) t = t.replace(/\btarget\b/g, 'each').replace(/\bTarget\b/g, 'Each');
+  // Cleave (build 111): cast for its cleave cost, the words in square brackets are removed; cast normally, only the brackets go.
+  if (/(?:^|\n)\s*Cleave \{/i.test(String(text || ''))) t = cleave ? t.replace(/\s*\[[^\]]*\]/g, '') : t.replace(/[\[\]]/g, '');
   if (/\bgift (?:was|wasn'?t) promised\b/i.test(t)) t = giftText(t, gift);
   // Surge: "If this spell's surge cost was paid, …"
   if (/surge cost was paid/i.test(t)) t = giftText(t.replace(/If this spell'?s surge cost was paid, /gi, 'If the gift was promised, '), surged);
@@ -409,7 +413,7 @@ function runPlay(game, op, ask) {
 
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
-  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
+  let altPayOps = [], altPayX = null, sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
   // Force of Will / Force of Negation: exile a blue card from your hand instead of paying mana.
   if (mode.exileColor) {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(mode.exileColor))
@@ -433,6 +437,7 @@ function runPlay(game, op, ask) {
     }
   }
   if (mode.altLife) lifeForCost += Number(mode.altLife);
+  if (mode.altPay) { const r = altPayChoose(game, player, card, mode.altPay, ask, def.name); altPayOps = r.ops; if (r.X != null) altPayX = r.X; }
   if (mode.altSacrifice) {
     const words = mode.altSacrifice.split(/\s+/);
     const fits = c => { const d = defOf(game, c), t = String(d?.typeLine || '').toLowerCase(); return words.every(w => w === 'nontoken' ? !c.token : w === 'token' ? !!c.token : /^(white|blue|black|red|green)$/.test(w) ? (d?.colors || []).includes({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w]) : w === 'permanent' || t.includes(w)); };
@@ -440,7 +445,14 @@ function runPlay(game, op, ask) {
     if (!rows.length && !force) throw new GameError(`You need a ${mode.altSacrifice} to sacrifice.`);
     if (rows.length) sacrificeForCost = ask('cost:alt-sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — alternative cost`, prompt: `Sacrifice a ${mode.altSacrifice} instead of paying its mana cost.`, options: rows }));
   }
-  if (addCost?.kind === 'sacrifice') {
+  if (addCost?.kind === 'discard-x') {
+    const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId)
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    const n = rows.length ? Number(ask('cost:discard-x-n', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — discard X cards`, prompt: 'Choose X: you discard that many cards as you cast it.', min: 0, max: rows.length }))) : 0;
+    const picked = n > 0 ? (n === rows.length ? rows.map(r => r.id) : [].concat(ask('cost:discard-x', () => ({ playerId: player.playerId, cancellable: true, private: true, kind: 'choose-many', source: def.name, title: `${def.name} — additional cost`, prompt: `Discard ${n} card${n === 1 ? '' : 's'}.`, options: rows, min: n, max: n })))) : [];
+    for (const id of picked) altPayOps.push({ op: 'discard', id });
+    altPayX = n;
+  } else if (addCost?.kind === 'sacrifice') {
     const rows = player.deck.battlefield.filter(c => addCost.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
     if (!rows.length && !force) throw new GameError(`You need a ${addCost.filters.join(' or ')} to sacrifice.`);
@@ -467,7 +479,7 @@ function runPlay(game, op, ask) {
   }
 
   // The card as cast: face down it is a vanilla 2/2; kicker and overload change what it does.
-  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge', awaken: mode.id === 'awaken' ? Number(mode.awaken || 0) : 0 }) };
+  const castDef = faceDown ? faceDownDefinition(faceDown) : { ...def, oracleText: castText(def.oracleText, { kicked: kickCount > 0, overload: mode.id === 'overload', cleave: mode.id === 'cleave', gift: !!giftTo, bargained: !!bargainId, surged: mode.id === 'surge', awaken: mode.id === 'awaken' ? Number(mode.awaken || 0) : 0 }) };
   const permanent = !isInstantOrSorcery(castDef);
   const asEnters = permanent && !faceDown ? askAsEnters(game, player, def, ask, def.name) : null;
   const tag = [kickCount > 1 ? `kicked ×${kickCount}` : kickCount ? 'kicked' : '', giftTo ? `gift promised to ${playerById(game, giftTo)?.displayName || 'an opponent'}` : '', mode.id !== 'normal' && !faceDown ? mode.label.toLowerCase() : ''].filter(Boolean).join(', ');
@@ -540,7 +552,7 @@ function runPlay(game, op, ask) {
       if (picked.length && !affordable(extraCost)) throw new GameError('You can’t pay all of those splice costs.');
     }
   }
-  const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : {};
+  const bindings = addCost?.kind === 'life-x' ? { X: lifeForCost } : altPayX != null ? { X: altPayX } : {};
   // Addendum: "If you cast this spell during your main phase" (checked as it resolves).
   if (game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase)) bindings.castInMain = true;
   if (giftTo) {
@@ -558,7 +570,7 @@ function runPlay(game, op, ask) {
     bindings.X = ask('x', () => ({ playerId: player.playerId, cancellable: true, kind: 'number', source: def.name, title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: force ? 99 : Math.max(0, Math.floor(pool / printed.X)) }));
     xExtra = bindings.X * printed.X;
   } else if (printed.X && free) bindings.X = 0;
-  const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && printed.X)));
+  const { cast, resolve } = splitRequirements((compiled.requirements || []).filter(r => !(r.kind === 'number' && r.bind === 'X' && (printed.X || altPayX != null))));
   const guidedPicks = guided ? guidedTargets(game, player, castDef, guided.oracleText || castDef.oracleText, bindings, ask) : [];
   if (guided) guided.targets = guidedPicks;
   try {
@@ -679,7 +691,7 @@ function runPlay(game, op, ask) {
     effectBindings: { ...bindings, sourceId: card.instanceId }, asEntersChoices: asEnters, guidedResolution: guided,
     manaCapacityColor: fixed.length === 1 ? fixed[0] : null,
     castMode: free ? 'free' : mode.id, kicked: kickCount > 0, kickCount, faceDown, turnUpCost: mode.turnUpCost || null, megamorph: !!mode.megamorph,
-    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, exileOnLeave: !!mode.exileAfter, adventure,
+    exileFromGraveyard, discardForCost: discardForCost || addDiscard, sacrificeForCost, lifeForCost, exileFromHandForCost, altPayOps, exileOnLeave: !!mode.exileAfter, adventure,
     offspring, squadCount, bargained: !!bargainId, disturbed: mode.id === 'disturb',
     bestowed: mode.id === 'bestow',
     prototype: mode.prototype ? { ...mode.prototype, manaValue: Object.entries(parseManaCost(mode.prototype.cost)).reduce((n, [k, v]) => n + (k === 'generic' ? Number(v) : ['W', 'U', 'B', 'R', 'G', 'C'].includes(k) ? Number(v) : 0), 0), colors: [...new Set((mode.prototype.cost.match(/\{([WUBRG])\}/g) || []).map(x => x[1]))] } : null,
@@ -820,7 +832,8 @@ function runActivate(game, op, ask) {
   const bindings = { sourceId: card.instanceId };
   const xInCost = /\{X\}/i.test(ability.cost);
   const xIsSacrificed = /Sacrifice an? [a-z ]+? with mana value X\b/i.test(ability.cost || '');   // Scrap Welder: X is the sacrificed card's mana value, not chosen
-  if (ability.hasX && !xIsSacrificed) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
+  const xIsDiscarded = /Discard an? [a-z ]*?card with mana value X\b/i.test(ability.cost || '');   // Kozilek, the Great Distortion: X is the discarded card's mana value (build 111)
+  if (ability.hasX && !xIsSacrificed && !xIsDiscarded) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
@@ -890,7 +903,8 @@ function runActivate(game, op, ask) {
     // Mercurial Chemister: "the discarded card's mana value".
     const gone = rows.find(c => c.instanceId === discardedId);
     if (gone) bindings.costDiscardedTypeLine = defOf(game, gone)?.typeLine || '';   // Land's Edge: "if the discarded card was a land card"
-    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
+    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));
+    if (gone && xIsDiscarded) bindings.X = bindings.costManaValue;
   }
 
   // Costs that count what they used (the effect's "… this way" reads bindings.costCount, rules.js writes it "as a cost"):
@@ -918,6 +932,17 @@ function runActivate(game, op, ask) {
       costMoveIds.push(...picked); bindings.costCount = picked.length;
     }
   }
+  // "Sacrifice X Squirrels / X other creatures / X lands" (build 111): X was chosen above; that many matching permanents are sacrificed as a cost.
+  { const sx = String(ability.cost || '').match(/Sacrifice X (other )?([A-Za-z -]+?)(?:,|$)/i);
+    if (sx && !ability.sacrificesSelf) {
+      const word = sx[2].trim().replace(/s$/i, ''), n = Math.max(0, Number(bindings.X || 0));
+      const rows = player.deck.battlefield.filter(c => (sx[1] || /^creature$/i.test(word) ? c.instanceId !== card.instanceId : true) && new RegExp(`\\b${word.replace(/[^A-Za-z -]/g, '')}s?\\b`, 'i').test(`${defOf(game, c)?.typeLine || ''} ${defOf(game, c)?.name || ''}`));
+      if (rows.length < n && !force) throw new GameError(`You need ${n} ${word.toLowerCase()}${n === 1 ? '' : 's'} to sacrifice.`);
+      if (n > 0 && rows.length) {
+        const picked = rows.length === n ? rows.map(c => c.instanceId) : ask('cost:sacrifice-x', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose ${n} ${word.toLowerCase()}${n === 1 ? '' : 's'} to sacrifice.`, min: Math.min(n, rows.length), max: Math.min(n, rows.length), options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+        costMoveIds.push(...[].concat(picked)); bindings.costCount = [].concat(picked).length;
+      }
+    } }
   const rmAll = String(ability.cost || '').match(/Remove all ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
   if (rmAll) {
     const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));

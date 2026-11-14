@@ -10,6 +10,7 @@ import { checkCondition } from '../engine/effects.js';
 import { parseManaCost, validatePlay } from '../engine/rules.js';
 import { defOf, definitionsMap, isLand, opponentsOf } from './helpers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from '../engine/face-down.js';
+import { altPaySpecs, altPayAvailable } from './alt-costs.js';
 
 export { FACE_DOWN_ID, faceDownDefinition };
 
@@ -168,7 +169,7 @@ export function delveCards(player, card) {
 // The ways to cast
 
 const MODE_LABEL = {
-  normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload',
+  normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload', cleave: 'Cleave',
   'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', awaken: 'Awaken', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
 };
 
@@ -196,6 +197,7 @@ export function additionalCost(def) {
   if ((m = text.match(/As an additional cost to cast this spell, sacrifice (?:a|an) ([a-z ]+?)(?: or (?:a|an)? ?([a-z ]+?))?\./i)))
     return { kind: 'sacrifice', filters: [m[1], m[2]].filter(Boolean).map(x => x.trim().toLowerCase()), label: `Sacrifice a ${[m[1], m[2]].filter(Boolean).join(' or ')}` };
   if (/As an additional cost to cast this spell, discard a card\./i.test(text)) return { kind: 'discard', label: 'Discard a card' };
+  if (/As an additional cost to cast this spell, discard X cards\./i.test(text)) return { kind: 'discard-x', label: 'Discard X cards' };   // Restless Dreams, Nostalgic Dreams: X is the number discarded (build 111)
   // Monstrous Emergence, Close Encounter: choose a creature you control or reveal a creature card from your hand (or a warped one in exile); its power is used by the spell.
   if ((m = text.match(/As an additional cost to cast this spell, choose a creature you control or (reveal a creature card from your hand|a warped creature card you own in exile)\./i)))
     return { kind: 'choose-power', warped: /warped/i.test(m[1]), label: /warped/i.test(m[1]) ? 'Choose a creature you control or a warped creature card you own in exile' : 'Choose a creature you control or reveal a creature card from your hand' };
@@ -226,7 +228,7 @@ export function castModes(game, player, card, def, base = null) {
     // Prototype {cost} — P/T: a smaller version (ops.js / overlay.js).
     const proto = String(text).replace(/\([^()]*\)/g, '').match(/(?:^|\n)\s*Prototype ((?:\{[^}]+\})+)\s*[—-]\s*(\d+)\/(\d+)/i);
     if (proto) modes.push({ id: 'prototype', cost: proto[1], prototype: { cost: proto[1], power: proto[2], toughness: proto[3] } });
-    for (const id of ['evoke', 'dash', 'blitz', 'overload']) {
+    for (const id of ['evoke', 'dash', 'blitz', 'overload', 'cleave']) {
       const cost = keywordCost(text, id);
       if (cost) modes.push({ id, cost });
     }
@@ -280,6 +282,7 @@ export function castModes(game, player, card, def, base = null) {
       modes.push({ id: 'alt-cost', cost: alt[3] || '', altLife: alt[4] ? Number(alt[4]) : 0, altLabel: alt[4] ? `Pay ${alt[4]} life instead` : `Pay ${alt[3]} instead` });
     }
   }
+  if (zone === 'hand') for (const spec of altPaySpecs(text)) if (altPayAvailable(game, player, card, spec)) modes.push({ id: 'alt-cost', cost: '', altPay: spec, altLabel: spec.label });
   if (zone === 'graveyard' && card.graveyardCastPermission?.turn === game.turnNumber && card.graveyardCastPermission.playerId === player.playerId && !isLand(def))
     modes.push({ id: card.graveyardCastPermission.free ? 'free-exile' : 'normal', cost: card.graveyardCastPermission.free ? '' : (def?.manaCost || '') });
   if (zone === 'graveyard') {

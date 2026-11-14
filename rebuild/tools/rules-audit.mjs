@@ -111,6 +111,10 @@ for (const [rank, card] of cards.entries()) {
   if (giftSpec(printed) && /Instant|Sorcery/i.test(printed.typeLine || '')) {
     try { const g = analyzeDefinitionSupport({ ...printed, oracleText: castText(printed.oracleText, { gift: true }) }); report.unsupported = [...new Set([...report.unsupported, ...g.unsupported.filter(u => u.startsWith('Spell'))])]; } catch {}
   }
+  // Cleave: the spell must also run with the words in square brackets removed (cast for its cleave cost).
+  if (/(?:^|\n)\s*Cleave \{/i.test(printed.oracleText || '') && /Instant|Sorcery/i.test(printed.typeLine || '')) {
+    try { const g = analyzeDefinitionSupport({ ...printed, oracleText: castText(printed.oracleText, { cleave: true }) }); report.unsupported = [...new Set([...report.unsupported, ...g.unsupported.filter(u => u.startsWith('Spell'))])]; } catch {}
+  }
   const gaps = [], unverified = [];
   // Triggered and activated effects: the game's own fallbacks decide (see effectRunsByItself).
   const runs = new Set([...(report.triggers || []).filter(t => t.fires !== false && effectRunsByItself(t.effect, def.name)).map(t => `Trigger: ${t.text}`),

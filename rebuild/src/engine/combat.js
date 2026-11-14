@@ -3,6 +3,7 @@ import { evaluateLosses } from './rules.js';
 import { clearCastState, applyEffects } from './effects.js';
 import { regenerates } from './effects-catalog.js';
 import { damageAmount, lifeGainAmount, graveyardDestination } from './replacements.js';
+import { shieldFitsB111 } from './effects-b111.js';
 const numStat = v => { const m = String(v ?? '').match(/-?\d+/); return m ? Number(m[0]) : 0; };
 function tempEffects(card, kind) { return (card?.temporaryEffects || []).filter(e => e?.kind === kind && e?.enabled !== false); }
 function temporaryPt(card, key) { return tempEffects(card, 'pt').reduce((n, e) => n + Number(e?.[key] || 0), 0); }
@@ -125,7 +126,7 @@ function restoreControlWhileInner(game) {
   for (const r of game.controlWhile) {
     const all = bf(), src = all.find(x => x.c.instanceId === r.sourceId), tgt = all.find(x => x.c.instanceId === r.targetId);
     if (!tgt) continue;
-    let holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    let holds = r.mode === 'enchanted' ? all.some(x => x.c.attachedTo === tgt.c.instanceId && /\bAura\b/.test(definition(game, x.c)?.typeLine || '')) : src && (r.mode === 'battlefield' ? true : r.mode === 'tapped' ? !!src.c.tapped : r.mode === 'control-tapped' ? !!src.c.tapped && (src.c.controllerId || src.p.playerId) === r.controllerId : (src.c.controllerId || src.p.playerId) === r.controllerId);
     // Old Man of the Sea: "... and that creature's power remains less than or equal to this creature's power"
     if (holds && r.powerLimit) holds = effectivePower(tgt.c, definition(game, tgt.c), game) <= effectivePower(src.c, definition(game, src.c), game);
     if (holds) { keep.push(r); continue; }
@@ -273,7 +274,7 @@ function combatDamageAfterPrevention(game, targetId, amount, sourceId = null) { 
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0 || !shieldFitsB111(game, shield, targetId, sourceId))
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
   shield.amount = shield.oneShot ? 0 : shield.amount - used;   // "the next time … prevent that damage" is used up by the first damage
@@ -289,7 +290,7 @@ function applyQueue(game, queue, events, onEvent) {
     if ((source?.temporaryEffects || []).some(e => e?.kind === 'no-combat-damage')) continue;
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
     const boosted = damageAmount(game, { sourceControllerId: sourcePlayer.playerId, colors: sourceDef?.colors || [], targetPlayerId: hit.kind === 'player' ? targetId : null, targetControllerId: hit.kind === 'player' ? null : (hit.target.controllerId || null) }, Number(hit.amount || 0));
-    const fog = (game.combatPrevention || []).some(x => x.turn === game.turnNumber && game.unpreventableTurn !== game.turnNumber && (x.scope === 'all' || (x.scope === 'you' && hit.kind === 'player' && x.playerId === targetId) || (x.scope === 'card' && (x.cardId === targetId || x.cardId === source?.instanceId)) || (x.scope === 'by-card' && x.cardId === source?.instanceId) || (x.scope === 'to-card' && x.cardId === targetId)));
+    const fog = (game.combatPrevention || []).some(x => x.turn === game.turnNumber && game.unpreventableTurn !== game.turnNumber && (x.scope === 'all' || (x.scope === 'you' && hit.kind === 'player' && x.playerId === targetId) || (x.scope === 'card' && (x.cardId === targetId || x.cardId === source?.instanceId)) || (x.scope === 'by-card' && x.cardId === source?.instanceId) || (x.scope === 'to-card' && x.cardId === targetId) || (x.scope === 'players' && hit.kind === 'player') || (x.scope === 'power-le' && Number(effectivePower(source, sourceDef, game)) <= Number(x.limit))));
     const original = boosted, amount = fog ? 0 : combatDamageAfterPrevention(game, targetId, original, source?.instanceId), prevented = original - amount;
     if (hit.kind === 'player') {
       const target = hit.targetPlayer;

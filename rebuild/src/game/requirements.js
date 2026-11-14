@@ -153,6 +153,8 @@ function descriptorFits(game, card, def, scope) {
       if (n && colors.includes(COLOR_WORDS[n[1]])) return false;
       const sn = w.match(/^non-?([a-z]+)$/);
       if (sn && !n && !/^(?:token|land|creature|artifact|enchantment|basic|legendary|planeswalker|commander|permanent|human)$/.test(sn[1]) && new RegExp(`\\b${sn[1]}s?\\b`).test(t.split('—')[1] || '')) return false;
+      const pt = w.match(/^(\d+)\/(\d+)$/);   // "target 1/1 creature" (build 111)
+      if (pt && (Number(effectivePower(card, def, game)) !== Number(pt[1]) || Number(effectiveToughness(card, def, game)) !== Number(pt[2]))) return false;
       if (w === 'tapped' && !card.tapped) return false;
       if (w === 'untapped' && card.tapped) return false;
       if (w === 'colorless' && colors.length) return false;
@@ -210,6 +212,10 @@ function matchesPermanentScope(game, card, scope, source = null, player = null) 
   const sub = scope.match(/target (?:another |other )?([a-z]+) (?:creature|you control|an opponent controls)/);
   if (sub && !/^(attacking|blocking|tapped|untapped|nontoken|token|legendary|nonlegendary|basic|nonbasic|white|blue|black|red|green|colorless|multicolored|monocolored|noncreature|nonland|nonartifact|nonblack|nonwhite|nonblue|nonred|nongreen|artifact|enchantment|land|creature|planeswalker|battle|permanent|equipped|enchanted|modified|face-down|other|another|unblocked|blocked)$/.test(sub[1])
     && !new RegExp(`\\b${sub[1]}s?\\b`, 'i').test(t.split('—')[1] || '') && !/\bChangeling\b/.test(def?.oracleText || '')) return false;
+  // "target Wolf or Werewolf creature" (build 111): either creature type
+  { const s2 = scope.match(/target (?:another |other )?([a-z]+) or ([a-z]+) creature/);
+    if (s2 && ![s2[1], s2[2]].some(w => /^(attacking|blocking|tapped|untapped|nontoken|token|legendary|white|blue|black|red|green|colorless|multicolored|artifact|enchantment|land|creature|planeswalker|battle|permanent|nonland|noncreature|nonartifact)$/.test(w))
+      && ![s2[1], s2[2]].some(w => new RegExp(`\\b${w}s?\\b`, 'i').test(t.split('—')[1] || '')) && !/\bChangeling\b/.test(def?.oracleText || '')) return false; }
   // Yasova Dragonclaw: "with power less than Yasova Dragonclaw's power" (this card's power, as it is now)
   if (/with power less than [a-z' ,-]*'s power/.test(scope)) { const sp = source ? Number(effectivePower(source, defOf(game, source), game)) : 0; if (!(Number(effectivePower(card, def, game)) < sp)) return false; }
   const pw = scope.match(/with power (\d+) or (less|greater)/);
@@ -258,7 +264,7 @@ export function candidatesFor(game, req, player, source = null) {
       if (!req.spellFilter) return true;
       const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
       const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-      return req.spellFilter.split('|').some(w => w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+      return req.spellFilter.split('|').some(w => w === 'notfromhand' ? !!x.fromZone && x.fromZone !== 'hand' : w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === (w.slice(3) === 'X' ? Number(LIMIT_BINDINGS?.X ?? 0) : Number(w.slice(3)))   // (build 111: "mana value X")
         : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])
