@@ -2,6 +2,7 @@
 // `attachments` list and the bonuses it grants in step, and cleans up when a host leaves play.
 
 import { defOf, log, playerById } from './helpers.js';
+import { resyncManaSource } from '../engine/transactions.js';
 
 const KEYWORDS = ['flying', 'first strike', 'double strike', 'deathtouch', 'haste', 'hexproof', 'indestructible', 'lifelink', 'menace', 'reach', 'trample', 'vigilance', 'shroud', 'defender', 'flash', 'ward', 'infect'];
 
@@ -74,6 +75,19 @@ export function syncAttachments(game) {
     card.attachments = [];
     if ((card.temporaryEffects || []).some(e => e?.source === 'attachment')) card.temporaryEffects = card.temporaryEffects.filter(e => e?.source !== 'attachment');
   }
+  // Land types given to lands by a static ability (CR 305.7): "Each land is a Swamp in addition to its other land types." (Urborg, Blanket of
+  // Night), "Lands you control are Forests in addition to their other types." (Swampbenders), "… are every basic land type …" (Dryad of
+  // the Ilysian Grove, Leyline of the Guildpact). The lands make that type's mana (overlay.js applyLandType).
+  for (const { card: src, player } of onField.values()) {
+    for (const line of String(defOf(game, { ...src, grantedText: [] })?.oracleText || '').split('\n')) {
+      let m, who = null, types = null;
+      if ((m = line.match(/^(?:Each|All) (nonbasic )?lands? (?:is|are) an? (Plains|Island|Swamp|Mountain|Forest) in addition to (?:its|their) other land types\.?$/i))) { who = c => !m[1] || !/\bBasic\b/.test(String(defOf(game, c)?.typeLine || '')); types = [m[2][0].toUpperCase() + m[2].slice(1).toLowerCase()]; }
+      else if ((m = line.match(/^Lands you control are (Plains|Islands?|Swamps|Mountains|Forests) in addition to their other (?:land )?types\.?$/i))) { who = (c, o) => o.playerId === player.playerId; types = [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase().replace(/(?<!plain)s$/, '')]; }
+      else if (/^Lands you control are every basic land type in addition to their other types\.?$/i.test(line)) { who = (c, o) => o.playerId === player.playerId; types = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']; }
+      if (!types) continue;
+      for (const { card, player: owner } of onField.values()) if (/\bLand\b/.test(defOf(game, { ...card, grantedText: [] })?.typeLine || '') && who(card, owner)) (card.temporaryEffects = card.temporaryEffects || []).push({ kind: 'land-type', types, set: false, source: 'attachment' });
+    }
+  }
   // Soulbond: a pair ends when either creature leaves or changes control; while paired, both get what the text says.
   for (const { card, player } of onField.values()) {
     if (!card.pairedWith) continue;
@@ -128,12 +142,25 @@ export function syncAttachments(game) {
       const g = line.match(/^(?:Equipped|Enchanted|Fortified) (?:creature|permanent|land|artifact|planeswalker) (?:has|gains|gets [+-]\d+\/[+-]\d+ and has) ((?:"[^"]+"(?:,? and |, )?)+)/i);
       if (g) host.card.grantedText = [...(host.card.grantedText || []), ...[...g[1].matchAll(/"([^"]+)"/g)].map(x => x[1])];
     }
+    // "Enchanted land is every basic land type in addition to its other types." (Nylea's Presence), "Enchanted land is a Swamp." (Evil Presence)
+    for (const line of String(def?.oracleText || '').split('\n')) {
+      const lm = line.match(/^Enchanted land is (every basic land type|an? (?:Plains|Island|Swamp|Mountain|Forest))( in addition to its other types)?\.?$/i);
+      if (lm) host.card.temporaryEffects = [...(host.card.temporaryEffects || []), { kind: 'land-type', types: /^every/i.test(lm[1]) ? ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'] : [lm[1].split(' ')[1][0].toUpperCase() + lm[1].split(' ')[1].slice(1).toLowerCase()], set: !lm[2] && !/^every/i.test(lm[1]), source: 'attachment' }];
+    }
     const grants = attachmentGrants(def);
     host.card.temporaryEffects = host.card.temporaryEffects || [];
     if (grants.power || grants.toughness) host.card.temporaryEffects.push({ kind: 'pt', power: grants.power, toughness: grants.toughness, source: 'attachment' });
     for (const keyword of grants.keywords) host.card.temporaryEffects.push({ kind: 'keyword', keyword, enabled: true, source: 'attachment' });
     for (const restriction of grants.restrictions) host.card.temporaryEffects.push({ kind: 'combat-restriction', restriction, source: 'attachment' });
     if (grants.loseAbilities) host.card.temporaryEffects.push({ kind: 'animate', loseAbilities: true, addTypes: [], subtypes: [], keywords: [], colors: null, source: 'attachment' });
+  }
+  // The mana a land makes follows its land types (here, and again when a change ends).
+  for (const { card, player } of onField.values()) {
+    const has = (card.temporaryEffects || []).some(e => e?.kind === 'land-type');
+    if (has) card.landTypeChanged = true;
+    else if (card.landTypeChanged) delete card.landTypeChanged;
+    else continue;
+    resyncManaSource(game, player, card);
   }
   return changed;
 }

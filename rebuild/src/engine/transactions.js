@@ -36,7 +36,7 @@ function manaAbilityAmount(row) { const effect = String(row?.ability?.effect || 
 function inferredManaCapacitySpec(game, player, card) {
   if (!card)
     return null;
-  const def = defFor(game, card), basic = basicLandManaColor(def);
+  const def = defFor(game, card), basic = (String(def?.typeLine || '').match(/Plains|Island|Swamp|Mountain|Forest/g) || []).length > 1 ? null : basicLandManaColor(def);   // a land with two basic land types (Urborg) makes either colour: read from its text
   if (basic)
     return { options: [basic], amount: 1 };
   const abilities = tapManaAbilities(def).filter(row => String(row?.ability?.cost || '').replace(/\s+/g, '') === '{T}');
@@ -85,6 +85,12 @@ export function refreshManaSource(game, player, card) {
   unregisterManaSource(player, card);
   delete card.manaCapacityOptions; delete card.manaCapacityAmount; delete card.manaCapacityColor; card.manaCapacityRegistered = false;
   registerManaSource(game, player, card);
+}
+/** A land whose land types changed (or changed back): register the mana it makes now, if that differs from what is registered. */
+export function resyncManaSource(game, player, card) {
+  if (!player || !card || !/\bLand\b/.test(defFor(game, card)?.typeLine || '')) return;
+  const spec = inferredManaCapacitySpec(game, player, card), had = card.manaCapacityRegistered ? [...(card.manaCapacityOptions || [])].sort().join('') : '', want = spec?.options?.length ? [...new Set(spec.options)].sort().join('') : '';
+  if (had !== want) refreshManaSource(game, player, card);
 }
 function unregisterManaSource(player, card, { wasTapped = null } = {}) {
   if (!player || !card || !card.manaCapacityRegistered)

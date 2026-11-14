@@ -7,6 +7,7 @@ import { withOverlay } from '../../src/engine/overlay.js';
 import { compileEffectText, applyEffects, moveCard } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor, protectionsOf } from '../../src/game/requirements.js';
 import { abilityRows } from '../../src/game/legal.js';
+import { syncAttachments } from '../../src/game/attachments.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 import { queueTriggers } from '../../src/engine/triggers.js';
@@ -4800,6 +4801,38 @@ section('batch 4 review: "If <condition>, X deals N damage" keeps its condition 
     t.P(1).life = 1; const poor = legal().join();   // 1 life and no lands: neither
     t.give(1, 'Forest', 'battlefield'); t.give(1, 'Forest', 'battlefield'); const rich = legal().join();   // two lands: pays {2}
     check('Tidal Control: the opponent can activate with life only, mana only, and not with neither', none === 'true' && poor === 'false' && rich === 'true', JSON.stringify([none, poor, rich])); }
+}
+
+
+section('batch 4 review: land type changes (CR 305.7) and domain pumps');
+{
+  const landDef = (t, c) => withOverlay(c, def(t, c));
+  const opts = c => [...(c.manaCapacityOptions || [])].sort().join('');
+  // Reef Shaman: target land becomes the basic land type of your choice until end of turn (the land makes that mana, loses its own)
+  { const t = setup(); const shaman = onField(t, 'Fog Bank', '{T}: Target land becomes the basic land type of your choice until end of turn.', { typeLine: 'Creature — Merfolk Shaman' });
+    const forest = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Forest');
+    check('before: a Forest makes {G}', opts(forest) === 'G', opts(forest));
+    activate(t, shaman, 0, [[d => d.targeting, () => forest.instanceId], [d => (d.options || []).some(o => o.id === 'Island'), () => 'Island']]);
+    check('Reef Shaman: the Forest is an Island until end of turn and now makes {U} only', /Island/.test(landDef(t, forest).typeLine) && !/Forest/.test(landDef(t, forest).typeLine) && opts(forest) === 'U', JSON.stringify([landDef(t, forest).typeLine, opts(forest)]));
+    t.end(0);
+    check('Reef Shaman: at end of turn it is a Forest again and makes {G}', /Forest/.test(landDef(t, forest).typeLine) && opts(forest) === 'G', JSON.stringify([landDef(t, forest).typeLine, opts(forest)])); }
+  // Navigator's Compass: in addition to its other types: both colours
+  { const t = setup(); const comp = onField(t, 'Fog Bank', '{T}: Until end of turn, target land you control becomes the basic land type of your choice in addition to its other types.', { typeLine: 'Artifact' });
+    const forest = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Forest');
+    activate(t, comp, 0, [[d => d.targeting, () => forest.instanceId], [d => (d.options || []).some(o => o.id === 'Swamp'), () => 'Swamp']]);
+    check("Navigator's Compass: the Forest is also a Swamp and makes {B} or {G}", /Forest/.test(landDef(t, forest).typeLine) && /Swamp/.test(landDef(t, forest).typeLine) && opts(forest) === 'BG', JSON.stringify([landDef(t, forest).typeLine, opts(forest)])); }
+  // Urborg: each land is a Swamp in addition (static, both players' lands, ends when Urborg leaves)
+  { const t = setup(); const urb = onField(t, 'Fog Bank', 'Each land is a Swamp in addition to its other land types.', { typeLine: 'Legendary Land' });
+    const forest = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Forest'); const oppLand = t.give(1, 'Forest', 'battlefield');
+    syncAttachments(t.game);
+    check('Urborg: every land is a Swamp too and makes {B}', /Swamp/.test(landDef(t, forest).typeLine) && opts(forest) === 'BG' && /Swamp/.test(landDef(t, t.P(1).deck.battlefield.find(c => c.instanceId === oppLand.instanceId)).typeLine), JSON.stringify([landDef(t, forest).typeLine, opts(forest)]));
+    urb.zone = 'graveyard'; t.P(0).deck.battlefield.splice(t.P(0).deck.battlefield.indexOf(urb), 1); syncAttachments(t.game);
+    check('Urborg gone: the Forest is only a Forest again', !/Swamp/.test(landDef(t, forest).typeLine) && opts(forest) === 'G', JSON.stringify([landDef(t, forest).typeLine, opts(forest)])); }
+  // domain pumps
+  { const t = setup(); const r = compileEffectText('Domain — Target creature gets +1/+1 until end of turn for each basic land type among lands you control.', { sourceName: 'Gaea\'s Might' });
+    const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: bear.instanceId });
+    check("Domain pump (Gaea's Might): +1/+1 for each basic land type (Forest, Island = 2)", power(t, bear) === 4 && tough(t, bear) === 4, JSON.stringify([power(t, bear), tough(t, bear)])); }
 }
 
 done();

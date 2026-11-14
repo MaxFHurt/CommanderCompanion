@@ -3,6 +3,7 @@
 // gatherB110 asks the requirement kinds made here. Most wordings are read as an instruction the game already runs.
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness, pruneWhileTapped } from './combat.js';
+import { resyncManaSource } from './transactions.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -11,6 +12,7 @@ const playerById = (game, id) => (game.players || []).find(p => p.playerId === i
 const ok = inner => inner && !inner.unsupported.length && inner.effects.length;
 const rxCache = new Map();
 const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
+const LAND_TYPE_NAMES = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token))';
 
 /** One sentence. Pushes onto ctx.effects / ctx.requirements and returns true when understood. */
@@ -27,6 +29,23 @@ export function compileB110Clause(c, ctx) {
   const pronounBind = s => rx(`^${SELF}$`).test(s) ? 'sourceId' : /^(?:it|he|she|they)$/i.test(s) ? 'b101It' : 'b101That';
   let m;
 
+  // --- Land types (CR 305.7): "Target land becomes the basic land type of your choice until end of turn." (Reef Shaman, Mystic Compass),
+  // "… becomes an Island until end of turn" (Tidal Warrior), "… of your choice in addition to its other types" (Navigator's Compass).
+  if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes the basic land type of your choice( in addition to its other types)?( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), choice = `landType${requirements.length}`;
+    requirements.push({ kind: 'choose-text', bind: choice, options: LAND_TYPE_NAMES, label: 'Choose a basic land type' });
+    effects.push({ kind: 'b110-land-type', bind, choiceBind: choice, add: !!m[2] });
+    return true;
+  }
+  if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes an? (Plains|Island|Swamp|Mountain|Forest)( in addition to its other types)?( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1]));
+    effects.push({ kind: 'b110-land-type', bind, types: [cap(m[2].toLowerCase())], add: !!m[3] });
+    return true;
+  }
+  if (/^Lands you control gain all basic land types until end of turn\.?$/i.test(c)) {
+    effects.push({ kind: 'b110-land-type', each: true, types: LAND_TYPE_NAMES, add: true });
+    return true;
+  }
   // --- "It / That creature / Target creature doesn't untap during its controller's untap step for as long as ~ remains tapped" (Ice Floe, Thalakos Dreamsower)
   // / "… for as long as you control ~" (Merchant Raiders): a lock that ends when the condition stops.
   if ((m = c.match(rx(`^(it|that (?:creature|land|permanent|artifact)|target [a-z ]+?) doesn'?t untap during (?:its|their) controller'?s untap step for as long as (${SELFP} remains tapped|you control ${SELFP})\\.?$`)))) {
@@ -301,6 +320,19 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
   switch (effect.kind) {
+    case 'b110-land-type': {
+      const types = effect.types || [bindings[effect.choiceBind]].filter(Boolean);
+      const ids = effect.each ? ((game.players || []).find(p => p.playerId === controllerId)?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => c.instanceId) : [bindings[effect.bind]];
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield' || !/\bLand\b/.test(definitionFor(game, hit.card)?.typeLine || '')) { notes.push('That land is no longer there.'); continue; }
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'land-type', types, set: !effect.add, expires: 'cleanup', sourceId: bindings.sourceId || null }];
+        hit.card.landTypeChanged = true;
+        resyncManaSource(game, hit.player, hit.card);
+        notes.push(`${definitionFor(game, hit.card)?.name || 'The land'} ${effect.add ? 'is also' : 'becomes'} ${types.length > 1 ? 'every basic land type' : `${/^[AEIOU]/.test(types[0]) ? 'an' : 'a'} ${types[0]}`}${effect.add ? '' : ''} until end of turn.`);
+      }
+      return true;
+    }
     case 'b110-lock-untap': {
       const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind), src = locateCardInGame(game, bindings.sourceId);
       if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }

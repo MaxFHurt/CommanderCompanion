@@ -3349,6 +3349,11 @@ function equalToAsX(clause) {
     .replace(/^(.*?\bdraws?) a card for each (.+?)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\b[Pp]ut) (?:a|an) ([+-]\d+\/[+-]\d+|[a-z]+) counter on (.+?) for each (.+?)\.$/i, '$1 X $2 counters on $3, where X is the number of $4.')
     .replace(/^(.*?\bdraws?) cards equal to ([^.,]+?)\.$/i, '$1 X cards, where X is $2.')
+    // Domain: "gets +1/+1 until end of turn for each basic land type among lands you control" (one more per type: X of them)
+    .replace(/^((?:Domain — )?Until end of turn, .+? gains? .+? and gets?) ([+-])1\/([+-])1 for each (basic land types? among lands you control)\.$/i, '$1 $2X/$3X, where X is the number of $4.')
+    .replace(/^((?:Domain — )?)Until end of turn, (this creature|target creature|[A-Z][^,]*?) (gets?) ([+-])1\/([+-])1 for each (basic land types? among lands you control)\.$/i, '$1$2 $3 $4X/$5X until end of turn, where X is the number of $6.')
+    .replace(/^((?:Domain — )?[^.]+? gets?) ([+-])1\/([+-])1 until end of turn for each (basic land types? among lands you control)\.$/i, '$1 $2X/$3X until end of turn, where X is the number of $4.')
+    .replace(/^((?:Domain — )?(?:Target player|Each opponent|You) discards?) a card for each (basic land types? among lands you control)\.$/i, '$1 X cards, where X is the number of $2.')
     .replace(/^(.*?\bcreates?) a number of (.+? tokens(?: with [^.]+?)?) equal to ([^.,]+?)\.$/i, '$1 X $2, where X is $3.');
   if (x === clause) return clause;
   // Only when the wording as printed is not understood and the X form is (the readers use the whole sentence).
