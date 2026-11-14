@@ -29,6 +29,32 @@ export function compileB110Clause(c, ctx) {
   const pronounBind = s => rx(`^${SELF}$`).test(s) ? 'sourceId' : /^(?:it|he|she|they)$/i.test(s) ? 'b101It' : 'b101That';
   let m;
 
+  // --- Colour changes: "One or more target creatures become black until end of turn." (Touch of Darkness), "Any number of target creatures become the
+  // color of your choice …" (Sway of Illusion), "Target creature becomes the color or colors of your choice until end of turn." (Quickchange).
+  if ((m = c.match(/^(One or more|Any number of) target creatures become (white|blue|black|red|green|the color of your choice)( until end of turn)?\.?$/i))) {
+    const bind = `multi${requirements.length}`;
+    requirements.push({ kind: 'multi-target', bind, scope: 'target creature', min: /^one/i.test(m[1]) ? 1 : 0, max: 99, label: `Choose ${m[1].toLowerCase()} target creatures` });
+    const fixed = /^the color/i.test(m[2]) ? null : [m[2].toLowerCase()], colorBind = fixed ? null : `pickedColor${requirements.length}`;
+    if (!fixed) requirements.push({ kind: 'b110-pick-color', bind: colorBind });
+    effects.push({ kind: 'b110-recolor', bind, ...(fixed ? { colors: fixed } : { colorBind }), expires: m[3] ? 'cleanup' : null });
+    return true;
+  }
+  if ((m = c.match(/^(?:Until end of turn, )?(target (?:creature|permanent)(?: you control)?) becomes the (color|color or colors) of your choice( until end of turn)?\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), colorBind = `pickedColor${requirements.length}`;
+    requirements.push({ kind: /or colors/i.test(m[2]) ? 'b110-pick-colors' : 'b110-pick-color', bind: colorBind });
+    effects.push({ kind: 'b110-recolor', bind, colorBind, expires: m[3] || /^Until end of turn/i.test(c) ? 'cleanup' : null });
+    return true;
+  }
+  if ((m = c.match(rx(`^(${SELFP}) gets ([+-]\\d+)\\/([+-]\\d+) and becomes the color of your choice until end of turn\\.?$`)))) {
+    const pump = sub(`${cap(m[1])} gets ${m[2]}/${m[3]} until end of turn.`);
+    if (pump) {
+      take(pump);
+      const colorBind = `pickedColor${requirements.length}`;
+      requirements.push({ kind: 'b110-pick-color', bind: colorBind });
+      effects.push({ kind: 'b110-recolor', bind: 'sourceId', colorBind, expires: 'cleanup' });
+      return true;
+    }
+  }
   // --- Land types (CR 305.7): "Target land becomes the basic land type of your choice until end of turn." (Reef Shaman, Mystic Compass),
   // "… becomes an Island until end of turn" (Tidal Warrior), "… of your choice in addition to its other types" (Navigator's Compass).
   if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes the basic land type of your choice( in addition to its other types)?( until end of turn)?\.?$/i))) {
@@ -260,6 +286,11 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     if (!ok(r)) { const whole = H.compileEffectText(text, { sourceName }); r = whole.supported ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : r; }
     return ok(r) && !r.requirements.length ? r : null;
   };
+  // --- "Flame Spill deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead." (the sentence after a damage effect)
+  if (/^Excess damage is dealt to that creature'?s controller instead\.?$/i.test(c0)) {
+    const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'damage' && e.bind);
+    if (d) { d.excessTo = 'controller'; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
+  }
   // --- "Put a quest counter on this enchantment. Then if it has four or more quest counters on it, draw a card." / "Then if she has nine or more time counters on her, sacrifice her." (Ordeal of Nylea, Kes)
   // "it" is the permanent the counter just went onto (or the trigger's card when no counter was put in this ability).
   if ((m = c0.match(/^(?:Then )?if (it|she|he|they) (?:has|have) (\w+) or more ([a-z+\/\d-]+) counters? on (?:it|her|him|them), (.+?)\.?$/i)) && !/^(?:When|If) you do\b/i.test(clean(clauses[i + 1]))) {
@@ -320,6 +351,20 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
   switch (effect.kind) {
+    case 'b110-recolor': {
+      const CODE = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      const names = effect.colors || [].concat(bindings[effect.colorBind] || []);
+      const colors = names.map(n => CODE[String(n).toLowerCase()]).filter(Boolean);
+      const ids = [].concat(bindings[effect.bind] || (effect.bind === 'sourceId' ? bindings.sourceId : []));
+      if (!colors.length) { notes.push('No color was chosen.'); return true; }
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); continue; }
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'animate', addTypes: [], subtypes: [], keywords: [], colors, ...(effect.expires ? { expires: effect.expires } : {}) }];
+        notes.push(`${definitionFor(game, hit.card)?.name || 'It'} becomes ${names.join(' and ')}${effect.expires ? ' until end of turn' : ''}.`);
+      }
+      return true;
+    }
     case 'b110-land-type': {
       const types = effect.types || [bindings[effect.choiceBind]].filter(Boolean);
       const ids = effect.each ? ((game.players || []).find(p => p.playerId === controllerId)?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => c.instanceId) : [bindings[effect.bind]];
@@ -465,6 +510,11 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
     const n = Math.min(Number(req.amount) || 1, rows.length);
     bindings[req.bind] = !n ? [] : rows.length === n && req.zone === 'graveyard' ? rows.map(c => c.instanceId)
       : ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: req.zone === 'hand', title: `${ctx.sourceName} — ${q.displayName}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your ${req.zone} to exile.`, options: rows.map(card => util.cardOption(game, card, q, `Your ${req.zone}`)), min: n, max: n }));
+    return true;
+  }
+  if (req.kind === 'b110-pick-colors') {
+    // "the color or colors of your choice": one or more of the five colours
+    bindings[req.bind] = ask(key, () => ({ ...base, playerId: ctx.player.playerId, kind: 'choose-many', title, prompt: 'Choose one or more colors.', min: 1, max: 5, options: ['white', 'blue', 'black', 'red', 'green'].map(c => ({ id: c, label: cap(c) })) }));
     return true;
   }
   if (req.kind === 'b110-pick-color') {

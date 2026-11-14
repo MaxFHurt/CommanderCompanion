@@ -69,6 +69,12 @@ export function spellMatches(def, phrase) {
 
 function countPhrase(game, player, phrase) {
   const s = String(phrase || '').toLowerCase();
+  // Domain: "for each basic land type among lands you control"
+  if (/^basic land types? among lands you control$/.test(s.trim())) {
+    const kinds = new Set();
+    for (const c of player.deck?.battlefield || []) { const t = String(defOf(game, c)?.typeLine || ''); if (/\bLand\b/.test(t)) for (const w of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (t.includes(w)) kinds.add(w); }
+    return kinds.size;
+  }
   if (/opponent/.test(s)) return opponentsOf(game, player.playerId).length;
   const word = (s.match(/^(?:other )?(\w+)/) || [])[1] || 'card';
   const typeOk = c => {

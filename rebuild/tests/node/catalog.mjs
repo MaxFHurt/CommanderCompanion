@@ -7,6 +7,7 @@ import { withOverlay } from '../../src/engine/overlay.js';
 import { compileEffectText, applyEffects, moveCard } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor, protectionsOf } from '../../src/game/requirements.js';
 import { abilityRows } from '../../src/game/legal.js';
+import { costChanges } from '../../src/game/casting.js';
 import { syncAttachments } from '../../src/game/attachments.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
@@ -4828,6 +4829,28 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
     check('Urborg: every land is a Swamp too and makes {B}', /Swamp/.test(landDef(t, forest).typeLine) && opts(forest) === 'BG' && /Swamp/.test(landDef(t, t.P(1).deck.battlefield.find(c => c.instanceId === oppLand.instanceId)).typeLine), JSON.stringify([landDef(t, forest).typeLine, opts(forest)]));
     urb.zone = 'graveyard'; t.P(0).deck.battlefield.splice(t.P(0).deck.battlefield.indexOf(urb), 1); syncAttachments(t.game);
     check('Urborg gone: the Forest is only a Forest again', !/Swamp/.test(landDef(t, forest).typeLine) && opts(forest) === 'G', JSON.stringify([landDef(t, forest).typeLine, opts(forest)])); }
+  // domain: power and toughness, and the cost reduction
+  { const t = setup(); const kavu = onField(t, 'Grizzly Bears', "Domain — Territorial Kavu's power and toughness are each equal to the number of basic land types among lands you control.", { power: '*', toughness: '*' });
+    const maro = onField(t, 'Llanowar Elves', "Domain — Territorial Maro's power and toughness are each equal to twice the number of basic land types among lands you control.", { power: '*', toughness: '*', typeLine: 'Creature — Elf' });
+    const brawler = onField(t, 'Fog Bank', "Domain — Nishoba Brawler's power is equal to the number of basic land types among lands you control.", { power: '*', toughness: '3', typeLine: 'Creature — Cat' });
+    check('Domain creatures: Forest + Island = 2; twice = 4; power-only keeps toughness 3', power(t, kavu) === 2 && tough(t, kavu) === 2 && power(t, maro) === 4 && power(t, brawler) === 2 && tough(t, brawler) === 3, JSON.stringify([power(t, kavu), tough(t, kavu), power(t, maro), power(t, brawler), tough(t, brawler)]));
+    const spell = { ...def(t, kavu), oracleText: 'Domain — This spell costs {1} less to cast for each basic land type among lands you control.' };
+    const ch = costChanges(t.game, t.P(0), spell, kavu);
+    check('Domain cost reduction: {1} less for each of the 2 basic land types you control', ch.delta === -2, JSON.stringify(ch)); }
+  // Flame Spill: excess damage goes to the creature's controller (damage already marked counts)
+  { const t = setup(); const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1); bear.damageMarked = 1;
+    const r = compileEffectText("Flame Spill deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead.", { sourceName: 'Flame Spill' });
+    const life = t.P(1).life; applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: bear.instanceId });
+    check('Flame Spill: lethal is 1 (2 toughness, 1 already marked): 1 to the creature, the other 3 to its controller', life - t.P(1).life === 3 && !t.bf(1, 'Grizzly Bears'), JSON.stringify([life - t.P(1).life, t.names(1, 'graveyard')])); }
+  // colour changes
+  { const t = setup(); const a = onField(t, 'Grizzly Bears', '', {}), b = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+    const r = compileEffectText('One or more target creatures become black until end of turn.', { sourceName: 'Touch of Darkness' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, multi0: [a.instanceId, b.instanceId] });
+    check('Touch of Darkness: both targets are black (and only black)', JSON.stringify(landDef(t, a).colors) === '["B"]' && JSON.stringify(landDef(t, b).colors) === '["B"]', JSON.stringify([landDef(t, a).colors, landDef(t, b).colors])); }
+  { const t = setup(); const a = onField(t, 'Grizzly Bears', '', {});
+    const r = compileEffectText('Target creature becomes the color or colors of your choice until end of turn.', { sourceName: 'Quickchange' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: a.instanceId, pickedColor1: ['red', 'blue'] });
+    check('Quickchange: the chosen colours replace its colour', JSON.stringify(landDef(t, a).colors) === '["R","U"]', JSON.stringify(landDef(t, a).colors)); }
   // domain pumps
   { const t = setup(); const r = compileEffectText('Domain — Target creature gets +1/+1 until end of turn for each basic land type among lands you control.', { sourceName: 'Gaea\'s Might' });
     const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });

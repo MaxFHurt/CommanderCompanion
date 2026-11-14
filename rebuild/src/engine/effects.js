@@ -1022,7 +1022,13 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       if (!targetId)
         throw new Error('A damage target was not chosen.');
       const victimCard = locateCardInGame(game, targetId);
-      const boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
+      let boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
+      // "Excess damage is dealt to that creature's controller instead" (Flame Spill; CR 120.4a: what is beyond lethal damage, counting damage already marked)
+      let excessAmt = 0, excessTo = null;
+      if (effect.excessTo && victimCard?.zone === 'battlefield' && /\bCreature\b/.test(definitionFor(game, victimCard.card)?.typeLine || '')) {
+        const lethal = Math.max(0, effectiveToughness(victimCard.card, definitionFor(game, victimCard.card), game) - Number(victimCard.card.damageMarked || 0));
+        excessAmt = Math.max(0, boosted - lethal); boosted -= excessAmt; excessTo = victimCard.card.controllerId || victimCard.player?.playerId || null;
+      }
       const dealt = preventDamage(game, targetId, boosted, bindings.sourceId);
       bindings.damageDealt = dealt;   // "You gain life equal to the damage dealt this way" (Corrupt)
       const prevented = boosted - dealt;
@@ -1042,6 +1048,14 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       notes.push(`${effect.sourceName || 'Effect'} deals ${dealt} damage to ${cardName(game, hit.card)}${prevented ? ` (${prevented} prevented)` : ''}.`);
       if (dealt)
         emit(bindings, { type: 'damage-permanent', targetId, amount: dealt, sourceId: bindings.sourceId || effect.sourceId || null, controllerId });
+      if (excessAmt > 0 && excessTo) {
+        const ep = game.players.find(x => x.playerId === excessTo), d2 = ep ? preventDamage(game, excessTo, excessAmt, bindings.sourceId) : 0;
+        if (ep && d2) {
+          if (!lifeFixed(game, ep)) ep.life = Math.max(0, Number(ep.life || 0) - d2);
+          notes.push(`The excess ${d2} damage is dealt to ${ep.displayName}.`);
+          emit(bindings, { type: 'damage-player', playerId: ep.playerId, amount: d2, sourceId: bindings.sourceId || effect.sourceId || null, controllerId, combat: false });
+        }
+      }
       checkLethal(game, targetId, notes, bindings);
       continue;
     }

@@ -71,6 +71,14 @@ function selfScalingPt(game, card, def) {
     const n = (p?.deck?.battlefield || []).filter(c => w === 'permanent' || typeHas(definition(game, c), w)).length;
     power += n; toughness += n;
   }
+  // Domain: "~'s power and toughness are each equal to the number of basic land types among lands you control" (Territorial Kavu; twice that: Territorial Maro; only power: Fblthp; only toughness: Aven Trailblazer)
+  if ((m = text.match(/(?:^|\n)(?:Domain — )?[^.\n]*?\b(power and toughness are each|power is|toughness is) equal to (twice )?the number of basic land types among lands you control/i))) {
+    const p = controllerOf(game, card), kinds = new Set();
+    for (const c of p?.deck?.battlefield || []) { const d = definition(game, c); if (/\bLand\b/.test(d?.typeLine || '')) for (const t of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) if (new RegExp(`\\b${t}\\b`).test(d.typeLine)) kinds.add(t); }
+    const n = kinds.size * (m[2] ? 2 : 1);
+    if (!/toughness is/i.test(m[1])) power += n;
+    if (!/power is/i.test(m[1])) toughness += n;
+  }
   if ((m = text.match(/gets ([+-]\d+)\/([+-]\d+) for each card in your graveyard/i))) {
     const p = controllerOf(game, card);
     const n = p?.deck?.graveyard?.length || 0;
