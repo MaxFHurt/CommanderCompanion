@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.110 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.111 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -15,15 +15,11 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 - **Status: active** (owner, 13 Nov): order of work in `ROADMAP.md`. Build 52 fixed the
   Deck Builder on iPad so the app is usable meanwhile. The open items are in "Paused: not finished" below.
 
-## Long tail, batch 4 sent-back fixes (unreleased)
-
-- 23,344 -> 23,358 of 32,300 (0 lost vs the 23,344 audit). Fixed: several-card searches (Tiamat, Rampant Rejuvenator, Omenpath Journey, Oreskos Explorer, Prismatic Undercurrents, Kyoshi Island Plaza, Burning-Rune Demon), Composer of Spring, Court of Bounty, Fblthp the Lost, Alchemist's Talent (mana tagged by source; also Smaug, Jaded Sell-Sword, Hired Hexblade), Scion of Draco (real colour keywords). Still by hand: Sporocyst (cast X not carried to its enter trigger), Fblthp Knows the Way (its text never defines X).
-
 ## Paused: not finished
 
 The complete roadmap of every open change across the app is `ROADMAP.md`.
 
-1. **The card long tail:** 22,845 of 32,300 run by themselves (build 109). Work in batches of 500 newly automated cards,
+1. **The card long tail:** 23,358 of 32,300 run by themselves (build 111). Work in batches of 500 newly automated cards,
    and check in with the owner after each batch.
 2. **Profile sync:** the Deck Builder sends its edits when a deck is closed (build 54) and when the app is put away (build 59).
    A device that declines "Continue your game?" keeps its own game and uploads it next time it
@@ -40,6 +36,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 111 — 14 Nov 2026 (app 1.0.0-rebuild.111; Deck Builder unchanged, 0.9.71): rules long tail batch 4
+- 22,845 → 23,358 of 32,300 run by themselves (13 Nov Scryfall file), every newly passing card's compiled effects read; 0 lost against the start (cards that went back to by hand were misread before and are fixed or listed).
+- New: untap locks "for as long as this remains tapped", detain, target limits by power / mana value / counts (Lay Down Arms, Vedalken Shackles …), damage prevention from "a source of your choice" (Circle/Rune of Protection), Conspire, "Any player may activate" (28 of 40), land type changes that make that mana (CR 305.7, Urborg-style too), Domain, colour changes, excess damage, several-card library searches (up to X, different names), Treasure-mana tags (Alchemist's Talent), Scion of Draco's colour keywords; new file src/engine/effects-b110.js.
+- Misreads fixed in older cards: Threaten-style steals did not steal; about 30 "protection from the colour of your choice" protected from nothing; target restrictions (colour, non-X, tapped, without flying) were not enforced; "If <condition>, X deals N damage" ignored its condition (about 15 cards); "each other Dragon you control" gave its counter to nothing; Whispers of Emrakul made the caster discard.
+- Still by hand from the batch: Sporocyst (X cast into the enter trigger), Fblthp Knows the Way (X undefined), Custodi Peacekeeper, The Master of Keys, 12 "any player may activate" cards. Gaps: snow mana, banding, exiling a spell on the stack.
+- Tests (suites.sh, 405 s): game 254, mechanics 102, catalog 678, smoke 6, tracker 20, practice 20, rules-server 27, forge-triggers; soak 40 x3 0 problems; every browser suite incl. accounts_ui 56.
 
 ### Build 110 — 14 Nov 2026 (app 1.0.0-rebuild.110; Deck Builder unchanged, 0.9.71): accounts
 - Owner, 13 Nov: "The first time a user ever opens the app, it should ask them to sign in or sign up. A player may also choose to skip and locally save ... the player profile should be automatically assigned its key when signing up and a player should never be asked for it again ... We cannot lose everything I currently have in my profile."
