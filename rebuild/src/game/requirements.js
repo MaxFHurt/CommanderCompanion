@@ -296,6 +296,13 @@ export function candidatesFor(game, req, player, source = null) {
         out.push(playerOption(q));
       }
     }
+    // "target spell or creature" (Unsubstantiate, Venser, Fatehold Charm): spells on the stack can be chosen too.
+    if (targeted && /^target spell or /.test(scope)) for (const x of game.stack || []) if ((x.kind === 'spell' || x.kind === 'spell-copy') && x.id !== source?.stackId && x.card?.instanceId !== source?.instanceId) {
+      const mvMin = scope.match(/with mana value (\d+) or greater/), sd = defOf(game, x.card);
+      if (mvMin && Number(sd?.manaValue ?? sd?.cmc ?? 0) < Number(mvMin[1])) continue;   // Divide by Zero
+      if (/an opponent controls|you don'?t control/.test(scope) && x.controllerId === player.playerId) continue;   // Press the Enemy
+      if (/you control\b/.test(scope) && !/an opponent controls|you don'?t control/.test(scope) && x.controllerId !== player.playerId) continue;
+      out.push({ id: x.id, label: x.label || 'Spell', sub: `${playerById(game, x.controllerId)?.displayName || ''} — spell on the stack`, definitionId: x.sourceDefinitionId }); }
     if (/any target|any other target|creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment/.test(scope)) {
       const anyTarget = /any (?:other )?target/.test(scope);
       const defending = /defending player controls/.test(scope);   // "target creature defending player controls": the player this attacker is attacking

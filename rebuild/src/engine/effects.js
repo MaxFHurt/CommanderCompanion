@@ -515,7 +515,7 @@ function makeToken(game, controller, effect, serial) {
     game.cardDefinitions[tokenDefId] = {
       definitionId: tokenDefId, name: effect.name || effect.tokenName || subtype || 'Token', manaCost: '',
       typeLine: effect.typeLine || `Token Creature — ${subtype}`, oracleText: effect.oracleText || '', power: effect.power ?? null, toughness: effect.toughness ?? null,
-      keywords: effect.keywords || [], colorIdentity: [], colors: effect.colors || [], imageUris: null, set: 'token', language: 'en', collectorNumber: '', hydrationStatus: 'complete'
+      keywords: effect.keywords || [], colorIdentity: [], colors: effect.colors || [], imageUris: null, set: 'token', language: 'en', collectorNumber: '', hydrationStatus: 'complete', ...(effect.loyalty !== undefined ? { loyalty: effect.loyalty } : {})
     };
   return { instanceId: `${controller.playerId}:${tokenDefId}:${Date.now()}:${serial}:${Math.random().toString(36).slice(2, 7)}`, definitionId: tokenDefId, ownerId: controller.playerId, controllerId: controller.playerId, zone: 'battlefield', tapped: !!effect.tapped, counters: {}, attachments: [], temporaryEffects: [], enteredTurn: game.turnNumber, controlSinceTurn: game.turnNumber, token: true };
 }
@@ -1309,6 +1309,13 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
         throw new Error(`${effect.kind} requires a target or selection.`);
       const hit = locateCardInGame(game, targetId);
       // "Return Research the Deep to its owner's hand." — a resolving spell goes to the hand instead of the graveyard.
+      // "Return target spell or creature to its owner's hand." (Unsubstantiate, Venser): a spell on the stack goes to its owner's hand; a copy ceases to exist.
+      if (effect.kind === 'bounce' && !hit && (game.stack || []).some(x => x.id === targetId && (x.kind === 'spell' || x.kind === 'spell-copy'))) {
+        const i = game.stack.findIndex(x => x.id === targetId), [obj] = game.stack.splice(i, 1);
+        if (obj.kind === 'spell' && !obj.isCopy && !obj.card?.castCopy) { const owner = ownerFor(game, obj.card, game.players.find(p => p.playerId === obj.controllerId)); obj.card.zone = 'hand'; obj.card.controllerId = owner.playerId; owner.deck.hand.push(obj.card); }
+        notes.push(`${obj.label || cardName(game, obj.card)} returns to its owner's hand.`);
+        continue;
+      }
       if (effect.kind === 'bounce' && targetId === bindings.sourceId && (hit?.zone === 'stack' || (!hit && game.resolvingSpellId === targetId))) { game.spellToHand = targetId; notes.push('It returns to its owner\u2019s hand as it finishes resolving.'); continue; }
       // "When this creature dies, exile it." (Glissa's Retriever): the card that just died is exiled from the graveyard.
       if (effect.kind === 'exile' && effect.bind === 'eventCard' && hit?.zone === 'graveyard') {

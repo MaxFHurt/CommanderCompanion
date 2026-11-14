@@ -5226,4 +5226,31 @@ section('batch 5 (build 112): prepared');
   check('prepared: only creatures with prepare spells can become prepared', !bear.prepared, JSON.stringify(bear.prepared));
 }
 
+section('batch 5 (build 112): Empower Jace');
+{
+  const t = setup();
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Empower Jace 1.', { sourceName: 'Countersculpt' }).effects, {});
+  const jace = t.P(0).deck.battlefield.find(c => def(t, c)?.name === 'Jace');
+  const first = jace && jace.counters.loyalty;
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Empower Jace 2.', { sourceName: 'Theorist\'s Sanctum' }).effects, {});
+  const jaces = t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Jace');
+  check('Empower Jace: makes a blue Jace planeswalker token with 1 loyalty, then adds 2 to the same token', first === 1 && jaces.length === 1 && jace.counters.loyalty === 3 && /Planeswalker — Jace/.test(def(t, jace).typeLine), JSON.stringify([first, jaces.length, jace?.counters]));
+  const abil = parseActivatedAbilities(def(t, jace)).filter(a => !a.manaAbility);
+  const hand = t.P(0).deck.hand.length;
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: jace.instanceId, abilityId: abil[1]?.id }, t.as(0)); settle(t);
+  const live = t.P(0).deck.battlefield.find(c => c.instanceId === jace.instanceId);
+  check('Empower Jace: its [−3] draws a card and it is put into the graveyard at 0 loyalty', r.ok &&  t.P(0).deck.hand.length === hand + 1 && !t.P(0).deck.battlefield.some(c => c.instanceId === jace.instanceId), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, live?.counters]));
+}
+
+section('batch 5 (build 112): return target spell or creature');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw a card.', { manaCost: '{U}', typeLine: 'Instant' });
+  t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(opt), 1); opt.zone = 'stack';
+  t.game.stack = [{ id: 'stack:opt', kind: 'spell', controllerId: t.P(0).playerId, ownerId: t.P(0).playerId, card: opt, sourceDefinitionId: opt.definitionId, label: 'Opt', effects: [], effectBindings: {} }];
+  const rows = candidatesFor(t.game, { kind: 'target', bind: 'target0', scope: 'target spell or creature' }, t.P(1), null);
+  applyEffects(t.game, t.P(1).playerId, compileEffectText('Return target spell or creature to its owner\'s hand.', { sourceName: 'Unsubstantiate' }).effects, { target0: 'stack:opt' });
+  check('Unsubstantiate: a spell on the stack can be chosen and goes back to its owner\'s hand unresolved', rows.some(r => r.id === 'stack:opt') && !t.game.stack.length && t.P(0).deck.hand.includes(opt), JSON.stringify([rows.map(r => r.id), t.game.stack.length]));
+}
+
 done();

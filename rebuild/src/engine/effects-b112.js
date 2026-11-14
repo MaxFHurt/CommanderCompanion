@@ -1,7 +1,7 @@
 // Card wordings added in build 112 (rules long tail, batch 5 part B). Hooked like effects-b111.js: compileB112Clause is tried
 // last (from compileB111Clause), compileB112Sequence from compileB111Sequence, applyB112 from applyB111, gatherB112 from
 // gatherB111, parseConditionB112 / conditionHoldsB112 from the build-110 condition hooks.
-import { numberFromText, locateCardInGame, definitionFor, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
 import { effectivePower } from './combat.js';
 
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
@@ -23,6 +23,13 @@ export function compileB112Clause(c, ctx) {
     if (/^each creature you control$/i.test(m[1])) { effects.push({ kind: 'b112-prepare', each: true, un }); return true; }
     if (/^target/i.test(m[1])) { effects.push({ kind: 'b112-prepare', bind: H.targetRequirement(requirements, m[1].toLowerCase(), m[1].toLowerCase()), un }); return true; }
     effects.push({ kind: 'b112-prepare', bind: 'sourceId', un });
+    return true;
+  }
+  // --- Empower Jace N (2026): "Put N loyalty counters on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with "[−1]: Surveil 1" and "[−3]: Draw a card."" X amounts go through the amount reader.
+  if ((m = prep.replace(/\s*\(Put [^)]*Jace token[^)]*\)\s*/i, '').match(/^Empower Jace (\d+|X)(?:, where X is (.+?))?\.?$/i))) {
+    let amount = /^X$/i.test(m[1]) ? 'X' : Number(m[1]);
+    if (m[2]) { const a = H.countExprFromPhrase(m[2]); if (!a) return false; amount = a; }
+    effects.push({ kind: 'b112-empower-jace', amount });
     return true;
   }
   return false;
@@ -54,6 +61,24 @@ export function applyB112(game, controllerId, effect, bindings, notes) {
         else { c.prepared = true; notes.push(`${name} becomes prepared: you may cast a copy of ${game.cardDefinitions[c.definitionId].cardFaces[1].name} (shown in your exile).`); }
       }
       if (!cards.length && !effect.each) notes.push('That creature is no longer on the battlefield.');
+      return true;
+    }
+    case 'b112-empower-jace': {
+      const me = playerById(game, controllerId);
+      if (!me) return true;
+      const n = Math.max(0, Number(resolveAmount(game, controllerId, effect.amount, bindings) || 0));
+      const isJace = c => c.token && (c.controllerId || controllerId) === controllerId && /\bPlaneswalker\b.*\bJace\b/.test(definitionFor(game, c)?.typeLine || '');
+      let jace = (me.deck.battlefield || []).find(isJace);
+      if (!jace) {
+        const b = { ...bindings, lastCreated: [] };
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'create-token', amount: 1, name: 'Jace', typeLine: 'Token Planeswalker — Jace', oracleText: '−1: Surveil 1.\n−3: Draw a card.', colors: ['U'], loyalty: '1' }], b));
+        jace = (me.deck.battlefield || []).find(c => c.instanceId === (b.lastCreated || []).slice(-1)[0]);
+        if (jace) { jace.counters = { ...(jace.counters || {}), loyalty: 0 }; jace.loyaltyInitialised = true; }
+      }
+      if (!jace) return true;
+      H.addCounter(jace, 'loyalty', n);
+      jace.counters.loyalty = Number(jace.counters.loyalty || 0);
+      notes.push(`Empower Jace ${n}: Jace has ${jace.counters.loyalty} loyalty.`);
       return true;
     }
     default: return false;
