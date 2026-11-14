@@ -40,6 +40,7 @@ export function openCardDetail(ctx, id) {
     if (card.chosen) status.push(`Chosen: ${card.chosen}`);
     if (card.faceDown) status.push(card.realName ? `Face down — it is really ${card.realName}` : 'Face down');
     if (card.castMode) status.push(`Cast with ${card.castMode}`);
+    if (card.prepared) status.push(`Prepared — you may cast a copy of ${card.prepared === true ? 'its spell' : card.prepared} (shown in exile)`);
     if (card.kicked) status.push(card.kicked > 1 ? `Kicked ${card.kicked} times` : 'Kicked');
     if (card.goaded) status.push('Goaded — must attack, and not the player who goaded it if possible');
     if (card.controller !== card.owner) status.push(`Owned by ${view.players.find(p => p.playerId === card.owner)?.name || 'another player'}`);

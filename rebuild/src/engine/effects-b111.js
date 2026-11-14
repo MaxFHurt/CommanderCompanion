@@ -3,6 +3,7 @@
 // (from applyB110) and gatherB111 asks the requirement kinds made here (from gatherB110). Most wordings are read as an instruction
 // the game already runs; every choice stays with the player who makes it.
 import { numberFromText, locateCardInGame, definitionFor, moveCard, catalogHelpers as H } from './effects.js';
+import { compileB112Clause, compileB112Sequence, applyB112, gatherB112 } from './effects-b112.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -194,7 +195,7 @@ export function compileB111Clause(c, ctx) {
     effects.push({ kind: 'delay', when: { event: 'end-step', whose: 'any', sameTurn: true }, effects: [{ kind: 'sacrifice', bind: 'sourceId' }], requirements: [] });
     return true;
   }
-  return false;
+  return compileB112Clause(c, ctx);
 }
 
 /** Sentences that need their neighbours. Returns { part, consumed } or null. */
@@ -231,7 +232,7 @@ export function compileB111Sequence(clauses, i, { sourceName, parts = [] }) {
     if ((mm = c1.match(/^You gain (\d+) life for each card revealed this way\.?$/i)))
       return { part: { effects: [...base.effects, { kind: 'life', scope: 'you', amount: { kind: 'times', n: Number(mm[1]), of: 'X' }, deltaSign: 1 }], requirements: base.requirements, unsupported: [] }, consumed: 2 };
   }
-  return null;
+  return compileB112Sequence(clauses, i, { sourceName, parts });
 }
 
 export function applyB111(game, controllerId, effect, bindings, notes) {
@@ -301,7 +302,7 @@ export function applyB111(game, controllerId, effect, bindings, notes) {
       notes.push(`${definitionFor(game, top)?.name || 'A creature'} returns to the battlefield.`);
       return true;
     }
-    default: return false;
+    default: return applyB112(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -312,5 +313,5 @@ export function gatherB111(game, ctx, req, bindings, ask, key, title, base, util
     bindings[req.bind] = rows.length ? [].concat(ask(key, () => ({ ...base, playerId: me.playerId, kind: 'choose-many', private: true, title, prompt: `Reveal ${req.label}.`, options: rows.map(c => util.cardOption(game, c, me, util.defOf(game, c)?.typeLine || '')), min: 0, max: rows.length }))) : [];
     return true;
   }
-  return false;
+  return gatherB112(game, ctx, req, bindings, ask, key, title, base, util);
 }

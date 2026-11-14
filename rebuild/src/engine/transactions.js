@@ -7,6 +7,7 @@ import { effectivePower, effectiveToughness } from './combat.js';
 import { applyEffects as applyGenericEffects, locateCardInGame, definitionFor, moveCard, snapshotGame, restoreGameSnapshot, clearCastState, refreshMutated } from './effects.js';
 import { queueTriggers } from './triggers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from './face-down.js';
+import { castPreparedCopy } from '../game/prepare.js';
 import { graveyardDestination } from './replacements.js';
 const ZONES = ['remainingLibrary', 'hand', 'battlefield', 'graveyard', 'exile', 'tokens', 'attachments', 'commandZone'];
 function locate(deck, id) { for (const z of ZONES) {
@@ -366,6 +367,7 @@ function putSpellOnStack(game, player, action, deck) {
   if (action.castMode && action.castMode !== 'normal')
     card.castMode = action.castMode;
   delete card.plotted; delete card.plottedTurn; delete card.suspended; delete card.graveyardCastPermission;   // leaving exile/graveyard ends plot, suspend, permissions
+  if (card.preparedOf) castPreparedCopy(game, card);   // Prepared: casting the copy unprepares the creature
   card.wasCast = true;   // "if you cast it" (The One Ring); forgotten when it changes zones again
   card.castFromZone = action.fromZone || 'hand';   // Fblthp, the Lost: "was cast from your library"
   if (action.kicked) {
@@ -420,7 +422,7 @@ function putSpellOnStack(game, player, action, deck) {
   const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
   stackObject.manaFrom = [...new Set(player.mana.spentTags || [])];   // the kinds of source the mana came from (Treasure)
   stackObject.manaSpentCount = manaSpent;   // "the amount of mana spent to cast this spell"
-  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, manaFrom: stackObject.manaFrom, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
+  emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, ...(card.preparedOf ? { prepared: true } : {}), stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, manaFrom: stackObject.manaFrom, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
@@ -1261,8 +1263,10 @@ export function createTransactionEngine(game) {
         if (action.phase === 'begin-combat' || action.phase === 'combat')
           emit(game, { type: 'begin-combat', playerId: game.activePlayerId });
       }
-      else if (action.type === 'end-turn')
+      else if (action.type === 'end-turn') {
         advanceTurn(game);
+        if (game.dayNightChanged === game.turnNumber) emit(game, { type: 'day-night-changed', to: game.dayNight, playerId: game.activePlayerId });
+      }
       else if (action.type === 'concede') {
         if (player.eliminated)
           throw new Error('This player has already left the game.');

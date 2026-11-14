@@ -290,6 +290,11 @@ function triggerMatches(game, row, ability, event) {
   // ∞ abilities (The Soul Stone, the Infinity Stones) work only once the permanent is harnessed.
   if (!row.card?.harnessed && String(d?.oracleText || '').split('\n').some(l => /^∞\s*[—-]/.test(l) && l.includes(String(ability.text || '').slice(0, 40))))
     return false;
+  if (/^Whenever day becomes night or night becomes day$/i.test(t)) return event.type === 'day-night-changed';   // day and night (game/daynight.js)
+  if (/^Whenever you cast a prepared spell$/i.test(t)) return event.type === 'spell-cast' && isYourEvent(row, event) && !!event.prepared;   // Codie, Ravenous Codex: a copy cast from a prepared creature (prepare.js)
+  // "When this creature enters and whenever …" (Inspired Skypainter, Layla Hassan): either half fires it.
+  { const both = t.match(/^(When .+? enters(?: the battlefield)?) and ((?:whenever|at) .+)$/i);
+    if (both) return triggerMatches(game, row, { ...ability, trigger: both[1] }, event) || triggerMatches(game, row, { ...ability, trigger: both[2].charAt(0).toUpperCase() + both[2].slice(1) }, event); }
   const general = generalMatch(game, row, t, event);
   if (general !== undefined)
     return general;
@@ -452,6 +457,8 @@ function triggerMatches(game, row, ability, event) {
       return false;
     if (/except the first one they draw in each of their draw steps/i.test(t) && event.isFirstNormalDrawStepDraw)
       return false;
+    if (/(?:draws|draw) their second card each turn/i.test(t))   // Defacing Duskmage: only each opponent's second draw (was every draw)
+      return Number(event.drawNumberThisTurn || 0) === 2;
     if (/your second card each turn/i.test(t))
       return event.playerId === row.player.playerId && Number(event.drawNumberThisTurn || 0) === 2;
     if (/your first card each turn/i.test(t))
@@ -777,7 +784,7 @@ export function resolveTrigger(game, trigger, bindings = {}) {
  * card, by another of its controller's cards and by an opponent, with each common card type. A
  * trigger nothing matches is one players must remember and resolve by hand.
  */
-const PROBE_EVENTS = ['door-unlocked', 'library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
+const PROBE_EVENTS = ['door-unlocked', 'day-night-changed', 'library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
 const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem', 'Creature — Elemental Dragon', 'Artifact — Equipment'];
 export function triggerCanFire(definition, ability) {
   return probeTrigger(definition, ability, PROBE_TYPES, PROBE_EVENTS, [{}]) || probeTrigger(definition, ability, wideProbeTypes(ability), [...PROBE_EVENTS, ...PROBE_EXTRA_EVENTS], WIDE_VARIANTS);
@@ -787,7 +794,7 @@ export function triggerCanFire(definition, ability) {
 const WIDE_VARIANTS = [
   { victim: true }, { oppTurn: true }, { event: { manaValue: 7, colors: ['W', 'U'], kicked: true, fromZone: 'hand', byKind: 'spell', firstThisTurn: true, to: 'graveyard', combat: false } },
   { event: { manaValue: 9, colors: ['B', 'R', 'G'], crewIds: ['self'], land: true, creature: true, typeLine: 'Land — Swamp Forest Island Mountain Plains' } },
-  { token: true, event: { token: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
+  { token: true, event: { token: true } }, { event: { prepared: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { event: { byPlayerId: 'me', byKind: 'spell', firstThisTurn: true } }, { event: { byPlayerId: 'me', byKind: 'ability', firstThisTurn: true } },   // "becomes the target of a spell or ability you control" (Valiant) { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 /** Colours a trigger names ("another green creature", "a white or blue spell"): the wide probe's cards have them (build 110). */

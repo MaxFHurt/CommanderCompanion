@@ -201,6 +201,7 @@ function matchesPermanentScope(game, card, scope, source = null, player = null) 
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (!descriptorFits(game, card, def, scope)) return false;
   if (!sourceLimitFits(game, card, def, fullScope, source, player)) return false;
+  if (/\bthat attacked (?:or blocked )?this turn\b/.test(scope) && card.attackedTurn !== game.turnNumber && !(/or blocked/.test(scope) && card.blockedTurn === game.turnNumber)) return false;   // Hexhaven Dueling Arena, Divine Verdict-style limits
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
@@ -209,7 +210,7 @@ function matchesPermanentScope(game, card, scope, source = null, player = null) 
   if (/\btoken\b/.test(scope.replace(/\bnontoken\b/g, '')) && !card.token) return false;
   if (!manaValueFits(def, scope)) return false;
   // "target Goblin creature", "target Zombie you control": a creature type in the target.
-  const sub = scope.match(/target (?:another |other )?([a-z]+) (?:creature|you control|an opponent controls)/);
+  const sub = scope.match(/target (?:another |other )?([a-z]+(?:-[a-z]+)?) (?:creature|you control|an opponent controls)/);   // build 112: Assembly-Worker
   if (sub && !/^(attacking|blocking|tapped|untapped|nontoken|token|legendary|nonlegendary|basic|nonbasic|white|blue|black|red|green|colorless|multicolored|monocolored|noncreature|nonland|nonartifact|nonblack|nonwhite|nonblue|nonred|nongreen|artifact|enchantment|land|creature|planeswalker|battle|permanent|equipped|enchanted|modified|face-down|other|another|unblocked|blocked)$/.test(sub[1])
     && !new RegExp(`\\b${sub[1]}s?\\b`, 'i').test(t.split('—')[1] || '') && !/\bChangeling\b/.test(def?.oracleText || '')) return false;
   // "target Wolf or Werewolf creature" (build 111): either creature type
@@ -295,6 +296,13 @@ export function candidatesFor(game, req, player, source = null) {
         out.push(playerOption(q));
       }
     }
+    // "target spell or creature" (Unsubstantiate, Venser, Fatehold Charm): spells on the stack can be chosen too.
+    if (targeted && /^target spell or /.test(scope)) for (const x of game.stack || []) if ((x.kind === 'spell' || x.kind === 'spell-copy') && x.id !== source?.stackId && x.card?.instanceId !== source?.instanceId) {
+      const mvMin = scope.match(/with mana value (\d+) or greater/), sd = defOf(game, x.card);
+      if (mvMin && Number(sd?.manaValue ?? sd?.cmc ?? 0) < Number(mvMin[1])) continue;   // Divide by Zero
+      if (/an opponent controls|you don'?t control/.test(scope) && x.controllerId === player.playerId) continue;   // Press the Enemy
+      if (/you control\b/.test(scope) && !/an opponent controls|you don'?t control/.test(scope) && x.controllerId !== player.playerId) continue;
+      out.push({ id: x.id, label: x.label || 'Spell', sub: `${playerById(game, x.controllerId)?.displayName || ''} — spell on the stack`, definitionId: x.sourceDefinitionId }); }
     if (/any target|any other target|creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment/.test(scope)) {
       const anyTarget = /any (?:other )?target/.test(scope);
       const defending = /defending player controls/.test(scope);   // "target creature defending player controls": the player this attacker is attacking

@@ -9,6 +9,8 @@ const turnOrderAfter = (game, playerId) => turnOrderFrom(game, playerId).filter(
 import { commit } from './ops.js';
 import { regenerates } from '../engine/effects-catalog.js';
 import { sagaFinalChapter } from '../engine/keyword-triggers.js';
+import { maintainPrepared } from './prepare.js';
+import { maintainDayNight } from './daynight.js';
 
 export function stateBasedActions(game) {
   let changed = false;
@@ -17,13 +19,16 @@ export function stateBasedActions(game) {
     if (p.citysBlessing || p.eliminated || (p.deck?.battlefield || []).length < 10) continue;
     if ((p.deck.battlefield || []).some(c => /(?:^|\n)\s*Ascend\b/i.test(String(defOf(game, c)?.oracleText || '')))) { p.citysBlessing = true; changed = true; log(game, `${p.displayName} gets the city's blessing.`); }
   }
+  // Prepared creatures: "enters prepared" and the castable copies of their spells (prepare.js).
+  if (maintainPrepared(game)) changed = true;
+  if (maintainDayNight(game)) changed = true;   // day/night and daybound faces
   // A copy of a card that was not cast (or has left the stack) ceases to exist (707.12).
   for (const p of game.players || []) for (const z of ['exile', 'graveyard', 'hand', 'battlefield', 'remainingLibrary']) {
     const zone = p.deck?.[z];
     if (!Array.isArray(zone) || !zone.some(c => c.castCopy)) continue;
     const pending = [game.flow?.freeCast, ...(game.flow?.freeCastQueue || [])].filter(Boolean).map(x => x.instanceId);
     const opId = game.flow?.op?.args?.instanceId;
-    for (let k = zone.length - 1; k >= 0; k--) if (zone[k].castCopy && !pending.includes(zone[k].instanceId) && zone[k].instanceId !== opId && !(z === 'battlefield')) { zone.splice(k, 1); changed = true; }
+    for (let k = zone.length - 1; k >= 0; k--) if (zone[k].castCopy && !zone[k].preparedOf && !pending.includes(zone[k].instanceId) && zone[k].instanceId !== opId && !(z === 'battlefield')) { zone.splice(k, 1); changed = true; }
   }
   for (let guard = 0; guard < 20; guard++) {
     let acted = false;

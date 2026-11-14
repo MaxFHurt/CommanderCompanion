@@ -228,7 +228,7 @@ export const gameScreen = {
           </button>`}
           <footer class="game__bar">
             <button type="button" class="phase-box" data-act="phase-info">
-              <b>Turn ${view.turn} — ${view.phaseLabel}</b>
+              <b>Turn ${view.turn} — ${view.phaseLabel}${view.dayNight ? ` · ${view.dayNight === 'night' ? 'Night' : 'Day'}` : ''}</b>
               <span class="phase-track">${PHASE_STEPS.map(([k, label]) => html`<i class="${phaseKey(view.phase) === k ? 'is-on' : ''}" title="${label}"></i>`)}</span>
             </button>
             ${judge ? html`

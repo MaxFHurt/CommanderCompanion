@@ -13,6 +13,7 @@ import { syncAttachments } from '../../src/game/attachments.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 import { queueTriggers } from '../../src/engine/triggers.js';
+import { stateBasedActions } from '../../src/game/sba.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -5188,6 +5189,185 @@ section('batch 5 (build 111): discard X as an additional cost, Return X');
   const gyIds = t.P(0).deck.graveyard.filter(c => ['Mulldrifter', 'Llanowar Elves'].includes(def(t, c).name)).map(c => c.instanceId);
   cast(t, 'Opt', 'As an additional cost to cast this spell, discard X cards.\nReturn X target creature cards from your graveyard to your hand.', [[d => d.key.includes('discard-x-n'), () => 2], [d => d.key.includes('cost:discard-x') && d.kind === 'choose-many', d => d.options.slice(0, 2).map(o => o.id)], [d => d.kind === 'choose-many' && /graveyard/i.test(d.prompt + d.title), d => d.options.slice(0, d.max).map(o => o.id)]], { manaCost: '{G}', typeLine: 'Sorcery' });
   check('Restless Dreams: X = 2 discards two cards and returns up to two creature cards', t.P(0).deck.hand.length === handBefore && t.P(0).deck.graveyard.length === 3, JSON.stringify([handBefore, t.P(0).deck.hand.length, t.P(0).deck.graveyard.map(c => def(t, c).name)]));
+}
+
+section('batch 5 (build 112): prepared');
+{
+  // Grave Researcher-style: becomes prepared, the copy of its spell is cast from exile for its own cost, then it is unprepared
+  const t = setup();
+  const faces = (front) => ({ layout: 'prepare', typeLine: 'Creature — Human Wizard', cardFaces: [{ faceIndex: 0, name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Human Wizard', oracleText: front }, { faceIndex: 1, name: 'Divination', manaCost: '{1}{U}', typeLine: 'Sorcery', oracleText: 'Draw two cards.' }] });
+  const front = 'At the beginning of your upkeep, this creature becomes prepared.';
+  const bear = onField(t, 'Grizzly Bears', front, faces(front));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('This creature becomes prepared.', { sourceName: 'Grizzly Bears' }).effects, { sourceId: bear.instanceId });
+  stateBasedActions(t.game);
+  const copy = t.P(0).deck.exile.find(c => c.preparedOf === bear.instanceId);
+  check('prepared: the creature is prepared and a castable copy of its spell is in exile', !!bear.prepared && !!copy && def(t, copy)?.name === 'Divination', JSON.stringify([bear.prepared, t.P(0).deck.exile.map(c => def(t, c)?.name)]));
+  const hand = t.P(0).deck.hand.length;
+  const r = copy ? t.ctl.dispatch({ type: 'play', instanceId: copy.instanceId }, t.as(0)) : { ok: false, error: 'no copy' };
+  settle(t);
+  check('prepared: casting the copy draws two, unprepares the creature, and the copy is gone', r.ok && t.P(0).deck.hand.length === hand + 2 && !bear.prepared && !t.P(0).deck.exile.some(c => c.preparedOf) && !t.P(0).deck.graveyard.some(c => c.preparedOf), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, bear.prepared]));
+  // the spell face can't be cast from hand
+  t.give(0, 'Mulldrifter'); const h = t.hand(0, 'Mulldrifter'); asText(t, h, front, { ...faces(front), definitionId: h.definitionId });
+  const pc = playCheck(t.game, t.P(0), h, 1);
+  const r2 = t.ctl.dispatch({ type: 'play', instanceId: h.instanceId, faceIndex: 1 }, t.as(0));
+  check('prepared: a prepare card in hand casts only its creature face', !r2.ok || !t.P(0).deck.hand.includes(h) && (t.game.stack || []).every(x => def(t, x.card || {})?.name !== 'Divination'), JSON.stringify([r2.ok, pc.legal]));
+}
+{
+  // "This creature enters prepared."; leaving the battlefield ends it and removes the copy
+  const t = setup();
+  const text = 'This creature enters prepared.';
+  const elf = onField(t, 'Llanowar Elves', text, { layout: 'prepare', cardFaces: [{ faceIndex: 0, name: 'Llanowar Elves', manaCost: '{G}', typeLine: 'Creature — Elf', oracleText: text }, { faceIndex: 1, name: 'Opt', manaCost: '{U}', typeLine: 'Instant', oracleText: 'Scry 1. Draw a card.' }] });
+  delete elf.prepInit; stateBasedActions(t.game);
+  const was = !!elf.prepared && t.P(0).deck.exile.some(c => c.preparedOf === elf.instanceId);
+  moveCard(t.game, elf.instanceId, 'graveyard'); stateBasedActions(t.game);
+  check('enters prepared: prepared on the battlefield; gone (and no copy) once it leaves', was && !elf.prepared && !t.P(0).deck.exile.some(c => c.preparedOf), JSON.stringify([was, elf.prepared]));
+  // a creature without a prepare spell can't become prepared
+  const bear = onField(t, 'Grizzly Bears', '', {}, 0);
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Target creature becomes prepared.', { sourceName: 'Skycoach Waypoint' }).effects, { target0: bear.instanceId });
+  check('prepared: only creatures with prepare spells can become prepared', !bear.prepared, JSON.stringify(bear.prepared));
+}
+
+section('batch 5 (build 112): Empower Jace');
+{
+  const t = setup();
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Empower Jace 1.', { sourceName: 'Countersculpt' }).effects, {});
+  const jace = t.P(0).deck.battlefield.find(c => def(t, c)?.name === 'Jace');
+  const first = jace && jace.counters.loyalty;
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Empower Jace 2.', { sourceName: 'Theorist\'s Sanctum' }).effects, {});
+  const jaces = t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Jace');
+  check('Empower Jace: makes a blue Jace planeswalker token with 1 loyalty, then adds 2 to the same token', first === 1 && jaces.length === 1 && jace.counters.loyalty === 3 && /Planeswalker — Jace/.test(def(t, jace).typeLine), JSON.stringify([first, jaces.length, jace?.counters]));
+  const abil = parseActivatedAbilities(def(t, jace)).filter(a => !a.manaAbility);
+  const hand = t.P(0).deck.hand.length;
+  const r = t.ctl.dispatch({ type: 'activate', instanceId: jace.instanceId, abilityId: abil[1]?.id }, t.as(0)); settle(t);
+  const live = t.P(0).deck.battlefield.find(c => c.instanceId === jace.instanceId);
+  check('Empower Jace: its [−3] draws a card and it is put into the graveyard at 0 loyalty', r.ok &&  t.P(0).deck.hand.length === hand + 1 && !t.P(0).deck.battlefield.some(c => c.instanceId === jace.instanceId), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, live?.counters]));
+}
+
+section('batch 5 (build 112): return target spell or creature');
+{
+  const t = setup();
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw a card.', { manaCost: '{U}', typeLine: 'Instant' });
+  t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(opt), 1); opt.zone = 'stack';
+  t.game.stack = [{ id: 'stack:opt', kind: 'spell', controllerId: t.P(0).playerId, ownerId: t.P(0).playerId, card: opt, sourceDefinitionId: opt.definitionId, label: 'Opt', effects: [], effectBindings: {} }];
+  const rows = candidatesFor(t.game, { kind: 'target', bind: 'target0', scope: 'target spell or creature' }, t.P(1), null);
+  applyEffects(t.game, t.P(1).playerId, compileEffectText('Return target spell or creature to its owner\'s hand.', { sourceName: 'Unsubstantiate' }).effects, { target0: 'stack:opt' });
+  check('Unsubstantiate: a spell on the stack can be chosen and goes back to its owner\'s hand unresolved', rows.some(r => r.id === 'stack:opt') && !t.game.stack.length && t.P(0).deck.hand.includes(opt), JSON.stringify([rows.map(r => r.id), t.game.stack.length]));
+}
+
+section('batch 5 (build 112): endure, mass pumps, colour of a spell');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '{1}: This creature endures 2.');
+  activate(t, bear, 0, [[d => d.prompt?.startsWith('Endure'), 'counters']]);
+  const c1 = Number(bear.counters['+1/+1'] || 0);
+  activate(t, bear, 0, [[d => d.prompt?.startsWith('Endure'), 'spirit']]);
+  const spirit = t.P(0).deck.battlefield.find(c => def(t, c)?.name === 'Spirit');
+  check('Endure 2: two +1/+1 counters, or a 2/2 white Spirit', c1 === 2 && spirit && power(t, spirit) === 2 && (def(t, spirit).colors || []).includes('W'), JSON.stringify([c1, spirit && def(t, spirit)]));
+}
+{
+  const t = setup();
+  const elf = onField(t, 'Llanowar Elves', '{1}: Other Elves you control get +2/+2 and gain deathtouch until end of turn.', { typeLine: 'Creature — Elf Druid' });
+  const elf2 = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Elf Warrior' });
+  const bear = onField(t, 'Mulldrifter', '', { typeLine: 'Creature — Bear' });
+  activate(t, elf, 0);
+  check('Other Elves you control get +2/+2 and gain deathtouch: only the other Elf', power(t, elf2) === 4 && has(t, elf2, 'deathtouch') && power(t, elf) === 1 && power(t, bear) === 2 && !(elf.temporaryEffects || []).some(e => e.keyword === 'deathtouch'), JSON.stringify([has(t, elf2, 'deathtouch'), has(t, elf, 'deathtouch'), elf2.temporaryEffects]));
+}
+{
+  const t = setup();
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw a card.', { manaCost: '{U}', typeLine: 'Instant', colors: ['U'] });
+  t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(opt), 1); opt.zone = 'stack';
+  t.game.stack = [{ id: 'stack:opt', kind: 'spell', controllerId: t.P(0).playerId, ownerId: t.P(0).playerId, card: opt, sourceDefinitionId: opt.definitionId, label: 'Opt', effects: [], effectBindings: {} }];
+  applyEffects(t.game, t.P(1).playerId, compileEffectText('Target spell or permanent becomes red.', { sourceName: 'Chaoslace' }).effects, { target0: 'stack:opt' });
+  check('Chaoslace: a spell on the stack becomes red', (withOverlay(opt, def(t, opt)).colors || []).join() === 'R', JSON.stringify(withOverlay(opt, def(t, opt)).colors));
+}
+
+section('batch 5 (build 112): Cipher');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)', [[d => /encode/i.test(d.prompt || '') || d.kind === 'choose-one', () => bear.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const opt = t.P(0).deck.exile.find(c => def(t, c)?.name === 'Opt');
+  check('Cipher: the spell resolves, then is exiled encoded on the creature', t.P(0).deck.hand.length === hand + 1 && !!opt && (bear.imprintIds || []).includes(opt.instanceId) && (bear.grantedText || []).some(x => /combat damage to a player/.test(x)), JSON.stringify([t.P(0).deck.hand.length - hand, t.names(0, 'exile'), bear.imprintIds]));
+  t.game.pendingTriggers = [];
+  queueTriggers(t.game, { type: 'combat-damage-player', sourceId: bear.instanceId, controllerId: t.P(0).playerId, playerId: t.P(1).playerId, amount: 2 });
+  check('Cipher: the encoded creature dealing combat damage to a player triggers the copy', (t.game.pendingTriggers || []).some(x => x.sourceId === bear.instanceId), JSON.stringify((t.game.pendingTriggers || []).map(x => x.abilityText)));
+}
+
+section('batch 5 (build 112): day and night');
+{
+  const t = setup();
+  const front = 'Daybound (If a player casts no spells during their own turn, it becomes night next turn.)';
+  const wolf = onField(t, 'Grizzly Bears', front, { layout: 'transform', cardFaces: [{ faceIndex: 0, name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Human Werewolf', oracleText: front, power: '2', toughness: '2' }, { faceIndex: 1, name: 'Moonrage Bear', manaCost: '', typeLine: 'Creature — Werewolf', oracleText: 'Nightbound', power: '4', toughness: '4' }] });
+  const watcher = onField(t, 'Mulldrifter', 'Whenever day becomes night or night becomes day, draw a card.');
+  stateBasedActions(t.game);
+  const day = t.game.dayNight;
+  t.do(0, { type: 'end-turn' }); t.passAll(); t.discardIfNeeded(0); t.passAll(); stateBasedActions(t.game);
+  check('day/night: a daybound permanent makes it day; a turn with no spells makes it night and it transforms', day === 'day' && t.game.dayNight === 'night' && Number(wolf.activeFaceIndex) === 1, JSON.stringify([day, t.game.dayNight, wolf.activeFaceIndex]));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('If it\'s night, it becomes day. Otherwise, it becomes night.', { sourceName: 'The Celestus' }).effects, {});
+  stateBasedActions(t.game);
+  check('The Celestus: night becomes day and the werewolf turns back', t.game.dayNight === 'day' && Number(wolf.activeFaceIndex || 0) === 0, JSON.stringify([t.game.dayNight, wolf.activeFaceIndex]));
+  t.game.pendingTriggers = [];
+  queueTriggers(t.game, { type: 'day-night-changed', to: 'day' });
+  check('day/night: "Whenever day becomes night or night becomes day" triggers', (t.game.pendingTriggers || []).some(x => x.sourceId === watcher.instanceId), JSON.stringify((t.game.pendingTriggers || []).length));
+}
+
+section('batch 5 (build 112): Harmonize');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw two cards.\nHarmonize {9}{U} (You may cast this card from your graveyard for its harmonize cost. You may tap an untapped creature you control to reduce that cost by an amount of generic mana equal to its power. Then exile this spell.)', { manaCost: '{2}{U}', typeLine: 'Sorcery' });
+  moveCard(t.game, opt.instanceId, 'graveyard');
+  const hand = t.P(0).deck.hand.length;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: opt.instanceId }, t.as(0));
+  settle(t, [[d => d.key.includes('castMode'), 'harmonize'], [d => d.key.includes('harmonize'), () => bear.instanceId]]);
+  const liveBear = t.P(0).deck.battlefield.find(c => c.instanceId === bear.instanceId);
+  check('Harmonize: cast from the graveyard, a 2-power creature tapped pays {2} of {9}{U} (8 lands), then the card is exiled', r.ok && t.P(0).deck.hand.length === hand + 2 && liveBear?.tapped && t.P(0).deck.exile.some(c => c.instanceId === opt.instanceId), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, liveBear?.tapped, t.names(0, 'exile')]));
+}
+
+section('batch 5 (build 112): small wordings');
+{
+  const t = setup();
+  const dino = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Dinosaur' }), bear = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  const worker = onField(t, 'Mulldrifter', '', { typeLine: 'Artifact Creature — Assembly-Worker' }), legend = onField(t, 'Air Elemental', '', { typeLine: 'Legendary Creature — Elemental' });
+  const ids = scope => candidatesFor(t.game, { kind: 'target', bind: 't', scope }, t.P(0), null).map(r => r.id);
+  check('type targets: Dinosaur, Assembly-Worker and legendary creatures only', ids('target Dinosaur creature').join() === dino.instanceId && ids('target Assembly-Worker creature').join() === worker.instanceId && ids('target legendary creature').join() === legend.instanceId, JSON.stringify([ids('target Dinosaur creature').length, ids('target Assembly-Worker creature').length, ids('target legendary creature').length]));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('All creatures get -1/-1 until end of turn for each Forest you control.', { sourceName: 'Mutilate' }).effects, {});
+  check('Mutilate-style: -1/-1 for each Forest (four Forests)', power(t, legend) === 0, JSON.stringify(power(t, legend)));
+  const life = t.P(1).life;
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Double target player\'s life total.', { sourceName: 'Beacon of Immortality' }).effects, { player0: t.P(1).playerId });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Target player can\'t cast spells this turn.', { sourceName: 'Orim\'s Chant' }).effects, { player0: t.P(0).playerId });
+  t.give(0, 'Opt'); const pc = playCheck(t.game, t.P(0), t.hand(0, 'Opt'));
+  check('Beacon of Immortality doubles the life total; Orim\'s Chant stops casting this turn', t.P(1).life === life * 2 && !pc.legal, JSON.stringify([life, t.P(1).life, pc.legal]));
+}
+
+section('batch 5 (build 112): your choice of, +A/-B or -A/+B, finality');
+{
+  const t = setup();
+  const w = onField(t, 'Grizzly Bears', '{1}: This creature gains your choice of flying, vigilance, or lifelink until end of turn.\n{1}: This creature gets +2/-2 or -2/+2 until end of turn.');
+  activate(t, w, 0, [[d => /Choose one/.test(d.prompt || d.title || '') || d.kind === 'choose-one', d => (d.options || []).find(o => /vigilance/i.test(o.label || o.id))?.id]]);
+  const kws = (t.P(0).deck.battlefield.find(c => c.instanceId === w.instanceId)?.temporaryEffects || []).filter(e => e.kind === 'keyword').map(e => e.keyword);
+  check('your choice of: only the chosen keyword (vigilance)', kws.join() === 'vigilance', JSON.stringify(kws));
+  activate(t, w, 1, [[d => d.kind === 'confirm' || d.kind === 'yes-no' || /\/.*No:/.test(d.prompt || d.title || ''), false]]);
+  check('+2/-2 or -2/+2: answering no gives -2/+2', power(t, w) === 0 && tough(t, w) === 4, JSON.stringify([power(t, w), tough(t, w)]));
+}
+{
+  const t = setup();
+  t.give(0, 'Mulldrifter'); const m = t.hand(0, 'Mulldrifter'); moveCard(t.game, m.instanceId, 'graveyard');
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Return target creature card from your graveyard to the battlefield with a finality counter on it.', { sourceName: 'Rite of the Moth' }).effects, { grave0: m.instanceId });
+  const live = t.P(0).deck.battlefield.find(c => c.instanceId === m.instanceId);
+  check('Rite of the Moth: returned with a finality counter', Number(live?.counters?.finality || 0) === 1, JSON.stringify(live?.counters));
+}
+
+section('batch 5 (build 112): tokens that enter attacking');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.game.phase = 'declare-attackers';
+  t.game.combatState = { attackers: [{ playerId: t.P(0).playerId, instanceId: bear.instanceId, defenderId: t.P(1).playerId, targetId: null, blocksConfirmed: false }], defenders: [t.P(1).playerId], blocks: {} };
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Create two 1/1 white Cat creature tokens with lifelink that are tapped and attacking.', { sourceName: 'Leonin Warleader' }).effects, { sourceId: bear.instanceId, eventCard: bear.instanceId });
+  const cats = t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Cat');
+  check('Leonin Warleader: two lifelink Cats enter tapped and attacking the same player', cats.length === 2 && cats.every(c => c.tapped && c.attacking === t.P(1).playerId && has(t, c, 'lifelink')) && t.game.combatState.attackers.length === 3, JSON.stringify(cats.map(c => [c.tapped, c.attacking, def(t, c).keywords])));
 }
 
 done();

@@ -7,6 +7,7 @@
 
 import { exilePlayPermission } from '../engine/effects-catalog.js';
 import { checkCondition } from '../engine/effects.js';
+import { effectivePower } from '../engine/combat.js';
 import { parseManaCost, validatePlay } from '../engine/rules.js';
 import { defOf, definitionsMap, isLand, opponentsOf } from './helpers.js';
 import { FACE_DOWN_ID, faceDownDefinition } from '../engine/face-down.js';
@@ -170,7 +171,7 @@ export function delveCards(player, card) {
 
 const MODE_LABEL = {
   normal: 'Cast', flashback: 'Flashback', escape: 'Escape', evoke: 'Evoke', dash: 'Dash', blitz: 'Blitz', overload: 'Overload', cleave: 'Cleave',
-  'jump-start': 'Jump-start', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', awaken: 'Awaken', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
+  'jump-start': 'Jump-start', harmonize: 'Harmonize', retrace: 'Retrace', 'commander-free': 'Cast free (you control a commander)', 'free-exile': 'Cast without paying its mana cost', 'force-exile': 'Exile a blue card instead of paying', morph: 'Cast face down (morph)', megamorph: 'Cast face down (megamorph)', disguise: 'Cast face down (disguise)', foretell: 'Cast foretold', adventure: 'Cast from adventure', plot: 'Cast plotted (free)', emerge: 'Emerge (sacrifice a creature)', spectacle: 'Spectacle', disturb: 'Disturb (back face)', prototype: 'Prototype', surge: 'Surge', awaken: 'Awaken', bestow: 'Bestow (as an Aura)', mutate: 'Mutate', converted: 'More Than Meets the Eye (converted)'
 };
 
 /** Does this player control a commander on the battlefield? (Fierce Guardianship, Deadly Rollick …) */
@@ -290,6 +291,8 @@ export function castModes(game, player, card, def, base = null) {
     if (card.grantedFlashback?.turn === game.turnNumber && card.grantedFlashback.playerId === player.playerId && def?.manaCost && !keywordCost(text, 'Flashback')) modes.push({ id: 'flashback', cost: def.manaCost, exileAfter: true });
     const fb = keywordCost(text, 'Flashback');
     if (fb) modes.push({ id: 'flashback', cost: fb, exileAfter: true });
+    const hz = keywordCost(text, 'Harmonize');   // build 112: cast from the graveyard; a tapped creature's power pays part (ops.js)
+    if (hz) modes.push({ id: 'harmonize', cost: hz, exileAfter: true });
     const js = keywordCost(text, 'Jump-start') !== null || /(?:^|\n)\s*Jump-start\b/i.test(strip(text));
     if (js && def?.manaCost) modes.push({ id: 'jump-start', cost: def.manaCost, exileAfter: true, discard: 1 });
     if (/(?:^|\n)\s*Retrace\b/i.test(strip(text)) && def?.manaCost) modes.push({ id: 'retrace', cost: def.manaCost, discardLand: true });
@@ -302,6 +305,8 @@ export function castModes(game, player, card, def, base = null) {
   // Impulse draw: "You may play that card this turn." (and "… without paying its mana cost").
   const permit = zone === 'exile' ? exilePlayPermission(game, player, card) : null;
   if (permit && !(permit.castOnly && isLand(def)) && (def?.manaCost || isLand(def) || permit.free)) modes.push({ id: permit.free ? 'free-exile' : 'normal', cost: permit.free ? '' : (def.manaCost || '') });
+  // Prepared: the copy of a prepared creature's spell (prepare.js), cast for its own cost.
+  if (zone === 'exile' && card.preparedOf && card.controllerId === player.playerId && def?.manaCost !== undefined) modes.push({ id: 'normal', cost: def.manaCost || '' });
   if (zone === 'exile' && card.ownerId === player.playerId) {
     if (card.foretold && card.foretoldTurn !== game.turnNumber) {
       const cost = keywordCost(base?.oracleText || text, 'Foretell');
@@ -357,7 +362,8 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     }
     const priced = modeCost(game, player, card, def, mode, { tax });
     const delve = Math.min(priced.delve, genericOf(priced.cost));
-    const cost = adjustGeneric(priced.cost, -delve);
+    let cost = adjustGeneric(priced.cost, -delve);
+    if (mode.id === 'harmonize') cost = adjustGeneric(cost, -Math.max(0, ...(player.deck?.battlefield || []).filter(c => !c.tapped && /\bCreature\b/.test(defOf(game, c)?.typeLine || '')).map(c => effectivePower(c, defOf(game, c), game))));   // the best creature to tap
     const definition = mode.faceDown ? faceDownDefinition(mode.faceDown) : def;
     const result = validatePlay({ game, player, definition, instance: card, kind, commander, definitions: definitionsMap(game), costOverride: cost, extraFlex: priced.convoke });
     if (mode.discard && !(player.deck?.hand || []).length) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need a card in hand to discard.']; }

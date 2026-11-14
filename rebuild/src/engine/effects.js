@@ -5,6 +5,7 @@ import { faceDownDefinition as faceDownDefinitionLazy } from './face-down.js';
 import { compileCatalogClause, compileB101Only, compileB110Only, compileLinkedOnly, applyCatalogEffect, prepareBindings, regenerates, compileCatalogSequence } from './effects-catalog.js';
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { parseConditionB110, conditionHoldsB110 } from './effects-b110.js';
+import { parseConditionB112, conditionHoldsB112 } from './effects-b112.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
@@ -138,6 +139,7 @@ function resetOnZoneChange(card) {
   delete card.attacking;
   delete card.blocking;
   delete card.unlockedFaces;   // Room doors lock again
+  delete card.prepared; delete card.prepInit;   // a new object is not prepared (prepare.js)
   delete card.linkedExile; delete card.untilLeavesExile; delete card.untilLeavesExileHand; delete card.exiledBy;   // 400.7: a new object remembers nothing it exiled
 }
 /** The object whose effect is resolving right now: cards it moves into exile are "exiled with" it (607.2). */
@@ -513,9 +515,22 @@ function makeToken(game, controller, effect, serial) {
     game.cardDefinitions[tokenDefId] = {
       definitionId: tokenDefId, name: effect.name || effect.tokenName || subtype || 'Token', manaCost: '',
       typeLine: effect.typeLine || `Token Creature — ${subtype}`, oracleText: effect.oracleText || '', power: effect.power ?? null, toughness: effect.toughness ?? null,
-      keywords: effect.keywords || [], colorIdentity: [], colors: effect.colors || [], imageUris: null, set: 'token', language: 'en', collectorNumber: '', hydrationStatus: 'complete'
+      keywords: effect.keywords || [], colorIdentity: [], colors: effect.colors || [], imageUris: null, set: 'token', language: 'en', collectorNumber: '', hydrationStatus: 'complete', ...(effect.loyalty !== undefined ? { loyalty: effect.loyalty } : {})
     };
   return { instanceId: `${controller.playerId}:${tokenDefId}:${Date.now()}:${serial}:${Math.random().toString(36).slice(2, 7)}`, definitionId: tokenDefId, ownerId: controller.playerId, controllerId: controller.playerId, zone: 'battlefield', tapped: !!effect.tapped, counters: {}, attachments: [], temporaryEffects: [], enteredTurn: game.turnNumber, controlSinceTurn: game.turnNumber, token: true };
+}
+/** A token that enters attacking (it was never declared as an attacker, so "whenever … attacks" doesn't trigger for it): it attacks the player the triggering
+ *  creature attacks, else the one your other attackers attack, else your first opponent. Outside combat it just enters. */
+function enterAttacking(game, controllerId, token, bindings) {
+  const cs = game.combatState;
+  if (!cs || !Array.isArray(cs.attackers) || !/combat|attackers|blockers|damage/.test(String(game.phase))) return;
+  const by = id => cs.attackers.find(a => a.instanceId === id);
+  const opp = (game.players || []).find(p => !p.eliminated && p.playerId !== controllerId);
+  const defenderId = by(bindings.eventCard)?.defenderId || by(bindings.sourceId)?.defenderId || bindings.defendingPlayer || cs.attackers.find(a => a.playerId === controllerId)?.defenderId || opp?.playerId;
+  if (!defenderId) return;
+  cs.attackers.push({ playerId: controllerId, instanceId: token.instanceId, defenderId, targetId: null, blocksConfirmed: false });
+  if (!(cs.defenders || []).includes(defenderId)) cs.defenders = [...(cs.defenders || []), defenderId];
+  token.attacking = defenderId; token.attackedTurn = game.turnNumber;
 }
 function checkLethal(game, targetId, notes, bindings) {
   const hit = locateCardInGame(game, targetId);
@@ -1240,7 +1255,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       let changed = 0;
       for (const p of players)
         for (const c of p.deck?.battlefield || [])
-          if ((only ? only.has(c.instanceId) : cardMatchesFilter(game, c, effect.filter || 'creature'))) {
+          if ((only ? only.has(c.instanceId) : cardMatchesFilter(game, c, effect.filter || 'creature')) && !(effect.exceptSource && c.instanceId === bindings.sourceId)) {
             c.temporaryEffects = c.temporaryEffects || [];
             c.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: effect.enabled !== false, expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
             changed++;
@@ -1307,6 +1322,13 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
         throw new Error(`${effect.kind} requires a target or selection.`);
       const hit = locateCardInGame(game, targetId);
       // "Return Research the Deep to its owner's hand." — a resolving spell goes to the hand instead of the graveyard.
+      // "Return target spell or creature to its owner's hand." (Unsubstantiate, Venser): a spell on the stack goes to its owner's hand; a copy ceases to exist.
+      if (effect.kind === 'bounce' && !hit && (game.stack || []).some(x => x.id === targetId && (x.kind === 'spell' || x.kind === 'spell-copy'))) {
+        const i = game.stack.findIndex(x => x.id === targetId), [obj] = game.stack.splice(i, 1);
+        if (obj.kind === 'spell' && !obj.isCopy && !obj.card?.castCopy) { const owner = ownerFor(game, obj.card, game.players.find(p => p.playerId === obj.controllerId)); obj.card.zone = 'hand'; obj.card.controllerId = owner.playerId; owner.deck.hand.push(obj.card); }
+        notes.push(`${obj.label || cardName(game, obj.card)} returns to its owner's hand.`);
+        continue;
+      }
       if (effect.kind === 'bounce' && targetId === bindings.sourceId && (hit?.zone === 'stack' || (!hit && game.resolvingSpellId === targetId))) { game.spellToHand = targetId; notes.push('It returns to its owner\u2019s hand as it finishes resolving.'); continue; }
       // "When this creature dies, exile it." (Glissa's Retriever): the card that just died is exiled from the graveyard.
       if (effect.kind === 'exile' && effect.bind === 'eventCard' && hit?.zone === 'graveyard') {
@@ -1520,6 +1542,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
         if (effect.tapped) token.tapped = true;
         controller.deck.battlefield.push(token);
         bindings.lastCreated = [...(bindings.lastCreated || []), token.instanceId];
+        if (effect.attacking) enterAttacking(game, controllerId, token, bindings);   // build 112: "that's (tapped and) attacking"
         emit(bindings, { type: 'token-created', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '' });
         emit(bindings, { type: 'enters-battlefield', sourceId: token.instanceId, definitionId: token.definitionId, controllerId, ownerId: controllerId, typeLine: definitionFor(game, token)?.typeLine || '', token: true });
       }
@@ -1856,7 +1879,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
-  return parseConditionB49(t) || parseConditionB110(t);
+  return parseConditionB49(t) || parseConditionB110(t) || parseConditionB112(t);
 }
 /** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
 const INTERVENING = /^(?:b110-(?:amount|mana-from|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
@@ -1941,6 +1964,8 @@ export function conditionHolds(game, controllerId, effect, bindings) {
   if (b49 !== undefined) return b49;
   const b110 = conditionHoldsB110(game, controllerId, effect, bindings);
   if (b110 !== undefined) return b110;
+  const b112 = conditionHoldsB112(game, controllerId, effect, bindings);
+  if (b112 !== undefined) return b112;
   return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {
@@ -2624,7 +2649,20 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     const kws = (q >= 0 ? withText.slice(0, q).replace(/\s*(?:,\s*)?(?:and\s*)?$/i, '') : withText).split(/,| and /).map(x => x.trim()).filter(Boolean);
     const quotes = q >= 0 ? [...withText.slice(q).matchAll(/"([^"]*)"?/g)].map(x => x[1].replace(/[,\s]+$/, '').trim()).filter(x => x && !/^(?:and|,)$/i.test(x)) : [];
     const rules = quotes.map(x => x.replace(/([^.])$/, '$1.')).join('\n');
-    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: tokenLine, keywords: kws, colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}) });
+    // build 112: "with vigilance that's attacking" / "with lifelink that are tapped and attacking" (Brimaz, Leonin Warleader, Geist of Saint Traft) used to be read as
+    // keywords; the tokens now enter (tapped and) attacking. "… that's blocking that creature" stays by hand.
+    let attacking = false, tappedTok = false, named = null;
+    const kw2 = [];
+    for (let k of kws) {
+      const nm = k.match(/^(.*?)\s*\bnamed ([A-Z][A-Za-z' -]+?)(\s+(?:that'?s|that are)\b.*)?$/);   // "with flying named Ballistic Boulder that's tapped and attacking"
+      if (nm) { named = nm[2].trim(); k = `${nm[1]}${nm[3] || ''}`.trim(); if (!k) continue; }
+      const am = k.match(/^(.*?)\s*\b(?:that'?s|that are)\s+(tapped and )?attacking(?: that player)?$/i);
+      if (am) { attacking = true; tappedTok = !!am[2]; if (am[1]) kw2.push(am[1].trim()); }
+      else if (/^attacking(?: that player)?$/i.test(k) && kw2.length && /that are tapped$|that'?s tapped$/i.test(kw2[kw2.length - 1])) { attacking = true; tappedTok = true; kw2[kw2.length - 1] = kw2[kw2.length - 1].replace(/\s*(?:that are|that'?s) tapped$/i, ''); }
+      else kw2.push(k);
+    }
+    if (kw2.some(k => /\b(?:that'?s|that are|attacking|blocking|tapped)\b/i.test(k))) { unsupported.push(c); return { effects, requirements, unsupported }; }
+    effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: named || subtype, typeLine: tokenLine, keywords: kw2.filter(Boolean), colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}), ...(attacking ? { attacking: true, tapped: tappedTok } : {}) });
     return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Create (a|an|one|two|three|four|five|\d+) (Treasure|Food|Clue|Blood|Map) tokens?\.?$/i))) {

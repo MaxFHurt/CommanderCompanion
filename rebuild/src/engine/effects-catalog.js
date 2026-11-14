@@ -408,9 +408,10 @@ function compileCatalogClauseInner(c, ctx) {
     return true;
   }
   // "Dragons you control get +1/+0 until end of turn." / "Dragon creatures get +1/+0 until end of turn."
-  if ((m = c.match(/^(?:Other )?([A-Z][a-z]+?)s? (?:you control|creatures(?: you control)?) get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/)) && !/^(?:Creature|Artifact|Permanent|Land|Token)$/.test(m[1])) {
+  if ((m = c.match(/^(?:Other )?([A-Z][a-z]+?)s? (?:you control|creatures(?: you control)?) get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/)) && !/^(?:Creature|Artifact|Permanent|Land|Token|Other|Attacking|Blocking|Tapped|Untapped|Then|Legendary|Equipped|Enchanted|Nontoken|Each|All)$/.test(m[1])) {
     const sub = m[1].replace(/ve$/, 'f').replace(/^Mice$/, 'Mouse');   // (build 111: Mice are Mouse creatures)
-    effects.push({ kind: 'pump-each', scope: /you control/.test(c) ? 'you' : 'all', filter: `creature|anysub:${sub}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' });
+    // build 112: "Other creatures you control" was read as creatures of type "Other"; "Other Elves" now leaves out the source
+    effects.push({ kind: 'pump-each', scope: /you control/.test(c) ? 'you' : 'all', filter: `creature|anysub:${sub}`, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup', ...(/^Other /.test(c) ? { exceptSource: true } : {}) });
     return true;
   }
   // Bounce creatures: "return a blue or black creature you control to its owner's hand." (the player chooses)
