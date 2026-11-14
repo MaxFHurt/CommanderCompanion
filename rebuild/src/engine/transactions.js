@@ -131,7 +131,7 @@ function emit(game, event) {
 /** Leaving the battlefield: remember counters for "dies" abilities, then reset the card. */
 function leaveBattlefield(card, to = 'graveyard') {
   delete card.temporaryGrants;
-  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null };
+  const last = { counters: { ...(card.counters || {}) }, castMode: card.castMode || null, damage: Number(card.damageMarked || 0) };
   card.damageMarked = 0;
   card.deathtouchDamage = false;
   card.counters = {};
@@ -388,16 +388,19 @@ function putSpellOnStack(game, player, action, deck) {
   // the colours of mana spent on it (Sunburst)
   stackObject.colorsSpent = [...new Set([...Object.entries(action.payment || {}).filter(([k, v]) => /^[WUBRG]$/.test(k) && Number(v) > 0).map(([k]) => k), ...(action.payment?.__sourceAssignments || []).map(a => a.color).filter(c => /^[WUBRG]$/.test(c))])];
   const manaSpent = Object.entries(action.payment || {}).filter(([k]) => !k.startsWith('__')).reduce((n, [, v]) => n + Math.max(0, Number(v || 0)), 0) + (action.payment?.__sourceAssignments || []).length;
+  stackObject.manaSpentCount = manaSpent;   // "the amount of mana spent to cast this spell"
   emit(game, { type: 'spell-cast', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId, fromZone: from, stackId: stackObject.id, castMode: stackObject.castMode, kicked: !!action.kicked, manaSpent, typeLine: defFor(game, card)?.typeLine || '', manaValue: Number(defFor(game, card)?.manaValue ?? defFor(game, card)?.cmc ?? 0) });
   return stackObject;
 }
 function payAbilityCosts(game, player, action, deck) {
+  const before = locate(deck, action.instanceId);
   for (const id of action.costExileIds || []) {
     const h = locateCardInGame(game, id);
     if (!h || !['battlefield', 'graveyard', 'hand'].includes(h.zone)) throw new Error('The card chosen to exile is gone.');   // graveyard: forage; hand: Jhoira
     moveCard(game, id, 'exile', { onEvent: e => emit(game, { ...e, cost: true }) });
   }
-  const hit = locate(deck, action.instanceId);
+  // "Exile this card from your graveyard" as the cost: the source has gone to exile by now, but it still pays the rest.
+  const hit = (action.costExileIds || []).includes(action.instanceId) && before && before.z === action.fromZone ? { card: before.card, z: action.fromZone } : locate(deck, action.instanceId);
   // Channel (from the hand) and "return this card from your graveyard" abilities name the zone they work from.
   if (!hit || (hit.z !== 'battlefield' && !(action.fromZone && hit.z === action.fromZone)))
     throw new Error('Ability source must be on the battlefield');
@@ -413,6 +416,14 @@ function payAbilityCosts(game, player, action, deck) {
       throw new Error('Ability source is not tapped');
     setTappedWithCapacity(game, player, card, false);
     emit(game, { type: 'untapped', sourceId: card.instanceId, definitionId: card.definitionId, controllerId: player.playerId });
+  }
+  // "Remove all eyeball counters from this artifact" (a cost): counted by ops.js before it is paid.
+  for (const rc of action.costRemoveCounters || []) {
+    if (!rc.amount) continue;
+    card.counters = card.counters || {};
+    card.counters[rc.counter] = Math.max(0, Number(card.counters[rc.counter] || 0) - Number(rc.amount));
+    if (!card.counters[rc.counter]) delete card.counters[rc.counter];
+    emit(game, { type: 'counter-removed', sourceId: card.instanceId, controllerId: player.playerId, counter: rc.counter, amount: Number(rc.amount) });
   }
   payMana(game, player, action.payment);
   if (action.energyCost) {
@@ -575,6 +586,7 @@ function resolveStackTop(game) {
         card.counters = card.counters || {};
         card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + Number(obj.asEntersChoices.plusCounters);
       }
+      card.devoured = 0;
       if (obj.asEntersChoices?.devour?.length) {
         // Devour: the chosen creatures still there are sacrificed; counters for each one sacrificed
         let n = 0;
@@ -585,6 +597,7 @@ function resolveStackTop(game) {
           n++;
         }
         if (n) { card.counters = card.counters || {}; card.counters['+1/+1'] = Number(card.counters['+1/+1'] || 0) + n * Number(obj.asEntersChoices.devourEach || 1); }
+        card.devoured = n;   // Skullmulcher: "for each creature it devoured"
       }
       if (obj.asEntersChoices?.haste)
         card.temporaryEffects = [...(card.temporaryEffects || []), { kind: 'keyword', keyword: 'Haste', enabled: true }];

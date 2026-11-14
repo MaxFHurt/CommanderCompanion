@@ -187,7 +187,7 @@ export function keywordTriggersB49(game, row, event, add, { defOf }) {
     }
     // Vanishing: remove a time counter; when the last is removed, sacrifice it. Fading: remove a fade counter; if you can't,
     // sacrifice it.
-    if (/(?:^|\n)\s*Vanishing \d+/i.test(strip(text)) && Number(card.counters?.time || 0) > 0)
+    if ((/(?:^|\n)\s*Vanishing \d+/i.test(strip(text)) || card.gainedVanishing) && Number(card.counters?.time || 0) > 0)
       add('vanishing', 'Vanishing — remove a time counter; when the last is removed, sacrifice it.', '', compiled([{ kind: 'remove-counter', bind: 'sourceId', counter: 'time', amount: 1 }, { kind: 'condition', test: 'b49-own-counters', counter: 'time', skip: 1, failNote: 'Time counters remain.' }, { kind: 'sacrifice', bind: 'sourceId' }]));
     if (/(?:^|\n)\s*Fading \d+/i.test(strip(text)))
       add('fading', 'Fading — remove a fade counter; if you can\u2019t, sacrifice it.', '', compiled([{ kind: 'condition', test: 'b49-own-counters', counter: 'fade', atLeast: 1, negate: true, skip: 1 }, { kind: 'sacrifice', bind: 'sourceId' }, { kind: 'condition', test: 'b49-own-counters', counter: 'fade', atLeast: 1, skip: 1, failNote: 'It was sacrificed.' }, { kind: 'remove-counter', bind: 'sourceId', counter: 'fade', amount: 1 }]));

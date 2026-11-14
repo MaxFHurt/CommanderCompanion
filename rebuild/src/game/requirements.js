@@ -9,7 +9,7 @@ import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catal
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
 import { cardHasKeyword, effectivePower } from '../engine/combat.js';
-import { cardMatchesFilter, resolveAmount } from '../engine/effects.js';
+import { cardMatchesFilter, resolveAmount, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -79,7 +79,7 @@ export class Need {
 }
 
 /** Requirement kinds answered while casting/activating (targets are locked in then). */
-const CAST_TIME = new Set(['target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute']);
+const CAST_TIME = new Set(['linked-target', 'target', 'player', 'graveyard-target', 'stack-target', 'multi-target', 'per-opponent-up-to-one', 'number', 'distribute', 'b101-gy-cards']);
 
 export function splitRequirements(requirements = []) {
   const cast = [], resolve = [];
@@ -138,12 +138,13 @@ function manaValueFits(def, scope) {
 }
 
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
-function matchesPermanentScope(game, card, scope) {
+function matchesPermanentScope(game, card, scope, source = null) {
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
+  if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
   if (/with a counter on it/.test(scope) && !Object.values(card.counters || {}).some(v => Number(v) > 0)) return false;
   if (/\bnontoken\b/.test(scope) && card.token) return false;
   if (/\btoken\b/.test(scope.replace(/\bnontoken\b/g, '')) && !card.token) return false;
@@ -152,9 +153,17 @@ function matchesPermanentScope(game, card, scope) {
   const sub = scope.match(/target (?:another |other )?([a-z]+) (?:creature|you control|an opponent controls)/);
   if (sub && !/^(attacking|blocking|tapped|untapped|nontoken|token|legendary|nonlegendary|basic|nonbasic|white|blue|black|red|green|colorless|multicolored|monocolored|noncreature|nonland|nonartifact|nonblack|nonwhite|nonblue|nonred|nongreen|artifact|enchantment|land|creature|planeswalker|battle|permanent|equipped|enchanted|modified|face-down|other|another|unblocked|blocked)$/.test(sub[1])
     && !new RegExp(`\\b${sub[1]}s?\\b`, 'i').test(t.split('—')[1] || '') && !/\bChangeling\b/.test(def?.oracleText || '')) return false;
+  // Yasova Dragonclaw: "with power less than Yasova Dragonclaw's power" (this card's power, as it is now)
+  if (/with power less than [a-z' ,-]*'s power/.test(scope)) { const sp = source ? Number(effectivePower(source, defOf(game, source), game)) : 0; if (!(Number(effectivePower(card, def, game)) < sp)) return false; }
   const pw = scope.match(/with power (\d+) or (less|greater)/);
   if (pw) { const p = Number(effectivePower(card, def, game)); if (pw[2] === 'less' ? p > Number(pw[1]) : p < Number(pw[1])) return false; }
   return true;
+}
+
+/** Is `card` blocking `source`, or blocked by it? */
+function blockedPair(game, source, card) {
+  if (!source) return false;
+  return Object.values(game.combatState?.blocks || {}).some(b => (b?.assignments || []).some(x => (x.attackerId === source.instanceId && x.blockerId === card.instanceId) || (x.blockerId === source.instanceId && x.attackerId === card.instanceId)));
 }
 
 /** Legal choices for a single-target style requirement. */
@@ -164,6 +173,16 @@ export function candidatesFor(game, req, player, source = null) {
   if (req.kind === 'player') {
     const rows = scope === 'opponent' ? opponentsOf(game, player.playerId) : alivePlayers(game);
     return rows.filter(q => req.notTargeted || canTargetPlayer(game, q, player, source)).map(playerOption);   // "an opponent" (not "target") ignores hexproof
+  }
+  if (req.kind === 'linked-target') {
+    // "target card exiled with this permanent" (607.2a): only what the source itself exiled and still holds in exile.
+    const sid = req.sourceId || source?.instanceId;
+    for (const c of sid ? exiledWith(game, sid) : []) {
+      const d = defOf(game, c);
+      if (req.filter && !cardFitsWords(d, req.filter)) continue;
+      out.push(cardOption(game, c, game.players.find(q => q.playerId === c.ownerId) || player, 'Exiled with this permanent'));
+    }
+    return out;
   }
   if (req.kind === 'graveyard-target') {
     const owners = /your/.test(scope) ? [player] : game.players;
@@ -205,12 +224,15 @@ export function candidatesFor(game, req, player, source = null) {
     }
     if (/any target|any other target|creature|permanent|artifact|enchantment|planeswalker|land|battle|equipment/.test(scope)) {
       const anyTarget = /any (?:other )?target/.test(scope);
-      const dontControl = /you don'?t control|an opponent controls|your opponents control/.test(scope);
-      const owners = dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
+      const defending = /defending player controls/.test(scope);   // "target creature defending player controls": the player this attacker is attacking
+      const defenderId = defending && source ? (game.combatState?.attackers || []).find(a => a.instanceId === source.instanceId)?.defenderId : null;
+      const dontControl = defending || /you don'?t control|an opponent controls|your opponents control/.test(scope);
+      const owners = defenderId && alivePlayers(game).some(q => q.playerId === defenderId) ? alivePlayers(game).filter(q => q.playerId === defenderId) : dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
       for (const q of owners) for (const c of q.deck.battlefield || []) {
         if (anyTarget) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
-        } else if (!matchesPermanentScope(game, c, scope)) continue;
+        } else if (!matchesPermanentScope(game, c, scope, source)) continue;
+        if (/blocking or blocked by it/.test(scope) && !blockedPair(game, source, c)) continue;   // Steadfast Armasaur: a creature blocking it or blocked by it
         if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }
@@ -301,7 +323,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
       const xNow = req.xExpr != null ? Number(resolveAmount(game, player.playerId, req.xExpr, { ...bindings, sourceId: bindings.sourceId || ctx.source?.instanceId || null })) || 0 : Number(bindings.X || 0);
       const xv = v => (v === 'X' ? Math.max(0, xNow) : v);
       const max = Math.max(0, Number(xv(req.max) ?? 1)), min = Math.max(0, Number(xv(req.min) || 0));
-      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null);
+      const rows = candidatesFor(game, { kind: 'target', scope: req.scope }, player, ctx.source || null).filter(r => !req.excludeBind || r.id !== bindings[req.excludeBind]);   // "other target creatures"
       bindings[req.bind] = rows.length
         ? ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: req.label || `Choose up to ${max}`, options: rows, min: Math.min(min, rows.length), max: Math.min(max, rows.length) }))
         : [];
@@ -433,9 +455,12 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
 
     // Single choice: target, player, graveyard-target, stack-target.
-    let rows = candidatesFor(game, req, player, ctx.source || null);
+    let rows = candidatesFor(game, req.kind === 'linked-target' ? { ...req, sourceId: bindings.sourceId } : req, player, ctx.source || null);
+    if (req.mvX) rows = rows.filter(r => { const d = defOf(game, locateCardInGame(game, r.id)?.card); return Number(d?.manaValue ?? d?.cmc ?? 0) === Number(bindings.X || 0); });
     if (req.excludeBind && bindings[req.excludeBind]) rows = rows.filter(r => r.id !== bindings[req.excludeBind]);
     if (req.notSource && bindings.sourceId) rows = rows.filter(r => r.id !== bindings.sourceId);   // "another"
+    // "creature card with mana value equal to that spell's mana value" (Krile Baldesion): the spell the trigger is about.
+    if (req.mvEqualsBind && bindings[req.mvEqualsBind] !== undefined) rows = rows.filter(r => { const card = game.players.flatMap(q => q.deck.graveyard || []).find(c => c.instanceId === r.id), d = card && defOf(game, card); return Number(d?.manaValue ?? d?.cmc ?? 0) === Number(bindings[req.mvEqualsBind]); });
     if ((req.kind === 'choose-permanent' || (req.kind === 'player' && req.notTargeted)) && rows.length === 1) { bindings[req.bind] = rows[0].id; return; }   // only one choice: no question
     if (!rows.length) {
       if (req.optional) { bindings[req.bind] = null; return; }

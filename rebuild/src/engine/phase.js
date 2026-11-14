@@ -144,6 +144,8 @@ export function advanceTurn(game) {
     for (const c of p.deck?.battlefield || [])
       if ((c.temporaryEffects || []).some(e => e?.expires === `turn-start:${next.playerId}`))
         c.temporaryEffects = c.temporaryEffects.filter(e => e?.expires !== `turn-start:${next.playerId}`);
+  // Power Surge: "the number of untapped lands they controlled at the beginning of this turn" (before the untap step).
+  next.turnStartUntappedLands = (next.deck?.battlefield || []).filter(c => !c.tapped && /\bLand\b/.test(game.cardDefinitions?.[c.definitionId]?.typeLine || '')).length;
   game.phase = 'untap';
   game.priorityState = null;
   game.stack = game.stack || [];

@@ -12,7 +12,7 @@ DK=""; GN=""; GP=""
 dk(){ case ",$DK," in *",$1,"*) ;; *) DK="${DK:+$DK,}$1";; esac; }
 for f in $FILES; do
   case "$f" in
-    *.md|tools/longtail/*|tools/suites.sh|deck/engine.min.js) ;;                               # docs, tools: nothing
+    *.md|wip/*|tools/*|deck/engine.min.js) ;;                               # docs, tools: nothing
     deck/tools/tests/*) dk screens ;;                                       # test edits: the UI suite proves them
     deck/ui/*|deck/index.html|deck/cc-theme.css|deck/manifest.json|deck/version.json|deck/app.min.js) dk screens ;;
     deck/engine/upgrades.js|deck/engine/score.js|deck/engine/mana.js) dk upgrade; dk screens ;;
@@ -38,6 +38,9 @@ echo "Node suites:  ${NODE:-none}${SOAK:+ + soak 40 x3}"
 echo "Browser:      $([ -n "$GP" ] && echo $PY || echo none)"
 [ "$MODE" = run ] || exit 0
 
+# every app file must be in precache.json (offline start): a new file left out breaks offline_ui (build 110)
+MISS=$(node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("precache.json","utf8"));const L=JSON.stringify(p);const w=d=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>e.isDirectory()?w(d+"/"+e.name):[d+"/"+e.name]);console.log(w("src").filter(f=>f.endsWith(".js")&&!L.includes(f)).join(" "))')
+[ -n "$MISS" ] && echo "PRECACHE MISSING (run node tools/stamp.mjs): $MISS"
 T0=$(date +%s); OUT=$(mktemp -d); trap 'pkill -f "http.server 4180" 2>/dev/null; rm -rf "$OUT"' EXIT
 export PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 # Deck Builder first, alone (it uses 3 of 4 cores); then the game suites.

@@ -325,6 +325,9 @@ function spellTargetLegalityIssues({ game, player, definition, definitions } = {
   const issues = [];
   if (!/\btarget\b/i.test(text))
     return issues;
+  // A permanent spell's enters-trigger target, and any "up to one target … card", don't have to exist to cast it (Nyla with an empty graveyard).
+  if (!/\b(?:Instant|Sorcery)\b/i.test(String(definition?.typeLine || '').split('—')[0]) || /\bup to (?:one|two|three|\w+) target (?:creature )?cards?\b/i.test(text))
+    return issues;
   const graveRows = (ownerOnly = false) => {
     const players = ownerOnly ? [player] : (game?.players || []);
     return players.filter(Boolean).flatMap(p => p.deck?.graveyard || []);
@@ -719,7 +722,10 @@ export function parseActivatedAbilities(definition) {
     const full = [a.text, ...a.continuations].join('\n');
     const m = a.text.match(/^(.+?):\s*(.*)$/s);
     const cost = (m?.[1] || '').trim();
-    const effect = [m?.[2] || '', ...a.continuations].filter(Boolean).join('\n').trim();
+    // "…, where X is the number of cards exiled this way" after a cost that exiled, sacrificed or removed them: the cost's count
+    // (ops.js remembers it as costCount), written "as a cost" so the amount reader can tell it from an effect's own "this way".
+    let effect = [m?.[2] || '', ...a.continuations].filter(Boolean).join('\n').trim();
+    if (/\b(?:Exile|Sacrifice|Remove)\b/.test(cost) && /\b(?:exiled|sacrificed|removed) this way\b/i.test(effect)) effect = effect.replace(/\b(exiled|sacrificed|removed) this way\b/gi, '$1 as a cost');
     const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim());
     const chooseMatch = effect.match(/Choose\s+(one|two|three|one or more)\s*[—-]/i);
     const loyaltyMatch = cost.match(/^([+−-])\s*(\d+)$/);
@@ -731,13 +737,15 @@ export function parseActivatedAbilities(definition) {
       requiresTap: /\{T\}/i.test(cost),
       requiresUntap: /\{Q\}/i.test(cost),
       sacrificesSelf: /Sacrifice\s+(?:this permanent|this creature|this artifact|this enchantment|this land|this planeswalker|~)\b/i.test(cost) || new RegExp(`Sacrifice\\s+${String(definition?.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(cost),
-      sacrificeRequirement: (cost.match(/Sacrifice\s+(?:an?\s+)?(creature|artifact|enchantment|land|permanent)\b/i) || [])[1] || null,
+      sacrificeRequirement: (cost.match(/Sacrifice\s+(?:an?\s+|another\s+)?(creature|artifact|enchantment|land|permanent)(?: or (artifact|creature|enchantment|land))?\b/i) || []).slice(1, 3).filter(Boolean).join(' or ').toLowerCase() || null,   // "Sacrifice another creature or artifact" (Ayara)
+      // "Sacrifice two Treasures" (Olivia, Opulent Outlaw): several permanents of one kind, chosen as the cost is paid.
+      sacrificeMany: (m2 => (m2 ? { n: { a: 1, an: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }[m2[1].toLowerCase()] || Number(m2[1]), word: m2[2].replace(/s$/i, '').toLowerCase() } : null))(cost.match(/Sacrifice (two|three|four|five|six|\d+) (?!of\b)([A-Za-z]+?s?)(?=[,:]|$|\s*\{)/i) || cost.match(/Sacrifice (an?) (?!(?:creature|artifact|enchantment|land|permanent|planeswalker|nonland|another|other)\b)([A-Z][a-z]+)(?=[,:]|$|\s*\{)/)),
       discards: /Discard\b/i.test(cost),
-      discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) ? 1 : 0,
+      discardCount: /Discard\s+(?:a|one)\s+card/i.test(cost) || /Discard\s+an?\s+[A-Za-z ]+? card\b/i.test(cost) ? 1 : 0,
       lifeCost: Number((cost.match(/Pay\s+(\d+)\s+life/i) || [])[1] || 0),
       energyCost: (cost.match(/\{E\}/gi) || []).length,
       loyaltyDelta,
-      hasX: /\{X\}|\bX\b/.test(cost) || /\bX\b/.test(effect),
+      hasX: /\{X\}|\bX\b/.test(cost) || (/\bX\b/.test(effect) && !/\bwhere X is\b/i.test(effect)),   // "where X is …" is worked out, not chosen
       needsTarget: /\btarget\b/i.test(effect),
       modes,
       modeCount: chooseMatch ? chooseMatch[1].toLowerCase() : null,
@@ -835,9 +843,13 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     reasons.push('Not enough loyalty to pay this activation cost.');
   if (ability?.discards && player && (player.deck?.hand?.length || 0) < Math.max(1, ability.discardCount || 1))
     reasons.push('Not enough cards in hand to pay this activation cost.');
+  if (ability?.sacrificeMany && player) {
+    const have = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b${ability.sacrificeMany.word}s?\\b`, 'i').test(((d => `${d?.typeLine || ''} ${d?.name || ''}`)(definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])))).length;
+    if (have < ability.sacrificeMany.n) reasons.push(`You need ${ability.sacrificeMany.n} ${ability.sacrificeMany.word}s to sacrifice.`);
+  }
   if (ability?.sacrificeRequirement && player && !ability?.sacrificesSelf) {
     const need = String(ability.sacrificeRequirement);
-    const candidates = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b${need}\\b`, 'i').test((definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])?.typeLine || ''));
+    const candidates = (player.deck?.battlefield || []).filter(c => c.instanceId !== instance?.instanceId && new RegExp(`\\b(?:${need.replace(/ or /g, '|')})\\b`, 'i').test((definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId])?.typeLine || ''));
     if (!candidates.length)
       reasons.push(`No legal ${need.toLowerCase()} is available to sacrifice.`);
   }
@@ -877,6 +889,9 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
       const players = /your graveyard/i.test(effect) ? [player] : (game?.players || []);
       targetFound = players.filter(Boolean).some(q => (q.deck?.graveyard || []).length > 0);
     }
+    // "target card exiled with this artifact": needs a card this permanent still holds in exile (607.2a).
+    if (/target (?:[a-z ]+? )?card (?:you own )?(?:with mana value \w+ )?exiled with\b/i.test(effect))
+      targetFound = (instance?.linkedExile || []).some(id => (game?.players || []).some(q => (q.deck?.exile || []).some(x => x.instanceId === id && x.exiledBy === instance.instanceId)));
     return targetFound;
     };
     const targetFound = (ability.modes?.length ? ability.modes : [String(ability.effect || '')]).some(hasTarget);
@@ -966,6 +981,6 @@ export function validateRequiredAttackers({ game, player, draft = [] } = {}) {
 }
 // "This creature can block an additional creature this turn." (build 102): temporary extra blocks on the card.
 export function blockerCapacity(definition, card = null) { return blockerCapacityPrinted(definition) + (card?.temporaryEffects || []).filter(e => e?.kind === 'extra-blocks').reduce((n, e) => n + Number(e.amount || 0), 0); }
-function blockerCapacityPrinted(definition) { const text = String(definition?.oracleText || ''); const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
+function blockerCapacityPrinted(definition) { const text = String(definition?.oracleText || ''); if (/\bcan block any number of creatures\b/i.test(text)) return 99; const m = text.match(/can block an additional (\d+|one|two|three|four|five) creatures?/i); if (!m)
   return 1; const words = { one: 1, two: 2, three: 3, four: 4, five: 5 }; return 1 + (Number(m[1]) || words[m[1].toLowerCase()] || 0); }
 export function attackerMinimumBlockers(definition, instance = null) { return instanceKeyword(instance, definition, 'Menace') ? 2 : 1; }

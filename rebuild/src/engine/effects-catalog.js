@@ -11,6 +11,7 @@ import {
 import { effectiveToughness, effectivePower } from './combat.js';
 const effectivePowerOf = (game, card) => effectivePower(card, definitionFor(game, card), game);
 import { librarySearchSpec, searchFilter } from '../game/library-search.js';
+import { compileLinkedClause, applyLinked, gatherLinked } from './effects-linked.js';
 import { compileB49Clause, compileB49Sequence, applyB49, gatherB49 } from './effects-b49.js';
 import { compileB101Clause, compileB101Sequence, applyB101, gatherB101 } from './effects-b101.js';
 
@@ -52,6 +53,16 @@ function selfNameRegex(sourceName) {
   const full = String(sourceName || '').trim(), short = full.split(',')[0].trim();
   const names = [...new Set([full, short].filter(n => n.length > 1))].sort((a, b) => b.length - a.length).map(esc);
   return names.length ? rx(`\\b(?:${names.join('|')})(?![\\w'])`, 'g') : null;
+}
+/** Only the build-101 wordings (effects-b101.js), for a sentence an older reading swallowed more than its target of. */
+export function compileB101Only(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  const c = re ? c0.replace(re, 'SELFNAME') : c0;
+  return compileB101Clause(c, { ...ctx0, selfAny: SELF_STATIC, restore: s => String(s).replace(/SELFNAME/g, ctx0.sourceName) });
+}
+export function compileLinkedOnly(c0, ctx0) {
+  const re = selfNameRegex(ctx0.sourceName);
+  return compileLinkedClause(re ? c0.replace(re, 'SELFNAME') : c0, ctx0);
 }
 export function compileCatalogClause(c0, ctx0) {
   const re = selfNameRegex(ctx0.sourceName);
@@ -605,6 +616,7 @@ function compileCatalogClauseInner(c, ctx) {
     effects.push({ kind: 'create-token', amount: 1, name: 'Powerstone', typeLine: 'Token Artifact — Powerstone', oracleText: '{T}: Add {C}. This mana can\'t be spent to cast a nonartifact spell.', tapped: true });
     return true;
   }
+  if (compileLinkedClause(c, ctx)) return true;
   if (compileB49Clause(c, ctx)) return true;
   if (compileB101Clause(c, ctx)) return true;
   return false;
@@ -792,6 +804,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
         army = [...controller.deck.battlefield].reverse().find(c => /\bArmy\b/.test(definitionFor(game, c)?.typeLine || ''));
       }
       if (army) { H.addCounter(army, '+1/+1', n); emit({ type: 'counter-added', sourceId: army.instanceId, controllerId, counter: '+1/+1', amount: n }); }
+      if (army) bindings.amassedArmy = army.instanceId;   // "the amassed Army's power" (Foray of Orcs)
       if (army) bindings.lastCreated = [...(bindings.lastCreated || []).filter(id => id !== army.instanceId), army.instanceId];   // "the amassed Army"
       notes.push(`${controller.displayName} amasses ${n}.`);
       return true;
@@ -813,7 +826,7 @@ export function applyCatalogEffect(game, controllerId, effect, bindings, notes) 
       return true;
     }
     default:
-      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes);
+      return applyCatalogSequenceEffect(game, controllerId, effect, bindings, notes) || applyRound3(game, controllerId, effect, bindings, notes) || applyB49(game, controllerId, effect, bindings, notes) || applyLinked(game, controllerId, effect, bindings, notes) || applyB101(game, controllerId, effect, bindings, notes);
   }
 }
 
@@ -848,6 +861,7 @@ export function gatherCatalogRequirement(game, ctx, req, bindings, ask, key, tit
   if (gatherRound3(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB49(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (gatherB101(game, ctx, req, bindings, ask, key, title, base, util)) return true;
+  if (gatherLinked(game, ctx, req, bindings, ask, key, title, base, util)) return true;
   if (req.kind === 'forage') {
     const gy = player.deck.graveyard || [], foods = (player.deck.battlefield || []).filter(c => /\bFood\b/.test(util.defOf(game, c)?.typeLine || ''));
     const opts = [...(gy.length >= 3 ? [{ id: 'exile', label: 'Exile three cards from your graveyard' }] : []), ...foods.map(c => ({ id: c.instanceId, label: `Sacrifice ${util.defOf(game, c)?.name || 'a Food'}` }))];
@@ -984,7 +998,7 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
   if ((m = c0.match(/^Each player discards all the cards in their hand, then draws that many cards( minus one)?\.?$/i)))
     return { part: { effects: [{ kind: 'twister', discard: true, draw: 'that-many', minus: m[1] ? 1 : 0 }], requirements: [], unsupported: [] }, consumed: 1 };
   // Look at / reveal the top N cards, then distribute them.
-  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?\.?$/i))) {
+  if ((m = c0.match(/^(?:You may )?(look at|reveal) the top (card|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X)(?: cards?)? of (your|target player's|target opponent's|that player's|each player's) library(?:,? where X is (.+?))?(?: and put (?:that card|it|them|those cards) (into your hand))?(,? then put them back in any order)?\.?$/i))) {
     const amount = /^card$/i.test(m[2]) ? 1 : num(m[2]);
     const reveal = /reveal/i.test(m[1]);
     const amountExpr = m[4] ? whereXExpr(m[4]) : null;
@@ -1000,8 +1014,8 @@ export function compileCatalogSequence(clauses, i, { sourceName, parts = [] }) {
     const playerReq = /target/.test(whose) ? { kind: 'player', bind: `digPlayer${i}`, scope: /opponent/.test(whose) ? 'opponent' : 'player', label: whose.replace(/'s$/, '') } : null;
     const ofPlayer = playerReq ? playerReq.bind : /that player/.test(whose) ? 'eventPlayer' : null;
     const picks = [];
-    let rest = null, k = 1;
-    for (; k <= 3 && i + k < clauses.length; k++) {
+    let rest = m[6] ? { to: 'top', order: 'any' } : null, k = 1;   // "… then put them back in any order"
+    for (; !m[6] && k <= 3 && i + k < clauses.length; k++) {
       const s = next(k);
       const p = parsePick(s);
       if (p) { picks.push(p.pick); if (p.rest) { rest = p.rest; k++; break; } continue; }
@@ -1348,11 +1362,18 @@ export function gatherCatalogSequenceRequirement(game, ctx, req, bindings, ask, 
   return false;
 }
 
+export const STATIC_LINKED_PLAY = /(?:^|\n)(?:[A-Z][A-Za-z ]+ — )?You may play lands and cast spells from among cards exiled with (?:this [a-z]+|[^.\n]+?)\.?(?:\n|$)/;
 /** Can this player play this exiled card now because an effect allowed it (impulse draw)? */
 export function exilePlayPermission(game, player, card) {
   const p = card?.playPermission;
-  if (!p || card.zone !== 'exile' || p.playerId !== player.playerId) return null;
-  return p;
+  if (p && card.zone === 'exile' && p.playerId === player.playerId) return p;
+  // Static "You may play lands and cast spells from among cards exiled with this creature." (Nightveil Specter, Body Thief):
+  // the permanent that exiled it, while its controller controls it on the battlefield (607.2a).
+  if (card?.zone === 'exile' && card.exiledBy) {
+    const src = (player.deck?.battlefield || []).find(x => x.instanceId === card.exiledBy && (x.linkedExile || []).includes(card.instanceId));
+    if (src && STATIC_LINKED_PLAY.test(String(definitionFor(game, src)?.oracleText || '').replace(/\([^()]*\)/g, ''))) return { playerId: player.playerId, until: 'static', castOnly: false, free: false, static: true };
+  }
+  return null;
 }
 
 /** At the end of each turn: permissions that last "this turn" end; "until the end of your next turn" ends after that turn. */
@@ -1707,7 +1728,10 @@ function compileRound3(c, ctx, subjectBind) {
   // "the sacrificed creature's power" (a sacrifice cost): Greater Good, Altar of Dementia.
   if (/the sacrificed (?:creature|permanent|artifact)'s (power|toughness|mana value)/i.test(c)) {
     const stat = /power/i.test(c) ? 'sacrificedPower' : /toughness/i.test(c) ? 'sacrificedToughness' : 'sacrificedManaValue';
-    const inner = H.compileSingleClause(ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life').replace(/damage equal to X\b/i, 'X damage')), { sourceName });
+    const swapped = ctx.restore(c.replace(/the sacrificed (?:creature|permanent|artifact)'s (?:power|toughness|mana value)/i, 'X').replace(/\bcards equal to X\b/i, 'X cards').replace(/life equal to X\b/i, 'X life').replace(/damage equal to X\b/i, 'X damage'));
+    // "Ayara deals X damage to target opponent or battle and you gain X life": both halves read as one instruction, X set first.
+    const whole = / and /.test(swapped) ? H.compileEffectText(swapped.replace(/,? where X is X\.?$/i, '.'), { sourceName }) : null;
+    const inner = whole?.supported && whole.effects.length ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : H.compileSingleClause(swapped, { sourceName });
     if (!inner.unsupported.length && inner.effects.length) {
       effects.push({ kind: 'set-x', amount: { kind: 'binding', bind: stat } }, ...inner.effects); requirements.push(...inner.requirements.filter(r => !(r.kind === 'number' && r.bind === 'X')));
       return true;
@@ -2246,18 +2270,7 @@ export function applyRound3(game, controllerId, effect, bindings, notes) {
       notes.push(`${controller.displayName} creates ${n === 1 ? 'a token copy' : `${n} token copies`} of ${d.name}.`);
       return true;
     }
-    case 'return-linked': {
-      const src = locateCardInGame(game, bindings.sourceId)?.card;
-      const list = [...(src?.linkedExile || [])];
-      if (src) src.linkedExile = [];
-      for (const id of list) {
-        const hit = locateCardInGame(game, id);
-        if (!hit || hit.zone !== 'exile') continue;
-        moveCard(game, id, effect.to === 'hand' ? 'hand' : 'battlefield', { controllerId: hit.card.ownerId, onEvent: emit });
-        notes.push(`${name(hit.card)} returns ${effect.to === 'hand' ? "to its owner's hand" : 'to the battlefield'}.`);
-      }
-      return true;
-    }
+    case 'return-linked': return applyLinked(game, controllerId, { kind: 'linked-move', select: 'all', to: effect.to === 'hand' ? 'hand' : 'battlefield', owner: true }, bindings, notes);
     case 'return-ids': {
       // The cards just moved or made; otherwise the card the trigger is about ("Whenever a creature dies, … return that card").
       const event = [bindings.eventCard].filter(id => id && ['exile', 'graveyard'].includes(locateCardInGame(game, id)?.zone));
@@ -2623,7 +2636,7 @@ export function gatherRound3(game, ctx, req, bindings, ask, key, title, base, ut
   if (req.kind === 'graveyard-multi') {
     const coming = (player.deck.remainingLibrary || []).slice(0, Number(req.plusMill || 0));
     const rows = [...(player.deck.graveyard || []), ...coming].filter(c => c.instanceId !== bindings.sourceId && cardFitsWords(util.defOf(game, c), req.filter));
-    const max = Math.min(req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
+    const max = Math.min(req.maxExpr ? resolveAmount(game, player.playerId, req.maxExpr, bindings) : req.max === 'X' ? Number(bindings.X || 0) : req.max, rows.length);
     bindings[req.bind] = max ? ask(key, () => ({ ...base, cancellable: false, kind: 'choose-many', title, prompt: `Choose ${req.label}.`, options: rows.map(c => util.cardOption(game, c, player, util.defOf(game, c)?.typeLine || '')), min: Math.min(Number(req.min || 0), max), max })) : [];
     return true;
   }

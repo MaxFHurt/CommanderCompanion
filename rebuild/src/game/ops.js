@@ -26,7 +26,7 @@ import { attach, enchantTarget } from './attachments.js';
 import { sendCounteredSpell } from './edits.js';
 import { candidatesFor } from './requirements.js';
 import { targetRequirementsFromText } from './guided.js';
-import { adjustGeneric, additionalCost, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
+import { adjustGeneric, additionalCost, choosePowerRows, controlsACommander, delveCards, extraCosts, faceDownDefinition, genericOf, isAdventure, modeCost } from './casting.js';
 import { castTriggers, sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { cardFitsWords } from '../engine/effects-catalog.js';
 import { effectivePower } from '../engine/combat.js';
@@ -91,7 +91,7 @@ export function effectRunsByItself(text, sourceName = 'Card') {
  */
 function announceTargets(game, player, reqs, bindings, sourceId, kind) {
   const ids = [];
-  for (const r of reqs || []) if (['target', 'player', 'multi-target', 'graveyard-target', 'stack-target'].includes(r.kind)) ids.push(...[].concat(bindings[r.bind] || []));
+  for (const r of reqs || []) if (['target', 'player', 'multi-target', 'graveyard-target', 'stack-target', 'linked-target'].includes(r.kind)) ids.push(...[].concat(bindings[r.bind] || []));
   let crime = false;
   for (const id of new Set(ids.filter(x => typeof x === 'string'))) {
     const q = (game.players || []).find(p => p.playerId === id);
@@ -398,7 +398,7 @@ function runPlay(game, op, ask) {
 
   // "As an additional cost to cast this spell, sacrifice a creature / discard a card / pay X life."
   const addCost = faceDown ? null : additionalCost(def);
-  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null;
+  let sacrificeForCost = null, lifeForCost = 0, addDiscard = null, exileFromHandForCost = null, costChosenPower = null;
   // Force of Will / Force of Negation: exile a blue card from your hand instead of paying mana.
   if (mode.exileColor) {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId && (defOf(game, c)?.colors || []).includes(mode.exileColor))
@@ -434,6 +434,18 @@ function runPlay(game, op, ask) {
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Permanent', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
     if (!rows.length && !force) throw new GameError(`You need a ${addCost.filters.join(' or ')} to sacrifice.`);
     if (rows.length) sacrificeForCost = ask('cost:sacrifice', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: `${addCost.label} to cast it.`, options: rows }));
+  } else if (addCost?.kind === 'choose-power') {
+    // The creature chosen (or the creature card revealed) stays where it is; its power is what the spell uses.
+    const rows = choosePowerRows(game, player, card, addCost);
+    if (!rows.length && !force) throw new GameError('You need a creature you control or a creature card to choose.');
+    if (rows.length) {
+      const picked = ask('cost:choose-power', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — additional cost`, prompt: `${addCost.label}.`, options: rows.map(r => ({ id: r.card.instanceId, label: defOf(game, r.card)?.name || 'Creature', sub: `${r.zone === 'battlefield' ? 'You control it' : r.zone === 'hand' ? 'Reveal it from your hand' : 'Warped, in exile'} · power ${r.zone === 'battlefield' ? effectivePower(r.card, defOf(game, r.card), game) : (Number(defOf(game, r.card)?.power) || 0)}`, instanceId: r.card.instanceId, definitionId: r.card.definitionId })) }));
+      const row = rows.find(r => r.card.instanceId === picked);
+      if (row) {
+        costChosenPower = Math.max(0, row.zone === 'battlefield' ? effectivePower(row.card, defOf(game, row.card), game) : (Number(defOf(game, row.card)?.power) || 0));
+        if (row.zone === 'hand') log(game, `${player.displayName} reveals ${defOf(game, row.card)?.name || 'a creature card'} from their hand.`, { type: 'cast' });
+      }
+    }
   } else if (addCost?.kind === 'discard') {
     const rows = player.deck.hand.filter(c => c.instanceId !== card.instanceId)
       .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
@@ -647,6 +659,7 @@ function runPlay(game, op, ask) {
   const fixed = permanent && !faceDown ? [...new Set(tapManaAbilities(def).flatMap(a => a.options))] : [];
   // Fling, Bone Splinters (build 77): "the sacrificed creature's power" for a spell's sacrifice cost, remembered before it leaves.
   if (sacrificeForCost) { const sac = player.deck.battlefield.find(c => c.instanceId === sacrificeForCost); if (sac) { const sd = defOf(game, sac); bindings.sacrificedPower = Math.max(0, effectivePower(sac, sd, game)); bindings.sacrificedToughness = Math.max(0, Number(sd?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(sd?.manaValue ?? sd?.cmc ?? 0); } }
+  if (costChosenPower !== null) bindings.costChosenPower = costChosenPower;   // Monstrous Emergence: the chosen creature's (or revealed card's) power
   const stackId = newId('stack');
   const where = commander ? ' from the command zone' : card.zone === 'graveyard' ? ' from the graveyard' : card.zone === 'exile' ? ' from exile' : '';
   const shown = faceDown ? 'a face-down creature' : def.name;
@@ -705,7 +718,10 @@ function wardCosts(game, player, ids) {
       const text = String(defOf(game, c)?.oracleText || '').replace(/\([^()]*\)/g, '');
       const m = c && text.match(/(?:^|\n|,\s*)Ward\s*(?:[—-]\s*)?((?:\{[^}]+\})+)/i);
       const life = c && text.match(/(?:^|\n|,\s*)Ward\s*[—-]\s*Pay (\d+) life/i);
+      // Rith, Liberated Primeval: "Other Dragons you control have ward {2}." (a granted ward: the same cost as the card's own).
+      const granted = c && !m && !life ? (p.deck?.battlefield || []).filter(g => g.instanceId !== id).map(g => String(defOf(game, g)?.oracleText || '').replace(/\([^()]*\)/g, '').match(/Other ([A-Z][a-z]+)s you control have ward ((?:\{[^}]+\})+)/)).find(g => g && new RegExp(`\\b${g[1]}\\b`).test(String(defOf(game, c)?.typeLine || '').split('—')[1] || '')) : null;
       if (m) out.push({ id, name: defOf(game, c)?.name || 'It', cost: m[1] });
+      else if (granted) out.push({ id, name: defOf(game, c)?.name || 'It', cost: granted[2] });
       else if (life) out.push({ id, name: defOf(game, c)?.name || 'It', cost: '', life: Number(life[1]) });
     }
   }
@@ -763,6 +779,8 @@ function runActivate(game, op, ask) {
   if (!fromZone && abilityZone(ability) !== 'battlefield') throw new GameError(abilityZone(ability) === 'hand' ? 'That ability works only from your hand.' : 'That ability works only from your graveyard.');
   const legality = fromZone ? { legal: true, reasons: [] } : validateActivatedAbilityFull({ game, player, instance: card, definition: def, ability, definitions: definitionsMap(game) });
   if (!legality.legal && !force) throw new GameError(legality.reasons[0], legality.reasons);
+  // From the graveyard the normal legality check is skipped, so "Activate only as a sorcery" is checked here (Venom, Evil Unleashed).
+  if (fromZone === 'graveyard' && !force && /\bActivate only as a sorcery\b/i.test(ability.effect || '') && !(game.activePlayerId === player.playerId && ['precombat-main', 'postcombat-main'].includes(game.phase) && !(game.stack || []).length)) throw new GameError('Only as a sorcery: your main phase, with an empty stack.');
   if (ability.loyaltyDelta !== null && !force) {
     if (card.loyaltyUsedTurn === game.turnNumber) throw new GameError('A planeswalker can use only one loyalty ability each turn.');
     if (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length) throw new GameError('Loyalty abilities can be used only during your main phase while the stack is empty.');
@@ -792,11 +810,12 @@ function runActivate(game, op, ask) {
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
   if (ability.sacrificeRequirement && !ability.sacrificesSelf) {
     const type = ability.sacrificeRequirement;
-    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${type === 'permanent' ? '' : type}`, 'i').test(defOf(game, c)?.typeLine || ''));
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b(?:${type === 'permanent' ? '' : type.replace(/ or /g, '|')})`, 'i').test(defOf(game, c)?.typeLine || ''));
     if (!rows.length) throw new GameError(`You have no ${type.toLowerCase()} to sacrifice.`);
     const sacrificedId = ask('cost:sacrifice', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${type.toLowerCase()} to sacrifice.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId })) }));
     // "the sacrificed creature's power" (Greater Good, Altar of Dementia, Ayli): remembered before it leaves.
     const sac = rows.find(c => c.instanceId === sacrificedId);
+    if (sac) { bindings.sacrificedSymbols = Object.fromEntries(['W', 'U', 'B', 'R', 'G'].map(k => [k, (String(defOf(game, sac)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(x => x.includes(k)).length])); }   // Fiery Bombardment: red mana symbols in its mana cost
     if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
     costMoveIds.push(sacrificedId);
   }
@@ -833,12 +852,59 @@ function runActivate(game, op, ask) {
       } else costMoveIds.push(how);
     }
   }
+  if (fromZone === 'graveyard' && /\bExile this card from your graveyard\b/i.test(ability.cost || '')) costExileIds.push(card.instanceId);   // the card exiles itself as the cost
+  // "Exile a creature card from your graveyard" as the cost (Necropolis): "the exiled card" is that card.
+  const exGrave = String(ability.cost || '').match(/Exile an? ([a-z ]*?)card from your graveyard/i);
+  if (exGrave) {
+    const words = exGrave[1].trim().toLowerCase();
+    const rows = (player.deck.graveyard || []).filter(c => !words || cardFitsWords(defOf(game, c), words));
+    if (!rows.length && !force) throw new GameError(`You need a ${words ? `${words} ` : ''}card in your graveyard to exile.`);
+    if (rows.length) {
+      const id = rows.length === 1 ? rows[0].instanceId : ask('cost:exile-grave', () => ({ ...base, kind: 'choose-one', title: `${def.name} — pay cost`, prompt: `Choose a ${words ? `${words} ` : ''}card in your graveyard to exile.`, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card' })) }));
+      costExileIds.push(id); bindings.lastMoved = [id];
+    }
+  }
   if (ability.discardCount && fromZone !== 'hand') {
-    const rows = player.deck.hand;
-    if (!rows.length) throw new GameError('You have no card to discard.');
-    costMoveIds.push(ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) })));
+    const discardWords = ((String(ability.cost || '').match(/Discard\s+an?\s+([A-Za-z ]+?) card\b/i) || [])[1] || '').trim().toLowerCase();   // "Discard a Spirit or Arcane card" (Slumbering Tora)
+    const rows = player.deck.hand.filter(c => !discardWords || cardFitsWords(defOf(game, c), discardWords));
+    if (!rows.length) throw new GameError(`You have no ${discardWords ? `${discardWords} ` : ''}card to discard.`);
+    const discardedId = ask('cost:discard', () => ({ ...base, kind: 'choose-one', private: true, title: `${def.name} — pay cost`, prompt: 'Choose a card to discard.', options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your hand', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+    costMoveIds.push(discardedId);
+    // Mercurial Chemister: "the discarded card's mana value".
+    const gone = rows.find(c => c.instanceId === discardedId);
+    if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
   }
 
+  // Costs that count what they used (the effect's "… this way" reads bindings.costCount, rules.js writes it "as a cost"):
+  // "Exile any number of cards from your graveyard" (Painbringer), "Sacrifice this creature and any number of other
+  // non-Eldrazi creatures" (Emrakul's Evangel), "Remove all eyeball counters from this artifact" (Jar of Eyeballs, Catti-brie).
+  const costRemoveCounters = [];
+  const anyEx = String(ability.cost || '').match(/Exile any number of ([a-z ]*?)cards? from your graveyard/i);
+  if (anyEx) {
+    const words = anyEx[1].trim().toLowerCase(), rows = (player.deck.graveyard || []).filter(c => !words || cardFitsWords(defOf(game, c), words));
+    const picked = rows.length ? ask('cost:exile-any', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose any number of ${words ? `${words} ` : ''}cards in your graveyard to exile.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Your graveyard', instanceId: c.instanceId, definitionId: c.definitionId })) })) : [];
+    costExileIds.push(...(picked || [])); bindings.costCount = (picked || []).length;
+  }
+  const anySac = String(ability.cost || '').match(/Sacrifice (?:this [a-z]+|~) and any number of other ([a-z -]*?)creatures?/i);
+  if (anySac && ability.sacrificesSelf) {
+    const words = `${anySac[1].trim().toLowerCase()} creature`, rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && cardFitsWords(defOf(game, c), words));
+    const picked = rows.length ? ask('cost:sacrifice-any', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose any number of other ${anySac[1].trim()} creatures to sacrifice.`, min: 0, max: rows.length, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) })) : [];
+    costMoveIds.push(...(picked || [])); bindings.costCount = 1 + (picked || []).length;
+  }
+  if (ability.sacrificeMany) {
+    const { n, word } = ability.sacrificeMany;
+    const rows = player.deck.battlefield.filter(c => c.instanceId !== card.instanceId && new RegExp(`\\b${word}s?\\b`, 'i').test(`${defOf(game, c)?.typeLine || ''} ${defOf(game, c)?.name || ''}`));   // a Treasure token's type line has no subtype: its name does
+    if (rows.length < n && !force) throw new GameError(`You need ${n} ${word}s to sacrifice.`);
+    if (rows.length) {
+      const picked = rows.length === n ? rows.map(c => c.instanceId) : ask('cost:sacrifice-many', () => ({ ...base, kind: 'choose-many', title: `${def.name} — pay cost`, prompt: `Choose ${n} ${word}s to sacrifice.`, min: n, max: n, options: rows.map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: 'Battlefield', instanceId: c.instanceId, definitionId: c.definitionId })) }));
+      costMoveIds.push(...picked); bindings.costCount = picked.length;
+    }
+  }
+  const rmAll = String(ability.cost || '').match(/Remove all ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
+  if (rmAll) {
+    const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));
+    costRemoveCounters.push({ counter: rmAll[1], amount: n }); bindings.costCount = n;
+  }
   const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
   const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;
@@ -848,7 +914,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 
@@ -1146,7 +1212,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventCard: ev.sourceId || trigger.sourceId, eventLinked: ev.sourceId && ev.sourceId === trigger.sourceId ? (ev.last?.linkedExile || null) : null, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null, eventAuraControllers: ev.auraControllers || [] };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;
@@ -1436,7 +1502,9 @@ function runResolve(game, op, ask) {
       if (start > 1) { card.counters.lore = start - 1; }   // read ahead: only the chosen chapter triggers
       addLore(game, card, 1);
     }
-    const counters = /for each time it was kicked/i.test(text) ? null : entersWithCountersSpec(cardDef);
+    // Epochrasite: "enters with three +1/+1 counters on it if you didn't cast it from your hand" (only when it came from elsewhere).
+    const notFromHand = /counters? on it if you didn'?t cast it from your hand/i.test(text) && top.fromZone === 'hand';
+    const counters = /for each time it was kicked/i.test(text) || notFromHand ? null : entersWithCountersSpec(cardDef);
     if (counters) {
       const amount = counters.amount === 'X' ? Number(top.effectBindings?.X || 0) : Number(counters.amount || 0);
       card.counters = card.counters || {};

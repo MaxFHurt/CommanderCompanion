@@ -344,12 +344,14 @@ export function declareBlocks(game, playerId, assignments = [], { override = fal
   if (!legality.legal && game.mode !== 'freeplay' && !override) throw new GameError(legality.reasons[0] || 'Those blocks are not legal.');
   cs.blocks[playerId] = { confirmed: true, assignments: clean };
   for (const a of cs.attackers.filter(x => x.defenderId === playerId)) a.blocksConfirmed = true;
+  const blockedBefore = new Set();
   for (const x of clean) {
     const blocker = defender.deck.battlefield.find(c => c.instanceId === x.blockerId);
     const attack = cs.attackers.find(a => a.instanceId === x.attackerId);
     const attacker = playerById(game, attack.playerId)?.deck.battlefield.find(c => c.instanceId === x.attackerId);
     log(game, `${defender.displayName} blocks ${defOf(game, attacker)?.name || 'an attacker'} with ${defOf(game, blocker)?.name || 'a creature'}.`, { type: 'combat' });
-    queueTriggers(game, { type: 'blocks', blockerId: x.blockerId, attackerId: x.attackerId, sourceId: x.blockerId, controllerId: playerId });
+    queueTriggers(game, { type: 'blocks', blockerId: x.blockerId, attackerId: x.attackerId, sourceId: x.blockerId, controllerId: playerId, extraBlock: blockedBefore.has(x.blockerId) });   // extraBlock: the same creature's later block this declaration
+    blockedBefore.add(x.blockerId);
   }
   if (!clean.length) log(game, `${defender.displayName} does not block.`, { type: 'combat' });
   f.blocks.pending = f.blocks.pending.filter(id => id !== playerId);

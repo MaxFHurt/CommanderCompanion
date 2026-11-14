@@ -4,7 +4,8 @@
 // game already runs (the same effect for another subject, another player or several targets), so the game's own
 // rules for that effect apply. Every choice stays with the player who makes it in the rules.
 import { numberFromText, locateCardInGame, definitionFor, resolveAmount, catalogHelpers as H } from './effects.js';
-import { parseCountB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101 } from './amounts-b101.js';
+import { effectivePower, effectiveToughness } from './combat.js';
+import { parseCountB101, bindTargetControllerB101, amountNeedsPlayerB101, bindAmountPlayerB101, singularB101, listCardsB101 } from './amounts-b101.js';
 
 const N = '(a|an|one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X)';
 const num = s => numberFromText(s) ?? (/^x$/i.test(String(s)) ? 'X' : null);
@@ -41,6 +42,96 @@ export function compileB101Clause(c, ctx) {
   if ((m = c.match(/^(?:Then )?put X ((?:[+-]\d+\/[+-]\d+|[a-z]+) counters on .+)$/i)) && !/\btwo\b/i.test(m[1])) {
     const r = sub(`Put two ${m[1]}`);
     if (r && r.effects.some(e => e.amount === 2)) { r.effects.forEach(e => { if (e.amount === 2) e.amount = 'X'; }); if (!r.requirements.some(q => q.kind === 'number')) r.requirements.unshift({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 }); return take(r); }
+  }
+  // --- "… unless its controller pays life equal to its toughness / has it deal damage to them / unless they sacrifice a creature":
+  // the other player's choice, asked of them as the effect resolves (requirement b101-unless), then done as that player.
+  if ((m = c.match(rx(`^(Destroy target [a-z ]+?) unless its controller (pays life equal to its toughness|has ${SELFP} deal damage to them equal to (?:his|her|its) power)\\.?$`)))
+    || (m = c.match(rx(`^(that player loses life equal to the number of creatures they control) unless they (sacrifice a creature of their choice)\\.?$`)))) {
+    const mode = /pays life/i.test(m[2]) ? 'life-toughness' : /deal damage/i.test(m[2]) ? 'damage-power' : 'sacrifice';
+    const whole = /^that player/i.test(m[1]) ? H.compileEffectText(`${cap(m[1])}.`, { sourceName }) : null;   // "that player" is the trigger's player, read as a whole sentence
+    const r = whole ? (whole.supported ? { effects: whole.effects, requirements: whole.requirements } : null) : sub(`${m[1]}.`);
+    const t = mode === 'sacrifice' ? null : r?.requirements.find(q => q.kind === 'target');
+    if (r && (mode === 'sacrifice' || t)) {
+      const bind = `unless${requirements.length}`;
+      requirements.push(...r.requirements, { kind: 'b101-unless', bind, mode, ...(t ? { deciderTarget: t.bind } : { deciderBind: 'eventPlayer' }), sourceName, label: 'Decide' });
+      effects.push({ kind: 'b101-unless-do', bind, mode, ...(t ? { deciderTarget: t.bind } : { deciderBind: 'eventPlayer' }), skip: r.effects.length, sourceName }, ...r.effects);
+      return true;
+    }
+  }
+  // --- "This creature gets +1/+1 until end of turn for each creature it's blocking." (Guardian of the Gateless): the count made as X.
+  if ((m = c.match(rx(`^(${SELF}|it) gets ([+-])1\\/([+-])1 until end of turn for each (creatures? (?:it|this creature)(?:'s| is) blocking)\\.?$`)))) {
+    const r = sub(`${cap(m[1])} gets ${m[2]}X/${m[3]}X until end of turn, where X is the number of ${m[4].replace(/^creature /i, 'creatures ')}.`);
+    if (r) return take(r);
+  }
+  // --- "Then draw a card for each tapped creature its controller controls." (Observed Stasis: the enchanted creature's controller)
+  if ((m = c.match(/^(?:Then )?draw a card for each (tapped|untapped)? ?(creatures?) its controller controls\.?$/i))) {
+    const expr = parseCountB101(`${(m[1] || '').toLowerCase()} creatures that creature's controller controls`.trim());
+    if (expr && expr.kind === 'b101-n') { bindTargetControllerB101(expr, '__attached'); effects.push({ kind: 'draw', scope: 'you', amount: expr }); return true; }
+  }
+  // --- "Return up to X target cards from your graveyard to your hand, where X is the number of opponents who have three or more poison counters." (Glissa's Retriever)
+  if ((m = c.match(/^Return up to X target cards from your graveyard to your hand,? where X is the number of opponents who have (three|\d+) or more poison counters\.?$/i))) {
+    const bind = `graveMulti${requirements.length}`;
+    requirements.push({ kind: 'graveyard-multi', bind, filter: '', max: 0, min: 0, maxExpr: { kind: 'b101-opps-poison', n: num(m[1]) }, label: 'up to X cards in your graveyard (X: opponents with 3 or more poison counters)' });
+    effects.push({ kind: 'graveyard-to-hand-many', bind });
+    return true;
+  }
+  // --- "Put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types." (Olivia, Mobilized for War)
+  if ((m = c.match(/^(Put a \+1\/\+1 counter on (?:that creature|it)), (?:it|that creature) (gains haste until end of turn), and (?:it|that creature) (becomes an? [A-Z][a-z]+ in addition to its other types)\.?$/))) {
+    const who = /that creature/.test(m[1]) ? 'That creature' : 'It', parts = [`${m[1]}.`, `${who} ${m[2]}.`, `${who} ${m[3]}.`].map(x => sub(x));
+    if (parts.every(Boolean)) { for (const r of parts) { effects.push(...r.effects); requirements.push(...r.requirements); } return true; }
+  }
+  // --- "Destroy target creature and up to X other target creatures, where X is the number of Attractions you've visited this turn." (Black Hole)
+  // The game does not play Attractions, so what was visited this turn is asked of the player (it is their own fact).
+  if ((m = c.match(/^Destroy target creature and up to X other target creatures,? where X is the number of Attractions you'?ve visited this turn\.?$/i))) {
+    const first = H.targetRequirement(requirements, 'target creature', 'target creature'), bind = `multi${requirements.length + 1}`;
+    requirements.push({ kind: 'number', bind: 'X', label: "How many Attractions have you visited this turn?", min: 0, max: 99 },
+      { kind: 'multi-target', bind, scope: 'target creature', min: 0, max: 'X', excludeBind: first, label: 'Choose up to X other target creatures' });
+    effects.push({ kind: 'destroy', bind: first }, { kind: 'b101-each-bound', bind, effects: [{ kind: 'destroy', bind: '__each' }] });
+    return true;
+  }
+  // --- "When you discard a nonland card this way, ~ deals damage equal to that card's mana value to target creature or planeswalker." (Fiery Encore)
+  if ((m = c.match(/^When you discard an? (nonland )?card this way,? (.+)$/i))) {
+    const r = sub(m[2]);
+    if (r) { effects.push({ kind: 'condition', test: m[1] ? 'discarded-nonland' : 'discarded-any', skip: r.effects.length }, ...r.effects); requirements.push(...r.requirements); return true; }
+  }
+  // --- "~ deals damage equal to its power to target creature an opponent controls and that creature deals damage equal to its power to ~" (Stalking Yeti): a fight.
+  if ((m = c.match(rx(`^(?:If it'?s on the battlefield, )?(?:${SELF}|it|${SELFP}) deals damage equal to its power to (target creature[^.]*?) and that creature deals damage equal to its power to (?:${SELF}|it|${SELFP})\\.?$`)))) {
+    const r = sub(`This creature fights ${m[1]}.`);
+    if (r) return take(r);
+  }
+  // --- "~ deals 15 damage to target creature an opponent controls and that creature deals damage equal to its power to you." (Form of the Dinosaur)
+  if ((m = c.match(rx(`^(${SELFP}) deals ${N} damage to (target creature[^.]*?) and that creature deals damage equal to its power to you\\.?$`)))) {
+    const r = sub(`${m[1]} deals ${m[2]} damage to ${m[3]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.requirements.length === 1) {
+      requirements.push(...r.requirements);
+      effects.push({ kind: 'b101-bite-back', bind: t.bind, amount: num(m[2]), sourceName });
+      return true;
+    }
+  }
+  // --- "Exile it with three time counters on it and it gains suspend." (Epochrasite, when it dies) / "Put two time counters on it and it gains vanishing." (Maelstrom Djinn)
+  if ((m = c.match(rx(`^Exile (?:it|${SELF}) with ${N} time counters? on it and it gains suspend\\.?$`)))) { effects.push({ kind: 'b101-suspend-self', amount: num(m[1]) }); return true; }
+  if ((m = c.match(rx(`^Put ${N} time counters? on (?:it|${SELF}) and it gains vanishing\\.?$`)))) { effects.push({ kind: 'b101-gain-vanishing', amount: num(m[1]) }); return true; }
+  // --- "Return target creature card with mana value equal to that spell's mana value from your graveyard to your hand." (Krile Baldesion)
+  if ((m = c.match(/^(?:you may )?return target (creature card|[a-z]+ card) with mana value equal to that spell'?s mana value from your graveyard to your hand\.?$/i))) {
+    const r = sub(`Return target ${m[1]} from your graveyard to your hand.`), t = r?.requirements.find(q => q.kind === 'graveyard-target');
+    if (r && t) { t.mvEqualsBind = 'eventManaValue'; return take(r); }
+  }
+  // --- "Put a +1/+1 counter on target creature or that creature gains banding, first strike, or trample." (Nature's Blessing): one of them, chosen as it resolves; the keyword lasts.
+  if ((m = c.match(/^Put a \+1\/\+1 counter on (target creature(?: [a-z' ]+)?) or that creature gains ((?:[a-z ]+, )+(?:or )?[a-z ]+)\.?$/i))) {
+    const kws = m[2].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    const r = sub(`Put a +1/+1 counter on ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && kws.length >= 2 && kws.every(k => rx(`^${KW}$`).test(k))) {
+      const pick = `pick${requirements.length}`, counter = '+1/+1 counter', branches = { [counter]: r.effects };
+      for (const k of kws) branches[k] = [{ kind: 'grant-keyword', bind: t.bind, keyword: k, enabled: true, expires: 'permanent' }];
+      requirements.push(...r.requirements, { kind: 'choose-text', bind: pick, options: [counter, ...kws], label: 'Choose one: a +1/+1 counter, or a keyword' });
+      effects.push({ kind: 'b101-pick', bind: pick, branches });
+      return true;
+    }
+  }
+  // --- "Exile target creature an opponent controls until an opponent becomes the monarch." (Palace Jailer)
+  if ((m = c.match(/^Exile (target creature an opponent controls) until an opponent becomes the monarch\.?$/i))) {
+    const r = sub('Exile target creature an opponent controls.'), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t) { requirements.push(...r.requirements); effects.push({ kind: 'b101-exile-monarch', bind: t.bind }); return true; }
   }
   // --- "Draw a card for each tapped creature target opponent controls." (Borrowing 100,000 Arrows)
   if ((m = c.match(/^(?:you )?draw a card for each (.+ (target player|target opponent) controls)\.?$/i))) {
@@ -330,6 +421,13 @@ export function compileB101Clause(c, ctx) {
   }
 
   // --- "you may have target creature get +1/+1 until end of turn" (the "you may" was asked): "have … get" is "gets".
+  // --- "Liquid Fire deals X damage to target creature and 5 minus X damage to that creature's controller, where X is the chosen number."
+  if ((m = c.match(rx(`^(${SELFP}) deals X damage to target creature and (\\d+) minus X damage to that creature'?s controller, where X is the chosen number\\.?$`)))) {
+    const tb = H.targetRequirement(requirements, 'target creature', 'target creature');
+    requirements.unshift({ kind: 'number', bind: 'X', label: `Choose a number between 0 and ${m[2]}`, min: 0, max: Number(m[2]) });
+    effects.push({ kind: 'remember-controller', bind: tb, as: `controllerOf${tb}` }, { kind: 'damage', amount: 'X', bind: tb, sourceName }, { kind: 'damage', amount: { kind: 'b101-math', op: 'minus', a: Number(m[2]), b: 'X' }, bind: `controllerOf${tb}`, sourceName });
+    return true;
+  }
   if (/\bcop(?:y|ies)\b|\bwhere X is\b/i.test(c)) return false;   // copies and amounts worked out elsewhere are not read here
   if ((m = c.match(/^have (target .+?) (get|gain|fight|deal|become|lose) (.+)$/i))) {
     const r = sub(`${cap(m[1])} ${m[2].toLowerCase()}s ${m[3]}`);
@@ -347,6 +445,98 @@ export function compileB101Clause(c, ctx) {
     const r = sub(`Target ${noun} ${m[2]}`), t = r?.requirements.find(q => q.kind === 'target');
     if (r && t && r.requirements.length === 1) { effects.push(...r.effects.map(e => swapBind(e, t.bind, pronounBind(m[1])))); return true; }
   }
+
+  // --- "Target creature defending player controls loses all abilities and has base power and toughness 0/1 until end of turn." (Warkite Marauder)
+  if ((m = c.match(/^(target creature(?: [a-z' ]+?)?|it|that creature) loses all abilities(?: and has base power and toughness (\d+)\/(\d+))? until end of turn\.?$/i))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])) : pronounBind(m[1]);
+    effects.push({ kind: 'b101-temp', bind, fx: { kind: 'animate', loseAbilities: true, ...(m[2] ? { power: m[2], toughness: m[3] } : {}), addTypes: [], subtypes: [], keywords: [], colors: null, expires: 'cleanup' }, note: `loses all abilities${m[2] ? ` and becomes ${m[2]}/${m[3]}` : ''} until end of turn` });
+    return true;
+  }
+
+  // --- "X deals 2 damage to target player and gains indestructible until end of turn." (Ellie)
+  if ((m = c.match(rx(`^(${SELFP} deals? \\w+ damage to (?:any target|target [a-z ]+?)) and (?:gains?|has) ([a-z ,]+?) until end of turn\\.?$`)))) {
+    const r = sub(`${m[1]}.`);
+    if (r) {
+      effects.push(...r.effects, ...H.KEYWORD_LIST(m[2]).map(keyword => ({ kind: 'grant-keyword', bind: 'sourceId', keyword, enabled: true, expires: 'cleanup' })));
+      requirements.push(...r.requirements);
+      return true;
+    }
+  }
+  // --- "Each player creates a 1/1 green Cat creature token for each untapped Forest they control." (Waiting in the Weeds)
+  if ((m = c.match(rx(`^Each player creates ${N} (.+? tokens?) for each (.+? they control)\\.?$`)))) {
+    const r = sub(`Create ${m[1]} ${m[2]}.`), tok = r?.effects.length === 1 && r.effects[0].kind === 'create-token' ? r.effects[0] : null, expr = parseCountB101(m[3]);
+    if (tok && !r.requirements.length && expr && expr.kind === 'b101-n' && expr.who === 'ref') {
+      bindAmountPlayerB101(expr, '__each');
+      const n = num(m[1]);
+      effects.push({ kind: 'b101-per-player', opponents: false, x: expr, effects: [{ ...tok, amount: n === 1 ? 'X' : { kind: 'b101-math', op: 'times', a: 'X', b: n }, forPlayerBind: '__each' }] });
+      return true;
+    }
+  }
+  // --- "Gain control of target creature until end of turn, untap that creature, and it gains haste until end of turn." (Yasova, Eldrazi Obligator)
+  if ((m = c.match(/^gain control of (target creature[^,]*?) until end of turn, untap (?:that creature|it), and it gains haste until end of turn\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1]));
+    effects.push({ kind: 'gain-control', bind, untilEndOfTurn: true, untap: true, haste: true });
+    return true;
+  }
+  // --- Two targets, each with its own change: "Target creature you control gets +X/+0 until end of turn and up to one target creature an opponent controls gets -0/-X until end of turn." (Gloom Ripper)
+  if ((m = c.match(/^(target creature[^,]*? gets [+-][\dX]+\/[+-][\dX]+ until end of turn) and ((?:up to one )?target creature[^,]*? gets [+-][\dX]+\/[+-][\dX]+ until end of turn)\.?$/i))) {
+    const a = sub(`${cap(m[1])}.`), b = sub(`${cap(m[2])}.`);
+    const ta = a?.requirements.filter(q => q.kind === 'target'), tb = b?.requirements.filter(q => q.kind === 'target');
+    if (a && b && ta.length === 1 && tb.length === 1) {
+      const keepA = a.requirements.filter(q => !(q.kind === 'number' && q.bind === 'X')), base = requirements.length + keepA.length;
+      const old = tb[0].bind, now = `target${base}`;
+      requirements.push(...keepA, ...b.requirements.filter(q => !(q.kind === 'number' && q.bind === 'X')).map(q => (q.bind === old ? { ...q, bind: now } : q)));
+      effects.push(...a.effects, ...b.effects.map(e => swapBind(e, old, now)));
+      return true;
+    }
+  }
+  // --- "Put two +1/+1 counters on that token for each spell you've cast this turn other than the first." (Outlaw Stitcher)
+  if ((m = c.match(rx(`^(?:Then )?put ${N} ([+-]\\d+\\/[+-]\\d+|[a-z]+) counters? on (it|that creature|that token|SELFNAME|${SELFP}) for each (.+?)\\.?$`))) && num(m[1]) > 1) {
+    const expr = parseCountB101(m[4]) || null;
+    if (expr && !amountNeedsPlayerB101(expr)) {
+      effects.push({ kind: 'counter', bind: /token/i.test(m[3]) ? 'thatCard' : pronounBind(m[3]), counter: m[2].toLowerCase(), amount: { kind: 'b101-math', op: 'times', a: expr, b: num(m[1]) } });
+      return true;
+    }
+  }
+  // --- "Target planeswalker you control deals damage equal to its loyalty to target creature or planeswalker an opponent controls." (Compel Brutality)
+  if ((m = c.match(/^(target planeswalker you control) deals damage equal to its loyalty to (target creature or planeswalker an opponent controls)\.?$/i))) {
+    const a = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), b = H.targetRequirement(requirements, m[2].toLowerCase(), m[2], { excludeBind: a });
+    effects.push({ kind: 'damage-from-selected-creature', sourceBind: a, targetBind: b, amount: { kind: 'b101-loyalty', bind: a } });
+    return true;
+  }
+
+  // --- Several creatures each deal damage equal to their power to one target (Allies at Last, Common Goal, Friendly Rivalry,
+  // Graceful Takedown, Combo Attack, Signature Slam).
+  if ((m = c.match(rx(`^(.+?) (?:each )?deals? damage equal to (?:its|their) power to (target creature(?: you don't control| an opponent controls| your opponents control)?)\\.?$`)))) {
+    const dealers = [];
+    let okAll = true, multi = false;
+    const segs = m[1].split(/ and (?=up to |any number of |target |one or )/i);
+    for (const seg of segs) {
+      const g = seg.match(/^(?:(up to|one or|any number of) )?(?:(one|two|three|four|a|\d+) )?(other )?target ((?:[a-z]+ )*?creatures?) (you control|your team controls)$/i);
+      if (!g) { okAll = false; break; }
+      const plural = /creatures$/i.test(g[4]), n = g[2] ? num(g[2]) : null, q = (g[1] || '').toLowerCase();
+      let min = 1, max = 1;
+      if (q === 'up to') { min = 0; max = n ?? 1; } else if (q === 'one or') { min = 1; max = n ?? 2; } else if (q === 'any number of') { min = 0; max = 99; } else if (n) { min = max = n; }
+      if (plural || q || max !== 1) multi = true;
+      const noun = g[4].replace(/creatures$/i, 'creature').toLowerCase();
+      const bind = `multi${requirements.length}`;
+      requirements.push({ kind: 'multi-target', bind, scope: `target ${noun} you control`, min, max, label: `Choose ${q ? `${q} ` : ''}${n ? `${g[2].toLowerCase()} ` : ''}${g[3] ? 'other ' : ''}${g[4].toLowerCase()} you control` });
+      dealers.push(bind);
+    }
+    if (okAll && (multi || segs.length > 1)) {
+      const tb = H.targetRequirement(requirements, m[2].toLowerCase(), m[2]);
+      effects.push({ kind: 'b101-deal-power', binds: dealers, targetBind: tb });
+      return true;
+    }
+    if (!okAll || !(multi || segs.length > 1)) { while (requirements.length && /^multi\d+$/.test(requirements[requirements.length - 1].bind)) requirements.pop(); }
+    // "Each modified creature you control deals damage equal to its power to target creature you don't control."
+    const e = !okAll && !/\btarget\b/i.test(m[1]) && (m = c.match(rx(`^Each (.+? (?:you control|your opponents control)) deals damage equal to its power to (target creature(?: you don't control| an opponent controls| your opponents control)?)\\.?$`))) ? parseCountB101(m[1]) : null;
+    if (e && e.kind === 'b101-n') {
+      const tb = H.targetRequirement(requirements, m[2].toLowerCase(), m[2]);
+      effects.push({ kind: 'b101-deal-power', expr: e, targetBind: tb });
+      return true;
+    }
+  }
   return false;
 }
 
@@ -354,6 +544,58 @@ export function compileB101Clause(c, ctx) {
 export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
   const c0 = String(clauses[i] || '').replace(/\([^()]*\)/g, '').trim();
   let m;
+  // "Draw X cards, where X is the number of cards discarded this way. If you have an enduring story, ~ deals X damage to each opponent." (Balin, Loremaster)
+  if ((m = c0.match(/^Draw X cards,? where X is the number of cards discarded this way\.?$/i)) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^If you have an enduring story, (?:.+?) deals X damage to each opponent\.?$/i))) {
+    return { part: { effects: [{ kind: 'set-x', amount: { kind: 'binding', bind: 'discardedThisWay' } }, { kind: 'draw', scope: 'you', amount: 'X' }, { kind: 'condition', test: 'enduring-story', skip: 1 }, { kind: 'damage-each', amount: 'X', creatures: null, players: 'opponents', sourceName }], requirements: [], unsupported: [] }, consumed: 2 };
+  }
+  // "Prevent the next 3 damage that would be dealt to target creature this turn. At the beginning of the next end step, put a +0/+1 counter on that creature for each 1 damage prevented this way." (Sacred Boon)
+  if (/^Prevent the next \d+ damage that would be dealt to target creature this turn\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').match(/^At the beginning of the next end step, put a ([+-]\d+\/[+-]\d+) counter on that creature for each 1 damage prevented this way\.?$/i))) {
+    const whole = H.compileEffectText(`${c0} At the beginning of the next end step, put a ${m[1]} counter on that creature.`, { sourceName });
+    const pd = whole.effects.find(e => e.kind === 'prevent-damage'), dl = whole.effects.find(e => e.kind === 'delay'), ct = dl?.effects?.find(e => e.kind === 'counter');
+    if (whole.supported && pd && ct) { pd.countPrevented = true; ct.amount = { kind: 'b101-prevented', bind: pd.bind }; return { part: { effects: whole.effects, requirements: whole.requirements, unsupported: [] }, consumed: 2 }; }
+  }
+  // "Put a +1/+1 counter on ~. It gains flying until end of turn." (Estinien Varlineau): "it" is the creature just named, not the spell that triggered this.
+  {
+    const nm = String(sourceName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), short = String(sourceName || '').split(',')[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const named = new RegExp(`^Put (?:a|an|one|two|three|\\d+) (?:[+-]\\d+\\/[+-]\\d+|[a-z]+) counters? on (?:this (?:creature|permanent|artifact|enchantment)|${nm}|${short})\\.?$`, 'i');
+    const nxt = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim();
+    if (named.test(c0) && /^It (?:gains|has) [a-z ,]+ until end of turn\.?$/i.test(nxt)) {
+      const a = H.compileEffectText(c0, { sourceName }), b = H.compileEffectText(nxt.replace(/^It /i, 'This creature '), { sourceName });
+      if (a.supported && b.supported && a.effects.length && b.effects.length) return { part: { effects: [...a.effects, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
+    }
+  }
+  // "Choose up to one target creature you don't control with flying. This creature gets +X/+0 until end of turn, where X is …, then you may have this creature fight that creature." (Kraul Harpooner)
+  if (/^Choose up to one target creature you don'?t control with flying\.?$/i.test(c0) && (m = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim().match(/^(This creature gets \+X\/\+0 until end of turn, where X is the number of creature cards in your graveyard), then you may have this creature fight that creature\.?$/i))) {
+    const a = H.compileEffectText(c0, { sourceName }), b = H.compileEffectText(`${m[1]}.`, { sourceName }), t = a.requirements.find(q => q.kind === 'target');
+    if (a.supported && b.supported && t) {
+      const may = `mayFight${parts.length}`;
+      return { part: { effects: [...a.effects.filter(e => e.kind !== 'note'), ...b.effects, { kind: 'b101-fight-if', sourceBind: 'sourceId', targetBind: t.bind, mayBind: may }], requirements: [...a.requirements, ...b.requirements, { kind: 'yes-no', bind: may, label: `Have ${sourceName} fight that creature?` }], unsupported: [] }, consumed: 2 };
+    }
+  }
+  // "Target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way." (Coveted Falcon)
+  if (/^Target opponent gains control of any number of target permanents you control\.?$/i.test(c0) && /^Draw a card for each one they gained control of this way\.?$/i.test(String(clauses[i + 1] || '').trim())) {
+    const whole = H.compileEffectText(c0, { sourceName }), mt = whole.requirements.find(q => q.kind === 'multi-target');
+    if (whole.supported && mt) return { part: { effects: [...whole.effects, { kind: 'draw', scope: 'you', amount: { kind: 'b101-gained-control', bind: mt.bind } }], requirements: whole.requirements, unsupported: [] }, consumed: 2 };
+  }
+  // "Exile up to two target cards from a single graveyard. [If this spell was kicked, instead exile target player's graveyard.] Create a 2/2 black Rogue creature token for each creature card exiled this way." (Waste Management)
+  if (/^Exile up to two target cards from a single graveyard\.?$/i.test(c0)) {
+    const n1 = String(clauses[i + 1] || '').replace(/\([^()]*\)/g, '').trim(), n2 = String(clauses[i + 2] || '').replace(/\([^()]*\)/g, '').trim();
+    const kicked = /^If this spell was kicked, instead exile target player'?s graveyard\.?$/i.test(n1), tokenText = kicked ? n2 : n1;
+    if ((m = tokenText.match(/^Create (a|an|one|two|three) (.+? creature tokens?) for each creature card exiled this way\.?$/i))) {
+      const tok = H.compileEffectText(`Create ${m[1]} ${m[2]}.`, { sourceName }), t0 = tok.supported && tok.effects.length === 1 && tok.effects[0].kind === 'create-token' ? tok.effects[0] : null;
+      if (t0) {
+        const bind = kicked ? `player${parts.length + 40}` : `gyCards${parts.length}`;
+        const req = kicked ? { kind: 'player', bind, scope: 'player', label: 'target player' } : { kind: 'b101-gy-cards', bind, max: 2, label: 'up to two cards from a single graveyard' };
+        const count = { kind: 'b101-this-way', mine: false, nontoken: false, not: [], types: ['creature'], card: true };
+        return { part: { effects: [{ kind: 'b101-exile-graveyard', bind, whole: kicked }, { ...t0, amount: /^(a|an|one)$/i.test(m[1]) ? count : { kind: 'b101-math', op: 'times', a: count, b: num(m[1]) } }], requirements: [req], unsupported: [] }, consumed: kicked ? 3 : 2 };
+      }
+    }
+  }
+  // "A creature destroyed this way can't be regenerated." (Essence Vortex): the destroy before it can't be stopped by a regeneration shield.
+  if (/^(?:It|That creature|A creature destroyed this way|Creatures destroyed this way) can'?t be regenerated\.?$/i.test(c0)) {
+    const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'destroy');
+    if (d) { d.noRegen = true; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
+  }
   // "~ deals 2 damage to that land's controller." — the controller of what was targeted before, or of the trigger's card.
   if ((m = c0.match(/^(?:.+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[1]) !== null) {
     const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'stack-target');
@@ -423,6 +665,17 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
       bindings.__each = before; bindings.X = beforeX;
       return true;
     }
+    case 'b101-deal-power': {
+      // Each of the chosen (or counted) creatures deals damage equal to its own power to the target.
+      const ids = effect.expr ? listCardsB101(game, controllerId, effect.expr, bindings, H).map(x => x.instanceId) : [...new Set((effect.binds || []).flatMap(b => [].concat(bindings[b] || [])).filter(x => typeof x === 'string'))];
+      for (const id of ids) {
+        const src = locateCardInGame(game, id), tgt = locateCardInGame(game, bindings[effect.targetBind]);
+        if (!src || src.zone !== 'battlefield' || id === bindings[effect.targetBind]) continue;   // one object is not both a source and the target
+        if (!tgt || tgt.zone !== 'battlefield') { notes.push('The target is no longer on the battlefield.'); break; }
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-from-selected-creature', sourceId: id, targetId: bindings[effect.targetBind] }], bindings));
+      }
+      return true;
+    }
     case 'b101-give-control': {
       const to = bindings[effect.playerBind], hit = locateCardInGame(game, bindings.sourceId);
       if (!to || !hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
@@ -443,6 +696,91 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
     case 'b101-damage-others':
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-each', amount: effect.amount, filter: `creature|not-id:${String(bindings.sourceId || '').toLowerCase()}`, creatures: 'all', players: effect.players, sourceName: effect.sourceName }], bindings));
       return true;
+    case 'b101-exile-monarch': {
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The target is no longer on the battlefield.'); return true; }
+      // If an opponent is already the monarch, the duration is over before it starts.
+      if ((game.players || []).some(p => !p.eliminated && p.playerId !== controllerId && (p.statuses || []).some(x => x.toLowerCase() === 'monarch'))) { notes.push('An opponent is the monarch: nothing is exiled.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'exile', bind: effect.bind }], bindings));
+      const now = locateCardInGame(game, bindings[effect.bind]);
+      if (now && now.zone === 'exile') game.monarchExiles = [...(game.monarchExiles || []), { cardId: now.card.instanceId, jailerId: controllerId }];
+      return true;
+    }
+    case 'b101-suspend-self': {
+      // The card that just died goes to exile with time counters and suspend (it is cast free when the last comes off).
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'graveyard' || hit.card.token) { notes.push('It is no longer in the graveyard.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: hit.card.instanceId, to: 'exile' }], bindings));
+      const now = locateCardInGame(game, bindings.sourceId);
+      if (now && now.zone === 'exile') { now.card.counters = { ...(now.card.counters || {}), time: Number(effect.amount || 0) }; now.card.suspended = true; notes.push(`${definitionFor(game, now.card)?.name || 'It'} is exiled with ${effect.amount} time counters and suspend.`); }
+      return true;
+    }
+    case 'b101-gain-vanishing': {
+      const hit = locateCardInGame(game, bindings.sourceId);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
+      hit.card.counters = { ...(hit.card.counters || {}), time: Number(hit.card.counters?.time || 0) + Number(effect.amount || 0) };
+      hit.card.gainedVanishing = true;   // keyword-triggers-b49.js: vanishing at each upkeep
+      notes.push(`${definitionFor(game, hit.card)?.name || 'It'} gets ${effect.amount} time counters and vanishing.`);
+      return true;
+    }
+    case 'b101-pick': {
+      // The branch the player chose as it resolved.
+      const branch = effect.branches[bindings[effect.bind]];
+      if (!branch) { notes.push('Nothing was chosen.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, branch, bindings));
+      return true;
+    }
+    case 'b101-fight-if': {
+      // "… then you may have this creature fight that creature": only if you said yes and the creature was chosen and is still there.
+      const yes = bindings[effect.mayBind] === true || bindings[effect.mayBind] === 'yes' || bindings[effect.mayBind] === 'true';
+      const them = locateCardInGame(game, bindings[effect.targetBind]);
+      if (!yes || !them || them.zone !== 'battlefield') { notes.push(yes ? 'There is no creature left to fight.' : 'It does not fight.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'fight', sourceBind: effect.sourceBind, targetBind: effect.targetBind }], bindings));
+      return true;
+    }
+    case 'b101-exile-graveyard': {
+      // Up to two chosen cards, or a whole graveyard; what was exiled is remembered for "for each creature card exiled this way".
+      const raw = bindings[effect.bind];
+      const ids = effect.whole ? (playerById(game, raw)?.deck.graveyard || []).map(c => c.instanceId) : [].concat(raw || []).filter(x => typeof x === 'string');
+      bindings.movedThisWayCards = bindings.movedThisWayCards || [];
+      let n = 0;
+      for (const id of ids) {
+        const hit = locateCardInGame(game, id);
+        if (!hit || hit.zone !== 'graveyard') continue;
+        bindings.movedThisWayCards.push({ id, controllerId: hit.player?.playerId || hit.card.ownerId, definitionId: hit.card.definitionId, typeLine: definitionFor(game, hit.card)?.typeLine || '', token: !!hit.card.token });
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: id, to: 'exile' }], bindings)); n++;
+      }
+      bindings.movedThisWay = bindings.movedThisWayCards.length;
+      notes.push(`${n} card${n === 1 ? '' : 's'} exiled from a graveyard.`);
+      return true;
+    }
+    case 'b101-bite-back': {
+      // The damage first, then the creature (its power as it was, even if it just died) deals that much to you.
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('The target is no longer on the battlefield.'); return true; }
+      const d = definitionFor(game, hit.card), power = Math.max(0, Number(effectivePower(hit.card, d, game) || 0));
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: effect.amount, bind: effect.bind, sourceName: effect.sourceName }], bindings));
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: power, playerId: controllerId, sourceName: d?.name || 'The creature' }], bindings));
+      return true;
+    }
+    case 'b101-unless-do': {
+      // The player the choice was asked of did it (or not); what follows is skipped when they did.
+      const ans = bindings[effect.bind];
+      if (!ans || ans === 'no') return true;
+      const decider = unlessDecider(game, effect, bindings);
+      if (!decider) return true;
+      let did = false;
+      if (effect.mode === 'life-toughness') {
+        const hit = locateCardInGame(game, bindings[effect.deciderTarget]), n = hit ? Math.max(0, Number(effectiveToughness(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
+        if (Number(decider.life || 0) >= n) { notes.push(...H.applyEffectsUnsafe(game, decider.playerId, [{ kind: 'life', scope: 'you', amount: n, deltaSign: -1 }], bindings)); notes.push(`${decider.displayName} pays ${n} life.`); did = true; }
+      } else if (effect.mode === 'damage-power') {
+        notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage', amount: { kind: 'source-power' }, playerId: decider.playerId, sourceName: effect.sourceName }], bindings)); did = true;
+      } else if (effect.mode === 'sacrifice' && locateCardInGame(game, ans)) {
+        notes.push(...H.applyEffectsUnsafe(game, decider.playerId, [{ kind: 'sacrifice', targetId: ans, soft: true }], bindings)); did = true;
+      }
+      if (did) { bindings.skipEffects = effect.skip || 0; notes.push('It was paid for.'); }
+      return true;
+    }
     case 'b101-discard-chosen':
     case 'b101-sac-unless-discard': {
       if (!controller) return true;
@@ -481,9 +819,41 @@ export function applyB101(game, controllerId, effect, bindings, notes) {
   }
 }
 
+/** The player an "unless" choice belongs to: the controller of the targeted card, or the trigger's player. */
+function unlessDecider(game, req, bindings) {
+  if (req.deciderTarget) { const hit = locateCardInGame(game, bindings[req.deciderTarget]); const id = hit?.card?.controllerId || hit?.player?.playerId; return playerById(game, id) || null; }
+  return playerById(game, bindings[req.deciderBind]) || null;
+}
+
 /** Requirement kinds made above, asked by requirements.js. Returns true when handled. */
 export function gatherB101(game, ctx, req, bindings, ask, key, title, base, util) {
   const { player } = ctx;
+  if (req.kind === 'b101-gy-cards') {
+    // "Up to two target cards from a single graveyard": which graveyard (when more than one has cards), then the cards.
+    const owners = (game.players || []).filter(p => !p.eliminated && (p.deck.graveyard || []).length);
+    if (!owners.length) { bindings[req.bind] = []; return true; }
+    const who = owners.length === 1 ? owners[0].playerId : ask(`${key}:who`, () => ({ ...base, kind: 'choose-one', title, prompt: 'Choose the graveyard to take cards from.', options: owners.map(p => ({ id: p.playerId, label: `${p.displayName}'s graveyard (${p.deck.graveyard.length})` })) }));
+    const rows = (playerById(game, who)?.deck.graveyard || []);
+    bindings[req.bind] = ask(key, () => ({ ...base, kind: 'choose-many', title, prompt: `Choose up to ${req.max} cards.`, min: 0, max: Math.min(req.max, rows.length), options: rows.map(card => util.cardOption(game, card, playerById(game, who), 'Graveyard')) }));
+    return true;
+  }
+  if (req.kind === 'b101-unless') {
+    // "… unless its controller pays life equal to its toughness": asked of that player, on their own device.
+    const q = unlessDecider(game, req, bindings), src = locateCardInGame(game, bindings.sourceId);
+    if (!q || q.eliminated) { bindings[req.bind] = 'no'; return true; }
+    const who = { ...base, playerId: q.playerId, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — ${q.displayName}` };
+    if (req.mode === 'life-toughness') {
+      const hit = locateCardInGame(game, bindings[req.deciderTarget]), n = hit ? Math.max(0, Number(effectiveToughness(hit.card, definitionFor(game, hit.card), game) || 0)) : 0;
+      bindings[req.bind] = !hit ? 'no' : ask(key, () => ({ ...who, prompt: `Pay ${n} life to keep ${definitionFor(game, hit.card)?.name || 'your creature'}?`, options: [{ id: 'pay', label: `Pay ${n} life`, disabled: Number(q.life || 0) < n }, { id: 'no', label: 'Don\u2019t pay (it is destroyed)' }] }));
+    } else if (req.mode === 'damage-power') {
+      const n = src ? Math.max(0, Number(effectivePower(src.card, definitionFor(game, src.card), game) || 0)) : 0;
+      bindings[req.bind] = ask(key, () => ({ ...who, prompt: `Have ${req.sourceName} deal ${n} damage to you to stop the effect?`, options: [{ id: 'do', label: `Take ${n} damage` }, { id: 'no', label: 'Don\u2019t (it is destroyed)' }] }));
+    } else {
+      const rows = (q.deck.battlefield || []).filter(c => /\bCreature\b/.test(definitionFor(game, c)?.typeLine || ''));
+      bindings[req.bind] = !rows.length ? 'no' : ask(key, () => ({ ...who, prompt: 'Sacrifice a creature to stop the life loss?', options: [...rows.map(c => ({ id: c.instanceId, label: `Sacrifice ${definitionFor(game, c)?.name || 'a creature'}`, instanceId: c.instanceId, definitionId: c.definitionId })), { id: 'no', label: 'Don\u2019t sacrifice' }] }));
+    }
+    return true;
+  }
   if (req.kind === 'b101-hand-cards') {
     // The player's own cards: private, chosen by them as the effect resolves.
     const rows = (player.deck.hand || []).filter(card => !req.filter || new RegExp(`\\b${req.filter}\\b`, 'i').test(util.defOf(game, card)?.typeLine || ''));

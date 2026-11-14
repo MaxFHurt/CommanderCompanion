@@ -39,7 +39,7 @@ function staticVerdict(line, def) {
   const words = text.replace(/\([^()]*\)/g, '').trim().split(/\s*,\s*/);
   const terms = words.map(w => KEYWORDS.find(k => new RegExp(`^${k.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(w)));
   // Static lines the game applies elsewhere (cost changes in casting.js and rules.js activationReduction).
-  const STATIC_AUTO = [/^(?:[A-Z][a-z]+ — )?Equipment you control have equip \{0\}(?: as long as you control three or more artifacts)?\.?$/i, /^[A-Za-z ,]*spells you cast cost \{\d+\} less to cast\.?$/i, /^Equip abilities you activate cost \{\d+\} less to activate\.?$/i];
+  const STATIC_AUTO = [/^(?:[A-Z][a-z]+ — )?Equipment you control have equip \{0\}(?: as long as you control three or more artifacts)?\.?$/i, /^[A-Za-z ,]*spells you cast cost \{\d+\} less to cast\.?$/i, /^Equip abilities you activate cost \{\d+\} less to activate\.?$/i, /^(?:[A-Z][A-Za-z ]+ — )?You may play lands and cast spells from among cards exiled with this [a-z]+\.?$/];   // read by exilePlayPermission (effects-catalog.js)
   const sentences = text.replace(/\([^()]*\)/g, '').split(/(?<=\.)\s+/).map(x => x.trim()).filter(Boolean);
   if (sentences.length && sentences.every(x => STATIC_AUTO.some(r => r.test(x)))) return 'auto';
   // Echo and cumulative upkeep are automatic only for a mana cost (or "Pay N life" upkeep).

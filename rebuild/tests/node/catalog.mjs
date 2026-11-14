@@ -4,8 +4,10 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
+import { compileEffectText } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
+import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
 
 const asText = (t, card, text, extra = {}) => { t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], oracleText: text, ...extra }; return card; };
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
@@ -3442,6 +3444,826 @@ section('build 102: "its power" is the right creature');
   const life = t.P(0).life, hand = t.P(0).deck.hand.length;
   cast(t, 'Grizzly Bears', 'When this creature enters, sacrifice another creature. You gain X life and draw X cards, where X is that creature\'s power.');
   check('Disciple of Bolas: a 3-power creature sacrificed, 3 life and 3 cards', t.P(0).life === life + 3 && t.P(0).deck.hand.length === hand + 3 && !t.bf(0, 'Fog Bank'), `${t.P(0).life - life} ${t.P(0).deck.hand.length - hand}`);
+}
+
+section('build 104: long tail batch 3 (sent-back cards re-read)');
+{
+  // Allies at Last / Common Goal: each chosen creature deals damage equal to its own power
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }), b = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Bear', power: '3', toughness: '3' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Up to two target creatures you control each deal damage equal to their power to target creature an opponent controls.', [[d => (d.options || []).some(o => o.id === a.instanceId) && d.kind === 'choose-many', () => [a.instanceId, b.instanceId]], tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('each deals damage equal to its own power: 2 + 3 = 5', Number(foe.damageMarked || 0) === 5, String(foe.damageMarked));
+}
+{
+  // Sunfall / Join the Collective: counted from what was exiled / destroyed this way
+  const t = setup();
+  onField(t, 'Grizzly Bears', ''); onField(t, 'Fog Bank', '', {}, 1); onField(t, 'Air Elemental', '', { typeLine: 'Creature — Bear' }, 1);
+  cast(t, 'Opt', 'Destroy all creatures. Create X 1/1 colorless Borg artifact creature tokens, where X is the number of nonartifact creatures destroyed this way.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const borgs = t.P(0).deck.battlefield.filter(c => def(t, c).name === 'Borg');
+  check('Join the Collective: three destroyed, three Borg artifact creature tokens', borgs.length === 3 && /Artifact/.test(def(t, borgs[0]).typeLine), String(borgs.length));
+}
+{
+  // Painbringer-style cost counts are left to the player (this-way count without a moving instruction before it)
+  const r = compileEffectText('Target creature gets -X/-X until end of turn, where X is the number of cards exiled this way.', { sourceName: 'Test' });
+  check('"exiled this way" with nothing moved before it is not read', !r.supported, JSON.stringify(r.effects));
+}
+{
+  // Saavik / Hoshi Sato: creature types among non-Borg creatures
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Elf Warrior' }); onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }); onField(t, 'Mulldrifter', '', { typeLine: 'Creature — Borg Wizard' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Opt deals X damage to target creature, where X is the number of creature types among non-Borg creatures you control.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('creature types among non-Borg creatures: Elf, Warrior, Druid = 3', Number(foe.damageMarked || 0) === 3, String(foe.damageMarked));
+}
+{
+  // Triumphant Chomp: 2 or the greatest power among Dinosaurs, whichever is greater
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Dinosaur', power: '5', toughness: '5' });
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Opt deals damage to target creature equal to 2 or the greatest power among Dinosaurs you control, whichever is greater.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('"whichever is greater": a 5-power Dinosaur beats 2', Number(foe.damageMarked || 0) === 5, String(foe.damageMarked));
+}
+{
+  // Warkite Marauder: loses all abilities and becomes 0/1
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', 'Flying', { power: '4', toughness: '4', keywords: ['Flying'] }, 1);
+  cast(t, 'Opt', 'Target creature loses all abilities and has base power and toughness 0/1 until end of turn.', [tgt(foe.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  const d = withOverlay(foe, def(t, foe));
+  check('"loses all abilities": 0/1 with no keywords', d.power === '0' && d.toughness === '1' && !(d.keywords || []).length && !d.oracleText, JSON.stringify([d.power, d.toughness, d.keywords]));
+}
+{
+  // Ayara: X is the sacrificed permanent's mana value (not this card's)
+  const r = compileEffectText("Test deals X damage to target opponent or battle and you gain X life, where X is the sacrificed permanent's mana value.", { sourceName: 'Test' });
+  check('"sacrificed permanent\'s mana value": X set before the damage', r.supported && r.effects[0].kind === 'set-x' && r.effects[0].amount.bind === 'sacrificedManaValue', JSON.stringify(r.effects[0]));
+}
+{
+  // Tokens with their own rules text, and artifact creature tokens
+  const r = compileEffectText('Create X 1/1 black Rat creature tokens with "This token can\'t block,"', { sourceName: 'Test' });
+  check('token with quoted rules text carries it', r.effects[0].oracleText === "This token can't block." && !r.effects[0].keywords.length, JSON.stringify(r.effects[0]));
+  const r2 = compileEffectText('Create a 1/1 colorless Borg artifact creature token.', { sourceName: 'Test' });
+  check('"Borg artifact creature token": subtype Borg, an artifact creature', r2.effects[0].name === 'Borg' && r2.effects[0].typeLine === 'Token Artifact Creature — Borg', r2.effects[0].typeLine);
+}
+{
+  // Superior Numbers / Weight of Spires: counts about the target's controller / a target opponent
+  const r = compileEffectText("Test deals damage to target creature equal to the number of nonbasic lands that creature's controller controls.", { sourceName: 'Test' });
+  check("\"that creature's controller controls\" is counted for the targeted creature", r.supported && r.effects[0].amount.controllerBind === 'target0', JSON.stringify(r.effects[0]));
+  const r2 = compileEffectText('Test deals damage to target creature equal to the number of creatures you control in excess of the number of creatures target opponent controls.', { sourceName: 'Test' });
+  check('"in excess of": a difference with its own target opponent', r2.supported && r2.requirements.some(q => q.kind === 'player'), JSON.stringify(r2.requirements));
+}
+{
+  // Gloom Ripper: one mandatory target and one optional; Ellie: self gains a keyword; Waiting in the Weeds: per player
+  const r = compileEffectText('Target creature you control gets +2/+0 until end of turn and up to one target creature an opponent controls gets -0/-2 until end of turn.', { sourceName: 'Test' });
+  check('two targets: only the second is optional', r.supported && !r.requirements[0].optional && r.requirements[1].optional, JSON.stringify(r.requirements.map(q => q.optional)));
+  const t = setup();
+  onField(t, 'Fog Bank', '', { typeLine: 'Basic Land — Forest' }); onField(t, 'Fog Bank', '', { typeLine: 'Basic Land — Forest' }, 1);
+  const before = [0, 1].map(i => t.P(i).deck.battlefield.filter(c => def(t, c).name === 'Cat').length);
+  cast(t, 'Opt', 'Each player creates a 1/1 green Cat creature token for each untapped Forest they control.', [], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const after = [0, 1].map(i => t.P(i).deck.battlefield.filter(c => def(t, c).name === 'Cat').length);
+  check('each player gets Cats for their own untapped Forests (5 and 1)', after[0] - before[0] === 5 && after[1] - before[1] === 1, JSON.stringify(after));
+}
+{
+  // Ferrafor: "double each kind of counter"
+  const t = setup();
+  const c = onField(t, 'Grizzly Bears', '', {}); c.counters = { '+1/+1': 2, shield: 1 };
+  cast(t, 'Opt', 'Double the number of each kind of counter on target creature.', [tgt(c.instanceId)], { manaCost: '{U}', typeLine: 'Instant' });
+  check('every kind of counter doubled', c.counters['+1/+1'] === 4 && c.counters.shield === 2, JSON.stringify(c.counters));
+}
+{
+  // Cactus Preserve / Sorin: highest life total, commanders' mana value compile
+  for (const [txt, kind] of [['Create a number of 1/1 black Vampire Knight creature tokens with lifelink equal to the highest life total among all players.', 'b101-life-high'], ['Draw a card for each color among other artifacts you control.', 'b101-colors-among'], ['Draw a card for each card type among spells you\'ve cast this turn.', 'b101-spell-types'], ['Test deals X damage to each opponent, where X is the number of modified creatures you control other than this creature.', 'b101-n']]) {
+    const r = compileEffectText(txt, { sourceName: 'Test' });
+    check(`reads: ${txt.slice(0, 50)}`, r.supported && JSON.stringify(r.effects).includes(kind), JSON.stringify(r.effects).slice(0, 120));
+  }
+}
+
+// ---- Build 109 candidate: rules long tail batch 3 part 2 (the 43 sent-back cards) ----
+const real = (t, name, i = 0, zone = 'battlefield') => { const g = t.give(i, name, zone); return (t.P(i).deck[zone].find(x => x.instanceId === g.instanceId)) || g; };
+section('batch 3 part 2: cost-linked counts');
+{
+  // Painbringer: exile any number of cards from your graveyard, -X/-X with X = the number exiled
+  const t = setup();
+  const pb = onField(t, 'Grizzly Bears', '{T}, Exile any number of cards from your graveyard: Target creature gets -X/-X until end of turn, where X is the number of cards exiled this way.', { typeLine: 'Creature — Human Minion', power: '1', toughness: '1' });
+  pb.summoningSick = false; pb.enteredTurn = -5;
+  const foe = onField(t, 'Fog Bank', '', { power: '2', toughness: '9' }, 1);
+  for (let i = 0; i < 4; i++) t.give(0, 'Forest', 'graveyard');
+  const seen = activate(t, pb, 0, [['cost:exile-any', d => d.options.slice(0, 3).map(o => o.id)], [d => d.kind === 'choose-one' && /target/i.test(d.prompt || ''), foe.instanceId]]);
+  check('Painbringer: asked which cards to exile', seen.some(d => /exile-any/.test(d.key)), JSON.stringify(seen.map(d => d.key)));
+  check('Painbringer: three cards exiled, -3/-3', t.P(0).deck.graveyard.length === 1 && tough(t, foe) === 6, `${t.P(0).deck.graveyard.length} ${tough(t, foe)}`);
+}
+{
+  // Emrakul's Evangel: sacrifice itself and any number of other non-Eldrazi creatures: a 3/2 for each
+  const t = setup();
+  const ev = onField(t, 'Colossal Dreadmaw', '{T}, Sacrifice this creature and any number of other non-Eldrazi creatures: Create a 3/2 colorless Eldrazi Horror creature token for each creature sacrificed this way.', { typeLine: 'Creature — Human Horror', power: '2', toughness: '2' });
+  ev.summoningSick = false; ev.enteredTurn = -5;
+  const a = onField(t, 'Llanowar Elves', '', {}), b = onField(t, 'Elvish Visionary', '', {}), e = onField(t, 'Fog Bank', '', { typeLine: 'Creature — Eldrazi' });
+  const seen = activate(t, ev, 0, [['cost:sacrifice-any', d => { check('Evangel: Eldrazi not offered', !d.options.some(o => o.id === e.instanceId), ''); return [a.instanceId, b.instanceId]; }]]);
+  const horrors = t.P(0).deck.battlefield.filter(c => /Horror/.test(def(t, c).typeLine || '') || c.tokenName === 'Horror' || def(t, c).name === 'Horror');
+  check('Evangel: three Horrors (itself and two others)', horrors.length === 3 && !t.P(0).deck.battlefield.some(c => c.instanceId === ev.instanceId), String(horrors.length));
+}
+{
+  // Jar of Eyeballs / Catti-brie: remove all counters, count them
+  const t = setup();
+  const jar = onField(t, 'Sol Ring', '{3}, {T}, Remove all eyeball counters from this artifact: Look at the top X cards of your library, where X is the number of eyeball counters removed this way. Put one of them into your hand and the rest on the bottom of your library in any order.', { typeLine: 'Artifact' });
+  jar.counters = { eyeball: 4 };
+  const top = t.P(0).deck.remainingLibrary.slice(0, 4).map(c => c.instanceId);
+  const seen = activate(t, jar, 0, []);
+  check('Jar: counters removed', !jar.counters.eyeball, JSON.stringify(jar.counters));
+  check('Jar: looked at four, took one', seen.some(d => /dig/i.test(d.key)) && t.P(0).deck.hand.length === 1 && top.includes(t.P(0).deck.hand[0].instanceId), JSON.stringify(seen.map(d => d.key + ':' + (d.prompt || ''))));
+}
+{
+  const t = setup();
+  const cb = onField(t, 'Grizzly Bears', '{1}, Remove all +1/+1 counters from Catti-brie: It deals X damage to target attacking or blocking creature an opponent controls, where X is the number of counters removed this way.', { name: 'Catti-brie of Mithral Hall', typeLine: 'Legendary Creature — Human Archer', power: '2', toughness: '2' });
+  cb.counters = { '+1/+1': 3 };
+  const foe = onField(t, 'Fog Bank', '', { power: '1', toughness: '9' }, 1);
+  t.game.combatState = { attackers: [{ instanceId: foe.instanceId, attackingPlayerId: t.P(1).playerId, defender: t.P(0).playerId }], blockers: [] };
+  foe.attacking = true;
+  activate(t, cb, 0, [[d => d.kind === 'choose-one' && /target/i.test(d.prompt || ''), foe.instanceId]]);
+  check('Catti-brie: counters gone, 3 damage', !cb.counters['+1/+1'] && Number(foe.damageMarked || 0) === 3, JSON.stringify([cb.counters, foe.damageMarked]));
+}
+{
+  // Mercurial Chemister: the discarded card's mana value
+  const t = setup();
+  const mc = onField(t, 'Colossal Dreadmaw', '{G}, {T}, Discard a card: This creature deals damage to target creature equal to the discarded card\'s mana value.', { power: '3', toughness: '3' }); mc.summoningSick = false; mc.enteredTurn = -5;
+  t.give(0, 'Mulldrifter', 'hand'); t.give(0, 'Opt', 'hand');
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  const mull = t.P(0).deck.hand.find(c => def(t, c).name === 'Mulldrifter');
+  activate(t, mc, 0, [['cost:discard', mull.instanceId], [d => d.kind === 'choose-one' && /target/i.test(d.prompt || ''), foe.instanceId]]);
+  check('Chemister: Mulldrifter (mana value 5) discarded, 5 damage', Number(foe.damageMarked || 0) === 5, String(foe.damageMarked));
+}
+{
+  // Fiery Bombardment: red mana symbols in the sacrificed creature's mana cost
+  const t = setup();
+  const fb = onField(t, 'Fog Bank', 'Chroma — {2}, Sacrifice a creature: This enchantment deals damage to any target equal to the number of red mana symbols in the sacrificed creature\'s mana cost.', { typeLine: 'Enchantment' });
+  const fod = onField(t, 'Llanowar Elves', '', { manaCost: '{1}{R}{R}', typeLine: 'Creature — Elf' });
+  const foe = onField(t, 'Air Elemental', '', { power: '0', toughness: '9' }, 1);
+  activate(t, fb, 0, [['cost:sacrifice', fod.instanceId], [d => d.kind === 'choose-one' && /target/i.test(d.prompt || ''), foe.instanceId]]);
+  check('Fiery Bombardment: {1}{R}{R} sacrificed, 2 damage', Number(foe.damageMarked || 0) === 2, String(foe.damageMarked));
+}
+section('batch 3 part 2: choices made by another player ("unless")');
+{
+  // Essence Vortex: the creature's controller decides (pays life equal to its toughness, or it is destroyed)
+  for (const pay of [true, false]) {
+    const t = setup();
+    const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1);
+    const seen = cast(t, 'Opt', 'Destroy target creature unless its controller pays life equal to its toughness. A creature destroyed this way can\'t be regenerated.', [[d => d.kind === 'choose-one' && /target/i.test(d.prompt || ''), foe.instanceId], [k => /b101-unless|unless/.test(k.key) || /Pay 4 life/.test(k.prompt || ''), pay ? 'pay' : 'no']], { manaCost: '{U}', typeLine: 'Instant' });
+    const asked = seen.find(d => /Pay 4 life/.test(d.prompt || ''));
+    check(`Essence Vortex (${pay ? 'pays' : 'declines'}): asked of the creature's controller`, asked && asked.playerId === t.P(1).playerId, JSON.stringify(seen.map(d => [d.key, d.playerId])));
+    check(`Essence Vortex (${pay ? 'pays' : 'declines'}): result`, pay ? (t.P(1).life === 36 && t.bf(1, 'Fog Bank')) : (!t.bf(1, 'Fog Bank') && t.P(1).life === 40), `${t.P(1).life}`);
+  }
+}
+{
+  // Combustion Man: its controller may have it deal damage equal to its power to them instead
+  for (const take of [true, false]) {
+    const t = setup();
+    const cm = onField(t, 'Grizzly Bears', 'Whenever Combustion Man attacks, destroy target permanent unless its controller has Combustion Man deal damage to them equal to his power.', { name: 'Combustion Man', power: '4', toughness: '4' });
+    const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1);
+    t.end(0); t.autoPass = true; t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.autoPass = false;
+    const l1 = t.P(1).life;
+    t.do(0, { type: 'attack', attacks: [{ instanceId: cm.instanceId, defenderId: t.P(1).playerId }] });
+    const seen = settle(t, [[d => d.kind === 'choose-one' && /target/i.test(d.prompt || '') || d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId], [d => /damage to you/.test(d.prompt || ''), take ? 'do' : 'no']]);
+    const asked = seen.find(d => /damage to you/.test(d.prompt || ''));
+    check(`Combustion Man (${take ? 'takes damage' : 'declines'}): asked of its controller`, asked && asked.playerId === t.P(1).playerId, JSON.stringify(seen.map(d => [d.key, d.playerId, d.prompt])));
+    check(`Combustion Man (${take ? 'takes damage' : 'declines'}): result`, take ? (t.bf(1, 'Fog Bank') && t.P(1).life === l1 - 4) : !t.bf(1, 'Fog Bank'), `${t.P(1).life} ${!!t.bf(1, 'Fog Bank')}`);
+  }
+}
+{
+  // Tomb Blade: that player loses life equal to their creature count unless they sacrifice a creature of their choice
+  for (const sac of [true, false]) {
+    const t = setup();
+    const tb = onField(t, 'Grizzly Bears', 'Whenever this creature deals combat damage to a player, that player loses life equal to the number of creatures they control unless they sacrifice a creature of their choice.', { power: '2', toughness: '2' });
+    onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1); const e2 = onField(t, 'Air Elemental', '', { power: '0', toughness: '4' }, 1);
+    t.end(0); t.autoPass = true; t.end(1);
+    t.do(0, { type: 'next-phase' });
+    t.autoPass = false;
+    const l1 = t.P(1).life;
+    t.do(0, { type: 'attack', attacks: [{ instanceId: tb.instanceId, defenderId: t.P(1).playerId }] });
+    t.passAll(); t.do(1, { type: 'block', assignments: [] });
+    const seen = settle(t, [[d => /Sacrifice a creature to stop/.test(d.prompt || ''), sac ? e2.instanceId : 'no']]);
+    const asked = seen.find(d => /Sacrifice a creature to stop/.test(d.prompt || ''));
+    check(`Tomb Blade (${sac ? 'sacrifices' : 'declines'}): asked of the damaged player`, asked && asked.playerId === t.P(1).playerId, JSON.stringify(seen.map(d => [d.key, d.playerId, d.prompt])));
+        check(`Tomb Blade (${sac ? 'sacrifices' : 'declines'}): result`, sac ? (!t.P(1).deck.battlefield.some(c => c.instanceId === e2.instanceId) && t.P(1).life === l1 - 2) : (t.P(1).life === l1 - 2 - 2), `${l1} -> ${t.P(1).life}`);
+  }
+}
+section('batch 3 part 2: close to done');
+{
+  // Observed Stasis: draw for each tapped creature its controller controls
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1); foe.tapped = true;
+  const f2 = onField(t, 'Air Elemental', '', { power: '0', toughness: '4' }, 1); f2.tapped = true;
+  onField(t, 'Mulldrifter', '', { power: '0', toughness: '4' }, 1);
+  const before = t.P(0).deck.hand.length;
+  const seen = cast(t, 'Divination', 'Flash\nEnchant creature an opponent controls\nWhen this Aura enters, remove enchanted creature from combat. Then draw a card for each tapped creature its controller controls.\nEnchanted creature loses all abilities and can\'t attack or block.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{U}', typeLine: 'Enchantment — Aura' });
+  check('Observed Stasis: drew two (two tapped creatures)', t.P(0).deck.hand.length === before + 2, `${before} -> ${t.P(0).deck.hand.length} ${JSON.stringify(seen.map(d => d.key))}`);
+}
+{
+  // Cradle of Vitality: pay {1}{G} (stand-in); a counter for each life gained
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you gain life, you may pay {1}{G}. If you do, put a +1/+1 counter on target creature for each 1 life you gained.', { typeLine: 'Enchantment' });
+  const mull = onField(t, 'Mulldrifter', '', { power: '1', toughness: '1' });
+  const seen = cast(t, 'Opt', 'You gain 4 life.', [[d => d.options?.some(o => o.id === 'pay'), 'pay'], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === mull.instanceId), mull.instanceId]], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Cradle: four +1/+1 counters (4 life gained)', Number(mull.counters?.['+1/+1'] || 0) === 4, JSON.stringify([mull.counters, seen.map(d => d.key + d.prompt)]));
+}
+{
+  // Power Surge: the lands untapped as the turn began (before the untap step)
+  const t = setup();
+  onField(t, 'Fog Bank', 'At the beginning of each player\'s upkeep, this enchantment deals X damage to that player, where X is the number of untapped lands they controlled at the beginning of this turn.', { typeLine: 'Enchantment' });
+  for (let i = 0; i < 3; i++) t.give(1, 'Forest', 'battlefield');
+  t.P(1).deck.battlefield.filter(c => /Land/.test(def(t, c).typeLine))[0].tapped = true;
+  const l1 = t.P(1).life;
+  t.autoPass = true; t.end(0);
+  check('Power Surge: 2 damage (two lands untapped as the turn began)', t.P(1).life === l1 - 2 && t.game.activePlayerId === t.P(1).playerId, `${t.P(1).life} ${l1}`);
+}
+{
+  // Cruel Calculations: cards milled this turn from target player's library
+  const t = setup();
+  const before = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Target player mills three cards.', [[d => d.kind === 'choose-one', t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const b2 = t.P(0).deck.hand.length;
+  cast(t, 'Divination', 'Draw X cards, where X is the number of cards that were put into target player\'s graveyard from their library this turn.', [[d => d.kind === 'choose-one', t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  check('Cruel Calculations: draws three', t.P(0).deck.hand.length === b2 + 3, `${before} ${b2} ${t.P(0).deck.hand.length}`);
+}
+{
+  // Black Hole: one target plus up to X others (X asked: Attractions are not played here)
+  const t = setup();
+  const a = onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1), b = onField(t, 'Air Elemental', '', { power: '0', toughness: '4' }, 1), c = onField(t, 'Mulldrifter', '', { power: '0', toughness: '4' }, 1);
+  const seen = cast(t, 'Divination', 'Destroy target creature and up to X other target creatures, where X is the number of Attractions you\'ve visited this turn.', [[d => d.kind === 'number', 1], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === a.instanceId), a.instanceId], [d => d.kind === 'choose-many', d => { check('Black Hole: the first target is not offered again', !d.options.some(o => o.id === a.instanceId), ''); return [b.instanceId]; }]], { manaCost: '{3}{G}', typeLine: 'Sorcery' });
+  const left = t.P(1).deck.battlefield.map(x => def(t, x).name);
+  check('Black Hole: X = 1 destroys two creatures', left.length === 1 && left[0] === 'Mulldrifter', JSON.stringify([left, seen.map(d => d.key)]));
+}
+{
+  // Guardian of the Gateless: +1/+1 for each creature it is blocking
+  const t = setup(['simic', 'simic']);
+  const g = onField(t, 'Colossal Dreadmaw', 'This creature can block any number of creatures.\nWhenever this creature blocks, it gets +1/+1 until end of turn for each creature it\'s blocking.', { power: '1', toughness: '1' }, 1);
+  const a1 = onField(t, 'Llanowar Elves', '', { power: '1', toughness: '1' }), a2 = onField(t, 'Elvish Visionary', '', { power: '1', toughness: '1' });
+  a1.summoningSick = false; a2.summoningSick = false; a1.enteredTurn = -5; a2.enteredTurn = -5;
+  t.end(0); t.end(1); t.autoPass = false;
+  t.do(0, { type: 'next-phase' });
+  t.do(0, { type: 'attack', attacks: [a1, a2].map(x => ({ instanceId: x.instanceId, defenderId: t.P(1).playerId })) });
+  t.passAll();
+  t.do(1, { type: 'block', assignments: [{ attackerId: a1.instanceId, blockerId: g.instanceId }, { attackerId: a2.instanceId, blockerId: g.instanceId }] });
+  const p0 = power(t, g); settle(t, [], []);
+  check('Guardian: +2/+2 once while blocking two creatures (3/3)', power(t, g) === 3 && tough(t, g) === 3, String(power(t, g)));
+}
+section('batch 3 part 2: discard-linked "if you do"');
+{
+  // Fiery Encore: discard a card, draw a card; a nonland discard deals damage equal to its mana value
+  for (const land of [false, true]) {
+    const t = setup();
+    const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+    const card = real(t, land ? 'Forest' : 'Mulldrifter', 0, 'hand');
+    const seen = cast(t, 'Divination', 'Discard a card, then draw a card. When you discard a nonland card this way, Fiery Encore deals damage equal to that card\'s mana value to target creature or planeswalker.', [[d => d.kind === 'choose-many' && d.private, [card.instanceId]], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{2}{G}', typeLine: 'Sorcery' });
+    check(`Fiery Encore (${land ? 'a land' : 'Mulldrifter'}): damage ${land ? '0' : '5'}`, Number(foe.damageMarked || 0) === (land ? 0 : 5), `${foe.damageMarked} ${JSON.stringify(seen.map(d => d.key))}`);
+  }
+}
+{
+  // Mount Velus Manticore: discard a card; X = its card types
+  const t = setup();
+  const mm = onField(t, 'Grizzly Bears', 'At the beginning of combat on your turn, you may discard a card. When you do, this creature deals X damage to any target, where X is the number of card types the discarded card has.', { typeLine: 'Enchantment Creature — Manticore' });
+  const card = real(t, 'Sol Ring', 0, 'hand'); card.zone = 'hand';
+  t.game.cardDefinitions[card.definitionId] = { ...t.game.cardDefinitions[card.definitionId], typeLine: 'Artifact Creature — Golem' };
+  t.end(0); t.end(1); t.autoPass = false;
+  const l1 = t.P(1).life;
+  t.do(0, { type: 'next-phase' });
+  const seen = settle(t, [[d => d.kind === 'confirm' || d.kind === 'choose-one' && d.options?.some(o => o.id === 'yes'), d => (d.kind === 'confirm' ? true : 'yes')], [d => d.kind === 'choose-many' && d.private, [card.instanceId]], [d => d.options?.some(o => o.id === t.P(1).playerId), t.P(1).playerId]]);
+  check('Mount Velus Manticore: an artifact creature has two types: 2 damage', t.P(1).life === l1 - 2, `${l1} → ${t.P(1).life} ${JSON.stringify(seen.map(d => [d.key, d.kind, d.prompt]))}`);
+}
+{
+  // Balin: discard your hand, draw that many; damage to each opponent only with an enduring story
+  for (const story of [false, true]) {
+    const t = setup();
+    onField(t, 'Fog Bank', 'Whenever you cast a spell, you may discard your hand. Draw X cards, where X is the number of cards discarded this way. If you have an enduring story, Balin deals X damage to each opponent.', { typeLine: 'Legendary Creature — Dwarf Bard' });
+    if (story) { onField(t, 'Sol Ring', '', { typeLine: 'Artifact' }); onField(t, 'Arcane Signet', '', { typeLine: 'Artifact' }); }
+    real(t, 'Mulldrifter', 0, 'hand'); real(t, 'Air Elemental', 0, 'hand'); real(t, 'Tatyova, Benthic Druid', 0, 'hand');
+    const l1 = t.P(1).life;
+    cast(t, 'Opt', 'You gain 1 life.', [[d => d.kind === 'confirm' || (d.options || []).some(o => o.id === 'yes'), d => (d.kind === 'confirm' ? true : 'yes')]], { manaCost: '{U}', typeLine: 'Instant' });
+    check(`Balin (${story ? 'enduring story' : 'no story'}): ${story ? '3 damage' : 'no damage'}`, t.P(1).life === l1 - (story ? 3 : 0), `${l1} → ${t.P(1).life} hand ${t.P(0).deck.hand.length}`);
+  }
+}
+{
+  // Olivia, Opulent Outlaw: Treasure when outlaws deal combat damage (once for two outlaws), and the sorcery-speed counters ability costs two Treasures
+  const t = setup();
+  const ol = onField(t, 'Grizzly Bears', 'Whenever one or more outlaws you control deal combat damage to a player, create a Treasure token.\n{3}, Sacrifice two Treasures: Put two +1/+1 counters on each creature you control. Activate only as a sorcery.', { typeLine: 'Legendary Creature — Vampire Assassin', power: '1', toughness: '1' });
+  const rg = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Rogue', power: '1', toughness: '1' }), nope = onField(t, 'Elvish Visionary', '', { typeLine: 'Creature — Elf Shaman', power: '1', toughness: '1' });
+  for (const c of [ol, rg, nope]) { c.summoningSick = false; c.enteredTurn = -5; }
+  t.end(0); t.autoPass = true; t.end(1);
+  t.do(0, { type: 'next-phase' }); t.autoPass = false;
+  t.do(0, { type: 'attack', attacks: [ol, rg, nope].map(x => ({ instanceId: x.instanceId, defenderId: t.P(1).playerId })) });
+  settle(t);
+  const treasures = () => t.P(0).deck.battlefield.filter(c => c.token && /Treasure/.test(def(t, c).name));
+  check('Olivia: one Treasure for two outlaws dealing damage together (not for the Shaman)', treasures().length === 1, String(treasures().length));
+  // the ability: {3} and two Treasures
+  const extra = real(t, 'Sol Ring'); extra.zone = 'battlefield';
+  asText(t, extra, '', { typeLine: 'Artifact — Treasure', name: 'Treasure' }); extra.token = true;
+  const before = ol.counters?.['+1/+1'] || 0;
+  const seen = activate(t, ol, 0, []);
+  const left = t.P(0).deck.battlefield.filter(c => /Treasure/.test((def(t, c).typeLine || '') + def(t, c).name)).length;
+  check('Olivia: two +1/+1 counters on each creature, both Treasures sacrificed', (ol.counters?.['+1/+1'] || 0) === before + 2 && (rg.counters?.['+1/+1'] || 0) === 2 && left === 0, JSON.stringify([ol.counters, rg.counters, left, seen.map(d => d.key)]));
+}
+section('batch 3 part 2: additional-cost choices');
+{
+  // Monstrous Emergence: reveal a creature card from hand (power 6) or choose a creature you control (power 4)
+  for (const reveal of [false, true]) {
+    const t = setup();
+    const mine = onField(t, 'Grizzly Bears', '', { power: '4', toughness: '4' });
+    const inHand = real(t, 'Colossal Dreadmaw', 0, 'hand'); t.game.cardDefinitions[inHand.definitionId] = { ...t.game.cardDefinitions[inHand.definitionId], power: '6' };
+    const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+    const seen = cast(t, 'Divination', 'As an additional cost to cast this spell, choose a creature you control or reveal a creature card from your hand.\nMonstrous Emergence deals damage equal to the power of the creature you chose or the card you revealed to target creature.', [['cost:choose-power', reveal ? inHand.instanceId : mine.instanceId], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{1}{G}', typeLine: 'Sorcery' });
+    check(`Monstrous Emergence (${reveal ? 'reveals a 6-power card' : 'chooses a 4-power creature'}): damage`, Number(foe.damageMarked || 0) === (reveal ? 6 : 4) && t.P(0).deck.hand.some(c => c.instanceId === inHand.instanceId), `${foe.damageMarked} ${JSON.stringify(seen.map(d => d.key))}`);
+  }
+}
+{
+  // Close Encounter: no creature at all: it can't be cast
+  const t = setup();
+  t.give(0, 'Opt'); const c = asText(t, t.hand(0, 'Opt'), 'As an additional cost to cast this spell, choose a creature you control or a warped creature card you own in exile.\nClose Encounter deals damage equal to the power of the chosen creature or card to target creature.', { manaCost: '{1}{G}', typeLine: 'Instant' });
+  const r = t.ctl.dispatch({ type: 'play', instanceId: c.instanceId }, t.as(0));
+  check('Close Encounter: with no creature to choose it is not cast', !r.ok, JSON.stringify(r).slice(0, 120));
+  const t2 = setup();
+  const mine = onField(t2, 'Grizzly Bears', '', { power: '3', toughness: '3' }), foe = onField(t2, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t2, 'Opt', 'As an additional cost to cast this spell, choose a creature you control or a warped creature card you own in exile.\nClose Encounter deals damage equal to the power of the chosen creature or card to target creature.', [['cost:choose-power', mine.instanceId], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{1}{G}', typeLine: 'Instant' });
+  check('Close Encounter: 3 damage from the chosen 3-power creature', Number(foe.damageMarked || 0) === 3, String(foe.damageMarked));
+}
+section('batch 3 part 2: others (1)');
+{
+  // Stalking Yeti: it and the target creature deal damage equal to their power to each other
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '2', toughness: '5' }, 1);
+  t.give(0, 'Mulldrifter', 'hand'); const y = t.hand(0, 'Mulldrifter');
+  asText(t, y, 'When this creature enters, if it\'s on the battlefield, it deals damage equal to its power to target creature an opponent controls and that creature deals damage equal to its power to this creature.', { manaCost: '{2}{G}', power: '3', toughness: '4', typeLine: 'Snow Creature — Yeti' });
+  t.ctl.dispatch({ type: 'play', instanceId: y.instanceId }, t.as(0));
+  settle(t, [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]]);
+  check('Stalking Yeti: 3 damage to the target, 2 back to the Yeti', Number(foe.damageMarked || 0) === 3 && Number(y.damageMarked || 0) === 2, `${foe.damageMarked} ${y.damageMarked}`);
+}
+{
+  // Form of the Dinosaur: 15 damage to the creature; it deals damage equal to its power to you
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '4', toughness: '9' }, 1);
+  onField(t, 'Divination', 'At the beginning of your upkeep, this enchantment deals 15 damage to target creature an opponent controls and that creature deals damage equal to its power to you.', { typeLine: 'Enchantment' });
+  t.autoPass = true; t.end(0); t.end(1);
+  settle(t, [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]]);
+  check('Form of the Dinosaur: the creature died and dealt 4 to me', !t.bf(1, 'Fog Bank') && t.P(0).life === 36, `${t.P(0).life} ${!!t.bf(1, 'Fog Bank')}`);
+}
+{
+  // Foray of Orcs: amass 2, then damage equal to the Army's power
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Divination', 'Amass Orcs 2. When you do, Foray of Orcs deals X damage to target creature an opponent controls, where X is the amassed Army\'s power.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{3}{G}', typeLine: 'Sorcery' });
+  check('Foray of Orcs: a 2/2 Army and 2 damage', Number(foe.damageMarked || 0) === 2 && t.P(0).deck.battlefield.some(c => /Army/.test(def(t, c).typeLine || '')), String(foe.damageMarked));
+}
+{
+  // Impact Resonance: X = the most damage one source dealt to one recipient this turn, divided among target creatures
+  const t = setup();
+  const a = onField(t, 'Fog Bank', '', { power: '0', toughness: '9' }, 1), b = onField(t, 'Air Elemental', '', { power: '0', toughness: '9' }, 1);
+  cast(t, 'Opt', 'Test deals 4 damage to any target.', [[d => d.kind === 'choose-one', t.P(1).playerId]], { manaCost: '{U}', typeLine: 'Instant' });
+  const seen = cast(t, 'Divination', 'Impact Resonance deals X damage divided as you choose among any number of target creatures, where X is the greatest amount of damage dealt by a source to a permanent or player this turn.', [[d => d.kind === 'choose-many', [a.instanceId, b.instanceId]], [d => d.kind === 'number' && /left goes/.test(d.prompt || ''), 3]], { manaCost: '{1}{G}', typeLine: 'Instant', name: 'Impact Resonance' });
+  check('Impact Resonance: 4 damage divided (3 and 1)', Number(a.damageMarked || 0) + Number(b.damageMarked || 0) === 4, `${a.damageMarked} ${b.damageMarked} ${JSON.stringify(seen.map(d => [d.key, d.prompt]))}`);
+}
+{
+  // Sacred Boon: counters for the damage prevented
+  const t = setup();
+  const mine = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });
+  cast(t, 'Divination', 'Prevent the next 3 damage that would be dealt to target creature this turn. At the beginning of the next end step, put a +0/+1 counter on that creature for each 1 damage prevented this way.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === mine.instanceId), mine.instanceId]], { manaCost: '{1}{G}', typeLine: 'Instant' });
+  cast(t, 'Opt', 'Test deals 2 damage to target creature.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === mine.instanceId), mine.instanceId]], { manaCost: '{U}', typeLine: 'Instant' });
+  t.autoPass = true; t.end(0);
+  check('Sacred Boon: 2 damage prevented: two +0/+1 counters at the end step', Number(mine.counters?.['+0/+1'] || 0) === 2 && !Number(mine.damageMarked || 0), JSON.stringify([mine.counters, mine.damageMarked]));
+}
+{
+  // Titan of Littjara: draw for each other creature sharing a type, then discard
+  const t = setup();
+  const ti = onField(t, 'Colossal Dreadmaw', 'Whenever this creature enters or attacks, you may draw a card for each other creature you control that shares a creature type with it. If you do, discard a card.', { typeLine: 'Creature — Illusion Elf' });
+  onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf Druid' }); onField(t, 'Elvish Visionary', '', { typeLine: 'Creature — Elf Shaman' }); onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Bear' });
+  check('Titan of Littjara: compiles to a draw of the sharing creatures', JSON.stringify(compileEffectText('You may draw a card for each other creature you control that shares a creature type with it. If you do, discard a card.', { sourceName: 'Titan' }).effects).includes('b101-sharing'), '');
+}
+section('batch 3 part 2: others (2)');
+{
+  // Scour the Desert: Bird tokens equal to the exiled card's toughness
+  const t = setup();
+  const g = real(t, 'Colossal Dreadmaw', 0, 'graveyard'); t.game.cardDefinitions[g.definitionId] = { ...t.game.cardDefinitions[g.definitionId], toughness: '4' };
+  cast(t, 'Divination', 'Exile target creature card from your graveyard. Create X 1/1 white Bird creature tokens with flying, where X is the exiled card\'s toughness.', [[d => d.options?.some(o => o.id === g.instanceId), g.instanceId]], { manaCost: '{3}{G}', typeLine: 'Sorcery' });
+  const birds = t.P(0).deck.battlefield.filter(c => c.token && /Bird/.test(def(t, c).name));
+  check('Scour the Desert: four Birds, the card exiled', birds.length === 4 && t.P(0).deck.exile.some(c => c.instanceId === g.instanceId), `${birds.length}`);
+}
+{
+  // Waste Management: two cards (one creature) from one graveyard: one Rogue; kicked: the whole graveyard
+  {
+    const t = setup();
+    real(t, 'Colossal Dreadmaw', 1, 'graveyard'); real(t, 'Opt', 1, 'graveyard'); real(t, 'Air Elemental', 1, 'graveyard');
+    const txt = 'Exile up to two target cards from a single graveyard. Create a 2/2 black Rogue creature token for each creature card exiled this way.';
+    const t0 = setup();
+    const a = real(t0, 'Colossal Dreadmaw', 1, 'graveyard'), b = real(t0, 'Opt', 1, 'graveyard'); real(t0, 'Air Elemental', 1, 'graveyard');
+    cast(t0, 'Divination', txt, [[d => d.kind === 'choose-many', [a.instanceId, b.instanceId]], [d => d.key.includes(':who'), t0.P(1).playerId]], { manaCost: '{2}{G}', typeLine: 'Instant' });
+    check('Waste Management: two cards (one creature): one Rogue, one card left', t0.P(0).deck.battlefield.filter(c => c.token && /Rogue/.test(def(t0, c).name)).length === 1 && t0.P(1).deck.graveyard.length === 1, String(t0.P(1).deck.graveyard.length));
+    // kicked: the compiled text exiles the target player's whole graveyard
+    const kc = compileEffectText('Exile up to two target cards from a single graveyard. If this spell was kicked, instead exile target player\'s graveyard. Create a 2/2 black Rogue creature token for each creature card exiled this way.', { sourceName: 'Waste Management' });
+    const { applyEffects } = await import('../../src/engine/effects.js');
+    const pb = kc.requirements.find(q => q.kind === 'player').bind;
+    applyEffects(t.game, t.P(0).playerId, kc.effects, { sourceId: null, [pb]: t.P(1).playerId });
+    check('Waste Management (kicked): the whole graveyard exiled, two Rogues', t.P(1).deck.graveyard.length === 0 && t.P(0).deck.battlefield.filter(c => c.token && /Rogue/.test(def(t, c).name)).length === 2, `${t.P(1).deck.graveyard.length}`);
+  }
+}
+{
+  // Rise of the Deathbringer: draw cards equal to the greatest power, lose that much life
+  const t = setup();
+  onField(t, 'Grizzly Bears', '', { power: '3', toughness: '3' });
+  const l = t.P(0).life;
+  cast(t, 'Opt', 'Choose one —\n• Draw cards equal to the greatest power among creatures you control. You lose life equal to the number of cards drawn this way.\n• All creatures get -3/-3 until end of turn.', [[d => d.kind === 'choose-many' || d.kind === 'choose-one', d => (d.kind === 'choose-many' ? [d.options[0].id] : d.options[0].id)]], { manaCost: '{3}{G}', typeLine: 'Instant' });
+  check('Rise of the Deathbringer: drew three, lost three', t.P(0).deck.hand.length === 3 && t.P(0).life === l - 3, `${t.P(0).deck.hand.length} ${t.P(0).life}`);
+}
+{
+  // Palace Jailer: exiled until an opponent becomes the monarch
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1);
+  cast(t, 'Divination', 'Exile target creature an opponent controls until an opponent becomes the monarch.', [[d => d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{2}{G}', typeLine: 'Sorcery' });
+  check('Palace Jailer: exiled', !t.bf(1, 'Fog Bank') && t.P(1).deck.exile.some(c => c.instanceId === foe.instanceId) && (t.game.monarchExiles || []).length === 1, '');
+  const r = compileEffectText('You become the monarch.', { sourceName: 'X' });
+  // the opponent becomes the monarch
+  t.game.activePlayerId = t.P(1).playerId;
+  const { applyEffects } = await import('../../src/engine/effects.js');
+  applyEffects(t.game, t.P(1).playerId, r.effects, { sourceId: null });
+  check('Palace Jailer: back when an opponent becomes the monarch', !!t.bf(1, 'Fog Bank') && !(t.game.monarchExiles || []).length, JSON.stringify(t.P(1).deck.exile.map(c => def(t, c).name)));
+}
+{
+  // Hateful Eidolon: draws for each of my Auras on the creature that died
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever an enchanted creature dies, draw a card for each Aura you controlled that was attached to it.', { typeLine: 'Enchantment Creature — Spirit' });
+  const v = onField(t, 'Grizzly Bears', '', { power: '1', toughness: '1' }, 1);
+  const a1 = onField(t, 'Divination', 'Enchant creature', { typeLine: 'Enchantment — Aura' }), a2 = onField(t, 'Sol Ring', 'Enchant creature', { typeLine: 'Enchantment — Aura' });
+  a1.attachedTo = v.instanceId; a2.attachedTo = v.instanceId;
+  const before = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.options?.some(o => o.id === v.instanceId), v.instanceId]], { manaCost: '{3}{G}', typeLine: 'Instant' });
+  settle(t);
+  check('Hateful Eidolon: two Auras: two cards', t.P(0).deck.hand.length === before + 2, `${before} -> ${t.P(0).deck.hand.length}`);
+}
+{
+  // Blazing Effigy: 3 plus the damage dealt to it this turn by other sources with its name
+  const t = setup();
+  const e = onField(t, 'Fog Bank', 'When this creature dies, it deals X damage to target creature, where X is 3 plus the amount of damage dealt to this creature this turn by other sources named Blazing Effigy.', { name: 'Blazing Effigy', power: '1', toughness: '3' });
+  const foe = onField(t, 'Air Elemental', '', { power: '0', toughness: '9' }, 1);
+  const o = onField(t, 'Llanowar Elves', '', { name: 'Blazing Effigy', power: '2', toughness: '9' }); const o2id = () => o.instanceId;
+  cast(t, 'Opt', 'Target creature fights another target creature.', [[d => d.kind === 'choose-one' && d.options?.some(x => x.id === e.instanceId) && !d.targetsChosen, d => (d.key.endsWith(':0:target') ? e.instanceId : o.instanceId)]], { manaCost: '{G}', typeLine: 'Instant' });
+  cast(t, 'Divination', 'Test deals 1 damage to target creature.', [[d => d.kind === 'choose-one' && d.options?.some(x => x.id === e.instanceId), e.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  settle(t, [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === o2id()), o2id()]]);
+  check('Blazing Effigy: died; 3 + 2 = 5 damage to the target', !t.P(0).deck.battlefield.some(c => c.instanceId === e.instanceId) && Number(o.damageMarked || 0) >= 5, `${o.damageMarked}`);
+}
+{
+  // Nature's Blessing: a counter, or a lasting keyword
+  for (const mode of ['+1/+1 counter', 'trample']) {
+    const t = setup();
+    const nb = onField(t, 'Fog Bank', '{G}{G}, Discard a card: Put a +1/+1 counter on target creature or that creature gains banding, first strike, or trample.', { typeLine: 'Enchantment' });
+    const c = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }); real(t, 'Opt', 0, 'hand');
+    activate(t, nb, 0, [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === c.instanceId), c.instanceId], [d => d.options?.some(o => o.id === mode), mode]]);
+    check(`Nature's Blessing (${mode})`, mode === 'trample' ? has(t, c, 'Trample') : Number(c.counters?.['+1/+1'] || 0) === 1, JSON.stringify(c.counters));
+  }
+}
+{
+  // Kraul Harpooner: +X/+0 for the creature cards in my graveyard, then fight a flyer
+  const t = setup();
+  real(t, 'Mulldrifter', 0, 'graveyard'); real(t, 'Air Elemental', 0, 'graveyard');
+  const fl = onField(t, 'Fog Bank', 'Flying', { power: '1', toughness: '9', keywords: ['Flying'] }, 1);
+  t.give(0, 'Colossal Dreadmaw', 'hand'); const kh = t.hand(0, 'Colossal Dreadmaw');
+  asText(t, kh, 'Reach\nUndergrowth — When this creature enters, choose up to one target creature you don\'t control with flying. This creature gets +X/+0 until end of turn, where X is the number of creature cards in your graveyard, then you may have this creature fight that creature.', { manaCost: '{1}{G}', power: '2', toughness: '2', typeLine: 'Creature — Insect Warrior' });
+  t.ctl.dispatch({ type: 'play', instanceId: kh.instanceId }, t.as(0));
+  settle(t, [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === fl.instanceId), fl.instanceId], [d => d.kind === 'confirm', true]]);
+  check('Kraul Harpooner: 4/2 fights the flyer: 4 damage to it, 1 to the Harpooner', Number(fl.damageMarked || 0) === 4 && Number(kh.damageMarked || 0) === 1, `${fl.damageMarked} ${kh.damageMarked}`);
+}
+{
+  // Skullmulcher: draw for each creature devoured
+  const t = setup();
+  const a = onField(t, 'Llanowar Elves', '', { power: '1', toughness: '1' }), b = onField(t, 'Elvish Visionary', '', { power: '1', toughness: '1' });
+  t.give(0, 'Colossal Dreadmaw', 'hand'); const sk = t.hand(0, 'Colossal Dreadmaw');
+  asText(t, sk, 'Devour 1\nWhen this creature enters, draw a card for each creature it devoured.', { manaCost: '{4}{G}', power: '4', toughness: '4', typeLine: 'Creature — Elemental' });
+  const before = t.P(0).deck.hand.length;
+  t.ctl.dispatch({ type: 'play', instanceId: sk.instanceId }, t.as(0));
+  settle(t, [[d => d.kind === 'choose-many' && /devour/i.test(d.title || ''), [a.instanceId, b.instanceId]]]);
+  check('Skullmulcher: two devoured, two cards drawn (hand 0 → 2) and two counters on a 4/4... (devour 1: two)', t.P(0).deck.hand.length === before - 1 + 2 && Number(sk.counters?.['+1/+1'] || 0) === 2, `${t.P(0).deck.hand.length} ${JSON.stringify(sk.counters)}`);
+}
+{
+  // Glissa Sunseeker: destroys an artifact only when its mana value equals the unspent mana
+  for (const pool of [3, 2]) {
+    const t = setup();
+    const gl = onField(t, 'Grizzly Bears', '{T}: Destroy target artifact if its mana value is equal to the amount of unspent mana you have.', { power: '2', toughness: '4' }); gl.summoningSick = false; gl.enteredTurn = -5;
+    const art = onField(t, 'Sol Ring', '', { typeLine: 'Artifact', manaValue: 3 }, 1);
+    t.P(0).mana.floating = { W: 0, U: 0, B: 0, R: 0, G: pool, C: 0 };
+    activate(t, gl, 0, [[d => d.options?.some(o => o.id === art.instanceId), art.instanceId]]);
+    check(`Glissa Sunseeker (pool ${pool}, artifact mana value 3): ${pool === 3 ? 'destroyed' : 'stays'}`, pool === 3 ? !t.bf(1, 'Sol Ring') : !!t.bf(1, 'Sol Ring'), '');
+  }
+}
+{
+  // Krile Baldesion: the creature card with the same mana value as the spell
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you cast a noncreature spell, you may return target creature card with mana value equal to that spell\'s mana value from your graveyard to your hand. Do this only once each turn.', { typeLine: 'Legendary Creature — Dwarf Wizard' });
+  const m3 = real(t, 'Elvish Visionary', 0, 'graveyard'), m5 = real(t, 'Mulldrifter', 0, 'graveyard');
+  t.game.cardDefinitions[m3.definitionId] = { ...t.game.cardDefinitions[m3.definitionId], manaValue: 3 };
+  t.game.cardDefinitions[m5.definitionId] = { ...t.game.cardDefinitions[m5.definitionId], manaValue: 5 };
+  const seen = cast(t, 'Divination', 'Draw two cards.', [[d => d.options?.some(o => o.id === m3.instanceId) || d.options?.some(o => o.id === m5.instanceId), d => { check('Krile: only the creature card with the spell\'s mana value is offered', d.options.length === 1 && d.options[0].id === m3.instanceId, JSON.stringify(d.options.map(o => o.label))); return d.options[0].id; }], [d => d.kind === 'confirm', true]], { manaCost: '{2}{G}', typeLine: 'Sorcery', manaValue: 3 });
+  check('Krile Baldesion: Elvish Visionary came back', t.P(0).deck.hand.some(c => c.instanceId === m3.instanceId), JSON.stringify(seen.map(d => d.key)));
+}
+{
+  // Coveted Falcon: they gain control of two of my permanents; I draw two
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { power: '1', toughness: '1' }), b = onField(t, 'Llanowar Elves', '', { power: '1', toughness: '1' });
+  const before = t.P(0).deck.hand.length;
+  const sc = cast(t, 'Divination', 'Target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way.', [[d => d.kind === 'choose-many', [a.instanceId, b.instanceId]], [d => d.kind === 'choose-one' && d.options?.some(o => o.id === t.P(1).playerId), t.P(1).playerId]], { manaCost: '{2}{G}', typeLine: 'Sorcery' });
+  check('Coveted Falcon: two permanents given, two cards drawn', t.P(1).deck.battlefield.length === 2 && t.P(0).deck.hand.length === before + 2, `${t.P(1).deck.battlefield.length} ${t.P(0).deck.hand.length}`);
+}
+{
+  // Epochrasite: dies -> exiled with three time counters and suspend; Maelstrom Djinn: time counters and vanishing
+  const t = setup();
+  const e = onField(t, 'Grizzly Bears', 'When this creature dies, exile it with three time counters on it and it gains suspend.', { power: '1', toughness: '1' });
+  cast(t, 'Opt', 'Destroy target creature.', [[d => d.options?.some(o => o.id === e.instanceId), e.instanceId]], { manaCost: '{3}{G}', typeLine: 'Instant' });
+  settle(t);
+  const ex = t.P(0).deck.exile.find(c => c.instanceId === e.instanceId);
+  check('Epochrasite: exiled with three time counters, suspended', !!ex && ex.counters?.time === 3 && ex.suspended === true, JSON.stringify([ex?.counters, ex?.suspended, t.names(0, 'graveyard')]));
+  const t2 = setup();
+  const d = onField(t2, 'Colossal Dreadmaw', '', { power: '5', toughness: '5' });
+  const { applyEffects } = await import('../../src/engine/effects.js');
+  applyEffects(t2.game, t2.P(0).playerId, compileEffectText('Put two time counters on it and it gains vanishing.', { sourceName: 'Maelstrom Djinn' }).effects, { sourceId: d.instanceId });
+  check('Maelstrom Djinn: two time counters and vanishing', d.counters?.time === 2 && d.gainedVanishing === true, JSON.stringify(d.counters));
+}
+{
+  // Estinien Varlineau: draw and lose life for each opponent dealt combat damage by it or a Dragon; and "it" gains flying means itself
+  const t = setup();
+  const es = onField(t, 'Grizzly Bears', 'Whenever you cast a noncreature spell, put a +1/+1 counter on Estinien Varlineau. It gains flying until end of turn.\nAt the beginning of your second main phase, you draw X cards and lose X life, where X is the number of your opponents who were dealt combat damage by Estinien Varlineau or a Dragon this turn.', { name: 'Estinien Varlineau', power: '2', toughness: '2' });
+  es.summoningSick = false; es.enteredTurn = -5;
+  cast(t, 'Opt', 'You gain 1 life.', [], { manaCost: '{U}', typeLine: 'Instant' });
+  check('Estinien: the cast puts the counter and the flying on Estinien (not the spell)', es.counters?.['+1/+1'] === 1 && has(t, es, 'Flying'), JSON.stringify([es.counters, es.temporaryEffects]));
+  t.end(0); t.autoPass = true; t.end(1);
+  t.do(0, { type: 'next-phase' }); t.autoPass = false;
+  const life = t.P(0).life;
+  t.do(0, { type: 'attack', attacks: [{ instanceId: es.instanceId, defenderId: t.P(1).playerId }] });
+  settle(t);
+  t.autoPass = true;
+  for (let i = 0; i < 6 && t.game.phase !== 'postcombat-main' && t.game.activePlayerId === t.P(0).playerId; i++) { t.do(0, { type: 'next-phase' }); settle(t); }
+  check('Estinien: one opponent was hit: drew one card and lost one life', t.game.phase === 'postcombat-main' && t.P(0).life === life - 1 && t.P(0).deck.hand.length === 2, `${life} → ${t.P(0).life}, hand ${t.P(0).deck.hand.length}, ${t.game.phase}`);
+}
+{
+  // Rith: a Dragon token when an opponent's creature was dealt excess damage
+  const t = setup();
+  onField(t, 'Fog Bank', 'At the beginning of your end step, if a creature or planeswalker an opponent controlled was dealt excess damage this turn, create a 4/4 red Dragon creature token with flying.', { typeLine: 'Legendary Creature — Dragon' });
+  const foe = onField(t, 'Air Elemental', '', { power: '1', toughness: '2' }, 1);
+  cast(t, 'Opt', 'Test deals 5 damage to target creature.', [[d => d.options?.some(o => o.id === foe.instanceId), foe.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  t.autoPass = true; t.end(0);
+  check('Rith: a 4/4 flying Dragon token at the end step', t.P(0).deck.battlefield.some(c => c.token && /Dragon/.test(def(t, c).name)), t.names(0, 'battlefield').join());
+}
+{
+  // Observed Stasis / Pacifism: "Enchanted creature loses all abilities and can't attack or block"
+  const t = setup();
+  const foe = onField(t, 'Fog Bank', 'Flying', { power: '3', toughness: '3', keywords: ['Flying'] }, 1);
+  const aura = onField(t, 'Divination', 'Enchant creature an opponent controls\nEnchanted creature loses all abilities and can\'t attack or block.', { typeLine: 'Enchantment — Aura' });
+  aura.attachedTo = foe.instanceId;
+  const { syncAttachments } = await import('../../src/game/attachments.js');
+  syncAttachments(t.game);
+  const d1 = withOverlay(foe, def(t, foe));
+  check('Aura static: enchanted creature has a combat restriction and no abilities', (foe.temporaryEffects || []).some(e => e.kind === 'combat-restriction' && e.restriction === 'cant-attack-or-block') && !(d1.oracleText || '') && !(d1.keywords || []).length, JSON.stringify(foe.temporaryEffects));
+  // Rith: "Other Dragons you control have ward {2}" — the opponent's targeting spell asks for the ward cost
+  const t2 = setup();
+  onField(t2, 'Grizzly Bears', 'Flying, ward {2}\nOther Dragons you control have ward {2}.', { typeLine: 'Legendary Creature — Dragon' }, 1);
+  const dr = onField(t2, 'Fog Bank', '', { typeLine: 'Creature — Dragon', power: '2', toughness: '2' }, 1);
+  const seen = cast(t2, 'Opt', 'Test deals 1 damage to target creature.', [[d => d.kind === 'choose-one' && d.options?.some(o => o.id === dr.instanceId), dr.instanceId], [d => /ward/i.test(d.title || ''), 'no']], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Rith: a Dragon with the granted ward asks the ward cost; declining counters the spell', seen.some(d => /ward/i.test(d.title || '')) && !Number(dr.damageMarked || 0), JSON.stringify(seen.map(d => d.title)));
+}
+
+section('long tail batch 3 part 2: review of the 26 newly automatic cards');
+{
+  const gyc = (t, name, extra = {}, i = 0) => { const c = t.P(i).deck.remainingLibrary.pop(); c.zone = 'graveyard'; t.P(i).deck.graveyard.push(c); const nid = 'x-' + name; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[c.definitionId], name, ...extra }; c.definitionId = nid; return c; };
+  const pick = (t, i) => [d => (d.options || []).some(o => o.id === t.P(i).playerId), () => t.P(i).playerId];
+  // Hellhole Rats: "that player" is the targeted player (the damage went to the caster)
+  {
+    const t = setup(); const l0 = t.P(0).life, l1 = t.P(1).life;
+    t.give(1, 'Divination'); const dv = t.hand(1, 'Divination'); t.game.cardDefinitions[dv.definitionId] = { ...t.game.cardDefinitions[dv.definitionId], manaValue: 3, cmc: 3 };
+    cast(t, 'Grizzly Bears', 'Haste\nWhen this creature enters, target player discards a card. This creature deals damage to that player equal to that card\'s mana value.', [pick(t, 1)], { manaCost: '{G}', typeLine: 'Creature — Rat', power: '2', toughness: '2', name: 'Hellhole Rats' });
+    check('Hellhole Rats: the targeted player discards and takes damage equal to the card\'s mana value (not the caster)', l1 - t.P(1).life === 3 && t.P(0).life === l0 && t.names(1, 'graveyard').includes('Divination'), `${l1 - t.P(1).life} ${l0 - t.P(0).life}`);
+  }
+  // Morbid Bloom: X read after the card is exiled
+  {
+    const t = setup(); const c = gyc(t, 'Big Guy', { typeLine: 'Creature — Beast', power: '4', toughness: '5' }, 1);
+    cast(t, 'Opt', 'Exile target creature card from a graveyard, then create X 1/1 green Saproling creature tokens, where X is the exiled card\'s toughness.', [[d => d.targeting, () => c.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Morbid Bloom' });
+    check('Morbid Bloom: five Saprolings for a toughness-5 card', t.P(0).deck.battlefield.filter(x => /Saproling/.test(def(t, x).name)).length === 5 && t.names(1, 'exile').includes('Big Guy'), t.names(0, 'battlefield').join());
+  }
+  // Volcanic Vision / Vengeful Rebirth: "that card's mana value" is the returned card
+  {
+    const t = setup(); const foe = onField(t, 'Air Elemental', '', { power: '1', toughness: '4' }, 1), mine = onField(t, 'Fog Bank', '', { power: '1', toughness: '4' });
+    const sp = gyc(t, 'Fireball', { typeLine: 'Instant', manaValue: 3, cmc: 3 });
+    cast(t, 'Opt', 'Return target instant or sorcery card from your graveyard to your hand. Volcanic Vision deals damage equal to that card\'s mana value to each creature your opponents control. Exile Volcanic Vision.', [[d => d.targeting, () => sp.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Volcanic Vision' });
+    check('Volcanic Vision: 3 damage to the opponent\'s creatures only, card back in hand, spell exiled', foe.damageMarked === 3 && !mine.damageMarked && t.names(0, 'hand').includes('Fireball') && t.names(0, 'exile').includes('Volcanic Vision'), JSON.stringify([foe.damageMarked, mine.damageMarked]));
+    const t2 = setup(); const big = gyc(t2, 'Bigthing', { typeLine: 'Creature — Beast', manaValue: 4, cmc: 4, power: '2', toughness: '2' }), l = t2.P(1).life;
+    cast(t2, 'Opt', 'Return target card from your graveyard to your hand. If you return a nonland card to your hand this way, Vengeful Rebirth deals damage equal to that card\'s mana value to any target.\nExile Vengeful Rebirth.', [[d => d.targeting && /graveyard/.test(d.key + d.title), () => big.instanceId], [d => d.targeting, () => t2.P(1).playerId]], { manaCost: '{U}', typeLine: 'Sorcery', name: 'Vengeful Rebirth' });
+    check('Vengeful Rebirth: 4 damage for a mana value 4 card', l - t2.P(1).life === 4 && t2.names(0, 'hand').includes('Bigthing'), String(l - t2.P(1).life));
+  }
+  // Twilight Prophet: X is the revealed card's mana value; nothing without the city's blessing
+  {
+    const t = setup();
+    onField(t, 'Grizzly Bears', 'At the beginning of your upkeep, if you have the city\'s blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card\'s mana value.', { name: 'Twilight Prophet', typeLine: 'Creature — Vampire Cleric' });
+    t.P(0).citysBlessing = true;
+    for (const [n, top] of t.P(0).deck.remainingLibrary.slice(0, 3).entries()) { const nid = 'x-top' + n; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[top.definitionId], name: 'TopCard' + n, manaValue: 5, cmc: 5, typeLine: 'Creature' }; top.definitionId = nid; }
+    const l0 = t.P(0).life, l1 = t.P(1).life;
+    t.end(0); t.end(1); settle(t);
+    check('Twilight Prophet: each opponent loses 5 and you gain 5 (the revealed card\'s mana value)', l1 - t.P(1).life === 5 && t.P(0).life - l0 === 5, `${l1 - t.P(1).life} ${t.P(0).life - l0}`);
+    const t2 = setup();
+    onField(t2, 'Grizzly Bears', 'At the beginning of your upkeep, if you have the city\'s blessing, reveal the top card of your library and put it into your hand. Each opponent loses X life and you gain X life, where X is that card\'s mana value.', { name: 'Twilight Prophet', typeLine: 'Creature — Vampire Cleric' });
+    const h = t2.P(0).deck.hand.length; t2.end(0); t2.end(1); settle(t2);
+    check('Twilight Prophet: without the city\'s blessing the upkeep does nothing', t2.P(1).life === 40 && t2.P(0).deck.hand.length === h + 1, `${t2.P(1).life} ${t2.P(0).deck.hand.length - h}`);
+  }
+  // Nyla: castable with an empty graveyard; the second ability ("card exiled with Nyla") is not automatic (no card is remembered)
+  {
+    const t = setup(); const l = t.P(0).life;
+    cast(t, 'Grizzly Bears', 'When Nyla enters, exile up to one target creature card from your graveyard. If you do, you lose X life and create X Clue tokens, where X is that card\'s mana value.', [], { manaCost: '{G}', typeLine: 'Legendary Creature — Mole Beast', name: 'Nyla, Shirshu Sleuth' });
+    check('Nyla: can be cast with no creature card in the graveyard (up to one target); nothing happens', !!t.bf(0, 'Nyla, Shirshu Sleuth') && t.P(0).life === l, t.names(0, 'battlefield').join());
+    const t2 = setup(); const big = gyc(t2, 'Bigthing', { typeLine: 'Creature — Beast', manaValue: 3, cmc: 3 }); const l2 = t2.P(0).life;
+    cast(t2, 'Grizzly Bears', 'When Nyla enters, exile up to one target creature card from your graveyard. If you do, you lose X life and create X Clue tokens, where X is that card\'s mana value.', [[d => d.targeting, () => big.instanceId]], { manaCost: '{G}', typeLine: 'Legendary Creature — Mole Beast', name: 'Nyla, Shirshu Sleuth' });
+    check('Nyla: exiles the card, loses 3 life, makes 3 Clues', l2 - t2.P(0).life === 3 && t2.P(0).deck.battlefield.filter(x => /Clue/.test(def(t2, x).name)).length === 3, t2.names(0, 'battlefield').join());
+    const r = compileEffectText('Return target card exiled with Nyla to its owner\'s hand.', { sourceName: 'Nyla, Shirshu Sleuth' });
+    check('"target card exiled with …" is read: a choice among the cards this permanent exiled', r.supported && r.requirements[0]?.kind === 'linked-target', JSON.stringify(r.unsupported));
+  }
+  // Creature-type targets: "target Symbiote", "target Faerie you control" (the scope had no card type, so nothing could be chosen)
+  {
+    const t = setup(); const sym = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Symbiote', power: '2', toughness: '2' });
+    const v = onField(t, 'Fog Bank', '{3}: Exile target creature card from a graveyard. When you do, put X +1/+1 counters on target Symbiote, where X is the exiled card\'s toughness.', { name: 'Venom, Deadly Devourer', typeLine: 'Legendary Creature — Symbiote Villain', power: '2', toughness: '2' });
+    const c = gyc(t, 'Big', { typeLine: 'Creature', power: '4', toughness: '5' }, 1);
+    activate(t, v, 0, [[d => d.targeting && /graveyard/.test(d.key + d.title), () => c.instanceId], [d => d.targeting, () => sym.instanceId]]);
+    check('Venom, Deadly Devourer: a target Symbiote can be chosen; it gets 5 counters (the exiled card\'s toughness)', sym.counters?.['+1/+1'] === 5 && t.names(1, 'exile').includes('Big'), JSON.stringify(sym.counters));
+    // Talion's Messenger
+    const t2 = setup();
+    const fa = onField(t2, 'Grizzly Bears', '', { typeLine: 'Creature — Faerie Noble', power: '1', toughness: '1' }), other = onField(t2, 'Llanowar Elves', '', { typeLine: 'Creature — Faerie', power: '1', toughness: '1', keywords: [] });
+    onField(t2, 'Air Elemental', 'Flying\nWhenever you attack with one or more Faeries, draw a card, then discard a card. When you discard a card this way, put a +1/+1 counter on target Faerie you control.', { name: "Talion's Messenger", typeLine: 'Creature — Faerie Noble', power: '2', toughness: '2' });
+    fa.summoningSick = false; fa.enteredTurn = -5; other.enteredTurn = -5;
+    t2.end(0); t2.autoPass = true; t2.end(1); t2.autoPass = false; t2.do(0, { type: 'next-phase' });
+    t2.do(0, { type: 'attack', attacks: [{ instanceId: fa.instanceId, defenderId: t2.P(1).playerId }] });
+    settle(t2, [[d => d.targeting, () => other.instanceId]]);
+    check('Talion\'s Messenger: attacking with a Faerie draws, discards and puts a counter on the chosen Faerie', other.counters?.['+1/+1'] === 1, JSON.stringify(other.counters));
+    const t3 = setup();
+    const bear = onField(t3, 'Grizzly Bears', '', { typeLine: 'Creature — Bear', power: '1', toughness: '1' }); onField(t3, 'Llanowar Elves', '', { typeLine: 'Creature — Faerie', power: '1', toughness: '1', keywords: [] });
+    onField(t3, 'Air Elemental', 'Flying\nWhenever you attack with one or more Faeries, draw a card, then discard a card.', { name: "Talion's Messenger", typeLine: 'Creature — Faerie Noble', power: '2', toughness: '2' });
+    bear.enteredTurn = -5; t3.end(0); t3.autoPass = true; t3.end(1); t3.autoPass = false; t3.do(0, { type: 'next-phase' });
+    const h3 = t3.P(0).deck.hand.length;
+    t3.do(0, { type: 'attack', attacks: [{ instanceId: bear.instanceId, defenderId: t3.P(1).playerId }] }); settle(t3);
+    check('Talion\'s Messenger: attacking only with a non-Faerie does not trigger it', t3.P(0).deck.hand.length === h3 && !t3.names(0, 'graveyard').length, `${t3.P(0).deck.hand.length - h3}`);
+  }
+  // Costs: "Exile a creature card from your graveyard" (Necropolis), "Discard a Spirit or Arcane card" (Slumbering Tora)
+  {
+    const t = setup(); const n = onField(t, 'Fog Bank', 'Defender\nExile a creature card from your graveyard: Put X +0/+1 counters on this creature, where X is the exiled card\'s mana value.', { name: 'Necropolis', typeLine: 'Artifact Creature — Wall', power: '0', toughness: '4' });
+    const c = gyc(t, 'Big', { typeLine: 'Creature', manaValue: 4, cmc: 4 });
+    activate(t, n, 0);
+    check('Necropolis: the creature card is exiled as the cost and X is its mana value (4 counters)', n.counters?.['+0/+1'] === 4 && t.names(0, 'exile').includes('Big') && !t.names(0, 'graveyard').includes('Big'), JSON.stringify(n.counters));
+    const t0 = setup(); const n0 = onField(t0, 'Fog Bank', 'Exile a creature card from your graveyard: Put X +0/+1 counters on this creature, where X is the exiled card\'s mana value.', { name: 'Necropolis', typeLine: 'Artifact Creature — Wall' });
+    const ab0 = parseActivatedAbilities(def(t0, n0))[0], r0 = t0.ctl.dispatch({ type: 'activate', instanceId: n0.instanceId, abilityId: ab0.id }, t0.as(0));
+    check('Necropolis: with no creature card in the graveyard the cost cannot be paid', !r0.ok, JSON.stringify(r0));
+    const t2 = setup(); const tora = onField(t2, 'Fog Bank', '{2}, Discard a Spirit or Arcane card: This artifact becomes an X/X Cat artifact creature until end of turn, where X is the discarded card\'s mana value.', { name: 'Slumbering Tora', typeLine: 'Artifact' });
+    t2.give(0, 'Divination'); const dv = t2.hand(0, 'Divination'); t2.game.cardDefinitions[dv.definitionId] = { ...t2.game.cardDefinitions[dv.definitionId], typeLine: 'Instant — Arcane', manaValue: 4, cmc: 4 };
+    t2.give(0, 'Opt'); const plain = t2.hand(0, 'Opt');
+    const seen = activate(t2, tora, 0, [[d => /discard/i.test(d.key + d.title), () => dv.instanceId]]);
+    check('Slumbering Tora: only an Arcane/Spirit card may be discarded; it becomes a 4/4', power(t2, tora) === 4 && tough(t2, tora) === 4 && seen.some(d => d.options && !d.options.some(o => o.id === plain.instanceId)), JSON.stringify([power(t2, tora), seen.map(d => (d.options || []).length)]));
+  }
+  // Venom, Evil Unleashed: activated from the graveyard, exiling itself as the cost; sorcery speed
+  {
+    const t = setup(); const v = gyc(t, 'Venom, Evil Unleashed', { typeLine: 'Legendary Creature — Symbiote Villain', oracleText: '{2}{G}, Exile this card from your graveyard: Put two +1/+1 counters on target creature. It gains deathtouch until end of turn. Activate only as a sorcery.' });
+    const c = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });
+    const ab = parseActivatedAbilities(def(t, v));
+    const r = t.ctl.dispatch({ type: 'activate', instanceId: v.instanceId, abilityId: ab[0].id }, t.as(0)); settle(t, [[d => d.targeting, () => c.instanceId]]);
+    check('Venom, Evil Unleashed: from the graveyard, exiles itself, two counters and deathtouch', r.ok && c.counters?.['+1/+1'] === 2 && has(t, c, 'Deathtouch') && t.names(0, 'exile').includes('Venom, Evil Unleashed'), JSON.stringify([r.error, c.counters]));
+    const t2 = setup(); const v2 = gyc(t2, 'Venom, Evil Unleashed', { typeLine: 'Legendary Creature — Symbiote Villain', oracleText: '{2}{G}, Exile this card from your graveyard: Put two +1/+1 counters on target creature. It gains deathtouch until end of turn. Activate only as a sorcery.' });
+    onField(t2, 'Grizzly Bears', '', {}); t2.end(0);
+    const r2 = t2.ctl.dispatch({ type: 'activate', instanceId: v2.instanceId, abilityId: parseActivatedAbilities(def(t2, v2))[0].id }, t2.as(0));
+    check('Venom, Evil Unleashed: not on the opponent\'s turn', !r2.ok, JSON.stringify(r2));
+  }
+  // Food / Clue tokens carry their subtype (forage and "sacrifice a Food" look for it)
+  {
+    const r = compileEffectText('Create a Food token.', { sourceName: 'X' }), r2 = compileEffectText('Create a Clue token.', { sourceName: 'X' });
+    check('Food and Clue tokens have their subtype in the type line', /— Food$/.test(r.effects[0].typeLine) && /— Clue$/.test(r2.effects[0].typeLine), r.effects[0].typeLine + ' | ' + r2.effects[0].typeLine);
+  }
+  // Ultron, Unlimited / Iron Monger: a creature you control connives
+  {
+    const t = setup();
+    const u = onField(t, 'Grizzly Bears', 'Whenever a creature you control connives, you may pay {1}. If you do, create a 2/2 colorless Robot Villain artifact creature token.', { typeLine: 'Legendary Artifact Creature — Robot Villain' });
+    const im = onField(t, 'Llanowar Elves', 'Whenever a creature you control connives, put a +1/+1 counter on each Villain you control.', { typeLine: 'Creature — Human Villain', keywords: [] });
+    cast(t, 'Opt', 'Target creature you control connives.', [[d => d.targeting, () => u.instanceId], [d => d.key === 'may-pay', 'pay']], { manaCost: '{U}' });
+    check('Ultron / Iron Monger: the connive trigger pays {1} for a Robot Villain token and puts a counter on every Villain', t.P(0).deck.battlefield.filter(x => x.token && /Villain/.test(def(t, x).name)).length === 1 && im.counters?.['+1/+1'] === 1, t.names(0, 'battlefield').slice(8).join());
+  }
+}
+
+{
+  // Rith, the Awakener: pay {2}{G}, choose a color, a 1/1 Saproling for each permanent of that color
+  const t = setup();
+  const rith = onField(t, 'Grizzly Bears', 'Whenever this creature deals combat damage to a player, you may pay {2}{G}. If you do, choose a color, then create a 1/1 green Saproling creature token for each permanent of that color.', { power: '2', toughness: '2' });
+  onField(t, 'Llanowar Elves', '', { power: '2', toughness: '2' }); onField(t, 'Fog Bank', '', { power: '0', toughness: '4' }, 1);
+  t.end(0); t.autoPass = true; t.end(1);
+  t.do(0, { type: 'next-phase' });
+  t.autoPass = false;
+  t.do(0, { type: 'attack', attacks: [{ instanceId: rith.instanceId, defenderId: t.P(1).playerId }] });
+  t.passAll(); t.do(1, { type: 'block', assignments: [] });
+  const seen = settle(t, [['may-pay', 'pay'], [d => /color/i.test(`${d.key} ${d.prompt || ''}`), 'G']]);
+  const saps = t.P(0).deck.battlefield.filter(x => x.token && /Saproling/.test(def(t, x).name || def(t, x).typeLine || '')).length;
+  check('Rith, the Awakener: two green permanents, two Saprolings', saps === 2, `${saps} ${JSON.stringify(seen.map(d => d.key))}`);
+}
+
+{
+  // Glissa's Retriever: exiles itself, then up to X cards back, X = opponents with three or more poison counters
+  for (const poison of [2, 3]) {
+    const t = setup();
+    const gr = onField(t, 'Grizzly Bears', 'When this creature dies, exile it. When you do, return up to X target cards from your graveyard to your hand, where X is the number of opponents who have three or more poison counters.', { power: '2', toughness: '2' });
+    const elf = t.give(0, 'Llanowar Elves', 'graveyard'); t.P(1).poison = poison;
+    cast(t, 'Opt', 'Destroy target creature.', [[d => d.targeting, () => gr.instanceId], [d => d.kind === 'choose-many', () => [elf.instanceId]]], { manaCost: '{3}{G}', typeLine: 'Instant' });
+    settle(t);
+    check(`Glissa's Retriever: ${poison} poison: itself exiled, ${poison >= 3 ? 'one card returned' : 'none returned'}`, !!t.hand(0, 'Llanowar Elves') === (poison >= 3) && t.names(0, 'exile').includes('Grizzly Bears'), `${JSON.stringify(t.names(0, 'hand'))} ${JSON.stringify(t.names(0, 'exile'))}`);
+  }
+}
+
+{
+  // Olivia, Mobilized for War: discard, then the creature gets a counter, haste and Vampire
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever another creature you control enters, you may discard a card. If you do, put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes a Vampire in addition to its other types.', { typeLine: 'Legendary Creature — Vampire Knight' });
+  t.give(0, 'Island');
+  cast(t, 'Llanowar Elves', '', [['mayDo', true]], { manaCost: '{G}', typeLine: 'Creature — Elf', power: '1', toughness: '1' });
+  settle(t, [['mayDo', true]]);
+  const b = t.P(0).deck.battlefield.find(x => x.definitionId && def(t, x).name === 'Llanowar Elves');
+  check('Olivia, Mobilized for War: counter and Vampire', !!b && Number(b.counters?.['+1/+1'] || 0) === 1 && t.names(0, 'graveyard').includes('Island'), JSON.stringify([b?.counters, t.names(0, 'graveyard')]));
+}
+
+section('exiled with: records on the exiling object (607, 610.3, 400.7)');
+const gyx = (t, name, i = 1) => { const lib = t.P(i).deck.remainingLibrary, at = lib.findLastIndex(x => /Land/.test(t.game.cardDefinitions[x.definitionId]?.typeLine || '')), c = lib.splice(at < 0 ? lib.length - 1 : at, 1)[0]; c.zone = 'graveyard'; t.P(i).deck.graveyard.push(c); const nid = 'x-' + name; t.game.cardDefinitions[nid] = { ...t.game.cardDefinitions[c.definitionId], name, typeLine: 'Creature — Test', manaValue: 2, cmc: 2, power: '2', toughness: '2' }; c.definitionId = nid; return c; };
+{
+  // Dino DNA style: exile into a record, then a target "card exiled with this", then the record resets on a zone change
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears'), g2 = gyx(t, 'Llanowar Elves');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{1}: Return target card exiled with this artifact to its owner\'s hand.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  check('exiled with: the card is exiled and remembered', t.names(1, 'exile').includes('Grizzly Bears') && (art.linkedExile || []).includes(g1.instanceId));
+  const seen = [];
+  art.tapped = false;
+  activate(t, art, 1, [[d => d.targeting || d.kind === 'choose-one', d => { seen.push(d.options.map(o => o.id)); return g1.instanceId; }]]);
+  check('exiled with: "target card exiled with this" offers only that card, and returns it to hand', t.names(1, 'hand').includes('Grizzly Bears') && seen.length === 1 && seen[0].length === 1 && seen[0][0] === g1.instanceId, JSON.stringify(seen));
+}
+{
+  // Choose among exactly the exiled cards; another source's exile is not offered
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears'), g2 = gyx(t, 'Llanowar Elves'), g3 = gyx(t, 'Fog Bank');
+  onField(t, 'Grizzly Bears', '', {}, 1); const a = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{2}: Put a creature card exiled with this artifact onto the battlefield under your control.', { typeLine: 'Artifact' });
+  const b = onField(t, 'Fog Bank', '{T}: Exile target creature card from a graveyard.', { typeLine: 'Artifact' });
+  activate(t, a, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]); a.tapped = false;
+  activate(t, a, 0, [[d => d.targeting || d.kind === 'choose-one', () => g2.instanceId]]);
+  activate(t, b, 0, [[d => d.targeting || d.kind === 'choose-one', () => g3.instanceId]]);
+  const offered = [];
+  activate(t, a, 1, [[d => d.kind === 'choose-one', d => { offered.push(...d.options.map(o => o.id)); return g2.instanceId; }]]);
+  check('exiled with: choose among exactly the cards this exiled', offered.length === 2 && offered.includes(g1.instanceId) && offered.includes(g2.instanceId) && !offered.includes(g3.instanceId), JSON.stringify(offered));
+  check('exiled with: the chosen creature enters under your control', !!t.bf(0, 'Llanowar Elves') && t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(1,'graveyard'), t.names(1,'hand'), t.names(0,'graveyard'), t.game.log.slice(-4)]));
+  // zone change: a new object remembers nothing (400.7)
+  const keep = a.linkedExile.slice();
+  const mv = t.game.players[0].deck.battlefield.splice(t.game.players[0].deck.battlefield.indexOf(a), 1)[0];
+  void keep; void mv;
+}
+{
+  // "until leaves": all cards exiled with it come back; the creature's own ETB exile is recorded
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  t.give(0, 'Opt'); const ring = asText(t, t.hand(0, 'Opt'), 'When this creature enters, exile target creature an opponent controls.\nWhen this creature leaves the battlefield, return all cards exiled with it to the battlefield under their owners\' control.', { typeLine: 'Creature — Wizard', manaCost: '{1}', power: '1', toughness: '1' });
+  t.ctl.dispatch({ type: 'play', instanceId: ring.instanceId }, t.as(0)); settle(t, [[d => d.targeting, () => bear.instanceId]]);
+  check('exiled with: ETB exile recorded on the creature', t.names(1, 'exile').includes('Grizzly Bears') && (ring.linkedExile || []).includes(bear.instanceId));
+  cast(t, 'Divination', 'Destroy target creature.', [[d => d.targeting, () => ring.instanceId]]);
+  check('exiled with: leaves trigger returns the exiled cards (last-known record)', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'));
+  check('exiled with: the new object (graveyard) starts empty', !(t.game.players[0].deck.graveyard.find(c => c.instanceId === ring.instanceId)?.linkedExile || []).length);
+}
+{
+  // "until leaves": a returning permanent is a new object, so a later "return the exiled card" finds nothing
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard.\n{1}: Return all cards exiled with this artifact to their owners\' hands.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  cast(t, 'Opt', "Return target artifact to its owner's hand.", [[d => d.targeting, () => art.instanceId]]);
+  const back = t.game.players[0].deck.hand.find(c => c.instanceId === art.instanceId);
+  check('exiled with: a card that left and re-entered is a new object (record empty)', !!back && !(back.linkedExile || []).length, JSON.stringify(back?.linkedExile));
+}
+{
+  // Play the exiled card this turn: permission only for what this exiled
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const art = onField(t, 'Sol Ring', '{T}: Exile target creature card from a graveyard. You may play the exiled card this turn.', { typeLine: 'Artifact' });
+  activate(t, art, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  const ex = t.game.players[1].deck.exile.find(c => c.instanceId === g1.instanceId);
+  check('exiled with: "you may play the exiled card this turn" grants permission', ex?.playPermission?.playerId === t.P(0).playerId, JSON.stringify(ex?.playPermission));
+}
+
+{
+  // Static: "You may play lands and cast spells from among cards exiled with this creature" (exilePlayPermission)
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  const sp = onField(t, 'Fog Bank', 'You may play lands and cast spells from among cards exiled with this creature.\n{T}: Exile target creature card from a graveyard.');
+  activate(t, sp, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]);
+  const ex = t.game.players[1].deck.exile.find(c => c.instanceId === g1.instanceId);
+  check('exiled with: static permission to cast cards exiled with this creature', ex && !!exilePlayPermission(t.game, t.P(0), ex) && !exilePlayPermission(t.game, t.P(1), ex));
+  const other = onField(t, 'Llanowar Elves', '');
+  check('exiled with: …but not for a permanent that did not exile it', !other.linkedExile);
+}
+
+{
+  // Safe Haven: sacrifice itself, then return each card it exiled (last-known information)
+  const t = setup();
+  const g1 = gyx(t, 'Grizzly Bears');
+  onField(t, 'Grizzly Bears', '', {}, 1); const land = onField(t, 'Fog Bank', '{T}: Exile target creature card from a graveyard.\n{2}, {T}: Sacrifice this land. Return each card exiled with this land to the battlefield under its owner\'s control.', { typeLine: 'Land' });
+  activate(t, land, 0, [[d => d.targeting || d.kind === 'choose-one', () => g1.instanceId]]); land.tapped = false;
+  activate(t, land, 1);
+  check('exiled with: sacrifice then return reads what the sacrificed permanent exiled', !!t.bf(1, 'Grizzly Bears') && !t.names(1, 'exile').includes('Grizzly Bears'), JSON.stringify([t.names(0, 'graveyard'), t.names(1, 'battlefield'), t.names(1, 'exile')]));
 }
 
 done();

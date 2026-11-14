@@ -176,12 +176,23 @@ export function controlsACommander(game, player) {
  * "As an additional cost to cast this spell, …": { kind: 'sacrifice', filter, label } | { kind: 'discard' } |
  * { kind: 'life-x' }, or null.
  */
+/** Monstrous Emergence / Close Encounter: the creatures you control, and the creature cards you may reveal (hand) or choose (warped, in exile). */
+export function choosePowerRows(game, player, card, extra) {
+  const isCreature = c => /\bCreature\b/.test(defOf(game, c)?.typeLine || '');
+  const mine = (player.deck.battlefield || []).filter(isCreature).map(c => ({ card: c, zone: 'battlefield' }));
+  const other = extra?.warped ? (player.deck.exile || []).filter(c => c.warped && isCreature(c)).map(c => ({ card: c, zone: 'exile' }))
+    : (player.deck.hand || []).filter(c => c.instanceId !== card?.instanceId && isCreature(c)).map(c => ({ card: c, zone: 'hand' }));
+  return [...mine, ...other];
+}
 export function additionalCost(def) {
   const text = strip(def?.oracleText || '');
   let m;
   if ((m = text.match(/As an additional cost to cast this spell, sacrifice (?:a|an) ([a-z ]+?)(?: or (?:a|an)? ?([a-z ]+?))?\./i)))
     return { kind: 'sacrifice', filters: [m[1], m[2]].filter(Boolean).map(x => x.trim().toLowerCase()), label: `Sacrifice a ${[m[1], m[2]].filter(Boolean).join(' or ')}` };
   if (/As an additional cost to cast this spell, discard a card\./i.test(text)) return { kind: 'discard', label: 'Discard a card' };
+  // Monstrous Emergence, Close Encounter: choose a creature you control or reveal a creature card from your hand (or a warped one in exile); its power is used by the spell.
+  if ((m = text.match(/As an additional cost to cast this spell, choose a creature you control or (reveal a creature card from your hand|a warped creature card you own in exile)\./i)))
+    return { kind: 'choose-power', warped: /warped/i.test(m[1]), label: /warped/i.test(m[1]) ? 'Choose a creature you control or a warped creature card you own in exile' : 'Choose a creature you control or reveal a creature card from your hand' };
   if (/As an additional cost to cast this spell, pay X life\./i.test(text)) return { kind: 'life-x', label: 'Pay X life' };
   return null;
 }
@@ -348,6 +359,7 @@ export function castOptions(game, player, card, def, { commander = null } = {}) 
     if (lock) { result.legal = false; result.reasons = [`${lock.source || 'An effect'} stops you casting ${lock.noncreature ? 'noncreature ' : ''}spells this turn.`, ...(result.reasons || [])]; }
     const extra = mode.faceDown ? null : additionalCost(def);
     if (extra?.kind === 'sacrifice' && !(player.deck?.battlefield || []).some(c => extra.filters.some(f => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(f)))) { result.legal = false; result.reasons = [...(result.reasons || []), `You need a ${extra.filters.join(' or ')} to sacrifice.`]; }
+    if (extra?.kind === 'choose-power' && !choosePowerRows(game, player, card, extra).length) { result.legal = false; result.reasons = [...(result.reasons || []), extra.warped ? 'You need a creature you control or a warped creature card in exile.' : 'You need a creature you control or a creature card in your hand.']; }
     if (extra?.kind === 'discard' && (player.deck?.hand || []).length < 2) { result.legal = false; result.reasons = [...(result.reasons || []), 'You need another card in hand to discard.']; }
     return { ...mode, ...result, legal: mode.faceDown ? result.reasons.length === 0 : result.legal, fullCost: priced.cost, notes: priced.notes };
   });

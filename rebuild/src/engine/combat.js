@@ -277,6 +277,7 @@ function applyQueue(game, queue, events, onEvent) {
       const counter = /\bPlaneswalker\b/i.test(targetType) ? 'loyalty' : /\bBattle\b/i.test(targetType) ? 'defense' : null;
       if (amount > 0 && counter) {
         target.counters = target.counters || {};
+        target.lastCounterBefore = Number(target.counters[counter] || 0);   // Rith: excess damage to a planeswalker
         target.counters[counter] = Math.max(0, Number(target.counters[counter] || 0) - amount);
         events.push(`${definition(game, target)?.name || 'It'} loses ${amount} ${counter} (${target.counters[counter]} left).`);
       }
@@ -330,7 +331,7 @@ function stateBasedDeaths(game, events, onEvent) {
           continue;
         bf.splice(i, 1);
         const exiledInstead = graveyardDestination(game, c) === 'exile';   // before its temporary effects are cleared (Unearth, Suplex)
-        const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null };
+        const last = { counters: { ...(c.counters || {}) }, castMode: c.castMode || null, auraControllers: game.players.flatMap(q => (q.deck?.battlefield || []).filter(a => a.attachedTo === c.instanceId && /\bAura\b/.test(game.cardDefinitions?.[a.definitionId]?.typeLine || '')).map(a => a.controllerId || q.playerId)) };
         c.zone = 'graveyard';
         c.tapped = false;
         c.damageMarked = 0;
@@ -353,6 +354,7 @@ function stateBasedDeaths(game, events, onEvent) {
   }
 }
 function resolveStep(game, cs, step, events, onEvent) {
+  cs.damageSteps = Number(cs.damageSteps || 0) + 1;   // "one or more … deal combat damage" triggers once for each damage step
   const queue = [];
   for (const a of cs.attackers) {
     const attackerPlayer = locatePlayer(game, a.playerId), defender = locatePlayer(game, a.defenderId), attacker = locateCard(attackerPlayer, a.instanceId);

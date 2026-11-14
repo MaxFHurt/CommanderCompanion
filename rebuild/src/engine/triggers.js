@@ -73,7 +73,7 @@ export function parseTriggeredAbilities(definition) {
     out.push(current);
   // The trigger ends at the first comma that does not continue a list ("Whenever you cast an Aura, Equipment, or Vehicle spell, …").
   const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
-  return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
+  return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /do this only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').replace(/\s*Do this only once each turn\.?\s*$/i, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
   const ledger = card?.triggerModeChoices || {};
@@ -188,6 +188,7 @@ function generalMatch(game, row, t, event) {
         return subjectEvent(game, row, m[1] + (m[2] ? (/your/i.test(m[2]) ? ' you control' : ' an opponent controls') : ''), event);
       return undefined;
     case 'dies':
+      if ((m = t.match(/^(?:When|Whenever) an enchanted creature (?:dies|die)\b/i))) return /\bCreature\b/.test(event.typeLine || '') && (event.auraControllers || event.last?.auraControllers || []).length > 0;   // Hateful Eidolon
       if ((m = t.match(/^(?:When|Whenever) (.+?) (?:dies|die)\b/i))) return subjectEvent(game, row, m[1], event);
       return undefined;
     case 'leaves-battlefield':
@@ -341,6 +342,9 @@ function triggerMatches(game, row, ability, event) {
       return your && typeMatches(typeLine, 'Creature');
     if (/a creature dies/i.test(t))
       return typeMatches(typeLine, 'Creature');
+    // Hateful Eidolon: "Whenever an enchanted creature dies" (the Auras it had, counted as it died: event.auraControllers).
+    if (/an enchanted creature dies/i.test(t))
+      return typeMatches(typeLine, 'Creature') && (event.auraControllers || []).length > 0;
   }
   if (event.type === 'spell-cast') {
     if (!/^(?:When|Whenever).*\bcast\b/i.test(t))
@@ -372,6 +376,12 @@ function triggerMatches(game, row, ability, event) {
       return event.controllerId === row.player.playerId && (event.attackers || []).length > 0;
     if (/^Whenever you attack with your commander/i.test(t))
       return attackedWithCommander(game, row, event);
+    // "Whenever you attack with one or more Faeries": at least one attacker of that kind (Talion's Messenger).
+    const aw = t.match(/^Whenever you attack with (?:one or more|a|an) ([A-Z][a-z]+?)s?(?:,|$| )/);
+    if (aw && !/^(?:creature|other|your|nonland)/i.test(aw[1]) && !/ves\b/i.test(aw[0])) {
+      const mine = (event.attackers || []).map(id => game.players.flatMap(p => p.deck?.battlefield || []).find(c => c.instanceId === id)).filter(Boolean);
+      return event.controllerId === row.player.playerId && (event.attackers || []).length > 0 && (!mine.length || mine.some(c => typeMatches(game.cardDefinitions?.[c.definitionId]?.typeLine || '', aw[1])));
+    }
     if (/^Whenever you attack/i.test(t))
       return event.controllerId === row.player.playerId && (event.attackers || []).length > 0;
   }
@@ -392,7 +402,8 @@ function triggerMatches(game, row, ability, event) {
     if (/becomes blocked/i.test(t) && self)
       return row.card.instanceId === event.attackerId;
     if (/blocks/i.test(t) && self)
-      return row.card.instanceId === event.blockerId;
+      // "Whenever this creature blocks" is once however many creatures it blocks; "blocks a creature" is once for each.
+      return row.card.instanceId === event.blockerId && !(event.extraBlock && !/\bblocks (?:a|an|that|target|another|each)\b/i.test(t));
     if (/a creature you control blocks/i.test(t))
       return event.controllerId === row.player.playerId;
     return false;
@@ -599,11 +610,13 @@ function dueDelayedTriggers(game, event) {
 /** What happened this turn, for "for each creature that died under your control this turn", "cards you've drawn this turn" … (build 101). */
 function tallyTurn(game, event) {
   const type = event?.type;
-  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed'].includes(type)) return;
+  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill', 'combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent'].includes(type)) return;
+  if (type === 'zone-change' && !(event.to === 'exile' && event.from === 'battlefield')) return;
   const turn = Number(game.turnNumber || 0);
-  if (game.turnTally?.turn !== turn) game.turnTally = { turn, died: [], draws: {}, discards: {}, tokens: {}, entered: [], attacked: {}, sacrificed: {} };
+  if (game.turnTally?.turn !== turn) game.turnTally = { turn, died: [], draws: {}, discards: {}, tokens: {}, entered: [], attacked: {}, sacrificed: {}, descended: {}, countersOnMine: {}, exiled: [] };
   for (const k of ['entered']) game.turnTally[k] = game.turnTally[k] || [];
-  for (const k of ['attacked', 'sacrificed']) game.turnTally[k] = game.turnTally[k] || {};
+  for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine', 'milled', 'damagePairs']) game.turnTally[k] = game.turnTally[k] || {};
+  game.turnTally.exiled = game.turnTally.exiled || [];
   const t = game.turnTally, bump = (o, id) => { if (id) o[id] = Number(o[id] || 0) + 1; };
   if (type === 'dies') t.died.push({ controllerId: event.controllerId || null, ownerId: event.ownerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
   if (type === 'draw') bump(t.draws, event.playerId);
@@ -612,8 +625,51 @@ function tallyTurn(game, event) {
   if (type === 'enters-battlefield') t.entered.push({ id: event.sourceId || null, controllerId: event.controllerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
   if (type === 'attacks' && event.controllerId && event.defenderId) t.attacked[event.controllerId] = [...new Set([...(t.attacked[event.controllerId] || []), event.defenderId])];
   if (type === 'sacrificed') bump(t.sacrificed, event.controllerId);
+  // Impact Resonance: "the greatest amount of damage dealt by a source to a permanent or player this turn" (damage from one source to one recipient adds up).
+  // Rith: "a creature or planeswalker an opponent controlled was dealt excess damage this turn" (damage beyond what was lethal, worked out as it was dealt).
+  if (['combat-damage-creature', 'damage-permanent'].includes(type) && Number(event.amount) > 0 && event.targetId) {
+    const holder = (game.players || []).find(p => (p.deck?.battlefield || []).some(c => c.instanceId === event.targetId)), tc = holder?.deck.battlefield.find(c => c.instanceId === event.targetId), td = tc && game.cardDefinitions?.[tc.definitionId];
+    if (tc && td && /\bPlaneswalker\b/.test(td.typeLine || '') && !/\bCreature\b/.test(td.typeLine || '') && Number(event.amount) > Number(tc.lastCounterBefore ?? Infinity)) { t.excess = t.excess || []; t.excess.push({ controllerId: tc.controllerId || holder.playerId }); }
+    if (tc && td && /\bCreature\b/.test(td.typeLine || '')) {
+      const toughness = Number(td.toughness || 0) + Number(tc.counters?.['+1/+1'] || 0) - Number(tc.counters?.['-1/-1'] || 0), before = Math.max(0, Number(tc.damageMarked || 0) - Number(event.amount));
+      if (Number(event.amount) > Math.max(0, toughness - before)) { t.excess = t.excess || []; t.excess.push({ controllerId: tc.controllerId || holder.playerId }); }
+    }
+  }
+  // Estinien Varlineau: "your opponents who were dealt combat damage by this creature or a Dragon this turn" (who hit whom, and what the source was).
+  if (type === 'combat-damage-player' && Number(event.amount) > 0) {
+    t.combatHits = t.combatHits || [];
+    t.combatHits.push({ sourceId: event.sourceId, controllerId: event.controllerId, playerId: event.playerId, typeLine: String(game.cardDefinitions?.[event.definitionId]?.typeLine || '') });
+  }
+  if (['combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent'].includes(type)) {
+    if (Number(event.amount) > 0 && event.sourceId) {
+      const k = `${event.sourceId}>${event.targetId || event.playerId}`; t.damagePairs[k] = Number(t.damagePairs[k] || 0) + Number(event.amount);
+      // Blazing Effigy: "damage dealt to this creature this turn by other sources named …" (the source's name, kept as it dealt it).
+      if (event.targetId) {
+        const src = (game.players || []).flatMap(p => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId) || (game.stack || []).map(x => x.card).find(c => c?.instanceId === event.sourceId);
+        t.damageRecords = t.damageRecords || [];
+        t.damageRecords.push({ sourceId: event.sourceId, name: String(game.cardDefinitions?.[event.definitionId || src?.definitionId]?.name || ''), targetId: event.targetId, amount: Number(event.amount) });
+      }
+    }
+    return;
+  }
+  if (type === 'mill') bump(t.milled, event.playerId);   // Cruel Calculations: cards put into a graveyard from a library this turn
+  // "the number of times you descended this turn" (a permanent card put into your graveyard from anywhere)
+  if (type === 'put-into-graveyard' && !/\b(?:Instant|Sorcery)\b/.test(String(event.typeLine || '').split('—')[0])) bump(t.descended, event.ownerId);
+  // "creatures that were exiled under your opponents' control this turn"
+  if (type === 'zone-change') t.exiled.push({ controllerId: event.controllerId || null, typeLine: String(event.typeLine || ''), token: !!event.token });
+  // "+1/+1 counters you've put on creatures under your control this turn" (put by a source of yours, on a creature of yours)
+  if (type === 'counter-added' && event.counter === '+1/+1' && Number(event.amount) > 0) {
+    const all = (game.players || []).flatMap(q => ['battlefield', 'graveyard', 'exile', 'hand'].flatMap(z => q.deck?.[z] || []).map(c => ({ c, q })));
+    const target = all.find(x => x.c.instanceId === event.targetId), src = all.find(x => x.c.instanceId === event.sourceId);
+    const mine = event.controllerId || target?.q.playerId;
+    if (mine && (!src || (src.c.controllerId || src.q.playerId) === mine) && target && /\bCreature\b/.test(defFor(game, target.c)?.typeLine || '')) t.countersOnMine[mine] = Number(t.countersOnMine[mine] || 0) + Number(event.amount);
+  }
 }
 export function queueTriggers(game, event) {
+  // The Auras attached to a creature as it dies (still attached now): "for each Aura you controlled that was attached to it".
+  if (event?.type === 'dies' && event.last?.auraControllers) event.auraControllers = event.last.auraControllers;
+  if (event?.type === 'dies' && event.sourceId && !event.auraControllers)
+    event.auraControllers = (game.players || []).flatMap(p => (p.deck?.battlefield || []).filter(c => c.attachedTo === event.sourceId && /\bAura\b/.test(game.cardDefinitions?.[c.definitionId]?.typeLine || '')).map(c => c.controllerId || p.playerId));
   recordStat(game, event);
   tallyTurn(game, event);
   // Life lost this turn, by amount (Bloodchief Ascension: "if an opponent lost 2 or more life this turn").
@@ -664,20 +720,12 @@ function queueTriggersInner(game, event) {
   }
   // "Exile … until this enchantment leaves the battlefield": when it leaves, the exiled cards return at once.
   if (event?.type === 'leaves-battlefield' && event.sourceId) {
-    const gone = (game.players || []).flatMap(p => ['graveyard', 'exile', 'hand', 'commandZone', 'remainingLibrary'].flatMap(z => p.deck?.[z] || [])).find(c => c.instanceId === event.sourceId);
-    const toHand = gone?.untilLeavesExileHand || [];
-    if (toHand.length) {
-      gone.untilLeavesExileHand = [];
-      for (const id of toHand) if ((game.players || []).some(p => (p.deck?.exile || []).some(c => c.instanceId === id))) moveCard(game, id, 'hand', { onEvent: e => queueTriggers(game, e) });
-    }
-    const back = gone?.untilLeavesExile || [];
-    if (back.length) {
-      gone.untilLeavesExile = [];
-      gone.linkedExile = (gone.linkedExile || []).filter(id => !back.includes(id));
-      for (const id of back) {
-        const owner = (game.players || []).find(p => (p.deck?.exile || []).some(c => c.instanceId === id));
-        if (owner) moveCard(game, id, 'battlefield', { controllerId: owner.playerId, onEvent: e => queueTriggers(game, e) });
-      }
+    const lki = event.last || {};   // what it exiled, read before the zone change made it a new object (400.7)
+    const toHand = lki.untilLeavesExileHand || [];
+    for (const id of toHand) if ((game.players || []).some(p => (p.deck?.exile || []).some(c => c.instanceId === id && c.exiledBy === event.sourceId))) moveCard(game, id, 'hand', { onEvent: e => queueTriggers(game, e) });
+    for (const id of lki.untilLeavesExile || []) {
+      const owner = (game.players || []).find(p => (p.deck?.exile || []).some(c => c.instanceId === id && c.exiledBy === event.sourceId));
+      if (owner) moveCard(game, id, 'battlefield', { controllerId: owner.playerId, onEvent: e => queueTriggers(game, e) });
     }
   }
   // Madness: a discarded card with madness is exiled instead, and its madness trigger goes on the stack.
@@ -726,7 +774,7 @@ const WIDE_VARIANTS = [
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 function wideProbeTypes(ability) {
-  const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w)))].join(' ');
+  const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w))), ...(/\boutlaws?\b/i.test(String(ability?.trigger || '')) ? ['Rogue'] : [])].join(' ');   // outlaws: Assassins, Mercenaries, Pirates, Rogues, Warlocks
   return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
 }
 function probeTrigger(definition, ability, types, events, variants) {
@@ -749,7 +797,7 @@ function probeTrigger(definition, ability, types, events, variants) {
       const victim = variant.victim ? (who === me ? opp : me) : who;
       const event = { type, sourceId, controllerId: who.playerId, playerId: victim.playerId, ownerId: who.playerId, definitionId: sourceId === 'self' ? (definition.definitionId || 'self-def') : `probe-${i}`,
         typeLine: sourceId === 'self' ? definition.typeLine : types[i], attackerId: sourceId, blockerId: sourceId, attackers: [sourceId, 'x1', 'x2', 'x3'], defenders: [victim === who ? (who === me ? 'opp' : 'me') : victim.playerId], defenderId: who === me ? 'opp' : 'me',
-        amount: Number((String(ability?.trigger || '').match(/expend (\d+)/i) || [])[1] || 2), won: true, firstThisTurn: true, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', level: Number((String(ability?.trigger || '').match(/level (\d+)/i) || [])[1] || 2), result: Number((String(ability?.trigger || '').match(/roll a (\d+)/i) || [])[1] || 20), from: 'graveyard', ...(variant.event || {}) };
+        amount: Number((String(ability?.trigger || '').match(/expend (\d+)/i) || [])[1] || 2), won: true, firstThisTurn: true, to: ['creature', 'player'], counter: '+1/+1', drawNumberThisTurn: 2, token: true, manaValue: 3, batchId: 'probe', auraControllers: ['me'], played: true, destination: 'graveyard', newValue: 12, targetId: sourceId, byPlayerId: 'opp', byKind: 'ability', level: Number((String(ability?.trigger || '').match(/level (\d+)/i) || [])[1] || 2), result: Number((String(ability?.trigger || '').match(/roll a (\d+)/i) || [])[1] || 20), from: 'graveyard', ...(variant.event || {}) };
       if (event.to === 'graveyard' && type !== 'zone-change') event.to = ['creature', 'player'];
       try { if (triggerMatches(game, row, ability, event)) return true; } catch { /* a probe the matcher cannot read: keep trying */ }
     }
