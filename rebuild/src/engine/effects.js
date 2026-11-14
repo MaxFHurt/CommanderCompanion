@@ -2320,12 +2320,12 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'exile', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Return (target .+?) to (?:its|their) owner'?s hand\.?$/i))) {
+  if (!/^Return target [^,.]*?\bcards? (?:from|in) (?:a|target player'?s) graveyard to its owner'?s hand\.?$/i.test(c) && (m = c.match(/^Return (target .+?) to (?:its|their) owner'?s hand\.?$/i))) {   // a card from a graveyard is a graveyard choice (below), not a permanent
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'bounce', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Return (target (?:.+? )?card) from (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
+  if ((m = c.match(/^Return (target (?:.+? )?card) (?:from|in) (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
     const bind = `grave${requirements.length}`;
     requirements.push({ kind: 'graveyard-target', bind, scope: `${m[1].toLowerCase()}${/^your$/i.test(m[2]) ? ' in your graveyard' : ''}`, label: `${m[1]} in ${/^your$/i.test(m[2]) ? 'your' : 'a'} graveyard` });
     effects.push({ kind: 'return-from-graveyard', bind, to: 'hand' });

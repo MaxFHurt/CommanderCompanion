@@ -333,6 +333,11 @@ function requirementAmount(req, bindings) {
  */
 export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req') {
   LIMIT_BINDINGS = bindings;
+  // The source passed in is often only its colours/type/name; limits set by its own power or counters ("less than or equal to this creature's power") need the card itself.
+  if (ctx.source && !ctx.source.instanceId && bindings.sourceId) {
+    const hit = locateCardInGame(game, bindings.sourceId);
+    if (hit) ctx = { ...ctx, source: { ...hit.card, colors: ctx.source.colors, typeLine: ctx.source.typeLine, name: ctx.source.name } };
+  }
   const { player, sourceName = 'Effect' } = ctx;
   const cancellable = ctx.cancellable !== false;
   const base = { playerId: player.playerId, cancellable, source: sourceName };

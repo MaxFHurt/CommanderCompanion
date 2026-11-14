@@ -139,6 +139,15 @@ export function compileB110Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- Old Man of the Sea: "... for as long as this creature remains tapped and that creature's power remains less than or equal to this creature's power."
+  if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped) and that creature'?s power remains less than or equal to (?:this creature|${SELFP})'?s power\\.?$`)))) {
+    const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.effects.length === 1 && r.effects[0].kind === 'gain-control' && !r.effects[0].untilEndOfTurn) {
+      requirements.push(...r.requirements);
+      effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'tapped', powerLimit: true });
+      return true;
+    }
+  }
   // --- "Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped." (Vedalken Shackles)
   if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped|you control ${SELFP})\\.?$`)))) {
     const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
@@ -272,7 +281,7 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       if (effect.mode === 'tapped' && !src.card.tapped) { notes.push('The source is not tapped, so nothing changes control.'); return true; }
       const prev = tgt.card.controllerId || tgt.player.playerId;
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', bind: effect.bind, untilEndOfTurn: false }], bindings));
-      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, controllerId, previousControllerId: prev }];
+      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, powerLimit: !!effect.powerLimit, controllerId, previousControllerId: prev }];
       return true;
     }
     case 'b110-flicker-tapped': {

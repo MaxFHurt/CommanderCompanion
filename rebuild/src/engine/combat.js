@@ -105,14 +105,21 @@ function conditionalSelf(game, card, def) {
   return out;
 }
 /** "Gain control of … for as long as ~ remains tapped / you control ~" (build 110): control goes back when the condition stops. */
+let RESTORING = false;   // effectivePower below calls back into pruneWhileTapped
 function restoreControlWhile(game) {
-  if (!game?.controlWhile?.length) return;
+  if (!game?.controlWhile?.length || RESTORING) return;
+  RESTORING = true;
+  try { restoreControlWhileInner(game); } finally { RESTORING = false; }
+}
+function restoreControlWhileInner(game) {
   const bf = () => (game.players || []).flatMap(p => (p.deck?.battlefield || []).map(c => ({ c, p })));
   const keep = [];
   for (const r of game.controlWhile) {
     const all = bf(), src = all.find(x => x.c.instanceId === r.sourceId), tgt = all.find(x => x.c.instanceId === r.targetId);
     if (!tgt) continue;
-    const holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    let holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    // Old Man of the Sea: "... and that creature's power remains less than or equal to this creature's power"
+    if (holds && r.powerLimit) holds = effectivePower(tgt.c, definition(game, tgt.c), game) <= effectivePower(src.c, definition(game, src.c), game);
     if (holds) { keep.push(r); continue; }
     const to = game.players.find(p => p.playerId === r.previousControllerId);
     if (to && tgt.p.playerId !== to.playerId) {

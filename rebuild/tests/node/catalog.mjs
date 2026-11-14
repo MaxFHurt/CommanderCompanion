@@ -4444,4 +4444,117 @@ section('build 110 (long tail batch 4)');
   check('conspire: both creatures tapped and the spell copied (6 life, not 3)', a.tapped && b.tapped && t.P(0).life === life0 + 6, `${life0} -> ${t.P(0).life} ${a.tapped}${b.tapped}`);
 }
 
+
+{
+  // Review of parts 6-8: limits set by life total, counters on the source, a count of a type, and the cast spell's mana value
+  const t = setup();
+  const lo = onField(t, 'Llanowar Elves', '', { power: '2', toughness: '2' }, 1), hi = onField(t, 'Colossal Dreadmaw', '', { power: '6', toughness: '6' }, 1);
+  t.P(0).life = 5;
+  let ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature with power greater than or equal to your life total' }, t.P(0), null).map(r => r.id);
+  check('Blazing Hope: life 5 -> power 6 offered, power 2 not', ids.includes(hi.instanceId) && !ids.includes(lo.instanceId), JSON.stringify(ids));
+  t.P(0).life = 2;
+  ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature with power greater than or equal to your life total' }, t.P(0), null).map(r => r.id);
+  check('Blazing Hope: life 2 -> both offered', ids.includes(hi.instanceId) && ids.includes(lo.instanceId), JSON.stringify(ids));
+  const al = onField(t, 'Sol Ring', '', { typeLine: 'Enchantment' }); al.counters = { treasure: 2 };
+  ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature with power less than or equal to the number of treasure counters on this enchantment' }, t.P(0), al).map(r => r.id);
+  check('Legacy\'s Allure: 2 treasure counters -> power 2 offered, 6 not', ids.includes(lo.instanceId) && !ids.includes(hi.instanceId), JSON.stringify(ids));
+  const w1 = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Human Warrior', power: '1', toughness: '1' });
+  ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature an opponent controls with power less than or equal to the number of Warriors you control' }, t.P(0), w1).map(r => r.id);
+  check('Goma Fada Vanguard: 1 Warrior -> nothing offered', ids.length === 0, JSON.stringify(ids));
+  onField(t, 'Fog Bank', '', { typeLine: 'Creature — Human Warrior' });
+  ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature an opponent controls with power less than or equal to the number of Warriors you control' }, t.P(0), w1).map(r => r.id);
+  check('Goma Fada Vanguard: 2 Warriors -> power 2 offered, 6 not', ids.includes(lo.instanceId) && !ids.includes(hi.instanceId), JSON.stringify(ids));
+}
+{
+  // Hammerhead Tyrant: the limit is the mana value of the spell just cast
+  const t = setup();
+  onField(t, 'Fog Bank', 'Whenever you cast a spell, return up to one target nonland permanent an opponent controls with mana value less than or equal to that spell\'s mana value to its owner\'s hand.', { typeLine: 'Creature — Dragon' });
+  const small = onField(t, 'Llanowar Elves', '', { manaValue: 1, cmc: 1 }, 1), big = onField(t, 'Grizzly Bears', '', { manaValue: 4, cmc: 4 }, 1);
+  const seen = cast(t, 'Opt', 'Scry 1.', [[d => d.targeting || d.kind === 'choose-one', () => small.instanceId]], { manaValue: 1, cmc: 1 });
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Hammerhead Tyrant: a mana value 1 spell offers the 1-drop, not the 4-drop', offered.includes(small.instanceId) && !offered.includes(big.instanceId), JSON.stringify(offered));
+}
+{
+  // Lay Down Arms: counts Plains, and the exiled creature's controller (not the caster) gains 3
+  const t = setup();
+  const fd = t.game.cardDefinitions[t.P(0).deck.battlefield.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Forest').definitionId]; fd.typeLine = 'Basic Land — Plains';   // the four Forests stand in for Plains
+  const lo = onField(t, 'Grizzly Bears', '', { manaValue: 4, cmc: 4 }, 1), hi = onField(t, 'Colossal Dreadmaw', '', { manaValue: 6, cmc: 6 }, 1);
+  const seen = cast(t, 'Opt', 'Exile target creature with mana value less than or equal to the number of Plains you control. Its controller gains 3 life.', [[d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Lay Down Arms: 4 Plains -> mana value 4 offered, 6 not', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId), JSON.stringify(offered));
+  check('Lay Down Arms: the target\'s controller gains 3 life, the caster does not', t.P(1).life === 43 && t.P(0).life === 40, `${t.P(0).life}/${t.P(1).life}`);
+}
+{
+  // Penance-style: only black or red sources can be chosen
+  const t = setup();
+  const pen = onField(t, 'Fog Bank', '{1}: The next time a black or red source of your choice would deal damage this turn, prevent that damage.', { typeLine: 'Enchantment' });
+  const blue = onField(t, 'Colossal Dreadmaw', '', { colors: ['U'] }, 1), blk = onField(t, 'Grizzly Bears', '', { colors: ['B'] }, 1);
+  const seen = activate(t, pen, 0, [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === blk.instanceId), () => blk.instanceId]]);
+  check('black-or-red source choice: blue source not offered', seen.some(d => (d.options || []).some(o => o.id === blk.instanceId)) && !seen.some(d => (d.options || []).some(o => o.id === blue.instanceId)));
+}
+{
+  // Conspire needs two untapped creatures sharing a colour with the spell: one, tapped, or off-colour ones do not qualify; a copy may be retargeted
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { colors: ['U'] }), b = onField(t, 'Llanowar Elves', '', { colors: ['G'] });
+  const life0 = t.P(0).life;
+  const seen = cast(t, 'Opt', 'Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)\nYou gain 3 life.', [], { colors: ['U'] });
+  check('conspire: only one creature shares the spell\'s colour -> no offer, one cast', !seen.some(d => d.key.includes('conspire')) && !a.tapped && !b.tapped && t.P(0).life === life0 + 3, `${life0} -> ${t.P(0).life}`);
+  const t2 = setup();
+  const c1 = onField(t2, 'Grizzly Bears', '', { colors: ['U'] }), c2 = onField(t2, 'Llanowar Elves', '', { colors: ['U'] }); c1.tapped = true;
+  const seen2 = cast(t2, 'Opt', 'Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)\nYou gain 3 life.', [], { colors: ['U'] });
+  check('conspire: a tapped creature does not count', !seen2.some(d => d.key.includes('conspire')) && !c2.tapped, '');
+}
+
+{
+  // Conspire cards read: Disturbing Plot / Mine Excavation (graveyard to hand), Memory Sluice (target player), Rally the Galadhrim (token copy)
+  const t = setup();
+  const g = t.give(1, 'Grizzly Bears'); t.P(1).deck.hand.splice(t.P(1).deck.hand.indexOf(g), 1); g.zone = 'graveyard'; t.P(1).deck.graveyard.push(g);
+  cast(t, 'Opt', 'Return target creature card from a graveyard to its owner\'s hand.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)', [[d => d.options?.some(o => o.id === g.instanceId), () => g.instanceId]], { typeLine: 'Sorcery' });
+  check('Disturbing Plot: the card goes to its owner\'s hand (not the caster\'s)', t.P(1).deck.hand.some(c => c.instanceId === g.instanceId) && !t.P(0).deck.hand.some(c => c.instanceId === g.instanceId), '');
+}
+{
+  const t = setup();
+  const n1 = t.P(1).deck.remainingLibrary.length, n0 = t.P(0).deck.remainingLibrary.length;
+  cast(t, 'Opt', 'Target player mills four cards.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)', [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === t.P(1).playerId), () => t.P(1).playerId]], { typeLine: 'Sorcery' });
+  check('Memory Sluice: the targeted opponent mills four, the caster none', t.P(1).deck.remainingLibrary.length === n1 - 4 && t.P(0).deck.remainingLibrary.length >= n0 - 1, `${n1}->${t.P(1).deck.remainingLibrary.length}, ${n0}->${t.P(0).deck.remainingLibrary.length}`);
+}
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', { colors: ['G'] });
+  cast(t, 'Opt', 'Create a token that\'s a copy of target creature you control.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)', [[d => d.options?.some(o => o.id === bear.instanceId), () => bear.instanceId]], { typeLine: 'Sorcery' });
+  check('Rally the Galadhrim: a token copy of the creature appears', t.P(0).deck.battlefield.filter(c => c.token && t.game.cardDefinitions[c.definitionId]?.name === 'Grizzly Bears').length === 1, '');
+}
+{
+  // Conspire with a target: the copy may take a new target (two creatures tapped, spell cast with target A, copy aimed at B)
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { colors: ['U'] }), b = onField(t, 'Llanowar Elves', '', { colors: ['U'] });
+  const x = onField(t, 'Fog Bank', '', { power: '1', toughness: '4' }, 1), y = onField(t, 'Colossal Dreadmaw', '', { power: '1', toughness: '4' }, 1);
+  const seenC = cast(t, 'Opt', 'Destroy target creature an opponent controls.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)', [[d => d.key.includes('conspire'), () => [a.instanceId, b.instanceId]], [d => d.key.startsWith('retarget:0'), () => y.instanceId], [d => d.key.startsWith('cast:0'), () => x.instanceId], [d => d.kind === 'confirm', () => true]], { colors: ['U'], typeLine: 'Sorcery' });
+  const gone = c => !t.P(1).deck.battlefield.some(z => z.instanceId === c.instanceId);
+  check('conspire with a target: the copy was offered a new target', seenC.some(d => d.key.startsWith('retarget')), '');
+  check('conspire with a target: original and copy each destroy a creature (copy retargeted)', gone(x) && gone(y), JSON.stringify([gone(x), gone(y)]));
+}
+
+{
+  // Old Man of the Sea: control lasts only while it stays tapped AND the creature's power stays at or under its own
+  const t = setup();
+  const om = onField(t, 'Sol Ring', '{T}: Gain control of target creature with power less than or equal to this creature\'s power for as long as this creature remains tapped and that creature\'s power remains less than or equal to this creature\'s power.', { typeLine: 'Creature — Merfolk', power: '3', toughness: '3' });
+  const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1);
+  activate(t, om, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  bear.counters = { '+1/+1': 2 }; power(t, bear);
+  const back = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('Old Man of the Sea: taken, then returned when its power exceeds the Old Man\'s', mine && back, JSON.stringify([mine, back]));
+}
+
+{
+  // Legacy's Allure through the real activation: the limit counts the treasure counters on the source being sacrificed
+  const t = setup();
+  const al = onField(t, 'Sol Ring', 'Sacrifice this enchantment: Gain control of target creature with power less than or equal to the number of treasure counters on this enchantment. (This effect lasts indefinitely.)', { typeLine: 'Enchantment' }); al.counters = { treasure: 2 };
+  const lo = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1), hi = onField(t, 'Colossal Dreadmaw', '', { power: '6', toughness: '6' }, 1);
+  const seen = activate(t, al, 0, [[d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check('Legacy\'s Allure (activated): power 2 offered with 2 counters, 6 not; the creature is taken', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId) && t.P(0).deck.battlefield.some(c => c.instanceId === lo.instanceId), JSON.stringify(offered));
+}
+
 done();

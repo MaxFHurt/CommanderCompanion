@@ -714,7 +714,7 @@ function runPlay(game, op, ask) {
   if (copies) {
     game.pendingTriggers = game.pendingTriggers || [];
     game.pendingTriggers.push({ id: newId('trigger'), controllerId: player.playerId, sourceId: card.instanceId, sourceDefinitionId: card.definitionId, sourceName: def.name,
-      abilityId: 'cast-trigger', abilityText: `${replicateCount ? 'Replicate' : 'Casualty'} — copy ${def.name}${copies > 1 ? ` ${copies} times` : ''}. You may choose new targets for the copies.`, effectText: '', special: null, modal: null,
+      abilityId: 'cast-trigger', abilityText: `${replicateCount ? 'Replicate' : casualtyId ? 'Casualty' : 'Conspire'} — copy ${def.name}${copies > 1 ? ` ${copies} times` : ''}. You may choose new targets for the copies.`, effectText: '', special: null, modal: null,
       compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'copy-stack', stackId, soft: true, times: copies, retarget: true }] },
       event: { type: 'spell-cast', stackId, controllerId: player.playerId, playerId: player.playerId, sourceId: card.instanceId }, createdAt: new Date().toISOString() });
   }
