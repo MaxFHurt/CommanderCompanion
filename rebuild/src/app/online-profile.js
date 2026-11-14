@@ -9,6 +9,7 @@
 import { buildProfileBackup, restoreProfileBackup } from '../data/profile-backup.js';
 import { fetchOnlineProfile, saveOnlineProfile } from '../net/online.js';
 import { loadRecord, saveRecord } from '../data/store.js';
+import { durableGet, durableSet } from '../data/userdata-db.js';
 import { GAME_SAVE_KEY } from '../game/save-keys.js';
 import { confirmDialog } from '../ui/modal.js';
 import { initProfileStore } from '../data/profile.js';
@@ -31,6 +32,8 @@ function setLink(link) {
   try { link ? localStorage.setItem(LINK_KEY, JSON.stringify(link)) : localStorage.removeItem(LINK_KEY); } catch { /* optional */ }
 }
 export function unlinkOnlineProfile() { setLink(null); }
+/** Point this device at a key (the account's) without loading it; the next save is based on `rev`. */
+export function linkDeviceTo(key, rev = 0) { setLink({ key, rev, savedAt: new Date().toISOString(), print: '' }); }
 
 /** "ABCD-EFGH-JKLM" for showing; keys are stored without dashes. */
 export const formatKey = key => String(key || '').replace(/(.{4})(?=.)/g, '$1-');
@@ -52,6 +55,49 @@ async function travellingGame() {
   return game && game.status !== 'complete' && !game.roomCode ? game : null;
 }
 async function syncBackup() { return { ...buildProfileBackup(), currentGame: await travellingGame() }; }
+/** This device's profile as the online copy would hold it. */
+export const localSnapshot = syncBackup;
+/** Same profile (times aside)? */
+export const sameBackup = (a, b) => !!a && !!b && fingerprint({ ...a, currentGame: a.currentGame || null }) === fingerprint({ ...b, currentGame: b.currentGame || null });
+
+/** Does this device hold anything of the player's own? Errs towards yes: a yes only means a backup copy and a question. */
+export function hasLocalData(b) {
+  if (!b) return false;
+  const p = b.profile || {}, builder = b.deckBuilder;
+  return !!(p.games || p.wins || p.history?.length || Object.keys(p.players || {}).length || Object.keys(p.decks || {}).length
+    || p.account?.displayName || b.decks?.length || (builder && !builder.example) || builder?.decks?.some?.(d => !d.example)
+    || b.playmats?.length || b.onlineGames?.length || b.currentGame);
+}
+
+// Backup copies kept on this device before anything replaces a profile (owner, 13 Nov: "existing users don't lose their
+// data"). IndexedDB 'cc.backup.<time>', listed in localStorage 'cc.backups'; localStorage holds the copy only if IndexedDB fails.
+const COPIES = 'cc.backups';
+export function listBackupCopies() { try { return JSON.parse(localStorage.getItem(COPIES) || '[]'); } catch { return []; } }
+export async function keepBackupCopy(backup, label) {
+  const print = fingerprint({ ...backup, currentGame: backup.currentGame || null });
+  const last = listBackupCopies()[0];
+  if (last?.print === print) return last.id;   // the same profile was just kept
+  const at = new Date().toISOString(), id = `cc.backup.${at.replace(/[:.]/g, '-')}`;
+  const copy = { ...structuredClone(backup), exportedAt: at };
+  let where = 'db';
+  try { await durableSet(id, copy); }
+  catch { localStorage.setItem(id, JSON.stringify(copy)); where = 'local'; }   // throws if neither works: nothing is replaced then
+  const name = copy.profile?.account?.displayName || '';
+  localStorage.setItem(COPIES, JSON.stringify([{ id, at, label, name, where, print }, ...listBackupCopies()].slice(0, 20)));
+  return id;
+}
+export async function readBackupCopy(id) {
+  const row = listBackupCopies().find(r => r.id === id);
+  if (!row) return null;
+  return row.where === 'local' ? JSON.parse(localStorage.getItem(id) || 'null') : durableGet(id);
+}
+/** Put a backup copy back on this device (the device keeps its link; the next save sends it online). */
+export async function restoreBackupCopy(id) {
+  const copy = await readBackupCopy(id);
+  if (!copy) throw new Error('That backup copy is gone.');
+  await keepBackupCopy(await syncBackup(), 'This device, before restoring a copy');
+  await restoreAndReload(copy);
+}
 
 /** A game carried from another device: offered, never swapped in silently. True when the player took it. */
 async function offerGame(theirs) {
@@ -68,6 +114,8 @@ async function offerGame(theirs) {
 // One sync at a time: the start screen, the timer and background saves wait their turn.
 let queue = Promise.resolve();
 const once = fn => (...args) => (queue = queue.catch(() => {}).then(() => fn(...args)));
+/** Run `fn` with no sync running alongside (sign-in joins). */
+export const runExclusive = fn => once(fn)();
 
 /** Save now. Creates a new key the first time. Throws OnlineError (status 409: another device saved first). */
 export async function saveProfileOnline({ force = false } = {}) {
@@ -87,6 +135,8 @@ export async function saveProfileOnline({ force = false } = {}) {
 /** Replace this device's profile with the online one, and link this device to that key. */
 export async function loadProfileOnline(key) {
   const data = await fetchOnlineProfile(key);
+  const mine = await syncBackup();
+  if (hasLocalData(mine) && !sameBackup(mine, data.backup)) await keepBackupCopy(mine, 'This device, before loading the online profile');
   await restoreAndReload(data.backup);
   await offerGame(data.backup?.currentGame);
   setLink({ key, rev: data.rev, savedAt: new Date(data.updatedAt).toISOString(), print: fingerprint(await syncBackup()) });

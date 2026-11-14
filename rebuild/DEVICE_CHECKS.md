@@ -48,5 +48,10 @@
 29. ☐ Composer of Spring / Court of Bounty: with fewer than six enchantments (or not the monarch) expect one question offering lands only; with six enchantments (or as the monarch) one question offering creatures and lands.
 30. ☐ Scion of Draco with a white, a blue and a green creature → expect vigilance on the white one, hexproof on the blue one, trample on the green one (Scion itself has none).
 31. ☐ Alchemist's Talent at level 3: sacrifice a Treasure for mana, cast a spell with it → each opponent takes damage equal to its mana value; cast the same spell with lands only → no damage.
+## Accounts (build 110)
+A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
+A2. ☐ Close and reopen the app → expect no sign-in again.
+A3. ☐ On a second device: Sign in with the same email → expect your profile loads by itself, no key asked.
+A4. ☐ Settings → Backup → Account shows your email; Sign out → the profile stays on the device.
 
 Reply with the numbers that failed and a screenshot.

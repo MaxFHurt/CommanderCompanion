@@ -9,6 +9,8 @@ import { openJudge } from '../judge-modal.js';
 import { openSettings } from '../settings-modal.js';
 import { toast } from '../toast.js';
 import { syncProfileOnOpen } from '../../app/online-profile.js';
+import { session } from '../../app/account.js';
+import { resolveConflictNow } from '../account-ui.js';
 
 /** Most recent saved session of either kind, or null. */
 async function latestSave() {
@@ -48,7 +50,10 @@ export const landingScreen = {
 
     // Linked to an online profile: take the newer copy from another device, or save this one's changes.
     syncProfileOnOpen().then(state => {
-      if (state === 'conflict') toast('Your online profile was saved from another device. Open Profile → Online to choose which to keep.', { ms: 6000 });
+      if (state === 'conflict') {
+        if (session()) return resolveConflictNow();   // signed in: back up this device's profile and ask which to keep
+        toast('Your online profile was saved from another device. Open Settings → Backup → Advanced to choose which to keep.', { ms: 6000 });
+      }
       if (state === 'loaded') toast('Profile and decks updated from your other device.');
       if (state === 'loaded-game') { toast('Game carried over: tap Continue.'); findResume(); }
     });
