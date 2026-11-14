@@ -126,7 +126,7 @@ function restoreControlWhileInner(game) {
   for (const r of game.controlWhile) {
     const all = bf(), src = all.find(x => x.c.instanceId === r.sourceId), tgt = all.find(x => x.c.instanceId === r.targetId);
     if (!tgt) continue;
-    let holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    let holds = r.mode === 'enchanted' ? all.some(x => x.c.attachedTo === tgt.c.instanceId && /\bAura\b/.test(definition(game, x.c)?.typeLine || '')) : src && (r.mode === 'battlefield' ? true : r.mode === 'tapped' ? !!src.c.tapped : r.mode === 'control-tapped' ? !!src.c.tapped && (src.c.controllerId || src.p.playerId) === r.controllerId : (src.c.controllerId || src.p.playerId) === r.controllerId);
     // Old Man of the Sea: "... and that creature's power remains less than or equal to this creature's power"
     if (holds && r.powerLimit) holds = effectivePower(tgt.c, definition(game, tgt.c), game) <= effectivePower(src.c, definition(game, src.c), game);
     if (holds) { keep.push(r); continue; }

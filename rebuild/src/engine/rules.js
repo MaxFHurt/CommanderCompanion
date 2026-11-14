@@ -874,7 +874,7 @@ export function validateActivatedAbilityFull({ game, player, instance, definitio
     if (/\bany (?:other )?target\b/i.test(effect) || !/target (?:player|opponent|creature|permanent|artifact|enchantment|planeswalker|land|card)/i.test(effect))
       targetFound = true;
     if (/target (?:creature|permanent|artifact|enchantment|planeswalker|land)/i.test(effect)) {
-      const players = /you control/i.test(effect.replace(/\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/i, '')) ? [player] : (game?.players || []);
+      const players = /you control/i.test(effect.replace(/\bfor as long as\b.*$/i, '').replace(/\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/i, '')) ? [player] : (game?.players || []);
       for (const q of players.filter(Boolean))
         for (const c of q.deck?.battlefield || []) {
           const d = definitions instanceof Map ? definitions.get(c.definitionId) : definitions?.[c.definitionId];

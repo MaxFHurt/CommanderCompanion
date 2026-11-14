@@ -516,18 +516,18 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind), src = locateCardInGame(game, bindings.sourceId);
       if (!hit || hit.zone !== 'battlefield') { notes.push('It is no longer on the battlefield.'); return true; }
       if (!src || src.zone !== 'battlefield') { notes.push('The source has left the battlefield, so nothing is locked.'); return true; }
-      if (effect.mode === 'tapped' && !src.card.tapped) { notes.push('The source is not tapped, so nothing is locked.'); return true; }
+      if ((effect.mode === 'tapped' || effect.mode === 'control-tapped') && !src.card.tapped) { notes.push('The source is not tapped, so nothing is locked.'); return true; }
       hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'no-untap-while', sourceId: src.card.instanceId, mode: effect.mode, controllerId: src.card.controllerId || controllerId }];
       notes.push(`${definitionFor(game, hit.card)?.name || 'It'} doesn't untap for as long as ${definitionFor(game, src.card)?.name || 'the source'} ${effect.mode === 'tapped' ? 'remains tapped' : 'is controlled by you'}.`);
       return true;
     }
     case 'b110-gain-control-while': {
       const tgt = locateCardInGame(game, bindings[effect.bind]), src = locateCardInGame(game, bindings.sourceId);
-      if (!tgt || tgt.zone !== 'battlefield' || !src || src.zone !== 'battlefield') { notes.push('Nothing changes control.'); return true; }
+      if (!tgt || tgt.zone !== 'battlefield' || (effect.mode !== 'enchanted' && (!src || src.zone !== 'battlefield'))) { notes.push('Nothing changes control.'); return true; }
       if (effect.mode === 'tapped' && !src.card.tapped) { notes.push('The source is not tapped, so nothing changes control.'); return true; }
       const prev = tgt.card.controllerId || tgt.player.playerId;
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', bind: effect.bind, untilEndOfTurn: false }], bindings));
-      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, powerLimit: !!effect.powerLimit, controllerId, previousControllerId: prev }];
+      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src?.card?.instanceId || null, mode: effect.mode, powerLimit: !!effect.powerLimit, controllerId, previousControllerId: prev }];
       return true;
     }
     case 'b110-return-died-this-turn': {

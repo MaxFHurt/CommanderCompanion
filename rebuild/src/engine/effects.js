@@ -2115,7 +2115,7 @@ export function limitOf(text) {
   return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
 }
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
-const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
+const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b|\bfor as long as\b/i;
 function compileSingleClause(clause, opts = {}) {
   // "you may have this creature deal 3 damage to target creature" (Sand Strangler): the older damage wording took "You may have this creature" as the source and never asked.
   const mayHave = stripReminderText(normalizeClause(clause)).match(/^You may have (SELFNAME|this [a-z]+|it|that creature) (deal .+)$/i);
@@ -3546,7 +3546,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     }
     // "Create a 0/1 Eldrazi Spawn token. It has "Sacrifice this token: Add {C}."" — the token gets that ability.
     const quoted = clause.match(/^(?:It|They|That token|Those tokens|The token|The tokens) (?:has|have) "(.+)"\.?$/i);
-    const madeToken = quoted && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
+    const madeToken = quoted && !/\bbands? with\b/i.test(quoted[1]) && [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'create-token');
     if (madeToken) { madeToken.oracleText = [madeToken.oracleText, quoted[1].replace(/"$/, '')].filter(Boolean).join('\n'); continue; }
     // Tragic Slip: "Morbid — That creature gets -13/-13 until end of turn instead if a creature died this turn."
     const instead = clause.match(/^(?:[A-Z][a-z]+(?: [a-z]+)? — )?That creature gets ([+-]\d+)\/([+-]\d+) until end of turn instead if a creature died this turn\.?$/i);

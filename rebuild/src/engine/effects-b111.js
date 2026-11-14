@@ -43,7 +43,7 @@ export function evalAmountB111(game, controllerId, amount, bindings) {
 export function compileB111Clause(c, ctx) {
   const { effects, requirements, sourceName } = ctx;
   const esc = x => String(x || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const SELFP = `(?:${SELF}|${esc(sourceName)}|${esc(String(sourceName).split(',')[0])})`;
+  const SELFP = `(?:${SELF}|${esc(sourceName)}|${esc(String(sourceName).split(',')[0])}${/ of /.test(sourceName) ? `|${esc(String(sourceName).split(' ')[0])}` : ''})`;
   let m;
 
   // --- "Prevent all damage that would be dealt to creatures this turn." (Forfend, Blinding Fog) / "… by creatures your opponents control" (Thwart the Enemy)
@@ -94,6 +94,31 @@ export function compileB111Clause(c, ctx) {
   if ((m = c.match(/^(?:You may )?have (target player|target opponent|each opponent|each player) (mill|draw|discard) (.+)$/i))) {
     const r = H.compileEffectText(`${cap(m[1])} ${m[2].toLowerCase()}s ${m[3]}`, { sourceName });
     if (r.supported && r.effects.length) { effects.push(...r.effects); requirements.push(...r.requirements); return true; }
+  }
+  // --- "Gain control of target creature for as long as you control ~ [and ~ remains tapped]." / "… of that creature …" (Mind Flayer, Willbreaker, Willow Satyr, Hivis of the Scale): the control ends when the condition stops.
+  if ((m = c.match(rx(`^Gain control of (target [a-z' ]+?|that creature|it) for as long as you control (${SELFP})( and (?:${SELFP}) remains tapped)?\\.?$`)))) {
+    let bind;
+    if (/^target/i.test(m[1])) {
+      const r = H.compileEffectText(`Gain control of ${m[1]}.`, { sourceName }), t = r.supported && r.requirements.find(q => q.kind === 'target');
+      if (!t || r.effects.length !== 1 || r.effects[0].kind !== 'gain-control') return false;
+      requirements.push(...r.requirements); bind = t.bind;
+    } else bind = /^it$/i.test(m[1]) ? 'b101It' : 'thatCard';
+    effects.push({ kind: 'b110-gain-control-while', bind, mode: m[3] ? 'control-tapped' : 'control' });
+    return true;
+  }
+  // --- "Gain control of target creature for as long as this creature remains on the battlefield." (Sower of Temptation, Cytoplast Manipulator, Giant's Grasp)
+  if ((m = c.match(rx(`^Gain control of (target [a-z' +\\/0-9]+?) for as long as (${SELFP}) remains on the battlefield\\.?$`)))) {
+    const r = H.compileEffectText(`Gain control of ${m[1]}.`, { sourceName }), t = r.supported && r.requirements.find(q => q.kind === 'target');
+    if (t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') { requirements.push(...r.requirements); effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'battlefield' }); return true; }
+  }
+  // --- "Gain control of target creature for as long as that creature is enchanted." (Rootwater Matriarch) / "… that isn't of the chosen type for as long as this creature remains tapped." (Callous Oppressor)
+  if ((m = c.match(/^Gain control of (target [a-z' +\/0-9]+?) for as long as that creature is enchanted\.?$/i))) {
+    const r = H.compileEffectText(`Gain control of ${m[1]}.`, { sourceName }), t = r.supported && r.requirements.find(q => q.kind === 'target');
+    if (t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') { requirements.push(...r.requirements); effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'enchanted' }); return true; }
+  }
+  if ((m = c.match(rx(`^Gain control of (target [a-z' +\\/0-9]+?) for as long as (${SELFP}) remains tapped\\.?$`)))) {
+    const r = H.compileEffectText(`Gain control of ${m[1]}.`, { sourceName }), t = r.supported && r.requirements.find(q => q.kind === 'target');
+    if (t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') { requirements.push(...r.requirements); effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'tapped' }); return true; }
   }
   // --- Combat damage prevention: "… dealt to players" (Defend the Hearth), "… target creature would deal" (Falling Timber), "… dealt to and dealt by …" (Cephalid Illusionist), "… by creatures with power 4 or less" (Vine Snare)
   if (/^Prevent all combat damage that would be dealt to players this turn\.?$/i.test(c)) { effects.push({ kind: 'prevent-combat', scope: 'players' }); return true; }

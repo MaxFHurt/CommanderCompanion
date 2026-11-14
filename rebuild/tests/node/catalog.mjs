@@ -5144,4 +5144,28 @@ section('batch 5 (build 111): Cleave');
   check('Cleave: cast for its cleave cost the bracketed word goes, so a creature that is not attacking is destroyed', !t.bf(1, 'Grizzly Bears'), JSON.stringify(t.names(1, 'battlefield')));
 }
 
+section('batch 5 (build 111): control for as long as …');
+{
+  // Helm of Possession: control only while you control it AND it stays tapped
+  const t = setup();
+  const helm = onField(t, 'Sol Ring', '{2}, {T}: Gain control of target creature for as long as you control this artifact and this artifact remains tapped.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, helm, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  helm.tapped = false; power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('Helm of Possession: taken while tapped, returned when it untaps', mine && theirs, JSON.stringify([mine, theirs]));
+}
+{
+  // Mind Flayer: control ends when the source leaves the battlefield
+  const t = setup();
+  const fl = onField(t, 'Fog Bank', 'When this creature enters, gain control of target creature for as long as you control this creature.', { typeLine: 'Creature — Octopus' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Gain control of target creature for as long as you control this creature.', { sourceName: 'Fog Bank' }).effects, { sourceId: fl.instanceId, target0: bear.instanceId });
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  moveCard(t.game, fl.instanceId, 'graveyard'); power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('Mind Flayer: the creature goes back when the source is gone', mine && theirs, JSON.stringify([mine, theirs]));
+}
+
 done();
