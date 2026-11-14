@@ -4679,4 +4679,16 @@ section('build 110 (long tail batch 4)');
   check("Land's Edge: discarding a land deals 2, discarding a spell deals 0", run('Forest') === 2 && run('Grizzly Bears') === 0, JSON.stringify([run('Forest'), run('Grizzly Bears')]));
 }
 
+{
+  // "When this creature enters, if you have no cards in hand, it deals 2 damage": the condition is checked (it used to be dropped)
+  const run = hold => {
+    const t = setup();
+    if (hold) t.give(0, 'Opt');
+    const life = t.P(1).life;
+    cast(t, 'Grizzly Bears', 'When this creature enters, if you have no cards in hand, this creature deals 2 damage to any target.', [[d => d.targeting || d.kind === 'choose-one', () => t.P(1).playerId]]);
+    return life - t.P(1).life;
+  };
+  check('intervening if (hand empty): 2 damage with an empty hand, none with a card in hand', run(false) === 2 && run(true) === 0, JSON.stringify([run(false), run(true)]));
+}
+
 done();

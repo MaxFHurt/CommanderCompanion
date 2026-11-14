@@ -461,6 +461,11 @@ export function parseConditionB110(t) {
   if ((m = t.match(/^(?:it|this creature|this permanent|this artifact|this enchantment) (was|wasn'?t|were not) (kicked|cast)$/i))) return { test: 'b110-card-flag', flag: /kicked/i.test(m[2]) ? 'kicked' : 'wasCast', not: !/^was$/i.test(m[1]) };
   if ((m = t.match(/^there are (\w+) or more ([a-z+\/\d-]+) counters on (?:it|this [a-z]+|[A-Z][A-Za-z ,'-]+)$/i)) && !/^(?:creature|artifact|land|card|cards)$/i.test(m[2])) return { test: 'b110-source-counters', min: cnt(m[1]), counter: m[2] };
   if ((m = t.match(/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment|planeswalker|permanent) cards in your graveyard$/i))) return { test: 'b110-gy-type', min: cnt(m[1]), type: m[2].toLowerCase() };
+  // "you have no cards in hand" (Bloodhall Priest), "three or fewer cards in hand" (Scalding Tongs), "it was kicked twice" (Archangel of Wrath), "at least five other Mountains" (Valakut)
+  if (/^you have no cards in (?:your )?hand$/i.test(t)) return { test: 'hand-exact', n: 0 };
+  if ((m = t.match(/^you have (\w+) or fewer cards in (?:your )?hand$/i))) return { test: 'b110-hand-at-most', n: cnt(m[1]) };
+  if (/^(?:it|this creature) was kicked twice$/i.test(t)) return { test: 'b110-kick-count', min: 2 };
+  if ((m = t.match(/^you control at least (\w+) other ([A-Z][a-z]+)s$/))) return { test: 'control', subject: `another ${m[2]}`, min: cnt(m[1]) };
   // Land's Edge: "If the discarded card was a land card" (the card discarded as the cost: ops.js remembers its type line)
   if ((m = t.match(/^the discarded card was an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[1].toLowerCase() };
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
@@ -487,6 +492,8 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
       for (const c of me?.deck?.graveyard || []) for (const w of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Land', 'Planeswalker', 'Sorcery', 'Kindred']) if (new RegExp(`\\b${w}\\b`).test(String(definitionFor(game, c)?.typeLine || '').split('—')[0])) kinds.add(w);
       return kinds.size >= effect.min;
     }
+    case 'b110-hand-at-most': return ((game.players || []).find(p => p.playerId === controllerId)?.deck?.hand || []).length <= effect.n;
+    case 'b110-kick-count': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; return Number(c?.kickCount ?? (c?.kicked ? 1 : 0)) >= effect.min; }
     case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; return effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); }
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
