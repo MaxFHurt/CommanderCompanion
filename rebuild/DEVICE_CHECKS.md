@@ -67,6 +67,7 @@
 46. ☐ Harmonize (Wild Ride): the card in your graveyard offers "Harmonize"; casting it asks which untapped creature to tap (or none) and the cost drops by its power; afterwards the card is in exile.
 47. ☐ Day and night: with a daybound werewolf in play the turn header shows "· Day"; after a turn with no spells it shows "· Night" and the werewolf shows its back face.
 48. ☐ Thoughtlace-style "target spell or permanent" and Unsubstantiate / Venser: spells on the stack are offered as targets.
+49. ☐ "Gains your choice of …" (Butcher of the Horde, Steel Seraph): you are asked to pick one keyword, and only that one is granted. "+1/-1 or -1/+1" (Endling): a yes/no picks which.
 ## Accounts (build 110)
 A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
 A2. ☐ Close and reopen the app → expect no sign-in again.

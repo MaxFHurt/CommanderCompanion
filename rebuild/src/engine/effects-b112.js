@@ -45,6 +45,29 @@ function massGroup(c) {
 const itMarker = (effects, text) => { if (/\bit\b/i.test(text)) for (const e of effects) for (const k of ['bind', 'sourceBind']) if (e[k] === 'eventCard') e[k] = 'b101It'; return effects; };
 const CIPHER_TEXT = 'Whenever this creature deals combat damage to a player, you may copy the exiled card. If you do, you may cast the copy without paying its mana cost.';
 
+/** "… gains your choice of A, B, or C until end of turn": { effects, requirements, unsupported } or null. */
+function choiceOfB112(c0, sourceName, n = 0) {
+  // --- "This creature gains your choice of flying, vigilance, or lifelink until end of turn." (Multiform Wonder) / "Until end of turn, this creature gets -1/-1 and gains your choice of …"
+  // (Argivian Avenger): one keyword, picked as it resolves (these used to grant every word of the list, "your choice of flying" included).
+  let m;
+  if ((m = c0.replace(/^(?:When|If) you do, /i, '').match(/^(?:Until end of turn, )?(.+?) (gets [+-]\d+\/[+-]\d+ and )?gains your choice of ([a-z ,]+?)(?: until end of turn)?\.?$/i)) && (/^(?:(?:When|If) you do, )?Until end of turn, /i.test(c0) || / until end of turn\.?$/i.test(c0))) {
+    const opts = m[3].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+    const okWord = k => KW.has(k) || /^protection from (?:white|blue|black|red|green)$/.test(k) || ['shadow', 'undying', 'persist', 'banding'].includes(k) && k !== 'banding';
+    if (opts.length >= 2 && opts.every(okWord)) {
+      const r = H.compileEffectText(`${cap(m[1])} ${m[2] ? m[2].replace(/ and $/, ' and ') : ''}gains flying until end of turn.`.replace(/ +/g, ' '), { sourceName });
+      const kwE = r.supported && !r.unsupported.length && r.effects.filter(e => e.kind === 'grant-keyword' && e.keyword === 'flying');
+      if (kwE && kwE.length === 1) {
+        const pick = `kwChoice${n}`;
+        const effects = r.effects.map(e => e === kwE[0] ? { kind: 'b112-grant-choice', bind: e.bind, pick } : e);
+        return { effects, requirements: [...r.requirements, { kind: 'choose-text', bind: pick, options: opts.map(cap), label: `Choose one: ${opts.join(', ')}` }], unsupported: [] };
+      }
+    }
+    // a choice the game can't give (banding …): by hand, not every word granted
+    return { effects: [], requirements: [], unsupported: [c0] };
+  }
+  return null;
+}
+
 /** One sentence. Pushes onto ctx.effects / ctx.requirements and returns true when understood. */
 export function compileB112Clause(c, ctx) {
   const { effects, requirements, sourceName } = ctx;
@@ -59,6 +82,8 @@ export function compileB112Clause(c, ctx) {
     effects.push({ kind: 'b112-prepare', bind: 'sourceId', un });
     return true;
   }
+  // --- "… gains your choice of …" (also inside "If you do, …")
+  if (/\byour choice of\b/i.test(c)) { const ch = choiceOfB112(c, sourceName, requirements.length); if (ch && !ch.unsupported.length) { effects.push(...ch.effects); requirements.push(...ch.requirements); return true; } }
   // --- Mass pumps and keywords for a group: "Elves you control get +2/+2 and gain deathtouch until end of turn." (Elvish Warmaster), "All Zombies gain menace until end of turn."
   // (Lord of the Accursed), "Creature tokens you control gain indestructible until end of turn." (Ainok Strike Leader), "Attacking creatures you control get +1/+0 and gain first strike …"
   {
@@ -166,7 +191,7 @@ export function compileB112Clause(c, ctx) {
   }
   // --- A target the base reader only knows as "target creature", anywhere in the sentence: "target legendary creature" (Eiganjo Castle), "Target Dinosaur" (Otepec Huntmaster)
   {
-    const tm = c.match(/\b([Tt])arget (legendary|nonlegendary|tapped|untapped|nontoken|attacking|blocking|[A-Z][a-z]+(?:-[A-Z][a-z]+)?)( creature)?(?= (?:gets?|gains?|has|can'?t|this turn|you control|an opponent controls)\b)/);
+    const tm = c.match(/\b([Tt])arget (legendary|nonlegendary|tapped|untapped|nontoken|attacking|blocking|artifact|[A-Z][a-z]+(?:-[A-Z][a-z]+)?)( creature)?(?= (?:gets?|gains?|has|can'?t|this turn|you control|an opponent controls)\b)/);
     if (tm && (tm[3] || /^[A-Z]/.test(tm[2])) && !/^(?:Creature|Player|Opponent|Permanent|Artifact|Land|Spell)$/.test(tm[2]) && (c.match(/\btarget\b/gi) || []).length === 1) {
       const r = H.compileEffectText(c.replace(tm[0], `${tm[1]}arget creature`), { sourceName });
       const t = r.supported && !r.unsupported.length && r.requirements.filter(q => q.kind === 'target');
@@ -199,6 +224,57 @@ export function compileB112Clause(c, ctx) {
     const bind = H.playerRequirement(requirements, m[2].toLowerCase() === 'opponent' ? 'opponent' : 'player', `Target ${m[2].toLowerCase()}`);
     effects.push({ kind: 'zone-each', scope: 'you', filter: { 'nonland permanents': 'nonland permanent', creatures: 'creature', artifacts: 'artifact', permanents: 'permanent' }[m[1].toLowerCase()], to: 'hand', destroy: false, forPlayerBind: bind });
     return true;
+  }
+  // --- "… to the battlefield with a finality counter on it." / "… under its owner's control with a +1/+1 counter on it." (Rite of the Moth, Otherworldly Journey, Razorlash Transmogrant)
+  if ((m = c.match(/^(.+? to the battlefield(?: tapped)?(?: under (?:its owner'?s|your) control)?) with an? (finality|\+1\/\+1|shield) counter on it(\.?)$/i)) && !/\bat the beginning\b|\bmana value X\b/i.test(c)) {
+    const r = H.compileEffectText(`${m[1]}.`, { sourceName });
+    if (r.supported && !r.unsupported.length && r.effects.length === 1) {
+      const e = r.effects[0], counter = m[2].toLowerCase();
+      const bind = e.kind === 'return-from-graveyard' ? e.bind : e.kind === 'return-self-graveyard' ? 'sourceId' : e.kind === 'return-ids' ? '__returned' : null;
+      if (bind && (e.kind !== 'return-from-graveyard' || e.to === 'battlefield')) { effects.push(e, { kind: 'counter', bind, counter, amount: 1 }); requirements.push(...r.requirements); return true; }
+    }
+  }
+  // --- "Each other player loses 2 life." (Urborg Syphon-Mage, Bond of Agony): each opponent.
+  if ((m = c.match(/^Each other player (loses .+)$/i))) {
+    const r = H.compileEffectText(`Each opponent ${m[1]}`, { sourceName });
+    if (r.supported && !r.unsupported.length && r.effects.length) { effects.push(...r.effects); requirements.push(...r.requirements); return true; }
+  }
+  // --- "Tap all creatures without flying." (Deluge, Aboshan)
+  if ((m = c.match(/^(Tap|Untap) all creatures (with|without) (flying|reach|defender)\.?$/i))) {
+    effects.push({ kind: 'b101-tap-all', untap: /^untap/i.test(m[1]), other: false, filter: `creature|${/^without/i.test(m[2]) ? 'nokeyword' : 'keyword'}:${m[3].toLowerCase()}`, scope: 'all' });
+    return true;
+  }
+  // --- "Target player shuffles their library." (Soldier of Fortune, Boggart Forager)
+  if (/^Target player shuffles their library\.?$/i.test(c)) {
+    effects.push({ kind: 'shuffle', forPlayerBind: H.playerRequirement(requirements, 'player', 'Target player') });
+    return true;
+  }
+  // --- "This creature gets +1/-1 or -1/+1 until end of turn." (Endling, Brightling, Pemmin's Aura, Shaper Parasite): the controller picks one.
+  if ((m = c.match(new RegExp(`^(${SELFP}|target creature|enchanted creature) gets ([+-]\\d+)\\/([+-]\\d+) or ([+-]\\d+)\\/([+-]\\d+) until end of turn\\.?$`, 'i')))) {
+    const bind = /^target/i.test(m[1]) ? H.targetRequirement(requirements, 'target creature', 'target creature') : /^enchanted/i.test(m[1]) ? '__attached' : 'sourceId';
+    const pick = `pickPt${requirements.length}`;
+    requirements.push({ kind: 'yes-no', bind: pick, label: `${m[2]}/${m[3]}? (No: ${m[4]}/${m[5]})` });
+    effects.push({ kind: 'condition', test: 'chosen', bind: pick, skip: 1 }, { kind: 'pump', bind, power: Number(m[2]), toughness: Number(m[3]), expires: 'cleanup' },
+      { kind: 'condition', test: 'chosen', bind: pick, negate: true, skip: 1 }, { kind: 'pump', bind, power: Number(m[4]), toughness: Number(m[5]), expires: 'cleanup' });
+    return true;
+  }
+  // --- "This creature gets +2/+0 until end of turn and deals 1 damage to you." (Electric Eel, Stormcloud Djinn)
+  if ((m = c.match(new RegExp(`^(${SELFP}) (gets [+-]\\d+\\/[+-]\\d+ until end of turn) and deals (\\d+) damage to you\\.?$`, 'i')))) {
+    const a = H.compileEffectText(`${cap(m[1])} ${m[2]}.`, { sourceName });
+    if (a.supported && !a.unsupported.length && a.effects.length === 1 && a.effects[0].bind === 'sourceId') { effects.push(a.effects[0], { kind: 'damage', amount: Number(m[3]), toController: true, sourceName }); return true; }
+  }
+  // --- "Whenever this creature is dealt damage, it deals that much damage to you." (Jackal Pup, Shinka Gatekeeper, Flesh Reaver)
+  if (new RegExp(`^(?:it|${SELFP}) deals that much damage to you\\.?$`, 'i').test(c)) { effects.push({ kind: 'damage', amount: { kind: 'binding', bind: 'eventAmount' }, toController: true, sourceName }); return true; }
+  // --- "This creature deals 1 damage to each other creature with flying." (Harbinger of the Hunt) / "… without flying." (Fire Ants)
+  if ((m = c.match(new RegExp(`^(${SELFP}) deals (\\d+) damage to each other creature (with|without) (flying)\\.?$`, 'i')))) {
+    effects.push({ kind: 'b112-damage-others', amount: Number(m[2]), kw: `${/^without/i.test(m[3]) ? 'nokeyword' : 'keyword'}:flying`, sourceName });
+    return true;
+  }
+  // --- "Return up to three target creatures your opponents control to their owners' hands." (Sea God's Revenge, Roiling Waters)
+  if ((m = c.match(/^Return up to (two|three|four|\d+) target creatures your opponents control to their owners'? hands\.?$/i))) {
+    const r = H.compileEffectText(`Return up to ${m[1]} target creatures to their owners' hands.`, { sourceName });
+    const t = r.supported && !r.unsupported.length && r.requirements.length === 1 && r.requirements[0].kind === 'multi-target' && r.requirements[0];
+    if (t) { t.scope = 'target creature an opponent controls'; t.label = `Choose up to ${m[1]} creatures your opponents control`; effects.push(...r.effects); requirements.push(t); return true; }
   }
   // --- Empower Jace N (2026): "Put N loyalty counters on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with "[−1]: Surveil 1" and "[−3]: Draw a card."" X amounts go through the amount reader.
   if ((m = prep.replace(/\s*\(Put [^)]*Jace token[^)]*\)\s*/i, '').match(/^Empower Jace (\d+|X)(?:, where X is (.+?))?\.?$/i))) {
@@ -237,6 +313,7 @@ export function compileB112Sequence(clauses, i, { sourceName, parts = [] }) {
       return { part: { effects: JSON.parse(json), requirements: r.requirements.filter(q => q !== t), unsupported: [] }, consumed: 1 };
     }
   }
+  { const ch = choiceOfB112(c0, sourceName, i); if (ch) return { part: ch, consumed: 1 }; }
   // --- "If it's night, it becomes day. Otherwise, it becomes night." (The Celestus): one switch, read before either half changes it.
   if (/^If it(?:'|’)s night, it becomes day\.?$/i.test(c0) && /^Otherwise, it becomes night\.?$/i.test(clean(clauses[i + 1])))
     return { part: { effects: [{ kind: 'b112-day-night', to: 'toggle' }], requirements: [], unsupported: [] }, consumed: 2 };
@@ -300,6 +377,15 @@ export function applyB112(game, controllerId, effect, bindings, notes) {
       if (was && was !== to) H.emit(bindings, { type: 'day-night-changed', to, playerId: controllerId });
       return true;
     }
+    case 'b112-grant-choice': {
+      const keyword = String(bindings[effect.pick] || '').toLowerCase();
+      if (!keyword) { notes.push('No ability was chosen.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'grant-keyword', bind: effect.bind, keyword, enabled: true, expires: 'cleanup' }], bindings));
+      return true;
+    }
+    case 'b112-damage-others':
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'damage-each', amount: effect.amount, filter: `creature|${effect.kw}|not-id:${String(bindings.sourceId || '').toLowerCase()}`, creatures: 'all', players: null, sourceName: effect.sourceName }], bindings));
+      return true;
     case 'b112-double-life': {
       const p = playerById(game, effect.bind ? bindings[effect.bind] : controllerId);
       if (!p) return true;

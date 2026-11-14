@@ -5340,4 +5340,22 @@ section('batch 5 (build 112): small wordings');
   check('Beacon of Immortality doubles the life total; Orim\'s Chant stops casting this turn', t.P(1).life === life * 2 && !pc.legal, JSON.stringify([life, t.P(1).life, pc.legal]));
 }
 
+section('batch 5 (build 112): your choice of, +A/-B or -A/+B, finality');
+{
+  const t = setup();
+  const w = onField(t, 'Grizzly Bears', '{1}: This creature gains your choice of flying, vigilance, or lifelink until end of turn.\n{1}: This creature gets +2/-2 or -2/+2 until end of turn.');
+  activate(t, w, 0, [[d => /Choose one/.test(d.prompt || d.title || '') || d.kind === 'choose-one', d => (d.options || []).find(o => /vigilance/i.test(o.label || o.id))?.id]]);
+  const kws = (t.P(0).deck.battlefield.find(c => c.instanceId === w.instanceId)?.temporaryEffects || []).filter(e => e.kind === 'keyword').map(e => e.keyword);
+  check('your choice of: only the chosen keyword (vigilance)', kws.join() === 'vigilance', JSON.stringify(kws));
+  activate(t, w, 1, [[d => d.kind === 'confirm' || d.kind === 'yes-no' || /\/.*No:/.test(d.prompt || d.title || ''), false]]);
+  check('+2/-2 or -2/+2: answering no gives -2/+2', power(t, w) === 0 && tough(t, w) === 4, JSON.stringify([power(t, w), tough(t, w)]));
+}
+{
+  const t = setup();
+  t.give(0, 'Mulldrifter'); const m = t.hand(0, 'Mulldrifter'); moveCard(t.game, m.instanceId, 'graveyard');
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Return target creature card from your graveyard to the battlefield with a finality counter on it.', { sourceName: 'Rite of the Moth' }).effects, { grave0: m.instanceId });
+  const live = t.P(0).deck.battlefield.find(c => c.instanceId === m.instanceId);
+  check('Rite of the Moth: returned with a finality counter', Number(live?.counters?.finality || 0) === 1, JSON.stringify(live?.counters));
+}
+
 done();
