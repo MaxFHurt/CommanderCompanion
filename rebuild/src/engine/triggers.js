@@ -340,6 +340,9 @@ function triggerMatches(game, row, ability, event) {
       return row.card.instanceId === event.sourceId;
     if (/another creature you control dies/i.test(t))
       return your && otherThanSource(row, event) && typeMatches(typeLine, 'Creature');
+    // Puca's Covenant: "a creature you control with a counter on it dies" (the counters it had as it died)
+    if (/a creature you control with (?:a|an|one or more) [a-z+\/0-9-]* ?counters? on it dies/i.test(t))
+      return your && typeMatches(typeLine, 'Creature') && Object.values(event.last?.counters || {}).some(v => Number(v) > 0);
     if (/a creature you control dies/i.test(t) || /one or more creatures you control die/i.test(t))
       return your && typeMatches(typeLine, 'Creature');
     if (/a creature dies/i.test(t))

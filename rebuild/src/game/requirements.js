@@ -247,6 +247,7 @@ export function candidatesFor(game, req, player, source = null) {
       const def = defOf(game, c), t = String(def?.typeLine || '');
       if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '').replace(/\s*\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/, '')) || !manaValueFits(def, scope)) continue;
       if (!sourceLimitFits(game, c, def, scope, source, player) || !descriptorFits(game, c, def, scope)) continue;
+      if (/\banother\b/.test(scope) && c.instanceId === (LIMIT_BINDINGS?.eventCard || source?.instanceId)) continue;   // "another target card": not the card that triggered this (a creature that just died)
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;

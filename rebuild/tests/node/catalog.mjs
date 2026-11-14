@@ -4577,4 +4577,29 @@ section('build 110 (long tail batch 4)');
   check('Sundering Archaic: limit by colours spent -> mana value 1 offered, 5 not', offered.includes(small.instanceId) && !offered.includes(big.instanceId), JSON.stringify(offered));
 }
 
+{
+  // Puca's Covenant: the limit is the number of counters the creature had as it died; "another" excludes that creature
+  const t = setup();
+  onField(t, 'Fog Bank', "Whenever a creature you control with a counter on it dies, you may return another target permanent card with mana value less than or equal to the number of counters on that creature from your graveyard to your hand. Do this only once each turn.", { typeLine: 'Enchantment' });
+  const bear = onField(t, 'Grizzly Bears', '', { manaValue: 1, cmc: 1 }); bear.counters = { '+1/+1': 2 };
+  const toGrave = (name, mv) => { const g = t.give(0, name); t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(g), 1); g.zone = 'graveyard'; t.P(0).deck.graveyard.push(g); t.game.cardDefinitions[g.definitionId].manaValue = mv; t.game.cardDefinitions[g.definitionId].cmc = mv; t.game.cardDefinitions[g.definitionId].typeLine = 'Artifact'; return g; };
+  const cheap = toGrave('Sol Ring', 2), dear = toGrave('Colossal Dreadmaw', 5);
+  const seen = cast(t, 'Opt', 'Destroy target creature you control.', [[d => d.targeting || d.kind === 'choose-one', d => (d.options || []).some(o => o.id === bear.instanceId) ? bear.instanceId : (d.options || []).find(o => o.id === cheap.instanceId)?.id]]);
+  const offered = seen.flatMap(d => (d.options || []).map(o => o.id));
+  check("Puca's Covenant: 2 counters -> mana value 2 card offered, 5 not, the dead creature not", offered.includes(cheap.instanceId) && !offered.includes(dear.instanceId), JSON.stringify(offered));
+  check("Puca's Covenant: the card returns to hand", t.P(0).deck.hand.some(c => c.instanceId === cheap.instanceId), '');
+}
+
+{
+  // Gerrard, Weatherlight Hero: exile it, return the artifact and creature cards put into the graveyard from the battlefield this turn (not older ones, not ones from hand)
+  const t = setup();
+  const g = onField(t, 'Fog Bank', 'First strike\nWhen Gerrard dies, exile it and return to the battlefield all artifact and creature cards in your graveyard that were put there from the battlefield this turn.', { typeLine: 'Legendary Creature — Human Soldier', name: 'Gerrard, Weatherlight Hero' });
+  const fresh = onField(t, 'Grizzly Bears', ''), sol = onField(t, 'Sol Ring', '', { typeLine: 'Artifact' });
+  const old = t.give(0, 'Llanowar Elves'); t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(old), 1); old.zone = 'graveyard'; t.P(0).deck.graveyard.push(old);
+  cast(t, 'Opt', 'Destroy target creature you control. Destroy target artifact you control.', [[d => d.options?.some(o => o.id === fresh.instanceId), () => fresh.instanceId], [d => d.options?.some(o => o.id === sol.instanceId), () => sol.instanceId]]);
+  cast(t, 'Divination', 'Destroy target creature you control.', [[d => d.options?.some(o => o.id === g.instanceId), () => g.instanceId]]);
+  const bf = id => t.P(0).deck.battlefield.some(c => c.instanceId === id), ex = id => (t.P(0).deck.exile || []).some(c => c.instanceId === id);
+  check('Gerrard: died this turn: creature and artifact come back, Gerrard is exiled', bf(fresh.instanceId) && bf(sol.instanceId) && !bf(g.instanceId) && !bf(old.instanceId) && ex(g.instanceId), JSON.stringify([bf(fresh.instanceId), bf(sol.instanceId), bf(g.instanceId), bf(old.instanceId), ex(g.instanceId)]));
+}
+
 done();

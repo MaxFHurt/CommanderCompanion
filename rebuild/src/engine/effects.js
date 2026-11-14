@@ -190,6 +190,8 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   }
   clearCastState(card, to);
   card.zone = to;
+  if (card.fromBattlefieldTurn !== undefined) delete card.fromBattlefieldTurn;
+  if (from === 'battlefield' && to === 'graveyard' && !card.token) card.fromBattlefieldTurn = game.turnNumber;   // Gerrard, Weatherlight Hero: "put there from the battlefield this turn"
   if (to === 'exile') rememberExiled(game, card, to, from);
   if (to === 'battlefield') {
     card.controllerId = controllerId || owner.playerId;
@@ -2056,7 +2058,7 @@ function unenforceableLimit(scope) {
   const t = String(scope || '').toLowerCase();
   for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
     const L = limitOf(t.slice(m.index));
-    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || L.expr.that || L.expr.it || L.expr.who === 'ref') return true;   // 'ref': another player chosen in the same sentence, not known while choosing
+    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || ((L.expr.that || L.expr.it) && L.expr.kind !== 'b101-source-counters') || L.expr.who === 'ref') return true;   // 'ref': another player chosen in the same sentence, not known while choosing
   }
   return false;
 }
@@ -2331,7 +2333,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'bounce', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Return (target (?:.+? )?card) (?:from|in) (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
+  if ((m = c.match(/^Return ((?:another )?target (?:.+? )?card(?: with (?:mana value|power|toughness) (?:less|greater) than(?: or equal to)? .+?)?) (?:from|in) (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
     const bind = `grave${requirements.length}`;
     requirements.push({ kind: 'graveyard-target', bind, scope: `${m[1].toLowerCase()}${/^your$/i.test(m[2]) ? ' in your graveyard' : ''}`, label: `${m[1]} in ${/^your$/i.test(m[2]) ? 'your' : 'a'} graveyard` });
     effects.push({ kind: 'return-from-graveyard', bind, to: 'hand' });

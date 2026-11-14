@@ -139,6 +139,11 @@ export function compileB110Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- Gerrard, Weatherlight Hero: "exile it and return to the battlefield all artifact and creature cards in your graveyard that were put there from the battlefield this turn."
+  if ((m = c.match(rx(`^(exile it and )?return to the battlefield all ((?:artifact|creature|enchantment|land|planeswalker)(?: (?:and|or) (?:artifact|creature|enchantment|land|planeswalker))*) cards in your graveyard that were put there from the battlefield this turn\\.?$`)))) {
+    effects.push({ kind: 'b110-return-died-this-turn', exileSelf: !!m[1], types: m[2].toLowerCase().split(/ (?:and|or) /) });
+    return true;
+  }
   // --- Old Man of the Sea: "... for as long as this creature remains tapped and that creature's power remains less than or equal to this creature's power."
   if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped) and that creature'?s power remains less than or equal to (?:this creature|${SELFP})'?s power\\.?$`)))) {
     const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
@@ -283,6 +288,19 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       const prev = tgt.card.controllerId || tgt.player.playerId;
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', bind: effect.bind, untilEndOfTurn: false }], bindings));
       game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, powerLimit: !!effect.powerLimit, controllerId, previousControllerId: prev }];
+      return true;
+    }
+    case 'b110-return-died-this-turn': {
+      const me = playerById(game, controllerId);
+      if (!me) return true;
+      const selfId = bindings.sourceId;
+      if (effect.exileSelf && selfId) {
+        const hit = locateCardInGame(game, selfId);
+        if (hit && hit.zone === 'graveyard') notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: selfId, to: 'exile' }], bindings));
+      }
+      const back = (me.deck.graveyard || []).filter(c => c.fromBattlefieldTurn === game.turnNumber && c.instanceId !== selfId && !c.token && effect.types.some(t => new RegExp(`\\b${t}\\b`, 'i').test(definitionFor(game, c)?.typeLine || '')));
+      for (const c of back) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: c.instanceId, to: 'battlefield', controllerId }], bindings));
+      if (!back.length) notes.push('No cards came back.');
       return true;
     }
     case 'b110-flicker-tapped': {
