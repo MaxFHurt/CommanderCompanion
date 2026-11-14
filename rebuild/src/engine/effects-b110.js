@@ -65,16 +65,16 @@ export function compileB110Clause(c, ctx) {
   if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes the basic land type of your choice( in addition to its other types)?( until end of turn)?\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1])), choice = `landType${requirements.length}`;
     requirements.push({ kind: 'choose-text', bind: choice, options: LAND_TYPE_NAMES, label: 'Choose a basic land type' });
-    effects.push({ kind: 'b110-land-type', bind, choiceBind: choice, add: !!m[2] });
+    effects.push({ kind: 'b110-land-type', bind, choiceBind: choice, add: !!m[2], until: !!m[3] || /^Until end of turn/i.test(c) });
     return true;
   }
   if ((m = c.match(/^(?:Until end of turn, )?(target land(?: you control)?) becomes an? (Plains|Island|Swamp|Mountain|Forest)( in addition to its other types)?( until end of turn)?\.?$/i))) {
     const bind = H.targetRequirement(requirements, m[1].toLowerCase(), cap(m[1]));
-    effects.push({ kind: 'b110-land-type', bind, types: [cap(m[2].toLowerCase())], add: !!m[3] });
+    effects.push({ kind: 'b110-land-type', bind, types: [cap(m[2].toLowerCase())], add: !!m[3], until: !!m[4] || /^Until end of turn/i.test(c) });
     return true;
   }
   if (/^Lands you control gain all basic land types until end of turn\.?$/i.test(c)) {
-    effects.push({ kind: 'b110-land-type', each: true, types: LAND_TYPE_NAMES, add: true });
+    effects.push({ kind: 'b110-land-type', each: true, types: LAND_TYPE_NAMES, add: true, until: true });
     return true;
   }
   // --- "It / That creature / Target creature doesn't untap during its controller's untap step for as long as ~ remains tapped" (Ice Floe, Thalakos Dreamsower)
@@ -376,10 +376,10 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
         if (!hit || hit.zone !== 'battlefield' || !/\bLand\b/.test(definitionFor(game, hit.card)?.typeLine || '')) { notes.push('That land is no longer there.'); continue; }
-        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'land-type', types, set: !effect.add, expires: 'cleanup', sourceId: bindings.sourceId || null }];
+        hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'land-type', types, set: !effect.add, ...(effect.until ? { expires: 'cleanup' } : {}), sourceId: bindings.sourceId || null }];
         hit.card.landTypeChanged = true;
         resyncManaSource(game, hit.player, hit.card);
-        notes.push(`${definitionFor(game, hit.card)?.name || 'The land'} ${effect.add ? 'is also' : 'becomes'} ${types.length > 1 ? 'every basic land type' : `${/^[AEIOU]/.test(types[0]) ? 'an' : 'a'} ${types[0]}`}${effect.add ? '' : ''} until end of turn.`);
+        notes.push(`${definitionFor(game, hit.card)?.name || 'The land'} ${effect.add ? 'is also' : 'becomes'} ${types.length > 1 ? 'every basic land type' : `${/^[AEIOU]/.test(types[0]) ? 'an' : 'a'} ${types[0]}`}${effect.until ? ' until end of turn' : ''}.`);
       }
       return true;
     }
@@ -568,7 +568,7 @@ export function parseConditionB110(t) {
   if ((m = t.match(/^\{([WUBRG])\} was spent to cast (?:it|this spell|this creature)$/i))) return { test: 'b49-color-spent', color: m[1].toUpperCase() };   // Steamcore Weird
   if ((m = t.match(/^you control an? ([A-Z][a-z]+) or there is an? \1 card in your graveyard$/))) return { test: 'b110-control-or-gy', word: m[1] };   // Sand Strangler
   if (/^this (?:creature|permanent|artifact|enchantment) is on the battlefield$/i.test(t)) return { test: 'b110-source-here' };   // Durkwood Tracker
-  if ((m = t.match(/^that (land|creature|permanent|artifact|enchantment) (?:was|is) an? (snow|legendary|basic) (?:land|creature|permanent|artifact|enchantment)$/i))) return { test: 'b110-target-word', word: m[2][0].toUpperCase() + m[2].slice(1).toLowerCase() };   // Icequake
+  if ((m = t.match(/^that (land|creature|permanent|artifact|enchantment) (?:was|is) an? (snow|legendary|basic) (land|creature|permanent|artifact|enchantment)$/i))) return { test: 'b110-target-word', word: m[2][0].toUpperCase() + m[2].slice(1).toLowerCase(), noun: m[3].toLowerCase() };   // Icequake
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
   return null;
@@ -609,7 +609,7 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
       return (me?.deck?.battlefield || []).some(has) || (me?.deck?.graveyard || []).some(has);
     }
     case 'b110-source-here': return locateCardInGame(game, bindings.sourceId)?.zone === 'battlefield';
-    case 'b110-target-word': { const id = bindings.lastTarget || bindings.target0 || bindings.thatCard; const h = id && locateCardInGame(game, id); return !!h && new RegExp(`\\b${effect.word}\\b`).test(definitionFor(game, h.card)?.typeLine || ''); }   // the target as it last was (Icequake: the land destroyed, now in the graveyard)
+    case 'b110-target-word': { const id = bindings.lastTarget || bindings.target0 || bindings.thatCard; const h = id && locateCardInGame(game, id); const tl = definitionFor(game, h?.card)?.typeLine || ''; return !!h && new RegExp(`\\b${effect.word}\\b`).test(tl) && (!effect.noun || effect.noun === 'permanent' || new RegExp(`\\b${effect.noun}\\b`, 'i').test(tl)); }   // the target as it last was (Icequake: the land destroyed, now in the graveyard)
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;

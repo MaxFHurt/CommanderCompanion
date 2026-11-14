@@ -4851,6 +4851,18 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
     const r = compileEffectText('Target creature becomes the color or colors of your choice until end of turn.', { sourceName: 'Quickchange' });
     applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: a.instanceId, pickedColor1: ['red', 'blue'] });
     check('Quickchange: the chosen colours replace its colour', JSON.stringify(landDef(t, a).colors) === '["R","U"]', JSON.stringify(landDef(t, a).colors)); }
+  // permanent land type (no "until end of turn") and the destroyed permanent's type
+  { const t = setup(); const forest = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Forest');
+    const r = compileEffectText('Target land becomes a Swamp.', { sourceName: 'Thelonite Monk' }); applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: forest.instanceId });
+    t.end(0);
+    check('Thelonite Monk: the Forest stays a Swamp after the turn ends', /Swamp/.test(landDef(t, forest).typeLine) && !/Forest/.test(landDef(t, forest).typeLine) && opts(forest) === 'B', JSON.stringify([landDef(t, forest).typeLine, opts(forest)])); }
+  { const run = typeLine => { const t = setup(); const perm = onField(t, 'Fog Bank', '', { typeLine }, 1); t.P(0).deck.hand.length; const before = t.P(0).deck.hand.length;
+      const r = compileEffectText('Destroy target artifact or enchantment. If that permanent was a legendary enchantment, draw a card.', { sourceName: 'Budding Insurgent' });
+      applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: null, target0: perm.instanceId }); return t.P(0).deck.hand.length - before; };
+    check('Budding Insurgent: a card only when the destroyed permanent was a legendary enchantment (not a legendary artifact)', run('Legendary Enchantment') === 1 && run('Legendary Artifact') === 0 && run('Enchantment') === 0, JSON.stringify([run('Legendary Enchantment'), run('Legendary Artifact'), run('Enchantment')])); }
+  { const t = setup(); const dead = t.give(0, 'Grizzly Bears', 'graveyard'); const r = compileEffectText('Return it to your hand.', { sourceName: 'Enduring Renewal' });
+    applyEffects(t.game, t.P(0).playerId, r.effects, { sourceId: 'x', eventCard: dead.instanceId });
+    check('Enduring Renewal: the creature that went to the graveyard (the event card, not the source) returns to hand', t.P(0).deck.hand.some(c => c.instanceId === dead.instanceId), JSON.stringify(t.names(0, 'hand'))); }
   // domain pumps
   { const t = setup(); const r = compileEffectText('Domain — Target creature gets +1/+1 until end of turn for each basic land type among lands you control.', { sourceName: 'Gaea\'s Might' });
     const bear = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' });

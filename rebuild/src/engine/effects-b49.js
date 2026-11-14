@@ -425,6 +425,15 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
     const a = compile(c0, sourceName), b = compile(cap(String(inst[2] || inst[3]).replace(/^only /i, '')), sourceName);
     if (ok(a) && ok(b) && !/\b(?:those|that|it|them)\b/i.test(inst[2] || inst[3])) {
       const cond = parseConditionAny(inst[1]);
+      // Both sentences name their choices target0, handCard0 …: the replacement's are renamed so each is asked for the part that runs. Only targets can be asked for both;
+      // any other choice shared by name (a card from hand) would be asked once for the wrong sentence, so that stays by hand.
+      const taken = new Set(a.requirements.map(r => r.bind));
+      for (const r of b.requirements) if (taken.has(r.bind)) {
+        if (r.kind !== 'target') return { part: { effects: [], requirements: [], unsupported: [`${c0} ${clauses[i + 1]}`] }, consumed: 2 };
+        const old = r.bind, fresh = `${old}i${i}`;
+        r.bind = fresh;
+        for (const e of b.effects) for (const k of Object.keys(e)) if (e[k] === old && /bind$/i.test(k)) e[k] = fresh;
+      }
       return { part: { effects: [{ kind: 'condition', ...cond, negate: true, skip: a.effects.length }, ...a.effects, { kind: 'condition', ...cond, skip: b.effects.length }, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
     }
   }

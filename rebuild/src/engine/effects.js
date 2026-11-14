@@ -3493,6 +3493,14 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
     if (insteadCond && prevPart && !prevPart.unsupported.length && prevPart.effects.length) {
       const alt = compileEffectText(insteadM[2].charAt(0).toUpperCase() + insteadM[2].slice(1), { sourceName });
       if (alt.supported) {
+        // The replacement reads its own choices: names shared with the sentence it replaces (target0, handCard0) are renamed so each is asked once, for the part that runs.
+        const taken = new Set(parts.flatMap(p => p.requirements || []).map(r => r.bind));
+        if (alt.requirements.some(r => taken.has(r.bind) && r.kind !== 'target')) { parts.push({ effects: [], requirements: [], unsupported: [clause] }); continue; }
+        for (const r of alt.requirements) if (taken.has(r.bind)) {
+          const old = r.bind, fresh = `${old}i${parts.length}`;
+          r.bind = fresh;
+          for (const e of alt.effects) for (const k of Object.keys(e)) if (e[k] === old && /bind$/i.test(k)) e[k] = fresh;
+        }
         prevPart.effects.unshift({ kind: 'condition', ...insteadCond, negate: true, skip: prevPart.effects.length });
         parts.push({ effects: [{ kind: 'condition', ...insteadCond, skip: alt.effects.length, failNote: ' ' }, ...alt.effects], requirements: alt.requirements, unsupported: [] });
         continue;
