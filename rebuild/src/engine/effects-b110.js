@@ -10,7 +10,7 @@ const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice
 const playerById = (game, id) => (game.players || []).find(p => p.playerId === id) || null;
 const ok = inner => inner && !inner.unsupported.length && inner.effects.length;
 const rxCache = new Map();
-const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) rxCache.set(k, (r = new RegExp(src, flags))); return r; };
+const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token))';
 
 /** One sentence. Pushes onto ctx.effects / ctx.requirements and returns true when understood. */
@@ -139,6 +139,49 @@ export function compileB110Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- "Destroy this enchantment." / "Destroy this creature and target creature it's blocking." (Aether Storm, Lethal Vapors, Wall of Vipers): the source destroys itself.
+  if ((m = c.match(rx(`^Destroy ${SELFP}\\.?$`)))) { effects.push({ kind: 'destroy', bind: 'sourceId' }); return true; }
+  if ((m = c.match(rx(`^Destroy ${SELFP} and (target creature it'?s blocking)\\.?$`)))) {
+    const bind = H.targetRequirement(requirements, m[1].toLowerCase(), m[1]);
+    effects.push({ kind: 'destroy', bind: 'sourceId' }, { kind: 'destroy', bind });
+    return true;
+  }
+  // --- "The next time this creature would deal damage to you this turn, prevent that damage." (Mercenaries; any player may activate: "you" is the activator)
+  if ((m = c.match(rx(`^The next time ${SELFP} would deal damage to you this turn, prevent that damage\\.?$`)))) { effects.push({ kind: 'b110-prevent-from', bind: 'sourceId', to: 'you', once: true }); return true; }
+  // --- "Target creature you control gains protection from the color of your choice until end of turn." (Mother of Runes, Gods Willing, Wishmonger: "its controller's choice")
+  //     The older reading granted a keyword that names no colour, so nothing was protected.
+  if ((m = c.match(rx(`^(target [a-z ,']+?|${SELFP}|it) gains protection from the colou?r of (your|its controller'?s) choice until end of turn\\.?$`)))) {
+    const probe = /^target/i.test(m[1]) ? sub(`${cap(m[1])} gains protection from red until end of turn.`) : null;
+    const tReq = probe?.requirements.find(q => q.kind === 'target');
+    if (/^target/i.test(m[1]) ? !!tReq : true) {
+      if (tReq) requirements.push(...probe.requirements);
+      const bind = tReq ? tReq.bind : /^it$/i.test(m[1]) ? 'b101It' : 'sourceId';
+      const colorBind = `pickedColor${requirements.length}`;
+      requirements.push({ kind: 'b110-pick-color', bind: colorBind, whoBind: /^its/i.test(m[2]) ? bind : null, label: 'a color for protection' });
+      effects.push({ kind: 'b110-grant-protection-choice', bind, colorBind });
+      return true;
+    }
+  }
+  // --- Xantcha, Sleeper Agent: "<name>'s controller loses 2 life and you draw a card." (any player may activate it: "you" is the activator)
+  if ((m = c.match(rx(`^${SELFP}'s controller loses ${N} life(?: and you draw ${N} cards?)?\\.?$`)))) {
+    effects.push({ kind: 'remember-controller', bind: 'sourceId', as: 'sourceController' }, { kind: 'life', scope: 'you', amount: num(m[1]), deltaSign: -1, forPlayerBind: 'sourceController' });
+    if (m[2]) effects.push({ kind: 'draw', scope: 'you', amount: num(m[2]) });
+    return true;
+  }
+  // --- Gerrard, Weatherlight Hero: "exile it and return to the battlefield all artifact and creature cards in your graveyard that were put there from the battlefield this turn."
+  if ((m = c.match(rx(`^(exile it and )?return to the battlefield all ((?:artifact|creature|enchantment|land|planeswalker)(?: (?:and|or) (?:artifact|creature|enchantment|land|planeswalker))*) cards in your graveyard that were put there from the battlefield this turn\\.?$`)))) {
+    effects.push({ kind: 'b110-return-died-this-turn', exileSelf: !!m[1], types: m[2].toLowerCase().split(/ (?:and|or) /) });
+    return true;
+  }
+  // --- Old Man of the Sea: "... for as long as this creature remains tapped and that creature's power remains less than or equal to this creature's power."
+  if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped) and that creature'?s power remains less than or equal to (?:this creature|${SELFP})'?s power\\.?$`)))) {
+    const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.effects.length === 1 && r.effects[0].kind === 'gain-control' && !r.effects[0].untilEndOfTurn) {
+      requirements.push(...r.requirements);
+      effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: 'tapped', powerLimit: true });
+      return true;
+    }
+  }
   // --- "Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped." (Vedalken Shackles)
   if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped|you control ${SELFP})\\.?$`)))) {
     const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
@@ -164,10 +207,11 @@ export function compileB110Clause(c, ctx) {
     const r = sub(`${m[1]}.`), q = r?.requirements.find(x => x.kind === 'multi-target'), e = r?.effects.find(x => x.bind === q?.bind);
     if (r && q && e && r.effects.length === 1) return take({ effects: [...r.effects, { kind: 'b101-each-bound', bind: q.bind, effects: [{ kind: 'counter', bind: '__each', counter: m[4].toLowerCase(), amount: num(m[3]) }] }], requirements: r.requirements });
   }
-  // --- "Untap target creature with power less than … and gain control of it until end of turn." (Temporary Insanity)
-  if ((m = c.match(/^untap (target creature with (?:power|toughness|mana value) (?:less|greater) than .+?) and gain control of it until end of turn\.?$/i))) {
-    const r = sub(`Untap ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
-    if (r && t) return take({ effects: [...r.effects, { kind: 'gain-control', bind: t.bind, untilEndOfTurn: true }], requirements: r.requirements });
+  // --- "Gain control of target creature with power less than … until end of turn." / "Untap target creature (with power less than …) and gain control of it until end of turn." (Threaten, Temporary Insanity)
+  //     The older reading made "control of it" a keyword the creature gains.
+  if ((m = c.match(/^(untap )?gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than .+?)?) until end of turn\.?$/i)) || (m = c.match(/^(untap) (target [a-z ,'-]+?(?: with (?:power|toughness|mana value) (?:less|greater) than .+?)?) and gain control of (?:it|that creature) until end of turn\.?$/i))) {
+    const r = sub(`Gain control of ${m[2]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.effects.length === 1 && r.effects[0].kind === 'gain-control') return take({ effects: [...(m[1] ? [{ kind: 'untap', bind: t.bind }] : []), { kind: 'gain-control', bind: t.bind, untilEndOfTurn: true }], requirements: r.requirements });
   }
   // --- "The next time a red source of your choice would deal damage to you this turn, prevent that damage." (Circle of Protection) / "Prevent all damage a source of your choice would deal this turn."
   {
@@ -272,7 +316,27 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       if (effect.mode === 'tapped' && !src.card.tapped) { notes.push('The source is not tapped, so nothing changes control.'); return true; }
       const prev = tgt.card.controllerId || tgt.player.playerId;
       notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', bind: effect.bind, untilEndOfTurn: false }], bindings));
-      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, controllerId, previousControllerId: prev }];
+      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, powerLimit: !!effect.powerLimit, controllerId, previousControllerId: prev }];
+      return true;
+    }
+    case 'b110-return-died-this-turn': {
+      const me = playerById(game, controllerId);
+      if (!me) return true;
+      const selfId = bindings.sourceId;
+      if (effect.exileSelf && selfId) {
+        const hit = locateCardInGame(game, selfId);
+        if (hit && hit.zone === 'graveyard') notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: selfId, to: 'exile' }], bindings));
+      }
+      const back = (me.deck.graveyard || []).filter(c => c.fromBattlefieldTurn === game.turnNumber && c.instanceId !== selfId && !c.token && effect.types.some(t => new RegExp(`\\b${t}\\b`, 'i').test(definitionFor(game, c)?.typeLine || '')));
+      for (const c of back) notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: c.instanceId, to: 'battlefield', controllerId }], bindings));
+      if (!back.length) notes.push('No cards came back.');
+      return true;
+    }
+    case 'b110-grant-protection-choice': {
+      const color = bindings[effect.colorBind], id = bindings[effect.bind] || bindings.sourceId;
+      const hit = locateCardInGame(game, id);
+      if (!color || !hit || hit.zone !== 'battlefield') { notes.push('Nothing gains protection.'); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'grant-keyword', targetId: id, keyword: `protection from ${color}`, enabled: true, expires: 'cleanup' }], bindings));
       return true;
     }
     case 'b110-flicker-tapped': {
@@ -371,6 +435,12 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
       : ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: req.zone === 'hand', title: `${ctx.sourceName} — ${q.displayName}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your ${req.zone} to exile.`, options: rows.map(card => util.cardOption(game, card, q, `Your ${req.zone}`)), min: n, max: n }));
     return true;
   }
+  if (req.kind === 'b110-pick-color') {
+    // "the color of your choice" / "of its controller's choice": the named player picks one of the five colours as the effect resolves.
+    const who = req.whoBind ? (locateCardInGame(game, bindings[req.whoBind])?.card?.controllerId || ctx.player.playerId) : ctx.player.playerId;
+    bindings[req.bind] = ask(key, () => ({ ...base, playerId: who, kind: 'choose-one', title, prompt: 'Choose a color.', options: ['white', 'blue', 'black', 'red', 'green'].map(c => ({ id: c, label: cap(c) })) }));
+    return true;
+  }
   if (req.kind === 'b110-pick-source') {
     // A source of damage (a permanent or a spell on the stack, of the named colours), chosen by the player as it resolves.
     const fits = c => { const d = util.defOf(game, c); return !req.colors?.length || (d?.colors || []).some(x => req.colors.includes(x)); };
@@ -391,6 +461,13 @@ export function parseConditionB110(t) {
   if ((m = t.match(/^(?:it|this creature|this permanent|this artifact|this enchantment) (was|wasn'?t|were not) (kicked|cast)$/i))) return { test: 'b110-card-flag', flag: /kicked/i.test(m[2]) ? 'kicked' : 'wasCast', not: !/^was$/i.test(m[1]) };
   if ((m = t.match(/^there are (\w+) or more ([a-z+\/\d-]+) counters on (?:it|this [a-z]+|[A-Z][A-Za-z ,'-]+)$/i)) && !/^(?:creature|artifact|land|card|cards)$/i.test(m[2])) return { test: 'b110-source-counters', min: cnt(m[1]), counter: m[2] };
   if ((m = t.match(/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment|planeswalker|permanent) cards in your graveyard$/i))) return { test: 'b110-gy-type', min: cnt(m[1]), type: m[2].toLowerCase() };
+  // "you have no cards in hand" (Bloodhall Priest), "three or fewer cards in hand" (Scalding Tongs), "it was kicked twice" (Archangel of Wrath), "at least five other Mountains" (Valakut)
+  if (/^you have no cards in (?:your )?hand$/i.test(t)) return { test: 'hand-exact', n: 0 };
+  if ((m = t.match(/^you have (\w+) or fewer cards in (?:your )?hand$/i))) return { test: 'b110-hand-at-most', n: cnt(m[1]) };
+  if (/^(?:it|this creature) was kicked twice$/i.test(t)) return { test: 'b110-kick-count', min: 2 };
+  if ((m = t.match(/^you control at least (\w+) other ([A-Z][a-z]+)s$/))) return { test: 'control', subject: `another ${m[2]}`, min: cnt(m[1]) };
+  // Land's Edge: "If the discarded card was a land card" (the card discarded as the cost: ops.js remembers its type line)
+  if ((m = t.match(/^the discarded card was an? (land|creature|artifact|enchantment|instant|sorcery|planeswalker|nonland) card$/i))) return { test: 'b110-cost-discarded', type: m[1].toLowerCase() };
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
   if (/^you attacked this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'attacked' }, min: 1 };
   if (/^you descended this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'descended' }, min: 1 };
@@ -415,6 +492,9 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
       for (const c of me?.deck?.graveyard || []) for (const w of ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Land', 'Planeswalker', 'Sorcery', 'Kindred']) if (new RegExp(`\\b${w}\\b`).test(String(definitionFor(game, c)?.typeLine || '').split('—')[0])) kinds.add(w);
       return kinds.size >= effect.min;
     }
+    case 'b110-hand-at-most': return ((game.players || []).find(p => p.playerId === controllerId)?.deck?.hand || []).length <= effect.n;
+    case 'b110-kick-count': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; return Number(c?.kickCount ?? (c?.kicked ? 1 : 0)) >= effect.min; }
+    case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; return effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); }
     case 'b110-card-flag': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; const v = !!c?.[effect.flag]; return effect.not ? !v : v; }
     case 'b110-amount': return Number(resolveAmount(game, controllerId, effect.expr, bindings) || 0) >= effect.min;
     default: return undefined;

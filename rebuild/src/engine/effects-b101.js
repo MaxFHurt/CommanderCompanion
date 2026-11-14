@@ -13,7 +13,7 @@ const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice
 const playerById = (game, id) => (game.players || []).find(p => p.playerId === id) || null;
 const ok = inner => inner && !inner.unsupported.length && inner.effects.length;
 const rxCache = new Map();
-const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) rxCache.set(k, (r = new RegExp(src, flags))); return r; };
+const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
 const swapBind = (o, from, to) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v === from ? to : v]));
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token))';
 const KW = '(?:flying|first strike|double strike|deathtouch|haste|hexproof|indestructible|lifelink|menace|reach|trample|vigilance|defender|shroud|flash|fear|intimidate|shadow|horsemanship|flanking|banding|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk|protection from [a-z]+)';
@@ -144,7 +144,7 @@ export function compileB101Clause(c, ctx) {
   }
 
   // --- Hurricane, Earthquake: "deals X damage to each creature with flying and each player."
-  if ((m = c.match(rx(`^(?:.+? )?deals ${N} damage to each creature (with|without) flying and each (player|opponent)\\.?$`)))) {
+  if ((m = c.match(rx(`^(?:(?!If\\b(?![^,]*? this way,)).+? )?deals ${N} damage to each creature (with|without) flying and each (player|opponent)\\.?$`)))) {
     const n = num(m[1]);
     if (n === 'X') requirements.push({ kind: 'number', bind: 'X', label: 'Choose X', min: 0, max: 99 });
     effects.push({ kind: 'damage-each', amount: n, filter: `creature|${m[2].toLowerCase() === 'without' ? 'nokeyword' : 'keyword'}:flying`, creatures: 'all', players: /opponent/i.test(m[3]) ? 'opponents' : 'all', sourceName });
@@ -597,7 +597,7 @@ export function compileB101Sequence(clauses, i, { sourceName, parts = [] }) {
     if (d) { d.noRegen = true; return { part: { effects: [], requirements: [], unsupported: [] }, consumed: 1 }; }
   }
   // "~ deals 2 damage to that land's controller." — the controller of what was targeted before, or of the trigger's card.
-  if ((m = c0.match(/^(?:.+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[1]) !== null) {
+  if ((m = c0.match(/^(?:(?!If\b(?![^,]*? this way,)).+? )?deals (\w+) damage to that (creature|permanent|land|artifact|enchantment|planeswalker|spell|Aura|Equipment|Vehicle|token)'s controller\.?$/i)) && num(m[1]) !== null) {
     const earlier = [...parts].reverse().flatMap(p => [...(p.requirements || [])].reverse()).find(r => r.kind === 'target' || r.kind === 'stack-target');
     if (earlier) {
       const as = `controllerOf${earlier.bind}`;

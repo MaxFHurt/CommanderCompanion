@@ -125,6 +125,8 @@ for (const [rank, card] of cards.entries()) {
     }
     gaps.push(u.startsWith('Trigger: ') && (report.triggers || []).some(t => !t.fires && u.includes(t.text)) ? `Trigger: The game never fires "${(report.triggers.find(t => !t.fires && u.includes(t.text)) || {}).trigger}"` : u);
   }
+  // "Pay 2 life or {2}" (Tidal Control): the game would charge both costs, so the card is not automatic.
+  for (const a of report.activated || []) if (/\bPay \d+ life or \{|\{[^}]+\} or pay \d+ life/i.test(a.ability?.cost || '')) gaps.push(`Activated: ${a.ability.text} (a choice between two costs)`);
   rows.push({ rank: rank + 1, name: card.name, type: def.typeLine, automated: !gaps.length, gaps, unverified, kinds: [...new Set(gaps.map(gapKind))] });
 }
 

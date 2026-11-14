@@ -8,7 +8,7 @@ import { locateCardInGame, moveCard, definitionFor, exiledWith, catalogHelpers a
 import { cardFitsWords } from './effects-catalog.js';
 
 const rxCache = new Map();
-const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) rxCache.set(k, (r = new RegExp(src, flags))); return r; };
+const rx = (src, flags = 'i') => { const k = `${flags}/${src}`; let r = rxCache.get(k); if (!r) { if (rxCache.size > 3000) rxCache.clear(); rxCache.set(k, (r = new RegExp(src, flags))); } return r; };   // card names make unique patterns: keep the cache small
 const esc = x => String(x || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const nameOf = (game, id) => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
 const SELF = '(?:SELFNAME|this (?:creature|permanent|artifact|enchantment|land|Equipment|Aura|Saga|Vehicle|Spacecraft|planeswalker|card|token|Siege|Class))';

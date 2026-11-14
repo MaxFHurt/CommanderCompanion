@@ -45,7 +45,7 @@ export function openCardDetail(ctx, id) {
     if (card.controller !== card.owner) status.push(`Owned by ${view.players.find(p => p.playerId === card.owner)?.name || 'another player'}`);
   }
 
-  const abilities = mine ? (card.abilities || []) : [];
+  const abilities = card.abilities || [];   // another player's permanent lists only the abilities any player may activate
   const extra = html`
     ${status.length ? html`<p class="card-detail__status">${status.join(' • ')}</p>` : ''}
     ${mine && playableZone && !card.playable && card.reason ? html`<p class="card-detail__why"><b>Not right now:</b> ${card.reason}</p>` : ''}

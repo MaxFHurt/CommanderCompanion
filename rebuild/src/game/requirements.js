@@ -247,6 +247,7 @@ export function candidatesFor(game, req, player, source = null) {
       const def = defOf(game, c), t = String(def?.typeLine || '');
       if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '').replace(/\s*\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/, '')) || !manaValueFits(def, scope)) continue;
       if (!sourceLimitFits(game, c, def, scope, source, player) || !descriptorFits(game, c, def, scope)) continue;
+      if (/\banother\b/.test(scope) && c.instanceId === (LIMIT_BINDINGS?.eventCard || source?.instanceId)) continue;   // "another target card": not the card that triggered this (a creature that just died)
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;
@@ -300,6 +301,7 @@ export function candidatesFor(game, req, player, source = null) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
         } else if (!matchesPermanentScope(game, c, scope, source, player)) continue;
         if (/blocking or blocked by it/.test(scope) && !blockedPair(game, source, c)) continue;   // Steadfast Armasaur: a creature blocking it or blocked by it
+        if (/\bit'?s blocking\b/.test(scope) && !Object.values(game.combatState?.blocks || {}).some(b => (b?.assignments || []).some(x => x.blockerId === source?.instanceId && x.attackerId === c.instanceId))) continue;   // Wall of Vipers: the creature this one is blocking
         if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
       }
@@ -333,6 +335,11 @@ function requirementAmount(req, bindings) {
  */
 export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req') {
   LIMIT_BINDINGS = bindings;
+  // The source passed in is often only its colours/type/name; limits set by its own power or counters ("less than or equal to this creature's power") need the card itself.
+  if (ctx.source && !ctx.source.instanceId && bindings.sourceId) {
+    const hit = locateCardInGame(game, bindings.sourceId);
+    if (hit) ctx = { ...ctx, source: { ...hit.card, colors: ctx.source.colors, typeLine: ctx.source.typeLine, name: ctx.source.name } };
+  }
   const { player, sourceName = 'Effect' } = ctx;
   const cancellable = ctx.cancellable !== false;
   const base = { playerId: player.playerId, cancellable, source: sourceName };

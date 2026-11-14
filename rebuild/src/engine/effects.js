@@ -190,6 +190,8 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   }
   clearCastState(card, to);
   card.zone = to;
+  if (card.fromBattlefieldTurn !== undefined) delete card.fromBattlefieldTurn;
+  if (from === 'battlefield' && to === 'graveyard' && !card.token) card.fromBattlefieldTurn = game.turnNumber;   // Gerrard, Weatherlight Hero: "put there from the battlefield this turn"
   if (to === 'exile') rememberExiled(game, card, to, from);
   if (to === 'battlefield') {
     card.controllerId = controllerId || owner.playerId;
@@ -2056,22 +2058,35 @@ function unenforceableLimit(scope) {
   const t = String(scope || '').toLowerCase();
   for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
     const L = limitOf(t.slice(m.index));
-    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || L.expr.that || L.expr.it) return true;
+    if (!L || (L.expr.kind === 'binding' && !['eventManaValue', 'costCount'].includes(L.expr.bind)) || ((L.expr.that || L.expr.it) && L.expr.kind !== 'b101-source-counters') || L.expr.who === 'ref') return true;   // 'ref': another player chosen in the same sentence, not known while choosing
   }
   return false;
 }
 /** "with power less than or equal to <amount>" in a target description: the stat, direction and the amount (this creature's power, the number of Islands you control, your life total …). */
 export function limitOf(text) {
-  const m = String(text || '').toLowerCase().match(/^with (mana value|power|toughness) (less|greater) than( or equal to)? (.+?)(?: (?:in|from) (?:your|a|an opponent'?s) graveyard)?(?: (?:and|from|to|can't|gains?|gets?)\b.*)?$/);
+  const low = String(text || '').toLowerCase();
+  // "… less than the number of cards in your graveyard": the graveyard belongs to the amount (tried first); otherwise "… from a graveyard" is where the target card is.
+  let m = low.match(/^with (mana value|power|toughness) (less|greater) than( or equal to)? (the number of .+? (?:in|from) (?:your|a|an opponent'?s) graveyard)(?: (?:and|can't|gains?|gets?)\b.*)?$/);
+  if (m && !parseAmountB101(m[4].replace(/\.$/, ''))) m = null;
+  if (!m) m = low.match(/^with (mana value|power|toughness) (less|greater) than( or equal to)? (.+?)(?: (?:in|from) (?:your|a|an opponent'?s) graveyard)?(?: (?:and|from|to|can't|gains?|gets?)\b.*)?$/);
   if (!m) return null;
   const self = m[4].match(/^(?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)$/);
-  const expr = self ? { kind: 'b110-source-stat', stat: self[1] } : parseAmountB101(m[4].replace(/\.$/, ''));
+  let expr = self ? { kind: 'b110-source-stat', stat: self[1] } : parseAmountB101(m[4].replace(/\.$/, ''));
+  if (!expr && /^x$/i.test(m[4].trim().replace(/\.$/, ''))) expr = 'X';   // Scrap Welder: "less than X" (X = the sacrificed artifact's mana value)
+  // "the number of colors of mana spent to cast this creature": the trailing "to cast …" belongs to the amount
+  if (!expr) { const full = low.match(/^with (?:mana value|power|toughness) (?:less|greater) than(?: or equal to)? (.+?)\.?$/); if (full) expr = parseAmountB101(full[1]); }
   return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
 }
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;
 function compileSingleClause(clause, opts = {}) {
   const r = compileSingleClauseRaw(clause, opts);
+  // "gains protection from the color of your choice": the older reading granted a keyword naming no colour (build 110 asks which colour).
+  if (r.effects.some(e => e.kind === 'grant-keyword' && /protection from the colou?r of (?:your|its controller'?s) choice/i.test(e.keyword || ''))) {
+    const text = stripReminderText(normalizeClause(clause)), effects = [], requirements = [];
+    if (compileB110Only(text, { sourceName: opts.sourceName || 'Effect', effects, requirements }) && effects.length) return { effects, requirements, unsupported: [] };
+    return { effects: [], requirements: [], unsupported: [text] };
+  }
   // "target Symbiote" / "target Zombie": a creature type alone names no card type, so the scope found no candidates; it is a creature of that type.
   for (const q of r.requirements) {
     const sm = q.kind === 'target' ? /^target ([a-z]+)( you control| an opponent controls| you don't control)?$/.exec(q.scope || '') : null, w = sm?.[1];
@@ -2093,7 +2108,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
   let c = stripReminderText(normalizeClause(clause));
   if (!c)
     return { effects, requirements, unsupported };
-  if (/^(?:Activate only|Activate no more than|This ability|Cast this spell|Play this ability|Do this only)\b/i.test(c))
+  if (/^(?:Activate only|Activate no more than|This ability|Cast this spell|Play this ability|Do this only|Any player may activate this ability)\b/i.test(c))
     return { effects, requirements, unsupported };
   if (/^Choose (?:one|two|three|four|five|any number|one or more)\s*[—-]/i.test(c))
     return { effects, requirements, unsupported: [c] };
@@ -2189,7 +2204,7 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Damage, fight.
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player or planeswalker|target opponent or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to (any target|target creature|target creature or planeswalker|target player or planeswalker|target opponent or planeswalker|target player|target opponent|target permanent)\.?$/i))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return { effects, requirements, unsupported };
@@ -2320,12 +2335,12 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     effects.push({ kind: 'exile', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Return (target .+?) to (?:its|their) owner'?s hand\.?$/i))) {
+  if (!/^Return target [^,.]*?\bcards? (?:from|in) (?:a|target player'?s) graveyard to its owner'?s hand\.?$/i.test(c) && (m = c.match(/^Return (target .+?) to (?:its|their) owner'?s hand\.?$/i))) {   // a card from a graveyard is a graveyard choice (below), not a permanent
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'bounce', bind });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^Return (target (?:.+? )?card) from (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
+  if ((m = c.match(/^Return ((?:another )?target (?:.+? )?card(?: with (?:mana value|power|toughness) (?:less|greater) than(?: or equal to)? .+?)?) (?:from|in) (your|a|target player'?s) graveyard to (?:your|its owner'?s) hand\.?$/i))) {
     const bind = `grave${requirements.length}`;
     requirements.push({ kind: 'graveyard-target', bind, scope: `${m[1].toLowerCase()}${/^your$/i.test(m[2]) ? ' in your graveyard' : ''}`, label: `${m[1]} in ${/^your$/i.test(m[2]) ? 'your' : 'a'} graveyard` });
     effects.push({ kind: 'return-from-graveyard', bind, to: 'hand' });
@@ -2738,16 +2753,16 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     return { effects, requirements, unsupported };
   }
   // Marrow Shards, Sandstorm: "deals 1 damage to each attacking creature."
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (attacking|blocking|attacking or blocking|tapped|untapped) creature\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (attacking|blocking|attacking or blocking|tapped|untapped) creature\.?$/i))) {
     const conds = m[2].toLowerCase().split(' or ');
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: conds.map(k => `creature|${k}`).join(' or '), creatures: 'all', players: null, sourceName });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature|creature and planeswalker|creature and each planeswalker)( you don['’]?t control| your opponents control)?(?: and each (player|opponent))?\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), filter: /planeswalker/i.test(m[2]) ? 'creature or planeswalker' : 'creature', creatures: m[3] ? 'opponents' : 'all', players: m[4] ? (/opponent/i.test(m[4]) ? 'opponents' : 'all') : null, sourceName });
     return { effects, requirements, unsupported };
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (opponent|player)\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), creatures: null, players: /opponent/i.test(m[2]) ? 'opponents' : 'all', sourceName });
     return { effects, requirements, unsupported };
   }
@@ -2846,7 +2861,7 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
   }
   // Ability words: "Ferocious — You gain 4 life for each …" (a condition, if any, is read elsewhere).
-  if ((m = c.match(/^(?:Ferocious|Morbid|Raid|Revolt|Hellbent|Delirium|Spell mastery|Coven|Formidable|Alliance|Domain|Landfall|Constellation|Magecraft|Valiant|Heroic) — (?!If\b)(.+)$/))) {
+  if ((m = c.match(/^(?:Ferocious|Morbid|Raid|Revolt|Hellbent|Delirium|Spell mastery|Coven|Formidable|Alliance|Domain|Landfall|Constellation|Magecraft|Valiant|Heroic) — (?!If\b(?![^,]*? this way,))(.+)$/))) {
     const inner = compileSingleClause(m[1], { sourceName });
     if (inner.unsupported.length || !inner.effects.length) return false;
     effects.push(...inner.effects); requirements.push(...inner.requirements); return true;
@@ -3028,17 +3043,17 @@ function compileMoreClauses(c, { sourceName, selfAny, effects, requirements }) {
     return true;
   }
   // Damage to a wider set of targets ("target creature or planeswalker an opponent controls", "target attacking or blocking creature").
-  if ((m = c.match(rx(`^(?:This spell|${selfAny}|It|[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
+  if ((m = c.match(rx(`^(?:This spell|${selfAny}|It|(?!If\\b(?![^,]*? this way,))[A-Z][^.]*?) deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (target [^.]+?)\\.?$`, 'i')))) {
     const bind = targetRequirement(requirements, m[2].toLowerCase(), m[2]);
     effects.push({ kind: 'damage', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), bind, sourceName });
     return true;
   }
-  if ((m = c.match(/^(?:This spell|[^.]+?) deals? X damage to each (creature|creature and each player|player|opponent)\.?$/i))) {
+  if ((m = c.match(/^(?:This spell|(?!If\b(?![^,]*? this way,))[^.]+?) deals? X damage to each (creature|creature and each player|player|opponent)\.?$/i))) {
     effects.push({ kind: 'damage-each', amount: 'X', filter: 'creature', creatures: /creature/i.test(m[1]) ? 'all' : null, players: /player/i.test(m[1]) ? 'all' : /opponent/i.test(m[1]) ? 'opponents' : null, sourceName });
     return true;
   }
   // "… deals damage equal to that creature's power to any target" (Terror of the Peaks): the creature that caused the trigger.
-  if ((m = c.match(/^(?:This creature|It|[A-Z][^.]*?) deals damage equal to that creature'?s power to (any target|target [^.]+?)\.?$/i))) {
+  if ((m = c.match(/^(?:This creature|It|(?!If\b(?![^,]*? this way,))[A-Z][^.]*?) deals damage equal to that creature'?s power to (any target|target [^.]+?)\.?$/i))) {
     const bind = targetRequirement(requirements, m[1].toLowerCase(), m[1]);
     effects.push({ kind: 'damage', amount: { kind: 'event-card-power' }, bind, sourceName });
     return true;
@@ -3809,7 +3824,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // Build 102: "Create a 0/0 Fractal token. Put X +1/+1 counters on it." / "Manifest the top card …, then put X counters on
   // it": "it" is the permanent just made, not this card. "Choose target creature. … that creature": the chosen target.
   {
-    const made = merged.effects.findIndex(e => e.kind === 'create-token' || e.kind === 'manifest' || e.kind === 'amass' || e.kind === 'incubate');
+    const made = merged.effects.findIndex(e => e.kind === 'create-token' || e.kind === 'manifest' || e.kind === 'amass' || e.kind === 'incubate' || (e.kind === 'return-from-graveyard' && e.to === 'battlefield'));   // "Return target creature card from your graveyard to the battlefield. It gains haste": it = the returned card
     const creatureTargets = merged.requirements.filter(r => r.kind === 'target' && !/^target (?:player|opponent)$/i.test(r.scope || ''));
     merged.effects.forEach((e, at) => {
       if (e.bind !== 'eventCard' && e.bind !== 'thatCard') return;

@@ -15,7 +15,7 @@ import { compileEffectText, parseCondition, checkCondition } from '../engine/eff
 import { availableModalTriggerModes, recordModalTriggerModeChoice, queueTriggers } from '../engine/triggers.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import {
-  COLOR_NAMES, GameError, defOf, definitionsMap, faceDefinition, findInPlayer, isLand, isInstantOrSorcery,
+  COLOR_NAMES, GameError, defOf, definitionsMap, faceDefinition, findCard, findInPlayer, isLand, isInstantOrSorcery,
   log, newId, opponentsOf, playerById, plural
   , FUSE_FACE, hasFuse
 } from './helpers.js';
@@ -714,7 +714,7 @@ function runPlay(game, op, ask) {
   if (copies) {
     game.pendingTriggers = game.pendingTriggers || [];
     game.pendingTriggers.push({ id: newId('trigger'), controllerId: player.playerId, sourceId: card.instanceId, sourceDefinitionId: card.definitionId, sourceName: def.name,
-      abilityId: 'cast-trigger', abilityText: `${replicateCount ? 'Replicate' : 'Casualty'} — copy ${def.name}${copies > 1 ? ` ${copies} times` : ''}. You may choose new targets for the copies.`, effectText: '', special: null, modal: null,
+      abilityId: 'cast-trigger', abilityText: `${replicateCount ? 'Replicate' : casualtyId ? 'Casualty' : 'Conspire'} — copy ${def.name}${copies > 1 ? ` ${copies} times` : ''}. You may choose new targets for the copies.`, effectText: '', special: null, modal: null,
       compiled: { supported: true, requirements: [], unsupported: [], effects: [{ kind: 'copy-stack', stackId, soft: true, times: copies, retarget: true }] },
       event: { type: 'spell-cast', stackId, controllerId: player.playerId, playerId: player.playerId, sourceId: card.instanceId }, createdAt: new Date().toISOString() });
   }
@@ -771,12 +771,15 @@ export function queueSpecialTrigger(game, player, card, def, t, stackId = null) 
 
 function runActivate(game, op, ask) {
   const player = playerById(game, op.playerId);
-  const hit = findInPlayer(player, op.args.instanceId);
+  let hit = findInPlayer(player, op.args.instanceId), anyPlayer = false;
+  // "Any player may activate this ability": the source can be another player's permanent; the activator pays and controls the ability.
+  if (!hit) { const other = findCard(game, op.args.instanceId); if (other && other.zone === 'battlefield') { hit = other; anyPlayer = true; } }
   if (!hit) throw new GameError('That card is no longer available.');
   const card = hit.card, def = defOf(game, card), force = !!op.args.force;
-  if (String(op.args.abilityId || '').startsWith('special:')) return runSpecialAction(game, op, ask, player, card, def, force);
+  if (String(op.args.abilityId || '').startsWith('special:')) { if (anyPlayer) throw new GameError('That card is not yours to use.'); return runSpecialAction(game, op, ask, player, card, def, force); }
   const ability = parseActivatedAbilities(def).find(a => a.id === op.args.abilityId);
   if (!ability) throw new GameError('That ability is not available.');
+  if (anyPlayer && !/Any player may activate this ability/i.test(ability.text)) throw new GameError('Only its controller can activate that ability.');
   const base = { playerId: player.playerId, cancellable: true, source: def.name };
 
   const fromZone = !ability.manaAbility && hit.zone !== 'battlefield' && abilityZone(ability) === hit.zone ? hit.zone : null;
@@ -802,7 +805,7 @@ function runActivate(game, op, ask) {
   if (restricted && !force) throw new GameError(restricted);
   if (/Activate only once each turn|only once each turn|^Boast\b/i.test(ability.text)) card.activatedTurn = { ...(card.activatedTurn || {}), [ability.id]: game.turnNumber };
   if (/Activate (?:this ability )?no more than \w+(?: times)? each turn/i.test(ability.text)) { const was = card.activatedCount?.[ability.id]; card.activatedCount = { ...(card.activatedCount || {}), [ability.id]: { turn: game.turnNumber, n: was?.turn === game.turnNumber ? was.n + 1 : 1 } }; }
-  if (/Activate only as a sorcery/i.test(ability.text) && !force
+  if (/(?:Activate|but) only as a sorcery/i.test(ability.text) && !force
     && (game.activePlayerId !== player.playerId || !['precombat-main', 'postcombat-main'].includes(game.phase) || (game.stack || []).length)) {
     throw new GameError('This ability can be used only during your main phase while the stack is empty.');
   }
@@ -816,7 +819,8 @@ function runActivate(game, op, ask) {
   }
   const bindings = { sourceId: card.instanceId };
   const xInCost = /\{X\}/i.test(ability.cost);
-  if (ability.hasX) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
+  const xIsSacrificed = /Sacrifice an? [a-z ]+? with mana value X\b/i.test(ability.cost || '');   // Scrap Welder: X is the sacrificed card's mana value, not chosen
+  if (ability.hasX && !xIsSacrificed) bindings.X = ask('x', () => ({ ...base, kind: 'number', title: `${def.name} — choose X`, prompt: 'Choose the value of X.', min: 0, max: 99 }));
 
   const costMoveIds = [];
   if (fromZone === 'hand' && /\bDiscard this card\b/i.test(ability.cost || '')) costMoveIds.push(card.instanceId);   // Channel: "Discard this card" is the cost
@@ -829,6 +833,7 @@ function runActivate(game, op, ask) {
     const sac = rows.find(c => c.instanceId === sacrificedId);
     if (sac) { bindings.sacrificedSymbols = Object.fromEntries(['W', 'U', 'B', 'R', 'G'].map(k => [k, (String(defOf(game, sac)?.manaCost || '').match(/\{[^}]+\}/g) || []).filter(x => x.includes(k)).length])); }   // Fiery Bombardment: red mana symbols in its mana cost
     if (sac) { bindings.sacrificedPower = Math.max(0, effectivePower(sac, defOf(game, sac), game)); bindings.sacrificedToughness = Math.max(0, Number(defOf(game, sac)?.toughness || 0) + Number(sac.counters?.['+1/+1'] || 0) - Number(sac.counters?.['-1/-1'] || 0)); bindings.sacrificedManaValue = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0); }
+    if (xIsSacrificed && sac) bindings.X = Number(defOf(game, sac)?.manaValue ?? defOf(game, sac)?.cmc ?? 0);
     costMoveIds.push(sacrificedId);
   }
   // "Exile a creature you control" as part of the cost (The Soul Stone).
@@ -884,6 +889,7 @@ function runActivate(game, op, ask) {
     costMoveIds.push(discardedId);
     // Mercurial Chemister: "the discarded card's mana value".
     const gone = rows.find(c => c.instanceId === discardedId);
+    if (gone) bindings.costDiscardedTypeLine = defOf(game, gone)?.typeLine || '';   // Land's Edge: "if the discarded card was a land card"
     if (gone) bindings.costManaValue = Math.max(0, Number(defOf(game, gone)?.manaValue ?? defOf(game, gone)?.cmc ?? 0));;
   }
 
@@ -917,6 +923,14 @@ function runActivate(game, op, ask) {
     const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));
     costRemoveCounters.push({ counter: rmAll[1], amount: n }); bindings.costCount = n;
   }
+  // Simic Manipulator: "Remove one or more +1/+1 counters from this creature": the player chooses how many; the count is what the effect reads.
+  const rmSome = String(ability.cost || '').match(/Remove one or more ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
+  if (rmSome) {
+    const have = Math.max(0, Number(card.counters?.[rmSome[1]] || 0));
+    if (have < 1 && !force) throw new GameError(`${def.name} has no ${rmSome[1]} counters to remove.`);
+    const n = have <= 1 ? have : Math.max(1, Math.min(have, Number(ask('cost:remove-counters', () => ({ ...base, kind: 'number', title: `${def.name} — pay cost`, prompt: `How many ${rmSome[1]} counters do you remove?`, min: 1, max: have })) || 1)));
+    costRemoveCounters.push({ counter: rmSome[1], amount: n }); bindings.costCount = n;
+  }
   const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
   const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;
@@ -926,7 +940,7 @@ function runActivate(game, op, ask) {
   if (!plan.ok && !force) throw new GameError(plan.reason || 'The cost cannot be paid.');
   const common = {
     playerId: player.playerId, instanceId: card.instanceId, requiresTap: ability.requiresTap && !(force && card.tapped), requiresUntap: ability.requiresUntap,
-    sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
+    anyPlayer, sacrificeSelf: ability.sacrificesSelf, costMoveIds, costExileIds, costRemoveCounters, payment: plan.ok ? plan.chosen : null, lifeCost: ability.lifeCost, energyCost: ability.energyCost, fromZone
   };
   const short = ability.text.length > 90 ? `${ability.text.slice(0, 88)}…` : ability.text;
 
