@@ -21,6 +21,7 @@ export function playerSetup(name, deckKey) {
 }
 
 export function newGame(decks = ['white', 'simic'], opts = {}) {
+  if (seedBase !== null) reseed(seedBase * 100003 + ++gameNo);
   const game = createGame({ players: decks.map((d, i) => playerSetup(`P${i + 1}`, d)), definitions: DEFS, firstPlayer: 0, rules: { priorityTimer: 0, ...(opts.rules || {}) }, mode: opts.mode || 'fully-tracked', deviceMode: opts.deviceMode || 'multi-device' });
   const ctl = createController(game);
   const given = new Set();
@@ -81,6 +82,22 @@ export function newGame(decks = ['white', 'simic'], opts = {}) {
   };
   return t;
 }
+
+/** Seed Math.random (mulberry32) so shuffles in test setup repeat run to run. HARNESS_SEED env overrides. */
+let seedBase = null, gameNo = 0;
+export function seedRandom(seed = 1) {
+  seedBase = Number(process.env.HARNESS_SEED || seed) >>> 0 || 1;
+  reseed(seedBase);
+}
+// Each newGame reseeds from its own number, so its shuffle never depends on how much randomness earlier games used.
+function reseed(n) {
+  let a = (n >>> 0) || 1;
+  Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// A crash must end the output with a clear line (suites.sh shows only `tail -1`), not Node's version banner.
+const crash = e => { console.log(`\nCRASH ${String(e && e.stack || e).split('\n').slice(0, 3).join(' | ')}`); process.exit(2); };
+process.on('uncaughtException', crash);
+process.on('unhandledRejection', crash);
 
 let failures = 0, count = 0;
 export function check(label, cond, detail = '') {

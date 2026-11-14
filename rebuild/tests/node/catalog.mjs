@@ -1,6 +1,7 @@
 // Catalog effects (build 43): each new wording played through the real game — cast or activated, choices answered
 // by the player who makes them, then the result checked.  node tests/node/catalog.mjs
-import { newGame, check, section, done } from './harness.mjs';
+import { newGame, check, section, done, seedRandom } from './harness.mjs';
+seedRandom(1); // fixed shuffles: helpers like gyc pop a random library card and must not consume a card a test needs
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
