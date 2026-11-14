@@ -128,6 +128,12 @@ export function advanceTurn(game) {
   game.turnNumber++;
   game.extraCombats = 0;
   game.extraBeforeMain2 = 0;
+  // Day and night (game/daynight.js): the turn that ends decides — no spells by its active player makes day night, two or more make night day.
+  if (game.dayNight) {
+    const ended = (game.players || []).find(p => p.playerId === game.activePlayerId), n = Number(ended?.counters?.spellsCastThisTurn || 0);
+    const to = game.dayNight === 'day' && n === 0 ? 'night' : game.dayNight === 'night' && n >= 2 ? 'day' : null;
+    if (to) { game.dayNight = to; game.dayNightChanged = game.turnNumber + 1; }
+  }
   // Werewolves: "if no spells were cast last turn" / "if a player cast two or more spells last turn".
   game.lastTurnSpells = { total: Number(game.spellsCastThisTurn || 0), most: Math.max(0, ...(game.players || []).map(p => Number(p.counters?.spellsCastThisTurn || 0))) };
   game.spellsCastThisTurn = 0;

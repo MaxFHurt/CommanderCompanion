@@ -1242,7 +1242,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       let changed = 0;
       for (const p of players)
         for (const c of p.deck?.battlefield || [])
-          if ((only ? only.has(c.instanceId) : cardMatchesFilter(game, c, effect.filter || 'creature'))) {
+          if ((only ? only.has(c.instanceId) : cardMatchesFilter(game, c, effect.filter || 'creature')) && !(effect.exceptSource && c.instanceId === bindings.sourceId)) {
             c.temporaryEffects = c.temporaryEffects || [];
             c.temporaryEffects.push({ kind: 'keyword', keyword: effect.keyword, enabled: effect.enabled !== false, expires: effect.expires === 'your-next-turn' ? `turn-start:${controllerId}` : (effect.expires || 'cleanup') });
             changed++;
@@ -2635,6 +2635,8 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
     const kws = (q >= 0 ? withText.slice(0, q).replace(/\s*(?:,\s*)?(?:and\s*)?$/i, '') : withText).split(/,| and /).map(x => x.trim()).filter(Boolean);
     const quotes = q >= 0 ? [...withText.slice(q).matchAll(/"([^"]*)"?/g)].map(x => x[1].replace(/[,\s]+$/, '').trim()).filter(x => x && !/^(?:and|,)$/i.test(x)) : [];
     const rules = quotes.map(x => x.replace(/([^.])$/, '$1.')).join('\n');
+    // build 112: "with vigilance that's attacking" (Inquisitorial Rosette) is not a keyword: the token enters attacking, which this reading can't do.
+    if (kws.some(k => /\b(?:that'?s|attacking|tapped)\b/i.test(k))) { unsupported.push(c); return { effects, requirements, unsupported }; }
     effects.push({ kind: 'create-token', amount: numberFromText(m[1]) ?? m[1].toUpperCase(), power: Number(m[2]), toughness: Number(m[3]), name: subtype, typeLine: tokenLine, keywords: kws, colors: tokenColors(typeWords), ...(rules ? { oracleText: rules } : {}) });
     return { effects, requirements, unsupported };
   }

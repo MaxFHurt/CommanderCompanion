@@ -61,6 +61,12 @@
 40. ☐ A prepare creature that "enters prepared" (Spellbook Seeker // Careful Study): once it is on the battlefield its details say "Prepared", and a card named after its spell (Careful Study) appears in your exile, castable for its own cost.
 41. ☐ Cast that exile copy → it resolves, the creature is no longer prepared, and the copy is gone (not in the graveyard). In hand, the card offers only its creature face.
 42. ☐ Grave Researcher (or any "becomes prepared" trigger) → after the trigger the creature shows "Prepared" and the copy appears in exile; if the creature leaves the battlefield the copy disappears.
+43. ☐ Empower Jace (Countersculpt, Theorist's Sanctum): a blue "Jace" planeswalker token appears with the loyalty given; a second empower adds to the same token; its −1 (surveil) and −3 (draw) abilities can be used.
+44. ☐ Endure (Fortress Kin-Guard): as the ability resolves you are asked "+1/+1 counters on it" or "a white Spirit token" of that size.
+45. ☐ Cipher (Hidden Strings, Last Thoughts): after the spell resolves you may pick a creature; the card goes to exile, and when that creature deals combat damage to a player you are offered a free copy.
+46. ☐ Harmonize (Wild Ride): the card in your graveyard offers "Harmonize"; casting it asks which untapped creature to tap (or none) and the cost drops by its power; afterwards the card is in exile.
+47. ☐ Day and night: with a daybound werewolf in play the turn header shows "· Day"; after a turn with no spells it shows "· Night" and the werewolf shows its back face.
+48. ☐ Thoughtlace-style "target spell or permanent" and Unsubstantiate / Venser: spells on the stack are offered as targets.
 ## Accounts (build 110)
 A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
 A2. ☐ Close and reopen the app → expect no sign-in again.

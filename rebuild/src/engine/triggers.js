@@ -290,6 +290,7 @@ function triggerMatches(game, row, ability, event) {
   // ∞ abilities (The Soul Stone, the Infinity Stones) work only once the permanent is harnessed.
   if (!row.card?.harnessed && String(d?.oracleText || '').split('\n').some(l => /^∞\s*[—-]/.test(l) && l.includes(String(ability.text || '').slice(0, 40))))
     return false;
+  if (/^Whenever day becomes night or night becomes day$/i.test(t)) return event.type === 'day-night-changed';   // day and night (game/daynight.js)
   if (/^Whenever you cast a prepared spell$/i.test(t)) return event.type === 'spell-cast' && isYourEvent(row, event) && !!event.prepared;   // Codie, Ravenous Codex: a copy cast from a prepared creature (prepare.js)
   // "When this creature enters and whenever …" (Inspired Skypainter, Layla Hassan): either half fires it.
   { const both = t.match(/^(When .+? enters(?: the battlefield)?) and ((?:whenever|at) .+)$/i);
@@ -783,7 +784,7 @@ export function resolveTrigger(game, trigger, bindings = {}) {
  * card, by another of its controller's cards and by an opponent, with each common card type. A
  * trigger nothing matches is one players must remember and resolve by hand.
  */
-const PROBE_EVENTS = ['door-unlocked', 'library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
+const PROBE_EVENTS = ['door-unlocked', 'day-night-changed', 'library-searched', 'draw-step', 'damage-permanent', 'combat-damage-creature', 'attackers-declared', 'attacks', 'begin-combat', 'blocks', 'combat-damage-dealt', 'combat-damage-player', 'counter-added', 'damage-player', 'dies', 'discard', 'draw', 'end-combat', 'end-step', 'enters-battlefield', 'leaves-battlefield', 'life-gained', 'life-lost', 'precombat-main-start', 'sacrificed', 'spell-cast', 'tapped', 'token-created', 'upkeep'];
 const PROBE_TYPES = ['Creature — Human', 'Land', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Legendary Planeswalker', 'Artifact Creature — Golem', 'Creature — Elemental Dragon', 'Artifact — Equipment'];
 export function triggerCanFire(definition, ability) {
   return probeTrigger(definition, ability, PROBE_TYPES, PROBE_EVENTS, [{}]) || probeTrigger(definition, ability, wideProbeTypes(ability), [...PROBE_EVENTS, ...PROBE_EXTRA_EVENTS], WIDE_VARIANTS);

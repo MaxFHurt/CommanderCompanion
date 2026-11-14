@@ -5253,4 +5253,75 @@ section('batch 5 (build 112): return target spell or creature');
   check('Unsubstantiate: a spell on the stack can be chosen and goes back to its owner\'s hand unresolved', rows.some(r => r.id === 'stack:opt') && !t.game.stack.length && t.P(0).deck.hand.includes(opt), JSON.stringify([rows.map(r => r.id), t.game.stack.length]));
 }
 
+section('batch 5 (build 112): endure, mass pumps, colour of a spell');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '{1}: This creature endures 2.');
+  activate(t, bear, 0, [[d => d.prompt?.startsWith('Endure'), 'counters']]);
+  const c1 = Number(bear.counters['+1/+1'] || 0);
+  activate(t, bear, 0, [[d => d.prompt?.startsWith('Endure'), 'spirit']]);
+  const spirit = t.P(0).deck.battlefield.find(c => def(t, c)?.name === 'Spirit');
+  check('Endure 2: two +1/+1 counters, or a 2/2 white Spirit', c1 === 2 && spirit && power(t, spirit) === 2 && (def(t, spirit).colors || []).includes('W'), JSON.stringify([c1, spirit && def(t, spirit)]));
+}
+{
+  const t = setup();
+  const elf = onField(t, 'Llanowar Elves', '{1}: Other Elves you control get +2/+2 and gain deathtouch until end of turn.', { typeLine: 'Creature — Elf Druid' });
+  const elf2 = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Elf Warrior' });
+  const bear = onField(t, 'Mulldrifter', '', { typeLine: 'Creature — Bear' });
+  activate(t, elf, 0);
+  check('Other Elves you control get +2/+2 and gain deathtouch: only the other Elf', power(t, elf2) === 4 && has(t, elf2, 'deathtouch') && power(t, elf) === 1 && power(t, bear) === 2 && !(elf.temporaryEffects || []).some(e => e.keyword === 'deathtouch'), JSON.stringify([has(t, elf2, 'deathtouch'), has(t, elf, 'deathtouch'), elf2.temporaryEffects]));
+}
+{
+  const t = setup();
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw a card.', { manaCost: '{U}', typeLine: 'Instant', colors: ['U'] });
+  t.P(0).deck.hand.splice(t.P(0).deck.hand.indexOf(opt), 1); opt.zone = 'stack';
+  t.game.stack = [{ id: 'stack:opt', kind: 'spell', controllerId: t.P(0).playerId, ownerId: t.P(0).playerId, card: opt, sourceDefinitionId: opt.definitionId, label: 'Opt', effects: [], effectBindings: {} }];
+  applyEffects(t.game, t.P(1).playerId, compileEffectText('Target spell or permanent becomes red.', { sourceName: 'Chaoslace' }).effects, { target0: 'stack:opt' });
+  check('Chaoslace: a spell on the stack becomes red', (withOverlay(opt, def(t, opt)).colors || []).join() === 'R', JSON.stringify(withOverlay(opt, def(t, opt)).colors));
+}
+
+section('batch 5 (build 112): Cipher');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  const hand = t.P(0).deck.hand.length;
+  cast(t, 'Opt', 'Draw a card.\nCipher (Then you may exile this spell card encoded on a creature you control. Whenever that creature deals combat damage to a player, its controller may cast a copy of the encoded card without paying its mana cost.)', [[d => /encode/i.test(d.prompt || '') || d.kind === 'choose-one', () => bear.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+  const opt = t.P(0).deck.exile.find(c => def(t, c)?.name === 'Opt');
+  check('Cipher: the spell resolves, then is exiled encoded on the creature', t.P(0).deck.hand.length === hand + 1 && !!opt && (bear.imprintIds || []).includes(opt.instanceId) && (bear.grantedText || []).some(x => /combat damage to a player/.test(x)), JSON.stringify([t.P(0).deck.hand.length - hand, t.names(0, 'exile'), bear.imprintIds]));
+  t.game.pendingTriggers = [];
+  queueTriggers(t.game, { type: 'combat-damage-player', sourceId: bear.instanceId, controllerId: t.P(0).playerId, playerId: t.P(1).playerId, amount: 2 });
+  check('Cipher: the encoded creature dealing combat damage to a player triggers the copy', (t.game.pendingTriggers || []).some(x => x.sourceId === bear.instanceId), JSON.stringify((t.game.pendingTriggers || []).map(x => x.abilityText)));
+}
+
+section('batch 5 (build 112): day and night');
+{
+  const t = setup();
+  const front = 'Daybound (If a player casts no spells during their own turn, it becomes night next turn.)';
+  const wolf = onField(t, 'Grizzly Bears', front, { layout: 'transform', cardFaces: [{ faceIndex: 0, name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Human Werewolf', oracleText: front, power: '2', toughness: '2' }, { faceIndex: 1, name: 'Moonrage Bear', manaCost: '', typeLine: 'Creature — Werewolf', oracleText: 'Nightbound', power: '4', toughness: '4' }] });
+  const watcher = onField(t, 'Mulldrifter', 'Whenever day becomes night or night becomes day, draw a card.');
+  stateBasedActions(t.game);
+  const day = t.game.dayNight;
+  t.do(0, { type: 'end-turn' }); t.passAll(); t.discardIfNeeded(0); t.passAll(); stateBasedActions(t.game);
+  check('day/night: a daybound permanent makes it day; a turn with no spells makes it night and it transforms', day === 'day' && t.game.dayNight === 'night' && Number(wolf.activeFaceIndex) === 1, JSON.stringify([day, t.game.dayNight, wolf.activeFaceIndex]));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('If it\'s night, it becomes day. Otherwise, it becomes night.', { sourceName: 'The Celestus' }).effects, {});
+  stateBasedActions(t.game);
+  check('The Celestus: night becomes day and the werewolf turns back', t.game.dayNight === 'day' && Number(wolf.activeFaceIndex || 0) === 0, JSON.stringify([t.game.dayNight, wolf.activeFaceIndex]));
+  t.game.pendingTriggers = [];
+  queueTriggers(t.game, { type: 'day-night-changed', to: 'day' });
+  check('day/night: "Whenever day becomes night or night becomes day" triggers', (t.game.pendingTriggers || []).some(x => x.sourceId === watcher.instanceId), JSON.stringify((t.game.pendingTriggers || []).length));
+}
+
+section('batch 5 (build 112): Harmonize');
+{
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '');
+  t.give(0, 'Opt'); const opt = asText(t, t.hand(0, 'Opt'), 'Draw two cards.\nHarmonize {9}{U} (You may cast this card from your graveyard for its harmonize cost. You may tap an untapped creature you control to reduce that cost by an amount of generic mana equal to its power. Then exile this spell.)', { manaCost: '{2}{U}', typeLine: 'Sorcery' });
+  moveCard(t.game, opt.instanceId, 'graveyard');
+  const hand = t.P(0).deck.hand.length;
+  const r = t.ctl.dispatch({ type: 'play', instanceId: opt.instanceId }, t.as(0));
+  settle(t, [[d => d.key.includes('castMode'), 'harmonize'], [d => d.key.includes('harmonize'), () => bear.instanceId]]);
+  const liveBear = t.P(0).deck.battlefield.find(c => c.instanceId === bear.instanceId);
+  check('Harmonize: cast from the graveyard, a 2-power creature tapped pays {2} of {9}{U} (8 lands), then the card is exiled', r.ok && t.P(0).deck.hand.length === hand + 2 && liveBear?.tapped && t.P(0).deck.exile.some(c => c.instanceId === opt.instanceId), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, liveBear?.tapped, t.names(0, 'exile')]));
+}
+
 done();

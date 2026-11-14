@@ -10,6 +10,7 @@ import { commit } from './ops.js';
 import { regenerates } from '../engine/effects-catalog.js';
 import { sagaFinalChapter } from '../engine/keyword-triggers.js';
 import { maintainPrepared } from './prepare.js';
+import { maintainDayNight } from './daynight.js';
 
 export function stateBasedActions(game) {
   let changed = false;
@@ -20,6 +21,7 @@ export function stateBasedActions(game) {
   }
   // Prepared creatures: "enters prepared" and the castable copies of their spells (prepare.js).
   if (maintainPrepared(game)) changed = true;
+  if (maintainDayNight(game)) changed = true;   // day/night and daybound faces
   // A copy of a card that was not cast (or has left the stack) ceases to exist (707.12).
   for (const p of game.players || []) for (const z of ['exile', 'graveyard', 'hand', 'battlefield', 'remainingLibrary']) {
     const zone = p.deck?.[z];

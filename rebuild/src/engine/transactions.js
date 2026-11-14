@@ -1263,8 +1263,10 @@ export function createTransactionEngine(game) {
         if (action.phase === 'begin-combat' || action.phase === 'combat')
           emit(game, { type: 'begin-combat', playerId: game.activePlayerId });
       }
-      else if (action.type === 'end-turn')
+      else if (action.type === 'end-turn') {
         advanceTurn(game);
+        if (game.dayNightChanged === game.turnNumber) emit(game, { type: 'day-night-changed', to: game.dayNight, playerId: game.activePlayerId });
+      }
       else if (action.type === 'concede') {
         if (player.eliminated)
           throw new Error('This player has already left the game.');

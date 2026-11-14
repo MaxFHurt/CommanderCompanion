@@ -220,7 +220,7 @@ function giftText(t, gift) {
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
 export function castText(text, { kicked = false, overload = false, cleave = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Cleave|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Cleave|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Harmonize|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -635,6 +635,22 @@ function runPlay(game, op, ask) {
   const available = playerManaAvailability(player, game);
   available.__flex = available.__flex.filter(x => x.instanceId !== card.instanceId);
   available.__flex.push(...priced.convoke.filter(x => !available.__flex.some(y => y.instanceId === x.instanceId)));
+  // Harmonize (Tarkir: Dragonstorm): you may tap an untapped creature you control to reduce the cost by its power.
+  let harmonizeTap = null;
+  if (mode.id === 'harmonize' && genericOf(cost) > 0) {
+    const rows = (player.deck.battlefield || []).filter(c => !c.tapped && /\bCreature\b/.test(defOf(game, c)?.typeLine || '') && effectivePower(c, defOf(game, c), game) > 0)
+      .map(c => ({ id: c.instanceId, label: `${defOf(game, c)?.name || 'Creature'} (power ${effectivePower(c, defOf(game, c), game)})`, sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (rows.length) {
+      const pick = ask('harmonize', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-one', source: def.name, title: `${def.name} — harmonize`, prompt: 'You may tap an untapped creature you control; the cost is reduced by its power.', options: [{ id: 'none', label: 'Tap no creature' }, ...rows] }));
+      const hc = pick && pick !== 'none' ? player.deck.battlefield.find(c => c.instanceId === pick) : null;
+      if (hc) {
+        harmonizeTap = hc.instanceId;
+        cost = adjustGeneric(cost, -Math.min(genericOf(cost), effectivePower(hc, defOf(game, hc), game)));
+        available.__flex = available.__flex.filter(x => x.instanceId !== hc.instanceId);
+        for (const k of Object.keys(available)) if (Array.isArray(available[k]) && k !== '__flex') available[k] = available[k].filter(x => x?.instanceId !== hc.instanceId);
+      }
+    }
+  }
   const exileFromGraveyard = [];
   const graveRows = () => delveCards(player, card).filter(c => !exileFromGraveyard.includes(c.instanceId))
     .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Card', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
@@ -723,6 +739,7 @@ function runPlay(game, op, ask) {
   if (!faceDown) for (const t of castTriggers(game, player, card, def)) queueSpecialTrigger(game, player, card, def, t, stackId);
   // Replicate and casualty: "When you cast this spell, copy it (for each time you paid its replicate cost)."
   if (conspireIds) for (const id of conspireIds) { const c = player.deck.battlefield.find(x => x.instanceId === id); if (c) c.tapped = true; }
+  if (harmonizeTap) { const c = player.deck.battlefield.find(x => x.instanceId === harmonizeTap); if (c) c.tapped = true; }
   const copies = Number(replicateCount || 0) + (casualtyId ? 1 : 0) + (conspireIds ? 1 : 0);
   if (copies) {
     game.pendingTriggers = game.pendingTriggers || [];
@@ -756,7 +773,8 @@ function wardCosts(game, player, ids) {
 /** Can this way of casting (plus an extra cost) be paid right now? */
 function modeAffordable(game, player, card, def, mode, { tax = 0, extra = '' } = {}) {
   const priced = modeCost(game, player, card, def, mode, { tax, extra });
-  const cost = adjustGeneric(priced.cost, -Math.min(priced.delve, genericOf(priced.cost)));
+  let cost = adjustGeneric(priced.cost, -Math.min(priced.delve, genericOf(priced.cost)));
+  if (mode.id === 'harmonize') cost = adjustGeneric(cost, -Math.max(0, ...(player.deck.battlefield || []).filter(c => !c.tapped && /\bCreature\b/.test(defOf(game, c)?.typeLine || '')).map(c => effectivePower(c, defOf(game, c), game))));
   const available = playerManaAvailability(player, game);
   available.__flex = available.__flex.filter(x => x.instanceId !== card.instanceId);
   available.__flex.push(...priced.convoke);

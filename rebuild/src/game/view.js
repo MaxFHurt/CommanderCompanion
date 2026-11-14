@@ -251,7 +251,7 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
   const isTurn = prompt.kind === 'turn';
   const view = {
     gameId: game.gameId, mode: game.mode, deviceMode: game.deviceMode, status: game.status, stage: game.flow.stage,
-    turn: game.turnNumber, phase: game.phase, phaseLabel: phaseLabel(game.phase), activePlayerId: game.activePlayerId,
+    turn: game.turnNumber, phase: game.phase, phaseLabel: phaseLabel(game.phase), activePlayerId: game.activePlayerId, dayNight: game.dayNight || null,
     you: viewerId, isHost: !!viewer.isHost, isJudge: judge,
     canEdit: game.mode === 'freeplay' || judge || (!!game.flow.correction && game.flow.correction.challengerId === viewerId) || (prompt.kind === 'guided' && prompt.controllerId === viewerId),
     canForce: game.mode === 'freeplay',
