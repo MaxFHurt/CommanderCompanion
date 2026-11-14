@@ -7,7 +7,8 @@
   points at exact files (see `rebuild/INDEX.md`), not "read the codebase".
 - **Few agents at once.** Parallel agents share one usage limit; on 12 Nov eight agents hit it before writing any code.
   Each with a narrow task, and **keep several busy at all times** (owner, 13 Nov: "Multiple agents
-  should be working all the time"): when one finishes, start the next roadmap task. **Up to four at once; only one on card
+  should be working all the time"): when one finishes, start the next roadmap task. No filler work (owner, 14 Nov): if nothing real is free, run fewer agents;
+  speed and clean-up work waits for step 4. **Up to four at once; only one on card
   rules** (owner, 13 Nov) until every roadmap item except judgement and optimisation is done.
 - **Repetition burns tokens.** A command or check run more than twice becomes a skill (`.claude/skills/`) or a script.
   Existing: `deck-test` (Deck Builder tests), `release` (shipping a build).
