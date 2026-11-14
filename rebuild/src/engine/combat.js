@@ -104,8 +104,27 @@ function conditionalSelf(game, card, def) {
   }
   return out;
 }
+/** "Gain control of … for as long as ~ remains tapped / you control ~" (build 110): control goes back when the condition stops. */
+function restoreControlWhile(game) {
+  if (!game?.controlWhile?.length) return;
+  const bf = () => (game.players || []).flatMap(p => (p.deck?.battlefield || []).map(c => ({ c, p })));
+  const keep = [];
+  for (const r of game.controlWhile) {
+    const all = bf(), src = all.find(x => x.c.instanceId === r.sourceId), tgt = all.find(x => x.c.instanceId === r.targetId);
+    if (!tgt) continue;
+    const holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    if (holds) { keep.push(r); continue; }
+    const to = game.players.find(p => p.playerId === r.previousControllerId);
+    if (to && tgt.p.playerId !== to.playerId) {
+      tgt.p.deck.battlefield.splice(tgt.p.deck.battlefield.indexOf(tgt.c), 1);
+      tgt.c.controllerId = to.playerId; to.deck.battlefield.push(tgt.c);
+    }
+  }
+  game.controlWhile = keep;
+}
 /** "… for as long as ~ remains tapped" (build 110): effects registered in game.whileTapped end when their source untaps or leaves. */
 export function pruneWhileTapped(game) {
+  restoreControlWhile(game);
   const regs = game?.whileTapped;
   if (!regs?.length) return;
   const keep = [];

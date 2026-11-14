@@ -4392,4 +4392,32 @@ section('build 110 (long tail batch 4)');
   check('enters-or-transforms: turning into the other face does nothing; turning back into the named face gains 2', mid === life0 && t.P(0).life === life0 + 2, `${life0} -> ${mid} -> ${t.P(0).life}`);
 }
 
+{
+  // Limits set by a count: "power less than or equal to the number of creatures you control"
+  const t = setup();
+  onField(t, 'Grizzly Bears', ''); onField(t, 'Llanowar Elves', '');
+  const a = onField(t, 'Fog Bank', '', { power: '2', toughness: '2' }, 1), b = onField(t, 'Colossal Dreadmaw', '', { power: '5', toughness: '5' }, 1);
+  const ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature with power less than or equal to the number of creatures you control' }, t.P(0), null).map(r => r.id);
+  check('count limit: 2 creatures -> power 2 offered, power 5 not', ids.includes(a.instanceId) && !ids.includes(b.instanceId), JSON.stringify(ids));
+}
+{
+  // The Mighty Thor: exile then return tapped under its owner's control
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', "Exile up to one target nontoken artifact or creature, then return that card to the battlefield tapped under its owner's control.", [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const back = t.P(1).deck.battlefield.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Grizzly Bears');
+  check('exile then return tapped: back on its owner\'s battlefield, tapped', !!back && back.tapped, JSON.stringify([!!back, back?.tapped]));
+}
+{
+  // Vedalken Shackles style: control while the source stays tapped, back when it untaps
+  const t = setup();
+  const sh = onField(t, 'Sol Ring', '{2}, {T}: Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, sh, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  sh.tapped = false; power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('control while tapped: taken, then returned when the source untaps', mine && theirs, JSON.stringify([mine, theirs]));
+}
+
 done();

@@ -2055,9 +2055,18 @@ function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)
 function unenforceableLimit(scope) {
   const t = String(scope || '').toLowerCase();
   for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
-    if (!/^(?: or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (?:power|toughness)\b/.test(t.slice(m.index + m[0].length))) return true;
+    const L = limitOf(t.slice(m.index));
+    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || L.expr.that || L.expr.it) return true;
   }
   return false;
+}
+/** "with power less than or equal to <amount>" in a target description: the stat, direction and the amount (this creature's power, the number of Islands you control, your life total …). */
+export function limitOf(text) {
+  const m = String(text || '').toLowerCase().match(/^with (mana value|power|toughness) (less|greater) than( or equal to)? (.+?)(?: (?:in|from) (?:your|a|an opponent'?s) graveyard)?(?: (?:and|from|to|can't|gains?|gets?)\b.*)?$/);
+  if (!m) return null;
+  const self = m[4].match(/^(?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)$/);
+  const expr = self ? { kind: 'b110-source-stat', stat: self[1] } : parseAmountB101(m[4].replace(/\.$/, ''));
+  return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
 }
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;

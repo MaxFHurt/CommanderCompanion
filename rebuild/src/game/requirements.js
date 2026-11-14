@@ -9,7 +9,7 @@ import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catal
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
 import { cardHasKeyword, effectivePower, effectiveToughness } from '../engine/combat.js';
-import { cardMatchesFilter, resolveAmount, exiledWith, locateCardInGame } from '../engine/effects.js';
+import { cardMatchesFilter, resolveAmount, limitOf, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -171,22 +171,34 @@ function descriptorFits(game, card, def, scope) {
 
 
 /** "with power less than or equal to this creature's power" / "with mana value less than or equal to Carmen's power": a limit set by the source's own stat (build 110). */
-function sourceLimitFits(game, card, def, scope, source) {
-  const m = scope.match(/\bwith (mana value|power|toughness) (less|greater) than( or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)\b/);
-  if (!m) return true;
-  if (!source) return false;
-  const sd = defOf(game, source), lim = Number(m[4] === 'power' ? effectivePower(source, sd, game) : effectiveToughness(source, sd, game));
-  const v = m[1] === 'mana value' ? Number(def?.manaValue ?? def?.cmc ?? 0) : m[1] === 'power' ? Number(effectivePower(card, def, game)) : Number(effectiveToughness(card, def, game));
-  return m[2] === 'less' ? (m[3] ? v <= lim : v < lim) : (m[3] ? v >= lim : v > lim);
+let LIMIT_BINDINGS = null;   // the choices and event data so far, for limits such as "less than or equal to that spell's mana value"
+function sourceLimitFits(game, card, def, scope, source, player = null) {
+  const at = scope.search(/\bwith (?:mana value|power|toughness) (?:less|greater) than/);
+  if (at < 0) return true;
+  const L = limitOf(scope.slice(at));
+  if (!L) return false;
+  let lim;
+  if (L.expr.kind === 'b110-source-stat') {
+    if (!source) return false;
+    const sd = defOf(game, source);
+    lim = Number(L.expr.stat === 'power' ? effectivePower(source, sd, game) : effectiveToughness(source, sd, game));
+  } else {
+    const who = player?.playerId || source?.controllerId || game.activePlayerId;
+    lim = Number(resolveAmount(game, who, L.expr, { ...(LIMIT_BINDINGS || {}), sourceId: source?.instanceId || null }) || 0);
+  }
+  const v = L.stat === 'mana value' ? Number(def?.manaValue ?? def?.cmc ?? 0) : L.stat === 'power' ? Number(effectivePower(card, def, game)) : Number(effectiveToughness(card, def, game));
+  return L.less ? (L.orEqual ? v <= lim : v < lim) : (L.orEqual ? v >= lim : v > lim);
 }
 
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
-function matchesPermanentScope(game, card, scope, source = null) {
+function matchesPermanentScope(game, card, scope, source = null, player = null) {
+  const fullScope = scope;
+  scope = scope.replace(/\s*\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/, '');   // the limit's own words ("Islands you control") say nothing about the target
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
   if (!descriptorFits(game, card, def, scope)) return false;
-  if (!sourceLimitFits(game, card, def, scope, source)) return false;
+  if (!sourceLimitFits(game, card, def, fullScope, source, player)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
@@ -233,8 +245,8 @@ export function candidatesFor(game, req, player, source = null) {
     const owners = /your/.test(scope) ? [player] : game.players;
     for (const q of owners) for (const c of q.deck.graveyard || []) {
       const def = defOf(game, c), t = String(def?.typeLine || '');
-      if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '')) || !manaValueFits(def, scope)) continue;
-      if (!sourceLimitFits(game, c, def, scope, source) || !descriptorFits(game, c, def, scope)) continue;
+      if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '').replace(/\s*\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/, '')) || !manaValueFits(def, scope)) continue;
+      if (!sourceLimitFits(game, c, def, scope, source, player) || !descriptorFits(game, c, def, scope)) continue;
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;
@@ -280,12 +292,13 @@ export function candidatesFor(game, req, player, source = null) {
       const anyTarget = /any (?:other )?target/.test(scope);
       const defending = /defending player controls/.test(scope);   // "target creature defending player controls": the player this attacker is attacking
       const defenderId = defending && source ? (game.combatState?.attackers || []).find(a => a.instanceId === source.instanceId)?.defenderId : null;
-      const dontControl = defending || /you don'?t control|an opponent controls|your opponents control/.test(scope);
-      const owners = defenderId && alivePlayers(game).some(q => q.playerId === defenderId) ? alivePlayers(game).filter(q => q.playerId === defenderId) : dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(scope) ? [player] : alivePlayers(game);
+      const ownerScope = scope.replace(/\bwith (?:mana value|power|toughness) (?:less|greater) than.*$/, '');   // "the number of Islands you control" is not who controls the target
+      const dontControl = defending || /you don'?t control|an opponent controls|your opponents control/.test(ownerScope);
+      const owners = defenderId && alivePlayers(game).some(q => q.playerId === defenderId) ? alivePlayers(game).filter(q => q.playerId === defenderId) : dontControl ? opponentsOf(game, player.playerId) : /you control|your /.test(ownerScope) ? [player] : alivePlayers(game);
       for (const q of owners) for (const c of q.deck.battlefield || []) {
         if (anyTarget) {
           if (!/Creature|Planeswalker|Battle/i.test(defOf(game, c)?.typeLine || '')) continue;
-        } else if (!matchesPermanentScope(game, c, scope, source)) continue;
+        } else if (!matchesPermanentScope(game, c, scope, source, player)) continue;
         if (/blocking or blocked by it/.test(scope) && !blockedPair(game, source, c)) continue;   // Steadfast Armasaur: a creature blocking it or blocked by it
         if (targeted && !canTarget(game, c, player, source)) continue;
         out.push(cardOption(game, c, q));
@@ -319,6 +332,7 @@ function requirementAmount(req, bindings) {
  * `ctx` = { player (the controller of the effect), sourceName, cancellable }.
  */
 export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req') {
+  LIMIT_BINDINGS = bindings;
   const { player, sourceName = 'Effect' } = ctx;
   const cancellable = ctx.cancellable !== false;
   const base = { playerId: player.playerId, cancellable, source: sourceName };
