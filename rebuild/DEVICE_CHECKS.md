@@ -31,4 +31,10 @@
 ## Card rules (build 108)
 19. ☐ Play a card that connives → expect the draw first, then a question asking which card to discard (the new card included).
 
+## Accounts (build 110)
+A1. ☐ First open after the update → expect Sign up / Sign in / Skip. Choose Sign up with your email → a 6-digit code arrives (check spam) → type it in → your decks, stats and playmats are all still there.
+A2. ☐ Close and reopen the app → expect no sign-in again.
+A3. ☐ On a second device: Sign in with the same email → expect your profile loads by itself, no key asked.
+A4. ☐ Settings → Backup → Account shows your email; Sign out → the profile stays on the device.
+
 Reply with the numbers that failed and a screenshot.

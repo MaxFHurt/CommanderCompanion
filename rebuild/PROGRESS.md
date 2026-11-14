@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.109 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.110 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -36,6 +36,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 110 — 14 Nov 2026 (app 1.0.0-rebuild.110; Deck Builder unchanged, 0.9.71): accounts
+- Owner, 13 Nov: "The first time a user ever opens the app, it should ask them to sign in or sign up. A player may also choose to skip and locally save ... the player profile should be automatically assigned its key when signing up and a player should never be asked for it again ... We cannot lose everything I currently have in my profile."
+- First launch (and once for existing installs): Sign up / Sign in / Skip. Sign-in by a 6-digit emailed code; the device stays signed in (refresh token). New account: a key is made, the profile uploaded and linked. Established player: this device's existing key is linked, nothing changes. Another device: loads the account's profile. A device with different data: a backup copy is saved first, then one question (keep the account's / this device's / save a file first / decide later). Keys appear only under Settings → Backup → Advanced. Sign out stops online saving on that device; the profile stays.
+- Supabase: email code template, Gmail SMTP (no domain needed; about 500 a day), 30 sign-ups an hour, one key per account. Settings → Backup → Account replaces build 105's recovery email.
+- Tests: accounts_ui 56 (new; every data-loss case), smoke, game_ui, flows_ui, net_ui, online_ui, offline_ui, pair_ui, challenge_ui, tracker_test, tracker_net_ui all pass. Faked Supabase in tests; a real code email was sent and received. Owner to sign up on the phone with the same email as build 105's recovery email, if one was linked.
 
 ### Build 109 — 13 Nov 2026 (app 1.0.0-rebuild.109; Deck Builder unchanged, 0.9.71): long tail batch 3 complete; cards exiled with a permanent
 - Batch 3 part 2: the last 43 of batch 1's 94 sent-back cards (cost-linked counts, "unless" choices by another player, discard-linked "if you do", additional costs, Palace Jailer, Rith, Hateful Eidolon, Glissa's Retriever, Olivia …): all 94 automatic. A full audit caught three the part-2 agent had wrongly counted; fixed.
