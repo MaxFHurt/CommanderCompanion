@@ -5108,4 +5108,18 @@ section('batch 5 (build 111): reveal-X, same name, creature type, descriptors, E
   check('Target 1/1 creature: the 1/1 is offered, the 2/2 is not', offered.includes(one.instanceId) && !offered.includes(two.instanceId), JSON.stringify(offered.length));
 }
 
+section('batch 5 (build 111): Valiant, Mice');
+{
+  // Heartfire Hero: the first time each turn a spell or ability I control targets it, a +1/+1 counter; the second time nothing
+  const t = setup(); const hero = onField(t, 'Grizzly Bears', 'Valiant — Whenever this creature becomes the target of a spell or ability you control for the first time each turn, put a +1/+1 counter on it.');
+  const pump = nm => cast(t, nm, 'Target creature gets +1/+1 until end of turn.', [[d => d.targeting, () => hero.instanceId]], { manaCost: '{G}', typeLine: 'Instant' });
+  pump('Opt'); const after1 = Number(hero.counters?.['+1/+1'] || 0); pump('Naturalize'); const after2 = Number(hero.counters?.['+1/+1'] || 0);
+  check('Valiant: one counter for the first targeting this turn, none for the second', after1 === 1 && after2 === 1, JSON.stringify([after1, after2]));
+}
+{
+  const t = setup(); const a = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Mouse' }), b = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  cast(t, 'Opt', 'Mice you control get +1/+0 until end of turn.', [], { manaCost: '{G}', typeLine: 'Instant' });
+  check('Mice you control: the Mouse gets +1/+0, the Elf does not', power(t, a) === 3 && power(t, b) === 1, JSON.stringify([power(t, a), power(t, b)]));
+}
+
 done();

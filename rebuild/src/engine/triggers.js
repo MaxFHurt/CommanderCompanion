@@ -788,7 +788,7 @@ const WIDE_VARIANTS = [
   { victim: true }, { oppTurn: true }, { event: { manaValue: 7, colors: ['W', 'U'], kicked: true, fromZone: 'hand', byKind: 'spell', firstThisTurn: true, to: 'graveyard', combat: false } },
   { event: { manaValue: 9, colors: ['B', 'R', 'G'], crewIds: ['self'], land: true, creature: true, typeLine: 'Land — Swamp Forest Island Mountain Plains' } },
   { token: true, event: { token: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
-  { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
+  { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { event: { byPlayerId: 'me', byKind: 'spell', firstThisTurn: true } }, { event: { byPlayerId: 'me', byKind: 'ability', firstThisTurn: true } },   // "becomes the target of a spell or ability you control" (Valiant) { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
 /** Colours a trigger names ("another green creature", "a white or blue spell"): the wide probe's cards have them (build 110). */
 function probeColors(ability) {
