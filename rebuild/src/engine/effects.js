@@ -2703,6 +2703,9 @@ function compileSingleClauseRaw(clause, { sourceName = 'Effect' } = {}) {
       effects.push({ kind: 'add-mana', amount: symbols.length, color: symbols[0] });
       return { effects, requirements, unsupported };
     }
+    // {R}{G}: each colour in turn ("Add {R}{R}{R}{G}{G}{G}.")
+    for (const col of [...new Set(symbols)]) effects.push({ kind: 'add-mana', amount: symbols.filter(x => x === col).length, color: col });
+    return { effects, requirements, unsupported };
   }
   if ((m = c.match(/^Add (\{[WUBRGC]\}|one mana of any color|one mana of any type)(?: for each (.+))?\.?$/i))) {
     let color = null, colorBind = null;
@@ -3881,7 +3884,7 @@ function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuid
   // (effects-b101.js). With a target earlier in the ability the pronoun is that target; with none it is the trigger's
   // card, but only when nothing earlier in the ability could have made or moved another card "it" might mean.
   {
-    const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay']);
+    const PLAIN = new Set(['damage', 'damage-each', 'life', 'draw', 'pump', 'pump-each', 'counter', 'counter-each', 'grant-keyword', 'grant-keyword-each', 'tap', 'untap', 'condition', 'combat-restriction', 'discard', 'mill', 'scry', 'surveil', 'set-x', 'player-counter', 'add-mana', 'remember-controller', 'animate', 'b101-discard-random', 'unless-pays', 'may-pay', 'move-zone']);
     merged.effects.forEach((e, at) => {
       for (const key of ['bind', 'sourceBind']) {
         if (e[key] !== 'b101It' && e[key] !== 'b101That') continue;

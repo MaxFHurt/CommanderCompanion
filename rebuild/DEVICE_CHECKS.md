@@ -34,4 +34,12 @@
 ## Any player may activate (build 110)
 20. ☐ Two players: one controls Feral Hydra (or Warmonger, Xantcha), the other taps the permanent on their own phone → expect an ability button on the opponent's permanent, and using it asks the activating player (not the controller) for mana and choices.
 
+## Land types, colours, optional damage, cost choice (build 110, batch 4 review)
+21. ☐ Activate a card that makes a land "the basic land type of your choice" (Reef Shaman, Mystic Compass) → expect a question for the land and one for the type; the land then taps for that colour only until end of turn, and for its own colour again next turn.
+22. ☐ Play Urborg, Tomb of Yawgmoth (or Blanket of Night) → expect every land (yours and the opponent's) to tap for {B} as well as its own colour.
+23. ☐ Cast a creature with "you may have this creature deal 3 damage to target creature" (Sand Strangler) with a Desert on the battlefield → expect a yes/no question, then a target; with no Desert, expect no question at all.
+24. ☐ Opponent activates your Tidal Control ("Pay 2 life or {2}") → expect them to be asked which cost to pay when they can pay either; with no lands they pay life, with 1 life they pay mana.
+25. ☐ Cast Flame Spill (4 damage) on a 2/2 → expect the creature to die and its controller to lose 2 life.
+26. ☐ Cast Touch of Darkness (or Sway of Illusion) on several creatures → expect them to show as black (or the colour you picked) until end of turn.
+
 Reply with the numbers that failed and a screenshot.

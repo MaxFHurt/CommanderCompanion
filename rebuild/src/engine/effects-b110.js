@@ -29,6 +29,11 @@ export function compileB110Clause(c, ctx) {
   const pronounBind = s => rx(`^${SELF}$`).test(s) ? 'sourceId' : /^(?:it|he|she|they)$/i.test(s) ? 'b101It' : 'b101That';
   let m;
 
+  // --- "Return it to your hand." (Enduring Renewal, Zodiac Dragon, Unquenchable Fury): the card the trigger is about (the earlier target, if there is one)
+  if (/^Return (?:it|that card) to your hand\.?$/i.test(c)) {
+    effects.push({ kind: 'move-zone', bind: 'b101It', to: 'hand' });
+    return true;
+  }
   // --- Colour changes: "One or more target creatures become black until end of turn." (Touch of Darkness), "Any number of target creatures become the
   // color of your choice …" (Sway of Illusion), "Target creature becomes the color or colors of your choice until end of turn." (Quickchange).
   if ((m = c.match(/^(One or more|Any number of) target creatures become (white|blue|black|red|green|the color of your choice)( until end of turn)?\.?$/i))) {
