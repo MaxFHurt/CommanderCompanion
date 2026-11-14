@@ -8,7 +8,7 @@
 import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catalog.js';
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
-import { cardHasKeyword, effectivePower } from '../engine/combat.js';
+import { cardHasKeyword, effectivePower, effectiveToughness } from '../engine/combat.js';
 import { cardMatchesFilter, resolveAmount, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -137,11 +137,56 @@ function manaValueFits(def, scope) {
   return m[2] === 'less' ? v <= Number(m[1]) : v >= Number(m[1]);
 }
 
+
+/** Descriptor words of a target phrase (build 110): "red or green creature", "nonblack creature", "non-Wall creature", "tapped creature",
+ *  "snow land", "creature without flying", "creature with flying". Colour and type words used to be ignored. */
+const KW_WORDS = 'flying|reach|trample|haste|vigilance|deathtouch|lifelink|menace|first strike|double strike|hexproof|shroud|indestructible|defender|flash';
+function descriptorFits(game, card, def, scope) {
+  const m = scope.match(/\btarget (?:another |other )?(.*?)\b(?:creature|permanent|artifact|enchantment|land|planeswalker|battle)s?\b/);
+  const colors = def?.colors || [], t = String(def?.typeLine || '').toLowerCase(), pre = (m ? m[1] : '').trim();
+  if (pre) {
+    const words = pre.split(/\s+/).filter(w => w && w !== 'or' && w !== 'and');
+    const want = words.filter(w => COLOR_WORDS[w]).map(w => COLOR_WORDS[w]);
+    if (want.length && !want.some(c => colors.includes(c))) return false;
+    for (const w of words) {
+      const n = w.match(/^non-?(white|blue|black|red|green)$/);
+      if (n && colors.includes(COLOR_WORDS[n[1]])) return false;
+      const sn = w.match(/^non-?([a-z]+)$/);
+      if (sn && !n && !/^(?:token|land|creature|artifact|enchantment|basic|legendary|planeswalker|commander|permanent|human)$/.test(sn[1]) && new RegExp(`\\b${sn[1]}s?\\b`).test(t.split('—')[1] || '')) return false;
+      if (w === 'tapped' && !card.tapped) return false;
+      if (w === 'untapped' && card.tapped) return false;
+      if (w === 'colorless' && colors.length) return false;
+      if (w === 'multicolored' && colors.length < 2) return false;
+      if (w === 'snow' && !/\bsnow\b/.test(t)) return false;
+    }
+    const subs = pre.match(/non-([a-z]+)/g);
+    if (subs) for (const x of subs) { const sn = x.slice(4); if (!['token','land','creature','artifact','enchantment','basic','legendary','white','blue','black','red','green'].includes(sn) && new RegExp(`\\b${sn}s?\\b`).test(t.split('—')[1] || '')) return false; }
+  }
+  const wo = scope.match(new RegExp(`\\bwithout (${KW_WORDS})\\b`));
+  if (wo && cardHasKeyword(card, def, wo[1], game)) return false;
+  const wi = scope.match(new RegExp(`\\bwith (${KW_WORDS})\\b`));
+  if (wi && !cardHasKeyword(card, def, wi[1], game)) return false;
+  return true;
+}
+
+
+/** "with power less than or equal to this creature's power" / "with mana value less than or equal to Carmen's power": a limit set by the source's own stat (build 110). */
+function sourceLimitFits(game, card, def, scope, source) {
+  const m = scope.match(/\bwith (mana value|power|toughness) (less|greater) than( or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)\b/);
+  if (!m) return true;
+  if (!source) return false;
+  const sd = defOf(game, source), lim = Number(m[4] === 'power' ? effectivePower(source, sd, game) : effectiveToughness(source, sd, game));
+  const v = m[1] === 'mana value' ? Number(def?.manaValue ?? def?.cmc ?? 0) : m[1] === 'power' ? Number(effectivePower(card, def, game)) : Number(effectiveToughness(card, def, game));
+  return m[2] === 'less' ? (m[3] ? v <= lim : v < lim) : (m[3] ? v >= lim : v > lim);
+}
+
 /** Does a battlefield card match a target phrase such as "target artifact or enchantment you control"? */
 function matchesPermanentScope(game, card, scope, source = null) {
   const def = defOf(game, card), t = String(def?.typeLine || '');
   if (!typesFit(t, scope)) return false;
   if (/nonland permanent/.test(scope) && /Land/i.test(t)) return false;
+  if (!descriptorFits(game, card, def, scope)) return false;
+  if (!sourceLimitFits(game, card, def, scope, source)) return false;
   if (/attacking or blocking/.test(scope) && !isCombatParticipant(game, card.instanceId)) return false;
   else if (/\battacking\b/.test(scope) && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (/\benchanted\b/.test(scope) && !(game.players || []).some(q => (q.deck?.battlefield || []).some(x => x.attachedTo === card.instanceId && /\bAura\b/.test(defOf(game, x)?.typeLine || '')))) return false;
@@ -189,6 +234,7 @@ export function candidatesFor(game, req, player, source = null) {
     for (const q of owners) for (const c of q.deck.graveyard || []) {
       const def = defOf(game, c), t = String(def?.typeLine || '');
       if (!typesFit(t, scope.replace(/\bin (?:your|a|target player'?s) graveyard\b/, '')) || !manaValueFits(def, scope)) continue;
+      if (!sourceLimitFits(game, c, def, scope, source) || !descriptorFits(game, c, def, scope)) continue;
       out.push(cardOption(game, c, q, `${q.displayName}'s graveyard — ${t}`));
     }
     return out;
@@ -199,7 +245,7 @@ export function candidatesFor(game, req, player, source = null) {
       if (!req.spellFilter) return true;
       const def = defOf(game, x.card), type = String(def?.typeLine || '').toLowerCase();
       const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-      return req.spellFilter.split('|').some(w => w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
+      return req.spellFilter.split('|').some(w => w.startsWith('mv>=') ? Number(def?.manaValue ?? def?.cmc ?? 0) >= Number(w.slice(4)) : w.startsWith('mv<=') ? Number(def?.manaValue ?? def?.cmc ?? 0) <= Number(w.slice(4)) : w.startsWith('mv=') ? Number(def?.manaValue ?? def?.cmc ?? 0) === Number(w.slice(3))
         : color[w] ? (def?.colors || []).includes(color[w]) : w.startsWith('non') ? !type.includes(w.slice(3)) : type.includes(w));
     };
     return (game.stack || [])
@@ -210,6 +256,14 @@ export function candidatesFor(game, req, player, source = null) {
       .filter(x => !req.notYours || x.controllerId !== player.playerId)
       // Rebuff the Wicked: "spell that targets a permanent you control" (its chosen targets include one of yours)
       .filter(x => !req.targetsYours || Object.values(x.effectBindings || {}).flat().some(id => typeof id === 'string' && (player.deck?.battlefield || []).some(c => c.instanceId === id)))
+      // Build 110: "that targets you / a creature / a permanent you control" (what its chosen targets are)
+      .filter(x => {
+        if (!req.targetsFilter) return true;
+        const ids = Object.values(x.effectBindings || {}).flat().filter(id => typeof id === 'string');
+        if (req.targetsFilter === 'you') return ids.includes(player.playerId);
+        if (req.targetsFilter === 'yours') return ids.some(id => (player.deck?.battlefield || []).some(c => c.instanceId === id));
+        return ids.some(id => game.players.some(q => (q.deck?.battlefield || []).some(c => c.instanceId === id && /\bCreature\b/.test(defOf(game, c)?.typeLine || ''))));
+      })
       .filter(x => !req.spellFilter || ((x.kind === 'spell' || x.kind === 'spell-copy') && fits(x)) || (req.orAbility && (x.kind === 'ability' || x.kind === 'trigger')))
       .map(x => ({ id: x.id, label: x.label || 'Stack object', sub: playerById(game, x.controllerId)?.displayName || x.kind, definitionId: x.sourceDefinitionId }));
   }

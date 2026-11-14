@@ -281,6 +281,8 @@ export function activationRules(text) {
 }
 /** Why the ability cannot be used right now because of its "Activate only …" text, or null. */
 export function activationBlock(game, player, card, ability) {
+  // Detain (build 110): its activated abilities can't be activated (mana abilities may be).
+  if (!ability?.manaAbility && (card?.temporaryEffects || []).some(e => e?.kind === 'detained')) return 'Detained: its abilities can’t be activated until its detainer’s next turn.';
   // Boast: "Activate only if this creature attacked this turn and only once each turn."
   if (/^Boast\b/i.test(String(ability?.text || ''))) {
     if (card?.attackedTurn !== game.turnNumber) return 'Boast: only if this creature attacked this turn.';

@@ -3,7 +3,7 @@
 // enters", "another nontoken creature you control with power 4 or greater", "Omnath or another
 // Elemental you control", "equipped creature", "Etali" for Etali, Primal Storm) work everywhere.
 
-import { effectivePower, cardHasKeyword } from './combat.js';
+import { effectivePower, effectiveToughness, cardHasKeyword } from './combat.js';
 
 const COLORS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const KEYWORDS = ['flying', 'trample', 'haste', 'vigilance', 'deathtouch', 'lifelink', 'menace', 'reach', 'first strike', 'double strike', 'defender', 'indestructible', 'hexproof', 'flash'];
@@ -53,6 +53,7 @@ export function parseSubject(phrase, definition) {
   if ((m = s.match(/\s+(?:you control|under your control)$/i))) { out.controller = 'you'; s = s.slice(0, m.index); }
   else if ((m = s.match(/\s+(?:an opponent controls|your opponents control|you don'?t control|under an opponent'?s control)$/i))) { out.controller = 'opp'; s = s.slice(0, m.index); }
   if ((m = s.match(/\s+with power (\d+) or (greater|less)$/i))) { out.power = { n: Number(m[1]), op: m[2].toLowerCase() }; s = s.slice(0, m.index); }
+  else if ((m = s.match(/\s+with toughness (\d+) or (greater|less)$/i))) { out.toughness = { n: Number(m[1]), op: m[2].toLowerCase() }; s = s.slice(0, m.index); }
   else if ((m = s.match(/\s+with mana value (\d+) or (greater|less)$/i))) { out.manaValue = { n: Number(m[1]), op: m[2].toLowerCase() }; s = s.slice(0, m.index); }
   else if ((m = s.match(new RegExp(`\\s+with (${KEYWORDS.join('|')})$`, 'i')))) { out.keywords.push(m[1].toLowerCase()); s = s.slice(0, m.index); }
   // The controller can also come after the "with …" part: "a creature with power 4 or greater you control" is rare; try again.
@@ -71,8 +72,10 @@ export function parseSubject(phrase, definition) {
       else if (a === 'attacking') out.attacking = true;
       else if (a === 'blocking') out.blocking = true;
       else if (a === 'modified') out.modified = true;
-      else if (/^non/.test(a)) out.nonTypes.push(a.slice(3));
-      else if (/^[A-Z]/.test(adj) || ['artifact', 'enchantment', 'legendary', 'snow', 'basic', 'land'].includes(a)) out.allTypes.push(adj);   // "artifact creature": both
+      else if (a === 'tapped') out.tapped = true;
+      else if (a === 'untapped') out.untapped = true;
+      else if (/^non/.test(a)) out.nonTypes.push(a.slice(3).replace(/^-/, ''));   // "non-Human"
+      else if (/^[A-Z]/.test(adj) || ['artifact', 'enchantment', 'legendary', 'snow', 'basic', 'land', 'creature'].includes(a)) out.allTypes.push(adj);   // "artifact creature": both
       else return null;
     }
     const n = noun.toLowerCase().replace(/s$/, '');
@@ -123,11 +126,17 @@ export function subjectMatches(game, row, subject, card, def, controllerId) {
     const p = Number(effectivePower(card, def, game));
     if (subject.power.op === 'greater' ? p < subject.power.n : p > subject.power.n) return false;
   }
+  if (subject.toughness) {
+    const tt = Number(effectiveToughness(card, def, game));
+    if (subject.toughness.op === 'greater' ? tt < subject.toughness.n : tt > subject.toughness.n) return false;
+  }
   if (subject.manaValue) {
     const v = Number(def?.manaValue ?? def?.cmc ?? 0);
     if (subject.manaValue.op === 'greater' ? v < subject.manaValue.n : v > subject.manaValue.n) return false;
   }
   if (subject.keywords.some(k => !cardHasKeyword(card, def, k.replace(/\b\w/g, c => c.toUpperCase()), game))) return false;
+  if (subject.tapped && !card.tapped) return false;
+  if (subject.untapped && card.tapped) return false;
   if (subject.attacking && !(game.combatState?.attackers || []).some(a => a.instanceId === card.instanceId)) return false;
   if (subject.modified && !Object.values(card.counters || {}).some(Number) && !(game.players || []).some(p => (p.deck?.battlefield || []).some(c => c.attachedTo === card.instanceId))) return false;
   if (subject.chosenType && !(row.card.chosenCreatureType && typeWord(typeLine, row.card.chosenCreatureType))) return false;

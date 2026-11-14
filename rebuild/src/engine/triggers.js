@@ -72,7 +72,7 @@ export function parseTriggeredAbilities(definition) {
   if (current)
     out.push(current);
   // The trigger ends at the first comma that does not continue a list ("Whenever you cast an Aura, Equipment, or Vehicle spell, …").
-  const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
+  const triggerComma = line => { const pairs = line.indexOf(', or casts their second spell each turn,'); if (pairs >= 0) return pairs + ', or casts their second spell each turn'.length; let at = line.indexOf(','); for (const nm of String(definition?.name || '').split(' // ')) { const ni = nm.includes(',') ? line.indexOf(nm) : -1; if (ni >= 0 && ni < at && ni + nm.length > at) at = line.indexOf(',', ni + nm.length); }   /* build 110: a comma inside the card's own name ("Whenever Cecily, Haunted Mage attacks") does not end the trigger */ while (at >= 0 && !/\b(?:spells?|enters|dies|attacks)$/i.test(line.slice(0, at)) && /^\s*(?:(?:or|and|and\/or)\s|[A-Za-z-]+,)/.test(line.slice(at + 1))) at = line.indexOf(',', at + 1); return at; };
   return out.map((line, index) => { const comma = triggerComma(line); const trigger = comma >= 0 ? line.slice(0, comma).trim() : line; const rawEffect = comma >= 0 ? line.slice(comma + 1).trim() : ''; const oncePerTurn = /this ability triggers only once each turn/i.test(rawEffect) || /do this only once each turn/i.test(rawEffect) || /for the first time each turn/i.test(trigger); const effect = rawEffect.replace(/(?:^|\n)this ability triggers only once each turn\.?/ig, '').replace(/\s*Do this only once each turn\.?\s*$/i, '').trim(); const modes = [...effect.matchAll(/(?:^|\n)•\s*([^\n]+)/g)].map(x => x[1].trim()); const uniquePerTurn = /choose one that (?:hasn[’']t|has not) been chosen this turn/i.test(effect); return { id: `trigger-${index}`, text: line, trigger, effect, modes, uniquePerTurn, oncePerTurn }; });
 }
 export function availableModalTriggerModes(card, trigger, turnNumber) {
@@ -164,6 +164,7 @@ function spellFits(filter, spell) {
     const color = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[w];
     if (color) return colors.includes(color);
     if (w === 'historic') return /artifact|legendary|saga/.test(type);
+    if (w === 'permanent') return !/instant|sorcery/.test(type);   // build 110: "a green permanent spell"
     if (w.startsWith('non')) return !type.includes(w.slice(3));
     return new RegExp(`\\b${escRe(w.replace(/s$/, ''))}`).test(type);
   }));
@@ -172,6 +173,7 @@ const STEP_EVENTS = { upkeep: 'upkeep', 'draw step': 'draw-step', 'precombat mai
 /** true / false when the trigger's wording is understood for this event; undefined to fall back to the older readers below. */
 function generalMatch(game, row, t, event) {
   let m;
+  if (/\benters or transforms into\b/i.test(t) && event.type !== 'enters-battlefield' && event.type !== 'transformed') return false;   // build 110: entering or transforming into that face
   const extra = catalogTriggerMatch(game, row, t, event, { subjectEvent, whoMatches, eventCard, selfName: r => escRe(String(r.definition?.name || '').split(',')[0]) });
   if (extra !== undefined) return extra;
   switch (event.type) {
@@ -406,6 +408,8 @@ function triggerMatches(game, row, ability, event) {
       return row.card.instanceId === event.blockerId && !(event.extraBlock && !/\bblocks (?:a|an|that|target|another|each)\b/i.test(t));
     if (/a creature you control blocks/i.test(t))
       return event.controllerId === row.player.playerId;
+    // Build 110: "Whenever a creature blocks", "Whenever another creature an opponent controls blocks" (the subject read by trigger-subject.js).
+    { const bm = !/becomes blocked|blocked by/i.test(t) && t.match(/^(?:When|Whenever) (.+?) blocks\b/i); if (bm) { const r = subjectEvent(game, row, bm[1], event, event.blockerId); if (r !== undefined) return r; } }
     return false;
   }
   if (event.type === 'combat-damage-player') {
@@ -773,6 +777,14 @@ const WIDE_VARIANTS = [
   { token: true, event: { token: true } }, { attachedPlayer: 'opp', event: { attacks: [{ id: 'x', defenderId: 'opp' }] } }, { victim: true, event: { attacks: [{ id: 'a', defenderId: 'me' }, { id: 'b', defenderId: 'me' }] } },
   { victim: true, event: { combat: false, byKind: 'ability', fromZone: 'graveyard' } }, { oppTurn: true, event: { manaValue: 7, colors: ['W', 'U'], fromZone: 'exile', byPlayerId: 'opp' } }
 ];
+/** Colours a trigger names ("another green creature", "a white or blue spell"): the wide probe's cards have them (build 110). */
+function probeColors(ability) {
+  const map = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  return [...new Set((String(ability?.trigger || '').toLowerCase().match(/\b(?:white|blue|black|red|green)\b/g) || []).map(w => map[w]))];
+}
+/** "mana value 6 or greater" / "toughness 4 or greater" in a trigger: the wide probe's cards meet it (build 110). */
+function probeManaValue(ability) { const m = String(ability?.trigger || '').match(/mana value (\d+) or (greater|less)/i); return m ? Number(m[1]) : 3; }
+function probeToughness(ability) { const m = String(ability?.trigger || '').match(/toughness (\d+) or (greater|less)/i); return m ? String(m[1]) : '1'; }
 function wideProbeTypes(ability) {
   const words = [...new Set((String(ability?.trigger || '').match(/\b[A-Z][a-z]+\b/g) || []).filter(w => !/^(?:When|Whenever|At|If|You|Your|This|That|Another|The|Each|One|Enchanted|Equipped)$/.test(w))), ...(/\boutlaws?\b/i.test(String(ability?.trigger || '')) ? ['Rogue'] : [])].join(' ');   // outlaws: Assassins, Mercenaries, Pirates, Rogues, Warlocks
   return [...PROBE_TYPES, `Legendary Creature — ${words || 'Human'}`, `Land — ${words || 'Forest'}`, `Legendary Enchantment — ${words || 'Shrine'}`, `Legendary Artifact — ${words || 'Equipment'}`, `Instant — ${words || 'Arcane'}`, `Kindred Sorcery — ${words || 'Arcane'}`];
@@ -780,7 +792,7 @@ function wideProbeTypes(ability) {
 function probeTrigger(definition, ability, types, events, variants) {
   const me = { playerId: 'me', displayName: 'Me', deck: { battlefield: [] }, counters: {} }, opp = { playerId: 'opp', displayName: 'Opp', deck: { battlefield: [] }, counters: {} };
   // Probe cards: every common type; the Elemental Dragon is big, black and flying, for "with power 4 or greater" and similar.
-  const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: '1', colors: /Dragon/.test(t) ? ['B'] : [], keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
+  const cardDefinitions = Object.fromEntries(types.map((t, i) => [`probe-${i}`, { definitionId: `probe-${i}`, name: `Probe ${i}`, typeLine: t, manaValue: i >= PROBE_TYPES.length ? probeManaValue(ability) : 3, power: /Dragon|Legendary Creature/.test(t) ? '5' : '1', toughness: i >= PROBE_TYPES.length ? probeToughness(ability) : '1', colors: /Dragon/.test(t) ? ['B'] : (i >= PROBE_TYPES.length ? probeColors(ability) : []), keywords: /Dragon/.test(t) ? ['Flying'] : [] }]));
   cardDefinitions[definition.definitionId || 'self-def'] = definition;
   me.commanders = types.map((_, i) => ({ cardId: `probe-${i}` }));   // "your commander" (Tome of Legends): the probe cards are this player's commanders
   const game = { players: [me, opp], activePlayerId: 'me', turnNumber: 3, cardDefinitions, stack: [] };

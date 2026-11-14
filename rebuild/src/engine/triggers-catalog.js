@@ -163,6 +163,8 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       }
       return undefined;
     case 'transformed':
+      // Build 110: "Whenever this creature enters or transforms into Huntmaster of the Fells": the transform leg, only into that face.
+      if ((m = t.match(/^When(?:ever)? (.+?) enters or transforms into (.+)$/i))) return H.subjectEvent(game, row, m[1], event) && String(event.faceName || '').toLowerCase() === m[2].trim().toLowerCase();
       if ((m = t.match(/^When(?:ever)? (.+?) transforms(?: into .+)?$/i))) return H.subjectEvent(game, row, m[1].replace(/ transforms into .+$/i, ''), event);
       return undefined;
     case 'crewed':
@@ -194,6 +196,12 @@ export function catalogTriggerMatch(game, row, t, event, H) {
       return undefined;
     case 'damage-player': case 'combat-damage-player': {
       if (/^Whenever you(?:'re| are) dealt damage/i.test(t)) return event.playerId === me;
+      // Build 110: "Whenever an opponent is dealt noncombat damage" (Chandra's Spitfire), "Whenever a player is dealt damage".
+      if ((m = t.match(/^Whenever (an opponent|a player|another player|each opponent) (?:is|are) dealt (noncombat )?damage$/i))) {
+        if (event.type !== 'damage-player' && !(event.type === 'combat-damage-player' && !m[2])) return false;
+        if (m[2] && event.combat) return false;
+        return H.whoMatches(m[1], event.playerId, row);
+      }
       if ((m = t.match(/^Whenever (a source|a creature|a source an opponent controls|a creature an opponent controls) deals (combat )?damage to you\b/i))) {
         if (m[2] && event.type !== 'combat-damage-player') return false;
         return event.playerId === me && (!/opponent controls/i.test(m[1]) || event.controllerId !== me);
