@@ -1,6 +1,6 @@
 ---
 name: release
-description: Ship a tested build live (version bumps, stamp, notes, push main). Use only after the batch's suites (rebuild/tools/suites.sh) passed and the owner said yes.
+description: Ship a tested build live (version bumps, stamp, notes, push main). Use only after the batch's suites (rebuild/tools/suites.sh) passed (owner, 14 Nov: push every build live once proven bug free, no separate yes).
 ---
 0. Tests (owner, 13 Nov: batch builds of ~3-5 small items or one large one; test what the batch can break):
    `sh rebuild/tools/suites.sh origin/main plan` shows the suites the changed files need; `... run` runs them in the background.

@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.111 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.112 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -36,6 +36,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 112 — 14 Nov 2026 (app 1.0.0-rebuild.112; Deck Builder unchanged, 0.9.71): rules long tail batch 5, part A
+- Owner, 14 Nov: "Push every build live when it's proven bug free."
+- 23,358 → 23,523 of 32,300 run by themselves; every newly passing card's compiled effects read; 0 lost against the start.
+- New: alternative costs ("rather than pay this spell's mana cost": Gush, Daze, Fireblast, Foil, the Shoals …; src/game/alt-costs.js), Cleave, Valiant, "Reveal any number of", combat/global damage prevention, named tokens, Return X creature cards; new file src/engine/effects-b111.js.
+- Misreads fixed in older cards: "gain control for as long as …" was permanent (Sower of Temptation, Helm of Possession …); Sacrifice X and discard X costs were never paid (Chatterfang, Krav, Grim Hireling, Copper-Leaf Angel); "only during combat" counted the precombat main phase; "Activate only if" ignored total power 8+ / opponent with 3+ poison; nonland discard triggers never fired; Mice anthem matched nothing; Captain Ripley Vance used the wrong creature; banding tokens now by hand (Master of the Hunt).
+- Test fix: catalog.mjs shuffles are seeded per game (the "<card> not in P1's deck" flake); a crashing suite prints CRASH and the error as its last line.
+- Tests (suites.sh, 387 s): game 254, mechanics 102, catalog 707 (15 runs alone + 3 alongside game/soak after the fix), smoke 6, tracker 20, practice 20, rules-server 27, forge-triggers 301/302 (as build 110); soak 40 x3 0 problems; every browser suite incl. accounts_ui 56.
 
 ### Build 111 — 14 Nov 2026 (app 1.0.0-rebuild.111; Deck Builder unchanged, 0.9.71): rules long tail batch 4
 - 22,845 → 23,358 of 32,300 run by themselves (13 Nov Scryfall file), every newly passing card's compiled effects read; 0 lost against the start (cards that went back to by hand were misread before and are fixed or listed).
