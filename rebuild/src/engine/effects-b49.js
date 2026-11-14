@@ -428,11 +428,12 @@ export function compileB49Sequence(clauses, i, { sourceName, parts = [] }) {
       // Both sentences name their choices target0, handCard0 …: the replacement's are renamed so each is asked for the part that runs. Only targets can be asked for both;
       // any other choice shared by name (a card from hand) would be asked once for the wrong sentence, so that stays by hand.
       const taken = new Set(a.requirements.map(r => r.bind));
+      // Any other choice (a card from hand) is asked only for the sentence that runs: each is tagged with the condition (requirements.js onlyIf), so "If you're the monarch, instead you may put a creature or land card …" asks one question.
       for (const r of b.requirements) if (taken.has(r.bind)) {
-        if (r.kind !== 'target') return { part: { effects: [], requirements: [], unsupported: [`${c0} ${clauses[i + 1]}`] }, consumed: 2 };
         const old = r.bind, fresh = `${old}i${i}`;
         r.bind = fresh;
         for (const e of b.effects) for (const k of Object.keys(e)) if (e[k] === old && /bind$/i.test(k)) e[k] = fresh;
+        if (r.kind !== 'target') { r.onlyIf = { ...cond }; const twin = a.requirements.find(q => q.bind === old); if (twin) twin.onlyIf = { ...cond, negate: true }; }
       }
       return { part: { effects: [{ kind: 'condition', ...cond, negate: true, skip: a.effects.length }, ...a.effects, { kind: 'condition', ...cond, skip: b.effects.length }, ...b.effects], requirements: [...a.requirements, ...b.requirements], unsupported: [] }, consumed: 2 };
     }

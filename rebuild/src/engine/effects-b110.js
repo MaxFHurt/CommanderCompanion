@@ -1,7 +1,7 @@
 // Card wordings added in build 110 (rules long tail, batch 4). Same hook points as effects-b101.js:
 // compileB110Clause(c, ctx) is tried right after the build-101 wordings; applyB110 runs the effect kinds made here and
 // gatherB110 asks the requirement kinds made here. Most wordings are read as an instruction the game already runs.
-import { numberFromText, locateCardInGame, definitionFor, resolveAmount, moveCard, catalogHelpers as H } from './effects.js';
+import { numberFromText, locateCardInGame, definitionFor, resolveAmount, whereXExpr, moveCard, catalogHelpers as H } from './effects.js';
 import { effectivePower, effectiveToughness, pruneWhileTapped } from './combat.js';
 import { resyncManaSource } from './transactions.js';
 
@@ -288,6 +288,94 @@ export function compileB110Clause(c, ctx) {
   return false;
 }
 
+
+const CARD_TYPES = ['land', 'creature', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle'];
+/**
+ * A library search for several cards. Head: "[up to N | up to X | exactly N] <types or subtypes> cards [not named Y] [that each have / with different names]";
+ * the sentences after it (reveal them, put them into your hand / onto the battlefield tapped, then shuffle, an opponent chooses one of them …) fill in the rest.
+ */
+function compileManySearch(clauses, i, sourceName, clean) {
+  const c0 = clean(clauses[i]);
+  let m = c0.match(/^(you may )?search your library for (.+?)\.?$/i);
+  if (!m || !/\bcards?\b/i.test(m[2]) || !(/different names/i.test(m[2]) || /^(?:up to \w+|exactly \w+) /i.test(m[2]) && !/^up to one\b/i.test(m[2]))) return null;
+  const may = !!m[1];
+  let body = m[2], whereX = null;
+  const wm = body.match(/,? where X is (.+?)(?=,\s*(?:reveal|put|exile|then|shuffle)\b|$)/i);
+  if (wm) { whereX = wm[1].replace(/\.$/, ''); body = body.slice(0, wm.index) + body.slice(wm.index + wm[0].length); }
+  const cut = body.search(/,\s*(?:reveal|put|exile|then|shuffle)\b/i);
+  const head = cut >= 0 ? body.slice(0, cut) : body, tail = cut >= 0 ? body.slice(cut + 1) : '';
+  const hm = head.match(/^(?:(up to) (\w+)|(exactly) (\w+)|(\w+)) ([a-zA-Z ,'-]*?)\s*cards?(?: not named (.+?))?(?: (?:that each have|that have|with) different names)?$/i);
+  if (!hm) return null;
+  const countWord = hm[2] || hm[4] || hm[5];
+  const upTo = !!hm[1], exact = !upTo;
+  let max = /^x$/i.test(countWord) ? 'X' : numberFromText(countWord);
+  if (max == null) return null;
+  const distinct = /different names/i.test(head);
+  // The type words: "basic land", "Plains", "Dragon", "creature or land"
+  const words = hm[6].split(/[\s,]+/).filter(Boolean), types = [], subs = [];
+  let basic = false;
+  for (const w of words) {
+    if (/^basic$/i.test(w)) basic = true;
+    else if (/^or$/i.test(w)) continue;
+    else if (CARD_TYPES.includes(w.toLowerCase())) types.push(w.toLowerCase());
+    else if (/^[A-Z][a-z]+$/.test(w)) subs.push(w);
+    else return null;
+  }
+  let maxExpr = max;
+  if (max === 'X') {
+    if (!whereX) return null;
+    maxExpr = /^the number of players who control more lands than you$/i.test(whereX) ? { kind: 'b110-more-lands' } : whereXExpr(whereX);
+    if (maxExpr == null) return null;
+  } else if (whereX) return null;
+  const spec = { max: maxExpr, exact, upTo, may, basic, types, subs, notNamed: hm[7] ? hm[7].replace(/^SELFNAME$/, sourceName) : null, distinct, dest: null, tapped: false, reveal: false, shuffle: false, oppChooses: false, rest: null };
+  let used = 1;
+  const eat = text => {
+    const t = String(text || '');
+    if (/\breveal (?:them|those cards)\b/i.test(t)) spec.reveal = true;
+    const d = t.match(/\bput (?:them|those cards) (into your hand|onto the battlefield( tapped)?|into your graveyard)\b/i);
+    if (d) { spec.dest = /hand/i.test(d[1]) ? 'hand' : /graveyard/i.test(d[1]) ? 'graveyard' : 'battlefield'; spec.tapped = !!d[2]; }
+    if (!d && /(?:^|,\s*)exile (?:them|those cards)\b/i.test(t)) spec.dest = 'exile';
+    if (/\bshuffle\b/i.test(t)) spec.shuffle = true;
+  };
+  eat(tail.trim());
+  for (let k = i + 1; k < clauses.length; k++) {
+    const n = clean(clauses[k]);
+    if (/^(?:If you do, )?reveal (?:them|those cards)(?:, put (?:them|those cards) (?:into your hand|onto the battlefield(?: tapped)?|into your graveyard))?(?:, then shuffle)?\.?$/i.test(n)
+      || /^Put (?:them|those cards) (?:into your hand|onto the battlefield(?: tapped)?|into your graveyard)(?:, then shuffle)?\.?$/i.test(n)) { eat(n); used++; continue; }
+    if (/^An opponent chooses one of them\.?$/i.test(n) && /^Put the chosen card into your hand and the other into your graveyard(?:, then shuffle)?\.?$/i.test(clean(clauses[k + 1]))) { spec.oppChooses = true; spec.dest = 'hand'; spec.rest = 'graveyard'; if (/shuffle/i.test(clean(clauses[k + 1]))) spec.shuffle = true; used += 2; k++; continue; }
+    break;
+  }
+  if (!spec.dest) return null;
+  if (spec.oppChooses && !(exact && max === 2)) return null;
+  const bind = `manySearch${i}`;
+  const kinds = [...spec.subs, ...spec.types];
+  spec.label = `${spec.basic ? 'basic ' : ''}${kinds.join(' or ')}${kinds.length ? ' ' : ''}card`;
+  return { part: { effects: [{ kind: 'b110-search-many', bind, spec }], requirements: [{ kind: 'b110-search-many', bind, spec }], unsupported: [] }, consumed: used };
+}
+function manySearchFits(spec, d) {
+  const t = String(d?.typeLine || '');
+  if (spec.basic && !/\bBasic\b/.test(t)) return false;
+  if (spec.notNamed && String(d?.name || '').toLowerCase() === spec.notNamed.toLowerCase()) return false;
+  const any = [...spec.types.map(x => new RegExp(`\\b${x}\\b`, 'i').test(t)), ...spec.subs.map(x => new RegExp(`\\b${x}\\b`).test(t))];
+  return !any.length || any.some(Boolean);
+}
+function manySearchMax(game, controllerId, spec, bindings) {
+  if (spec.max && spec.max.kind === 'b110-more-lands') {
+    const lands = p => (p.deck.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).length;
+    const me = playerById(game, controllerId), mine = me ? lands(me) : 0;
+    return (game.players || []).filter(p => !p.eliminated && p.playerId !== controllerId && lands(p) > mine).length;
+  }
+  // "where X is this creature's power" in its own dies trigger: last known power (printed power plus the +1/+1 counters it had).
+  if (spec.max && spec.max.kind === 'source-power' && bindings.eventLast && bindings.sourceId) {
+    const hit = locateCardInGame(game, bindings.sourceId);
+    if (hit && hit.zone !== 'battlefield') {
+      const c = bindings.eventLast.counters || {};
+      return Math.max(0, (Number(definitionFor(game, hit.card)?.power) || 0) + Number(c['+1/+1'] || 0) - Number(c['-1/-1'] || 0));
+    }
+  }
+  return Math.max(0, Number(resolveAmount(game, controllerId, spec.max, bindings)) || 0);
+}
+
 /** Sentences read together (effects-catalog.js calls this after the build-101 ones). Returns { part, consumed } or null. */
 export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
   const clean = x => String(x || '').replace(/\([^()]*\)/g, '').trim();
@@ -298,6 +386,8 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
     if (!ok(r)) { const whole = H.compileEffectText(text, { sourceName }); r = whole.supported ? { effects: whole.effects, requirements: whole.requirements, unsupported: [] } : r; }
     return ok(r) && !r.requirements.length ? r : null;
   };
+  // --- Searches for several cards ("up to five Dragon cards … different names", "up to X Plains cards", "exactly two cards …")
+  { const ms = compileManySearch(clauses, i, sourceName, clean); if (ms) return ms; }
   // --- "Flame Spill deals 4 damage to target creature. Excess damage is dealt to that creature's controller instead." (the sentence after a damage effect)
   if (/^Excess damage is dealt to that creature'?s controller instead\.?$/i.test(c0)) {
     const d = [...parts].reverse().flatMap(p => [...(p.effects || [])].reverse()).find(e => e.kind === 'damage' && e.bind);
@@ -368,6 +458,23 @@ export function compileB110Sequence(clauses, i, { sourceName, parts = [] }) {
 
 export function applyB110(game, controllerId, effect, bindings, notes) {
   switch (effect.kind) {
+    case 'b110-search-many': {
+      const spec = effect.spec, got = bindings[effect.bind] || { ids: [], chosen: null }, me = playerById(game, controllerId);
+      const nm = id => definitionFor(game, locateCardInGame(game, id)?.card)?.name || 'a card';
+      const ids = (got.ids || []).filter(id => me?.deck.remainingLibrary.some(c => c.instanceId === id));
+      if (ids.length) {
+        if (spec.reveal) notes.push(`${me.displayName} reveals ${ids.map(nm).join(', ')}.`);
+        for (const id of ids) {
+          const to = spec.oppChooses && id !== got.chosen ? spec.rest : spec.dest;
+          const label = nm(id);
+          moveCard(game, id, to, { controllerId, tapped: !!spec.tapped && to === 'battlefield', onEvent: e => H.emit(bindings, e) });
+          notes.push(`${label} goes ${to === 'hand' ? 'to ' + me.displayName + "'s hand" : to === 'exile' ? 'to exile' : to === 'battlefield' ? `onto the battlefield${spec.tapped ? ' tapped' : ''}` : 'to the graveyard'}.`);
+        }
+      } else notes.push(`${me?.displayName || 'The player'} finds no cards.`);
+      if (spec.shuffle && me) H.shuffle(me.deck.remainingLibrary);
+      H.emit(bindings, { type: 'library-searched', playerId: controllerId, controllerId });
+      return true;
+    }
     case 'b110-graveyard-to-top': {
       for (const id of [].concat(bindings[effect.bind] || [])) {
         const hit = locateCardInGame(game, id);
@@ -527,6 +634,36 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
 }
 
 export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util) {
+  if (req.kind === 'b110-search-many') {
+    // The searching player chooses among the library cards that fit; names must differ when the card says so (asked again until they do).
+    const spec = req.spec, me = ctx.player, lib = me.deck.remainingLibrary || [];
+    const rows = lib.filter(c => manySearchFits(spec, util.defOf(game, c)));
+    const want = manySearchMax(game, me.playerId, spec, bindings);
+    const cap = Math.min(want, spec.distinct ? new Set(rows.map(c => util.defOf(game, c)?.name)).size : rows.length);
+    if (spec.may && cap > 0 && !ask(`${key}:may`, () => ({ ...base, cancellable: false, kind: 'confirm', title, prompt: `${ctx.sourceName}: search your library?`, yesLabel: 'Search', noLabel: 'Don\u2019t' }))) { bindings[req.bind] = { ids: [], chosen: null }; return true; }
+    let ids = [];
+    if (cap > 0) {
+      for (let tries = 0; ; tries++) {
+        const k = tries ? `${key}:again${tries}` : key;
+        const pick = [].concat(ask(k, () => ({ ...base, cancellable: false, kind: 'choose-many', private: true, title: `${ctx.sourceName} — search your library`,
+          prompt: `Choose ${spec.exact ? 'exactly' : 'up to'} ${want} ${spec.label}${want === 1 ? '' : 's'}${spec.distinct ? ' with different names' : ''}${tries ? ' (the names must all be different)' : ''}${spec.exact ? '' : ' (you may choose fewer or none)'}.`,
+          options: rows.map(c => util.cardOption(game, c, me, util.defOf(game, c)?.typeLine || '')), min: spec.exact ? cap : 0, max: cap, searchable: true })));
+        const names = pick.map(id => util.defOf(game, lib.find(c => c.instanceId === id))?.name);
+        if (!spec.distinct || new Set(names).size === names.length) { ids = pick; break; }
+        if (tries >= 8) { const seen = new Set(); ids = pick.filter((id, n) => !seen.has(names[n]) && seen.add(names[n])); break; }
+      }
+    }
+    // Burning-Rune Demon: two cards found (or none); an opponent chooses which of them goes to your hand, the other to your graveyard.
+    let chosen = null;
+    if (spec.oppChooses && ids.length) {
+      const opps = (game.players || []).filter(p => !p.eliminated && p.playerId !== me.playerId);
+      const opp = opps.length <= 1 ? opps[0] : playerById(game, ask(`${key}:who`, () => ({ ...base, cancellable: false, kind: 'choose-one', title, prompt: 'Choose the opponent who chooses one of the cards.', options: opps.map(p => ({ id: p.playerId, label: p.displayName, playerId: p.playerId })) })));
+      const cards = ids.map(id => lib.find(c => c.instanceId === id));
+      chosen = opp ? ask(`${key}:opp`, () => ({ ...base, playerId: opp.playerId, cancellable: false, kind: 'choose-one', title: `${ctx.sourceName} — choose a card`, prompt: `${me.displayName} revealed these cards. Choose one to go into their hand; the other goes to their graveyard.`, options: cards.map(c => util.cardOption(game, c, me, util.defOf(game, c)?.typeLine || '')) })) : ids[0];
+    }
+    bindings[req.bind] = { ids, chosen };
+    return true;
+  }
   if (req.kind === 'b110-own-pick') {
     // The named player chooses their own card, on their own device.
     const q = playerById(game, bindings[req.playerBind]);

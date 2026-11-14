@@ -9,7 +9,7 @@ import { gatherCatalogRequirement, cardFitsWords } from '../engine/effects-catal
 import { CREATURE_TYPES } from '../data/creature-types.js';
 import { COLOR_NAMES, defOf, opponentsOf, alivePlayers, playerById, plural, turnOrderFrom } from './helpers.js';
 import { cardHasKeyword, effectivePower, effectiveToughness } from '../engine/combat.js';
-import { cardMatchesFilter, resolveAmount, limitOf, exiledWith, locateCardInGame } from '../engine/effects.js';
+import { cardMatchesFilter, resolveAmount, limitOf, conditionHolds, exiledWith, locateCardInGame } from '../engine/effects.js';
 
 const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 
@@ -347,6 +347,8 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
   reqs.forEach((req, index) => {
     const key = `${prefix}:${index}:${req.kind}`;
     const title = `${sourceName} — ${req.label || 'Choose'}`;
+    // A choice that belongs to one half of "If <condition>, instead …": asked only when that half runs.
+    if (req.onlyIf) { const holds = conditionHolds(game, player.playerId, req.onlyIf, bindings); if (req.onlyIf.negate ? holds : !holds) return; }
     // "Scry X / up to X targets …, where X is the number of …": X is counted now, as the choice is made (it was 0);
     // it is counted again as the effect resolves.
     if (req.xExpr != null) bindings.X = Math.max(0, Number(resolveAmount(game, player.playerId, req.xExpr, { ...bindings, sourceId: bindings.sourceId || ctx.source?.instanceId || null })) || 0);
@@ -466,7 +468,7 @@ export function gatherRequirements(game, ctx, reqs, bindings, ask, prefix = 'req
     }
     if (req.kind === 'hand-card') {
       // A card from hand, chosen as it resolves; cards about to be drawn by this effect are offered too.
-      const fits = c => (!req.filter || String(defOf(game, c)?.typeLine || '').toLowerCase().includes(req.filter)) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0)).replace(/\bEVENTAMOUNT\b/, String(bindings.eventAmount ?? 0))));
+      const fits = c => (!req.filter || String(req.filter).split(/,? or |, /).some(w => String(defOf(game, c)?.typeLine || '').toLowerCase().includes(w.trim()))) && (!req.fitsWords || cardFitsWords(defOf(game, c), String(req.fitsWords).replace(/\bX\b/, String(bindings.X ?? 0)).replace(/\bEVENTAMOUNT\b/, String(bindings.eventAmount ?? 0))));
       const rows = [...(player.deck.hand || []).filter(c => c.instanceId !== bindings.sourceId && fits(c)).map(c => cardOption(game, c, player, 'In your hand')),
         ...(player.deck.remainingLibrary || []).slice(0, req.plusDraw || (req.plusDrawAmount ? resolveAmount(game, player.playerId, req.plusDrawAmount, bindings) : 0)).filter(fits).map(c => cardOption(game, c, player, 'You draw this'))];
       if (!rows.length) { bindings[req.bind] = req.many ? [] : null; return; }

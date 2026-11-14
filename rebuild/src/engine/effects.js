@@ -1861,7 +1861,7 @@ export function interveningIfFails(game, controllerId, effects, bindings) {
   return first.negate ? !!holds : !holds;
 }
 export function checkCondition(game, controllerId, text, bindings = {}) { const c = parseCondition(text); return c ? conditionHolds(game, controllerId, c, bindings) : null; }
-function conditionHolds(game, controllerId, effect, bindings) {
+export function conditionHolds(game, controllerId, effect, bindings) {
   const me = game.players.find(p => p.playerId === controllerId);
   if (effect.test === 'has-linked') return exiledWith(game, bindings.sourceId).length > 0;
   if (effect.test === 'distinct-lands') return new Set((me?.deck?.battlefield || []).filter(c => /\bLand\b/.test(definitionFor(game, c)?.typeLine || '')).map(c => definitionFor(game, c)?.name)).size >= (effect.min || 1);
