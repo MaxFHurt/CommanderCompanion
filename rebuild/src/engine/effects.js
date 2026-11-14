@@ -620,17 +620,17 @@ function applyProliferate(game, controller, effect, bindings, notes) {
   notes.push(`${controller.displayName} proliferates.`);
   emit(bindings, { type: 'proliferated', playerId: controller.playerId, controllerId: controller.playerId });
 }
-function preventDamage(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const hit = locateCardInGame(game, targetId); if (left > 0 && hit?.zone === 'battlefield' && Number(hit.card?.counters?.shield || 0) > 0) {
+function preventDamage(game, targetId, amount, sourceId = null) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const hit = locateCardInGame(game, targetId); if (left > 0 && hit?.zone === 'battlefield' && Number(hit.card?.counters?.shield || 0) > 0) {
   hit.card.counters.shield = Math.max(0, Number(hit.card.counters.shield) - 1);
   return 0;
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if (shield.targetId !== targetId || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
   if (shield.countPrevented) { game.preventedCount = game.preventedCount || {}; const k = `${game.turnNumber}:${targetId}`; game.preventedCount[k] = Number(game.preventedCount[k] || 0) + used; }   // "for each 1 damage prevented this way"
-  shield.amount -= used;
+  shield.amount = shield.oneShot ? 0 : shield.amount - used;   // "the next time … prevent that damage" is used up by the first damage
   left -= used;
 } game.damagePrevention = (game.damagePrevention || []).filter(s => Number(s.amount || 0) > 0); return left; }
 // Last-known information about the card an effect just moved, for follow-up sentences such as
@@ -1014,7 +1014,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
         throw new Error('A damage target was not chosen.');
       const victimCard = locateCardInGame(game, targetId);
       const boosted = damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: game.players.some(x => x.playerId === targetId) ? targetId : null, targetControllerId: victimCard?.card?.controllerId || null }, amount);
-      const dealt = preventDamage(game, targetId, boosted);
+      const dealt = preventDamage(game, targetId, boosted, bindings.sourceId);
       bindings.damageDealt = dealt;   // "You gain life equal to the damage dealt this way" (Corrupt)
       const prevented = boosted - dealt;
       const p = game.players.find(x => x.playerId === targetId);
@@ -1110,14 +1110,14 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
         if (!hit || hit.zone !== 'battlefield') continue;
-        const dealt = preventDamage(game, id, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetControllerId: hit.card.controllerId }, amount));
+        const dealt = preventDamage(game, id, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetControllerId: hit.card.controllerId }, amount), bindings.sourceId);
         markDamage(game, hit.card, dealt);
         if (effect.exileIfDies) hit.card.temporaryEffects = [...(hit.card.temporaryEffects || []), { kind: 'exile-if-dies', expires: 'cleanup' }];
         if (dealt) emit(bindings, { type: 'damage-permanent', targetId: id, amount: dealt, sourceId: bindings.sourceId || null, controllerId });
       }
       const victims = effect.players === 'opponents' ? game.players.filter(p => p.playerId !== controllerId && !p.eliminated) : effect.players === 'all' ? game.players.filter(p => !p.eliminated) : [];
       for (const p of victims) {
-        const dealt = preventDamage(game, p.playerId, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: p.playerId }, amount));
+        const dealt = preventDamage(game, p.playerId, damageAmount(game, { sourceControllerId: controllerId, colors: sourceColors(game, bindings), targetPlayerId: p.playerId }, amount), bindings.sourceId);
         if (!lifeFixed(game, p)) p.life = Math.max(0, Number(p.life || 0) - dealt);
         if (dealt) emit(bindings, { type: 'damage-player', playerId: p.playerId, amount: dealt, sourceId: bindings.sourceId || null, controllerId, combat: false });
       }
@@ -1134,7 +1134,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       const sd = definitionFor(game, src.card);
       const dmg = effect.amount ? Math.max(0, resolveAmount(game, controllerId, effect.amount, { ...bindings, sourceId })) : effectivePower(src.card, sd, game);
       const p = game.players.find(x => x.playerId === targetId);
-      const dealt = preventDamage(game, targetId, dmg), prevented = dmg - dealt;
+      const dealt = preventDamage(game, targetId, dmg, sourceId), prevented = dmg - dealt;
       if (p) {
         if (!lifeFixed(game, p)) p.life = Math.max(0, Number(p.life || 0) - dealt);
         notes.push(`${sd?.name || 'Creature'} deals ${dealt} damage to ${p.displayName}${prevented ? ` (${prevented} prevented)` : ''}.`);
@@ -1164,7 +1164,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       const a = locateCardInGame(game, aId), b = locateCardInGame(game, bId);
       if (!a || !b || a.zone !== 'battlefield' || b.zone !== 'battlefield')
         throw new Error('Both creatures must still be on the battlefield to fight.');
-      const ad = definitionFor(game, a.card), bd = definitionFor(game, b.card), ap = effectivePower(a.card, ad, game), bp = effectivePower(b.card, bd, game), toA = preventDamage(game, aId, bp), toB = preventDamage(game, bId, ap);
+      const ad = definitionFor(game, a.card), bd = definitionFor(game, b.card), ap = effectivePower(a.card, ad, game), bp = effectivePower(b.card, bd, game), toA = preventDamage(game, aId, bp, bId), toB = preventDamage(game, bId, ap, aId);
       a.card.damageMarked = Number(a.card.damageMarked || 0) + toA;
       b.card.damageMarked = Number(b.card.damageMarked || 0) + toB;
       // Each creature dealt its damage as a source: the damage tallies (Rith, Impact Resonance, Blazing Effigy) see both.
@@ -2055,9 +2055,18 @@ function stripReminderText(text) { return String(text || '').replace(/\([^()]*\)
 function unenforceableLimit(scope) {
   const t = String(scope || '').toLowerCase();
   for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
-    if (!/^(?: or equal to)? (?:this [a-z]+|[a-z][a-z ,'-]*?)'s (?:power|toughness)\b/.test(t.slice(m.index + m[0].length))) return true;
+    const L = limitOf(t.slice(m.index));
+    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || L.expr.that || L.expr.it) return true;
   }
   return false;
+}
+/** "with power less than or equal to <amount>" in a target description: the stat, direction and the amount (this creature's power, the number of Islands you control, your life total …). */
+export function limitOf(text) {
+  const m = String(text || '').toLowerCase().match(/^with (mana value|power|toughness) (less|greater) than( or equal to)? (.+?)(?: (?:in|from) (?:your|a|an opponent'?s) graveyard)?(?: (?:and|from|to|can't|gains?|gets?)\b.*)?$/);
+  if (!m) return null;
+  const self = m[4].match(/^(?:this [a-z]+|[a-z][a-z ,'-]*?)'s (power|toughness)$/);
+  const expr = self ? { kind: 'b110-source-stat', stat: self[1] } : parseAmountB101(m[4].replace(/\.$/, ''));
+  return expr ? { stat: m[1], less: m[2] === 'less', orEqual: !!m[3], expr } : null;
 }
 const SWALLOW_AND = /\btarget [a-z ,'-]*? (?:and|then) (?:create|draw|put|return|exile|destroy|sacrifice|gain|lose|discard|tap|untap|mill|scry|search|investigate|you)\b/i;   // build 110: also swallowed
 const SWALLOWED = /\bwhere x is\b|(?<!less than or |greater than or )\bequal to\b|\bfor each\b|\b(?:becomes?|gains?|gets?|loses?) |\buntil end of turn\b|\bdeals \w+ damage\b/i;

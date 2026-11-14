@@ -4,7 +4,7 @@ import { newGame, check, section, done } from './harness.mjs';
 import { effectivePower, effectiveToughness, cardHasKeyword } from '../../src/engine/combat.js';
 import { parseActivatedAbilities } from '../../src/engine/rules.js';
 import { withOverlay } from '../../src/engine/overlay.js';
-import { compileEffectText } from '../../src/engine/effects.js';
+import { compileEffectText, applyEffects } from '../../src/engine/effects.js';
 import { canTarget, canTargetPlayer, candidatesFor } from '../../src/game/requirements.js';
 import { playCheck } from '../../src/game/legal.js';
 import { exilePlayPermission } from '../../src/engine/effects-catalog.js';
@@ -4390,6 +4390,58 @@ section('build 110 (long tail batch 4)');
   const mid = t.P(0).life;
   activate(t, c, 0);
   check('enters-or-transforms: turning into the other face does nothing; turning back into the named face gains 2', mid === life0 && t.P(0).life === life0 + 2, `${life0} -> ${mid} -> ${t.P(0).life}`);
+}
+
+{
+  // Limits set by a count: "power less than or equal to the number of creatures you control"
+  const t = setup();
+  onField(t, 'Grizzly Bears', ''); onField(t, 'Llanowar Elves', '');
+  const a = onField(t, 'Fog Bank', '', { power: '2', toughness: '2' }, 1), b = onField(t, 'Colossal Dreadmaw', '', { power: '5', toughness: '5' }, 1);
+  const ids = candidatesFor(t.game, { kind: 'target', scope: 'target creature with power less than or equal to the number of creatures you control' }, t.P(0), null).map(r => r.id);
+  check('count limit: 2 creatures -> power 2 offered, power 5 not', ids.includes(a.instanceId) && !ids.includes(b.instanceId), JSON.stringify(ids));
+}
+{
+  // The Mighty Thor: exile then return tapped under its owner's control
+  const t = setup();
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  cast(t, 'Opt', "Exile up to one target nontoken artifact or creature, then return that card to the battlefield tapped under its owner's control.", [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const back = t.P(1).deck.battlefield.find(c => t.game.cardDefinitions[c.definitionId]?.name === 'Grizzly Bears');
+  check('exile then return tapped: back on its owner\'s battlefield, tapped', !!back && back.tapped, JSON.stringify([!!back, back?.tapped]));
+}
+{
+  // Vedalken Shackles style: control while the source stays tapped, back when it untaps
+  const t = setup();
+  const sh = onField(t, 'Sol Ring', '{2}, {T}: Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped.', { typeLine: 'Artifact' });
+  const bear = onField(t, 'Grizzly Bears', '', {}, 1);
+  activate(t, sh, 0, [[d => d.targeting || d.kind === 'choose-one', () => bear.instanceId]]);
+  const mine = t.P(0).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  sh.tapped = false; power(t, bear);
+  const theirs = t.P(1).deck.battlefield.some(c => c.instanceId === bear.instanceId);
+  check('control while tapped: taken, then returned when the source untaps', mine && theirs, JSON.stringify([mine, theirs]));
+}
+
+{
+  // Circle of Protection: the chosen red source's next damage to you is prevented, once
+  const t = setup();
+  const cop = onField(t, 'Fog Bank', '{1}: The next time a red source of your choice would deal damage to you this turn, prevent that damage.', { typeLine: 'Enchantment' });
+  const red = onField(t, 'Grizzly Bears', '', { colors: ['R'] }, 1), green = onField(t, 'Llanowar Elves', '', { colors: ['G'] }, 1);
+  const seen = activate(t, cop, 0, [[d => d.kind === 'choose-one' && (d.options || []).some(o => o.id === red.instanceId), () => red.instanceId]]);
+  check('chosen source: only red sources are offered', seen.some(d => (d.options || []).some(o => o.id === red.instanceId)) && !seen.some(d => (d.options || []).some(o => o.id === green.instanceId)));
+  const hit = (src) => applyEffects(t.game, t.P(1).playerId, [{ kind: 'damage', amount: 3, bind: 'tgt', sourceName: 'x' }], { sourceId: src.instanceId, tgt: t.P(0).playerId });
+  const life0 = t.P(0).life;
+  hit(green); const afterGreen = t.P(0).life;
+  hit(red); const afterRed = t.P(0).life;
+  hit(red); const afterRed2 = t.P(0).life;
+  check('damage prevention from a chosen source: other sources hit, the chosen one once not', afterGreen === life0 - 3 && afterRed === afterGreen && afterRed2 === afterRed - 3, JSON.stringify([life0, afterGreen, afterRed, afterRed2]));
+}
+
+{
+  // Conspire: tap two untapped creatures sharing a colour with the spell, and the spell is copied
+  const t = setup();
+  const a = onField(t, 'Grizzly Bears', '', { colors: ['U'] }), b = onField(t, 'Llanowar Elves', '', { colors: ['U'] });
+  const life0 = t.P(0).life;
+  cast(t, 'Opt', 'Conspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)\nYou gain 3 life.', [[d => d.key.includes('conspire'), () => [a.instanceId, b.instanceId]]], { colors: ['U'] });
+  check('conspire: both creatures tapped and the spell copied (6 life, not 3)', a.tapped && b.tapped && t.P(0).life === life0 + 6, `${life0} -> ${t.P(0).life} ${a.tapped}${b.tapped}`);
 }
 
 done();

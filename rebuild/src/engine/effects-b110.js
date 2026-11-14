@@ -139,6 +139,51 @@ export function compileB110Clause(c, ctx) {
     effects.push({ kind: 'counter-spell', bind });
     return true;
   }
+  // --- "Gain control of target creature with power less than or equal to the number of Islands you control for as long as this artifact remains tapped." (Vedalken Shackles)
+  if ((m = c.match(rx(`^gain control of (target [a-z ]+?(?: with (?:power|toughness|mana value) (?:less|greater) than(?: or equal to)? [a-z ,'+/-]+?)?) for as long as (${SELFP} remains tapped|you control ${SELFP})\\.?$`)))) {
+    const r = sub(`Gain control of ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t && r.effects.length === 1 && r.effects[0].kind === 'gain-control' && !r.effects[0].untilEndOfTurn) {
+      requirements.push(...r.requirements);
+      effects.push({ kind: 'b110-gain-control-while', bind: t.bind, mode: /remains tapped/i.test(m[2]) ? 'tapped' : 'control' });
+      return true;
+    }
+  }
+  // --- "Exile up to one target nontoken artifact or creature, then return that card to the battlefield tapped under its owner's control." (The Mighty Thor)
+  if ((m = c.match(/^exile (up to one )?(target [a-z ,]+?), then return that card to the battlefield tapped under its owner'?s control\.?$/i))) {
+    const bind = H.targetRequirement(requirements, m[2].toLowerCase(), m[2], m[1] ? { optional: true } : {});
+    effects.push({ kind: 'b110-flicker-tapped', bind, ...(m[1] ? { optionalTarget: true } : {}) });
+    return true;
+  }
+  // --- "Goad up to one target creature you don't control and put a +1/+1 counter on this creature." (Renegade Silent)
+  if ((m = c.match(rx(`^(goad up to one target creature you don'?t control) and (put ${N} ([+\\-\\/\\da-z]+) counters? on (?:this creature|${SELFP}))\\.?$`)))) {
+    const a = sub(`${m[1]}.`), b = sub(`${cap(m[2])}.`);
+    if (a && b && !b.requirements.length) return take({ effects: [...a.effects, ...b.effects], requirements: a.requirements });
+  }
+  // --- "Tap up to two target creatures and put a stun counter on each of them." (Out Cold)
+  if ((m = c.match(rx(`^(tap up to ${N} target creatures?(?: [a-z ']+?)?) and put ${N} ([+\\-\\/\\da-z]+) counters? on each of them\\.?$`)))) {
+    const r = sub(`${m[1]}.`), q = r?.requirements.find(x => x.kind === 'multi-target'), e = r?.effects.find(x => x.bind === q?.bind);
+    if (r && q && e && r.effects.length === 1) return take({ effects: [...r.effects, { kind: 'b101-each-bound', bind: q.bind, effects: [{ kind: 'counter', bind: '__each', counter: m[4].toLowerCase(), amount: num(m[3]) }] }], requirements: r.requirements });
+  }
+  // --- "Untap target creature with power less than … and gain control of it until end of turn." (Temporary Insanity)
+  if ((m = c.match(/^untap (target creature with (?:power|toughness|mana value) (?:less|greater) than .+?) and gain control of it until end of turn\.?$/i))) {
+    const r = sub(`Untap ${m[1]}.`), t = r?.requirements.find(q => q.kind === 'target');
+    if (r && t) return take({ effects: [...r.effects, { kind: 'gain-control', bind: t.bind, untilEndOfTurn: true }], requirements: r.requirements });
+  }
+  // --- "The next time a red source of your choice would deal damage to you this turn, prevent that damage." (Circle of Protection) / "Prevent all damage a source of your choice would deal this turn."
+  {
+    const COLORS = '(?:white|blue|black|red|green)', col = `(?:${COLORS}(?: or ${COLORS})?)`;
+    let kind = null;
+    if ((m = c.match(rx(`^The next time (?:a|an) (${col} )?source of your choice would deal damage( to you| to any target)?( this turn)?, prevent that damage\\.?$`))) && (m[2] || m[3])) kind = { colors: m[1], to: m[2] ? (/you/.test(m[2]) ? 'you' : 'any') : 'any', once: true };
+    else if ((m = c.match(rx(`^Prevent all damage (?:a|an) (${col} )?source of your choice would deal( to you)?( this turn)?\\.?$`)))) kind = { colors: m[1], to: m[2] ? 'you' : 'any', once: false };
+    else if ((m = c.match(rx(`^Prevent all damage that would be dealt to you this turn by (?:a|an) (${col} )?source of your choice\\.?$`)))) kind = { colors: m[1], to: 'you', once: false };
+    if (kind) {
+      const bind = `chosenSource${requirements.length}`, map = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+      const colors = (kind.colors || '').toLowerCase().split(/ or |\s/).filter(w => map[w]).map(w => map[w]);
+      requirements.push({ kind: 'b110-pick-source', bind, colors, label: `a ${(kind.colors || '').trim()} source of damage`.replace('a  ', 'a ') });
+      effects.push({ kind: 'b110-prevent-from', bind, to: kind.to, once: kind.once });
+      return true;
+    }
+  }
   return false;
 }
 
@@ -221,6 +266,32 @@ export function applyB110(game, controllerId, effect, bindings, notes) {
       notes.push(`${definitionFor(game, hit.card)?.name || 'It'} doesn't untap for as long as ${definitionFor(game, src.card)?.name || 'the source'} ${effect.mode === 'tapped' ? 'remains tapped' : 'is controlled by you'}.`);
       return true;
     }
+    case 'b110-gain-control-while': {
+      const tgt = locateCardInGame(game, bindings[effect.bind]), src = locateCardInGame(game, bindings.sourceId);
+      if (!tgt || tgt.zone !== 'battlefield' || !src || src.zone !== 'battlefield') { notes.push('Nothing changes control.'); return true; }
+      if (effect.mode === 'tapped' && !src.card.tapped) { notes.push('The source is not tapped, so nothing changes control.'); return true; }
+      const prev = tgt.card.controllerId || tgt.player.playerId;
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'gain-control', bind: effect.bind, untilEndOfTurn: false }], bindings));
+      game.controlWhile = [...(game.controlWhile || []), { targetId: tgt.card.instanceId, sourceId: src.card.instanceId, mode: effect.mode, controllerId, previousControllerId: prev }];
+      return true;
+    }
+    case 'b110-flicker-tapped': {
+      const hit = locateCardInGame(game, bindings[effect.bind]);
+      if (!hit || hit.zone !== 'battlefield') { notes.push('No target.'); return true; }
+      const id = hit.card.instanceId, owner = hit.card.ownerId, token = !!hit.card.token, name = definitionFor(game, hit.card)?.name || 'It';
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: id, to: 'exile' }], bindings));
+      if (token) { notes.push(`${name} ceases to exist.`); return true; }
+      notes.push(...H.applyEffectsUnsafe(game, controllerId, [{ kind: 'move-zone', targetId: id, to: 'battlefield', tapped: true, controllerId: owner }], bindings));
+      return true;
+    }
+    case 'b110-prevent-from': {
+      const id = bindings[effect.bind];
+      if (!id) { notes.push('There is no source to choose.'); return true; }
+      game.damagePrevention = game.damagePrevention || [];
+      game.damagePrevention.push({ ...(effect.to === 'you' ? { targetId: controllerId } : { anyTarget: true }), sourceId: id, amount: 99999, oneShot: !!effect.once, expires: 'cleanup' });
+      notes.push(`Damage from ${definitionFor(game, locateCardInGame(game, id)?.card || (game.stack || []).find(x => x.card?.instanceId === id)?.card)?.name || 'the chosen source'} will be prevented this turn${effect.once ? ' (the next time)' : ''}.`);
+      return true;
+    }
     case 'b110-detain': {
       const hit = locateCardInGame(game, bindings[effect.bind] || effect.bind);
       if (!hit || hit.zone !== 'battlefield') return true;
@@ -298,6 +369,15 @@ export function gatherB110(game, ctx, req, bindings, ask, key, title, base, util
     const n = Math.min(Number(req.amount) || 1, rows.length);
     bindings[req.bind] = !n ? [] : rows.length === n && req.zone === 'graveyard' ? rows.map(c => c.instanceId)
       : ask(key, () => ({ ...base, playerId: q.playerId, cancellable: false, kind: 'choose-many', private: req.zone === 'hand', title: `${ctx.sourceName} — ${q.displayName}`, prompt: `Choose ${n} card${n === 1 ? '' : 's'} from your ${req.zone} to exile.`, options: rows.map(card => util.cardOption(game, card, q, `Your ${req.zone}`)), min: n, max: n }));
+    return true;
+  }
+  if (req.kind === 'b110-pick-source') {
+    // A source of damage (a permanent or a spell on the stack, of the named colours), chosen by the player as it resolves.
+    const fits = c => { const d = util.defOf(game, c); return !req.colors?.length || (d?.colors || []).some(x => req.colors.includes(x)); };
+    const rows = [];
+    for (const q of game.players || []) for (const c of q.deck?.battlefield || []) if (!q.eliminated && fits(c)) rows.push(util.cardOption(game, c, q, 'Battlefield'));
+    for (const x of game.stack || []) if (x.kind === 'spell' && x.card && fits(x.card) && !rows.some(r => r.id === x.card.instanceId)) rows.push(util.cardOption(game, x.card, util.playerById(game, x.controllerId) || player, 'On the stack'));
+    bindings[req.bind] = rows.length ? ask(key, () => ({ ...base, kind: 'choose-one', title, prompt: `Choose ${req.label}.`, options: rows })) : null;
     return true;
   }
   return false;

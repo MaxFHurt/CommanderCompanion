@@ -104,8 +104,27 @@ function conditionalSelf(game, card, def) {
   }
   return out;
 }
+/** "Gain control of … for as long as ~ remains tapped / you control ~" (build 110): control goes back when the condition stops. */
+function restoreControlWhile(game) {
+  if (!game?.controlWhile?.length) return;
+  const bf = () => (game.players || []).flatMap(p => (p.deck?.battlefield || []).map(c => ({ c, p })));
+  const keep = [];
+  for (const r of game.controlWhile) {
+    const all = bf(), src = all.find(x => x.c.instanceId === r.sourceId), tgt = all.find(x => x.c.instanceId === r.targetId);
+    if (!tgt) continue;
+    const holds = src && (r.mode === 'tapped' ? !!src.c.tapped : (src.c.controllerId || src.p.playerId) === r.controllerId);
+    if (holds) { keep.push(r); continue; }
+    const to = game.players.find(p => p.playerId === r.previousControllerId);
+    if (to && tgt.p.playerId !== to.playerId) {
+      tgt.p.deck.battlefield.splice(tgt.p.deck.battlefield.indexOf(tgt.c), 1);
+      tgt.c.controllerId = to.playerId; to.deck.battlefield.push(tgt.c);
+    }
+  }
+  game.controlWhile = keep;
+}
 /** "… for as long as ~ remains tapped" (build 110): effects registered in game.whileTapped end when their source untaps or leaves. */
 export function pruneWhileTapped(game) {
+  restoreControlWhile(game);
   const regs = game?.whileTapped;
   if (!regs?.length) return;
   const keep = [];
@@ -224,16 +243,16 @@ function emit(onEvent, e) { try {
 catch (err) {
   console.error('Combat event bridge failed', err);
 } }
-function combatDamageAfterPrevention(game, targetId, amount) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const owner = game.players.find(p => (p.deck?.battlefield || []).some(c => c.instanceId === targetId)); const card = owner?.deck?.battlefield?.find(c => c.instanceId === targetId); if (left > 0 && Number(card?.counters?.shield || 0) > 0) {
+function combatDamageAfterPrevention(game, targetId, amount, sourceId = null) { let left = Math.max(0, Number(amount || 0)); if (game.unpreventableTurn === game.turnNumber) return left; const owner = game.players.find(p => (p.deck?.battlefield || []).some(c => c.instanceId === targetId)); const card = owner?.deck?.battlefield?.find(c => c.instanceId === targetId); if (left > 0 && Number(card?.counters?.shield || 0) > 0) {
   card.counters.shield = Math.max(0, Number(card.counters.shield) - 1);
   return 0;
 } for (const shield of game.damagePrevention || []) {
   if (left <= 0)
     break;
-  if (shield.targetId !== targetId || Number(shield.amount || 0) <= 0)
+  if ((!shield.anyTarget && shield.targetId !== targetId) || (shield.sourceId && shield.sourceId !== sourceId) || Number(shield.amount || 0) <= 0)
     continue;
   const used = Math.min(left, Number(shield.amount || 0));
-  shield.amount -= used;
+  shield.amount = shield.oneShot ? 0 : shield.amount - used;   // "the next time … prevent that damage" is used up by the first damage
   left -= used;
 } game.damagePrevention = (game.damagePrevention || []).filter(s => Number(s.amount || 0) > 0); return left; }
 function applyQueue(game, queue, events, onEvent) {
@@ -247,7 +266,7 @@ function applyQueue(game, queue, events, onEvent) {
     const targetId = hit.kind === 'player' ? hit.targetPlayer.playerId : hit.target.instanceId;
     const boosted = damageAmount(game, { sourceControllerId: sourcePlayer.playerId, colors: sourceDef?.colors || [], targetPlayerId: hit.kind === 'player' ? targetId : null, targetControllerId: hit.kind === 'player' ? null : (hit.target.controllerId || null) }, Number(hit.amount || 0));
     const fog = (game.combatPrevention || []).some(x => x.turn === game.turnNumber && game.unpreventableTurn !== game.turnNumber && (x.scope === 'all' || (x.scope === 'you' && hit.kind === 'player' && x.playerId === targetId) || (x.scope === 'card' && (x.cardId === targetId || x.cardId === source?.instanceId)) || (x.scope === 'by-card' && x.cardId === source?.instanceId) || (x.scope === 'to-card' && x.cardId === targetId)));
-    const original = boosted, amount = fog ? 0 : combatDamageAfterPrevention(game, targetId, original), prevented = original - amount;
+    const original = boosted, amount = fog ? 0 : combatDamageAfterPrevention(game, targetId, original, source?.instanceId), prevented = original - amount;
     if (hit.kind === 'player') {
       const target = hit.targetPlayer;
       if (amount > 0 && isInfect(source, sourceDef, game)) {

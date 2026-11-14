@@ -320,7 +320,8 @@ export function extraCosts(def) {
     offspring: keywordCost(text, 'Offspring'),
     squad: keywordCost(text, 'Squad'),
     casualty: (strip(text).match(/(?:^|\n)\s*Casualty (\d+|X)\b/i) || [])[1] || null,
-    bargain: /(?:^|\n)\s*Bargain\b/i.test(strip(text))
+    bargain: /(?:^|\n)\s*Bargain\b/i.test(strip(text)),
+    conspire: /(?:^|\n)\s*Conspire\b/i.test(strip(text))
   };
 }
 

@@ -218,7 +218,7 @@ function giftText(t, gift) {
 }
 const cap = s => String(s || '').charAt(0).toUpperCase() + String(s || '').slice(1);
 export function castText(text, { kicked = false, overload = false, gift = false, bargained = false, surged = false, awaken = 0 } = {}) {
-  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
+  let t = String(text || '').split('\n').filter(line => !/^\s*(?:Awaken \d|Gift an? |Splice onto |Dredge \d|Surge|Transmute|Ascend\s*(?:\(|$)|Entwine|Escalate|Replicate|Casualty|Conspire|Bargain|Offspring|Squad|Spree|Kicker|Multikicker|Buyback|Flashback|Escape|Evoke|Dash|Blitz|Overload|Foretell|Morph|Megamorph|Disguise|Convoke|Improvise|Emerge|Spectacle|Delve|Affinity for \w+|Undaunted|Cascade|Storm|Prowess|Undying|Persist|Cycling|(?:Basic )?[A-Za-z]+cycling|Retrace|Jump-start|Split second|Rebound|Madness|Miracle|Suspend|Plot|Fuse)\b/i.test(line)).join('\n');
   t = t.replace(/This spell costs \{\d+\} (?:less|more) to cast[^.]*\.\s*/gi, '');
   t = t.replace(/(?:Strive — )?This spell costs (?:\{[^}]+\})+ more to cast for each target beyond the first\.\s*/gi, '');
   // Casting permissions and costs, not things the spell does as it resolves.
@@ -383,6 +383,17 @@ function runPlay(game, op, ask) {
     }
   }
 
+  // Conspire (build 110): as you cast it, you may tap two untapped creatures you control that share a color with it; if you do, copy it.
+  let conspireIds = null;
+  if (extras.conspire && !faceDown) {
+    const cols = def.colors || [];
+    const rows = (player.deck.battlefield || []).filter(c => !c.tapped && /\bCreature\b/.test(defOf(game, c)?.typeLine || '') && (defOf(game, c)?.colors || []).some(x => cols.includes(x)))
+      .map(c => ({ id: c.instanceId, label: defOf(game, c)?.name || 'Creature', sub: defOf(game, c)?.typeLine || '', instanceId: c.instanceId, definitionId: c.definitionId }));
+    if (rows.length >= 2) {
+      const picked = ask('conspire', () => ({ playerId: player.playerId, cancellable: true, kind: 'choose-many', source: def.name, title: `${def.name} — conspire`, prompt: 'You may tap two untapped creatures you control that share a color with this spell; if you do, copy it. Choose two, or none.', options: rows, min: 0, max: 2 }));
+      if (Array.isArray(picked) && picked.length === 2) conspireIds = picked;
+    }
+  }
   // Gift: the caster may promise an opponent a gift as they cast it; the opponent gets it before the spell's other effects.
   const gift = faceDown ? null : giftSpec(def);
   let giftTo = null;
@@ -698,7 +709,8 @@ function runPlay(game, op, ask) {
   // Cast triggers of the spell itself (cascade, storm).
   if (!faceDown) for (const t of castTriggers(game, player, card, def)) queueSpecialTrigger(game, player, card, def, t, stackId);
   // Replicate and casualty: "When you cast this spell, copy it (for each time you paid its replicate cost)."
-  const copies = Number(replicateCount || 0) + (casualtyId ? 1 : 0);
+  if (conspireIds) for (const id of conspireIds) { const c = player.deck.battlefield.find(x => x.instanceId === id); if (c) c.tapped = true; }
+  const copies = Number(replicateCount || 0) + (casualtyId ? 1 : 0) + (conspireIds ? 1 : 0);
   if (copies) {
     game.pendingTriggers = game.pendingTriggers || [];
     game.pendingTriggers.push({ id: newId('trigger'), controllerId: player.playerId, sourceId: card.instanceId, sourceDefinitionId: card.definitionId, sourceName: def.name,

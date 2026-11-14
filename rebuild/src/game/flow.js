@@ -4,7 +4,7 @@ import { noteCorrection } from './corrections.js';
 
 import { evaluateLosses, validateAttack, validateRequiredAttackers, validateBlockAssignments } from '../engine/rules.js';
 import { phaseLabel } from '../engine/phase.js';
-import { resolveCombat, cardHasKeyword } from '../engine/combat.js';
+import { resolveCombat, cardHasKeyword, pruneWhileTapped } from '../engine/combat.js';
 import { queueTriggers } from '../engine/triggers.js';
 import { GameError, activePlayer, alivePlayers, attackablePermanents, defOf, log, playerById, plural, turnOrderFrom } from './helpers.js';
 import { Need, makeAsk, validateAnswer } from './requirements.js';
@@ -163,6 +163,7 @@ function untapStep(game) {
     queueTriggers(game, { type: 'untapped', sourceId: c.instanceId, definitionId: c.definitionId, controllerId: p.playerId, untapStep: true });
   }
   delete p.skipNextUntap;
+  pruneWhileTapped(game);
   log(game, `Turn ${game.turnNumber} — ${p.displayName}. ${count ? `${plural(count, 'permanent')} untapped.` : 'Nothing to untap.'}`, { type: 'turn', playerId: p.playerId });
   setPhase(game, 'upkeep');
 }
