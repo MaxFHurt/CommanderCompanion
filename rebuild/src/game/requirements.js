@@ -210,7 +210,7 @@ function matchesPermanentScope(game, card, scope, source = null, player = null) 
   if (/\btoken\b/.test(scope.replace(/\bnontoken\b/g, '')) && !card.token) return false;
   if (!manaValueFits(def, scope)) return false;
   // "target Goblin creature", "target Zombie you control": a creature type in the target.
-  const sub = scope.match(/target (?:another |other )?([a-z]+) (?:creature|you control|an opponent controls)/);
+  const sub = scope.match(/target (?:another |other )?([a-z]+(?:-[a-z]+)?) (?:creature|you control|an opponent controls)/);   // build 112: Assembly-Worker
   if (sub && !/^(attacking|blocking|tapped|untapped|nontoken|token|legendary|nonlegendary|basic|nonbasic|white|blue|black|red|green|colorless|multicolored|monocolored|noncreature|nonland|nonartifact|nonblack|nonwhite|nonblue|nonred|nongreen|artifact|enchantment|land|creature|planeswalker|battle|permanent|equipped|enchanted|modified|face-down|other|another|unblocked|blocked)$/.test(sub[1])
     && !new RegExp(`\\b${sub[1]}s?\\b`, 'i').test(t.split('—')[1] || '') && !/\bChangeling\b/.test(def?.oracleText || '')) return false;
   // "target Wolf or Werewolf creature" (build 111): either creature type

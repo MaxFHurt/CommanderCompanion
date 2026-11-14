@@ -5324,4 +5324,20 @@ section('batch 5 (build 112): Harmonize');
   check('Harmonize: cast from the graveyard, a 2-power creature tapped pays {2} of {9}{U} (8 lands), then the card is exiled', r.ok && t.P(0).deck.hand.length === hand + 2 && liveBear?.tapped && t.P(0).deck.exile.some(c => c.instanceId === opt.instanceId), JSON.stringify([r.error, t.P(0).deck.hand.length - hand, liveBear?.tapped, t.names(0, 'exile')]));
 }
 
+section('batch 5 (build 112): small wordings');
+{
+  const t = setup();
+  const dino = onField(t, 'Grizzly Bears', '', { typeLine: 'Creature — Dinosaur' }), bear = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf' });
+  const worker = onField(t, 'Mulldrifter', '', { typeLine: 'Artifact Creature — Assembly-Worker' }), legend = onField(t, 'Air Elemental', '', { typeLine: 'Legendary Creature — Elemental' });
+  const ids = scope => candidatesFor(t.game, { kind: 'target', bind: 't', scope }, t.P(0), null).map(r => r.id);
+  check('type targets: Dinosaur, Assembly-Worker and legendary creatures only', ids('target Dinosaur creature').join() === dino.instanceId && ids('target Assembly-Worker creature').join() === worker.instanceId && ids('target legendary creature').join() === legend.instanceId, JSON.stringify([ids('target Dinosaur creature').length, ids('target Assembly-Worker creature').length, ids('target legendary creature').length]));
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('All creatures get -1/-1 until end of turn for each Forest you control.', { sourceName: 'Mutilate' }).effects, {});
+  check('Mutilate-style: -1/-1 for each Forest (four Forests)', power(t, legend) === 0, JSON.stringify(power(t, legend)));
+  const life = t.P(1).life;
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Double target player\'s life total.', { sourceName: 'Beacon of Immortality' }).effects, { player0: t.P(1).playerId });
+  applyEffects(t.game, t.P(0).playerId, compileEffectText('Target player can\'t cast spells this turn.', { sourceName: 'Orim\'s Chant' }).effects, { player0: t.P(0).playerId });
+  t.give(0, 'Opt'); const pc = playCheck(t.game, t.P(0), t.hand(0, 'Opt'));
+  check('Beacon of Immortality doubles the life total; Orim\'s Chant stops casting this turn', t.P(1).life === life * 2 && !pc.legal, JSON.stringify([life, t.P(1).life, pc.legal]));
+}
+
 done();
