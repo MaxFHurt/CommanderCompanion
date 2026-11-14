@@ -4938,6 +4938,30 @@ section('batch 4 review: land type changes (CR 305.7) and domain pumps');
     cast(t, 'Naturalize', 'Hexproof', [[d => /land card/i.test(d.prompt + d.title) && d.options, d => { asked.push(d.options.map(o => o.label)); const o = d.options.find(x => x.label === 'Command Tower'); return d.kind === 'choose-many' ? [o.id] : o.id; }]], { typeLine: 'Enchantment', manaCost: '{G}' });
     const tower = t.P(0).deck.battlefield.find(c => def(t, c).name === 'Command Tower');
     check('Composer of Spring: fewer than six enchantments: one question, lands only; the land enters tapped', asked.length === 1 && JSON.stringify(asked[0].sort()) === '["Command Tower","Evolving Wilds"]' && tower && tower.tapped, JSON.stringify([asked, t.names(0, 'battlefield')])); }
+  // Fblthp, the Lost: draws two when it entered from the library (or was cast from it), otherwise one
+  { const text = 'When this creature enters, draw a card. If it entered from your library or was cast from your library, draw two cards instead.';
+    const t = setup(); const before = t.P(0).deck.hand.length; cast(t, 'Grizzly Bears', text, [], { typeLine: 'Creature — Homunculus' });
+    const fromHand = t.P(0).deck.hand.length - before;
+    const t2 = setup(); const bear = t2.P(0).deck.remainingLibrary.find(c => def(t2, c).name === 'Elvish Visionary'); asText(t2, bear, text, { typeLine: 'Creature — Homunculus' });
+    const b2 = t2.P(0).deck.hand.length; cast(t2, 'Opt', 'Search your library for a creature card, put it onto the battlefield, then shuffle.', [[d => /search/i.test(d.title + d.prompt) && d.options, d => d.kind === 'choose-many' ? [bear.instanceId] : bear.instanceId]], { manaCost: '{U}', typeLine: 'Sorcery' });
+    check('Fblthp, the Lost: one card when cast from hand, two when it entered from the library', fromHand === 1 && t2.P(0).deck.hand.length - b2 === 2, JSON.stringify([fromHand, t2.P(0).deck.hand.length - b2])); }
+  // Scion of Draco: colour-conditional keywords for each creature you control (and none for the colourless Scion itself)
+  { const t = setup(); const scion = onField(t, 'Fog Bank', "Flying\nEach creature you control has vigilance if it's white, hexproof if it's blue, lifelink if it's black, first strike if it's red, and trample if it's green.", { typeLine: 'Artifact Creature — Dragon', colors: [], keywords: ['Flying'], power: '4', toughness: '4' });
+    const wu = onField(t, 'Grizzly Bears', '', { colors: ['W', 'U'], keywords: [] }), br = onField(t, 'Llanowar Elves', '', { typeLine: 'Creature — Elf', colors: ['B', 'R'], keywords: [] }), g = onField(t, 'Mulldrifter', '', { colors: ['G'], keywords: [] }, 0);
+    const opp = onField(t, 'Air Elemental', '', { colors: ['W'], keywords: [] }, 1);
+    const ks = c => ['Vigilance', 'Hexproof', 'Lifelink', 'First strike', 'Trample'].filter(k => has(t, c, k)).join(',');
+    check('Scion of Draco: white-blue gets vigilance+hexproof, black-red lifelink+first strike, green trample; Scion itself and an opponent\'s white creature get nothing', ks(wu) === 'Vigilance,Hexproof' && ks(br) === 'Lifelink,First strike' && ks(g) === 'Trample' && ks(scion) === '' && ks(opp) === '', JSON.stringify([ks(wu), ks(br), ks(g), ks(scion), ks(opp)])); }
+  // Alchemist's Talent: mana from a Treasure is tagged in the pool and the tag goes with the spell cast
+  { const run = useTreasure => { const t = setup(); const text = "Whenever you cast a spell, if mana from a Treasure was spent to cast it, this enchantment deals damage equal to that spell's mana value to each opponent.";
+      onField(t, 'Fog Bank', text, { typeLine: 'Enchantment' });
+      applyEffects(t.game, t.P(0).playerId, compileEffectText('Create a Treasure token.', { sourceName: 'Test' }).effects, { sourceId: null });
+      const tr = t.P(0).deck.battlefield.find(c => c.token && /Treasure/.test(def(t, c).typeLine));
+      if (useTreasure) { const ab = parseActivatedAbilities(def(t, tr)).find(a => a.manaAbility); const r = t.ctl.dispatch({ type: 'activate', instanceId: tr.instanceId, abilityId: ab.id }, t.as(0)); if (!r.ok) throw new Error(r.error); settle(t, [[d => d.kind === 'choose-one' && /color/i.test(d.prompt + d.title), () => 'G']]); }
+      const life = t.P(1).life;
+      cast(t, 'Grizzly Bears', '', [], { typeLine: 'Creature — Bear', manaCost: '{1}{G}' });
+      return [life - t.P(1).life, !!t.bf(0, 'Grizzly Bears'), t.P(0).deck.battlefield.some(c => c.token && /Treasure/.test(def(t, c).typeLine))]; };
+    const a = run(true), b = run(false);
+    check("Alchemist's Talent: Grizzly Bears (mana value 2) paid with Treasure mana: 2 damage; paid with lands only: none", a[0] === 2 && a[1] && !a[2] && b[0] === 0 && b[1], JSON.stringify([a, b])); }
 }
 
 done();

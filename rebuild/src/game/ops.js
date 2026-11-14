@@ -1246,7 +1246,7 @@ function runTrigger(game, op, ask) {
 
   // Who caused this trigger and by how much: "that player", "that much life".
   const ev = trigger.event || {};
-  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventLast: ev.last || null, eventCard: ev.sourceId || trigger.sourceId, eventLinked: ev.sourceId && ev.sourceId === trigger.sourceId ? (ev.last?.linkedExile || null) : null, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventDefender: ev.defenderId || null, eventAuraControllers: ev.auraControllers || [] };
+  const bindings = { sourceId: trigger.sourceId, eventPlayer: ev.playerId || ev.controllerId || null, eventAmount: Number(ev.amount || 0), eventLast: ev.last || null, eventCard: ev.sourceId || trigger.sourceId, eventLinked: ev.sourceId && ev.sourceId === trigger.sourceId ? (ev.last?.linkedExile || null) : null, eventStackId: ev.stackId || null, eventManaValue: Number(ev.manaValue || 0), eventCounters: ev.last?.counters || null, eventDamage: Number(ev.last?.damage || 0), eventManaSpent: ev.manaSpent ?? null, eventManaFrom: ev.manaFrom || [], eventDefender: ev.defenderId || null, eventAuraControllers: ev.auraControllers || [] };
   // "that creature": the other creature in a block, the creature dealt damage, otherwise the event's creature.
   const other = [ev.attackerId, ev.blockerId].find(id => id && id !== trigger.sourceId);
   bindings.defendingPlayer = ev.defenderId || (game.combatState?.attackers || []).find(a => a.instanceId === (ev.sourceId || trigger.sourceId))?.defenderId || null;

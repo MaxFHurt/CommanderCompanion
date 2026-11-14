@@ -115,7 +115,7 @@ export function clearCastState(card, to) {
     delete card.realDefinitionId;
     delete card.faceDownKind;
   }
-  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast', 'offspring', 'squadCount', 'bargained', 'disturbed', 'prototype', 'bestowed', 'colorsSpent'])
+  for (const key of ['castMode', 'kicked', 'kickCount', 'castFlags', 'wasCast', 'offspring', 'squadCount', 'bargained', 'disturbed', 'prototype', 'bestowed', 'colorsSpent', 'enteredFrom', 'castFromZone'])
     delete card[key];
   delete card.playPermission;
   if (to !== 'exile') {
@@ -197,6 +197,7 @@ export function moveCard(game, id, to, { controllerId = null, position = 'bottom
   if (to === 'battlefield') {
     card.controllerId = controllerId || owner.playerId;
     card.enteredTurn = game.turnNumber;
+    card.enteredFrom = from;
     card.controlSinceTurn = game.turnNumber;
     card.tapped = !!tapped;
   }
@@ -1579,6 +1580,7 @@ function applyEffectsBody(game, controllerId, effects = [], bindings = {}) {
       controller.mana.available[color] = Number(controller.mana.available[color] || 0) + amount;
       controller.mana.floating = controller.mana.floating || { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
       controller.mana.floating[color] = Number(controller.mana.floating[color] || 0) + amount;
+      if (bindings.sourceTag) { controller.mana.tags = controller.mana.tags || []; for (let k = 0; k < amount; k++) controller.mana.tags.push({ color, tag: bindings.sourceTag }); }
       notes.push(`${controller.displayName} adds ${amount} ${color} mana.`);
       continue;
     }
@@ -1826,6 +1828,7 @@ export function parseCondition(text) {
   if ((m = t.match(/^(?:its|that creature's) power is (\d+) or greater$/i))) return { test: 'event-power', min: Number(m[1]) };
   if ((m = t.match(/^you have (\d+) or more life$/i))) return { test: 'life', min: Number(m[1]) };
   if (/^you cast it$/i.test(t)) return { test: 'source-cast' };
+  if (/^(?:it|this creature|this permanent) entered (?:the battlefield )?from your library or (?:was|were) cast from your library$/i.test(t)) return { test: 'entered-from-library' };   // Fblthp, the Lost
   if (/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i.test(t)) return { test: 'opp-excess-damage' };   // Rith, Liberated Primeval
   if (/^its mana value is equal to the amount of unspent mana you have$/i.test(t)) return { test: 'mv-equals-pool' };   // Glissa Sunseeker
   if (/^you have an enduring story$/i.test(t)) return { test: 'enduring-story' };
@@ -1853,7 +1856,7 @@ export function parseCondition(text) {
   return parseConditionB49(t) || parseConditionB110(t);
 }
 /** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
-const INTERVENING = /^(?:b110-(?:amount|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
+const INTERVENING = /^(?:b110-(?:amount|mana-from|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
 export function interveningIfFails(game, controllerId, effects, bindings) {
   const fx = (effects || []).filter(e => e.kind !== 'set-x'), first = fx[0];
   if (!first || first.kind !== 'condition' || first.skip < fx.length - 1 || !INTERVENING.test(first.test || '')) return false;
@@ -1899,6 +1902,7 @@ export function conditionHolds(game, controllerId, effect, bindings) {
     return !!me?.enduringStory;
   }
   if (effect.test === 'unique-name') { const h = locateCardInGame(game, bindings.eventCard); const n = h && definitionFor(game, h.card)?.name; return !!n && !(me?.deck?.battlefield || []).some(c => c.instanceId !== h.card.instanceId && /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n) && !(me?.deck?.graveyard || []).some(c => /Creature/.test(definitionFor(game, c)?.typeLine || '') && definitionFor(game, c)?.name === n); }
+  if (effect.test === 'entered-from-library') { const h = locateCardInGame(game, bindings.sourceId); return h?.card?.enteredFrom === 'library' || h?.card?.castFromZone === 'library'; }
   if (effect.test === 'source-cast') { const h = locateCardInGame(game, bindings.sourceId); return !!h?.card?.castMode || !!h?.card?.wasCast; }
   if (effect.test === 'control') {
     const subject = parseSubject(effect.subject, null);

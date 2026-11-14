@@ -716,6 +716,7 @@ export function parseConditionB110(t) {
   if ((m = t.match(/^there are (\w+) or more card types among cards in your graveyard$/i))) return { test: 'b110-gy-types', min: cnt(m[1]) };
   // Build 110 review (the "If <condition>, X deals N damage" cards that used to lose their condition)
   if (/^you(?:'|’)re the monarch$/i.test(t)) return { test: 'b110-monarch' };
+  if ((m = t.match(/^mana from an? ([A-Z][a-z]+) was spent to cast (?:it|that spell)$/))) return { test: 'b110-mana-from', type: m[1] };   // Alchemist's Talent
   if (/^you put a counter on a creature this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'countersPut' }, min: 1 };   // Lasting Tarfire
   if (/^a planeswalker entered the battlefield under your control this turn$/i.test(t)) return { test: 'b110-amount', expr: { kind: 'b101-tally', what: 'entered', other: false, nontoken: false, subs: ['planeswalker'] }, min: 1 };   // Oath of Chandra
   if (/^a card left your graveyard this turn$/i.test(t)) return { test: 'b110-left-graveyard' };   // Gau, Feral Youth
@@ -753,6 +754,7 @@ export function conditionHoldsB110(game, controllerId, effect, bindings = {}) {
     case 'b110-hand-at-most': return ((game.players || []).find(p => p.playerId === controllerId)?.deck?.hand || []).length <= effect.n;
     case 'b110-kick-count': { const c = locateCardInGame(game, bindings.eventCard || bindings.sourceId)?.card; return Number(c?.kickCount ?? (c?.kicked ? 1 : 0)) >= effect.min; }
     case 'b110-cost-discarded': { const tl = String(bindings.costDiscardedTypeLine || ''); if (!tl) return false; const is = effect.type === 'nonland' ? !/\bLand\b/i.test(tl) : new RegExp(`\\b${effect.type}\\b`, 'i').test(tl); return effect.not ? !is : is; }
+    case 'b110-mana-from': return (bindings.eventManaFrom || []).some(x => String(x).split(' ').includes(effect.type));
     case 'b110-monarch': return !!(game.players || []).find(p => p.playerId === controllerId)?.statuses?.includes('Monarch');
     case 'b110-left-graveyard': return game.leftGraveyard?.[controllerId] === game.turnNumber;
     case 'b110-event-mv': { const mv = Number(bindings.eventManaValue || 0); return effect.less ? mv <= effect.n : mv >= effect.n; }

@@ -42,6 +42,7 @@ export function resetTurnPlayer(player, game = null) {
     fixed[color] += Math.max(0, Number(player.mana?.total?.[color] || 0) - registered[color]);
   player.mana.available = fixed;
   player.mana.floating = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+  player.mana.tags = [];
 }
 export function requiredGatesForPhase(game, phase, player) {
   const gates = {};
