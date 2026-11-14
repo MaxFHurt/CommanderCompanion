@@ -4624,4 +4624,14 @@ section('build 110 (long tail batch 4)');
   check('Scrap Welder: sacrificing MV 3 offers the MV 2 artifact, not the MV 3; it returns with haste', offered.includes(two.instanceId) && !offered.includes(three.instanceId) && !!back && has(t, back, 'haste') && !seen.some(d => d.kind === 'number'), JSON.stringify([offered.length, !!back]));
 }
 
+{
+  // Simic Manipulator: the player chooses how many +1/+1 counters to remove; the limit is that many
+  const t = setup();
+  const sm = onField(t, 'Colossal Dreadmaw', '{T}, Remove one or more +1/+1 counters from this creature: Gain control of target creature with power less than or equal to the number of +1/+1 counters removed this way.', { power: '1', toughness: '1' }); sm.counters = { '+1/+1': 3 };
+  const lo = onField(t, 'Grizzly Bears', '', { power: '2', toughness: '2' }, 1), hi = onField(t, 'Llanowar Elves', '', { power: '3', toughness: '3' }, 1);
+  const seen = activate(t, sm, 0, [[d => d.key === 'cost:remove-counters', () => 2], [d => d.targeting || d.kind === 'choose-one', () => lo.instanceId]]);
+  const offered = seen.filter(d => d.kind !== 'number').flatMap(d => (d.options || []).map(o => o.id));
+  check('Simic Manipulator: remove 2 counters -> power 2 offered, 3 not; counters left 1; creature taken', offered.includes(lo.instanceId) && !offered.includes(hi.instanceId) && sm.counters['+1/+1'] === 1 && t.P(0).deck.battlefield.some(c => c.instanceId === lo.instanceId), JSON.stringify([offered.length, sm.counters]));
+}
+
 done();

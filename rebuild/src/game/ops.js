@@ -919,6 +919,14 @@ function runActivate(game, op, ask) {
     const n = Math.max(0, Number(card.counters?.[rmAll[1]] || 0));
     costRemoveCounters.push({ counter: rmAll[1], amount: n }); bindings.costCount = n;
   }
+  // Simic Manipulator: "Remove one or more +1/+1 counters from this creature": the player chooses how many; the count is what the effect reads.
+  const rmSome = String(ability.cost || '').match(/Remove one or more ([^ ]+) counters? from (?:this [a-z]+|~|[A-Z][^,:]*)/);
+  if (rmSome) {
+    const have = Math.max(0, Number(card.counters?.[rmSome[1]] || 0));
+    if (have < 1 && !force) throw new GameError(`${def.name} has no ${rmSome[1]} counters to remove.`);
+    const n = have <= 1 ? have : Math.max(1, Math.min(have, Number(ask('cost:remove-counters', () => ({ ...base, kind: 'number', title: `${def.name} — pay cost`, prompt: `How many ${rmSome[1]} counters do you remove?`, min: 1, max: have })) || 1)));
+    costRemoveCounters.push({ counter: rmSome[1], amount: n }); bindings.costCount = n;
+  }
   const manaText = adjustGeneric((ability.cost.match(/\{(?:\d+|X|[WUBRGC](?:\/[WUBRGC])?(?:\/P)?|2\/[WUBRG])\}/gi) || []).join(''), -activationReduction(game, player, ability));
   // Throne of Eldraine: "Spend only mana of the chosen color to activate this ability."
   const onlyColor = /Spend only mana of the chosen color to activate this ability/i.test(ability.text || '') ? card.chosenColor : null;

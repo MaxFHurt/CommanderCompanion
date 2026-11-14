@@ -2058,7 +2058,7 @@ function unenforceableLimit(scope) {
   const t = String(scope || '').toLowerCase();
   for (const m of t.matchAll(/\bwith (?:mana value|power|toughness) (?:less|greater) than/g)) {
     const L = limitOf(t.slice(m.index));
-    if (!L || (L.expr.kind === 'binding' && L.expr.bind !== 'eventManaValue') || ((L.expr.that || L.expr.it) && L.expr.kind !== 'b101-source-counters') || L.expr.who === 'ref') return true;   // 'ref': another player chosen in the same sentence, not known while choosing
+    if (!L || (L.expr.kind === 'binding' && !['eventManaValue', 'costCount'].includes(L.expr.bind)) || ((L.expr.that || L.expr.it) && L.expr.kind !== 'b101-source-counters') || L.expr.who === 'ref') return true;   // 'ref': another player chosen in the same sentence, not known while choosing
   }
   return false;
 }
