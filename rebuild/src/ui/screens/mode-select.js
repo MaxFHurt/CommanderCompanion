@@ -1,6 +1,7 @@
 import { html, setHtml, on } from '../dom.js';
 import { go } from '../../app/router.js';
 import { openModal } from '../modal.js';
+import { routePanel, routePanels, routeRow } from '../route-kit.js';
 
 function pickRemoteCount(onPick) {
   openModal({
@@ -40,27 +41,29 @@ export const modeSelectScreen = {
       const mode = el.dataset.mode;
       if (mode === 'table-tracker') {
         return openModal({
-          title: 'Table Tracker',
-          body: html`<div class="option-list">
-            <button type="button" class="option" data-track="local"><span><strong>One device</strong><small>Track the whole table on this device</small></span></button>
-            <button type="button" class="option" data-track="host-player"><span><strong>Host a table — I am playing too</strong><small>Players track their own seat on their phones; you get the host tools and Judge mode</small></span></button>
-            <button type="button" class="option" data-track="host-device"><span><strong>Host device — table view</strong><small>This device shows the whole table and acts as judge</small></span></button>
-            <button type="button" class="option" data-track="join"><span><strong>Join a table</strong><small>Enter the code shown on the host device</small></span></button>
-          </div>`,
+          title: 'Table Tracker', route: { w: 1160, h: 475, ph: 276 },
+          body: routePanels([
+            routePanel('Local table', routeRow(html`<button type="button" class="btn" data-track="local">One device</button>`, 'Track the whole table on this device')),
+            routePanel('Shared table', [
+              routeRow(html`<button type="button" class="btn" data-track="host-player">Host a table — I am playing too</button>`, 'Players track their own seat on their phones; you get the host tools and Judge mode'),
+              routeRow(html`<button type="button" class="btn" data-track="host-device">Host device — table view</button>`, 'This device shows the whole table and acts as judge'),
+              routeRow(html`<button type="button" class="btn" data-track="join">Join a table</button>`, 'Enter the code shown on the host device')])
+          ]),
           onMount(box, { close }) {
             on(box, 'click', '[data-track]', (e, b) => { close(); b.dataset.track === 'join' ? go('tracker-join') : go('tracker-setup', { play: b.dataset.track }); });
           }
         });
       }
       openModal({
-        title: mode === 'freeplay' ? 'Free Play' : 'Guided Play',
-        body: html`<div class="option-list">
-          <button type="button" class="option" data-play="local"><span><strong>One device</strong><small>Everyone shares this device and passes it around</small></span></button>
-          <button type="button" class="option" data-play="host-player"><span><strong>Host a room — I am playing too</strong><small>Other players join from their own devices; you get the host tools</small></span></button>
-          <button type="button" class="option" data-play="host-device"><span><strong>Host device — table view</strong><small>This device shows the battlefield for everyone and acts as judge. It never shows hands</small></span></button>
-          <button type="button" class="option" data-play="join"><span><strong>Join a room</strong><small>Enter the code shown on the host device</small></span></button>
-          <button type="button" class="option" data-play="online"><span><strong>Online games — play over time</strong><small>Each player on their own device, whenever they have time. Saved online after every move</small></span></button>
-        </div>`,
+        title: mode === 'freeplay' ? 'Free Play' : 'Guided Play', route: { w: 1160, h: 527, ph: 328 },
+        body: routePanels([
+          routePanel('Play on one device', routeRow(html`<button type="button" class="btn" data-play="local">One device</button>`, 'Everyone shares this device and passes it around')),
+          routePanel('Play on separate devices', [
+            routeRow(html`<button type="button" class="btn" data-play="host-player">Host a room — I am playing too</button>`, 'Other players join from their own devices; you get the host tools'),
+            routeRow(html`<button type="button" class="btn" data-play="host-device">Host device — table view</button>`, 'This device shows the battlefield for everyone and acts as judge. It never shows hands'),
+            routeRow(html`<button type="button" class="btn" data-play="join">Join a room</button>`, 'Enter the code shown on the host device'),
+            routeRow(html`<button type="button" class="btn" data-play="online">Online games — play over time</button>`, 'Each player on their own device, whenever they have time. Saved online after every move')])
+        ]),
         onMount(el, { close }) {
           on(el, 'click', '[data-play]', (e, b) => {
             close();

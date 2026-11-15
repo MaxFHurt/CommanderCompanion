@@ -4,6 +4,7 @@
 import { html, on, $, setHtml } from './dom.js';
 import { go, currentScreen } from '../app/router.js';
 import { toast } from './toast.js';
+import { routePanel, routePanels } from './route-kit.js';
 import { openModal, confirmDialog } from './modal.js';
 import { initProfileStore } from '../data/profile.js';
 import { initDeckStore } from '../data/deck-store.js';
@@ -134,8 +135,8 @@ export function signInForm(area, { mode = 'signup', onDone, onCancel } = {}) {
 
 export function openSignIn(mode, onDone) {
   openModal({
-    title: mode === 'signup' ? 'Sign up' : 'Sign in', size: 'wide',
-    body: html`<div data-auth-area></div>`,
+    title: mode === 'signup' ? 'Sign up' : 'Sign in', route: { w: 900, h: 475, ph: 276, back: 'Close' },
+    body: routePanels(routePanel('Your account', html`<div class="auth-area" data-auth-area></div>`)),
     actions: [{ label: 'Close', kind: 'cancel' }],
     onMount(el, { close }) {
       signInForm($('[data-auth-area]', el), { mode, onDone: result => { close(); onDone?.(result); } });

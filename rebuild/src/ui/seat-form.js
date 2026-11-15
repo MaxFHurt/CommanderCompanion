@@ -2,6 +2,7 @@
 
 import { html, on, $, setHtml } from './dom.js';
 import { openModal } from './modal.js';
+import { routePanel, routePanels, routeRow } from './route-kit.js';
 import { toast } from './toast.js';
 import { listDecks } from '../data/deck-store.js';
 import { listPrecons, loadPrecon } from '../data/precons.js';
@@ -21,28 +22,24 @@ export function seatFormHtml(seat, index) {
         <input class="input" data-field="name" maxlength="24" placeholder="Player ${index + 1}" value="${seat.name}" autocomplete="off">
       </label>
       <div class="field">Deck
-        <div class="seat-form__deck ${seat.deckList ? 'is-set' : ''}">
+        <div class="seat-form__deck readout ${seat.deckList ? 'is-set' : ''}" title="${seat.deckName || ''}">
           <span><strong>${seat.deckName || 'No deck chosen'}</strong><small>${seat.deckList ? `${count} cards` : 'Pick a saved deck, a precon, or paste a list'}</small></span>
         </div>
-        <div class="row row--wrap">
-          <button type="button" class="btn btn--small" data-seat-act="saved">Saved decks</button>
-          <button type="button" class="btn btn--small" data-seat-act="precon">Precon catalog</button>
-          <button type="button" class="btn btn--small" data-seat-act="paste">Paste list</button>
-          ${seat.deckList ? html`<button type="button" class="btn btn--small" data-seat-act="view">View deck</button>` : ''}
-        </div>
       </div>
-      <div class="grid-2">
-        <label class="field">Commander
-          <input class="input" data-field="commander1" maxlength="80" placeholder="Commander name" value="${seat.commander1}" autocomplete="off">
-        </label>
-        <label class="field">Partner / Background (optional)
-          <input class="input" data-field="commander2" maxlength="80" placeholder="Second commander" value="${seat.commander2}" autocomplete="off">
-        </label>
-      </div>
-      <div class="field">Advice
+      <button type="button" class="btn btn--small" data-seat-act="saved">Saved decks</button>
+      <button type="button" class="btn btn--small" data-seat-act="precon">Precon catalog</button>
+      <button type="button" class="btn btn--small" data-seat-act="paste">Paste list</button>
+      ${seat.deckList ? html`<button type="button" class="btn btn--small btn--cancel" data-seat-act="view">View deck</button>` : ''}
+      <label class="field">Commander
+        <input class="input" data-field="commander1" maxlength="80" placeholder="Commander name" value="${seat.commander1}" autocomplete="off">
+      </label>
+      <label class="field">Partner / Background (optional)
+        <input class="input" data-field="commander2" maxlength="80" placeholder="Second commander" value="${seat.commander2}" autocomplete="off">
+      </label>
+      <div class="field field--stack">Advice
         <button type="button" class="option ${seat.advice !== false ? 'is-on' : ''}" data-seat-act="advice"><span><strong>Advice ${seat.advice !== false ? 'on' : 'off'}</strong><small>${seat.advice !== false ? 'The tip bar always suggests a move for this player and explains why.' : 'The tip bar only says what the game is waiting for. No suggestions.'}</small></span><span class="option__end">${seat.advice !== false ? 'On' : 'Off'}</span></button>
       </div>
-      <div class="field">Playmat
+      <div class="field field--stack">Playmat
         <div class="mat-pick">${availableMats().map(m => html`<button type="button" class="mat-thumb ${playmatById(seat.matId).id === m.id ? 'is-on' : ''}" data-seat-act="mat" data-mat="${m.id}" style="background-image:url('${m.thumb || m.image}')" aria-label="${m.name}"></button>`)}</div>
       </div>
     </div>`;
@@ -65,14 +62,15 @@ export function handleSeatAction(act, el, seat, redraw) {
   if (act === 'advice') { seat.advice = seat.advice === false; return redraw(); }
   if (act === 'mat') { seat.matId = el.dataset.mat; return redraw(); }
   if (act === 'view') {
-    return openModal({ title: seat.deckName || 'Deck', body: html`<pre class="deck-text">${seat.deckList}</pre>` });
+    return openModal({ title: seat.deckName || 'Deck', route: { w: 900, h: 527, ph: 328, back: 'Close' }, body: routePanels(routePanel('Deck list', html`<pre class="deck-text">${seat.deckList}</pre>`, 'route-panel--text')) });
   }
   if (act === 'saved') {
     const decks = listDecks();
     return openModal({
-      title: 'Saved decks',
-      body: decks.length ? html`<div class="option-list">${decks.map((d, i) => html`<button type="button" class="option" data-deck="${i}"><span><strong>${d.name || 'Untitled deck'}</strong><small>${[d.owner && `${d.owner}'s deck`, [d.commander1, d.commander2].filter(Boolean).join(' + ') || 'No commander set'].filter(Boolean).join(' • ')}</small></span></button>`)}</div>`
-        : html`<p class="muted">No saved decks yet. Build one in the Deck Builder, pick a precon, or paste a list.</p>`,
+      title: 'Saved decks', route: { w: 900, h: 423, ph: 236, back: 'Close' },
+      body: routePanels(routePanel('Choose a deck', decks.length
+        ? decks.map((d, i) => routeRow(html`<button type="button" class="btn" data-deck="${i}" title="${d.name || 'Untitled deck'}">${d.name || 'Untitled deck'}</button>`, [d.owner && `${d.owner}'s deck`, [d.commander1, d.commander2].filter(Boolean).join(' + ') || 'No commander set'].filter(Boolean).join(' • ')))
+        : html`<p class="route-note">No saved decks yet. Build one in the Deck Builder, pick a precon, or paste a list.</p>`)),
       onMount(m, { close }) {
         on(m, 'click', '[data-deck]', (e, b) => {
           const d = decks[Number(b.dataset.deck)];
@@ -84,10 +82,10 @@ export function handleSeatAction(act, el, seat, redraw) {
   }
   if (act === 'paste') {
     return openModal({
-      title: 'Paste a deck list', size: 'wide',
-      body: html`<p class="muted">One card per line, for example “1 Sol Ring”. Include the commander in the list.</p>
-        <textarea class="input deck-textarea" data-list placeholder="1 Atraxa, Praetors' Voice&#10;1 Sol Ring&#10;35 Forest">${seat.sourceType === 'custom' ? seat.deckList : ''}</textarea>
-        <label class="field">Deck name<input class="input" data-name maxlength="60" value="${seat.sourceType === 'custom' ? seat.deckName : ''}" placeholder="My deck"></label>`,
+      title: 'Paste a deck list', route: { w: 900, h: 450, ph: 263 },
+      body: routePanels(routePanel('Deck list', html`<p class="route-note">One card per line, for example “1 Sol Ring”. Include the commander in the list.</p>
+        <textarea class="input deck-textarea" data-list aria-label="Deck list" placeholder="1 Atraxa, Praetors' Voice&#10;1 Sol Ring&#10;35 Forest">${seat.sourceType === 'custom' ? seat.deckList : ''}</textarea>
+        <label class="field">Deck name<input class="input" data-name maxlength="60" value="${seat.sourceType === 'custom' ? seat.deckName : ''}" placeholder="My deck"></label>`, 'route-panel--form')),
       actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'Use this list', kind: 'confirm', onClick: ({ close, el: m }) => {
         const list = $('[data-list]', m).value.trim();
         if (!list) return toast('Paste the deck list first.');
@@ -103,16 +101,18 @@ export function handleSeatAction(act, el, seat, redraw) {
 let preconCache = null;
 export function openPreconPicker(onPick) {
   openModal({
-    title: 'Precon catalog', size: 'wide',
-    body: html`<input class="input" type="search" data-q placeholder="Search preconstructed Commander decks" autocomplete="off"><div class="option-list" data-list><p class="muted">Loading the catalog…</p></div>`,
+    title: 'Precon catalog', route: { w: 1160, h: 423, ph: 236, back: 'Close' },
+    body: routePanels([
+      routePanel('Search', html`<input class="input" type="search" data-q aria-label="Search preconstructed Commander decks" placeholder="Search preconstructed Commander decks" autocomplete="off">`),
+      routePanel('Precons', html`<div class="route-list" data-list><p class="route-note">Loading the catalog…</p></div>`)]),
     onMount(el, { close }) {
       const draw = () => {
         const q = $('[data-q]', el).value.trim().toLowerCase();
         const rows = (preconCache || []).filter(d => !q || d.name.toLowerCase().includes(q)).slice(0, 80);
-        setHtml($('[data-list]', el), rows.length ? rows.map(d => html`<button type="button" class="option" data-file="${d.fileName}"><span><strong>${d.name}</strong><small>${d.releaseDate || ''}</small></span></button>`) : html`<p class="muted">No decks match.</p>`);
+        setHtml($('[data-list]', el), rows.length ? rows.map(d => routeRow(html`<button type="button" class="btn" data-file="${d.fileName}" title="${d.name}">${d.name}</button>`, d.releaseDate || '')) : html`<p class="route-note">No decks match.</p>`);
       };
       (preconCache ? Promise.resolve(preconCache) : listPrecons()).then(list => { preconCache = list; draw(); })
-        .catch(() => setHtml($('[data-list]', el), html`<p class="muted">The precon catalog could not be reached. Check the internet connection.</p>`));
+        .catch(() => setHtml($('[data-list]', el), html`<p class="route-note">The precon catalog could not be reached. Check the internet connection.</p>`));
       $('[data-q]', el).addEventListener('input', draw);
       on(el, 'click', '[data-file]', async (e, b) => {
         b.disabled = true;

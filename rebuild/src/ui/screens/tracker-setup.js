@@ -6,6 +6,7 @@ import { toast } from '../toast.js';
 import { createTracker, PLAYER_COLORS, TRACKER_SAVE_KEY } from '../../game/tracker.js';
 import { saveRecord } from '../../data/store.js';
 import { accountSetupDefaults, loadProfile } from '../../data/profile.js';
+import { routeScreen, routePanel } from '../route-kit.js';
 import { unlockedMats, playmatById, DEFAULT_MAT } from '../../data/playmats.js';
 
 export const trackerSetupScreen = {
@@ -19,13 +20,11 @@ export const trackerSetupScreen = {
     const players = [0, 1].map(i => ({ name: defaults.playerNames?.[i] || '', commander: '', matId: DEFAULT_MAT.id }));
 
     function draw() {
-      setHtml(root, html`
-        <main class="page">
-          <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
-            <h1 class="chrome-text">${play === 'host-device' ? 'Host Table' : play === 'host-player' ? 'Host a Table' : 'Table Tracker'}</h1>
-          </header>
-          <div class="page__body">
+      setHtml(root, routeScreen({
+        cls: 'route--tracker-setup', w: 1160, h: 475, ph: 276,
+        title: play === 'host-device' ? 'Host Table' : play === 'host-player' ? 'Host a Table' : 'Table Tracker',
+        panels: [
+          routePanel('Players', html`
             <div class="setup-players">
               ${players.map((p, i) => html`
                 <section class="setup-player" style="--player:${PLAYER_COLORS[i]}" data-seat="${i}">
@@ -39,16 +38,16 @@ export const trackerSetupScreen = {
                     ${mats.map(m => html`<button type="button" class="mat-thumb ${playmatById(p.matId).id === m.id ? 'is-on' : ''}" data-act="mat" data-seat="${i}" data-mat="${m.id}" style="background-image:url('${m.thumb || m.image}')" aria-label="${m.name}"></button>`)}
                   </div>
                 </section>`)}
-              ${players.length < 6 ? html`<button type="button" class="setup-player setup-player--add" data-act="add">+ Add player</button>` : ''}
-            </div>
-          </div>
-          <footer class="page__foot">
-            <label class="row"><span class="muted">Starting life</span>
-              <input class="input" id="startingLife" type="number" inputmode="numeric" min="1" max="999" value="${startingLife}" style="width:8rem">
-            </label>
-            <button type="button" class="btn btn--confirm" data-act="start">${play === 'local' ? 'Start Tracking' : 'Open Table'}</button>
-          </footer>
-        </main>`);
+              ${players.length < 6 ? html`<button type="button" class="btn btn--cancel" data-act="add">+ Add player</button>` : ''}
+            </div>`),
+          routePanel('Table', html`
+            <label class="field"><span>Starting life</span>
+              <input class="input" id="startingLife" type="number" inputmode="numeric" min="1" max="999" value="${startingLife}">
+            </label>`)],
+        actions: html`
+          <button class="btn" type="button" data-act="back" aria-label="Back">Back</button>
+          <button type="button" class="btn btn--confirm" data-act="start">${play === 'local' ? 'Start Tracking' : 'Open Table'}</button>`
+      }));
     }
 
     function readFields() {

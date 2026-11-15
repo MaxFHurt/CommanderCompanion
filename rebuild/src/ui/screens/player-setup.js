@@ -15,6 +15,7 @@ import { createServerGame, onlineSeat, newSeatKey } from '../../net/online.js';
 import { rememberOnlineGame } from '../../app/online-games.js';
 import { PLAYER_COLORS } from '../../game/setup.js';
 import { openDeckBuilder } from '../../data/deck-builder.js';
+import { routeScreen, routePanel } from '../route-kit.js';
 
 function seatFromDefaults(index, defaults) {
   const seat = emptySeat(defaults.playerNames?.[index] || '');
@@ -42,28 +43,27 @@ export const playerSetupScreen = {
 
     function draw() {
       const title = mode === 'freeplay' ? 'Free Play' : 'Guided Play';
-      setHtml(root, html`
-        <main class="page page--setup">
-          <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
-            <h1 class="chrome-text">Player Setup — ${title}${online ? ' Online' : ''}</h1>
-          </header>
-          <div class="page__body setup">
+      const seatName = (s, i) => s.name.trim() || `Player ${i + 1}`;
+      setHtml(root, routeScreen({
+        cls: 'route--setup', panelsCls: 'setup', w: 1160, h: 542, ph: 343,
+        title: `Player Setup — ${title}${online ? ' Online' : ''}`,
+        panels: [
+          routePanel('Players', html`
             <nav class="setup__tabs">
-              ${seats.map((s, i) => html`<button type="button" class="setup__tab ${i === active ? 'is-on' : ''}" data-act="tab" data-seat="${i}" style="--player:${PLAYER_COLORS[i]}">
-                <b>${s.name.trim() || `Player ${i + 1}`}</b><small>${s.deckList && s.commander1 ? `✓ ${s.deckName}` : 'Needs a deck'}</small></button>`)}
-              ${seats.length + remote < 6 ? html`<button type="button" class="setup__tab setup__tab--add" data-act="add">+ Add player${hosting ? ' on this device' : ''}</button>` : ''}
-              ${seats.length > minLocal ? html`<button type="button" class="setup__tab setup__tab--add" data-act="remove">Remove ${seats[active].name.trim() || `Player ${active + 1}`}</button>` : ''}
+              ${seats.map((s, i) => html`<button type="button" class="btn setup__tab ${i === active ? 'is-on' : ''}" data-act="tab" data-seat="${i}" style="--player:${PLAYER_COLORS[i]}" title="${seatName(s, i)}">
+                <b>${seatName(s, i)}</b><small>${s.deckList && s.commander1 ? `✓ ${s.deckName}` : 'Needs a deck'}</small></button>`)}
+              ${seats.length + remote < 6 ? html`<button type="button" class="btn btn--cancel setup__tab setup__tab--add" data-act="add">+ Add player${hosting ? ' on this device' : ''}</button>` : ''}
+              ${seats.length > minLocal ? html`<button type="button" class="btn btn--cancel setup__tab setup__tab--add" data-act="remove">Remove ${seatName(seats[active], active)}</button>` : ''}
               ${hosting ? html`<div class="setup__remote"><span>${online ? 'Players joining online' : 'Players joining from other devices'}</span><div class="stepper"><button type="button" class="icon-btn" data-act="remote" data-step="-1">−</button><b class="stepper__value">${remote}</b><button type="button" class="icon-btn" data-act="remote" data-step="1">+</button></div></div>` : ''}
             </nav>
-            <section class="setup__form panel">${seatFormHtml(seats[active], active)}</section>
-          </div>
-          <footer class="page__foot">
-            <span class="muted">${mode === 'freeplay' ? 'Free Play: any deck is allowed and every rule can be overridden.' : 'Guided Play checks each deck against the Commander rules.'}</span>
-            <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
-            <button type="button" class="btn btn--confirm" data-act="start">${online ? 'Create online game' : hosting ? 'Open room' : 'Continue'}</button>
-          </footer>
-        </main>`);
+            <p class="route-note">${mode === 'freeplay' ? 'Free Play: any deck is allowed and every rule can be overridden.' : 'Guided Play checks each deck against the Commander rules.'}</p>`),
+          routePanel(seatName(seats[active], active), html`<section class="setup__form">${seatFormHtml(seats[active], active)}</section>`, 'route-panel--form setup__panel')
+        ],
+        actions: html`
+          <button class="btn" type="button" data-act="back" aria-label="Back">Back</button>
+          <button type="button" class="btn" data-act="deck-builder">Deck Builder</button>
+          <button type="button" class="btn btn--confirm" data-act="start">${online ? 'Create online game' : hosting ? 'Open room' : 'Continue'}</button>`
+      }));
     }
 
     async function start() {
@@ -108,7 +108,10 @@ export const playerSetupScreen = {
     const offInput = on(root, 'input', '[data-field]', () => {
       readSeatForm(root, seats[active]);
       const tab = $(`.setup__tab[data-seat="${active}"] b`, root);
-      if (tab) tab.textContent = seats[active].name.trim() || `Player ${active + 1}`;
+      const label = seats[active].name.trim() || `Player ${active + 1}`;
+      if (tab) tab.textContent = label;
+      const heading = $('.setup__panel .route-panel__title', root);
+      if (heading) heading.textContent = label;
     });
     const offClick = on(root, 'click', '[data-act], [data-seat-act]', (event, el) => {
       readSeatForm(root, seats[active]);

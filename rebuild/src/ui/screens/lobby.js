@@ -8,6 +8,7 @@ import { hostRoom } from '../../net/room.js';
 import { newRoomCode } from '../../net/transport.js';
 import { chooseRules, buildGame } from '../../app/start-game.js';
 import { startHostSession } from '../../app/session.js';
+import { routeScreen, routePanel } from '../route-kit.js';
 import { shareCodeHtml, bindShareCode, pairNearbyDevice } from '../share-code.js';
 
 export const lobbyScreen = {
@@ -19,37 +20,32 @@ export const lobbyScreen = {
       const state = room?.lobby();
       const joined = state?.players || [];
       const ready = joined.length >= 1 && localSeats.length + joined.length >= 2;
-      setHtml(root, html`
-        <main class="page">
-          <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
-            <h1 class="chrome-text">${hostDevice ? 'Host Device' : 'Host Room'}</h1>
-          </header>
-          <div class="page__body lobby">
-            <section class="panel lobby__code">
-              <small>Room code</small>
-              <b class="chrome-text">${room ? room.code : '····'}</b>
-              <p class="muted">${error || (room ? 'On each other device: Start Game → choose a mode → Join a room, then enter this code.' : 'Opening the room…')}</p>
+      setHtml(root, routeScreen({
+        cls: 'route--lobby', panelsCls: 'lobby', w: 1160, h: 423, ph: 224,
+        title: hostDevice ? 'Host Device' : 'Host Room',
+        panels: [
+          routePanel('Room code', html`
+            <div class="lobby__code">
+              <b class="readout">${room ? room.code : '····'}</b>
+              <p class="route-note">${error || (room ? 'On each other device: Start Game → choose a mode → Join a room, then enter this code.' : 'Opening the room…')}</p>
               ${room ? shareCodeHtml({ code: room.code, kind: 'room', what: 'game', inlineQr: true }) : ''}
-              ${room ? html`<button type="button" class="btn btn--small" data-act="pair" style="margin-top:0.6rem">Pair a nearby device (no internet)</button>` : ''}
+              ${room ? html`<button type="button" class="btn" data-act="pair">Pair a nearby device (no internet)</button>` : ''}
               ${room?.kind === 'loopback' ? html`<p class="warn">No internet connection service: pair nearby devices by QR code (Pair a nearby device), or use tabs of this browser.</p>` : ''}
-            </section>
-            <section class="panel lobby__seats">
-              <h3 class="section-title">Players (${localSeats.length + joined.length} of ${localSeats.length + remoteSeats})</h3>
-              <div class="option-list">
-                ${localSeats.map(s => html`<div class="option is-on"><span><strong>${s.name}</strong><small>This device • ${s.commanderNames.join(' + ')}</small></span></div>`)}
-                ${joined.map(p => html`<div class="option is-on"><span><strong>${p.name}</strong><small>${p.online ? 'Joined' : 'Disconnected'} • ${p.deckName}</small></span><span class="option__end"><button type="button" class="chip chip--bad" data-act="kick" data-id="${p.clientId}">Remove</button></span></div>`)}
-                ${Array.from({ length: Math.max(0, remoteSeats - joined.length) }, () => html`<div class="option"><span><strong class="muted">Open seat</strong><small>Waiting for a player to join…</small></span></div>`)}
-              </div>
-              ${hostDevice ? html`<p class="muted">This device shows the table for everyone and has the host tools. It does not see any hand.</p>` : ''}
-              ${agreeing ? html`<p class="warn">Waiting for ${rulesStatus?.rulesWaiting?.length ? rulesStatus.rulesWaiting.join(', ') : 'the players'} to accept the table rules… <button type="button" class="chip" data-act="cancel-rules">Change rules</button></p>` : ''}
-            </section>
-          </div>
-          <footer class="page__foot">
-            <span class="muted">${state?.spectators ? `${state.spectators} watching` : ''}</span>
-            <button type="button" class="btn btn--confirm" data-act="start" ${ready ? '' : html`disabled`}>Start game</button>
-          </footer>
-        </main>`);
+            </div>`),
+          routePanel(`Players (${localSeats.length + joined.length} of ${localSeats.length + remoteSeats})`, html`
+            <div class="option-list lobby__seats">
+              ${localSeats.map(s => html`<div class="option is-on"><span><strong>${s.name}</strong><small>This device • ${s.commanderNames.join(' + ')}</small></span></div>`)}
+              ${joined.map(p => html`<div class="option is-on"><span><strong>${p.name}</strong><small>${p.online ? 'Joined' : 'Disconnected'} • ${p.deckName}</small></span><span class="option__end"><button type="button" class="chip chip--bad" data-act="kick" data-id="${p.clientId}">Remove</button></span></div>`)}
+              ${Array.from({ length: Math.max(0, remoteSeats - joined.length) }, () => html`<div class="option"><span><strong class="muted">Open seat</strong><small>Waiting for a player to join…</small></span></div>`)}
+            </div>
+            ${hostDevice ? html`<p class="route-note">This device shows the table for everyone and has the host tools. It does not see any hand.</p>` : ''}
+            ${state?.spectators ? html`<p class="route-note">${state.spectators} watching</p>` : ''}
+            ${agreeing ? html`<p class="warn">Waiting for ${rulesStatus?.rulesWaiting?.length ? rulesStatus.rulesWaiting.join(', ') : 'the players'} to accept the table rules… <button type="button" class="chip" data-act="cancel-rules">Change rules</button></p>` : ''}`)
+        ],
+        actions: html`
+          <button class="btn" type="button" data-act="back" aria-label="Back">Back</button>
+          <button type="button" class="btn btn--confirm" data-act="start" ${ready ? '' : html`disabled`}>Start game</button>`
+      }));
     }
 
     async function open() {

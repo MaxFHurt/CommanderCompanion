@@ -11,6 +11,7 @@ import { joinRoom, deviceClientId } from '../../net/room.js';
 import { startClientSession } from '../../app/session.js';
 import { openModal } from '../modal.js';
 import { rulesSummaryHtml } from '../rules-editor.js';
+import { routeScreen, routePanel } from '../route-kit.js';
 import { scanJoinCode, goToJoin, openPairQr, codeFromText } from '../share-code.js';
 
 export const joinScreen = {
@@ -23,32 +24,30 @@ export const joinScreen = {
 
     function draw() {
       const lobby = link?.lobby();
-      setHtml(root, html`
-        <main class="page page--setup">
-          <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
-            <h1 class="chrome-text">Join a Room</h1>
-          </header>
-          <div class="page__body setup">
-            ${link ? html`
-              <section class="panel lobby__code" style="grid-column:1 / -1">
-                <small>Room ${code}</small><b class="chrome-text">${link.seated ? 'You are in' : 'Watching'}</b>
-                <p class="muted">${link.reason || 'Waiting for the host to start the game…'}</p>
-                <p>${(lobby?.players || []).map(p => p.name).join(' • ')}</p>
-              </section>` : html`
-              <nav class="setup__tabs">
+      setHtml(root, routeScreen({
+        cls: 'route--join', panelsCls: 'setup', w: 1160, h: 475, ph: 276,
+        title: 'Join a Room',
+        panels: link ? routePanel(`Room ${code}`, html`
+              <div class="lobby__code">
+                <b class="readout">${link.seated ? 'You are in' : 'Watching'}</b>
+                <p class="route-note">${link.reason || 'Waiting for the host to start the game…'}</p>
+                <p class="route-note">${(lobby?.players || []).map(p => p.name).join(' • ')}</p>
+              </div>`) : [
+          routePanel('Room', html`
+              <div class="setup__tabs">
                 <label class="field">Room code<input class="input input--code" data-code maxlength="4" value="${code}" placeholder="ABCD" autocomplete="off" autocapitalize="characters"></label>
-                <p class="muted">The host device shows the code. Choose your deck here — your hand stays on this device.</p>
-                ${lastRoom ? html`<button type="button" class="btn btn--small btn--confirm" data-act="watch">Rejoin room ${lastRoom}</button>` : ''}
-                <button type="button" class="btn btn--small" data-act="watch">Just watch</button>
-                <button type="button" class="btn btn--small" data-act="scan">Scan QR</button>
-                <button type="button" class="btn btn--small" data-act="paste-pair">Paste pairing code</button>
-                ${pairText ? html`<p class="muted">Paired with room ${code} on this Wi-Fi (no internet needed). Choose your deck, then Join.</p>` : ''}
-              </nav>
-              <section class="setup__form panel">${seatFormHtml(seat, 0)}</section>`}
-          </div>
-          <footer class="page__foot">${link ? '' : html`<button type="button" class="btn btn--confirm" data-act="join">Join</button>`}</footer>
-        </main>`);
+                <p class="route-note">The host device shows the code. Choose your deck here — your hand stays on this device.</p>
+                ${lastRoom ? html`<button type="button" class="btn btn--confirm" data-act="watch">Rejoin room ${lastRoom}</button>` : ''}
+                <button type="button" class="btn" data-act="watch">Just watch</button>
+                <button type="button" class="btn" data-act="scan">Scan QR</button>
+                <button type="button" class="btn" data-act="paste-pair">Paste pairing code</button>
+                ${pairText ? html`<p class="route-note">Paired with room ${code} on this Wi-Fi (no internet needed). Choose your deck, then Join.</p>` : ''}
+              </div>`),
+          routePanel('Seat', html`<section class="setup__form">${seatFormHtml(seat, 0)}</section>`, 'route-panel--form')],
+        actions: html`
+          <button class="btn" type="button" data-act="back" aria-label="Back">Back</button>
+          ${link ? '' : html`<button type="button" class="btn btn--confirm" data-act="join">Join</button>`}`
+      }));
     }
 
     async function join(spectate) {

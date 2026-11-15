@@ -94,4 +94,107 @@ async def main():
     print('page errors:', errors or 'none')
 
 
-asyncio.run(main())
+# ── Stage 3a routes: setup, rooms, online, tracker entry, accounts ──────────────────────────────────────
+# python3 tests/shots_skin.py out_dir handoff_dir routes      (also needs `node cloud/dev-server.mjs 8787` for online-room)
+SEED = """() => {
+  localStorage.setItem('cc.deckProfile', JSON.stringify({ decks: [
+    { id: 'd1', format: 'commander', name: 'Breed Lethality', commander: 'Atraxa, Praetors\u2019 Voice', cards: [{ n: 'Sol Ring', q: 1 }], player: 'Aaron' },
+    { id: 'd2', format: 'commander', name: 'Token Triumph', commander: 'Pantlaza, Sun-Favored', cards: [{ n: 'Sol Ring', q: 1 }], player: 'Heather' }] }));
+  localStorage.setItem('cc-online-games', JSON.stringify([{ code: 'F7KQAB', clientId: 'x', name: 'Aaron', names: ['Aaron', 'Heather'], mode: 'fully-tracked', server: true, at: Date.now() }]));
+}"""
+PRECONS = [{'name': 'Breed Lethality', 'fileName': 'BreedLethality_C21', 'type': 'Commander Deck', 'releaseDate': '2021-04-23'},
+           {'name': 'Token Triumph', 'fileName': 'TokenTriumph_C22', 'type': 'Commander Deck', 'releaseDate': '2022-04-08'}]
+
+
+async def routes(browser, only=None):
+    from game_ui import FIX, mock_scryfall
+    for device in DEVICES:
+        ctx = await browser.new_context(**DEVICES[device])
+        await ctx.add_init_script("localStorage.setItem('cc.welcome.done', '1')")
+        page = await ctx.new_page()
+        page.on('pageerror', lambda e: errors.append(f'{device}: {e}'))
+        await mock_scryfall(page)
+        await page.route('https://mtgjson.com/**', lambda r: r.fulfill(json={'data': PRECONS}))
+        await page.goto(URL + '?online=http://127.0.0.1:8787')
+        await page.wait_for_function('window.__ccReady === true', timeout=15000)
+        await page.evaluate(SEED)
+        await page.reload(); await page.wait_for_function('window.__ccReady === true')
+        shot = lambda name: snap(page, name, name, device)
+        want = lambda name: not only or name in only
+        go = lambda name, params='{}': page.evaluate(f"async () => {{ const {{ go }} = await import('./src/app/router.js'); go('{name}', {params}); }}")
+        back = lambda: page.click('.modal [data-modal-back]')
+
+        await page.click('[data-act="start"]'); await page.wait_for_selector('.mode-select')
+        for mode, name in (('fully-tracked', 'play-options'), ('freeplay', 'free-play-options')):
+            await page.click(f'[data-mode="{mode}"]'); await page.wait_for_selector('[data-play="local"]')
+            if want(name): await shot(name)
+            await back()
+        await page.click('[data-mode="table-tracker"]'); await page.wait_for_selector('[data-track="local"]')
+        if want('tracker-options'): await shot('tracker-options')
+        await page.click('[data-track="local"]'); await page.wait_for_selector('.setup-players')
+        if want('tracker-setup'): await shot('tracker-setup')
+        await go('tracker-join', "{ code: 'F7KQ', name: 'Aaron' }"); await page.wait_for_selector('[data-code]')
+        if want('tracker-join'): await shot('tracker-join')
+
+        await go('mode-select'); await page.click('[data-mode="fully-tracked"]'); await page.click('[data-play="local"]'); await page.wait_for_selector('.setup')
+        await page.fill('[data-field="name"]', 'Aaron')
+        if want('player-setup'): await shot('player-setup')
+        await page.click('[data-seat-act="saved"]'); await page.wait_for_selector('[data-deck]')
+        if want('saved-decks'): await shot('saved-decks')
+        await page.click('[data-deck="0"]')
+        await page.click('[data-seat-act="precon"]'); await page.wait_for_selector('[data-file]')
+        if want('precon-catalog'): await shot('precon-catalog')
+        await back()
+        await page.click('[data-seat-act="paste"]'); await page.wait_for_selector('[data-list]')
+        await page.fill('[data-list]', '1 Atraxa, Praetors\u2019 Voice\n1 Sol Ring')
+        if want('import-deck'): await shot('import-deck')
+        await back()
+
+        names = "[{ name: 'Aaron', commanderNames: ['Atraxa, Praetors\u2019 Voice'] }]"
+        await go('lobby', f"{{ mode: 'fully-tracked', hostDevice: false, localSeats: {names}, remoteSeats: 3 }}"); await page.wait_for_selector('.lobby__code b:not(:has-text("····"))')
+        if want('host-room'): await shot('host-room')
+        await go('lobby', "{ mode: 'fully-tracked', hostDevice: true, localSeats: [], remoteSeats: 4 }"); await page.wait_for_selector('.lobby__code b:not(:has-text("····"))')
+        if want('host-device'): await shot('host-device')
+        await go('join'); await page.wait_for_selector('[data-code]')
+        if want('join-room'): await shot('join-room')
+        await go('online', "{ mode: 'fully-tracked' }"); await page.wait_for_selector('[data-act="new"]'); await page.wait_for_timeout(800)
+        if want('online-games'): await shot('online-games')
+
+        await page.evaluate("async () => { const { openSignIn } = await import('./src/ui/account-ui.js'); openSignIn('signin'); }"); await page.wait_for_selector('[data-auth-email]')
+        if want('sign-in'): await shot('sign-in')
+        await back()
+        await page.evaluate("async () => { const { openSignIn } = await import('./src/ui/account-ui.js'); openSignIn('signup'); }"); await page.wait_for_selector('[data-auth-email]')
+        if want('create-account'): await shot('create-account')
+        await ctx.close()
+
+        # online-room: a real waiting room on the local test Worker
+        if want('online-room'):
+            from game_ui import fill_seat
+            ctx = await browser.new_context(**DEVICES['iPad'])
+            await ctx.add_init_script("localStorage.setItem('cc.welcome.done', '1')")
+            a = await ctx.new_page(); await mock_scryfall(a)
+            await a.goto(URL + '?online=http://127.0.0.1:8787'); await a.wait_for_function('window.__ccReady === true')
+            await a.click('[data-act="start"]'); await a.click('[data-mode="fully-tracked"]'); await a.click('[data-play="online"]')
+            await a.click('[data-act="new"]'); await a.wait_for_selector('.setup')
+            await fill_seat(a, 'Aaron', 'white')
+            await a.click('[data-act="start"]'); await a.wait_for_selector('text=Setup check', timeout=15000); await a.click('.modal .btn--confirm')
+            await a.wait_for_selector('.rules-editor'); await a.click('[data-first-pick="0"]'); await a.click('.modal .btn--confirm')
+            try: await a.wait_for_selector('[data-online-code]', timeout=15000)
+            except Exception: await a.screenshot(path=os.path.join(OUT, 'online-room-debug.png')); raise
+            await a.set_viewport_size(DEVICES[device]['viewport'])
+            await snap(a, 'online-room', 'online-room', device)
+            await ctx.close()
+
+
+async def routes_main(only=None):
+    os.makedirs(OUT, exist_ok=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        await routes(browser, only)
+        await browser.close()
+    print('page errors:', errors or 'none')
+
+if 'routes' in sys.argv[3:]:
+    asyncio.run(routes_main([a for a in sys.argv[4:]] or None))
+else:
+    asyncio.run(main())

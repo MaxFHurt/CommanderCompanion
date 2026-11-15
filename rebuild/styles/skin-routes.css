@@ -1,0 +1,139 @@
+/* Visual rebuild, stage 3a: setup, rooms, online and account routes (src/ui/route-kit.js).
+ *
+ * One composition from the handoff maps (screens/<route>/<device>.layout.json): title plate, one or two recessed panels
+ * (dialog nine-slice, live title in an inset readout, rows below), one row of steel buttons, the separator. Screens and
+ * dialogs share it. Sizes are map units: --W / --H set the scale (as for Mode Select), --PH is the panel height.
+ * Rows keep the 36 px touch target, so a panel that holds more than the map shows scrolls inside, from its top; a
+ * short list is centred in the panel. Long names are cut with an ellipsis and carry the full value in title.
+ *
+ * Sections: 1 stack  2 panels  3 rows and fields  4 seat setup  5 rooms and online  6 dialogs  7 iPad tier
+ */
+
+/* ── 1. Stack ─────────────────────────────────────────────────────────────────── */
+.route__stack { max-width: 100%; }
+.route .route__panels, .modal--route .route__panels {
+  flex: 0 1 auto; display: flex; grid-template-columns: none; overflow: visible; gap: calc(16 * var(--u)); width: calc((var(--W) - 28) * var(--u)); max-width: 100%;
+  height: calc(var(--PH) * var(--u)); min-height: 12rem; min-width: 0;
+}
+.route__actions { flex: none; display: flex; justify-content: center; flex-wrap: wrap; gap: calc(16 * var(--u)); }
+.route__actions .btn, .modal--route .modal__foot .btn { width: auto; min-width: max(9.6rem, calc(205 * var(--u))); }
+.plate__title--long { font-size: calc(14 * var(--u)); }
+
+/* ── 2. Panels ────────────────────────────────────────────────────────────────── */
+.route-panel {
+  --cap-x: calc(62 * var(--u)); --cap-y: calc(40 * var(--u));
+  flex: 1 1 0; min-width: 0; min-height: 0; padding: 0;
+  display: flex; flex-direction: column; gap: calc(10 * var(--u));
+  border-width: calc(48 * var(--u)) calc(43 * var(--u)) calc(36 * var(--u));
+}
+.route-panel__title {
+  flex: none; box-sizing: border-box; min-height: max(2.4rem, calc(27 * var(--u))); margin: 0; padding: 0 0.6rem;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: 700 max(1.1rem, calc(15 * var(--u))) / 1.1 var(--font-ui); letter-spacing: 0.02em; text-transform: none;
+}
+.route-panel__body {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: max(0.5rem, calc(6 * var(--u))); padding: 0 calc(9 * var(--u)) 0.2rem;
+  scrollbar-width: thin; scrollbar-color: var(--pal-primary) transparent;
+}
+.route-panel__body > * { flex: none; min-width: 0; }
+.route-panel__body > :first-child { margin-top: auto; }   /* short lists centre; long ones start at the top */
+.route-panel__body > :last-child { margin-bottom: auto; }
+.route-panel--form .route-panel__body > :first-child, .route-panel--text .route-panel__body > :first-child { margin-top: 0; }
+.route-list { display: contents; }
+.auth-area { display: contents; }
+
+.route-note { margin: 0; font-size: max(1.05rem, calc(13 * var(--u))); line-height: 1.25; text-align: center; color: #d6cfee; overflow-wrap: anywhere; }
+.route-panel .muted, .route-panel small { font-size: max(1rem, calc(12 * var(--u))); letter-spacing: 0; text-transform: none; }
+.route-panel .warn { margin: 0; font-size: max(1.05rem, calc(13 * var(--u))); }
+.route-panel .section-title { margin: 0; text-align: center; font: 700 max(1.2rem, calc(16 * var(--u))) var(--font-ui); letter-spacing: 0.02em; text-transform: none; }
+.route-panel pre.deck-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: max(1.1rem, calc(13 * var(--u))); }
+
+/* ── 3. Rows and fields ───────────────────────────────────────────────────────── */
+.route-panel .btn, .modal--route .btn { --bh: max(3.6rem, calc(44 * var(--u))); font-size: max(1.2rem, calc(17 * var(--u))); }
+.route-panel .btn {
+  width: 100%; min-width: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.1; text-wrap: balance;
+}
+.route-panel .btn--small { --bh: max(3.6rem, calc(44 * var(--u))); }
+.route-row { display: grid; gap: 0.2rem; }
+.route-row__note { display: block; text-align: center; color: #cbc4e2; line-height: 1.2; overflow-wrap: anywhere; }
+
+.route-panel .field {
+  display: grid; grid-template-columns: minmax(0, 34%) minmax(0, 1fr); align-items: center; gap: 0.6rem;
+  font: 700 max(1.1rem, calc(14 * var(--u))) / 1.1 var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--skin-text);
+}
+.route-panel .field--stack, .route-panel--form .field:has(textarea) { grid-template-columns: minmax(0, 1fr); }
+.route-panel .field input, .route-panel .field textarea, .route-panel input.input, .route-panel textarea.input {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: 3.6rem; font-size: max(1.2rem, calc(16 * var(--u))); color: #fff;
+}
+.route-panel .field input[type="number"] { text-align: center; }
+.route-panel textarea.input { min-height: 9rem; resize: none; }
+.route-panel input.input--code { letter-spacing: 0.3em; text-align: center; text-transform: uppercase; }
+.route-panel .row { flex-direction: column; align-items: stretch; gap: max(0.5rem, calc(6 * var(--u))); }
+.route-panel .option { min-height: 3.6rem; padding: 0.2rem 0.8rem; text-align: left; }
+.route-panel .option strong { overflow-wrap: anywhere; }
+.route-panel .option.is-on { box-shadow: 0 0 0 1px var(--pal-secondary), 0 0 0.8rem var(--pal-glow); }
+.route-panel .option:disabled { opacity: 0.55; }
+.route-panel .chip { min-height: 3.2rem; }
+
+/* ── 4. Seat setup (Player Setup, Join a Room, Online join) ───────────────────── */
+.setup__tabs { display: flex; flex-direction: column; gap: max(0.5rem, calc(6 * var(--u))); overflow: visible; }
+.route-panel .setup__tabs > * { flex: none; }
+.route-panel .setup__tab {
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem; text-align: center; padding: 0 0.4rem;
+}
+.route-panel .setup__tab b, .route-panel .setup__tab small { font: 700 max(1.2rem, calc(16 * var(--u))) var(--font-ui); letter-spacing: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-panel .setup__tab small { font-weight: 400; font-size: max(1rem, calc(13 * var(--u))); color: #cbc4e2; flex: 0 1 auto; }
+.route-panel .setup__tab.is-on { border-image-source: var(--sk-tab-on); }
+.route-panel .setup__remote { border: 0; padding: 0; display: grid; gap: 0.4rem; justify-items: center; text-align: center; font-size: max(1.05rem, calc(13 * var(--u))); color: #d6cfee; }
+.route-panel .stepper__value { font-size: 1.8rem; }
+.route-panel .icon-btn { min-width: 3.6rem; min-height: 3.6rem; }
+.setup__form { display: contents; }
+.seat-form { display: flex; flex-direction: column; gap: max(0.5rem, calc(6 * var(--u))); }
+.seat-form > * { flex: none; min-width: 0; }
+.seat-form__deck.readout { display: block; text-align: left; padding: 0.3rem 0.8rem; min-height: 3.6rem; border-style: solid; }
+.seat-form__deck strong { display: block; font: 700 max(1.2rem, calc(16 * var(--u))) var(--font-ui); letter-spacing: 0; text-transform: none; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat-form__deck small { display: block; color: #cbc4e2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-panel .mat-pick { flex-wrap: wrap; gap: 0.5rem; overflow: visible; }
+.route-panel .mat-thumb { width: 6rem; height: 3.6rem; }
+
+/* Table Tracker setup: one card per player inside the Players panel. */
+.route-panel .setup-players { display: flex; flex-direction: column; gap: max(0.6rem, calc(8 * var(--u))); grid-template-columns: none; }
+.route-panel .setup-player {
+  display: grid; gap: 0.5rem; padding: 0.5rem 0.6rem; border: 0; border-left: 0.4rem solid var(--player, var(--pal-primary)); border-radius: 0;
+  background: rgba(8, 5, 16, 0.55); box-shadow: none; min-height: 0;
+}
+.route-panel .setup-player__head { font: 700 max(1.1rem, calc(14 * var(--u))) var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--skin-text); }
+.route-panel .setup-player .input { min-height: 3.6rem; font-size: max(1.2rem, calc(16 * var(--u))); }
+
+/* ── 5. Rooms and online ──────────────────────────────────────────────────────── */
+.lobby__code { display: flex; flex-direction: column; align-items: stretch; gap: max(0.5rem, calc(6 * var(--u))); text-align: center; overflow: visible; }
+.lobby__code > * { flex: none; min-width: 0; }
+.lobby__code b.readout {
+  display: flex; align-items: center; justify-content: center; min-height: max(3.8rem, calc(44 * var(--u)));
+  font: 800 max(2.6rem, calc(36 * var(--u))) / 1 var(--font-head); color: #fff; letter-spacing: 0.2em; text-indent: 0.2em;
+}
+.lobby__code .share-code { font-size: max(1rem, calc(12 * var(--u))); }
+.route-panel .lobby__seats, .route-panel.lobby__seats .route-panel__body { overflow: visible; }
+.route-panel .option-list { gap: max(0.5rem, calc(6 * var(--u))); }
+.route-panel .option-list > * { flex: none; }
+
+/* ── 6. Dialogs: the same stack inside the modal ──────────────────────────────── */
+.modal--route .modal__panel {
+  --u: min(0.0703rem, calc((100vw - 3.4rem) / var(--W)), calc((100dvh - 2rem) / var(--H)));
+  display: flex; flex-direction: column; align-items: center; gap: calc(12 * var(--u));
+  width: calc(var(--W) * var(--u)); max-width: 100%; max-height: 100%; height: auto;
+}
+.modal--route .modal__head { flex: none; margin: 0; width: 100%; }
+.modal--route .modal__head h2 { --pw: calc(572 * var(--u)); }
+.modal--route .modal__frame { display: flex; flex-direction: column; align-items: center; gap: calc(12 * var(--u)); width: 100%; min-height: 0; border: 0; border-image: none; background: none; padding: 0; }
+.modal--route .modal__frame::before { display: none; }
+.modal--route .modal__body { display: flex; flex-direction: column; align-items: center; width: 100%; min-height: 0; padding: 0; overflow: visible; gap: 0; }
+.modal--route .modal__foot { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(16 * var(--u)); padding: 0; background: none; flex: none; }
+.modal--route .modal__foot[hidden] { display: none; }
+.modal--route .modal__frame::after { content: ""; flex: none; width: calc(328 * var(--u)); height: calc(22 * var(--u)); background: var(--sk-separator) center / 100% 100% no-repeat; }
+
+/* ── 7. iPad tier (maps: 1200 x 773) ─────────────────────────────────────────── */
+@media (min-width: 1000px) and (min-height: 700px) {
+  .route--setup .route__stack { --PH: 484 !important; --H: 683 !important; }
+}

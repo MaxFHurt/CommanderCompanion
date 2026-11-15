@@ -6,6 +6,7 @@ import { toast } from '../toast.js';
 import { accountSetupDefaults } from '../../data/profile.js';
 import { joinTrackerRoom } from '../../net/tracker-room.js';
 import { deviceClientId } from '../../net/room.js';
+import { routeScreen, routePanel } from '../route-kit.js';
 import { scanJoinCode, goToJoin } from '../share-code.js';
 
 export const trackerJoinScreen = {
@@ -19,35 +20,26 @@ export const trackerJoinScreen = {
     function draw() {
       const msg = link?.lastState;
       const seats = msg?.seats || {};
-      setHtml(root, html`
-        <main class="page">
-          <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
-            <h1 class="chrome-text">Join a Table</h1>
-          </header>
-          <div class="page__body">
-            ${msg ? html`
-              <section class="panel tjoin">
-                <h3 class="section-title">Room ${code} — which seat is yours?</h3>
-                <div class="option-list">
+      setHtml(root, routeScreen({
+        cls: 'route--tracker-join', w: msg ? 900 : 1160, h: 423, ph: 224,
+        title: 'Join a Table',
+        panels: msg ? routePanel(`Room ${code} — which seat is yours?`, html`
                   ${msg.state.players.map(p => {
                     const s = seats[p.id];
                     const taken = s && (s.host || s.online) && s.clientId !== link.clientId;
                     return html`<button type="button" class="option ${taken ? '' : 'is-on'}" data-seat="${p.id}" ${taken ? html`disabled` : ''} style="border-left:0.4rem solid ${p.color}">
                       <span><strong>${p.name}</strong><small>${taken ? `Taken by ${s.host ? 'the host' : s.name}` : `Life ${p.life}${p.commander.name ? ` • ${p.commander.name}` : ''}`}</small></span></button>`;
                   })}
-                  <button type="button" class="option" data-seat=""><span><strong>Just watch</strong><small>See the table without changing it</small></span></button>
-                </div>
-              </section>` : html`
-              <section class="panel tjoin">
-                <label class="field">Room code<input class="input input--code" data-code maxlength="4" value="${code}" placeholder="ABCD" autocomplete="off" autocapitalize="characters"></label>
-                <label class="field">Your name<input class="input" data-name maxlength="24" value="${name}" placeholder="Name" autocomplete="off"></label>
-                <p class="muted">The host device shows the code at the top of the Table Tracker; its "Devices in this room" menu shows a QR code.</p>
-                <button type="button" class="btn btn--small" data-act="scan">Scan QR</button>
-              </section>`}
-          </div>
-          <footer class="page__foot">${msg ? '' : html`<button type="button" class="btn btn--confirm" data-act="join">Join</button>`}</footer>
-        </main>`);
+                  <button type="button" class="option" data-seat=""><span><strong>Just watch</strong><small>See the table without changing it</small></span></button>`, 'tjoin') : [
+          routePanel('Room', html`
+              <label class="field">Room code<input class="input input--code" data-code maxlength="4" value="${code}" placeholder="ABCD" autocomplete="off" autocapitalize="characters"></label>
+              <label class="field">Your name<input class="input" data-name maxlength="24" value="${name}" placeholder="Name" autocomplete="off"></label>
+              <button type="button" class="btn" data-act="scan">Scan QR</button>`, 'tjoin'),
+          routePanel('Choose your seat', html`<p class="route-note">The host device shows the code at the top of the Table Tracker; its "Devices in this room" menu shows a QR code. The seats at the table appear here once you join.</p>`)],
+        actions: html`
+          <button class="btn" type="button" data-act="back" aria-label="Back">Back</button>
+          ${msg ? '' : html`<button type="button" class="btn btn--confirm" data-act="join">Join</button>`}`
+      }));
     }
 
     async function join() {
