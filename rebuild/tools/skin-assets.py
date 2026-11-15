@@ -2,6 +2,8 @@
 """Copies the visual-handoff art the game app uses into assets/skin/, as WebP, sized for an iPad at 2x at most.
 
     python3 -I tools/skin-assets.py /path/to/extracted/handoff [--sizes]   (about 2 minutes)
+    python3 -I tools/skin-assets.py --dice [life-dice folder]               (reward dice art -> assets/skin/dice/)
+    python3 -I tools/skin-assets.py --mats [playmats folder]                (reward playmats -> assets/skin/mats/, prints palette picks)
     python3 -I tools/skin-assets.py --css                                  (only rewrite styles/skin-palettes.css)
 
 Layout written (ids are the app's lower-case playmat ids, data/playmats.js):
@@ -86,6 +88,36 @@ def main():
     dest = os.path.join(root, 'assets', 'skin')
     write_css(root)
     if '--css' in sys.argv:
+        return
+    if '--mats' in sys.argv:   # reward playmats -> assets/skin/mats/<id>/{phone,pad,thumb}.webp (lazy); prints the nearest palette
+        d = args[0] if args else os.path.join(root, 'roadmap', 'visual-handoff', 'rewards', 'playmats')
+        pal = json.load(open(os.path.join(root, 'roadmap', 'visual-handoff', 'layout-reference', 'palettes.json')))
+        hexrgb = lambda h: tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+        for m in json.load(open(os.path.join(d, 'manifest.json')))['playmats']:
+            out = os.path.join(dest, 'mats', m['id'])
+            pad = Image.open(os.path.join(d, m['images']['iPad']['path'])).convert('RGB')
+            save(fit(pad, (1640, None)), os.path.join(out, 'pad.webp'))
+            save(Image.open(os.path.join(d, m['images']['iPhone']['path'])).convert('RGB'), os.path.join(out, 'phone.webp'))
+            save(fit(pad, (320, None)), os.path.join(out, 'thumb.webp'))
+            # dominant hue: circular mean of the pixel hues weighted by saturation x brightness, then the palette primary with the closest hue
+            import colorsys, math
+            x = y = 0.0
+            for (R, G, B) in pad.resize((64, 40)).get_flattened_data() if hasattr(pad, 'get_flattened_data') else pad.resize((64, 40)).getdata():
+                h, sat, v = colorsys.rgb_to_hsv(R / 255, G / 255, B / 255)
+                k = sat * v * v
+                x += k * math.cos(h * 2 * math.pi); y += k * math.sin(h * 2 * math.pi)
+            hue = (math.atan2(y, x) / (2 * math.pi)) % 1
+            dist = lambda n: min(abs(hue - colorsys.rgb_to_hsv(*[c / 255 for c in hexrgb(pal[n]['primary'])])[0]) % 1, 1 - abs(hue - colorsys.rgb_to_hsv(*[c / 255 for c in hexrgb(pal[n]['primary'])])[0]) % 1)
+            best = min(pal, key=dist)
+            c = (round(hue * 360), 0, 0)
+            print(f"{m['id']}\t{best.lower()}\thue {c[0]}")
+        return
+    if '--dice' in sys.argv:   # reward dice art (lazy: assets/skin/dice/ is not precached); args[0] = the life-dice folder
+        d = args[0] if args else os.path.join(root, 'roadmap', 'visual-handoff', 'rewards', 'life-dice')
+        for o in json.load(open(os.path.join(d, 'options-additions.json')))['options']:
+            im = Image.open(os.path.join(d, o['art'])).convert('RGBA')
+            n = save(fit(im, (None, 256)), os.path.join(dest, 'dice', o['id'].lower() + '.webp'))
+            print(f"dice/{o['id'].lower()}.webp {n:,d} bytes")
         return
     totals = {}
     sizes = {}

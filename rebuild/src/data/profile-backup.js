@@ -1,4 +1,5 @@
 import { loadProfile } from './profile.js';
+import { mergeDraws } from './rewards.js';
 import { listDecks } from './deck-store.js';
 import { readBuilderProfile, writeBuilderProfile, moveGameDecks } from './deck-builder.js';
 import { durableSet } from './userdata-db.js';
@@ -75,6 +76,9 @@ export async function restoreProfileBackupFile(file) {
 export async function restoreProfileBackup(raw) {
   const backup = validateBackup(raw);
   const profile = structuredClone(backup.profile);
+  // Rewards already drawn on this device stay when another device's profile replaces it (union, nothing taken away).
+  profile.rewardDraws = mergeDraws(profile.rewardDraws, loadProfile().rewardDraws);
+  profile.rewardsShown = [...new Set([...(profile.rewardsShown || []), ...(loadProfile().rewardsShown || [])])];
   const decks = structuredClone(backup.decks);
   // A backup made since the merge carries the Deck Builder's profile; an older one carries the old editor's decks,
   // which move into the Deck Builder.

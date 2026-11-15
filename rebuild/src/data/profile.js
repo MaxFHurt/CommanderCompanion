@@ -1,7 +1,8 @@
 import { durableGet, durableSet } from './userdata-db.js';
-import { earnedLabels, longestDayRun } from './achievements.js';
-import { matUnlockPlan } from './playmats.js';
-import { diceUnlockPlan } from './dice.js';
+import { earnedLabels, longestDayRun, achievementLevel } from './achievements.js';
+import { MATS, matUnlockPlan } from './playmats.js';
+import { diceUnlockPlan, DICE } from './dice.js';
+import { settleRewards, mergeDraws, nextDue, GAMES_PER_MAT, WINS_PER_DIE } from './rewards.js';
 const KEY = 'ccv07-profile', DURABLE_KEY = 'profile';
 let cache = null;
 function newTokenId() { try {
@@ -10,7 +11,7 @@ function newTokenId() { try {
 catch {
   return `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 } }
-function blank() { const now = new Date().toISOString(); return { version: 6, token: { id: newTokenId(), schema: 6, createdAt: now, updatedAt: now }, games: 0, wins: 0, awards: {}, milestones: [], firsts: {}, streaks: { win: 0, bestWin: 0, bestDays: 0 }, winDecks: [], winColors: [], playDays: [], rewardsShown: [], players: {}, decks: {}, history: [], account: { displayName: '', tagline: '', avatarGlyph: 'CC', avatarImage: '', preferredPlayerNames: [], favoriteDeckId: '', tableRuleDefaults: null, createdAt: null, updatedAt: null } }; }
+function blank() { const now = new Date().toISOString(); return { version: 6, token: { id: newTokenId(), schema: 6, createdAt: now, updatedAt: now }, games: 0, wins: 0, awards: {}, milestones: [], firsts: {}, streaks: { win: 0, bestWin: 0, bestDays: 0 }, winDecks: [], winColors: [], playDays: [], rewardsShown: [], rewardDraws: [], players: {}, decks: {}, history: [], account: { displayName: '', tagline: '', avatarGlyph: 'CC', avatarImage: '', preferredPlayerNames: [], favoriteDeckId: '', tableRuleDefaults: null, createdAt: null, updatedAt: null } }; }
 function cleanName(x) { return String(x || 'Player').trim() || 'Player'; }
 function playerKey(name) { return cleanName(name).toLowerCase(); }
 function normalize(raw) {
@@ -23,8 +24,31 @@ function normalize(raw) {
     account: { ...base.account, ...(source.account || {}) }
   };
   // First launch of the build that adds reward pop-ups: rewards already earned count as shown (no flood).
+  // Rewards are drawn at random and stored (rewards.js). A profile from before that keeps what its games and wins had unlocked
+  // (mat k at 3k games, die k at 2k wins, in list order) as stored draws, so nothing is lost.
+  out.rewardDraws = Array.isArray(source.rewardDraws) ? mergeDraws(source.rewardDraws) : legacyDraws(out);
   out.rewardsShown = Array.isArray(source.rewardsShown) ? [...source.rewardsShown] : unlockedRewardKeys(out);
   return out;
+}
+
+function legacyDraws(p) {
+  const at = p.token?.createdAt || new Date().toISOString(), out = [];
+  for (let k = 1; k < MATS.length && Number(p.games || 0) >= k * GAMES_PER_MAT; k++) out.push({ id: `mat:${MATS[k].id}`, slot: `g${k * GAMES_PER_MAT}`, at });
+  for (let k = 1; k < DICE.length && Number(p.wins || 0) >= k * WINS_PER_DIE; k++) out.push({ id: `die:${DICE[k].id}`, slot: `w${k * WINS_PER_DIE}`, at });
+  return out;
+}
+
+/** Draws a reward for every slot earned since the last call (achievements, games, wins). Changes the profile; returns the new draws. */
+export function settleProfileRewards(p, rand = Math.random) {
+  return settleRewards(p, achievementLevel(p), rewardPools(), rand);
+}
+
+export const rewardPools = () => ({ mat: MATS.slice(1).map(m => m.id), die: DICE.slice(1).map(d => d.id) });
+
+/** "Next playmat in 2 games, next die in 1 win" for the picker and Profile ('' when nothing is left to win). */
+export function nextRewardText(p) {
+  const d = nextDue(p, rewardPools()), n = (x, w) => `${x} ${w}${x === 1 ? '' : 's'}`;
+  return [d.mat != null && `next playmat in ${n(d.mat, 'game')}`, d.die != null && `next die in ${n(d.die, 'win')}`].filter(Boolean).join(', ').replace(/^./, c => c.toUpperCase());
 }
 
 /** Keys ("mat:ember", "die:gold") of every earned reward (the free first mat and die are not rewards). */
@@ -39,8 +63,8 @@ export function unlockedRewardKeys(p) {
 export function newRewards(p) {
   const shown = new Set(p.rewardsShown || []);
   return [
-    ...matUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`mat:${r.mat.id}`)).map(r => ({ kind: 'mat', id: r.mat.id, name: r.mat.name, primary: r.mat.primary, secondary: r.mat.secondary })),
-    ...diceUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`die:${r.die.id}`)).map(r => ({ kind: 'die', id: r.die.id, name: r.die.name, primary: r.die.primary, secondary: r.die.secondary }))
+    ...matUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`mat:${r.mat.id}`)).map(r => ({ kind: 'mat', id: r.mat.id, name: r.mat.name, primary: r.mat.primary, secondary: r.mat.secondary, art: r.mat.thumb || '' })),
+    ...diceUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`die:${r.die.id}`)).map(r => ({ kind: 'die', id: r.die.id, name: r.die.name, primary: r.die.primary, secondary: r.die.secondary, art: r.die.art || '' }))
   ];
 }
 
@@ -65,7 +89,7 @@ catch {
   return false;
 } }
 function newest(a, b) { const ta = Date.parse(a?.token?.updatedAt || a?.account?.updatedAt || a?.history?.[0]?.at || 0) || 0, tb = Date.parse(b?.token?.updatedAt || b?.account?.updatedAt || b?.history?.[0]?.at || 0) || 0; return tb > ta ? b : a; }
-async function persistReliable(p, storage) { cache = normalize(p); cache.token.updatedAt = new Date().toISOString(); const localOk = localWrite(cache, storage); let durableOk = false; try {
+async function persistReliable(p, storage) { settleProfileRewards(p); cache = normalize(p); cache.token.updatedAt = new Date().toISOString(); const localOk = localWrite(cache, storage); let durableOk = false; try {
   await durableSet(DURABLE_KEY, cache);
   durableOk = true;
 }
@@ -74,7 +98,11 @@ catch { } if (!localOk && !durableOk)
 export async function initProfileStore(storage = globalThis.localStorage) { const local = localRead(storage); let durable = null; try {
   durable = await durableGet(DURABLE_KEY);
 }
-catch { } cache = normalize(durable ? newest(local, normalize(durable)) : local); localWrite(cache, storage); return structuredClone(cache); }
+catch { } cache = normalize(durable ? newest(local, normalize(durable)) : local);
+  // A reward drawn on either copy stays (the copies may come from devices that raced).
+  if (durable) { cache.rewardDraws = mergeDraws(local.rewardDraws, normalize(durable).rewardDraws); }
+  if (settleProfileRewards(cache).length || (durable && cache.rewardDraws.length !== normalize(durable).rewardDraws.length)) await persistReliable(cache, storage);
+  localWrite(cache, storage); return structuredClone(cache); }
 export function loadProfile(storage = globalThis.localStorage) { return structuredClone(cache || localRead(storage)); }
 export function playerProfileToken(storage = globalThis.localStorage) {
   const p = loadProfile(storage);
