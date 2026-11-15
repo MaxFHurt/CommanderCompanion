@@ -48,6 +48,7 @@ optimization. That way we don't have to rework anything later due to new mechani
 3. **Judgement tools**, once the rules are complete: deck score, card strength and the power bar's marks, mana rules,
    upgrade reasons, Fix menu picks, generator picks, game-plan awareness (6, 6b, 7f.3, 7f.5, 5.1-5.2). Parked work for this
    step: `rebuild/wip/README.md`.
+**Change (owner, 15 Nov):** quickest items first, with several agents on them: the parked judgement work (reasons, strongest decks) and plan-aware Fix picks were pulled forward alongside card rules batch 6; results still go to the owner before shipping.
 4. **Optimise all the code** (section 99), after everything else.
 
 ## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/)
