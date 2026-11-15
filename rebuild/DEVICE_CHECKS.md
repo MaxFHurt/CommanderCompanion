@@ -75,4 +75,13 @@ A2. ☐ Close and reopen the app → expect no sign-in again.
 A3. ☐ On a second device: Sign in with the same email → expect your profile loads by itself, no key asked.
 A4. ☐ Settings → Backup → Account shows your email; Sign out → the profile stays on the device.
 
+## Gameplay screen: seats, status light, turn buttons, log (visual rebuild, structure before the art)
+G1. ☐ 4-player game on iPhone (landscape): the opponent across the table is in the centre above your battlefield with their cards; the other two are small seats left and right of it. Your board, lands and hand stay visible.
+G2. ☐ Tap a left or right seat → that player moves to the centre and the old centre player takes that side slot. Tap the centre player's name → their board opens.
+G3. ☐ The round light beside each life total: green normally, yellow while a "this turn" / "until your next turn" effect is on that player, red with poison. Tapping the light opens that player's details and never moves the seats; it is easy to hit with a thumb.
+G4. ☐ Your turn: only the buttons you can use show (Main 1: Combat and End Turn; combat with attackers: Attack, Next Phase, End Turn; Main 2: End Turn). Someone else's turn: none, unless you can respond (Pass). End Turn early still asks to confirm.
+G5. ☐ iPhone: the log shows the 3 newest lines; tapping "Game Log" opens the full log. iPad: the longer log stays.
+G6. ☐ Stack, Undo, Board, Table and Host Tools / Edit Game / Challenge sit under the log and open as before.
+G7. ☐ Same checks on iPad (landscape), and on iPhone in portrait if the game is played that way.
+
 Reply with the numbers that failed and a screenshot.

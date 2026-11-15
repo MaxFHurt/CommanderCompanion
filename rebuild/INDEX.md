@@ -44,6 +44,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Terms key (automation labels) | src/data/mechanics.js |
 | Rules audit | tools/rules-audit.mjs <scryfall.json> |
 | Practice-match bot | src/game/bot.js, practice-match.js |
+| Game screen layout | src/ui/screens/game.js (render; opponent seats oppRowHtml, controlsHtml) · src/ui/game/play-state.js (statusLight, playControls, seatLayout/rotateTo, phone log length; node tests in tests/node/game.mjs) · styles/game-play.css · player effects for the light: game/view.js row.effects |
 | Node tests | tests/node/*.mjs |
 
 ## Scratch scripts (live-data measurements, not in the repo)
