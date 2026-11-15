@@ -83,11 +83,8 @@ export const gameScreen = {
     function judgePanelHtml(view) {
       const plays = view.plays || [];
       const bad = view.legality?.illegal || 0;
-      return html`<aside class="judge">
-        <header class="judge__head">
-          <h4>Judge${session?.net?.code ? html` <small class="judge__room">Room ${session.net.code}</small>` : ''}</h4>
-          <button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button>
-        </header>
+      return html`<div class="judge">
+        <p class="judge__room">${session?.net?.code ? html`Room ${session.net.code}` : ''}</p>
         <div class="judge__status ${bad ? 'is-bad' : 'is-ok'}">
           <b>${bad ? '✕' : '✓'}</b>
           <span>${bad ? `${bad} illegal play${bad === 1 ? '' : 's'} this game` : plays.length ? `All ${plays.length} plays legal` : 'No plays yet'}</span>
@@ -98,11 +95,10 @@ export const gameScreen = {
             <span class="jplay__text"><b>${p.text}</b><small>T${p.turn} • ${p.phase}${p.verdict !== 'legal' ? ` • ${VERDICT[p.verdict]?.[1] || ''}` : ''}${p.reasons.length ? `: ${p.reasons[0]}` : ''}</small></span>
             <button type="button" class="jplay__undo" data-act="reverse" data-id="${p.id}" ${p.reversible ? "" : raw("disabled")}>Reverse</button>
           </li>`) : html`<li class="judge__empty">Plays appear here as they happen.</li>`}</ol>
-        <footer class="judge__foot">
-          <button type="button" class="btn btn--small" data-act="log">Full Log</button>
-          <button type="button" class="btn btn--small" data-act="undo" ${view.canUndo ? '' : raw('disabled')}>Undo Last</button>
-        </footer>
-      </aside>`;
+        <button type="button" class="btn ${view.stack.length ? 'is-on' : ''}" data-act="stack">Stack (${view.stack.length})</button>
+        <button type="button" class="btn" data-act="undo" ${view.canUndo ? '' : raw('disabled')}>Undo Last</button>
+        <button type="button" class="btn" data-act="log">Full Log</button>
+      </div>`;
     }
 
     const LIGHT_TEXT = { green: 'healthy', yellow: 'temporary status', red: 'poison or a harmful lasting effect' };
@@ -222,110 +218,37 @@ export const gameScreen = {
         return;
       }
 
+      // The host's Table View and Judge View (handoff game-table, game-judge): title plate, panels, one row of steel buttons.
+      const bars = html`
+        <button type="button" class="phase-box" data-act="phase-info"><b>Turn ${view.turn} — ${view.phaseLabel}${view.dayNight ? ` · ${view.dayNight === 'night' ? 'Night' : 'Day'}` : ''}</b></button>
+        ${screens.length > 1 ? switchHtml(view, screens, screen) : ''}
+        ${screen === 'judge' ? '' : html`
+          <button type="button" class="btn" data-act="log">Game Log</button>
+          <button type="button" class="btn ${view.stack.length ? 'is-on' : ''}" data-act="stack">Stack (${view.stack.length})</button>
+          <button type="button" class="btn glog__undo" data-act="undo" ${view.canUndo || (view.canAskUndo && view.undoRule) ? '' : raw('disabled')} aria-label="Undo">Undo</button>`}
+        ${view.correction?.mine ? html`<button type="button" class="btn" data-act="correction">Correcting…</button>`
+          : view.canEdit ? html`<button type="button" class="btn" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>`
+          : view.canChallenge ? html`<button type="button" class="btn" data-act="challenge">Challenge</button>` : ''}`;
       setHtml(root, html`
-      <main class="game ${judge ? 'game--judge' : ''} ${screen === 'judge' ? 'game--judge-mode' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
+      <main class="game game--judge game--route ${screen === 'judge' ? 'game--judge-mode' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
         <header class="game__top">
           <div class="game__top-side">
-            <button type="button" class="btn-art" data-act="home"><img src="assets/img/ui/home.png" alt="Home"></button>
-            <button type="button" class="btn-pill" data-act="card-id"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15 15l6.5 6.5" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg><span>Card ID</span></button>
-            <button type="button" class="btn-pill" data-act="chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H10l-5 4v-4H3z" fill="currentColor"/></svg><span>Chat</span>${chatNew > 0 ? html`<i class="dot">${chatNew}</i>` : ''}</button>
+            <button type="button" class="btn btn--small" data-act="home">Home</button>
+            <button type="button" class="btn-pill" data-act="card-id"><span>Card ID</span></button>
+            <button type="button" class="btn-pill" data-act="chat"><span>Chat</span>${chatNew > 0 ? html`<i class="dot">${chatNew}</i>` : ''}</button>
           </div>
-          <img class="game__wordmark" src="assets/img/game/top-center.jpg" alt="Commander Companion">
+          <div class="plate"><h1 class="plate__title">${screen === 'judge' ? 'Judge View' : 'Table View'}</h1></div>
           <div class="game__top-side game__top-side--end">
-            <button type="button" class="btn-art" data-act="help"><img src="assets/img/ui/help.png" alt="Help"></button>
-            <button type="button" class="btn-art" data-act="settings"><img src="assets/img/ui/settings.png" alt="Settings"></button>
-            <button type="button" class="btn-art" data-act="profile"><img src="assets/img/ui/profile.png" alt="Profile"></button>
+            <button type="button" class="btn btn--small" data-act="help">Help</button>
+            <button type="button" class="btn btn--small" data-act="settings">Settings</button>
+            <button type="button" class="btn btn--small" data-act="profile">Profile</button>
           </div>
         </header>
-
-        ${judge ? '' : html`
-        <div class="game__mat" style="${matFor(focus)}"></div>
-        <aside class="game__left" style="${matFor(focus)}; --player:${focus.color}">
-          <div class="rail-name">
-            <i class="status-light ${focus.eliminated ? 'is-out' : myTurn ? 'is-active' : ''}"></i>
-            <strong>${focus.name}</strong>
-            ${judge ? html`<span class="chip chip--gold">HOST VIEW</span>` : view.mode === 'freeplay' ? html`<span class="chip">FREE PLAY</span>` : ''}
-          </div>
-          <div class="rail-cmd">
-            <button type="button" class="rail-cmd__card ${cmdCard?.playable ? 'is-playable' : ''} ${cmdCard && ui.highlight.has(cmdCard.id) ? 'is-suggested' : ''}" data-act="commander" data-id="${cmdCard?.id || ''}">
-              <img class="rail-cmd__art" src="${imageOf(cmdDef, null, 'art_crop') || 'assets/img/game/commander-fallback.png'}" alt="" onerror="this.onerror=null;this.src='assets/img/game/commander-fallback.png'">
-              <span class="rail-cmd__name">${cmd?.name || 'Commander'}</span>
-              <span class="rail-cmd__tax">TAX ${cmd?.tax || 0}</span>
-              ${cmd && cmd.zone !== 'command' ? html`<span class="rail-cmd__zone">${cmd.zone === 'battlefield' ? 'IN PLAY' : cmd.zone.toUpperCase()}</span>` : ''}
-            </button>
-            <div class="rail-stats">
-              <button type="button" class="rail-life" data-act="player-info" data-id="${focus.playerId}"><b class="rail-life__value" data-digits="${String(focus.life).length}">${focus.life}</b><small>LIFE</small></button>
-              <div class="rail-pair"><span><b>${focus.handCount}</b><small>HAND</small></span><span><b>${focus.libraryCount}</b><small>LIBRARY</small></span></div>
-              <div class="rail-chips">
-                ${lightHtml(focus)}
-                ${focus.poison ? html`<span class="chip chip--bad">☠ ${focus.poison}</span>` : ''}
-                ${focus.statuses.slice(0, 2).map(s => html`<span class="chip chip--gold">${s}</span>`)}
-              </div>
-            </div>
-          </div>
-          <div class="rail-mana">
-            <h4>Available Mana <b>${focus.mana.total}</b></h4>
-            ${manaPoolHtml(focus.mana, { identity: identityOf(view, focus) })}
-          </div>
-          <div class="rail-zones">
-            ${[['graveyard', focus.graveyard.length], ['exile', focus.exile.length], ['tokens', tokens], ['attachments', attached]].map(([z, n]) => html`
-              <button type="button" class="rail-zone ${(focus[z] || []).some?.(c => c.playable) ? 'is-playable' : ''}" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
-          </div>
-          ${screens.length > 1 ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
-        </aside>`}
-
-        <section class="game__center">
-          ${judge ? html`<div class="zone zone--table" data-keep-scroll="table">${tableHtml(view)}</div>` : html`
-          ${oppRowHtml(view, focus)}
-          <div class="zone zone--battle" data-mat="${playmatById(focus.matId).id === DEFAULT_MAT.id ? 'default' : 'custom'}" style="${matFor(focus)}">
-            <header class="zone__head">
-              <h3>${judge ? `${focus.name}'s Battlefield` : 'Your Battlefield'}</h3>
-              <div class="zone__tools">
-                <button type="button" class="link-btn" data-act="counters">Counters</button>
-                <button type="button" class="link-btn" data-act="sort">Sort: ${ui.sort}</button>
-                <button type="button" class="link-btn" data-act="table">View Full</button>
-              </div>
-            </header>
-            <div class="zone__cards" data-keep-scroll="bf">
-              ${sorted.length ? sorted.map(c => cardHtml(c, view.defs[c.def], { cls: glow(c), zone: 'battlefield', badge: c.attacking ? '⚔' : c.blocking ? '🛡' : c.sick ? '💤' : '' }))
-                : html`<p class="zone__empty">Creatures, artifacts and enchantments you play appear here.</p>`}
-            </div>
-          </div>
-          <div class="zone zone--lands">
-            <header class="zone__head"><h3>${judge ? 'Lands' : 'Your Lands'} <small>${lands.length}${!judge && myTurn ? ` • land drop ${focus.landsPlayed ? 'used' : 'available'}` : ''}</small></h3></header>
-            <div class="zone__cards" data-keep-scroll="lands">
-              ${lands.length ? lands.map(c => cardHtml(c, view.defs[c.def], { cls: `card--land ${glow(c)}`, zone: 'battlefield' })) : html`<p class="zone__empty">No lands yet.</p>`}
-            </div>
-          </div>
-          <div class="zone zone--hand">
-            <header class="zone__head"><h3>${judge ? 'Hand' : 'Your Hand'} <small>${focus.handCount}</small></h3></header>
-            <div class="zone__cards" data-keep-scroll="hand">
-              ${focus.hand ? (focus.hand.length ? focus.hand.map(c => cardHtml(c, view.defs[c.def], { cls: `card--hand ${glow(c)}`, zone: 'hand' })) : html`<p class="zone__empty">Your hand is empty.</p>`)
-                : html`<div class="hand-backs">${Array.from({ length: Math.min(focus.handCount, 12) }, () => cardBackHtml())}</div>`}
-            </div>
-          </div>
-          `}
-          <footer class="game__bar">
-            <button type="button" class="phase-box" data-act="phase-info">
-              <b>Turn ${view.turn} — ${view.phaseLabel}${view.dayNight ? ` · ${view.dayNight === 'night' ? 'Night' : 'Day'}` : ''}</b>
-              <span class="phase-track">${PHASE_STEPS.map(([k, label]) => html`<i class="${phaseKey(view.phase) === k ? 'is-on' : ''}" title="${label}"></i>`)}</span>
-            </button>
-            ${judge ? html`
-            ${screens.length > 1 ? switchHtml(view, screens, screen) : html`<span></span>`}
-            ${view.canEdit ? html`<button type="button" class="btn" data-act="tools">Host Tools</button>` : html`<span></span>`}` : html`
-            <button type="button" class="tip ${showCoach ? '' : 'is-quiet'}" data-act="coach">
-              <b>${coach.headline || ''}</b>
-              ${advice ? html`<span>${coach.detail || ''}</span>` : ''}
-            </button>
-            ${controlsHtml(view)}`}
-          </footer>
-        </section>
-
-        ${screen === 'judge' ? judgePanelHtml(view) : html`<aside class="game__right">
-          ${judge ? html`<div class="opps">
-            <h4>Players</h4>
-            <div class="opps__list">
-              ${others.map(p => html`
+        ${screen === 'judge' ? html`
+        <div class="route__panels game__panels">
+          <section class="route-panel skin-dialog route-panel--list"><h2 class="readout route-panel__title">Players</h2>
+            <div class="route-panel__body opps__list">
+              ${view.players.map(p => html`
                 <div class="seat seat--side ${seatCls(view, p)}" data-id="${p.playerId}" style="--player:${p.color}">
                   <button type="button" class="seat__main" data-act="opponent" data-id="${p.playerId}">
                     <span class="seat__name"><i class="status-light ${p.eliminated ? 'is-out' : p.playerId === view.activePlayerId ? 'is-active' : ''}"></i>${p.name}</span>
@@ -335,21 +258,13 @@ export const gameScreen = {
                   ${lightHtml(p)}
                 </div>`)}
             </div>
-          </div>` : ''}
-          <div class="glog ${phone ? 'glog--phone' : ''}">
-            <header><button type="button" class="link-btn glog__title" data-act="log">Game Log</button></header>
-            <ol class="glog__list">${view.log.slice(0, logLength(phone)).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>
-          </div>
-          <div class="game-tools">
-            <button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button>
-            <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo || (view.canAskUndo && view.undoRule) ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
-            ${judge ? '' : html`<button type="button" class="chip" data-act="board">Board</button>`}
-            <button type="button" class="chip" data-act="table">Table</button>
-            ${view.correction?.mine ? html`<button type="button" class="chip chip--gold rail-tools" data-act="correction">Correcting…</button>`
-              : view.canEdit ? html`<button type="button" class="chip rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>`
-              : view.canChallenge ? html`<button type="button" class="chip rail-tools" data-act="challenge">Challenge</button>` : ''}
-          </div>
-        </aside>`}
+          </section>
+          <section class="route-panel skin-dialog route-panel--list"><h2 class="readout route-panel__title">Plays</h2>
+            <div class="route-panel__body">${judgePanelHtml(view)}</div>
+          </section>
+        </div>` : html`
+        <div class="route__panels game__panels zone--table" data-keep-scroll="table">${tableHtml(view)}</div>`}
+        <footer class="game__bar route__actions">${bars}</footer>
         ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
       </main>`);
 
@@ -465,7 +380,7 @@ export const gameScreen = {
       if (opts.length === 1) return runOption(view, opts[0]);
       if (j.ids) { ui.highlight = new Set(j.ids); render(); }
       openModal({
-        title: 'What you can do now', size: 'small',
+        title: 'What you can do now', route: { size: 'm', panel: 'Your options', panelCls: 'route-panel--list' },
         body: html`<div class="option-list jewel-options">${opts.map((o, i) => html`<button type="button" class="option ${o.best ? 'is-on' : ''}" data-opt="${i}" data-opt-act="${o.act}"><span><strong>${o.label}${o.best ? html` <em class="option__best">Suggested</em>` : ''}</strong>${o.sub ? html`<small>${o.sub}</small>` : ''}</span></button>`)}</div>`,
         onMount(el, { close }) { on(el, 'click', '[data-opt]', (event, b) => { close(); runOption(view, opts[Number(b.dataset.opt)]); }); }
       });
@@ -491,7 +406,7 @@ export const gameScreen = {
         case 'open-card': return openCardDetail(ctx, el.dataset.id);
         case 'pile': return openPile(ctx, (el.dataset.ids || '').split(',').filter(Boolean));
         case 'commander': return el.dataset.id ? openCardDetail(ctx, el.dataset.id) : openPlayerInfo(ctx, focusId);
-        case 'zone': return openZone(ctx, focusId, el.dataset.zone);
+        case 'zone': return openZone(ctx, el.dataset.id || focusId, el.dataset.zone);
         case 'opponent': return openPlayerBoard(ctx, el.dataset.id, { onFocus: view.you ? null : id => { ui.focusId = id; render(); } });
         case 'player-info': return openPlayerInfo(ctx, el.dataset.id);
         case 'table': return openTable(ctx);

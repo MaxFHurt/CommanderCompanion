@@ -256,7 +256,7 @@ export const trackerScreen = {
       function openDevices() {
         const devices = room ? room.devices() : [];
         openModal({
-          title: `Room ${room?.code || ''} — devices`, size: 'small',
+          title: `Room ${room?.code || ''} — devices`, route: { size: 'x', panel: 'Devices', panelCls: 'route-panel--list' },
           body: html`<p class="muted">On each phone: Start Game → Table Tracker → Join a table, then enter ${room?.code || 'the code'} — or scan the QR code.</p>${room ? shareCodeHtml({ code: room.code, kind: 'table', what: 'table' }) : ''}
             <div class="option-list">${devices.length ? devices.map(d => html`<div class="option ${d.online ? 'is-on' : ''}"><span><strong>${d.name}</strong><small>${d.online ? 'Connected' : 'Disconnected'} • ${trackerPlayer(state, d.seatId)?.name ? `Seat: ${trackerPlayer(state, d.seatId).name}` : 'Watching'}</small></span>
               <span class="option__end"><button type="button" class="chip chip--bad" data-kick="${d.clientId}">Remove</button></span></div>`) : html`<p class="muted">No devices have joined yet.</p>`}</div>`,
@@ -384,7 +384,7 @@ export const trackerScreen = {
       /** Open a popup whose body is redrawn after every change made inside it. */
       function popup({ title, size, top = '', render, handle, onDraw, actions = [] }) {
         return openModal({
-          title, size,
+          title, route: { size: 'x', panel: 'Table Tracker', panelCls: 'route-panel--list' },
           // `top` is drawn once and kept; the part below it is redrawn after each change.
           body: html`${top}<div class="kv-list" data-popup-body></div>`,
           actions: actions.length ? actions : [{ label: 'Done', kind: 'confirm' }],
@@ -527,7 +527,7 @@ export const trackerScreen = {
       function pickCardForCounter(playerId, name) {
         const p = trackerPlayer(state, playerId);
         openModal({
-          title: `${name} counter — which card?`, size: 'small',
+          title: `${name} counter — which card?`, route: { size: 'x', panel: 'Tracked cards', panelCls: 'route-panel--list' },
           body: html`
             ${p.cards.length ? '' : html`<p class="muted">${p.name} has no tracked cards yet. Track the card first, then the counter goes on it.</p>`}
             <div class="option-list">
@@ -547,7 +547,7 @@ export const trackerScreen = {
 
       function pickPlayer(title, onPick) {
         openModal({
-          title, size: 'small',
+          title, route: { size: 'm', panel: 'Choose a player', panelCls: 'route-panel--list' },
           body: html`<div class="option-list">${state.players.map(p => html`<button type="button" class="option ${p.id === state.activeId ? 'is-on' : ''}" data-pick="${p.id}"><span><strong>${p.name}</strong><small>${p.id === state.activeId ? 'Active player' : `Life ${p.life}`}</small></span></button>`)}</div>`,
           actions: [{ label: 'Cancel', kind: 'cancel' }],
           onMount(el, { close }) { on(el, 'click', '[data-pick]', (event, b) => { close(); onPick(b.dataset.pick); }); }
@@ -556,7 +556,7 @@ export const trackerScreen = {
 
       function openDecks() {
         openModal({
-          title: 'Edit Decks', size: 'small',
+          title: 'Edit Decks', route: { size: 'x', panel: 'Commanders' },
           body: html`<p class="muted">Name each player's commander. Its art appears on their card.</p>
             <div class="kv-list">${state.players.map(p => html`<label class="field">${p.name}<input class="input" data-cmd="${p.id}" maxlength="60" placeholder="Commander name" value="${p.commander.name}" autocomplete="off"></label>`)}</div>`,
           actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'Save', kind: 'confirm', onClick: ({ close, el }) => {
@@ -572,7 +572,7 @@ export const trackerScreen = {
       function openStats() {
         const dmg = p => Object.entries(p.commanderDamage || {}).filter(([, v]) => v > 0).map(([id, v]) => `${trackerPlayer(state, id)?.name || '?'} ${v}`).join(', ');
         openModal({
-          title: 'Game Stats',
+          title: 'Game Stats', route: { size: 'x', panel: 'This table', panelCls: 'route-panel--list' },
           body: html`<p class="modal__message">Turn ${state.turn} • ${state.log.length} logged change${state.log.length === 1 ? '' : 's'}</p>
             <div class="kv-list">${state.players.map(p => html`<div class="kv"><span><strong>${p.name}</strong>${p.commander.name ? ` — ${p.commander.name}` : ''}${p.eliminated ? ' (out)' : ''}<br>
               <small class="muted">Poison ${p.poison} • Cmd tax ${p.commander.tax} • Cmd damage taken: ${dmg(p) || 'none'}<br>
@@ -643,7 +643,7 @@ export const trackerScreen = {
       function openAddCard(playerId, onAdded) {
         let results = [], status = '', timer = null, token = 0;
         const modal = openModal({
-          title: 'Track a Card',
+          title: 'Track a Card', route: { size: 'x', panel: 'Find the card' },
           body: html`
             <div class="row">
               <input class="input" id="trackCardName" maxlength="80" placeholder="Card name" autocomplete="off">
@@ -702,7 +702,7 @@ export const trackerScreen = {
       function openMenu() {
         openModal({
           title: 'Table Menu',
-          size: 'small',
+          route: { size: 'm', panel: 'Table', panelCls: 'route-panel--list' },
           body: html`
             <div class="option-list">
               ${client ? html`<p class="muted">The host saves the table, changes players and ends the game.</p>` : html`
@@ -752,7 +752,7 @@ export const trackerScreen = {
       function openEndGame() {
         openModal({
           title: 'End Game',
-          size: 'small',
+          route: { size: 'm', panel: 'Who won?', panelCls: 'route-panel--list' },
           body: html`
             <p class="modal__message">Who won?</p>
             <div class="option-list">
@@ -777,7 +777,7 @@ export const trackerScreen = {
               const winner = trackerPlayer(state, state.result?.winnerId);
               openModal({
                 title: 'Game Complete',
-                size: 'small',
+                route: { size: 'm', panel: 'Result' },
                 dismissible: false,
                 body: html`
                   <p class="modal__message"><strong>${winner ? `${winner.name} wins` : 'The game is a draw'}</strong> after ${state.turn} turn${state.turn === 1 ? '' : 's'}.</p>
