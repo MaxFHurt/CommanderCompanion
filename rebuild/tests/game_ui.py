@@ -171,13 +171,14 @@ async def flow(browser, device, tag):
     await pass_all(page)
     await tap_curtain(page)
     try:
-        await page.wait_for_function("document.querySelectorAll('.zone--lands .card').length >= 4 && document.querySelectorAll('.zone--battle .card').length >= 5", timeout=10000)
+        await page.wait_for_function("[...document.querySelectorAll('.zone--lands .card')].reduce((n, e) => n + Number(e.dataset.count || 1), 0) >= 4 && document.querySelectorAll('.zone--battle .card').length >= 5", timeout=10000)
     except Exception:
         pass
     await page.wait_for_timeout(300)
     await page.screenshot(path=f'{OUT}{tag}-game-board.png')
     check('battlefield shows permanents', await page.locator('.zone--battle .card').count() >= 5)
-    check('lands row shows 4', await page.locator('.zone--lands .card').count() == 4)
+    # Lands show as piles of like cards (owner, 15 Nov): each pile carries its card count.
+    check('lands row shows 4', await page.evaluate("""() => [...document.querySelectorAll('.zone--lands .card')].reduce((n, e) => n + Number(e.dataset.count || 1), 0)""") == 4)
     check('playable cards glow', await page.locator('.zone--hand .card.is-playable').count() >= 1)
 
     # Cast Healer's Hawk from hand.

@@ -40,7 +40,7 @@ async def main():
         check('a playing host and a joined player both get Challenge', await host.locator('[data-act="challenge"]').count() == 1 and await b.locator('[data-act="challenge"]').count() == 1)
         land = host.locator('.zone--hand .card.is-playable').first
         await land.click(); await host.click('.modal .btn--confirm'); await host.wait_for_timeout(500)
-        lands = await host.locator('.zone--lands .card').count()
+        lands = await host.evaluate("""() => [...document.querySelectorAll('.zone--lands .card')].reduce((n, e) => n + Number(e.dataset.count || 1), 0)""")   # lands are piled by name
         check('Aaron played a land', lands == 1)
         # Lex challenges; Aaron accepts; Lex edits a life total and proposes; Aaron declines.
         await b.click('[data-act="challenge"]'); await b.click('.modal .btn--confirm')

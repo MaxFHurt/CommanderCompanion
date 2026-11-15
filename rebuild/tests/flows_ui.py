@@ -58,7 +58,8 @@ async def guided(browser):
     await page.screenshot(path=f'{OUT}phone-search.png')
     await page.locator('.pick').first.click(); await page.click('#decisionConfirm')
     await pass_all(page)
-    check('searched land arrived', await page.locator('.zone--lands .card').count() == 5, str(await page.locator('.zone--lands .card').count()))
+    lands = await page.evaluate("""() => [...document.querySelectorAll('.zone--lands .card')].reduce((n, e) => n + Number(e.dataset.count || 1), 0)""")   # lands are piled by name; each pile carries its count
+    check('searched land arrived', lands == 5, str(lands))
     # Scry (arrange)
     await card(page, 'hand', 'Opt'); await page.click('.modal .btn--confirm'); await pass_all(page)
     await page.wait_for_selector('.arrange')

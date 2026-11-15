@@ -15,6 +15,10 @@ export function applyPalette(profile = loadProfile()) {
   if (mat.imagePhone) root.style.setProperty('--sk-playmat', `url("${new URL(matImage(mat), document.baseURI).href}")`);
   else root.style.removeProperty('--sk-playmat');
   if (!applyPalette.watching) { applyPalette.watching = true; addEventListener('resize', () => applyPalette()); }
-  root.dataset.dice = activeDie(profile).id;
+  const die = activeDie(profile);
+  root.dataset.dice = die.id;
+  // A reward die has its own picture (no palette die): the gameplay die face uses it (styles/game-board.css --sk-die).
+  if (die.art) root.style.setProperty('--sk-die', `url("${new URL(die.art, document.baseURI).href}")`);
+  else root.style.removeProperty('--sk-die');
   return id;
 }

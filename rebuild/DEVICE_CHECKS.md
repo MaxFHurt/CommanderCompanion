@@ -119,6 +119,10 @@ V20. ☐ A crowded board (10+ lands, many creatures, tokens) and a big hand → 
 V21. ☐ Five or six players → two opponents share each side slot, each with name, life and its own status light.
 V22. ☐ Change the playmat to Ember and Frost → the gameplay frame, jewels and buttons change colour; the status light colours do not.
 V23. ☐ Hosted game: the host's Table and Judge screens, and the Table Tracker, look and work as before.
+V24. ☐ Battlefields (yours and the centre opponent's): no zone labels; creatures always take the widest part with the biggest cards; with no artifacts or planeswalkers those spaces vanish and the others grow.
+V25. ☐ Lands show as piles of like lands ("Forest ×6", ready / tapped counts); tap a pile → its cards open, tap one → its detail and actions (tap for mana, abilities) work as before.
+V26. ☐ Artifacts, lands (and enchantments when space is short) show as small tiles with art, name, counters and a tapped mark; tapping one opens the card.
+V27. ☐ Both orientations: ATTACK / NEXT PHASE sit in the middle of their gem housings; HOME … PROFILE and COMMANDER COMPANION sit in the middle of their plates.
 
 ## Setup, rooms, online and account routes (visual rebuild, stage 3a)
 V24. ☐ Guided Play / Free Play options: two panels ("Play on one device", "Play on separate devices"), a Back button under them; every row opens what it did before. Table Tracker options: "Local table" and "Shared table". On the iPhone the rows scroll inside the panel if they do not all fit; every row is easy to hit.

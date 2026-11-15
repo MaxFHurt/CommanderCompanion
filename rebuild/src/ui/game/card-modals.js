@@ -162,6 +162,20 @@ function bindOpen(ctx, el, close) {
   on(el, 'click', '[data-act="open-card"]', (event, b) => { close(); openCardDetail(ctx, b.dataset.id); });
 }
 
+/** A pile on the gameplay battlefield (like lands, identical tokens): its cards, each opening its own detail and actions. */
+export function openPile(ctx, ids) {
+  const view = ctx.view;
+  const want = new Set(ids);
+  const cards = view.players.flatMap(p => p.battlefield).filter(c => want.has(c.id));
+  if (!cards.length) return;
+  const tapped = cards.filter(c => c.tapped).length;
+  openModal({
+    title: `${cards[0].name} ×${cards.length}${tapped ? ` (${tapped} tapped)` : ''}`, size: 'wide',
+    body: cardsGrid(view, cards, 'battlefield'),
+    onMount(el, { close }) { bindOpen(ctx, el, close); }
+  });
+}
+
 export function openZone(ctx, playerId, zone) {
   const view = ctx.view;
   const p = view.players.find(x => x.playerId === playerId);

@@ -2,13 +2,17 @@
 
     python3 tests/shots_game.py [out_dir] [handoff_dir]     (serve rebuild/ on CC_STATIC, default :4180, first)
 
-A four-player Guided Play game mid-turn (combat) with a crowded board (every permanent type, tokens, counters, tapped
+A four-player Guided Play game mid-turn (combat) with a crowded board, then a creature-heavy board, a board with no
+artifacts or planeswalkers and a land-heavy board (owner, 15 Nov: zones favour creatures, lands pile, empty zones
+collapse, no zone labels). The base board has (every permanent type, tokens, counters, tapped
 cards, an attachment, poison and a temporary status, floating and flexible mana). Shots at 2x: iPhone 844 x 390 and
 iPad 1180 x 820 in Amethyst, Ember and Frost, each beside masters/<device>-<Palette>.jpg; iPhone with the notch on the
 left and on the right (safe areas simulated: 47 px sides, 21 px bottom). Checks (exit 1 on failure):
 the phone stage fills the screen edge to edge; every control is a 36 px target (the map's dense readout keys at least
 36 px wide) and no two targets overlap; the life text sits on its die; the mana cells show the live pool; the status
-lights show green / yellow / red; with simulated safe areas no control or text leaves the safe rect.
+lights show green / yellow / red; with simulated safe areas no control or text leaves the safe rect; on every board the
+creatures area is the widest with the biggest cards, empty zones take no room, lands are piled by name with the right
+counts; each jewel label sits within 2 px of its gem's centre and each header label within 2 px of its plate's centre.
 """
 import asyncio, os, sys
 from playwright.async_api import async_playwright
@@ -55,6 +59,34 @@ CROWD = """async () => {
   ed({ kind: 'phase', phase: 'combat' });
   g.deviceMode = dm; s.actAs(s.actingAs());
 }"""
+
+# Later boards: each runs on the board before it, for every player.
+SCENARIOS = {
+    'creature-heavy': """() => { const v = window.__ccEd; v.each((p, g, ed) => ed({ kind: 'token', playerId: p.playerId, name: 'Spirit', power: 1, toughness: 1, count: 6, colors: ['W'] })); }""",
+    'no-artifacts': """() => { const v = window.__ccEd; v.each((p, g, ed, def) => { for (const c of [...p.deck.battlefield]) if (/Artifact|Planeswalker/.test(def(c).typeLine || '') && !/Creature/.test(def(c).typeLine || '')) ed({ kind: 'move', instanceId: c.instanceId, to: 'graveyard' }); }); }""",
+    'land-heavy': """() => { const v = window.__ccEd; v.each((p, g, ed, def) => {
+      for (const c of [...p.deck.battlefield]) if (!/Land/.test(def(c).typeLine || '')) ed({ kind: 'move', instanceId: c.instanceId, to: 'graveyard' });
+      for (const c of [...p.deck.remainingLibrary].filter(c => /Land/.test(def(c).typeLine || '')).slice(0, 14)) ed({ kind: 'move', instanceId: c.instanceId, to: 'battlefield' });
+      ed({ kind: 'token', playerId: p.playerId, name: 'Bear', power: 2, toughness: 2, count: 1, colors: ['G'] }); }); }"""
+}
+EDITOR = """async () => {
+  const { getSession } = await import('./src/app/session.js');
+  window.__ccEd = { each(fn) {
+    const s = getSession(), g = s.game, host = { playerId: null, isHost: true }, dm = g.deviceMode; g.deviceMode = 'multi-device';
+    const ed = edit => s.controller.dispatch({ type: 'edit', edit }, host), def = c => g.cardDefinitions[c.definitionId] || {};
+    for (const p of g.players) fn(p, g, ed, def);
+    for (const p of g.players) for (const c of p.deck.battlefield) { c.enteredTurn = 0; c.controlSinceTurn = 0; }
+    g.deviceMode = dm; s.actAs(s.actingAs());
+  } };
+}"""
+
+# Gem centres of the two jewel housings and the nav plates' centres, measured in the chassis art (map units).
+GEMS = {'iPhone': {'context': (973.7, 462), 'phase': (1083, 456)}, 'iPad': {'context': (763.7, 537), 'phase': (873, 531)}}
+PLATES = {
+    'iPhone': {'home': (96.55, 14.5), 'card-id': (209.35, 14.5), 'chat': (311.3, 14.8), 'help': (867.15, 14.5), 'settings': (963.75, 14.8), 'profile': (1067.95, 14.5), 'wordmark': (580, 35.5)},
+    'iPad': {'home': (86.35, 14.5), 'card-id': (179.25, 14.5), 'chat': (263.65, 14.8), 'help': (686.05, 14.5), 'settings': (771.3, 14.5), 'profile': (863.95, 14.5), 'wordmark': (475, 35.5)},
+}
+VB = {'iPhone': (1160, 535), 'iPad': (950, 610)}
 
 # Every visible control on the stage: [name, kind, left, top, right, bottom]. Cards are their own targets (sized by the
 # card) and sit inside scrolling areas, so they are left out of the size check but kept in the overlap check.
@@ -141,6 +173,60 @@ async def layout_checks(page, device):
     check(f'{device}: status lights green / yellow / red with matching lens art', levels == ['green', 'green', 'red', 'yellow'] and all(l[1].startswith('status-' + l[0]) for l in lights), str(lights))
 
 
+async def board_checks(page, device, name):
+    """Owner, 15 Nov: creatures widest with the biggest cards; empty zones collapse; lands piled by name; no zone labels."""
+    r = await page.evaluate("""async () => {
+      const v = (await import('./src/app/session.js')).getSession().view(), me = v.players.find(p => p.playerId === v.you);
+      const centre = document.querySelector('.seat--centre').dataset.id, opp = v.players.find(p => p.playerId === centre);
+      const side = sel => [...document.querySelectorAll(sel)].map(a => ({ area: a.dataset.area, w: a.getBoundingClientRect().width, n: a.children.length,
+        h: Math.max(0, ...[...a.querySelectorAll('.card')].map(c => c.getBoundingClientRect().height)),
+        piles: a.dataset.area === 'lands' ? [...a.querySelectorAll('.card')].map(c => [c.getAttribute('aria-label'), Number(c.dataset.count)]) : null }));
+      const lands = p => { const m = {}; for (const c of p.battlefield.filter(c => c.land && !c.creature)) m[c.name] = (m[c.name] || 0) + 1; return m; };
+      return { mine: side('.zone--battle .gp-cards, .zone--lands .gp-cards'), opp: side('.seat--centre .gp-cards'), myLands: lands(me), oppLands: lands(opp),
+        labels: document.querySelectorAll('.game--gp .gp-label').length };
+    }""")
+    for who in ('mine', 'opp'):
+        areas = r[who]
+        cre = [a for a in areas if a['area'] == 'creatures']
+        others = [a for a in areas if a['area'] != 'creatures']
+        if cre:
+            ok = all(cre[0]['w'] >= a['w'] - 0.5 for a in others) and all(cre[0]['h'] >= a['h'] - 0.5 for a in others)
+            check(f'{device} {name} {who}: creatures area is the widest, with the biggest cards', ok, str([(a['area'], round(a['w']), round(a['h'])) for a in areas]))
+        check(f'{device} {name} {who}: empty zones collapsed', all(a['n'] > 0 for a in areas), str([(a['area'], a['n']) for a in areas]))
+        want = r['myLands' if who == 'mine' else 'oppLands']
+        got = {}
+        for a in areas:
+            for nm, n in a['piles'] or []:
+                got[nm] = got.get(nm, 0) + n
+        piles = [p for a in areas for p in (a['piles'] or [])]
+        check(f'{device} {name} {who}: lands piled by name with the right counts', got == want and len(piles) == len(want), f'{got} vs {want}')
+    check(f'{device} {name}: no zone labels on the battlefield', r['labels'] == 0, str(r['labels']))
+
+
+async def align_checks(page, device):
+    """Jewel labels on their gem centres, header labels on their plates' centres (within 2 px)."""
+    r = await page.evaluate("""() => {
+      const st = document.querySelector('.gp-stage').getBoundingClientRect();
+      const mid = el => { const g = document.createRange(); g.selectNodeContents(el); const b = g.getBoundingClientRect(); return [(b.left + b.right) / 2, (b.top + b.bottom) / 2]; };
+      const nav = {};
+      for (const a of ['home', 'card-id', 'chat', 'help', 'settings', 'profile']) nav[a] = mid(document.querySelector(`.game--gp [data-act="${a}"] .gp-face`));
+      nav.wordmark = mid(document.querySelector('.gp-wordmark'));
+      const jewels = [...document.querySelectorAll('.gp-jewel')].map(b => [b.className.match(/gp-jewel--([a-z-]+)/)[1], ...(() => { const q = b.querySelector('.gp-jewel__label').getBoundingClientRect(); return [(q.left + q.right) / 2, (q.top + q.bottom) / 2]; })()]);
+      return { st: [st.left, st.top, st.width, st.height], nav, jewels };
+    }""")
+    sx, sy = r['st'][2] / VB[device][0], r['st'][3] / VB[device][1]
+    px = lambda c: (r['st'][0] + c[0] * sx, r['st'][1] + c[1] * sy)
+    off = {k: (round(v[0] - px(PLATES[device][k])[0], 1), round(v[1] - px(PLATES[device][k])[1], 1)) for k, v in r['nav'].items()}
+    check(f'{device}: header labels centred in their plates (2 px)', all(abs(a) <= 2 and abs(b) <= 2 for a, b in off.values()), str(off))
+    joff = []
+    for slot, x, y in r['jewels']:
+        if slot in ('context', 'phase'):
+            gx, gy = px(GEMS[device][slot]); joff.append((slot, round(x - gx, 1), round(y - gy, 1)))
+    check(f'{device}: jewel labels on their gem centres (2 px)', joff and all(abs(a) <= 2 and abs(b) <= 2 for _, a, b in joff), str(joff))
+    art = await page.evaluate("""() => [...document.querySelectorAll('.gp-jewel > .gp-face, .gp-jewel-off, .gp-jewel-art')].map(e => { const b = e.getBoundingClientRect(); return [b.left, b.top, b.width, b.height]; })""")
+    check(f'{device}: jewel art boxes drawn', len(art) >= 2 and all(a[2] > 40 for a in art), str(art))
+
+
 async def safe_checks(page, device, side):
     """Simulated iPhone safe area (env() is 0 in Chromium): nothing to tap or read may leave the safe rect."""
     await page.evaluate("""() => { const s = document.documentElement.style; s.setProperty('--safe-l', '47px'); s.setProperty('--safe-r', '47px'); s.setProperty('--safe-b', '21px'); }""")
@@ -178,6 +264,8 @@ async def main():
                 pair(shot, device, palette)
                 if palette == 'amethyst':
                     await layout_checks(page, device)
+                    await board_checks(page, device, 'crowded')
+                    await align_checks(page, device)
             await page.evaluate("document.documentElement.dataset.palette = 'amethyst'; document.documentElement.dataset.dice = 'amethyst'")
             if device == 'iPhone':
                 for side in ('left', 'right'):
@@ -186,6 +274,21 @@ async def main():
                     await page.wait_for_timeout(300)
                     await page.screenshot(path=os.path.join(OUT, f'iPhone-game-notch-{side}.png'))
                     await page.evaluate("document.querySelectorAll('#sim-notch, body > div[style*=\"bottom:8px\"]').forEach(e => e.remove())")
+            await page.evaluate(EDITOR)
+            for name, js in SCENARIOS.items():
+                await page.evaluate(js)
+                await page.wait_for_timeout(400); await tap_curtain(page); await page.wait_for_timeout(300)
+                await page.screenshot(path=os.path.join(OUT, f'{device}-game-{name}.png'))
+                await board_checks(page, device, name)
+            # a game prompt may be up after the edits: put it aside (it reopens from its jewel)
+            await page.evaluate("async () => (await import('./src/ui/modal.js')).closeAllModals()"); await page.wait_for_timeout(200)
+            pile = page.locator('.zone--lands .card[data-act="pile"]').first
+            n = int(await pile.get_attribute('data-count'))
+            await pile.click(); await page.wait_for_selector('.modal .card')
+            shown = await page.locator('.modal .card').count()
+            await page.locator('.modal .card').first.click(); await page.wait_for_selector('.card-detail')
+            check(f'{device}: a land pile opens its {n} cards, each opening its detail and actions', shown == n and await page.locator('.modal .btn, .modal button').count() > 1, f'{shown} vs {n}')
+            await page.click('.modal [data-modal-back]'); await page.wait_for_timeout(200)
             check(f'{device}: no page errors', not page.errors, str(page.errors[:3]))
             await page.context.close()
         await browser.close()

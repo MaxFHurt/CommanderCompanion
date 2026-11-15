@@ -10,16 +10,17 @@
 
 const PHONE = {
   vb: [1160, 535],
+  // Nav faces: the recessed plates measured in the chassis art (the map's rects sit a few units off them).
   nav: {
-    home: { face: [40.43, 2, 98.22, 28], hit: [40.43, 0, 98.22, 50] },
-    'card-id': { face: [158.04, 2, 98.22, 28], hit: [158.04, 0, 98.22, 50] },
-    chat: { face: [262.32, 2, 98.15, 28], hit: [262.32, 0, 98.15, 50] },
-    help: { face: [815.35, 2, 92.62, 28], hit: [815.35, 0, 92.62, 50] },
-    settings: { face: [919.25, 2, 91.41, 28], hit: [919.25, 0, 91.41, 50] },
-    profile: { face: [1029.85, 2, 91.15, 28], hit: [1029.85, 0, 91.15, 50] },
+    home: { face: [45.4, 4, 102.3, 21], hit: [40, 0, 113, 50] },
+    'card-id': { face: [160.2, 4, 98.3, 21], hit: [153, 0, 110, 50] },
+    chat: { face: [269.3, 4, 84, 21.6], hit: [263, 0, 97, 50] },
+    help: { face: [827.1, 4, 80.1, 21], hit: [815, 0, 98, 50] },
+    settings: { face: [918.6, 4, 90.3, 21.6], hit: [913, 0, 101.5, 50] },
+    profile: { face: [1020.8, 4, 94.3, 21], hit: [1014.5, 0, 106, 50] },
     screen: { face: [366, 6, 86, 20], hit: [366, 0, 86, 50] }
   },
-  wordmark: [440, 26, 280, 20],
+  wordmark: [440, 27, 280, 17],   // centred on the slot under the crest (y 31-40), on the screen's centre line
   seats: {
     // Phone: the status light sits just left of each die, inside the seat strip, so its 36 px target never meets
     // the log heading under the right seat (the map's lens spot, under the die, leaves no room there).
@@ -51,7 +52,12 @@ const PHONE = {
     table: { face: [1086, 311, 61, 22], hit: [1082, 296, 66, 52] },
     host: { face: [1018, 363, 129, 22], hit: [1016, 348, 132, 52] }
   },
-  jewels: { context: [929, 409, 93, 114], phase: [1025, 403, 116, 123] },
+  // Jewels: hit = the map's control rect; art = where the jewel art lines up with the chassis housing (matched against
+  // the art); centre = the gem's centre in the chassis, where the label sits.
+  jewels: {
+    context: { hit: [929, 409, 93, 114], art: [914, 404, 119.4, 114.8], centre: [973.7, 462] },
+    phase: { hit: [1025, 403, 116, 123], art: [1006, 384.3, 153.2, 148.5], centre: [1083, 456] }
+  },
   local: {
     portrait: [36, 355, 68, 83], commander: [36, 355, 73, 83], id: [101, 372, 110, 77],
     name: [107, 376, 102, 14], sub: [107, 390, 102, 12], die: [109, 404, 50, 44],
@@ -71,15 +77,15 @@ const PHONE = {
 const TABLET = {
   vb: [950, 610],
   nav: {
-    home: { face: [40, 2, 81, 28], hit: [40, 0, 81, 31] },
-    'card-id': { face: [137, 2, 81, 28], hit: [137, 0, 81, 31] },
-    chat: { face: [223, 2, 81, 28], hit: [223, 0, 81, 31] },
-    help: { face: [641, 2, 81, 28], hit: [641, 0, 81, 31] },
-    settings: { face: [732, 2, 81, 28], hit: [732, 0, 81, 31] },
-    profile: { face: [830, 2, 81, 28], hit: [830, 0, 81, 31] },
+    home: { face: [44.3, 4, 84.1, 21], hit: [40, 0, 94, 31] },
+    'card-id': { face: [138.6, 4, 81.3, 21], hit: [134, 0, 90, 31] },
+    chat: { face: [229, 4, 69.3, 21.6], hit: [224, 0, 80, 31] },
+    help: { face: [651.1, 4, 69.9, 21], hit: [641, 0, 85, 31] },
+    settings: { face: [731.2, 4, 80.2, 21], hit: [726, 0, 90, 31] },
+    profile: { face: [822.2, 4, 83.5, 21], hit: [816, 0, 95, 31] },
     screen: { face: [312, 5, 64, 22], hit: [310, 0, 68, 31] }
   },
-  wordmark: [355, 27, 240, 18],
+  wordmark: [355, 27, 240, 17],
   seats: {
     left: { cluster: [54, 59, 191, 74], seat: [54, 59, 160, 59], portrait: [54, 60, 53, 57], id: [109, 60, 93, 53], idText: [113, 62, 97, 50], die: [208, 59, 37, 49], grave: [112, 100, 43, 13], exile: [158, 100, 43, 13], lens: [221, 103, 14, 14], light: [214, 104, 29, 29] },
     centre: { cluster: [286, 59, 317, 74], seat: [286, 59, 283, 59], portrait: [286, 60, 53, 57], id: [341, 60, 217, 53], idText: [345, 62, 220, 50], die: [564, 59, 37, 49], grave: [344, 100, 43, 13], exile: [390, 100, 43, 13], lens: [576, 103, 14, 14], light: [569, 104, 29, 29] },
@@ -109,7 +115,10 @@ const TABLET = {
     table: { face: [863, 397, 61, 15], hit: [861, 390, 65, 29] },
     host: { face: [796, 426, 128, 15], hit: [794, 419, 132, 29] }
   },
-  jewels: { context: [719, 484, 93, 114], phase: [815, 478, 116, 123] },
+  jewels: {
+    context: { hit: [719, 484, 93, 114], art: [704, 479, 119.4, 114.8], centre: [763.7, 537] },
+    phase: { hit: [815, 478, 116, 123], art: [796, 459.3, 153.2, 148.5], centre: [873, 531] }
+  },
   local: {
     portrait: [36, 430, 68, 83], commander: [36, 437, 68, 76], id: [101, 447, 110, 77],
     name: [107, 451, 102, 14], sub: [107, 465, 102, 12], die: [109, 479, 50, 44],
@@ -167,4 +176,97 @@ export function manaCells(mana) {
     title: flex.length ? flex.map(g => `${g.count} of ${g.colors.join('/')}`).join(', ') : 'Flexible mana'
   });
   return cells;
+}
+
+// ── Battlefield zones (owner, 15 Nov: "the proportions of battlefield zones need to always favor creatures") ──────────
+// Each side's battlefield is one band across the recess; the zones share it by content instead of the map's fixed boxes:
+// - creatures: full cards at the band's full height (the biggest cards), and always the widest zone while it has cards;
+// - planeswalkers (and battles): full cards at 85% height (loyalty readable);
+// - artifacts, lands and (when creatures would be short of room) enchantments: compact preview tiles (art strip, name,
+//   counters, tapped), in columns of 2 (phone) or 3 (iPad); lands and identical tokens pile by name ("Forest ×6");
+// - an empty zone collapses to nothing and its room goes to the others, creatures first;
+// - no zone labels on the battlefield (owner, 15 Nov): zones are told apart by place and card size (aria-label only),
+//   so the centre opponent's band also takes the old label row.
+// Caps while creatures have cards (share of the band): planeswalkers 20%, artifacts 18%, enchantments 18%, lands 24%;
+// any room creatures do not need goes back to the others, but no other zone ends wider than creatures.
+export const BANDS = {
+  phone: { x0: 104, x1: 1002, gap: 8, rows: 2, tile: 74, opp: { y: 152, h: 97 }, mine: { x0: 110, y: 275.6, h: 96.4 } },   // mine starts right of the commander's target
+  tablet: { x0: 82, x1: 768, gap: 7, rows: 3, tile: 80, opp: { y: 151, h: 134 }, mine: { y: 320, h: 116 } }
+};
+const CAP = { planeswalkers: 0.2, artifacts: 0.18, enchantments: 0.18, lands: 0.24 };
+const GIVE = ['lands', 'artifacts', 'enchantments', 'planeswalkers'];   // who gets spare room first (after creatures)
+export const CARD_RATIO = 0.716;
+
+/** Group compact items into piles: lands by name, identical tokens by name; everything else stays single. */
+export function pilesOf(cards, area) {
+  const out = [], byKey = new Map();
+  for (const c of cards) {
+    const pile = area === 'lands' || (c.token && !c.attachments?.length && !c.attachedTo);
+    const k = pile ? `${c.name}|${c.token ? 't' : ''}|${c.def}` : `#${c.id}`;
+    if (!byKey.has(k)) { const p = { key: k, cards: [] }; byKey.set(k, p); out.push(p); }
+    byKey.get(k).cards.push(c);
+  }
+  return out;
+}
+
+/**
+ * The zones of one side: { area: { rect: [x, y, w, h], mode: 'full' | 'compact', count } } for the
+ * zones with cards, in left-to-right order creatures, planeswalkers, enchantments, artifacts, lands. `groups` is
+ * { area: [cards] }; `side` is 'opp' or 'mine'.
+ */
+export function zoneLayout(groups, device, side) {
+  const B = BANDS[device], S = B[side], X0 = S.x0 ?? B.x0;
+  const order = ['creatures', 'planeswalkers', 'enchantments', 'artifacts', 'lands'].filter(a => groups[a]?.length);
+  if (!order.length) return {};
+  const h = S.h, cw = h * CARD_RATIO, ph = h * 0.85;
+  const colW = B.tile + 4;
+  const need = (a, mode) => {
+    const cards = groups[a];
+    if (mode === 'compact') return Math.ceil(pilesOf(cards, a).length / B.rows) * colW + 4;
+    const hh = a === 'creatures' ? h : ph;
+    return cards.reduce((n, c) => n + (c.tapped ? hh : hh * CARD_RATIO) + 4, 4);
+  };
+  const minOf = (a, mode) => (mode === 'compact' ? colW + 4 : (a === 'creatures' ? cw : ph * CARD_RATIO) + 8);
+  const avail = B.x1 - X0 - B.gap * (order.length - 1);
+  const mode = { creatures: 'full', planeswalkers: 'full', enchantments: 'full', artifacts: 'compact', lands: 'compact' };
+  const hasC = order.includes('creatures');
+  let w;
+  const plan = () => {
+    w = {};
+    const others = order.filter(a => a !== 'creatures');
+    if (!hasC) {
+      // No creatures: the others share the band by what they hold.
+      const total = others.reduce((n, a) => n + need(a, mode[a]), 0);
+      for (const a of others) w[a] = Math.max(minOf(a, mode[a]), avail * need(a, mode[a]) / total);
+      const over = others.reduce((n, a) => n + w[a], 0) - avail;
+      if (over > 0) { const big = others.reduce((m, a) => (w[a] > w[m] ? a : m), others[0]); w[big] -= over; }
+      return;
+    }
+    for (const a of others) w[a] = Math.max(minOf(a, mode[a]), Math.min(need(a, mode[a]), CAP[a] * avail));
+    w.creatures = avail - others.reduce((n, a) => n + w[a], 0);
+    const wantC = need('creatures', 'full');
+    let spare = w.creatures - Math.max(wantC, minOf('creatures', 'full'));
+    for (const a of GIVE) {
+      if (spare <= 0 || !(a in w)) continue;
+      const more = Math.min(spare, need(a, mode[a]) - w[a]);
+      if (more > 0) { w[a] += more; spare -= more; w.creatures -= more; }
+    }
+    // Creatures stay the widest zone.
+    for (let i = 0; i < 4; i++) {
+      const big = others.reduce((m, a) => (w[a] > (w[m] ?? -1) ? a : m), others[0]);
+      if (!big || w[big] <= w.creatures) break;
+      const d = (w[big] - w.creatures) / 2;
+      w[big] -= d; w.creatures += d;
+    }
+  };
+  plan();
+  if (hasC && groups.enchantments?.length && w.creatures < need('creatures', 'full')) { mode.enchantments = 'compact'; plan(); }
+  const out = {};
+  let x = X0;
+  for (const a of order) {
+    const ww = Math.max(0, w[a]);
+    out[a] = { rect: [x, S.y, ww, h], mode: mode[a], count: groups[a].length };
+    x += ww + B.gap;
+  }
+  return out;
 }

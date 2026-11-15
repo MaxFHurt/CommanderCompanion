@@ -19,7 +19,7 @@ function identityOf(view, player) {
 import { openJudge } from '../judge-modal.js';
 import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
-import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml } from '../game/card-modals.js';
+import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml, openPile } from '../game/card-modals.js';
 import { openHostTools } from '../game/host-tools.js';
 import { boardHtml } from '../game/board-view.js';
 import { statusLight, playControls, seatLayout, rotateTo, opponentsInOrder, PHONE_QUERY, logLength } from '../game/play-state.js';
@@ -489,6 +489,7 @@ export const gameScreen = {
         case 'curtain': ui.curtainFor = null; ui.promptKey = ''; return update();
         case 'card':
         case 'open-card': return openCardDetail(ctx, el.dataset.id);
+        case 'pile': return openPile(ctx, (el.dataset.ids || '').split(',').filter(Boolean));
         case 'commander': return el.dataset.id ? openCardDetail(ctx, el.dataset.id) : openPlayerInfo(ctx, focusId);
         case 'zone': return openZone(ctx, focusId, el.dataset.zone);
         case 'opponent': return openPlayerBoard(ctx, el.dataset.id, { onFocus: view.you ? null : id => { ui.focusId = id; render(); } });
