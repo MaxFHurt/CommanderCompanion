@@ -120,4 +120,14 @@ V21. ☐ Five or six players → two opponents share each side slot, each with n
 V22. ☐ Change the playmat to Ember and Frost → the gameplay frame, jewels and buttons change colour; the status light colours do not.
 V23. ☐ Hosted game: the host's Table and Judge screens, and the Table Tracker, look and work as before.
 
+## Setup, rooms, online and account routes (visual rebuild, stage 3a)
+V24. ☐ Guided Play / Free Play options: two panels ("Play on one device", "Play on separate devices"), a Back button under them; every row opens what it did before. Table Tracker options: "Local table" and "Shared table". On the iPhone the rows scroll inside the panel if they do not all fit; every row is easy to hit.
+V25. ☐ Player Setup: a Players panel (one button per player, Add player, Remove, remote count) and a panel for the chosen player (name, deck, Saved decks / Precon catalog / Paste list, commanders, Advice, Playmat). Back, Deck Builder and Continue sit under them. Typing a name updates the player button and the panel title; the keyboard does not push the plate off screen.
+V26. ☐ Saved decks, Precon catalog (search + list), Paste a deck list and View deck open as panels with Close (or Cancel and Use this list); a very long deck name ends in "..." and fits its button.
+V27. ☐ Host Room and Host Device: Room code panel (code, Pair a nearby device, share QR) and Players panel (open seats, Remove); Start game is dim until two players are in. Join a Room: Room panel (code, Rejoin, Just watch, Scan QR, Paste pairing code) and Seat panel; the Join button still works.
+V28. ☐ Online Games: your games on the left (Remove asks first), Join by code on the right, New online game under them. Online waiting room: Game code (with QR) and Players. A device that opens a game for the first time: "Which player are you?".
+V29. ☐ Table Tracker setup (names, commander, playmat per player; Starting life in the Table panel), Join a Table (code and name; the seats appear after joining).
+V30. ☐ Sign in / Sign up (from Settings or Welcome): "Your account" panel with Email then the code step; Send code / Confirm / Send a new code still work; Close returns.
+V31. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the same screens are centred and larger.
+
 Reply with the numbers that failed and a screenshot.

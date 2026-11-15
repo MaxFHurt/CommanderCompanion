@@ -136,4 +136,6 @@
 /* ── 7. iPad tier (maps: 1200 x 773) ─────────────────────────────────────────── */
 @media (min-width: 1000px) and (min-height: 700px) {
   .route--setup .route__stack { --PH: 484 !important; --H: 683 !important; }
+  /* rooms that show a QR code: the map's panel is too short for it, and the iPad has the height */
+  .route--lobby .route__stack, .route--online-wait .route__stack { --PH: 430 !important; --H: 617 !important; }
 }
