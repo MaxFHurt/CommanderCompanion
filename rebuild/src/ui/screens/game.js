@@ -21,6 +21,7 @@ import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
 import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml } from '../game/card-modals.js';
 import { openHostTools } from '../game/host-tools.js';
+import { boardHtml } from '../game/board-view.js';
 import { statusLight, playControls, seatLayout, rotateTo, opponentsInOrder, PHONE_QUERY, logLength } from '../game/play-state.js';
 import { openOpeningHand, openDiscard, openGuided, openVote, openProposal, openCorrection, openPostGame, openLog, openStack, openChat, openGameSettings, openCardId, openPlayerInfo } from '../game/panels.js';
 
@@ -204,6 +205,22 @@ export const gameScreen = {
       const showCoach = true;
       const chatNew = (view.chat?.length || 0) - ui.chatSeen;
       const phone = !!phoneMq?.matches;
+
+      if (!judge) {
+        // The seat's own board: the handoff's gameplay layout (board-view.js). The host's table and Judge screens below keep
+        // the earlier layout for now.
+        setHtml(root, html`
+        <main class="game game--gp ${phone ? 'gp--phone' : 'gp--tablet'} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
+          ${boardHtml({ view, focus, ui, phone, screens, screen, sorted, glow, chatNew })}
+          ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
+        </main>`);
+        for (const el of root.querySelectorAll('[data-keep-scroll]')) {
+          const s = scroll[el.dataset.keepScroll];
+          if (s) { el.scrollLeft = s[0]; el.scrollTop = s[1]; }
+        }
+        startTimer(view);
+        return;
+      }
 
       setHtml(root, html`
       <main class="game ${judge ? 'game--judge' : ''} ${screen === 'judge' ? 'game--judge-mode' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
