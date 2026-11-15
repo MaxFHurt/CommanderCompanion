@@ -130,4 +130,12 @@ V29. ☐ Table Tracker setup (names, commander, playmat per player; Starting lif
 V30. ☐ Sign in / Sign up (from Settings or Welcome): "Your account" panel with Email then the code step; Send code / Confirm / Send a new code still work; Close returns.
 V31. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the same screens are centred and larger.
 
+## Deck Builder (visual rebuild, stage 3c)
+V32. ☐ Open the Deck Builder from the game side after choosing a playmat: the Deck Builder shows the same playmat behind it and the same palette (try Amethyst, Ember, Emerald); a reward mat shows its own picture.
+V33. ☐ Header plate: the title reads Deck Builder on home, then Decks, Builder, Card Search, Buy List, Library, Profile, and the deck's name with a deck open; a very long deck name ends in "..." on the plate (full name in the deck's name box). Tapping the plate still goes to the Deck Builder home.
+V34. ☐ Every button is a steel key and stays easy to tap (no key under about 36 px tall); the current page's top key and the chosen tab are lit; Delete keeps its red label; disabled keys are dimmed.
+V35. ☐ iPhone held sideways: one header line (plate on the left, Home and icon keys on the right); upright: the plate on top, the keys four to a row with their labels. iPad portrait and landscape: plate in the middle, keys either side; nothing runs under the notch, rounded corners or home bar.
+V36. ☐ Panels, the card window and pop-ups (Show all details, Fix, Export) have the metal frame with the crystal; text fields and pickers sit in recessed wells and the chosen value stays readable in the Card search filters.
+V37. ☐ Upgrades: the power bar fills in the palette colour with the Budget / Mid / Apex marks where they were; Build stats bars, numbers and the bracket line read as before (no number changes).
+
 Reply with the numbers that failed and a screenshot.
