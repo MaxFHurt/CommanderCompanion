@@ -7,7 +7,9 @@ import { openModal, confirmDialog } from '../modal.js';
 import { loadProfile, saveAccountProfile, recordDeckSelection } from '../../data/profile.js';
 import { listDecks } from '../../data/deck-store.js';
 import { builderSummary } from '../../data/deck-builder.js';
-import { ACHIEVEMENTS, earnedAchievements } from '../../data/achievements.js';
+import { ACHIEVEMENTS, earnedAchievements, achievementLevel } from '../../data/achievements.js';
+import { levelFor } from '../../data/rewards.js';
+import { MATS } from '../../data/playmats.js';
 import { matUnlockPlan, playmatById, selectedMat, compressImageFile } from '../../data/playmats.js';
 import { DICE, diceUnlockPlan, MATCH_PLAYMAT, diceChoice, activeDie } from '../../data/dice.js';
 import { applyPalette } from '../../app/theme.js';
@@ -27,7 +29,7 @@ function topAchievements(profile) {
 }
 
 export const profileScreen = {
-  mount(root) {
+  mount(root, params = {}) {
     let avatarImage = loadProfile().account?.avatarImage || '';
 
     function draw() {
@@ -90,6 +92,7 @@ export const profileScreen = {
     }
 
     draw();
+    if (params?.open === 'playmats') openPlaymats();
 
     const off = [
       on(root, 'click', '[data-act]', async (event, el) => {
@@ -122,26 +125,34 @@ export const profileScreen = {
   }
 };
 
-/** "Night Flight playmat" / "Ember die" for an achievement's reward, or '' when it has none. */
-function rewardName(a) {
-  if (a.reward?.mat) return `${playmatById(a.reward.mat).name} playmat`;
-  if (a.reward?.die) return `${DICE.find(d => d.id === a.reward.die)?.name || ''} die`;
-  return '';
+/** The next level-route reward after `level`, as { name, need } ("3 more achievements for the Ember playmat"), or null. */
+export function nextLevelReward(profile, level) {
+  const rows = [
+    ...matUnlockPlan(profile).map(({ mat, unlocked }, i) => ({ name: `${mat.name} playmat`, at: levelFor('mat', i), unlocked })),
+    ...diceUnlockPlan(profile).map(({ die, unlocked }, i) => ({ name: `${die.name} die`, at: levelFor('die', i), unlocked }))
+  ].filter(r => r.at > level && !r.unlocked).sort((a, b) => a.at - b.at);
+  return rows[0] ? { name: rows[0].name, need: rows[0].at - level } : null;
 }
 
 function openAchievements() {
   const profile = loadProfile();
   const earned = new Set(earnedAchievements(profile).map(a => a.id));
   const awards = Object.entries(profile.awards || {}).sort((a, b) => b[1] - a[1]);
+  const next = nextLevelReward(profile, earned.size);
   openModal({
     title: 'Achievements',
     size: 'wide',
     body: html`
+      <div class="level-bar" data-level>
+        <strong>Level ${earned.size}</strong> <span class="muted">of ${ACHIEVEMENTS.length}</span>
+        <progress max="${ACHIEVEMENTS.length}" value="${earned.size}" style="width:100%"></progress>
+        ${next ? html`<small class="muted">${next.need} more achievement${next.need === 1 ? '' : 's'} for the ${next.name}</small>` : html`<small class="muted">Every level reward is unlocked.</small>`}
+      </div>
       <div class="grid-2">
         ${ACHIEVEMENTS.map(a => html`
           <div class="achievement achievement--full ${earned.has(a.id) ? 'is-earned' : 'is-locked'}">
             <strong>${a.label}</strong><small>${a.description}</small>
-            ${rewardName(a) ? html`<span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Unlocked' : 'Unlocks'} ${rewardName(a)}</span>` : ''}
+            <span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Earned' : 'Not yet'}</span>
           </div>`)}
       </div>
       ${awards.length ? html`<h3 class="section-title">Game awards</h3>
@@ -163,13 +174,13 @@ function openPlaymats() {
         const choice = diceChoice(profile);
         const active = activeDie(profile);
         setHtml(host, html`
-          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; earn achievements to unlock the others (mats and dice alternate).</p>
+          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; a new playmat unlocks every 3 games you play, a new die every 3 wins, and both also come with your achievement level.</p>
           <div class="mat-slots">
             ${matUnlockPlan(profile).map(({ mat, via, unlocked }) => unlocked
               ? html`<div class="mat-slot ${mat.id === current ? 'is-on' : ''}">
                   <button type="button" class="mat-slot__preview" data-mat-pick="${mat.id}" style="background-image:url('${mat.image}')" aria-pressed="${mat.id === current}" aria-label="${mat.name}"></button>
                   <strong>${mat.name}</strong><small class="muted">${mat.id === current ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
-              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? via.description : 'Locked'}</small></div>`)}
           </div>
           <h3 class="profile-section-title">Life dice</h3>
           <p class="muted">Pick a die for your life total, or let it match your playmat (now ${active.name}).</p>
@@ -181,7 +192,7 @@ function openPlaymats() {
               ? html`<div class="mat-slot ${choice === d.id ? 'is-on' : ''}">
                   <button type="button" class="mat-slot__preview" data-die-pick="${d.id}" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)" aria-pressed="${choice === d.id}" aria-label="${d.name} die"></button>
                   <strong>${d.name}</strong><small class="muted">${choice === d.id ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
-              : html`<div class="mat-slot is-locked" data-die-locked="${d.id}"><div class="mat-slot__preview" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)">🔒</div><strong>${d.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+              : html`<div class="mat-slot is-locked" data-die-locked="${d.id}"><div class="mat-slot__preview" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)">🔒</div><strong>${d.name}</strong><small class="muted">${via ? via.description : 'Locked'}</small></div>`)}
           </div>`);
       };
       draw();

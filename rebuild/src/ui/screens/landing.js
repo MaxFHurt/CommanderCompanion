@@ -11,6 +11,7 @@ import { toast } from '../toast.js';
 import { syncProfileOnOpen } from '../../app/online-profile.js';
 import { session } from '../../app/account.js';
 import { resolveConflictNow } from '../account-ui.js';
+import { showNewRewards } from '../reward-popup.js';
 
 /** Most recent saved session of either kind, or null. */
 async function latestSave() {
@@ -40,6 +41,7 @@ export const landingScreen = {
         <div class="landing__foot">Commander Companion • ${VERSION}</div>
       </main>`);
 
+    showNewRewards().catch(() => {});
     let resume = null;
     const findResume = () => latestSave().then(save => {
       resume = save;

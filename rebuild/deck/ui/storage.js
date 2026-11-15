@@ -1641,6 +1641,8 @@ function newDeck(o, later) {
     },
     o
   );
+  if (d.src === 'import') ccMark('deckImported');
+  else if (d.src === 'scratch' || d.src === 'generated') ccMark('deckBuilt');
   if (!later) openDraft(d);
   return d;
 }
@@ -1667,7 +1669,9 @@ function makeShell(p) {
   return d;
 }
 function exampleDeck() {
+  ccQuiet = true;
   const d = makeShell(PRECONS.find(p => p.name === 'Elven Empire'));
+  ccQuiet = false;
   d.name = 'Example deck: Lathril Elves (auto-built)';
   d.example = true;
   d.tier = 'mid';
@@ -1684,6 +1688,7 @@ function gcBlockMsg() {
   return '';
 }
 function doSwap(d, p, step) {
+  ccMark('upgradeApplied');
   S.saveNow = true; // a swap is saved at once (touch)
   delete d.regenUndo; // once you start upgrading, the rebuild can no longer be undone as a whole (each swap has its own Undo)
   const old = d.cards.find(x => x.n === p.cut),

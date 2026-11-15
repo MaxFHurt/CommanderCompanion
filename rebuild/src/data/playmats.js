@@ -1,12 +1,16 @@
 // Playmats: eight built-in mats named and coloured per the visual handoff (palettes.json). There is no image upload.
 // Earlier builds let players upload mats; those stored rows stay in the data (never deleted, still carried in
 // back-ups) but are no longer shown, and any seat or profile that points at one falls back to Amethyst.
-// Amethyst is free; the other seven unlock with the achievements whose reward is { mat: id } (data/achievements.js, alternating with dice).
+// Amethyst is free; every later mat unlocks at 3k games played (k = its place after Amethyst) or at achievement level 3(2k-1), whichever comes first (data/rewards.js).
+// TO ADD A MAT: add one row to PALETTES below (id, name, two colours) at the end, in unlock order. Nothing else is needed:
+// its unlock thresholds, picker slot and settings choice are generated. Also add a die row in data/dice.js
+// ORDER if it should have a matching die, and the picture later as `art`.
 // The chosen mat also sets the app palette (app/theme.js) and the default life die (data/dice.js).
 // The mat pictures arrive later as art; until then every mat but Amethyst shows a gradient from its palette.
 
 import { durableGet } from './userdata-db.js';
-import { achievementFor, unlockedRewardIds } from './achievements.js';
+import { rewardFor, isUnlocked } from './rewards.js';
+import { achievementLevel } from './achievements.js';
 
 const KEY = 'playmats';
 const LOCAL_KEY = 'cc-playmats-v1';
@@ -72,8 +76,8 @@ export function playmatById(id) {
 
 /** One row per mat: whether this profile has it, and the achievement that unlocks it. */
 export function matUnlockPlan(profile) {
-  const open = new Set(unlockedRewardIds(profile, 'mat'));
-  return MATS.map((mat, i) => ({ mat, via: i === 0 ? null : achievementFor('mat', mat.id), unlocked: i === 0 || open.has(mat.id) }));
+  const level = achievementLevel(profile);
+  return MATS.map((mat, i) => ({ mat, via: rewardFor('mat', mat, i), unlocked: isUnlocked('mat', i, profile, level) }));
 }
 
 /** The mats this profile can use. */

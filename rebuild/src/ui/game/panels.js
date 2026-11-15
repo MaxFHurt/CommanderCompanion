@@ -8,7 +8,7 @@ import { cardHtml, cardDetailHtml, oracleHtml } from '../card-view.js';
 import { loadSettings, saveSettings } from '../../data/store.js';
 import { searchCards, resolveNamedCard } from '../../data/card-api.js';
 import { prepareReader, readCardTitle } from '../../data/card-scan.js';
-import { recordGame, loadProfile } from '../../data/profile.js';
+import { recordGame, loadProfile, isPreconDeck } from '../../data/profile.js';
 import { earnedLabels } from '../../data/achievements.js';
 import { openHostTools, openRulesEdit, openEndGame } from './host-tools.js';
 import { openStoreOutcome } from '../ruling-modal.js';
@@ -208,6 +208,16 @@ export function openCorrection(ctx) {
   });
 }
 
+/** What the profile's achievements need to know about this game: online / hosted / judge, how it was won, precon. */
+function gameMeta(ctx, view) {
+  const role = ctx.session?.role || '';
+  const losers = view.players.filter(p => p.playerId !== view.winner);
+  const reasons = losers.map(p => String(p.eliminationReason || ''));
+  const winMethod = !view.winner ? '' : reasons.some(r => /won the game$/.test(r)) ? 'alternate' : reasons.some(r => r === 'commander damage') ? 'commander-damage' : reasons.some(r => r === 'poison') ? 'poison' : '';
+  const mine = view.players.find(p => p.playerId === (view.you || null));
+  return { online: view.deviceMode === 'multi-device' || ['online', 'client', 'host-player', 'host-device'].includes(role), hosted: role === 'host-device' || role === 'host-player', judge: role === 'host-device', winMethod, precon: isPreconDeck(mine?.deckName) };
+}
+
 // ── Game over ───────────────────────────────────────────────────────────────────
 export function openPostGame(ctx, leave) {
   const view = ctx.view;
@@ -237,7 +247,8 @@ export function openPostGame(ctx, leave) {
       const mine = view.you || view.players.find(p => p.name.trim().toLowerCase() === profileName)?.playerId || view.players[0]?.playerId;
       const profile = await recordGame({
         completionId: view.gameId, winner: view.winner, result: view.result, turnNumber: view.turn, mode: view.mode, awards: view.awards || [],
-        players: view.players.map(p => ({ playerId: p.playerId, displayName: p.name, life: p.life, commanders: p.commanders.map(c => ({ card: { name: c.name } })), deck: { sourceName: p.deckName } }))
+        meta: gameMeta(ctx, view),
+        players: view.players.map(p => ({ playerId: p.playerId, displayName: p.name, life: p.life, colors: [...new Set(p.commanders.flatMap(c => view.defs?.[c.def]?.colorIdentity || []))], commanders: p.commanders.map(c => ({ card: { name: c.name } })), deck: { sourceName: p.deckName } }))
       }, mine);
       const unlocked = earnedLabels(profile).filter(l => !before.includes(l));
       if (unlocked.length) setHtml($('.modal__body', modal.el), body(unlocked));
