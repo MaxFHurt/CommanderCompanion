@@ -8,6 +8,7 @@ import { toast } from '../toast.js';
 import { searchCards } from '../../data/card-api.js';
 import { rulesEditorHtml, bindRulesEditor } from '../rules-editor.js';
 import { pickOne, pickNumber, pickText } from './card-modals.js';
+import { routePanel, routePanels } from '../route-kit.js';
 
 const PHASES = [['untap', 'Untap'], ['upkeep', 'Upkeep'], ['draw', 'Draw'], ['precombat-main', 'Main 1'], ['combat', 'Combat'], ['postcombat-main', 'Main 2'], ['end-step', 'End step']];
 const TOKENS = [['Soldier', 1, 1], ['Goblin', 1, 1], ['Zombie', 2, 2], ['Spirit', 1, 1], ['Saproling', 1, 1], ['Beast', 3, 3], ['Elemental', 4, 4], ['Dragon', 5, 5], ['Treasure', null, null], ['Clue', null, null], ['Food', null, null]];
@@ -20,9 +21,8 @@ export function openHostTools(ctx) {
   const reopen = close => { close(); setTimeout(() => openHostTools(ctx), 0); };
 
   openModal({
-    title: view.mode === 'freeplay' ? 'Edit game' : 'Host tools', size: 'wide',
-    body: html`
-      <h4 class="section-title">Players</h4>
+    title: view.mode === 'freeplay' ? 'Edit game' : 'Host tools', route: { size: 'l' },
+    body: routePanels([routePanel('Players', html`
       <div class="host-players">${players.map(p => html`
         <div class="host-player" style="--player:${p.color}">
           <strong>${p.name}${p.eliminated ? ' (out)' : ''}</strong>
@@ -34,7 +34,7 @@ export function openHostTools(ctx) {
             <button type="button" class="icon-btn" data-life="5" data-p="${p.playerId}">+5</button>
           </span>
           <button type="button" class="btn btn--small" data-more="${p.playerId}">More…</button>
-        </div>`)}</div>
+        </div>`)}</div>`, 'route-panel--list'), routePanel('Game', html`
       <h4 class="section-title">Turn</h4>
       <div class="row row--wrap">
         <button type="button" class="btn btn--small" data-tool="phase">Set phase…</button>
@@ -58,7 +58,7 @@ export function openHostTools(ctx) {
         <button type="button" class="btn btn--small" data-tool="shuffle">Shuffle library…</button>
         <button type="button" class="btn btn--small" data-tool="note">Add a log note…</button>
       </div>
-      <p class="muted">To change one card (tap, counters, move, control), tap the card on the board.</p>`,
+      <p class="muted">To change one card (tap, counters, move, control), tap the card on the board.</p>`, 'route-panel--list')]),
     actions: [{ label: 'Close', kind: 'cancel' }, { label: 'End game…', kind: 'danger', onClick: ({ close }) => { close(); openEndGame(ctx); } }],
     onMount(el, { close }) {
       on(el, 'click', '[data-life]', async (event, b) => { await edit({ kind: 'life', playerId: b.dataset.p, delta: Number(b.dataset.life) }); reopen(close); });
@@ -96,7 +96,7 @@ function openPlayerEdit(ctx, playerId) {
   const edit = e => ctx.send({ type: 'edit', edit: e });
   const sources = view.players.filter(o => o.playerId !== playerId).flatMap(o => o.commanders.map(c => ({ ...c, owner: o.name })));
   openModal({
-    title: `${p.name} — adjust`,
+    title: `${p.name} — adjust`, route: { size: 'x', panel: 'Adjust', panelCls: 'route-panel--list' },
     body: html`<div class="option-list">
       <button type="button" class="option" data-do="life"><span><strong>Set life total</strong><small>Now ${p.life}</small></span></button>
       <button type="button" class="option" data-do="poison"><span><strong>Poison counters</strong><small>Now ${p.poison}</small></span></button>
@@ -126,7 +126,7 @@ function openPlayerEdit(ctx, playerId) {
 
 function openTokenPicker(ctx, playerId, closeParent) {
   openModal({
-    title: 'Create token',
+    title: 'Create token', route: { size: 'x', panel: 'Token', panelCls: 'route-panel--list' },
     body: html`<div class="grid-3">${TOKENS.map(([name, p, t], i) => html`<button type="button" class="option" data-token="${i}"><span><strong>${name}</strong><small>${p === null ? 'Artifact' : `${p}/${t} creature`}</small></span></button>`)}
       <button type="button" class="option" data-token="custom"><span><strong>Custom…</strong><small>Name and size</small></span></button></div>`,
     onMount(el, { close }) {
@@ -144,7 +144,7 @@ function openTokenPicker(ctx, playerId, closeParent) {
 export function openAddCard(ctx, playerId, closeParent) {
   let results = [];
   openModal({
-    title: 'Add any card', size: 'wide',
+    title: 'Add any card', route: { size: 'x', panel: 'Search the catalog' },
     body: html`<div class="row"><input class="input" data-q type="search" placeholder="Card name" autocomplete="off"><button type="button" class="btn" data-go>Search</button></div><div class="option-list" data-results><p class="muted">Search the card catalog by name. Needs an internet connection.</p></div>`,
     onMount(el, { close }) {
       const run = async () => {

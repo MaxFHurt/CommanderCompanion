@@ -4,7 +4,8 @@ import { openStoreOutcome } from '../ruling-modal.js';
 import { html, on, $ } from '../dom.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
-import { cardHtml, cardDetailHtml, cardBackHtml, manaPoolHtml, oracleHtml } from '../card-view.js';
+import { cardHtml, cardDetailParts, cardBackHtml, manaPoolHtml, oracleHtml } from '../card-view.js';
+import { routePanel, routePanels } from '../route-kit.js';
 
 const ZONE_LABEL = { hand: 'hand', battlefield: 'battlefield', graveyard: 'graveyard', exile: 'exile', command: 'command zone' };
 
@@ -80,8 +81,8 @@ export function openCardDetail(ctx, id) {
   // Owner rulings: fix how this card resolves, for everyone (dev PIN).
   actions.push({ label: 'Correct ruling', kind: 'plain', onClick: ({ close }) => { close(); openStoreOutcome({ card: card.realName || card.name, oracle: def?.oracleText || '', override: true }); } });
   openModal({
-    title: `${card.name}${zone !== 'battlefield' ? ` — ${player.name}'s ${ZONE_LABEL[zone]}` : ''}`, size: 'wide',
-    body: cardDetailHtml(def, card.face, extra),
+    title: `${card.name}${zone !== 'battlefield' ? ` — ${player.name}'s ${ZONE_LABEL[zone]}` : ''}`, route: { size: 'l' },
+    body: (parts => html`<div class="card-detail card-detail--route">${routePanels([routePanel('Card', parts.art, 'route-panel--art'), routePanel('Rules text', parts.info, 'route-panel--form')])}</div>`)(cardDetailParts(def, card.face, extra)),
     actions: [{ label: 'Close', kind: 'cancel' }, ...actions],
     onMount(el, { close }) {
       on(el, 'click', '[data-ability]', async (event, b) => {
@@ -116,7 +117,7 @@ export function openCardDetail(ctx, id) {
 /** One shared device: the players decide together whether to allow a play the rules block. */
 function askTableHere(ctx, card, intent) {
   openModal({
-    title: `Allow ${card.name}?`, size: 'small',
+    title: `Allow ${card.name}?`, route: { size: 's', panel: 'Table vote' },
     body: html`<p class="modal__message">The rules say: <strong>${card.reason || 'this play is not legal right now'}</strong></p>
       <p class="muted">Ask everyone at the table. If they all agree, the play goes ahead and the judge record marks it as a table vote.</p>`,
     actions: [
@@ -128,7 +129,7 @@ function askTableHere(ctx, card, intent) {
 
 export function pickOne(title, rows, onPick) {
   openModal({
-    title, size: 'small',
+    title, route: { size: rows.length > 3 ? 'm' : 's', panel: 'Choose one', panelCls: 'route-panel--list' },
     body: html`<div class="option-list">${rows.map(([id, label, sub]) => html`<button type="button" class="option" data-choice="${id}"><span><strong>${label}</strong>${sub ? html`<small>${sub}</small>` : ''}</span></button>`)}</div>`,
     onMount(el, { close }) { on(el, 'click', '[data-choice]', (event, b) => { close(); onPick(b.dataset.choice); }); }
   });
@@ -136,7 +137,7 @@ export function pickOne(title, rows, onPick) {
 
 export function pickText(title, placeholder, onDone, initial = '') {
   openModal({
-    title, size: 'small',
+    title, route: { size: 's', panel: 'Type it in' },
     body: html`<input class="input" data-text placeholder="${placeholder}" value="${initial}" autocomplete="off">`,
     actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'OK', kind: 'confirm', onClick: ({ close, el }) => { const v = $('[data-text]', el).value.trim(); if (!v) return toast('Type something first.'); close(); onDone(v); } }]
   });
@@ -145,7 +146,7 @@ export function pickText(title, placeholder, onDone, initial = '') {
 export function pickNumber(title, initial, onDone, { min = -999, max = 999 } = {}) {
   let value = initial;
   openModal({
-    title, size: 'small',
+    title, route: { size: 's', panel: 'How many' },
     body: html`<div class="stepper stepper--big"><button type="button" class="icon-btn" data-step="-5">−5</button><button type="button" class="icon-btn" data-step="-1">−</button><b class="stepper__value" data-value>${value}</b><button type="button" class="icon-btn" data-step="1">+</button><button type="button" class="icon-btn" data-step="5">+5</button></div>`,
     actions: [{ label: 'Cancel', kind: 'cancel' }, { label: 'OK', kind: 'confirm', onClick: ({ close }) => { close(); onDone(value); } }],
     onMount(el) { on(el, 'click', '[data-step]', (event, b) => { value = Math.max(min, Math.min(max, value + Number(b.dataset.step))); $('[data-value]', el).textContent = value; }); }
@@ -170,7 +171,7 @@ export function openPile(ctx, ids) {
   if (!cards.length) return;
   const tapped = cards.filter(c => c.tapped).length;
   openModal({
-    title: `${cards[0].name} ×${cards.length}${tapped ? ` (${tapped} tapped)` : ''}`, size: 'wide',
+    title: `${cards[0].name} ×${cards.length}${tapped ? ` (${tapped} tapped)` : ''}`, route: { size: 'x', panel: 'Cards', panelCls: 'route-panel--list' },
     body: cardsGrid(view, cards, 'battlefield'),
     onMount(el, { close }) { bindOpen(ctx, el, close); }
   });
@@ -184,7 +185,7 @@ export function openZone(ctx, playerId, zone) {
     : zone === 'attachments' ? p.battlefield.filter(c => c.attachedTo || c.attachments?.length)
     : [...(p[zone] || [])].reverse();
   openModal({
-    title: `${p.name} — ${zone} (${cards.length})`, size: 'wide',
+    title: `${p.name} — ${zone} (${cards.length})`, route: { size: 'm', panel: p.name, panelCls: 'route-panel--list' },
     body: cardsGrid(view, cards, zone),
     onMount(el, { close }) { bindOpen(ctx, el, close); }
   });
@@ -209,7 +210,7 @@ export function openPlayerBoard(ctx, playerId, { onFocus = null } = {}) {
   if (!p) return;
   const local = ctx.session.role === 'local';
   openModal({
-    title: p.name, size: 'full',
+    title: p.name, route: { size: 'x', panel: 'Board', w: 1160, panelCls: 'route-panel--list' },
     body: html`<div class="board">${boardHtml(view, p)}
       <div class="row row--wrap">
         <button type="button" class="btn btn--small" data-zone="graveyard">Graveyard (${p.graveyard.length})</button>
@@ -228,19 +229,38 @@ export function openPlayerBoard(ctx, playerId, { onFocus = null } = {}) {
   });
 }
 
-/** Every battlefield at once — the tabletop / judge overview. */
+/** Every battlefield at once — the tabletop / judge overview: one panel per player (handoff "Table View"). */
 export function tableHtml(view) {
-  return html`<div class="table-view" data-count="${view.players.length}">${view.players.map(p => html`
-    <section class="table-view__seat ${p.playerId === view.activePlayerId ? 'is-active' : ''} ${p.eliminated ? 'is-out' : ''}">${boardHtml(view, p)}
-      <div class="hand-backs">${Array.from({ length: Math.min(p.handCount, 10) }, () => cardBackHtml())}</div>
-    </section>`)}</div>`;
+  return html`<div class="table-view" data-count="${view.players.length}">${view.players.map(p => {
+    const perms = p.battlefield.filter(c => !c.land), lands = p.battlefield.filter(c => c.land);
+    return html`
+    <section class="route-panel skin-dialog route-panel--list table-view__seat ${p.playerId === view.activePlayerId ? 'is-active' : ''} ${p.eliminated ? 'is-out' : ''}" style="--player:${p.color}" data-id="${p.playerId}">
+      <h2 class="readout route-panel__title" title="${p.name}">${p.name}${p.eliminated ? ' (out)' : ''}</h2>
+      <div class="route-panel__body">
+        <b class="table-view__life" aria-label="${p.name}: life">${p.life}</b>
+        ${p.commanders.map(c => html`<p class="readout table-view__cmd" title="${c.name} • ${c.zone === 'command' ? `command zone, tax ${c.tax}` : c.zone}">${c.name}<small>${c.zone === 'command' ? `command zone, tax ${c.tax}` : c.zone}</small></p>`)}
+        <p class="table-view__stats">✋ ${p.handCount} • ▤ ${p.libraryCount}${p.poison ? ` • ☠ ${p.poison}` : ''}</p>
+        ${manaPoolHtml(p.mana, { compact: true })}
+        <button type="button" class="btn" data-act="player-info" data-id="${p.playerId}">Counters</button>
+        <button type="button" class="btn" data-act="zone" data-zone="graveyard" data-id="${p.playerId}">Graveyard (${p.graveyard.length})</button>
+        <button type="button" class="btn" data-act="zone" data-zone="exile" data-id="${p.playerId}">Exile (${p.exile.length})</button>
+        <button type="button" class="btn" data-act="zone" data-zone="command" data-id="${p.playerId}">Command zone (${p.command.length})</button>
+        <h4 class="section-title">Battlefield</h4>${cardsGrid(view, perms, 'battlefield')}
+        <h4 class="section-title">Lands (${lands.length})</h4>${cardsGrid(view, lands, 'battlefield')}
+        <div class="hand-backs">${Array.from({ length: Math.min(p.handCount, 10) }, () => cardBackHtml())}</div>
+      </div>
+    </section>`; })}</div>`;
 }
 
 export function openTable(ctx) {
   const view = ctx.view;
   openModal({
-    title: `Table — turn ${view.turn}, ${view.phaseLabel}`, size: 'full',
-    body: tableHtml(view),
-    onMount(el, { close }) { bindOpen(ctx, el, close); }
+    title: `Table — turn ${view.turn}, ${view.phaseLabel}`, route: { size: 'x', w: 1160, cls: 'modal--table' },
+    body: routePanels(tableHtml(view)),
+    async onMount(el, { close }) {
+      bindOpen(ctx, el, close);
+      on(el, 'click', '[data-act="zone"]', (event, b) => openZone(ctx, b.dataset.id, b.dataset.zone));
+      on(el, 'click', '[data-act="player-info"]', async (event, b) => (await import('./panels.js')).openPlayerInfo(ctx, b.dataset.id));
+    }
   });
 }

@@ -3,6 +3,7 @@
 
 import { html, on, $, $$, setHtml } from '../dom.js';
 import { openModal, confirmDialog } from '../modal.js';
+import { routePanel, routePanels } from '../route-kit.js';
 import { toast } from '../toast.js';
 import { cardHtml, cardDetailHtml, oracleHtml } from '../card-view.js';
 import { loadSettings, saveSettings } from '../../data/store.js';
@@ -25,7 +26,7 @@ export function openOpeningHand(ctx) {
   const lands = p.hand.filter(c => c.land).length;
   const advice = lands < 2 ? 'Only a few lands — a mulligan is reasonable.' : lands > 5 ? 'Mostly lands — a mulligan is reasonable.' : 'A playable mix of lands and spells.';
   const modal = openModal({
-    title: `${p.name} — opening hand`, size: 'full', dismissible: false,
+    title: `${p.name} — opening hand`, route: { size: 'x', panel: 'Your hand' }, dismissible: false,
     body: html`<div class="decision">
       <p class="decision__prompt">${prompt.rule}. Mulligans so far: ${prompt.mulligans}.
         ${prompt.bottom ? html`<b>To keep, tap ${prompt.bottom} card${prompt.bottom === 1 ? '' : 's'} to put on the bottom of your library.</b>` : ''}</p>
@@ -60,7 +61,7 @@ export function openDiscard(ctx, need, { minimize } = {}) {
   const view = ctx.view, p = me(view);
   const picked = new Set();
   const modal = openModal({
-    title: `Discard ${need}`, size: 'full', dismissible: false,
+    title: `Discard ${need}`, route: { size: 'x', panel: 'Your hand' }, dismissible: false,
     body: html`<div class="decision"><p class="decision__prompt">Your hand can hold seven cards at the end of your turn. Choose ${need} to discard.</p>
       <div class="card-grid card-grid--hand">${p.hand.map(c => cardHtml(c, view.defs[c.def], { act: 'pick' }))}</div><p class="decision__count" data-count></p></div>`,
     actions: [
@@ -125,7 +126,7 @@ export function openGuided(ctx) {
         <span class="guided__acts">${first.map(t => html`<button type="button" class="btn btn--small" data-tb-tool="${t.id}" data-tb-ref="${sub.ref}">${t.label}</button>`)}
         ${more.length ? html`<select class="toolbox__more" data-tb-more="${sub.ref}" aria-label="More tools for ${sub.label}"><option value="">More tools…</option>${more.map(t => html`<option value="${t.id}">${t.label}</option>`)}</select>` : ''}</span></div>`; })}`;
   const modal = openModal({
-    title: `${p.name} — resolve by hand`, size: 'wide',
+    title: `${p.name} — resolve by hand`, route: { size: 'x', panel: 'Resolve by hand', w: 1160 },
     body: html`
       ${def ? cardDetailHtml(def, top.face) : html`<p class="card-detail__oracle">${oracleHtml(p.text)}</p>`}
       ${p.ruling ? html`<p class="card-detail__why"><b>Owner ruling:</b> ${p.ruling.ruling || ''}${p.ruling.steps?.length ? html`<br><small>Steps: ${p.ruling.steps.join(' → ')}</small>` : ''}</p>` : ''}
@@ -166,7 +167,7 @@ export function openVote(ctx) {
   if (p.canVote) actions.push({ label: 'Do not allow', kind: 'cancel', onClick: () => ctx.send({ type: 'vote', approve: false }) }, { label: 'Allow', kind: 'confirm', onClick: () => ctx.send({ type: 'vote', approve: true }) });
   if (p.canDecide) actions.push({ label: 'Host: refuse', kind: 'danger', onClick: () => ctx.send({ type: 'vote', decide: false }) }, { label: 'Host: allow', kind: 'plain', onClick: () => ctx.send({ type: 'vote', decide: true }) });
   const modal = openModal({
-    title: 'Table vote', size: 'small', dismissible: false,
+    title: 'Table vote', route: { size: 's', panel: 'Vote' }, dismissible: false,
     body: html`<p class="modal__message"><b>${who}</b> asks the table to allow <b>${p.label}</b>.</p>
       ${p.reason ? html`<p class="muted">The rules say: ${p.reason}</p>` : ''}
       ${!p.canVote && !p.canDecide ? html`<p class="muted">${p.voted === undefined ? 'Waiting for the other players to vote.' : 'Your vote is in. Waiting for the others.'}</p>` : ''}`,
@@ -180,7 +181,7 @@ export function openProposal(ctx) {
   const p = ctx.view.prompt;
   const what = { undo: 'Undo request', challenge: 'Challenge', correction: 'Proposed correction', rules: 'Rule change' }[p.proposalKind] || 'Request';
   const modal = openModal({
-    title: what, size: p.rules ? 'wide' : 'small', dismissible: false,
+    title: what, route: p.rules ? { size: 'x', panel: 'Request' } : { size: 's', panel: 'Request' }, dismissible: false,
     body: html`<p class="modal__message"><b>${p.requester}</b>: ${p.label}</p>
       ${p.detail ? html`<p class="muted">${p.detail}</p>` : ''}
       ${p.rules ? rulesSummaryHtml(p.rules) : ''}
@@ -197,7 +198,7 @@ export function openProposal(ctx) {
 export function openCorrection(ctx) {
   const c = ctx.view.correction;
   openModal({
-    title: 'Your correction', size: 'small',
+    title: 'Your correction', route: { size: 's', panel: 'Correction' },
     body: html`<p class="modal__message">Correcting: <b>${c?.playText || 'the last play'}</b></p>
       <p class="muted">1. Make the change with Host Tools. 2. Propose it. Everyone must accept, or the play stands.</p>`,
     actions: [
@@ -232,7 +233,7 @@ export function openPostGame(ctx, leave) {
     })}</div>` : ''}
     ${unlocked?.length ? html`<p class="modal__message">Achievement unlocked: <b>${unlocked.join(', ')}</b></p>` : ''}`;
   const modal = openModal({
-    title: 'Game complete', dismissible: false, body: body(null),
+    title: 'Game complete', route: { size: 'x', panel: 'Result' }, dismissible: false, body: body(null),
     actions: [
       { label: 'Game log', kind: 'plain', onClick: () => openLog(ctx) },
       { label: 'View table', kind: 'plain', onClick: () => openTable(ctx) },
@@ -262,7 +263,7 @@ export function openLog(ctx) {
   const view = ctx.view;
   let lastTurn = null;
   openModal({
-    title: 'Game log', size: 'wide',
+    title: 'Game log', route: { size: 'x', panel: 'Log' },
     body: html`<ol class="glog__list glog__list--full">${view.log.map(e => {
       const head = e.turn !== lastTurn ? html`<li class="glog__turn">Turn ${e.turn}</li>` : '';
       lastTurn = e.turn;
@@ -275,7 +276,7 @@ export function openStack(ctx) {
   const view = ctx.view;
   const name = id => view.players.find(p => p.playerId === id)?.name || '';
   openModal({
-    title: `Stack (${view.stack.length})`,
+    title: `Stack (${view.stack.length})`, route: { size: 'm', panel: 'Spells and abilities' },
     body: view.stack.length ? html`<p class="muted">The top item resolves first.</p><div class="option-list">${[...view.stack].reverse().map((s, i) => html`
       <div class="option ${i === 0 ? 'is-on' : ''}"><span><strong>${s.name}</strong><small>${name(s.controllerId)} • ${s.kind}${s.guided ? ' • resolve by hand' : ''}</small><small>${oracleHtml(s.text)}</small></span>
         ${view.isJudge ? html`<span class="option__end"><button type="button" class="btn btn--small btn--danger" data-veto="${s.id}">Veto</button></span>` : ''}</div>`)}</div>`
@@ -298,8 +299,8 @@ export function openChat(ctx) {
   };
   let off = null;
   openModal({
-    title: 'Game chat',
-    body: html`<div class="chat" data-chat></div><div class="row"><input class="input" data-msg maxlength="240" placeholder="Message the table" autocomplete="off"><button type="button" class="btn" data-send>Send</button></div>`,
+    title: 'Game chat', route: { size: 'm', panel: 'Table chat' },
+    body: html`<div class="chat" data-chat></div><div class="row row--inline"><input class="input" data-msg maxlength="240" placeholder="Message the table" autocomplete="off"><button type="button" class="btn" data-send>Send</button></div>`,
     onClose: () => off?.(),
     onMount(el) {
       draw(el);
@@ -319,7 +320,7 @@ export function openGameSettings(ctx, leave) {
   const local = ctx.session.role === 'local';
   const mine = view.players.find(p => p.playerId === view.you);
   openModal({
-    title: 'Game settings',
+    title: 'Game settings', route: { size: 'x', panel: 'Settings' },
     body: html`
       <h4 class="section-title">Guidance on this device</h4>
       <div class="grid-3">${GUIDANCE.map(([id, label, text]) => html`<button type="button" class="option ${s.guidance === id ? 'is-on' : ''}" data-guidance="${id}"><span><strong>${label}</strong><small>${text}</small></span></button>`)}</div>
@@ -360,14 +361,14 @@ export function openCardId(ctx) {
   let results = [], stream = null, frame = null, busy = false;
   const stop = () => { stream?.getTracks().forEach(t => t.stop()); stream = null; };
   openModal({
-    title: 'Card ID', size: 'wide', onClose: stop,
-    body: html`<div class="row"><input class="input" data-q type="search" placeholder="Card name" autocomplete="off"><button type="button" class="btn" data-go>Search</button><button type="button" class="btn" data-scan>Scan</button></div>
+    title: 'Card ID', route: { size: 'l' }, onClose: stop,
+    body: routePanels([routePanel('Find a card', html`<div class="row"><input class="input" data-q type="search" placeholder="Card name" autocomplete="off"><button type="button" class="btn" data-go>Search</button><button type="button" class="btn" data-scan>Scan</button></div>
       <div class="scanner" data-scanner hidden>
         <video data-video playsinline muted></video>
         <div class="scanner__guide" data-guide><i class="scanner__title"></i></div>
         <p class="scanner__hint" data-hint>Fit the card inside the frame, title at the top, then press Read Title.</p>
-      </div>
-      <div data-results><p class="muted">Look up any card by name, or press Scan and hold the card up to the camera.</p></div>`,
+      </div>`, 'route-panel--form'),
+      routePanel('Card', html`<div data-results><p class="muted">Look up any card by name, or press Scan and hold the card up to the camera.</p></div>`, 'route-panel--form')]),
     actions: [{ label: 'Close', kind: 'cancel', onClick: ({ close }) => { stop(); close(); } }],
     onMount(el) {
       const out = $('[data-results]', el);
@@ -438,7 +439,7 @@ export function openPlayerInfo(ctx, playerId) {
   if (!p) return;
   const sources = view.players.flatMap(o => o.commanders.map(c => ({ ...c, owner: o.name }))).filter(c => p.commanderDamage[c.id]);
   openModal({
-    title: p.name,
+    title: p.name, route: { size: 'x', panel: 'Player details' },
     body: html`
       <div class="grid-3">
         <div class="stat"><b>${p.life}</b><small>Life</small></div><div class="stat"><b>${p.poison}</b><small>Poison</small></div><div class="stat"><b>${p.handCount}</b><small>Cards in hand</small></div>

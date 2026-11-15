@@ -75,24 +75,29 @@ export function cardBackHtml(count = 1) {
 }
 
 /** Large card + rules text, used in detail popups. */
-export function cardDetailHtml(def, face = null, extra = '') {
+export function cardDetailParts(def, face = null, extra = '') {
   const d = faceOf(def, face);
-  if (!d) return html`<p class="muted">Card data is unavailable.</p>`;
+  if (!d) return { art: html`<p class="muted">Card data is unavailable.</p>`, info: '' };
   const img = imageOf(def, face);
   const other = (def.cardFaces || []).length > 1 ? def.cardFaces.filter((_, i) => i !== (face ?? 0)) : [];
-  return html`<div class="card-detail">
-    <div class="card-detail__art card">
+  return {
+    art: html`<div class="card-detail__art card">
       <span class="card__text"><b>${d.name}</b><small>${d.typeLine || ''}</small></span>
       ${img ? html`<img class="card__img" src="${img}" alt="${d.name}">` : ''}
-    </div>
-    <div class="card-detail__info">
+    </div>`,
+    info: html`<div class="card-detail__info">
       <h3>${d.name} <span class="card-detail__cost">${manaCostHtml(d.manaCost)}</span></h3>
       <p class="card-detail__type">${d.typeLine || ''}${d.power !== null && d.power !== undefined ? ` — ${d.power}/${d.toughness}` : ''}</p>
       <p class="card-detail__oracle">${oracleHtml(d.oracleText || '')}</p>
       ${other.map(f => html`<p class="card-detail__oracle card-detail__oracle--other"><b>Other face — ${f.name}</b> (${f.typeLine})<br>${oracleHtml(f.oracleText || '')}</p>`)}
       ${extra}
-    </div>
-  </div>`;
+    </div>`
+  };
+}
+
+export function cardDetailHtml(def, face = null, extra = '') {
+  const { art, info } = cardDetailParts(def, face, extra);
+  return html`<div class="card-detail">${art}${info}</div>`;
 }
 
 /** Hide images that fail to load so the text version shows. Call once per screen root. */

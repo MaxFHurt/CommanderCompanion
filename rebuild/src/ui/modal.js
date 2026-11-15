@@ -5,6 +5,7 @@
 // marked kind:'confirm' (or 'danger') runs a committing handler.
 
 import { html, raw, setHtml, $ } from './dom.js';
+import { routePanel, routePanels, ROUTE_SIZES } from './route-kit.js';
 
 const stack = [];
 
@@ -26,6 +27,13 @@ function layer() {
  *   carries the Back behaviour itself. `back: false` leaves the Back button out (the actions close it); `cls` adds a class to the dialog.
  */
 export function openModal({ title = '', body = '', actions = [], onMount, onClose, dismissible = true, size = '', route = null } = {}) {
+  // In-game dialogs (stage 3d): `route: { size: 's'|'m'|'l', panel: 'Readout title' }` takes its measurements from ROUTE_SIZES and
+  // wraps the body in one recessed panel; a body that is already routePanels() is left as it is (no `panel`).
+  if (route) {
+    route = { ...(route.size ? { ...ROUTE_SIZES[route.size], back: 'Close' } : null), ...route };
+    if (route.panel) body = routePanels([routePanel(route.panel, body, route.panelCls || 'route-panel--form')]);
+    route.cls = `${route.cls || ''} modal--game${route.size ? ` modal--r-${route.size}` : ''}`.trim();
+  }
   const el = document.createElement('section');
   el.className = `modal${size ? ` modal--${size}` : ''}${route ? ` modal--route${route.cls ? ` ${route.cls}` : ''}` : ''}`;
   if (route) el.setAttribute('style', `--W:${route.w || 1160};--H:${route.h || 515};--PH:${route.ph || 328}`);
@@ -70,7 +78,7 @@ export function openModal({ title = '', body = '', actions = [], onMount, onClos
     button.textContent = action.label;
     button.disabled = !!action.disabled;
     if (action.id) button.id = action.id;
-    if (route && action.kind === 'cancel') button.dataset.modalBack = '';
+    if (route && action.kind === 'cancel' && (!action.onClick || dismissible)) button.dataset.modalBack = '';
     button.addEventListener('click', () => {
       if (action.onClick) action.onClick({ close, el, button });
       else close();
@@ -114,7 +122,7 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancel
   return new Promise(resolve => {
     openModal({
       title,
-      size: 'small',
+      route: { size: 's', panel: 'Please confirm' },
       body: html`<p class="modal__message">${message}</p>`,
       onClose: () => resolve(false),
       actions: [

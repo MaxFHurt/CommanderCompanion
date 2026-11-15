@@ -4,6 +4,7 @@ import { html, on, $, setHtml } from '../dom.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { cardHtml } from '../card-view.js';
+import { routePanel, routePanels } from '../route-kit.js';
 
 export function openAttack(ctx) {
   const view = ctx.view;
@@ -34,11 +35,11 @@ export function openAttack(ctx) {
     $('#attackConfirm', el).disabled = !draft.size;
   };
   openModal({
-    title: 'Declare attackers', size: 'wide',
-    body: html`<div class="decision">
-      <p class="decision__prompt">Tap the opponent${rows.some(r => r.targets?.length) ? ', planeswalker (◆ loyalty) or battle (⚔ defense)' : ''} each creature should attack. Nothing happens until you confirm.</p>
-      <div class="row">${opponents.map(o => html`<button type="button" class="btn btn--small" data-all="${o.playerId}">All → ${o.name}</button>`)}<button type="button" class="btn btn--small" data-all="">Clear</button></div>
-      <div class="combat-list" data-attackers></div></div>`,
+    title: 'Declare attackers', route: { size: 'l' },
+    body: routePanels([
+      routePanel(`${me.name}’s creatures`, html`<div class="combat-list" data-attackers></div>`, 'route-panel--list'),
+      routePanel('Attack target', html`<p class="route-note">Tap the opponent${rows.some(r => r.targets?.length) ? ', planeswalker (◆ loyalty) or battle (⚔ defense)' : ''} each creature should attack. Nothing happens until you confirm.</p>
+        ${opponents.map(o => html`<button type="button" class="btn" data-all="${o.playerId}">All → ${o.name}</button>`)}<button type="button" class="btn" data-all="">Clear</button>`, 'route-panel--form')]),
     actions: [
       { label: 'Cancel', kind: 'cancel' },
       { label: 'Attack', kind: 'confirm', id: 'attackConfirm', onClick: async ({ close }) => {
@@ -90,8 +91,8 @@ export function openBlocks(ctx, rows, { minimize } = {}) {
     $('#blockConfirm', el).textContent = assignments.length ? `Confirm ${assignments.length} block${assignments.length === 1 ? '' : 's'}` : 'No blocks';
   };
   const modal = openModal({
-    title: 'Declare blockers', size: 'wide', dismissible: false,
-    body: html`<div class="decision"><p class="decision__prompt">Choose which of your creatures block each attacker. Unblocked attackers deal their damage to you.</p><div class="combat-list" data-blocks></div></div>`,
+    title: 'Declare blockers', route: { size: 'x', panel: 'Attackers', panelCls: 'route-panel--list' }, dismissible: false,
+    body: html`<p class="route-note">Choose which of your creatures block each attacker. Unblocked attackers deal their damage to you.</p><div class="combat-list" data-blocks></div>`,
     actions: [
       ...(minimize ? [{ label: 'View board', kind: 'plain', onClick: () => minimize() }] : []),
       { label: 'No blocks', kind: 'confirm', id: 'blockConfirm', onClick: async ({ close }) => {

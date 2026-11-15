@@ -29,3 +29,6 @@ export const routePanels = panels => html`<div class="route__panels">${panels}</
 export function routeRow(buttonHtml, note = '') {
   return html`<div class="route-row">${buttonHtml}${note ? html`<small class="route-row__note">${note}</small>` : ''}</div>`;
 }
+
+/** Measurements (map units) for in-game dialogs: s = a question, m = a short list, l = a long list or two panels. */
+export const ROUTE_SIZES = { s: { w: 900, h: 344, ph: 172 }, m: { w: 900, h: 448, ph: 276 }, x: { w: 900, h: 515, ph: 343 }, l: { w: 1160, h: 515, ph: 343 } };

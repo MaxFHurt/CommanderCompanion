@@ -42,7 +42,7 @@ export function openDecision(ctx, d, { minimize } = {}) {
 
   if (d.kind === 'choose-one') {
     modal = openModal({
-      title: d.title || 'Choose', dismissible: false, size: (d.options || []).length > 6 ? 'wide' : '',
+      title: d.title || 'Choose', dismissible: false, route: { size: (d.options || []).length > 4 ? 'x' : 'm', panel: 'Your choice', panelCls: 'route-panel--list' },
       body: html`<div class="decision">${promptHtml}${search}<div class="pick-list ${(d.options || []).some(o => o.definitionId) ? 'pick-list--cards' : ''}">${(d.options || []).map(o => optionRow(ctx, o))}</div></div>`,
       actions: [...cancelAction, ...boardAction, ...(d.allowNone ? [{ label: d.noneLabel || 'None', kind: 'plain', onClick: ({ close }) => answer(null, close) }] : [])],
       onMount(el, { close }) {
@@ -57,7 +57,7 @@ export function openDecision(ctx, d, { minimize } = {}) {
     const picked = new Set();
     const min = Number(d.min || 0), max = Number(d.max ?? (d.options || []).length);
     modal = openModal({
-      title: d.title || 'Choose', dismissible: false, size: 'wide',
+      title: d.title || 'Choose', dismissible: false, route: { size: 'x', panel: 'Your choice', panelCls: 'route-panel--list' },
       body: html`<div class="decision">${promptHtml}<p class="decision__count" data-count></p>${search}<div class="pick-list ${(d.options || []).some(o => o.definitionId) ? 'pick-list--cards' : ''}">${(d.options || []).map(o => optionRow(ctx, o, { multi: true }))}</div></div>`,
       actions: [...cancelAction, ...boardAction, { label: 'Confirm', kind: 'confirm', id: 'decisionConfirm', onClick: ({ close }) => answer([...picked].map(typed), close) }],
       onMount(el) {
@@ -83,7 +83,7 @@ export function openDecision(ctx, d, { minimize } = {}) {
   } else if (d.kind === 'number') {
     let value = Math.max(Number(d.min || 0), 0);
     modal = openModal({
-      title: d.title || 'Choose a number', dismissible: false, size: 'small',
+      title: d.title || 'Choose a number', dismissible: false, route: { size: 'm', panel: 'How many' },
       body: html`<div class="decision">${promptHtml}<div class="stepper stepper--big"><button type="button" class="icon-btn" data-step="-1">−</button><b class="stepper__value" data-value>${value}</b><button type="button" class="icon-btn" data-step="1">+</button></div><p class="muted">Between ${d.min || 0} and ${d.max ?? 99}.</p></div>`,
       actions: [...cancelAction, { label: 'Confirm', kind: 'confirm', onClick: ({ close }) => answer(value, close) }],
       onMount(el) {
@@ -95,14 +95,14 @@ export function openDecision(ctx, d, { minimize } = {}) {
     });
   } else if (d.kind === 'text') {
     modal = openModal({
-      title: d.title || 'Choose', dismissible: false, size: 'small',
+      title: d.title || 'Choose', dismissible: false, route: { size: 'm', panel: 'Your answer' },
       body: html`<div class="decision">${promptHtml}<input class="input" data-text list="decisionSuggestions" autocomplete="off" placeholder="Type to search">
         <datalist id="decisionSuggestions">${(d.suggestions || []).map(s => html`<option value="${s}"></option>`)}</datalist></div>`,
       actions: [...cancelAction, { label: 'Confirm', kind: 'confirm', onClick: ({ close, el }) => answer($('[data-text]', el).value, close) }]
     });
   } else if (d.kind === 'confirm') {
     modal = openModal({
-      title: d.title || 'Confirm', dismissible: false, size: 'small',
+      title: d.title || 'Confirm', dismissible: false, route: { size: 'm', panel: 'Question' },
       body: html`<div class="decision"><p class="decision__prompt decision__prompt--pre">${d.prompt || ''}</p></div>`,
       actions: [...boardAction, { label: d.noLabel || 'No', kind: 'cancel', onClick: ({ close }) => answer(false, close) }, { label: d.yesLabel || 'Yes', kind: 'confirm', onClick: ({ close }) => answer(true, close) }]
     });
@@ -125,7 +125,7 @@ export function openDecision(ctx, d, { minimize } = {}) {
       if (ok) { ok.disabled = !!d.pick && top.length !== d.pick; ok.textContent = d.pick && top.length !== d.pick ? `Choose ${d.pick - top.length} more` : 'Confirm'; }
     };
     modal = openModal({
-      title: d.title || 'Arrange', dismissible: false, size: 'wide',
+      title: d.title || 'Arrange', dismissible: false, route: { size: 'x', panel: 'Arrange', panelCls: 'route-panel--list' },
       body: html`<div class="decision">${promptHtml}<div class="arrange" data-arrange></div></div>`,
       actions: [{ label: 'Confirm', kind: 'confirm', id: 'arrangeConfirm', onClick: ({ close }) => { if (d.pick && top.length !== d.pick) return; answer({ top, other }, close); } }],
       onMount(el) {
@@ -140,7 +140,7 @@ export function openDecision(ctx, d, { minimize } = {}) {
       }
     });
   } else {
-    modal = openModal({ title: d.title || 'Choice', body: promptHtml, actions: cancelAction, dismissible: false });
+    modal = openModal({ title: d.title || 'Choice', route: { size: 's', panel: 'Choice' }, body: promptHtml, actions: cancelAction, dismissible: false });
   }
   return modal.close;
 }

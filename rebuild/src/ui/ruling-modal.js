@@ -11,7 +11,7 @@ export function openStoreOutcome({ card, oracle = '', steps = [], moves = [], ov
   const existing = storedOutcomes()[card] || null;
   const lines = (steps.length ? steps : existing?.steps || []).join('\n');
   openModal({
-    title: `Owner ruling — ${card}`, size: 'wide',
+    title: `Owner ruling — ${card}`, route: { size: 'x', panel: 'Ruling' },
     body: html`
       <p class="muted">Saved for everyone using the app, straight away. Needs your dev PIN.</p>
       ${existing ? html`<p class="card-detail__status"><b>Current ruling</b> (${existing.updatedAt?.slice(0, 10) || ''}): ${existing.ruling || '—'}${existing.override ? ' • resolves by hand' : ''}</p>` : ''}
