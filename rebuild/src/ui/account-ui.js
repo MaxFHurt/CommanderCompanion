@@ -8,6 +8,7 @@ import { openModal, confirmDialog } from './modal.js';
 import { initProfileStore } from '../data/profile.js';
 import { initDeckStore } from '../data/deck-store.js';
 import { initPlaymats } from '../data/playmats.js';
+import { applyPalette } from '../app/theme.js';
 import { saveProfileBackupFile } from '../data/profile-backup.js';
 import { session, accountEmail, validEmail, validCode, sendCode, verifyCode, connectAccount, resolveConflict, signOut,
   needsConnect, readAuthReturn, acceptAuthReturn } from '../app/account.js';
@@ -15,6 +16,7 @@ import { session, accountEmail, validEmail, validCode, sendCode, verifyCode, con
 /** Redraw the screen behind a modal when it shows profile data. */
 async function redraw() {
   await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+  applyPalette();
   const screen = currentScreen();
   if (screen === 'landing' || screen === 'profile') go(screen);
 }

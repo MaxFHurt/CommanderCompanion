@@ -8,6 +8,7 @@ import { openModal, confirmDialog } from './modal.js';
 import { loadProfile, initProfileStore } from '../data/profile.js';
 import { initDeckStore } from '../data/deck-store.js';
 import { initPlaymats } from '../data/playmats.js';
+import { applyPalette } from '../app/theme.js';
 import { saveProfileBackupFile, restoreProfileBackupFile } from '../data/profile-backup.js';
 import { onlineProfileLink, saveProfileOnline, loadProfileOnline, unlinkOnlineProfile, formatKey, cleanKey, listBackupCopies, restoreBackupCopy, keepBackupCopy, localSnapshot } from '../app/online-profile.js';
 import { accountSectionHtml, bindAccountSection } from './account-ui.js';
@@ -15,6 +16,7 @@ import { accountSectionHtml, bindAccountSection } from './account-ui.js';
 /** Re-read the stores after the profile was replaced, and redraw the screen behind the modal if it shows profile data. */
 async function reloadStores() {
   await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+  applyPalette();
   const screen = currentScreen();
   if (screen === 'landing' || screen === 'profile') go(screen);
 }

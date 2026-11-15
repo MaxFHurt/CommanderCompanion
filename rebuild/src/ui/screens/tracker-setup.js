@@ -6,8 +6,7 @@ import { toast } from '../toast.js';
 import { createTracker, PLAYER_COLORS, TRACKER_SAVE_KEY } from '../../game/tracker.js';
 import { saveRecord } from '../../data/store.js';
 import { accountSetupDefaults, loadProfile } from '../../data/profile.js';
-import { listPlaymats, DEFAULT_MAT } from '../../data/playmats.js';
-import { unlockedMatSlots } from '../../data/achievements.js';
+import { unlockedMats, playmatById, DEFAULT_MAT } from '../../data/playmats.js';
 
 export const trackerSetupScreen = {
   mount(root, params = {}) {
@@ -15,7 +14,7 @@ export const trackerSetupScreen = {
     const defaults = accountSetupDefaults();
     const profile = loadProfile();
     const startingLife = Number(defaults.tableRuleDefaults?.startingLife || 40);
-    const mats = [DEFAULT_MAT, ...listPlaymats().filter(m => m.slot < unlockedMatSlots(profile))];
+    const mats = unlockedMats(profile);
     // The profile owner is always Player 1; other saved names fill the next seats.
     const players = [0, 1].map(i => ({ name: defaults.playerNames?.[i] || '', commander: '', matId: DEFAULT_MAT.id }));
 
@@ -37,7 +36,7 @@ export const trackerSetupScreen = {
                   <input class="input" data-field="name" maxlength="24" placeholder="Player name" value="${p.name}" autocomplete="off">
                   <input class="input" data-field="commander" maxlength="60" placeholder="Commander (optional)" value="${p.commander}" autocomplete="off">
                   <div class="mat-pick" aria-label="Playmat">
-                    ${mats.map(m => html`<button type="button" class="mat-thumb ${p.matId === m.id ? 'is-on' : ''}" data-act="mat" data-seat="${i}" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}
+                    ${mats.map(m => html`<button type="button" class="mat-thumb ${playmatById(p.matId).id === m.id ? 'is-on' : ''}" data-act="mat" data-seat="${i}" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}
                   </div>
                 </section>`)}
               ${players.length < 6 ? html`<button type="button" class="setup-player setup-player--add" data-act="add">+ Add player</button>` : ''}

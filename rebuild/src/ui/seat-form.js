@@ -6,12 +6,11 @@ import { toast } from './toast.js';
 import { listDecks } from '../data/deck-store.js';
 import { listPrecons, loadPrecon } from '../data/precons.js';
 import { parseDeckList } from '../data/card-api.js';
-import { listPlaymats, DEFAULT_MAT } from '../data/playmats.js';
-import { unlockedMatSlots } from '../data/achievements.js';
+import { unlockedMats, playmatById } from '../data/playmats.js';
 import { loadProfile } from '../data/profile.js';
 
 export function availableMats() {
-  return [DEFAULT_MAT, ...listPlaymats().filter(m => m.slot < unlockedMatSlots(loadProfile()))];
+  return unlockedMats(loadProfile());
 }
 
 export function seatFormHtml(seat, index) {
@@ -44,7 +43,7 @@ export function seatFormHtml(seat, index) {
         <button type="button" class="option ${seat.advice !== false ? 'is-on' : ''}" data-seat-act="advice"><span><strong>Advice ${seat.advice !== false ? 'on' : 'off'}</strong><small>${seat.advice !== false ? 'The tip bar always suggests a move for this player and explains why.' : 'The tip bar only says what the game is waiting for. No suggestions.'}</small></span><span class="option__end">${seat.advice !== false ? 'On' : 'Off'}</span></button>
       </div>
       <div class="field">Playmat
-        <div class="mat-pick">${availableMats().map(m => html`<button type="button" class="mat-thumb ${seat.matId === m.id ? 'is-on' : ''}" data-seat-act="mat" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}</div>
+        <div class="mat-pick">${availableMats().map(m => html`<button type="button" class="mat-thumb ${playmatById(seat.matId).id === m.id ? 'is-on' : ''}" data-seat-act="mat" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}</div>
       </div>
     </div>`;
 }

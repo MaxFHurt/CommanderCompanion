@@ -2,7 +2,7 @@
 // game history and playmat slots all read from this table.
 //
 //   test(stats)  receives { games, wins } from the player profile
-//   reward       optional; { matSlot: 1 } unlocks one more playmat slot
+//   reward       optional; { matSlot: 1 } unlocks the next built-in playmat (data/playmats.js, palettes.json order)
 
 export const ACHIEVEMENTS = [
   { id: 'first-game', label: 'First Game', description: 'Finish your first game.', test: s => s.games >= 1 },
@@ -11,10 +11,13 @@ export const ACHIEVEMENTS = [
   { id: 'ten-wins', label: 'Ten Wins', description: 'Win 10 games.', test: s => s.wins >= 10, reward: { matSlot: 1 } },
   { id: 'commander-veteran', label: 'Commander Veteran', description: 'Play 50 games.', test: s => s.games >= 50, reward: { matSlot: 1 } },
   { id: 'champion', label: 'Champion', description: 'Win 25 games.', test: s => s.wins >= 25, reward: { matSlot: 1 } },
-  { id: 'centurion', label: 'Centurion', description: 'Play 100 games.', test: s => s.games >= 100, reward: { matSlot: 1 } }
+  { id: 'centurion', label: 'Centurion', description: 'Play 100 games.', test: s => s.games >= 100, reward: { matSlot: 1 } },
+  // Two more mat unlocks: the eight built-in playmats need seven (Amethyst is free).
+  { id: 'fifty-wins', label: 'Fifty Wins', description: 'Win 50 games.', test: s => s.wins >= 50, reward: { matSlot: 1 } },
+  { id: 'grand-centurion', label: 'Grand Centurion', description: 'Play 250 games.', test: s => s.games >= 250, reward: { matSlot: 1 } }
 ];
 
-/** Playmat slots every profile starts with. */
+/** Playmats every profile starts with (Amethyst). */
 export const BASE_MAT_SLOTS = 1;
 
 function statsOf(profile) {

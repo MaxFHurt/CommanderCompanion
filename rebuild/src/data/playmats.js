@@ -1,15 +1,44 @@
-// Player-uploaded playmat images. A mat is the background of a player's card; the controls
-// float over it. Images are resized and compressed on upload so they save reliably and can be
-// sent to another device.
+// Playmats: eight built-in mats named and coloured per the visual handoff (palettes.json). There is no image upload.
+// Earlier builds let players upload mats; those stored rows stay in the data (never deleted, still carried in
+// back-ups) but are no longer shown, and any seat or profile that points at one falls back to Amethyst.
+// Amethyst is free; the other seven unlock with the achievements that carry reward.matSlot, in this order.
+// The chosen mat also sets the app palette (app/theme.js) and the default life die (data/dice.js).
+// The mat pictures arrive later as art; until then every mat but Amethyst shows a gradient from its palette.
 
-import { durableGet, durableSet } from './userdata-db.js';
+import { durableGet } from './userdata-db.js';
+import { ACHIEVEMENTS, earnedAchievements } from './achievements.js';
 
 const KEY = 'playmats';
 const LOCAL_KEY = 'cc-playmats-v1';
 const MAX_EDGE = 1280;
 const JPEG_QUALITY = 0.8;
 
-export const DEFAULT_MAT = { id: 'default', name: 'Commander Companion', image: 'assets/img/ui/background.webp', dim: 0.2, builtIn: true };
+// Order and colours from rebuild/roadmap/visual-handoff/layout-reference/palettes.json.
+const PALETTES = [
+  ['amethyst', 'Amethyst', '#a052ff', '#be71ff'],
+  ['dark-alley', 'Dark Alley', '#ae64f2', '#ed5eaf'],
+  ['night-flight', 'Night Flight', '#8664f7', '#bc80ff'],
+  ['ember', 'Ember', '#ff555c', '#ffb455'],
+  ['frost', 'Frost', '#a28af7', '#d1a3ff'],
+  ['gold', 'Gold', '#ffcf32', '#ffec8a'],
+  ['forge', 'Forge', '#ff7928', '#ffbb5b'],
+  ['emerald', 'Emerald', '#2cd88e', '#8dffb0']
+];
+
+function placeholderImage(primary, secondary) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primary}" stop-opacity="0.55"/><stop offset="1" stop-color="${secondary}" stop-opacity="0.22"/></linearGradient></defs><rect width="200" height="100" fill="#0d0919"/><rect width="200" height="100" fill="url(#g)"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+/** The eight built-in mats, in unlock order. `art` is where the real picture will go. */
+export const MATS = PALETTES.map(([id, name, primary, secondary], i) => ({
+  id, name, primary, secondary, builtIn: true, dim: 0.2,
+  image: i === 0 ? 'assets/img/ui/background.webp' : placeholderImage(primary, secondary)
+}));
+
+/** Amethyst: the free mat and the fallback for anything unknown. Older saves that say "default" resolve to it. */
+export const DEFAULT_MAT = MATS[0];
+export const DEFAULT_MAT_ID = DEFAULT_MAT.id;
 
 let cache = null;
 
@@ -22,6 +51,7 @@ function readLocal() {
   }
 }
 
+/** Loads the old uploaded rows (kept so back-ups and sync carry them unchanged). */
 export async function initPlaymats() {
   let rows = null;
   try { rows = await durableGet(KEY); } catch { /* IndexedDB unavailable */ }
@@ -30,43 +60,38 @@ export async function initPlaymats() {
   return listPlaymats();
 }
 
-/** Saved mats in slot order (does not include the built-in default). */
+/** Old uploaded mats, kept only as stored data: they are not shown or selectable. */
 export function listPlaymats() {
   return [...(cache || [])].sort((a, b) => a.slot - b.slot);
 }
 
+/** A built-in mat by id; "default", an old uploaded mat's id or anything unknown gives Amethyst. */
 export function playmatById(id) {
-  if (!id || id === DEFAULT_MAT.id) return DEFAULT_MAT;
-  return (cache || []).find(m => m.id === id) || DEFAULT_MAT;
+  return MATS.find(m => m.id === id) || DEFAULT_MAT;
 }
 
-async function persist() {
-  let ok = false;
-  try { await durableSet(KEY, cache); ok = true; } catch { /* fall through */ }
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(cache)); ok = true; } catch { /* images may exceed localStorage; IndexedDB is the main store */ }
-  if (!ok) throw new Error('This browser is not allowing Commander Companion to save playmats.');
+/**
+ * One row per mat: whether this profile has it, and the achievement that unlocks it.
+ * Mat n (after Amethyst) is opened by the nth achievement that carries reward.matSlot.
+ */
+export function matUnlockPlan(profile) {
+  const earned = new Set(earnedAchievements(profile).map(a => a.id));
+  const keys = ACHIEVEMENTS.filter(a => a.reward?.matSlot);
+  return MATS.map((mat, i) => {
+    const via = i === 0 ? null : keys[i - 1] || null;
+    return { mat, via, unlocked: i === 0 || (!!via && earned.has(via.id)) };
+  });
 }
 
-/** Save (or replace) the mat in a slot. */
-export async function savePlaymat({ slot, name, image, dim = 0.35 }) {
-  cache = (cache || []).filter(m => m.slot !== slot);
-  const mat = { id: `mat-${slot}-${Date.now().toString(36)}`, slot, name: String(name || `Playmat ${slot + 1}`).slice(0, 32), image, dim, createdAt: new Date().toISOString() };
-  cache.push(mat);
-  await persist();
-  return mat;
+/** The mats this profile can use. */
+export function unlockedMats(profile) {
+  return matUnlockPlan(profile).filter(r => r.unlocked).map(r => r.mat);
 }
 
-export async function updatePlaymat(id, patch) {
-  const mat = (cache || []).find(m => m.id === id);
-  if (!mat) return null;
-  Object.assign(mat, patch);
-  await persist();
-  return mat;
-}
-
-export async function deletePlaymat(id) {
-  cache = (cache || []).filter(m => m.id !== id);
-  await persist();
+/** The mat chosen on the Profile screen; Amethyst when none, unknown, an old upload or still locked. */
+export function selectedMat(profile) {
+  const mat = playmatById(profile?.account?.matId);
+  return unlockedMats(profile).some(m => m.id === mat.id) ? mat : DEFAULT_MAT;
 }
 
 /** Read an image file, scale it down and return a compressed JPEG data URL. */

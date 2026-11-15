@@ -5,6 +5,7 @@ import { registerScreen, go } from './app/router.js';
 import { initDeckStore } from './data/deck-store.js';
 import { initProfileStore, loadProfile, saveAccountProfile } from './data/profile.js';
 import { initPlaymats } from './data/playmats.js';
+import { applyPalette } from './app/theme.js';
 import { startUpdateChecks, shouldResumeAfterUpdate } from './app/update-check.js';
 import { startProfileSync } from './app/online-profile.js';
 import { needsWelcome, startAuth } from './app/account.js';
@@ -44,6 +45,7 @@ async function start() {
   const authReturn = readAuthReturn();   // a tapped sign-in link: the tokens leave the address at once
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);
+  applyPalette();
   try { screen.orientation?.lock?.('landscape')?.catch?.(() => {}); } catch { /* not supported */ }
   // One player name. Before the merge the Deck Builder kept its own; adopt it once if this side has none.
   const builderName = builderPlayerName();

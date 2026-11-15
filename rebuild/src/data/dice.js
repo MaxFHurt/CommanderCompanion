@@ -1,0 +1,26 @@
+// Life dice: eight designs (rebuild/roadmap/visual-handoff/layout-reference/life-dice/options.json, in that order).
+// The choice is stored on the profile (account.diceId) and is independent of the playmat; the default is
+// "match-playmat", meaning the die named like the chosen mat. Only the setting and picker exist so far:
+// the dice pictures arrive with the art, so each die shows its palette colours for now.
+
+import { MATS, selectedMat } from './playmats.js';
+
+export const MATCH_PLAYMAT = 'match-playmat';
+const ORDER = ['amethyst', 'night-flight', 'dark-alley', 'ember', 'frost', 'gold', 'forge', 'emerald'];
+
+export const DICE = ORDER.map(id => {
+  const mat = MATS.find(m => m.id === id);
+  return { id, name: mat.name, primary: mat.primary, secondary: mat.secondary };
+});
+
+/** The die id stored on the profile (anything unknown means "match playmat"). */
+export function diceChoice(profile) {
+  const id = profile?.account?.diceId;
+  return DICE.some(d => d.id === id) ? id : MATCH_PLAYMAT;
+}
+
+/** The die actually shown: the chosen one, or the one matching the chosen playmat. */
+export function activeDie(profile) {
+  const id = diceChoice(profile);
+  return DICE.find(d => d.id === (id === MATCH_PLAYMAT ? selectedMat(profile).id : id));
+}

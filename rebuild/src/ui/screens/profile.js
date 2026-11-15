@@ -7,8 +7,10 @@ import { openModal, confirmDialog } from '../modal.js';
 import { loadProfile, saveAccountProfile, recordDeckSelection } from '../../data/profile.js';
 import { listDecks } from '../../data/deck-store.js';
 import { builderSummary } from '../../data/deck-builder.js';
-import { ACHIEVEMENTS, earnedAchievements, matSlotPlan } from '../../data/achievements.js';
-import { listPlaymats, savePlaymat, updatePlaymat, deletePlaymat, compressImageFile, DEFAULT_MAT } from '../../data/playmats.js';
+import { ACHIEVEMENTS, earnedAchievements } from '../../data/achievements.js';
+import { matUnlockPlan, selectedMat, compressImageFile } from '../../data/playmats.js';
+import { DICE, MATCH_PLAYMAT, diceChoice, activeDie } from '../../data/dice.js';
+import { applyPalette } from '../../app/theme.js';
 import { rulesEditorHtml, bindRulesEditor } from '../rules-editor.js';
 import { DEFAULT_COMMANDER_RULES } from '../../engine/rules.js';
 
@@ -58,7 +60,7 @@ export const profileScreen = {
             <section class="profile__main">
               <div class="profile__name-row">
                 <input class="input profile__name" id="profileName" maxlength="32" placeholder="Player name" aria-label="Player name" value="${account.displayName || ''}" autocomplete="off">
-                <button type="button" class="btn" data-act="playmats">Playmats</button>
+                <button type="button" class="btn" data-act="playmats">Playmats and Dice</button>
                 <button type="button" class="btn" data-act="defaults">Table Defaults</button>
               </div>
               <div class="panel profile__stats">
@@ -132,7 +134,7 @@ function openAchievements() {
         ${ACHIEVEMENTS.map(a => html`
           <div class="achievement achievement--full ${earned.has(a.id) ? 'is-earned' : 'is-locked'}">
             <strong>${a.label}</strong><small>${a.description}</small>
-            ${a.reward?.matSlot ? html`<span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Unlocked' : 'Unlocks'} a playmat slot</span>` : ''}
+            ${a.reward?.matSlot ? html`<span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Unlocked' : 'Unlocks'} a playmat</span>` : ''}
           </div>`)}
       </div>
       ${awards.length ? html`<h3 class="section-title">Game awards</h3>
@@ -142,65 +144,47 @@ function openAchievements() {
 
 function openPlaymats() {
   openModal({
-    title: 'Playmats',
+    title: 'Playmats and Dice',
     size: 'wide',
-    body: html`<div data-mats></div><input id="matFile" type="file" accept="image/*" hidden>`,
+    body: html`<div data-mats></div>`,
     actions: [{ label: 'Done', kind: 'confirm' }],
     onMount(el) {
       const host = $('[data-mats]', el);
-      const fileInput = $('#matFile', el);
-      let targetSlot = 0;
       const draw = () => {
-        const plan = matSlotPlan(loadProfile());
-        const mats = listPlaymats();
+        const profile = loadProfile();
+        const current = selectedMat(profile).id;
+        const choice = diceChoice(profile);
+        const active = activeDie(profile);
         setHtml(host, html`
-          <p class="muted">A playmat is the background of your player card; the controls float over it. Everyone has the default mat. Earn achievements to unlock more slots.</p>
+          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; earn achievements to unlock the others.</p>
           <div class="mat-slots">
-            <div class="mat-slot"><div class="mat-slot__preview" style="background-image:url('${DEFAULT_MAT.image}')"></div><strong>Default</strong><small class="muted">Always available</small></div>
-            ${plan.map(slot => {
-              const mat = mats.find(m => m.slot === slot.index);
-              if (!slot.unlocked) return html`<div class="mat-slot is-locked"><div class="mat-slot__preview">🔒</div><strong>Slot ${slot.index + 1}</strong><small class="muted">${slot.via.label}: ${slot.via.description}</small></div>`;
-              return html`
-                <div class="mat-slot" data-slot="${slot.index}">
-                  <div class="mat-slot__preview" style="${mat ? `background-image:linear-gradient(rgba(6,4,12,${mat.dim}),rgba(6,4,12,${mat.dim})),url('${mat.image}')` : ''}">${mat ? '' : '+'}</div>
-                  <strong>Slot ${slot.index + 1}</strong>
-                  <div class="row">
-                    <button type="button" class="chip" data-mat="upload" data-slot="${slot.index}">${mat ? 'Replace' : 'Upload image'}</button>
-                    ${mat ? html`<button type="button" class="chip" data-mat="dim" data-id="${mat.id}">Tint ${Math.round(mat.dim * 100)}%</button>
-                      <button type="button" class="chip chip--bad" data-mat="delete" data-id="${mat.id}">Delete</button>` : ''}
-                  </div>
-                </div>`;
-            })}
+            ${matUnlockPlan(profile).map(({ mat, via, unlocked }) => unlocked
+              ? html`<div class="mat-slot ${mat.id === current ? 'is-on' : ''}">
+                  <button type="button" class="mat-slot__preview" data-mat-pick="${mat.id}" style="background-image:url('${mat.image}')" aria-pressed="${mat.id === current}" aria-label="${mat.name}"></button>
+                  <strong>${mat.name}</strong><small class="muted">${mat.id === current ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
+              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+          </div>
+          <h3 class="profile-section-title">Life dice</h3>
+          <p class="muted">Pick a die for your life total, or let it match your playmat (now ${active.name}).</p>
+          <div class="mat-slots mat-slots--dice">
+            <div class="mat-slot ${choice === MATCH_PLAYMAT ? 'is-on' : ''}">
+              <button type="button" class="mat-slot__preview" data-die-pick="${MATCH_PLAYMAT}" style="background-image:radial-gradient(circle at 35% 30%, ${active.secondary}, ${active.primary} 70%)" aria-pressed="${choice === MATCH_PLAYMAT}" aria-label="Match playmat"></button>
+              <strong>Match playmat</strong><small class="muted">${choice === MATCH_PLAYMAT ? 'In use' : 'Default'}</small></div>
+            ${DICE.map(d => html`<div class="mat-slot ${choice === d.id ? 'is-on' : ''}">
+              <button type="button" class="mat-slot__preview" data-die-pick="${d.id}" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)" aria-pressed="${choice === d.id}" aria-label="${d.name} die"></button>
+              <strong>${d.name}</strong><small class="muted">${choice === d.id ? 'In use' : ' '}</small></div>`)}
           </div>`);
       };
       draw();
-      on(el, 'click', '[data-mat]', async (event, button) => {
-        const mats = listPlaymats();
-        if (button.dataset.mat === 'upload') { targetSlot = Number(button.dataset.slot); fileInput.value = ''; fileInput.click(); }
-        if (button.dataset.mat === 'dim') {
-          // Cycle the dark tint that keeps text readable over the picture.
-          const mat = mats.find(m => m.id === button.dataset.id);
-          const steps = [0.15, 0.35, 0.55, 0.7];
-          const next = steps[(steps.findIndex(v => Math.abs(v - mat.dim) < 0.01) + 1) % steps.length];
-          await updatePlaymat(mat.id, { dim: next });
-          draw();
-        }
-        if (button.dataset.mat === 'delete') {
-          if (await confirmDialog({ title: 'Delete Playmat', message: 'Remove this playmat from the slot?', confirmLabel: 'Delete', danger: true })) {
-            await deletePlaymat(button.dataset.id);
-            draw();
-          }
-        }
+      on(el, 'click', '[data-mat-pick]', async (event, button) => {
+        await saveAccountProfile({ matId: button.dataset.matPick });
+        applyPalette();
+        draw();
       });
-      fileInput.addEventListener('change', async () => {
-        try {
-          const image = await compressImageFile(fileInput.files?.[0]);
-          await savePlaymat({ slot: targetSlot, image });
-          draw();
-          toast('Playmat saved.');
-        } catch (error) {
-          toast(error.message, { bad: true });
-        }
+      on(el, 'click', '[data-die-pick]', async (event, button) => {
+        await saveAccountProfile({ diceId: button.dataset.diePick });
+        applyPalette();
+        draw();
       });
     }
   });
