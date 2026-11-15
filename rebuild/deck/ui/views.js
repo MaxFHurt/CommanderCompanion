@@ -55,6 +55,17 @@ function navHtml() {
     b('buy', 'Buy<span class="xs-hide">&nbsp;list</span>', 'Buy list') +
     b('library', 'Library');
   $('#nav-r').innerHTML = b('profile', 'Profile');
+  // The header plate (visual rebuild) carries the screen's live title; a long deck name is cut short there and is shown in
+  // full as the tooltip and in the deck's name box.
+  const d = S.view === 'decks' && S.open && cur(),
+    title = d
+      ? d.name || 'Deck'
+      : {decks: 'Decks', deck: 'Builder', search: 'Card Search', buy: 'Buy List', library: 'Library', profile: 'Profile'}[S.view] ||
+        'Deck Builder',
+    tb = $('.brand b');
+  if (tb && tb.textContent !== title) tb.textContent = title;
+  if (tb) tb.title = title;
+  document.documentElement.dataset.route = d ? 'deck-' + (S.tab || 'list') : S.view;
   fitNav();
   let u = $('#undo-fab');
   if (!u) {

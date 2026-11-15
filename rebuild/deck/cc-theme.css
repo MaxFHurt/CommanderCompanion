@@ -1,118 +1,267 @@
-/* Commander Companion look for the Deck Builder.
- * Loaded after the page's own styles: the Deck Builder keeps its layout, and takes Commander Companion's colors,
- * lettering, backdrop and metal frames (the same art files as the game side, from ../assets/img/ui/).
- * Sizes are in px here: this page scrolls like a web page, it does not scale to the screen like the game side. */
+/* Commander Companion look for the Deck Builder (visual rebuild, stage 3c).
+ * Loaded after the page's own styles: the Deck Builder keeps its layout and takes the game side's skin: the chosen
+ * playmat behind everything, the header plate with the screen's live title, faceted steel buttons, recessed panels,
+ * wells and lists. Art: ../assets/skin/ through the --sk-* variables of ../styles/skin-palettes.css, picked by
+ * <html data-palette> (set in index.html from 'cc.look', which the game side writes: one palette for the whole app).
+ * Colours drawn here use --pal-primary / --pal-secondary / --pal-glow (the same values as the game's styles/app.css).
+ * Handoff maps: screens/deck-(route)/(device).layout.json (masters are landscape; portrait keeps the same parts, reflowed).
+ * Sizes are in px: this page scrolls like a web page, it does not scale to the screen like the game side.
+ *
+ * Sections: 1 tokens  2 backdrop  3 header plate and top bar  4 steel buttons  5 panels  6 tabs and segments
+ *           7 wells, lists, chips  8 meters (power bar, stats)  9 pop-ups and card window  10 touch targets  11 palette recolours */
 
+/* ── 1. Tokens ─────────────────────────────────────────────────────────────── */
+:root { --pal-primary: #a052ff; --pal-secondary: #be71ff; --pal-glow: rgba(160, 82, 255, 0.65); }
+:root[data-palette="dark-alley"] { --pal-primary: #ae64f2; --pal-secondary: #ed5eaf; --pal-glow: rgba(174, 100, 242, 0.65); }
+:root[data-palette="night-flight"] { --pal-primary: #8664f7; --pal-secondary: #bc80ff; --pal-glow: rgba(134, 100, 247, 0.65); }
+:root[data-palette="ember"] { --pal-primary: #ff555c; --pal-secondary: #ffb455; --pal-glow: rgba(255, 85, 92, 0.65); }
+:root[data-palette="frost"] { --pal-primary: #a28af7; --pal-secondary: #d1a3ff; --pal-glow: rgba(162, 138, 247, 0.65); }
+:root[data-palette="gold"] { --pal-primary: #ffcf32; --pal-secondary: #ffec8a; --pal-glow: rgba(255, 207, 50, 0.65); }
+:root[data-palette="forge"] { --pal-primary: #ff7928; --pal-secondary: #ffbb5b; --pal-glow: rgba(255, 121, 40, 0.65); }
+:root[data-palette="emerald"] { --pal-primary: #2cd88e; --pal-secondary: #8dffb0; --pal-glow: rgba(44, 216, 142, 0.65); }
 :root {
-  --void: #06040b; --panel: #0d0919; --panel2: #171028; --well: rgba(6, 4, 12, 0.85);
-  --line: rgba(160, 125, 255, 0.32); --chrome: #cfcbdd; --chrome2: #6a4fb3;
-  --violet: #9b5cff; --glow: #b98bff; --ink: #ffffff; --mute: #b3a9d1;
+  --void: #06040b; --panel: #0d0919; --panel2: #171028;
+  --well: linear-gradient(180deg, rgba(3, 2, 7, 0.92), rgba(16, 13, 24, 0.88));
+  --line: color-mix(in srgb, var(--pal-primary) 34%, transparent); --chrome: #d6d2e2; --chrome2: color-mix(in srgb, var(--pal-primary) 55%, #2a2238);
+  --violet: var(--pal-primary); --glow: var(--pal-secondary); --ink: #f6f2ff; --mute: #b7b0c9;
   --gold: #f2c14e; --good: #45d483; --bad: #ff5a6a;
-  /* The game side's condensed lettering (built into Apple devices); elsewhere the Barlow Condensed web font keeps the
-     same narrow widths, so labels and buttons fit as they did. */
   --display: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --label: "Avenir Next Condensed", "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
   --body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --cc-frame: url("../assets/img/ui/button-frame.png");
-  --cc-frame-large: url("../assets/img/ui/button-frame-large.png");
+  --skin-text: #f6f2ff;
+  --skin-shadow: 0 1px 0 #000, 0 0 0.45rem color-mix(in srgb, var(--pal-secondary) 60%, transparent);
+  --skin-readout: url("../assets/skin/shared/inset-readout.webp");
+  --recess: inset 0 2px 5px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.06);
+  --bh: 32px;    /* steel button height with a mouse; touch screens take 36 px (section 10), the smallest comfortable target */
+  --endk: 0.62;  /* steel button ends drawn at this share of the art's own width (dense pages need narrower ends than the menus) */
 }
 
-/* Backdrop: the game side's background instead of the painted night sky. */
-html, body { background: #06040b url("../assets/img/ui/background.webp") center / cover fixed no-repeat; }
+/* ── 2. Backdrop: the chosen playmat (the game side's menus use the same) ───── */
+html { background: var(--void); }
+body { background: transparent; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(rgba(6, 4, 11, 0.38), rgba(6, 4, 11, 0.38)), #06040b var(--sk-playmat) center / cover no-repeat;
+}
 #sky { display: none; }
-h1, h2, h3 { letter-spacing: 0.06em; text-transform: uppercase; font-weight: 800; }
-.chrome-text, .hero h1, .brand b {
-  background: linear-gradient(180deg, #ffffff 0%, #f1edff 34%, #9d96b8 52%, #e9e4fb 70%, #ffffff 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 5px rgba(155, 92, 255, 0.75)) drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
-  text-shadow: none;
+h1, h2, h3 { letter-spacing: 0.04em; text-transform: none; font-weight: 800; }
+.chrome-text, .hero h1 {
+  background: none; color: var(--skin-text); -webkit-text-fill-color: var(--skin-text);
+  filter: none; text-shadow: var(--skin-shadow);
 }
 
-/* Metal frame (the game side's .panel and pop-ups). */
-.panel, .top, .modal .panel, .tile.big {
-  border: solid transparent; border-width: 5px 9.5px; border-radius: 0;
-  border-image: var(--cc-frame-large) 34 70 34 70 / 18.5px 38.5px stretch;
-  background: rgba(12, 8, 24, 0.88) padding-box;
-  box-shadow: none;
+/* ── 3. Header: the screen header plate (art/screen-header) with the live title, steel nav buttons either side ── */
+/* The plate's title box from the maps: left 31.3%, width 37.4%, top 51.2%, height 26.2% (titleBox 493,88,214,22 in 572x84). */
+.top, .top.home { border: 0; border-image: none; background: none; box-shadow: none; padding: 2px 4px; }
+button.brand {
+  position: relative; container-type: inline-size;
+  width: min(100%, 370px); min-width: 250px; aspect-ratio: 1416 / 208; justify-self: center;   /* 370: the old header's height, so the iPad working area keeps its size */
+  background: var(--sk-header) center / contain no-repeat;
 }
-.modal .panel { background: linear-gradient(180deg, #170f2e 0%, #0a0714 100%) padding-box; box-shadow: 0 0 30px rgba(120, 70, 230, 0.5), 0 12px 40px rgba(0, 0, 0, 0.85); }
-.panel::before { display: none; }
-.ph { border-bottom-color: var(--line); }
-.ph h2 { font-size: 18px; }
-.panel { padding: 10px 12px; }   /* the frame is thicker than the old 1px line: less padding keeps panels the same size */
-
-/* Header: the Commander Companion logo, then DECK BUILDER. Home is always there, also on the Deck Builder's home. */
-.top { padding: 2px 10px; }
-.brand img { height: 42px; width: auto; display: block; filter: drop-shadow(0 0 8px rgba(155, 92, 255, 0.55)); }
-.brand b { font: 800 26px/1 var(--display); letter-spacing: 0.14em; margin: 0; }
-.brand span { display: none; }
+.brand img, .brand svg { display: none !important; }
+.brand > div { position: absolute; left: 30.5%; width: 39%; top: 45%; height: 38%; display: flex; align-items: center; justify-content: center; }
+.brand b, .top.home .brand b {
+  display: block; max-width: 100%; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font: 700 clamp(12px, 3.6cqw, 19px) / 1.15 var(--display); letter-spacing: 0.03em; text-transform: none;
+  background: none; color: var(--skin-text); -webkit-text-fill-color: var(--skin-text); text-shadow: var(--skin-shadow); filter: none;
+}
+.brand span { display: none !important; }
+.brand:hover { filter: brightness(1.12); }
 .top:not(.home) { grid-template-columns: auto minmax(0, 1fr) auto; }
 .top:not(.home) #nav-l { flex-wrap: nowrap; }
 .top.home { grid-template-columns: 1fr auto 1fr; }
 .top.home #nav-l { display: flex !important; }
 .top.home #nav-l button:not(.cc-home) { display: none; }
-.nav .cc-home { padding: 0; min-width: 0; border: 0; background: none; box-shadow: none; }
-.nav .cc-home { align-self: stretch; width: calc(var(--nh, 40px) * 3.04); position: relative; }   /* 3.04 = the picture's width / height; fitNav sets --nh to the height of the other buttons */
-.nav .cc-home{ }   /* the home pill is exactly as tall as the other buttons in its row (owner's rule: one row, one size); its picture is drawn inside, so it never sets the row's height */
-.nav .cc-home img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
-.top.home .nav .cc-home { min-height: 40px; }
-.nav .cc-home:hover { box-shadow: none; filter: brightness(1.3); }
-
-/* Buttons: the game side's framed button. */
-.btn, .nav button:not(.cc-home) {
-  border: solid transparent; border-width: 6px 11px; border-radius: 0;
-  border-image: var(--cc-frame) 22 30 fill / 6px 11px stretch;
-  background: none; padding: 2px 4px;
-  font: 800 14px/1.1 var(--label); letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ink); text-shadow: 0 0 6px rgba(190, 150, 255, 0.9), 0 1px 0 #000;
-  box-shadow: none;
+.nav { gap: 4px; align-items: center; }
+.nav .cc-home { padding: 0 2px; background: none; box-shadow: none; align-self: stretch; position: relative; }
+/* Home (back to Commander Companion): its old purple picture does not follow the palette, so it is a steel key like the
+   others, with the house drawn in the palette's colour (the picture stays in the markup for its alt text). */
+.nav .cc-home {
+  --bh: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 76px; min-height: 36px;
+  border: solid transparent; border-width: 0 calc(var(--bh) * var(--endk) * 0.5);
+  border-image: var(--sk-nav-normal) 0 120 fill / 0 calc(var(--bh) * var(--endk)) stretch;
+  font: 700 12px/1 var(--label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--skin-text); text-shadow: var(--skin-shadow);
 }
-.btn:hover, .nav button:not(.cc-home):hover { border-color: transparent; box-shadow: none; filter: brightness(1.25); }
-.btn:active:not([disabled]), .nav button:active { filter: brightness(1.4); }
-.btn.sm { border-width: 5px 9px; border-image-width: 5px 9px; padding: 0 2px; font-size: 12.5px; line-height: 1.05; min-height: 24px; }   /* 24px: the smallest touch target (WCAG 2.2) */
-.btn.pri { background: none; box-shadow: none; filter: hue-rotate(-145deg) saturate(1.25); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
-.btn.pri:hover { filter: hue-rotate(-145deg) saturate(1.25) brightness(1.25); }
-.btn.danger { color: var(--ink); filter: hue-rotate(88deg) saturate(1.5); text-shadow: 0 0 6px rgba(255, 255, 255, 0.6), 0 1px 0 #000; }
-.btn.gold { filter: hue-rotate(160deg) saturate(1.6); }
-.nav { gap: 5px; align-items: center; }
-.nav button:not(.cc-home) { gap: 2px; border-width: 6px 9px; border-image-width: 6px 9px; padding: 0 2px; min-width: 0; font-size: 12px; letter-spacing: 0.08em; color: var(--chrome); }
-.nav button:not(.cc-home) svg { width: 18px; height: 18px; }
-.nav button[aria-current="page"] { color: #fff; filter: brightness(1.35) drop-shadow(0 0 8px rgba(155, 92, 255, 0.7)); }
+.nav .cc-home img { display: none; }
+.nav .cc-home, .top .nav .cc-home { flex-direction: row; }
+.nav .cc-home::before { content: ""; width: 16px; height: 16px; flex: none; background: var(--pal-secondary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 11 12 3l9 8v10h-6v-6H9v6H3z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 11 12 3l9 8v10h-6v-6H9v6H3z'/%3E%3C/svg%3E") center / contain no-repeat; }
+.nav .cc-home::after { content: "Home"; }
+.top.home .nav .cc-home { min-height: 40px; }
+.nav .cc-home:hover { box-shadow: none; filter: brightness(1.2); }
+.nav .cc-home:active { border-image-source: var(--sk-nav-pressed); }
 
-/* Small square buttons, fields, switches, chips: as on the game side. */
-.ico { border-color: var(--line); background: rgba(8, 5, 16, 0.8); border-radius: 8px; }
-.ico:hover { border-color: var(--glow); }
-input[type=text], input[type=search], select, textarea { background: var(--well); border-color: var(--line); border-radius: 8px; }
-input:focus, select:focus, textarea:focus { border-color: var(--glow); box-shadow: 0 0 0 2px rgba(155, 92, 255, 0.35); }
-.seg { border-color: var(--line); border-radius: 8px; background: rgba(8, 5, 16, 0.8); }
-.seg button.on { background: rgba(80, 45, 150, 0.45); box-shadow: inset 0 0 10px rgba(155, 92, 255, 0.5); }
-.chip { border-color: var(--line); background: rgba(8, 5, 16, 0.75); border-radius: 12px; }
-.chip.gold { border-color: rgba(242, 193, 78, 0.7); background: rgba(8, 5, 16, 0.75); }
-.chip.good { border-color: rgba(69, 212, 131, 0.7); background: rgba(8, 5, 16, 0.75); }
-.chip.bad { border-color: rgba(255, 90, 106, 0.7); background: rgba(8, 5, 16, 0.75); }
-.chip.gc { border-color: var(--glow); background: rgba(80, 45, 150, 0.6); }
-.hicon { background: rgba(80, 45, 150, 0.45); border-color: var(--glow); box-shadow: 0 0 12px rgba(155, 92, 255, 0.5); }
-.tile { border-color: var(--line); background: rgba(8, 5, 16, 0.8); border-radius: 8px; }
-.tile:hover, .tile.on { border-color: var(--glow); box-shadow: 0 0 10px rgba(155, 92, 255, 0.4); }
-.tile.big:hover { filter: brightness(1.15); }
-.tab.on { border-color: var(--glow); }
-#toast { border: 1px solid var(--glow); border-radius: 8px; background: rgba(12, 8, 24, 0.96); box-shadow: 0 0 20px rgba(155, 92, 255, 0.65); font-weight: 700; }
-#undo-fab { border-radius: 8px; }
-.modal { background: rgba(3, 2, 8, 0.72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+/* ── 4. Buttons: faceted steel faces (art/nav), states from the existing control state ── */
+/* Three-slice: the angled ends keep their shape (narrowed by --endk), the face between them stretches. */
+.btn, .nav button:not(.cc-home), #undo-fab {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: var(--bh); padding: 2px 4px;
+  border: solid transparent; border-width: 0 calc(var(--bh) * var(--endk) * 0.5); border-radius: 0;
+  border-image: var(--sk-nav-normal) 0 120 fill / 0 calc(var(--bh) * var(--endk)) stretch;
+  background: none; box-shadow: none;
+  font: 700 14px/1.1 var(--label); letter-spacing: 0.05em; text-transform: none; text-align: center;
+  color: var(--skin-text); text-shadow: var(--skin-shadow);
+}
+.btn:hover, .nav button:not(.cc-home):hover { border-color: transparent; box-shadow: none; filter: brightness(1.18); }
+.btn:active:not([disabled]), .nav button:not(.cc-home):active, #undo-fab:active { border-image-source: var(--sk-nav-pressed); filter: none; }
+.btn[disabled] { border-image-source: var(--sk-nav-disabled); opacity: 0.8; color: #a39cb8; text-shadow: 0 1px 0 #000; filter: none; }
+.btn.sm { --bh: 28px; font-size: 12.5px; padding: 0 3px; min-height: var(--bh); line-height: 1.05; }
+/* Primary / committing: the lit tab face. Danger: steel with a red label. Gold: steel with a gold label. */
+.btn.pri, .btn[aria-pressed="true"] { border-image-source: var(--sk-tab-on); background: none; box-shadow: none; filter: none; color: #fff; text-shadow: 0 1px 0 #000, 0 0 0.6rem var(--pal-glow); }
+.btn.pri:hover { filter: brightness(1.18); }
+.btn.danger { filter: none; color: #ffd9dd; text-shadow: 0 1px 0 #000, 0 0 0.6rem rgba(255, 90, 106, 0.85); }
+.btn.gold { filter: none; color: #ffe7a8; text-shadow: 0 1px 0 #000, 0 0 0.6rem rgba(242, 193, 78, 0.7); }
+.btn:focus-visible, .nav button:focus-visible, #undo-fab:focus-visible { outline: 2px solid var(--pal-secondary); outline-offset: 2px; }
+/* Nav buttons: icon over label on wide screens, as before; the face's lit variant marks the current page. */
+.nav button:not(.cc-home) { --bh: 44px; gap: 1px; padding: 0 2px; min-width: 0; font-size: 12px; letter-spacing: 0.04em; color: var(--chrome); }
+.nav button:not(.cc-home) svg { width: 17px; height: 17px; }
+@media (min-width: 821px) { .nav button:not(.cc-home) { --bh: 40px; flex-direction: row; gap: 5px; padding: 0 4px; } }
+.nav button[aria-current="page"] { border-image-source: var(--sk-tab-on); color: #fff; filter: none; text-shadow: 0 1px 0 #000, 0 0 0.6rem var(--pal-glow); }
+#undo-fab { --bh: 42px; padding: 0 6px; font-size: 13px; letter-spacing: 0.06em; }
+#undo-fab:hover { filter: brightness(1.18); }
+
+/* ── 5. Panels: recessed panel (art/dialog), nine-slice from the maps (x .23/.77, y .26/.74) ── */
+/* No "fill" on the page's panels: the art's crown runs below its top slice, and stretched over a tall panel it became a
+   large V across the content. The recess is drawn in CSS (dark stone tone) inside the frame instead. */
+.panel, .modal .panel, .tile.big {
+  border: solid transparent; border-width: 12px 12px 8px; border-radius: 0;
+  border-image: var(--sk-dialog) 63 83 / 30px 46px stretch;
+  background: linear-gradient(180deg, rgba(10, 8, 16, 0.93), rgba(17, 14, 24, 0.93)) padding-box; box-shadow: none;
+}
+.panel::before { display: none; }
+.panel { padding: 4px 10px; }   /* the frame is thicker than the old one: less padding keeps the iPad working area its height */
+.ph { border-bottom-color: var(--line); }
+.ph h2 { font-size: 18px; color: var(--skin-text); text-shadow: var(--skin-shadow); }
+/* Panel titles sit in the map's title readout (art/status/inset-readout). */
+.pane > .ph, .side > .ph, .panel > .ph:first-child {
+  border-bottom: 0; padding: 4px 12px; border-image: var(--skin-readout) 12 fill / 8px stretch;
+}
+.tile.big { border-width: 14px 14px 10px; }
+.tile.big:hover { filter: brightness(1.12); box-shadow: none; }
+.tile { border-color: var(--line); background: var(--well); border-radius: 8px; box-shadow: var(--recess); }
+.tile:hover, .tile.on { border-color: var(--glow); box-shadow: var(--recess), 0 0 10px var(--pal-glow); }
+.tile.big .tb { background: none; }
+.hicon { background: color-mix(in srgb, var(--pal-primary) 35%, #0b0814); border-color: var(--glow); box-shadow: 0 0 12px var(--pal-glow); }
+/* Footer ornament (art/separator) above the fan-content notice. */
+.app > footer::before { content: ""; display: block; width: 260px; max-width: 70%; height: 18px; margin: 0 auto 6px; background: var(--sk-separator) center / 100% 100% no-repeat; }
+.app.home > footer::before { height: 14px; margin-bottom: 3px; }
+
+/* ── 6. Tabs and segmented choices: the tab faces (art/tab-key) ──────────────── */
+.tabs { border-bottom: 0; gap: 4px; }
+.tab {
+  --bh: 40px; min-height: var(--bh);
+  border: solid transparent; border-width: 0 calc(var(--bh) * var(--endk) * 0.5); border-radius: 0;
+  border-image: var(--sk-tab-off) 0 100 fill / 0 calc(var(--bh) * var(--endk)) stretch;
+  background: none; box-shadow: none; padding: 3px 4px;
+  font-family: var(--label); font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mute); text-shadow: 0 1px 0 #000;
+}
+.tab { font-size: 15px; line-height: 1.05; }
+.tab.on { border-image-source: var(--sk-tab-on); color: #fff; box-shadow: none; filter: brightness(1.2) drop-shadow(0 0 5px var(--pal-glow)); text-shadow: 0 1px 0 #000, 0 0 0.6rem var(--pal-glow); }
+.tab:hover:not(.on) { color: var(--ink); filter: brightness(1.15); }
+.tab em { background: color-mix(in srgb, var(--pal-primary) 30%, transparent); }
+.seg { border: 0; border-radius: 0; background: none; overflow: visible; gap: 3px; }
+.seg button {
+  --bh: 36px; min-height: var(--bh);
+  border: solid transparent; border-width: 0 calc(var(--bh) * var(--endk) * 0.5);
+  border-image: var(--sk-tab-off) 0 100 fill / 0 calc(var(--bh) * var(--endk)) stretch;
+  background: none; padding: 2px 3px; color: var(--mute); text-shadow: 0 1px 0 #000;
+}
+.seg button + button { border-left: solid transparent; border-left-width: calc(var(--bh) * var(--endk) * 0.5); }
+.seg button.on { border-image-source: var(--sk-tab-on); background: none; box-shadow: none; color: #fff; text-shadow: 0 1px 0 #000, 0 0 0.6rem var(--pal-glow); }
+
+/* ── 7. Input wells, list rows, chips, checks ────────────────────────────── */
+/* Wells (art/input-well): the frame is drawn over the existing border, so field sizes are unchanged. */
+input[type=text], input[type=search], input[type=number], select, textarea {
+  border: 1px solid transparent; border-radius: 0;
+  border-image: var(--sk-input-well) 30 48 fill / 10px 16px stretch;
+  background: none; box-shadow: none; padding-inline: 14px; color: var(--ink);
+}
+textarea { border-image: var(--sk-input-well) 30 48 fill / 12px 16px stretch; padding: 10px 14px; }
+input:focus, select:focus, textarea:focus { border-color: transparent; box-shadow: none; filter: drop-shadow(0 0 0.35rem var(--pal-glow)); }
+select option { background: #0d0919; color: var(--ink); }
+/* Narrow pickers (Card search filters): slimmer well ends so the chosen value stays readable; the list shows it in full. */
+select { padding-inline: 9px 4px; border-image-width: 10px 11px; }
+.filters select, .filters input { font-size: 14px; }
+/* Lists: recessed rows. Rows that carry a coloured edge (add / cut, in / out) keep it. */
+.path, .rec, .pre, .tierbox, .opt, .cmdbox { background: var(--well); border-color: var(--line); box-shadow: var(--recess); }
+.sgrid > div, .qty button { background: var(--well); border-color: var(--line); box-shadow: var(--recess); }
+.scroll::-webkit-scrollbar-track { background: #0b0812; }
+.scroll::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--pal-primary) 55%, #2a2238); }
+.dl { border-bottom-color: color-mix(in srgb, var(--pal-primary) 18%, #0b0814); }
+.dl:hover { background: color-mix(in srgb, var(--pal-primary) 14%, transparent); }
+.statbar { border: 0; border-radius: 0; border-image: var(--skin-readout) 12 fill / 8px stretch; background: none; box-shadow: 0 6px 12px -8px #000; }
+.ico { border-color: var(--line); background: var(--well); border-radius: 6px; box-shadow: var(--recess); color: var(--chrome); }
+.ico:hover { border-color: var(--glow); color: #fff; }
+.chip { border-color: var(--line); background: rgba(6, 4, 12, 0.82); border-radius: 12px; }
+.chip.gold { border-color: rgba(242, 193, 78, 0.7); background: rgba(6, 4, 12, 0.82); }
+.chip.good { border-color: rgba(69, 212, 131, 0.7); background: rgba(6, 4, 12, 0.82); }
+.chip.bad { border-color: rgba(255, 90, 106, 0.7); background: rgba(6, 4, 12, 0.82); }
+.chip.gc { border-color: var(--glow); background: color-mix(in srgb, var(--pal-primary) 45%, #0b0814); }
+/* Check boxes drawn by the page (.chk) take the game's check art; the state stays in the button's class. */
+.chk i { width: 24px; height: 24px; border: 0; border-radius: 0; background: var(--sk-check-unchecked) center / contain no-repeat; }
+.chk.on i { background: var(--sk-check-checked) center / contain no-repeat; border: 0; }
+.chk.on i::after { content: none; }
+.chk:disabled i { background-image: var(--sk-check-disabled); }
+input[type=checkbox] { accent-color: var(--pal-primary); }
+.more summary, .bsec summary .lab::before { color: var(--glow); }
+
+/* ── 8. Meters: the Upgrades power bar and the stats bars in recessed tracks, filled in the palette ── */
+.meter > i, .tmeter > i { background: linear-gradient(180deg, #030207, #120e1c); border: 1px solid rgba(255, 255, 255, 0.08); box-shadow: var(--recess); }
+.meter i b { background: linear-gradient(90deg, color-mix(in srgb, var(--pal-primary) 70%, #000), var(--pal-secondary)); box-shadow: 0 0 8px var(--pal-glow); }
+.meter.good i b { background: linear-gradient(90deg, #1c8a52, var(--good)); box-shadow: 0 0 8px rgba(69, 212, 131, 0.6); }
+.meter.bad i b { background: linear-gradient(90deg, #9a2444, var(--bad)); box-shadow: 0 0 8px rgba(255, 90, 106, 0.6); }
+.meter.warn i b { background: linear-gradient(90deg, #9a6414, var(--warn)); box-shadow: 0 0 8px rgba(242, 169, 59, 0.6); }
+.tmeter > i { height: 14px; }
+.tmeter > i > b { background: linear-gradient(90deg, color-mix(in srgb, var(--pal-primary) 70%, #000), var(--pal-secondary) 70%, var(--gold)); box-shadow: 0 0 10px var(--pal-glow); }
+.tml.ty i { background: var(--pal-primary); }
+.prog span.done::before { background: linear-gradient(90deg, var(--pal-primary), var(--pal-secondary)); }
+
+/* ── 9. Pop-ups and the card window ─────────────────────────────────────── */
+.modal { background: rgba(3, 2, 8, 0.66); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.modal .panel { border-width: 20px 16px 14px; border-image: var(--sk-dialog) 63 83 / 36px 56px stretch; }
+.modal .panel > .ph { padding: 4px 12px; border-bottom: 0; border-image: var(--skin-readout) 12 fill / 8px stretch; }
+.modal .panel > .ph h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mscroll { border-top-color: var(--line); }
+.card.real img, .prints img { background: #120d1d; }
+#toast { border: 1px solid var(--glow); border-radius: 8px; background: rgba(10, 7, 18, 0.96); box-shadow: 0 0 20px var(--pal-glow); font-weight: 700; }
 a { color: var(--glow); }
+progress { accent-color: var(--pal-primary); }
 
-@media (max-width: 1100px) {
-  .brand b { font-size: 20px; }
-  .brand img { height: 40px; }
+/* ── 10. Touch screens: every control at least 36 px tall; small square buttons 36 px ── */
+@media (pointer: coarse) {
+  .btn, .btn.sm { --bh: 36px; min-height: 36px; }
+  .ico, .qty .ico { width: 36px; height: 36px; }
+  .chk, .more summary { min-height: 36px; }
+  .tab { --bh: 40px; }
+}
+
+/* ── 11. Palette recolours: the page's own purple accents follow the chosen palette ── */
+.think::before { border-top-color: var(--glow); }
+.seg button.on, .tab.on, .nav button[aria-current="page"] { background: none; }
+.dl.sel, .dl.on { background: color-mix(in srgb, var(--pal-primary) 18%, transparent); }
+button.card:hover { box-shadow: 0 0 0 2px var(--glow), 0 0 22px var(--pal-glow); }
+.prints button.on { border-color: var(--gold); }
+
+/* Headers on short or narrow screens. */
+@media (max-width: 820px) {
+  .brand { width: min(100%, 470px); min-width: 0; }
+  .top .nav button:not(.cc-home) { --bh: 38px; --endk: 0.44; flex-direction: row; gap: 4px; font-size: clamp(10px, 3vw, 13px); letter-spacing: 0; }
+  .nav .cc-home { min-height: 38px; }
+  .top:not(.home) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 500px) {
+  /* upright phones: four steel keys a row, the label alone (each keeps its accessible name; the icon would crowd the face) */
+  .top .nav button:not(.cc-home) svg { display: none; }
 }
 @media (orientation: landscape) and (max-height: 560px) {
-  .brand img { display: none; }
-  .brand b { font-size: 17px; letter-spacing: 0.1em; }
-  .nav button:not(.cc-home) { font-size: 11px; border-width: 6px 8px; border-image-width: 6px 8px; }
+  .top, .top.home { padding: 0 2px; }
+  .brand { width: 300px; min-width: 200px; flex: 0 1 300px; margin-right: auto; }
+  .top.home .brand { margin: 0 auto; }
+  .brand b, .top.home .brand b { font-size: 13px; }
+  .nav button:not(.cc-home) { --bh: 36px; font-size: 11px; }
 }
-.tab { font-family: var(--label); font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-/* Touch screens: framed buttons stay comfortable to tap, as the page's own touch rules intend. */
-@media (pointer: coarse) { .btn, .btn.sm { min-height: 30px; } }
+.tab { font-family: var(--label); }
 
 /* iPad safe area (owner's iPad, 1 Nov 2026): the header sat under the status bar and the frames ran under the screen's
    rounded corners and home bar. Every edge keeps clear of the system bars and corners: the page, pop-ups and the undo

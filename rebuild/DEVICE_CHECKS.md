@@ -150,5 +150,12 @@ V41. ☐ Host tools / Edit game: Players panel (life steppers, More...) and Game
 V42. ☐ Table Tracker: title plate, one framed card per player (name, life with - / +, status, counters, mana, tax, tracked cards), Game Log panel, steel buttons for Home / Next Turn / Undo / Settings / Profile and the bottom row; every popup (life, status, counters, Edit Players / Decks, Game Stats, Track a Card, Table Menu, End Game) uses the same frame. The host's Table / Judge switch works and the Judge panel keeps Reverse, Undo Last, Devices.
 V43. ☐ Host device: Table View (one panel per player: name, life, commander, Counters / Graveyard / Exile / Command zone buttons, battlefield and lands cards that open their detail) and Judge View (Players panel, Plays panel with Reverse, Stack, Undo Last, Full Log); bottom row has Table / Judge, Game Log, Stack, Undo, Host Tools.
 V44. ☐ All of V39-V43 on the iPad (panels taller, centred) and in Ember and Frost.
+## Deck Builder (visual rebuild, stage 3c)
+V32. ☐ Open the Deck Builder from the game side after choosing a playmat: the Deck Builder shows the same playmat behind it and the same palette (try Amethyst, Ember, Emerald); a reward mat shows its own picture.
+V33. ☐ Header plate: the title reads Deck Builder on home, then Decks, Builder, Card Search, Buy List, Library, Profile, and the deck's name with a deck open; a very long deck name ends in "..." on the plate (full name in the deck's name box). Tapping the plate still goes to the Deck Builder home.
+V34. ☐ Every button is a steel key and stays easy to tap (no key under about 36 px tall); the current page's top key and the chosen tab are lit; Delete keeps its red label; disabled keys are dimmed.
+V35. ☐ iPhone held sideways: one header line (plate on the left, Home and icon keys on the right); upright: the plate on top, the keys four to a row with their labels. iPad portrait and landscape: plate in the middle, keys either side; nothing runs under the notch, rounded corners or home bar.
+V36. ☐ Panels, the card window and pop-ups (Show all details, Fix, Export) have the metal frame with the crystal; text fields and pickers sit in recessed wells and the chosen value stays readable in the Card search filters.
+V37. ☐ Upgrades: the power bar fills in the palette colour with the Budget / Mid / Apex marks where they were; Build stats bars, numbers and the bracket line read as before (no number changes).
 
 Reply with the numbers that failed and a screenshot.

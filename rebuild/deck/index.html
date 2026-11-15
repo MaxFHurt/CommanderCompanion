@@ -430,7 +430,23 @@ a{color:var(--glow)}
 </style>
 <link rel="preconnect" href="https://cards.scryfall.io" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="../styles/skin-palettes.css?v=182">
 <link rel="stylesheet" href="cc-theme.css?v=182">
+<script>
+// One palette for the whole app (visual rebuild): the game side writes the chosen playmat's palette to 'cc.look'
+// (src/app/theme.js); the art for it comes from ../styles/skin-palettes.css. Before first paint, so nothing flashes.
+(function(){
+  function apply(){
+    var r = document.documentElement, l = null;
+    try { l = JSON.parse(localStorage.getItem('cc.look') || 'null'); } catch (e) {}
+    r.dataset.palette = l && /^[a-z-]{2,20}$/.test(l.palette) ? l.palette : 'amethyst';
+    var ok = function(u){ return typeof u === 'string' && /^assets\/skin\/mats\/[a-z0-9-]+\/(pad|phone)\.webp$/.test(u); };
+    var wide = innerWidth / Math.max(1, innerHeight) > 1.85, m = l && (wide && ok(l.phone) ? l.phone : ok(l.pad) ? l.pad : '');
+    if (m) r.style.setProperty('--sk-playmat', 'url("../' + m + '")'); else r.style.removeProperty('--sk-playmat');
+  }
+  apply(); addEventListener('storage', function(e){ if (e.key === 'cc.look') apply(); }); addEventListener('resize', apply);
+})();
+</script>
 </head>
 <body>
 

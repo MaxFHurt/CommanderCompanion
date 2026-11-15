@@ -20,5 +20,10 @@ export function applyPalette(profile = loadProfile()) {
   // A reward die has its own picture (no palette die): the gameplay die face uses it (styles/game-board.css --sk-die).
   if (die.art) root.style.setProperty('--sk-die', `url("${new URL(die.art, document.baseURI).href}")`);
   else root.style.removeProperty('--sk-die');
+  // The Deck Builder (deck/, same origin) reads the resolved look from here: one palette for the whole app.
+  try {
+    const look = { palette: root.dataset.palette, ...(mat.imagePhone ? { pad: mat.image, phone: mat.imagePhone } : {}) };
+    localStorage.setItem('cc.look', JSON.stringify(look));
+  } catch { /* storage unavailable */ }
   return id;
 }
