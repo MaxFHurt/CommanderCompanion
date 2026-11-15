@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Commander Companion · Monster Siege</title>
+<link rel="stylesheet" href="siege/siege.css?v=4">
+<script defer src="siege/rigs.js?v=9"></script>
+<script defer src="siege/motion.js?v=9"></script>
+<script defer src="siege/scene.js?v=10"></script>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Monster Siege</h1>
+    <div class="controls">
+      <button id="start" type="button" disabled>New encounter</button>
+      <button id="pause" type="button" disabled>Pause</button>
+    </div>
+  </header>
+  <div class="battlefield-wrap">
+    <canvas id="battlefield" width="1363" height="936" tabindex="0" aria-label="Commander Companion battlefield. Tap or press Escape during the encounter to restore the screen."></canvas>
+    <aside id="hero-note" class="hero-note" aria-labelledby="note-author" hidden>
+      <p id="note-author" class="note-author"></p>
+      <blockquote id="note-message"></blockquote>
+      <button id="dismiss-note" type="button">Dismiss</button>
+    </aside>
+  </div>
+  <p id="status" role="status" aria-live="polite">Loading the battlefield and 3D characters…</p>
+</main>
+</body>
+</html>

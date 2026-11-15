@@ -37,6 +37,19 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Monster Siege test page — 15 Nov 2026
+
+- The hero’s final quip stays as a dismissible note over the restored battlefield. Refreshing the test page keeps the note, and starting a new encounter clears it.
+
+- Marsh Stalker and Frost Drake walk on four limbs, Ember Raptor stays bipedal, Ironback walks on its knuckles, Slag Orc stands upright, and Gutter Troll takes a longer hunched stride. Reptiles open with a bite and an articulated tail swipe. The ogre, orc and troll open with a punch and a kick. Dorsal plates and side armor attach to the underlying torso or tail joints.
+
+- Attack-specific keyframes add windup, weight transfer, contact and follow-through to smash, claw, bite, stomp and throw. The elbow and wrist use fixed bone lengths, including climbing and hero combat. Weapons and grabbed panels stay aligned with the solved wrists.
+
+- Climbing knees and ankles keep fixed bone lengths and feet brace below the ledge. Climbing starts after all nine bottom targets break. Smash, bite and stomp break targets at contact, and elevated assets can be smashed, bitten or thrown.
+
+- The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
+- Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
 ### Build 114 — 15 Nov 2026 (app 1.0.0-rebuild.114; Deck Builder unchanged, 0.9.71): visual rebuild, behaviour part (before the art)
 - Owner, 15 Nov: visual rebuild is priority 1 (handoff in rebuild/roadmap/); answers recorded in ROADMAP.md section 0.
 - Game screen: the centre opponent's seat and battlefield above yours, other opponents compact at the sides; tapping a side seat swaps it into the centre. Status light beside every life total (green healthy, yellow temporary status, red poison or harmful lasting effect) opens player details without rotating. Separate Combat / Attack / Next Phase / End Turn (Draw with the real-deck table rule) shown only when legal; the suggested-action button is gone. Phone-sized screens show the 3 newest log entries. Stack, Undo, Board, Table, Host Tools grouped under the log.
