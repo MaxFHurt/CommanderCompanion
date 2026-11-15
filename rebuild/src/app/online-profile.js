@@ -15,11 +15,13 @@ import { confirmDialog } from '../ui/modal.js';
 import { initProfileStore } from '../data/profile.js';
 import { initDeckStore } from '../data/deck-store.js';
 import { initPlaymats } from '../data/playmats.js';
+import { applyPalette } from './theme.js';
 
 /** After a restore: the stores read the new profile, decks and playmats (they keep a copy in memory). */
 async function restoreAndReload(backup) {
   await restoreProfileBackup(backup);
   await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+  applyPalette();
 }
 
 const LINK_KEY = 'cc-online-profile';
@@ -180,6 +182,7 @@ export const syncProfileOnOpen = once(async () => {
 export async function pushProfileNow() {
   if (!onlineProfileLink()) return 'off';
   await Promise.allSettled([initProfileStore(), initDeckStore(), initPlaymats()]);
+  applyPalette();
   return autoSaveProfile();
 }
 

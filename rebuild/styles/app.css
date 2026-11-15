@@ -35,6 +35,18 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
+/* Palette (visual handoff palettes.json): set by the chosen playmat via <html data-palette> (app/theme.js).
+ * Only tokens for now; screens adopt them in the reskin. Amethyst is the app's current look. */
+:root { --pal-primary: #a052ff; --pal-secondary: #be71ff; --pal-glow: rgba(160, 82, 255, 0.65); }
+:root[data-palette="amethyst"] { --pal-primary: #a052ff; --pal-secondary: #be71ff; --pal-glow: rgba(160,82,255, 0.65); }
+:root[data-palette="dark-alley"] { --pal-primary: #ae64f2; --pal-secondary: #ed5eaf; --pal-glow: rgba(174,100,242, 0.65); }
+:root[data-palette="night-flight"] { --pal-primary: #8664f7; --pal-secondary: #bc80ff; --pal-glow: rgba(134,100,247, 0.65); }
+:root[data-palette="ember"] { --pal-primary: #ff555c; --pal-secondary: #ffb455; --pal-glow: rgba(255,85,92, 0.65); }
+:root[data-palette="frost"] { --pal-primary: #a28af7; --pal-secondary: #d1a3ff; --pal-glow: rgba(162,138,247, 0.65); }
+:root[data-palette="gold"] { --pal-primary: #ffcf32; --pal-secondary: #ffec8a; --pal-glow: rgba(255,207,50, 0.65); }
+:root[data-palette="forge"] { --pal-primary: #ff7928; --pal-secondary: #ffbb5b; --pal-glow: rgba(255,121,40, 0.65); }
+:root[data-palette="emerald"] { --pal-primary: #2cd88e; --pal-secondary: #8dffb0; --pal-glow: rgba(44,216,142, 0.65); }
+
 /* ── 2. Base ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -629,6 +641,10 @@ input, textarea { user-select: text; -webkit-user-select: text; }
 .mat-slot { display: grid; gap: 0.4rem; align-content: start; }
 .mat-slot__preview { aspect-ratio: 2 / 1; border: 1px solid var(--line-soft); border-radius: 0.8rem; background: #150e2a center / cover no-repeat; display: grid; place-items: center; font-size: 2.4rem; color: var(--accent-strong); }
 .mat-slot.is-locked { opacity: 0.6; }
+.mat-slot.is-on .mat-slot__preview { border-color: var(--pal-primary); box-shadow: 0 0 0.8rem var(--pal-glow); }
+.mat-slot button.mat-slot__preview { cursor: pointer; padding: 0; width: 100%; color: inherit; }
+.mat-slots--dice .mat-slot__preview { aspect-ratio: 1 / 1; max-width: 9rem; justify-self: start; border-radius: 50%; }
+.profile-section-title { margin: 1.4rem 0 0.6rem; font: 700 1.3rem var(--font-head); letter-spacing: 0.08em; text-transform: uppercase; }
 .mat-slot strong { font: 700 1.2rem var(--font-head); letter-spacing: 0.08em; text-transform: uppercase; }
 .mat-slot small { font-size: 1rem; line-height: 1.25; }
 .mat-slot .row { flex-wrap: wrap; gap: 0.4rem; }

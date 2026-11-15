@@ -75,4 +75,11 @@ A2. ☐ Close and reopen the app → expect no sign-in again.
 A3. ☐ On a second device: Sign in with the same email → expect your profile loads by itself, no key asked.
 A4. ☐ Settings → Backup → Account shows your email; Sign out → the profile stays on the device.
 
+## Playmats, palette and life dice (visual rebuild, step 1)
+M1. ☐ Profile → Playmats and Dice → expect eight mats; Amethyst open and in use, the other seven locked, each showing the achievement that opens it. No upload button anywhere.
+M2. ☐ After enough games (e.g. 10 for Dark Alley) the mat unlocks; tap it → "In use"; the app looks unchanged for now (colours arrive with the reskin). Close and reopen the app → still selected.
+M3. ☐ Life dice: nine choices (Match playmat plus eight dice); pick one → it stays when you change the playmat. Match playmat is the default.
+M4. ☐ A profile that had an uploaded playmat before this build opens with Amethyst and nothing missing. Player setup and Table Tracker setup list only unlocked mats.
+M5. ☐ Phone and iPad: the picker fits without sideways scrolling and the thumbnails are easy to tap.
+
 Reply with the numbers that failed and a screenshot.
