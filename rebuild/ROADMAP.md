@@ -56,7 +56,12 @@ Apply the supplied art to every screen (51 routes incl. Deck Builder), iPhone an
 cover landscape); 7c (landing art, enlarge small buttons) folds in; centre-opponent rotation, eight playmats, independent dice
 are in scope: check what exists and flag gaps before coding; send iPhone+iPad screenshot pairs after theme+headers, after
 gameplay, after each screen batch, full device pass at the end; card rules batch 6 held until this is integrated and tested.
-Gap inventory: `rebuild/roadmap/visual-handoff/GAPS.md`. Assets: 17 ZIPs to upload to rebuild/roadmap/visual-handoff/.
+Gap inventory: `rebuild/roadmap/visual-handoff/GAPS.md`.
+Owner's answers to the gaps (15 Nov): no uploaded mats ("if we give players free choice to upload our upgrades mean nothing"):
+eight built-in mats, Amethyst free, the other seven unlocked by the existing slot achievements (palettes.json order); one palette
+for the whole app, set by the chosen playmat; status light green = healthy, yellow = temporary status, red = poison or harmful
+lasting effects (replaces the handoff's always-amber light); separate Draw / Attack / next phase / End Turn jewels shown only
+when legal, the suggested-action button goes. Assets: 17 ZIPs to upload to rebuild/roadmap/visual-handoff/.
 
 ## 1. Check first after the reset (owed from the minimum-testing week)
 
