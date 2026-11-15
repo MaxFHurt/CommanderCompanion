@@ -34,7 +34,17 @@ FAMILIES = [
     ('toggle-thumb', 'thumb', ['normal', 'pressed', 'disabled'], (None, 96)),
     ('attack', 'start', ['normal', 'pressed', 'disabled'], (None, 360)),
     ('phase', 'continue', ['normal', 'pressed', 'disabled'], (None, 360)),
+    ('utility', 'utility', ['normal', 'pressed', 'disabled'], (None, 120)),   # game: Stack / Undo / Board / Table / Host Tools
 ]
+# Gameplay (stage 2): one-piece chassis per device (the housings are baked in) and the life die, per palette.
+# (handoff path with {p} for the palette, output name, (max_w, max_h) or None)
+GAME = [
+    ('art/chassis/iPhone-{p}-edge.png', 'chassis-phone', (1800, None)),   # full-bleed iPhone foreground, 1160 x 535 map
+    ('art/chassis/iPad-{p}.png', 'chassis-tablet', None),                 # iPad foreground, 950 x 610 illustration
+    ('life-dice/{p}.png', 'die', (None, 200)),                            # the life die (chosen independently: data-dice)
+]
+# The player status light (art/status, amber in the handoff) tinted per state (owner, 15 Nov: green / yellow / red).
+STATUS_TINTS = {'green': 105, 'yellow': 18, 'red': -32}   # hue shift in degrees from the amber lens
 QUALITY = 82
 
 
@@ -60,6 +70,25 @@ def save(im, out, lossless=False):
     return os.path.getsize(out)
 
 
+def hue_shift(im, degrees):
+    """Rotate the hue of the coloured (lit) pixels; the steel rim (grey) keeps its look."""
+    import colorsys
+    px = im.load()
+    out = im.copy()
+    po = out.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if not a:
+                continue
+            h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+            if s < 0.25:
+                continue
+            r2, g2, b2 = colorsys.hls_to_rgb((h + degrees / 360) % 1, l, s)
+            po[x, y] = (round(r2 * 255), round(g2 * 255), round(b2 * 255), a)
+    return out
+
+
 def write_css(root):
     """styles/skin-palettes.css: one block of --sk-* image variables per palette. A palette's images download only once
     its block applies, i.e. when that playmat is chosen. Both this file and skin.css live in styles/, so the relative
@@ -74,7 +103,14 @@ def write_css(root):
                 var = f'--sk-{name}' if states == ['normal'] else f'--sk-{name}-{st}'
                 file = f'{name}.webp' if states == ['normal'] else f'{name}-{st}.webp'
                 decl.append(f'{var}: url("../assets/skin/{pid(p)}/{file}")')
+        for _, name, _ in GAME:
+            if name != 'die':
+                decl.append(f'--sk-{name}: url("../assets/skin/{pid(p)}/{name}.webp")')
         lines.append(sel + ' {\n  ' + ';\n  '.join(decl) + ';\n}')
+    # The life die follows data-dice (data/dice.js: chosen on its own, default the playmat's die), not the palette.
+    for p in PALETTES:
+        sel = ':root, :root[data-dice="amethyst"]' if p == 'Amethyst' else f':root[data-dice="{pid(p)}"]'
+        lines.append(f'{sel} {{ --sk-die: url("../assets/skin/{pid(p)}/die.webp"); }}')
     with open(os.path.join(root, 'styles', 'skin-palettes.css'), 'w') as f:
         f.write('\n'.join(lines) + '\n')
 
@@ -101,6 +137,10 @@ def main():
 
     put('art/identity/Commander-Companion-Crest.png', 'shared/crest.webp', (None, 220))
     put('art/status/inset-readout.png', 'shared/inset-readout.webp', None, lossless=True)
+    light = Image.open(os.path.join(src, 'art/status/player-status-light.png')).convert('RGBA').resize((96, 96), Image.LANCZOS)
+    for state, shift in STATUS_TINTS.items():
+        n = save(hue_shift(light, shift), os.path.join(dest, f'shared/status-{state}.webp'))
+        totals['shared'] = totals.get('shared', 0) + n
     for p in PALETTES:
         put(f'playmats/{p}.jpg', f'shared/thumb-{pid(p)}.webp', (320, 180))
         put(f'playmats/{p}.jpg', f'{pid(p)}/playmat.webp', (2360, 1640))
@@ -108,6 +148,8 @@ def main():
             for s in states:
                 out = f'{pid(p)}/{name}.webp' if states == ['normal'] else f'{pid(p)}/{name}-{s}.webp'
                 put(f'art/{fam}/{p}-{s}.png', out, box)
+        for path, name, box in GAME:
+            put(path.format(p=p), f'{pid(p)}/{name}.webp', box)
 
     if '--sizes' in sys.argv:
         print(json.dumps({k: v for k, v in sizes.items() if k.startswith(('shared/', 'amethyst/'))}, indent=0))
