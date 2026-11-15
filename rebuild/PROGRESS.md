@@ -39,6 +39,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Monster Siege test page — 15 Nov 2026
 
+- Marsh Stalker and Frost Drake walk on four limbs, Ember Raptor stays bipedal, Ironback walks on its knuckles, Slag Orc stands upright, and Gutter Troll takes a longer hunched stride. Reptiles open with a bite and an articulated tail swipe. The ogre, orc and troll open with a punch and a kick. Dorsal plates and side armor attach to the underlying torso or tail joints.
+
 - Attack-specific keyframes add windup, weight transfer, contact and follow-through to smash, claw, bite, stomp and throw. The elbow and wrist use fixed bone lengths, including climbing and hero combat. Weapons and grabbed panels stay aligned with the solved wrists.
 
 - Climbing knees and ankles keep fixed bone lengths and feet brace below the ledge. Climbing starts after all nine bottom targets break. Smash, bite and stomp break targets at contact, and elevated assets can be smashed, bitten or thrown.

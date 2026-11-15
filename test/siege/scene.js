@@ -73,12 +73,13 @@ function center(target){
   const [x,y,w,h]=target.rect;
   return [x+w/2,y+h/2];
 }
-function pickHits(mode){
+function pickHits(mode,spec){
   const ground=shuffle(targets.filter(target=>!target.high));
   const count=rampage[mode]??choose([3,4,ground.length-2,ground.length,ground.length+1,ground.length+2,ground.length+3,Infinity]);
   const high=shuffle(targets.filter(target=>target.high));
-  const groundMethods=[...shuffle(['smash','bite','stomp']),...shuffle(['throw','claw'])];
-  const highMethods=shuffle(['throw','smash','bite']);
+  const reptile=spec.form==='drake';
+  const groundMethods=[...spec.attacks,...shuffle(reptile?['claw','throw']:['smash','stomp','throw'])];
+  const highMethods=shuffle(reptile?['throw','claw','bite']:['throw','smash','punch']);
   return [
     ...ground.map((target,i)=>({target,method:groundMethods[i%groundMethods.length]})),
     ...high.map((target,i)=>({target,method:highMethods[i%highMethods.length]}))
@@ -91,7 +92,7 @@ function plan(mode='random',options={}){
     const mid=monsters.includes(options.monster)?options.monster:choose(monsters);
     const hid=heroes.includes(options.hero)?options.hero:choose(heroes);
     const quip=choose(QUIPS);
-    const hits=pickHits(mode);
+    const hits=pickHits(mode,SIEGE_ART[mid]);
     signature=JSON.stringify([mid,hid,hits.map(h=>[h.target.id,h.method]),quip]);
     result={mid,hid,hits,quip};
     if(!history.includes(signature))break;
@@ -103,6 +104,7 @@ function plan(mode='random',options={}){
 function choreograph(encounter){
   const full=encounter.hits.length===targets.length;
   const tempo=full?.85:1;
+  const pace=SIEGE_ART[encounter.mid].locomotion.pace;
   let cursor=0, position=[W+160,FLOOR];
   const segments=[];
   function move(kind,to,ms,options={}){
@@ -113,7 +115,7 @@ function choreograph(encounter){
   }
   function walk(x){
     x=clamp(x,35,W-35);
-    move('walk',[x,FLOOR],clamp(Math.abs(x-position[0])*2.85,295,1500));
+    move('walk',[x,FLOOR],clamp(Math.abs(x-position[0])*2.85/pace,295,1700));
   }
   for(const hit of encounter.hits){
     const t=hit.target,[x,y,w,h]=t.rect;
@@ -150,9 +152,9 @@ function choreograph(encounter){
         hit.launch=SiegeMotion.throwGrip(encounter,finish,hit.release);
       }
     }else{
-      const distance=hit.method==='stomp'?57:hit.method==='bite'?141:103;
+      const distance={stomp:57,bite:141,tail:117,kick:89}[hit.method]??103;
       walk(c[0]+bodySide*distance);
-      const duration={smash:1010,bite:940,stomp:980,claw:880,throw:1210}[hit.method];
+      const duration={punch:920,kick:1030,tail:1160,smash:1010,bite:1060,stomp:980,claw:880,throw:1210}[hit.method];
       const attack=move(hit.method,[position[0],FLOOR],duration,{face:direction,contact:c,hit});
       hit.detach=attack.start+(attack.end-attack.start)*(hit.method==='stomp'?.69:.61);
       hit.release=toss?attack.start+(attack.end-attack.start)*.84:hit.detach;
@@ -263,7 +265,7 @@ function materialBits(hit,t){
       const r=11+q*(54+pureRand(id*17+i)*91);
       ctx.beginPath();ctx.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);ctx.lineTo(x+Math.cos(a)*(r+7+q*9),y+Math.sin(a)*(r+7+q*9));ctx.stroke();
     }
-    if(['smash','stomp','bite'].includes(hit.method)){
+    if(['smash','stomp','bite','kick','punch','tail'].includes(hit.method)){
       ctx.strokeStyle=tint;ctx.lineWidth=(1-q)*3;
       ctx.beginPath();
       ctx.ellipse(x,y,9+q*(hit.method==='stomp'?96:58),5+q*25,0,0,TAU);
@@ -314,24 +316,24 @@ function cracks(){
 }
 function buildFight(start,monster){
   const peril=Math.random()<.76;
+  const [opening,heavy]=SIEGE_ART[monster].attacks;
   const hits=[
-    {kind:'block',time:start+random(1740,1920),'by':'monster'},
+    {kind:'block',time:start+random(1740,1920),by:'monster',technique:opening},
     {kind:'counter',time:start+random(2620,2840),'by':'hero'},
-    {kind:'body',time:start+random(3560,3790),'by':'monster'},
+    {kind:'body',time:start+random(3560,3790),by:'monster',technique:heavy},
   ];
   let down=null,rise=null;
   if(peril){
     down=start+random(4440,4820);
     rise=down+random(960,1330);
-    hits.push({kind:'heavy',time:down,'by':'monster'});
+    hits.push({kind:'heavy',time:down,by:'monster',technique:opening});
     hits.push({kind:'break',time:rise+random(780,980),'by':'hero'});
   }else{
-    hits.push({kind:'block',time:start+random(4480,4750),'by':'monster'});
+    hits.push({kind:'block',time:start+random(4480,4750),by:'monster',technique:opening});
   }
   const counter=hits.at(-1).time+random(1050,1420);
   hits.push({kind:'finish',time:counter,'by':'hero'});
-  return {hitsInFight:hits,down,rise,parry:hits[0].time,counter,defeat:counter+555,
-    technique:choose(SIEGE_ART[monster].attacks.filter(a=>a!=='throw'))};
+  return {hitsInFight:hits,down,rise,parry:hits[0].time,counter,defeat:counter+555};
 }
 function keyAt(keys,t){
   if(t<=keys[0][0])return keys[0][1];

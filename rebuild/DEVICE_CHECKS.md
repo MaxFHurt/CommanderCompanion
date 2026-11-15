@@ -96,5 +96,6 @@ S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs w
 S2. ☐ Watch the entire fight. Strikes meet their targets, the hero can drop and recover, and the battlefield restores after the speech bubble. Tap the battlefield mid-encounter to restore it immediately.
 S3. ☐ Watch smash, bite and stomp on the bottom row. The monster never starts climbing until all nine bottom targets have broken. Watch the knees bend as the creature transfers weight between footholds.
 S4. ☐ Watch the arms during overhead smash, claw swipe, a ledge grab and a hero strike. Shoulders and elbows rotate with constant limb lengths. A held panel rides in the monster’s claw until it flies, and the hero’s weapon stays in hand through the swing.
+S5. ☐ Watch two lizard encounters for bites and tail contacts. Marsh Stalker and Frost Drake plant their front and rear feet, Ember Raptor stays on its rear legs, and Ironback plants its knuckles. Ogre, orc and troll encounters open with a punch and a kick. The back plates follow the body through each move.
 
 Reply with the numbers that failed and a screenshot.
