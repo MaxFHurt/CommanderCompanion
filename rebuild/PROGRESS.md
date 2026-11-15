@@ -39,7 +39,7 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Monster Siege test page — 15 Nov 2026
 
-- The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion.
+- The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
 
 ### Build 114 — 15 Nov 2026 (app 1.0.0-rebuild.114; Deck Builder unchanged, 0.9.71): visual rebuild, behaviour part (before the art)

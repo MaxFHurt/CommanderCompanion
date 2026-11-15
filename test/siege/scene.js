@@ -177,7 +177,7 @@ function rampageActor(e,t){
   shadow(pose.x,FLOOR,1,.56*(1-clamp((FLOOR-pose.y)/420)));
   actors.clear();
   SiegeRigs.draw(actors,e.mid,pose);
-  ctx.drawImage(actors.canvas,0,0);
+  ctx.drawImage(actors.canvas,0,0,W,H);
 }
 
 function paintSocket(target,amount){
@@ -357,7 +357,7 @@ function finalFight(e,t){
   actors.clear();
   SiegeRigs.draw(actors,m,poses.monster);
   SiegeRigs.draw(actors,h,poses.hero);
-  ctx.drawImage(actors.canvas,0,0);
+  ctx.drawImage(actors.canvas,0,0,W,H);
   effects(e,t,poses,action);
 }
 function battleSparks(x,y,t,color,count=12){

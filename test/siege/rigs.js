@@ -31,12 +31,114 @@ const SiegeRigs = (() => {
   const leather = rgb('393039');
   const eyeWhite = rgb('16121d');
 
+  function meshVertices(sides,rings,power) {
+    const vertices=[];
+    function vertex(j,i) {
+      const a=Math.PI*j/rings, b=i*2*Math.PI/sides;
+      const sphere=[Math.sin(a)*Math.cos(b),Math.cos(a),Math.sin(a)*Math.sin(b)];
+      const points=sphere.map(x=>Math.sign(x)*Math.pow(Math.abs(x),power));
+      const normals=sphere.map(x=>Math.sign(x)*Math.pow(Math.abs(x),2-power));
+      return [...points,...normals];
+    }
+    for(let j=0;j<rings;j++){
+      for(let i=0;i<sides;i++){
+        const a=vertex(j,i), b=vertex(j+1,i), c=vertex(j+1,i+1), d=vertex(j,i+1);
+        vertices.push(...a,...b,...c,...a,...c,...d);
+      }
+    }
+    return new Float32Array(vertices);
+  }
+
+  function basis(axis,twist) {
+    const y=unit(axis);
+    const backup=Math.abs(y[0])>.9?[0,0,1]:[1,0,0];
+    const x=unit(cross(y,Math.abs(dot(y,twist))>.97?backup:twist));
+    return [x,y,unit(cross(x,y))];
+  }
+
+  function createSoftwareRenderer(width,height) {
+    const scale=.63;
+    const canvas=document.createElement('canvas');
+    const w=canvas.width=Math.ceil(width*scale);
+    const h=canvas.height=Math.ceil(height*scale);
+    const ctx=canvas.getContext('2d');
+    const image=ctx.createImageData(w,h);
+    const pixels=new Uint32Array(image.data.buffer);
+    const depth=new Float32Array(w*h);
+    const meshes={skin:meshVertices(10,8,1),plate:meshVertices(10,6,.48),edge:meshVertices(6,4,.70)};
+    const key=unit([-.48,-.8,.64]);
+    const highlight=unit([key[0],key[1],key[2]+1]);
+    const backlight=unit([.55,-.32,.1]);
+    const component=(base,offset)=>Math.min(255,Math.max(0,(base+offset)*255))|0;
+    const vertex=new Float32Array(9);
+    function part(center,extent,color,{shape='skin',axis=[0,1,0],twist=[0,0,1],shine=0}={}) {
+      const bases=basis(axis,twist);
+      const mesh=meshes[shape];
+      const [i,j,k]=bases;
+      const [xx,xy,xz]=mul(i,extent[0]);
+      const [yx,yy,yz]=mul(j,extent[1]);
+      const [zx,zy,zz]=mul(k,extent[2]);
+      for(let pos=0;pos<mesh.length;pos+=18){
+        for(let corner=0;corner<3;corner++){
+          const offset=pos+corner*6;
+          const x=mesh[offset], y=mesh[offset+1], z=mesh[offset+2];
+          vertex[corner*3]=(center[0]+xx*x+yx*y+zx*z)*scale;
+          vertex[corner*3+1]=(center[1]+xy*x+yy*y+zy*z)*scale;
+          vertex[corner*3+2]=center[2]+xz*x+yz*y+zz*z;
+        }
+        const ax=vertex[0],ay=vertex[1],az=vertex[2],bx=vertex[3],by=vertex[4],bz=vertex[5],cx=vertex[6],cy=vertex[7],cz=vertex[8];
+        const abx=bx-ax, aby=by-ay, acx=cx-ax, acy=cy-ay;
+        const determinant=abx*acy-aby*acx;
+        if(determinant>-.03)continue;
+        const left=Math.max(0,Math.floor(Math.min(ax,bx,cx)));
+        const right=Math.min(w-1,Math.ceil(Math.max(ax,bx,cx)));
+        const top=Math.max(0,Math.floor(Math.min(ay,by,cy)));
+        const bottom=Math.min(h-1,Math.ceil(Math.max(ay,by,cy)));
+        if(left>right||top>bottom)continue;
+        const nx=(mesh[pos+3]+mesh[pos+9]+mesh[pos+15])/extent[0];
+        const ny=(mesh[pos+4]+mesh[pos+10]+mesh[pos+16])/extent[1];
+        const nz=(mesh[pos+5]+mesh[pos+11]+mesh[pos+17])/extent[2];
+        const magnitude=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+        const sx=(i[0]*nx+j[0]*ny+k[0]*nz)/magnitude;
+        const sy=(i[1]*nx+j[1]*ny+k[1]*nz)/magnitude;
+        const sz=(i[2]*nx+j[2]*ny+k[2]*nz)/magnitude;
+        const rim=(1-Math.abs(sz))**2*Math.max(0,sx*backlight[0]+sy*backlight[1]+sz*backlight[2]);
+        const diffuse=.45+Math.max(0,sx*key[0]+sy*key[1]+sz*key[2])*.74;
+        const specular=Math.max(0,sx*highlight[0]+sy*highlight[1]+sz*highlight[2])**16*(.1+shine*.24);
+        const r=component(color[0]*diffuse,specular+rim*.16);
+        const g=component(color[1]*diffuse,specular*.77+rim*.09);
+        const b=component(color[2]*diffuse,specular*.63+rim*.21);
+        const rgba=(255<<24)|(b<<16)|(g<<8)|r;
+        const inv=1/determinant, db=bz-az, dc=cz-az;
+        for(let py=top;py<=bottom;py++){
+          const dy=py+.5-ay;
+          for(let px=left;px<=right;px++){
+            const dx=px+.5-ax;
+            const v=(dx*acy-dy*acx)*inv;
+            const q=(abx*dy-aby*dx)*inv;
+            if(v<0||q<0||v+q>1)continue;
+            const z=az+v*db+q*dc;
+            const index=py*w+px;
+            if(z<depth[index])continue;
+            depth[index]=z;
+            pixels[index]=rgba;
+          }
+        }
+      }
+    }
+    return {
+      part,
+      clear(){pixels.fill(0);depth.fill(-Infinity);},
+      get canvas(){ctx.putImageData(image,0,0);return canvas;}
+    };
+  }
+
   // Each reusable mesh is transformed by a bone. The shader lights real surface normals in scene space.
   function createRenderer(width,height) {
     const canvas = document.createElement('canvas');
     canvas.width=width; canvas.height=height;
     const gl = canvas.getContext('webgl',{alpha:true,antialias:true,premultipliedAlpha:false,depth:true});
-    if(!gl) throw new Error('Monster Siege needs WebGL for its 3D characters.');
+    if(!gl)return createSoftwareRenderer(width,height);
     const compile = (type,source) => {
       const shader=gl.createShader(type);
       gl.shaderSource(shader,source);gl.compileShader(shader);
@@ -85,23 +187,10 @@ const SiegeRigs = (() => {
     gl.enableVertexAttribArray(position);gl.enableVertexAttribArray(normal);
     const buffers = {};
     function mesh(name,sides,rings,power) {
-      const vertices=[];
-      function vertex(j,i) {
-        const a=Math.PI*j/rings, b=i*2*Math.PI/sides;
-        const sphere=[Math.sin(a)*Math.cos(b),Math.cos(a),Math.sin(a)*Math.sin(b)];
-        const points=sphere.map(x=>Math.sign(x)*Math.pow(Math.abs(x),power));
-        const normals=sphere.map(x=>Math.sign(x)*Math.pow(Math.abs(x),2-power));
-        return [...points,...normals];
-      }
-      for(let j=0;j<rings;j++){
-        for(let i=0;i<sides;i++){
-          const a=vertex(j,i), b=vertex(j+1,i), c=vertex(j+1,i+1), d=vertex(j,i+1);
-          vertices.push(...a,...b,...c,...a,...c,...d);
-        }
-      }
+      const vertices=meshVertices(sides,rings,power);
       const buffer=gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
-      gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(vertices),gl.STATIC_DRAW);
+      gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW);
       buffers[name]={buffer,count:vertices.length/6};
     }
     mesh('skin',18,12,1);
@@ -109,10 +198,7 @@ const SiegeRigs = (() => {
     mesh('edge',8,4,.70);
     let bound;
     function part(center,extent,color,{shape='skin',axis=[0,1,0],twist=[0,0,1],shine=0}={}) {
-      const y=unit(axis);
-      const backup=Math.abs(y[0])>.9?[0,0,1]:[1,0,0];
-      const x=unit(cross(y,Math.abs(dot(y,twist))>.97?backup:twist));
-      const z=unit(cross(x,y));
+      const [x,y,z]=basis(axis,twist);
       const data=buffers[shape];
       if(bound!==data){
         bound=data;
