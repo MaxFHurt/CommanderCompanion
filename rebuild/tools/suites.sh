@@ -31,7 +31,7 @@ done
 NODE_ALL="game mechanics smoke rewards catalog tracker practice rules-server forge-triggers"
 case "$GN" in all) NODE="$NODE_ALL"; SOAK=1;; game) NODE="game mechanics smoke rewards tracker practice"; SOAK=1;; *) NODE=""; SOAK="";; esac
 [ -n "$GP" ] && NODE="${NODE:-smoke}"
-PY="game_ui flows_ui mats_ui net_ui online_ui accounts_ui offline_ui pair_ui challenge_ui tracker_test tracker_net_ui"
+PY="align_check game_ui flows_ui mats_ui net_ui online_ui accounts_ui offline_ui pair_ui challenge_ui tracker_test tracker_net_ui"
 echo "Changed: $(echo $FILES | wc -w) files since $BASE"
 echo "Deck Builder: ${DK:-none}${DK:+ (check.sh $DK live)}"
 echo "Node suites:  ${NODE:-none}${SOAK:+ + soak 40 x3}"
