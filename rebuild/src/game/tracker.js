@@ -353,6 +353,15 @@ export function trackerIssues(state) {
   return [...lost, ...held];
 }
 
+/** How the winner won, read from the other players' counters: 'commander-damage', 'poison' or ''. */
+export function trackerWinMethod(state) {
+  const wid = state.result?.winnerId;
+  if (!wid) return '';
+  const hints = state.players.filter(p => p.id !== wid).flatMap(p => lossHints(state, p));
+  if (hints.some(h => /commander damage/.test(h))) return 'commander-damage';
+  return hints.some(h => /poison/.test(h)) ? 'poison' : '';
+}
+
 /** Shape expected by the profile's game history. */
 export function trackerToGameRecord(state) {
   return {
@@ -363,6 +372,7 @@ export function trackerToGameRecord(state) {
     turnNumber: state.turn,
     cardDefinitions: {},
     postGame: { awards: [] },
+    meta: { winMethod: trackerWinMethod(state) },
     players: state.players.map(p => ({
       playerId: p.id,
       displayName: p.name,

@@ -1,5 +1,7 @@
 import { durableGet, durableSet } from './userdata-db.js';
-import { earnedLabels } from './achievements.js';
+import { earnedLabels, longestDayRun } from './achievements.js';
+import { matUnlockPlan } from './playmats.js';
+import { diceUnlockPlan } from './dice.js';
 const KEY = 'ccv07-profile', DURABLE_KEY = 'profile';
 let cache = null;
 function newTokenId() { try {
@@ -8,18 +10,47 @@ function newTokenId() { try {
 catch {
   return `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 } }
-function blank() { const now = new Date().toISOString(); return { version: 6, token: { id: newTokenId(), schema: 6, createdAt: now, updatedAt: now }, games: 0, wins: 0, awards: {}, milestones: [], players: {}, decks: {}, history: [], account: { displayName: '', tagline: '', avatarGlyph: 'CC', avatarImage: '', preferredPlayerNames: [], favoriteDeckId: '', tableRuleDefaults: null, createdAt: null, updatedAt: null } }; }
+function blank() { const now = new Date().toISOString(); return { version: 6, token: { id: newTokenId(), schema: 6, createdAt: now, updatedAt: now }, games: 0, wins: 0, awards: {}, milestones: [], firsts: {}, streaks: { win: 0, bestWin: 0, bestDays: 0 }, winDecks: [], winColors: [], playDays: [], rewardsShown: [], players: {}, decks: {}, history: [], account: { displayName: '', tagline: '', avatarGlyph: 'CC', avatarImage: '', preferredPlayerNames: [], favoriteDeckId: '', tableRuleDefaults: null, createdAt: null, updatedAt: null } }; }
 function cleanName(x) { return String(x || 'Player').trim() || 'Player'; }
 function playerKey(name) { return cleanName(name).toLowerCase(); }
 function normalize(raw) {
   const base = blank(), now = new Date().toISOString(), source = raw && typeof raw === 'object' ? raw : {};
   const oldToken = source.token && typeof source.token === 'object' ? source.token : {};
-  return { ...base, ...source, version: 6,
+  const out = { ...base, ...source, version: 6,
     token: { id: String(oldToken.id || base.token.id), schema: 6, createdAt: oldToken.createdAt || source.account?.createdAt || now, updatedAt: oldToken.updatedAt || source.account?.updatedAt || now },
+    firsts: { ...(source.firsts || {}) }, streaks: { ...base.streaks, ...(source.streaks || {}) }, winDecks: [...(source.winDecks || [])], winColors: [...(source.winColors || [])], playDays: [...(source.playDays || [])],
     players: { ...(source.players || {}) }, decks: { ...(source.decks || {}) }, history: [...(source.history || [])],
     account: { ...base.account, ...(source.account || {}) }
   };
+  // First launch of the build that adds reward pop-ups: rewards already earned count as shown (no flood).
+  out.rewardsShown = Array.isArray(source.rewardsShown) ? [...source.rewardsShown] : unlockedRewardKeys(out);
+  return out;
 }
+
+/** Keys ("mat:ember", "die:gold") of every earned reward (the free first mat and die are not rewards). */
+export function unlockedRewardKeys(p) {
+  return [
+    ...matUnlockPlan(p).filter(r => r.via && r.unlocked).map(r => `mat:${r.mat.id}`),
+    ...diceUnlockPlan(p).filter(r => r.via && r.unlocked).map(r => `die:${r.die.id}`)
+  ];
+}
+
+/** Rewards earned but not yet announced, as { kind, id, name, primary, secondary }. */
+export function newRewards(p) {
+  const shown = new Set(p.rewardsShown || []);
+  return [
+    ...matUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`mat:${r.mat.id}`)).map(r => ({ kind: 'mat', id: r.mat.id, name: r.mat.name, primary: r.mat.primary, secondary: r.mat.secondary })),
+    ...diceUnlockPlan(p).filter(r => r.via && r.unlocked && !shown.has(`die:${r.die.id}`)).map(r => ({ kind: 'die', id: r.die.id, name: r.die.name, primary: r.die.primary, secondary: r.die.secondary }))
+  ];
+}
+
+export async function markRewardsShown(keys, storage = globalThis.localStorage) {
+  const p = loadProfile(storage);
+  p.rewardsShown = [...new Set([...(p.rewardsShown || []), ...keys])];
+  await persistReliable(p, storage);
+  return p;
+}
+
 function localRead(storage) { try {
   return normalize(JSON.parse(storage?.getItem?.(KEY) || 'null'));
 }
@@ -98,6 +129,22 @@ export async function reconcileProfileDeckLibrary(decks = [], storage = globalTh
     await persistReliable(p, storage);
   return structuredClone(p);
 }
+/** Whether a deck name is one of the Deck Builder's saved decks loaded from a precon (shared storage, read only). */
+export function isPreconDeck(name, storage = globalThis.localStorage) {
+  try {
+    const decks = JSON.parse(storage?.getItem?.('cc.deckProfile') || 'null')?.decks || [];
+    const n = String(name || '').trim().toLowerCase();
+    return !!n && decks.some(d => d?.src === 'precon' && String(d.name || '').trim().toLowerCase() === n);
+  } catch { return false; }
+}
+/** Records a one-time "first" (deckBuilt, deckImported, upgradeApplied …) on this player's profile; no-op when already set. */
+export async function recordFirst(key, storage = globalThis.localStorage) {
+  const p = loadProfile(storage);
+  if (p.firsts?.[key]) return p;
+  p.firsts = { ...(p.firsts || {}), [key]: new Date().toISOString() };
+  await persistReliable(p, storage);
+  return p;
+}
 export async function recordDeckCreated(deck, storage = globalThis.localStorage) {
   const p = loadProfile(storage), id = deck?.id || deck?.name || crypto.randomUUID(), now = new Date().toISOString();
   p.decks[id] = { ...(p.decks[id] || {}), id, name: deck?.name || 'Untitled Deck', commander1: deck?.commander1 || '', commander2: deck?.commander2 || '', analytics: deck?.analytics ? structuredClone(deck.analytics) : p.decks[id]?.analytics || null, importMeta: deck?.importMeta ? structuredClone(deck.importMeta) : p.decks[id]?.importMeta || null, createdOrSavedAt: p.decks[id]?.createdOrSavedAt || now, updatedAt: deck?.updatedAt || now, source: deck?.importMeta?.source || 'deck-editor' };
@@ -141,6 +188,31 @@ export async function recordGame(game, localPlayerId = null, storage = globalThi
     row.decks[did] = { ...(row.decks[did] || {}), id: did, name: gp.deck?.sourceName || did, commander1: commanders[0] || '', commander2: commanders[1] || '', games: (row.decks[did]?.games || 0) + 1, wins: (row.decks[did]?.wins || 0) + (gp.playerId === winnerId ? 1 : 0), lastPlayedAt: row.lastPlayedAt };
     p.players[key] = row;
   }
+  // Firsts and streaks for the achievements (achievements.js says which ones are computed and which are recorded here).
+  const meta = game?.meta || {}, iso = new Date().toISOString(), mark = k => { p.firsts[k] = p.firsts[k] || iso; };
+  const me = (game?.players || []).find(x => x.playerId === localPlayerId);
+  if ((game?.players || []).length >= 4) mark('fourPlayer');
+  if (game?.mode === 'table-tracker') mark('tracker');
+  if (meta.online) mark('online');
+  if (meta.hosted) mark('hosted');
+  if (meta.judge) mark('judge');
+  if (meta.precon) mark('precon');
+  if (localPlayerId && !meta.judge) {
+    if (winnerId === localPlayerId) {
+      p.streaks.win = (p.streaks.win || 0) + 1;
+      p.streaks.bestWin = Math.max(p.streaks.bestWin || 0, p.streaks.win);
+      if (meta.winMethod === 'commander-damage') mark('winCommanderDamage');
+      if (meta.winMethod === 'poison') mark('winPoison');
+      if (meta.winMethod === 'alternate') mark('winAlternate');
+      const did = me?.deck?.savedDeckId || me?.deck?.sourceId || me?.deck?.sourceName || (me?.commanders || []).map(c => c.card?.name).filter(Boolean).join(' + ');
+      if (did) p.winDecks = [...new Set([...p.winDecks, did])];
+      p.winColors = [...new Set([...p.winColors, ...(me?.colors || []).filter(c => 'WUBRG'.includes(c))])];
+    }
+    else
+      p.streaks.win = 0;
+  }
+  p.playDays = [...new Set([...p.playDays, iso.slice(0, 10)])].sort().slice(-30);
+  p.streaks.bestDays = Math.max(p.streaks.bestDays || 0, longestDayRun([...p.playDays, ...p.history.map(h => String(h.at || '').slice(0, 10))]));
   // Achievements are defined once, in achievements.js.
   p.milestones = [...new Set([...p.milestones, ...earnedLabels(p)])];
   const winner = (game?.players || []).find(x => x.playerId === winnerId);
@@ -153,6 +225,7 @@ export async function recordGame(game, localPlayerId = null, storage = globalThi
     winnerName: winner?.displayName || '',
     turnNumber: Number(game?.turnNumber || 0),
     mode: game?.mode || '',
+    online: !!meta.online,
     awards: (game?.postGame?.awards || game?.awards || []).map(a => ({ label: a.label || '', playerId: a.playerId || '', playerName: (game?.players || []).find(x => x.playerId === a.playerId)?.displayName || '' })),
     players: (game?.players || []).map(x => {
       const commanders = (x.commanders || []).map(c => game.cardDefinitions?.[c.cardId]?.name || c.card?.name).filter(Boolean);

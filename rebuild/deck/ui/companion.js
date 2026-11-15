@@ -28,6 +28,21 @@ function ccOpen(screen) {
   persist(); // save now: a change made in the last moment is still waiting for its save timer
   location.href = CC.url;
 }
+// A one-time "first" for the player's achievements (profile.firsts, read by src/data/achievements.js): deckBuilt, deckImported,
+// upgradeApplied. Written straight into the shared profile with a fresh token.updatedAt, so the game side adopts it on its next load.
+let ccQuiet = false; // true while the example deck is made: that is not the player's own deck
+function ccMark(key) {
+  if (ccQuiet) return;
+  try {
+    const p = ccProfile();
+    p.firsts = p.firsts || {};
+    if (p.firsts[key]) return;
+    const now = new Date().toISOString();
+    p.firsts[key] = now;
+    p.token = Object.assign({}, p.token || {}, {updatedAt: now});
+    localStorage.setItem(CC.profileKey, JSON.stringify(p));
+  } catch (e) {}
+}
 // The name from the game side replaces this side's own, before the first render.
 function ccAdoptName() {
   const n = ccName();
