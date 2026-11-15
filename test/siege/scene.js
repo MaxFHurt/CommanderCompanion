@@ -5,6 +5,11 @@ const ctx = scene.getContext('2d');
 const status = document.querySelector('#status');
 const startButton = document.querySelector('#start');
 const pauseButton = document.querySelector('#pause');
+const notePanel = document.querySelector('#hero-note');
+const noteAuthor = document.querySelector('#note-author');
+const noteMessage = document.querySelector('#note-message');
+const dismissNote = document.querySelector('#dismiss-note');
+const NOTE_KEY = 'cc-siege-hero-note';
 const W = scene.width, H = scene.height, FLOOR = 913;
 const params = new URLSearchParams(location.search);
 const TAU = Math.PI * 2;
@@ -473,15 +478,48 @@ function wake(message='Battlefield restored.'){
   pauseButton.textContent='Pause';pauseButton.disabled=true;
   paint(-1);status.textContent=message;
 }
+function showNote(note){
+  const hero=SIEGE_ART[note?.hero];
+  if(!hero?.hero||typeof note.message!=='string'||!note.message.trim()||note.message.length>300)return false;
+  noteAuthor.textContent=hero.name;
+  noteMessage.textContent=note.message;
+  notePanel.style.setProperty('--hero-accent',hero.color);
+  notePanel.hidden=false;
+  status.textContent='Battlefield restored.';
+  return true;
+}
+
+function clearNote(returnFocus=false){
+  const hasFocus=notePanel.contains(document.activeElement);
+  notePanel.hidden=true;
+  try{localStorage.removeItem(NOTE_KEY);}catch{}
+  if(returnFocus&&hasFocus)scene.focus({preventScroll:true});
+}
+
+function leaveNote(){
+  const note={hero:current.hid,message:current.quip};
+  wake();
+  showNote(note);
+  try{localStorage.setItem(NOTE_KEY,JSON.stringify(note));}catch{}
+}
+
+function interrupt(){
+  if(!current)return;
+  const elapsed=(pausedAt??performance.now())-startTime;
+  if(elapsed>=current.line)leaveNote();
+  else wake();
+}
+
 function render(now){
   if(!current||pausedAt!==null)return;
   const t=now-startTime;
+  if(t>=current.end){leaveNote();return;}
   paint(t);
-  if(t>=current.end){wake('Battlefield restored. Start a new encounter to replay.');return;}
   frame=requestAnimationFrame(render);
 }
 function start(mode='random',options={}){
   cancelAnimationFrame(frame);
+  clearNote();
   current=plan(mode,options);
   startTime=performance.now();
   pausedAt=null;pauseButton.disabled=false;pauseButton.textContent='Pause';
@@ -502,12 +540,26 @@ const ready=Promise.all([
   actors=SiegeRigs.createRenderer(W,H);
   for(const target of targets)target.texture=pieceTexture(target);
   paint(-1);startButton.disabled=false;
+  if(!params.has('capture')){
+    let saved;
+    try{saved=JSON.parse(localStorage.getItem(NOTE_KEY));}catch{}
+    if(showNote(saved))return;
+  }
   if(reduced.matches||params.has('capture'))status.textContent='Real Commander Companion battlefield. Start an encounter to play.';
   else start();
 }).catch(error=>{status.textContent=error.message;throw error;});
 startButton.addEventListener('click',()=>start());
 pauseButton.addEventListener('click',pause);
-scene.addEventListener('pointerdown',event=>{if(current){event.preventDefault();wake();}});
-scene.addEventListener('keydown',event=>{if(current&&['Escape','Enter',' '].includes(event.key)){event.preventDefault();wake();}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&current)wake();});
+dismissNote.addEventListener('click',()=>clearNote(true));
+scene.addEventListener('pointerdown',event=>{if(current){event.preventDefault();interrupt();}});
+scene.addEventListener('keydown',event=>{
+  if(current&&['Escape','Enter',' '].includes(event.key)){event.preventDefault();interrupt();}
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!notePanel.hidden&&!event.defaultPrevented){
+    event.preventDefault();
+    clearNote(true);
+  }
+});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)interrupt();});
 window.siegeTest={ready,paint,start,plan,wake,get current(){return current;}};
