@@ -33,13 +33,13 @@ async def main():
         check('eight mats listed, Amethyst open', await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot').count() == 8 and await page.locator('[data-mat-pick="amethyst"]').count() == 1)
         check('seven mats locked for a new profile', await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot.is-locked').count() == 7)
         locked = await page.inner_text('[data-locked="dark-alley"]')
-        check('a locked mat names its achievement', 'Five Games' in locked and 'Play 5 games' in locked, locked)
+        check('a locked mat names its achievement', 'Play 3 games' in locked, locked)
         check('eight dice plus match-playmat; seven dice locked, Amethyst open', await page.locator('[data-die-pick]').count() == 2 and await page.locator('[data-die-locked]').count() == 7)
         dl = await page.inner_text('[data-die-locked="night-flight"]')
-        check('a locked die names its achievement', 'Five Wins' in dl and 'Win 5 games' in dl, dl)
+        check('a locked die names its achievement', 'Win 3 wins' in dl or 'Win 3 games' in dl, dl)
         check('match-playmat is the default die', await page.evaluate("() => document.documentElement.dataset.dice") == 'amethyst' and await page.locator('.mat-slots--dice .is-on strong').text_content() == 'Match playmat', str([await page.evaluate("() => document.documentElement.dataset.dice"), await page.locator('.mat-slots--dice .is-on strong').all_inner_texts()]))
         await page.keyboard.press('Escape')
-        # 10 games, 0 wins: Five Games, Table Regular -> mats Dark Alley, Night Flight; no die yet
+        # 10 games, 0 wins: mats at 3, 6, 9 games -> Dark Alley, Night Flight, Ember; no die yet
         await page.evaluate("""async () => {
           const { loadProfile } = await import('./src/data/profile.js');
           const raw = JSON.parse(localStorage.getItem('ccv07-profile')); raw.games = 10; raw.wins = 0;
@@ -48,7 +48,7 @@ async def main():
         }""")
         await page.reload(); await page.wait_for_function('window.__ccReady === true')
         await open_mats(page)
-        check('10 games unlock two mats and no die', await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot.is-locked').count() == 5 and await page.locator('[data-mat-pick="night-flight"]').count() == 1 and await page.locator('[data-die-locked]').count() == 7)
+        check('10 games unlock three mats and no die', await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot.is-locked').count() == 4 and await page.locator('[data-mat-pick="ember"]').count() == 1 and await page.locator('[data-mat-locked="frost"], [data-locked="frost"]').count() == 1 and await page.locator('[data-die-locked]').count() == 7)
         await page.click('[data-mat-pick="dark-alley"]')
         await page.wait_for_timeout(200)
         check('choosing a mat changes the palette app-wide', await pal() == 'dark-alley' and await css() == '#ae64f2', f'{await pal()} {await css()}')
@@ -57,12 +57,12 @@ async def main():
         await page.keyboard.press('Escape'); await page.reload(); await page.wait_for_function('window.__ccReady === true')
         check('a locked stored die falls back to match-playmat (the mat\'s own die)', await page.evaluate("() => document.documentElement.dataset.dice") == 'dark-alley')
         await page.evaluate("""async () => {
-          const raw = JSON.parse(localStorage.getItem('ccv07-profile')); raw.wins = 25;
+          const raw = JSON.parse(localStorage.getItem('ccv07-profile')); raw.wins = 15;
           localStorage.setItem('ccv07-profile', JSON.stringify(raw));
         }""")
         await page.reload(); await page.wait_for_function('window.__ccReady === true')
         await open_mats(page)
-        check('25 wins unlock five dice (Gold die open, two locked)', await page.locator('[data-die-pick="gold"]').count() == 1 and await page.locator('[data-die-locked]').count() == 2)
+        check('15 wins unlock five dice (Gold die open at 15, Forge and Emerald locked)', await page.locator('[data-die-pick="gold"]').count() == 1 and await page.locator('[data-die-locked]').count() == 2)
         await page.click('[data-die-pick="gold"]')
         await page.wait_for_timeout(200)
         check('die choice is independent of the mat', await pal() == 'dark-alley' and await page.evaluate("() => document.documentElement.dataset.dice") == 'gold')
@@ -95,7 +95,7 @@ async def main():
         await page.evaluate("() => document.querySelector('[data-act=\"profile\"]').click()")
         await page.wait_for_selector('.profile'); await page.click('[data-act="playmats"]'); await page.wait_for_selector('.mat-slots')
         dm = await page.locator('[data-mat-pick="dark-alley"]').count(); up = await page.locator('.mat-slot__preview[style*="AAAA"]').count()
-        check('old profile: 12 games unlocks Dark Alley (Five Games), uploads not listed', dm == 1 and up == 0, f'{dm} {up}')
+        check('old profile: 12 games unlocks Dark Alley (3 games), uploads not listed', dm == 1 and up == 0, f'{dm} {up}')
         await ctx.close()
         await browser.close()
     bad = results.count(False)

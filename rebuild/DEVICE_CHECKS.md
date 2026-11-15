@@ -85,8 +85,8 @@ G6. ☐ Stack, Undo, Board, Table and Host Tools / Edit Game / Challenge sit und
 G7. ☐ Same checks on iPad (landscape), and on iPhone in portrait if the game is played that way.
 ## Playmats, palette and life dice (visual rebuild, step 1)
 M1. ☐ Profile → Playmats and Dice → expect eight mats and eight dice (plus Match playmat); Amethyst mat and die open, the other seven of each locked, each showing the achievement that opens it. No upload button anywhere.
-M2. ☐ Mats unlock every 5 games (5 = Dark Alley, 10 = Night Flight … 35 = Emerald), dice every 5 wins (5 = Night Flight, 10 = Dark Alley … 35 = Emerald). After 5 games Dark Alley unlocks; tap it → "In use"; the app looks unchanged for now (colours arrive with the reskin). Close and reopen the app → still selected.
-M3. ☐ Life dice: pick an unlocked die → it stays when you change the playmat. Match playmat is the default and shows the mat's own die even while that die is still locked. Profile → Achievements lists "Unlocks <name> playmat/die" on each reward.
+M2. ☐ Mats unlock every 3 games (3 = Dark Alley, 6 = Night Flight … 21 = Emerald), dice every 3 wins (3 = Night Flight, 6 = Dark Alley … 21 = Emerald); locked slots read "Play 3 games." / "Win 3 games.". After 3 games Dark Alley unlocks; tap it → "In use"; the app looks unchanged for now (colours arrive with the reskin). Close and reopen the app → still selected.
+M3. ☐ Life dice: pick an unlocked die → it stays when you change the playmat. Match playmat is the default and shows the mat's own die even while that die is still locked. Profile → Achievements lists "3 Games", "6 Wins" … each with "Unlocks <name> playmat/die".
 M4. ☐ A profile that had an uploaded playmat before this build opens with Amethyst and nothing missing. Player setup and Table Tracker setup list only unlocked mats.
 M5. ☐ Phone and iPad: the picker fits without sideways scrolling and the thumbnails are easy to tap.
 

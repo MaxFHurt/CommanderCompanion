@@ -163,13 +163,13 @@ function openPlaymats() {
         const choice = diceChoice(profile);
         const active = activeDie(profile);
         setHtml(host, html`
-          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; earn achievements to unlock the others (mats and dice alternate).</p>
+          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; a new playmat unlocks every 3 games you play and a new die every 3 wins.</p>
           <div class="mat-slots">
             ${matUnlockPlan(profile).map(({ mat, via, unlocked }) => unlocked
               ? html`<div class="mat-slot ${mat.id === current ? 'is-on' : ''}">
                   <button type="button" class="mat-slot__preview" data-mat-pick="${mat.id}" style="background-image:url('${mat.image}')" aria-pressed="${mat.id === current}" aria-label="${mat.name}"></button>
                   <strong>${mat.name}</strong><small class="muted">${mat.id === current ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
-              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? via.description : 'Locked'}</small></div>`)}
           </div>
           <h3 class="profile-section-title">Life dice</h3>
           <p class="muted">Pick a die for your life total, or let it match your playmat (now ${active.name}).</p>
@@ -181,7 +181,7 @@ function openPlaymats() {
               ? html`<div class="mat-slot ${choice === d.id ? 'is-on' : ''}">
                   <button type="button" class="mat-slot__preview" data-die-pick="${d.id}" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)" aria-pressed="${choice === d.id}" aria-label="${d.name} die"></button>
                   <strong>${d.name}</strong><small class="muted">${choice === d.id ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
-              : html`<div class="mat-slot is-locked" data-die-locked="${d.id}"><div class="mat-slot__preview" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)">🔒</div><strong>${d.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+              : html`<div class="mat-slot is-locked" data-die-locked="${d.id}"><div class="mat-slot__preview" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)">🔒</div><strong>${d.name}</strong><small class="muted">${via ? via.description : 'Locked'}</small></div>`)}
           </div>`);
       };
       draw();

@@ -41,6 +41,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Rules text compiler | src/engine/effects.js · compileEffectText; effects-catalog.js, effects-b49.js |
 | Triggers | src/engine/triggers.js, triggers-catalog.js, trigger-subject.js |
 | Game flow, ops, legality | src/game/flow.js, ops.js, legal.js, casting.js |
+| Playmats, dice, rewards (add a mat or die: one entry only; k-th locked one unlocks at 3k games / 3k wins) | src/data/playmats.js (PALETTES), src/data/dice.js (ORDER), src/data/rewards.js; achievements generated in src/data/achievements.js; test tests/node/rewards.mjs |
 | Terms key (automation labels) | src/data/mechanics.js |
 | Rules audit | tools/rules-audit.mjs <scryfall.json> |
 | Practice-match bot | src/game/bot.js, practice-match.js |
