@@ -8,8 +8,8 @@ import { loadProfile, saveAccountProfile, recordDeckSelection } from '../../data
 import { listDecks } from '../../data/deck-store.js';
 import { builderSummary } from '../../data/deck-builder.js';
 import { ACHIEVEMENTS, earnedAchievements } from '../../data/achievements.js';
-import { matUnlockPlan, selectedMat, compressImageFile } from '../../data/playmats.js';
-import { DICE, MATCH_PLAYMAT, diceChoice, activeDie } from '../../data/dice.js';
+import { matUnlockPlan, playmatById, selectedMat, compressImageFile } from '../../data/playmats.js';
+import { DICE, diceUnlockPlan, MATCH_PLAYMAT, diceChoice, activeDie } from '../../data/dice.js';
 import { applyPalette } from '../../app/theme.js';
 import { rulesEditorHtml, bindRulesEditor } from '../rules-editor.js';
 import { DEFAULT_COMMANDER_RULES } from '../../engine/rules.js';
@@ -122,6 +122,13 @@ export const profileScreen = {
   }
 };
 
+/** "Night Flight playmat" / "Ember die" for an achievement's reward, or '' when it has none. */
+function rewardName(a) {
+  if (a.reward?.mat) return `${playmatById(a.reward.mat).name} playmat`;
+  if (a.reward?.die) return `${DICE.find(d => d.id === a.reward.die)?.name || ''} die`;
+  return '';
+}
+
 function openAchievements() {
   const profile = loadProfile();
   const earned = new Set(earnedAchievements(profile).map(a => a.id));
@@ -134,7 +141,7 @@ function openAchievements() {
         ${ACHIEVEMENTS.map(a => html`
           <div class="achievement achievement--full ${earned.has(a.id) ? 'is-earned' : 'is-locked'}">
             <strong>${a.label}</strong><small>${a.description}</small>
-            ${a.reward?.matSlot ? html`<span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Unlocked' : 'Unlocks'} a playmat</span>` : ''}
+            ${rewardName(a) ? html`<span class="chip ${earned.has(a.id) ? 'chip--good' : ''}">${earned.has(a.id) ? 'Unlocked' : 'Unlocks'} ${rewardName(a)}</span>` : ''}
           </div>`)}
       </div>
       ${awards.length ? html`<h3 class="section-title">Game awards</h3>
@@ -156,7 +163,7 @@ function openPlaymats() {
         const choice = diceChoice(profile);
         const active = activeDie(profile);
         setHtml(host, html`
-          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; earn achievements to unlock the others.</p>
+          <p class="muted">Your playmat sets the colours of the whole app. Amethyst is free; earn achievements to unlock the others (mats and dice alternate).</p>
           <div class="mat-slots">
             ${matUnlockPlan(profile).map(({ mat, via, unlocked }) => unlocked
               ? html`<div class="mat-slot ${mat.id === current ? 'is-on' : ''}">
@@ -170,9 +177,11 @@ function openPlaymats() {
             <div class="mat-slot ${choice === MATCH_PLAYMAT ? 'is-on' : ''}">
               <button type="button" class="mat-slot__preview" data-die-pick="${MATCH_PLAYMAT}" style="background-image:radial-gradient(circle at 35% 30%, ${active.secondary}, ${active.primary} 70%)" aria-pressed="${choice === MATCH_PLAYMAT}" aria-label="Match playmat"></button>
               <strong>Match playmat</strong><small class="muted">${choice === MATCH_PLAYMAT ? 'In use' : 'Default'}</small></div>
-            ${DICE.map(d => html`<div class="mat-slot ${choice === d.id ? 'is-on' : ''}">
-              <button type="button" class="mat-slot__preview" data-die-pick="${d.id}" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)" aria-pressed="${choice === d.id}" aria-label="${d.name} die"></button>
-              <strong>${d.name}</strong><small class="muted">${choice === d.id ? 'In use' : ' '}</small></div>`)}
+            ${diceUnlockPlan(profile).map(({ die: d, via, unlocked }) => unlocked
+              ? html`<div class="mat-slot ${choice === d.id ? 'is-on' : ''}">
+                  <button type="button" class="mat-slot__preview" data-die-pick="${d.id}" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)" aria-pressed="${choice === d.id}" aria-label="${d.name} die"></button>
+                  <strong>${d.name}</strong><small class="muted">${choice === d.id ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
+              : html`<div class="mat-slot is-locked" data-die-locked="${d.id}"><div class="mat-slot__preview" style="background-image:radial-gradient(circle at 35% 30%, ${d.secondary}, ${d.primary} 70%)">🔒</div><strong>${d.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
           </div>`);
       };
       draw();

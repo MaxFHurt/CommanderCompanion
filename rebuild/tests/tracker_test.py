@@ -141,8 +141,9 @@ async def main():
         await page.screenshot(path=f'{OUT}phone-profile.png')
         await page.click('[data-act="playmats"]')
         await page.wait_for_selector('.mat-slots')
-        locked = await page.locator('.mat-slot.is-locked').count()
-        check('Amethyst open, seven mats locked', locked == 7, f'{locked} locked')
+        locked = await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot.is-locked').count()
+        locked_dice = await page.locator('[data-die-locked]').count()
+        check('1 game + 1 win unlocks no mat or die (seven of each locked)', locked == 7 and locked_dice == 7, f'{locked} mats, {locked_dice} dice locked')
         await page.screenshot(path=f'{OUT}phone-playmats.png')
         # blocked card lookups are expected offline; online, Scryfall answers a made-up card name with 404 (not a page error)
         real = [e for e in page.errors if 'ERR_FAILED' not in e and 'status of 404' not in e]

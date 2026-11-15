@@ -1,12 +1,12 @@
 // Playmats: eight built-in mats named and coloured per the visual handoff (palettes.json). There is no image upload.
 // Earlier builds let players upload mats; those stored rows stay in the data (never deleted, still carried in
 // back-ups) but are no longer shown, and any seat or profile that points at one falls back to Amethyst.
-// Amethyst is free; the other seven unlock with the achievements that carry reward.matSlot, in this order.
+// Amethyst is free; the other seven unlock with the achievements whose reward is { mat: id } (data/achievements.js, alternating with dice).
 // The chosen mat also sets the app palette (app/theme.js) and the default life die (data/dice.js).
 // The mat pictures arrive later as art; until then every mat but Amethyst shows a gradient from its palette.
 
 import { durableGet } from './userdata-db.js';
-import { ACHIEVEMENTS, earnedAchievements } from './achievements.js';
+import { achievementFor, unlockedRewardIds } from './achievements.js';
 
 const KEY = 'playmats';
 const LOCAL_KEY = 'cc-playmats-v1';
@@ -70,17 +70,10 @@ export function playmatById(id) {
   return MATS.find(m => m.id === id) || DEFAULT_MAT;
 }
 
-/**
- * One row per mat: whether this profile has it, and the achievement that unlocks it.
- * Mat n (after Amethyst) is opened by the nth achievement that carries reward.matSlot.
- */
+/** One row per mat: whether this profile has it, and the achievement that unlocks it. */
 export function matUnlockPlan(profile) {
-  const earned = new Set(earnedAchievements(profile).map(a => a.id));
-  const keys = ACHIEVEMENTS.filter(a => a.reward?.matSlot);
-  return MATS.map((mat, i) => {
-    const via = i === 0 ? null : keys[i - 1] || null;
-    return { mat, via, unlocked: i === 0 || (!!via && earned.has(via.id)) };
-  });
+  const open = new Set(unlockedRewardIds(profile, 'mat'));
+  return MATS.map((mat, i) => ({ mat, via: i === 0 ? null : achievementFor('mat', mat.id), unlocked: i === 0 || open.has(mat.id) }));
 }
 
 /** The mats this profile can use. */
