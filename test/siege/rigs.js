@@ -23,7 +23,7 @@ const SiegeRigs = (() => {
   };
   const specs = Object.fromEntries(Object.entries(palette).map(([id,[name,skin,detail,cloth,metal,light,form,scale]]) => {
     const hero = ['hammer','bolt','arcane'].includes(form);
-    return [id,{name,hero,skin:rgb(skin),detail:rgb(detail),cloth:rgb(cloth),metal:rgb(metal),light:rgb(light),
+    return [id,{id,name,hero,skin:rgb(skin),detail:rgb(detail),cloth:rgb(cloth),metal:rgb(metal),light:rgb(light),
       color:'#'+light,counter:hero?form:null,form,scale,
       attacks:form==='drake'||id==='ironback'?['claw','smash','throw','bite']:['claw','smash','throw']}];
   }));
@@ -250,6 +250,28 @@ const SiegeRigs = (() => {
     return {pelvis,hips,upper:(spec.hero?45:47)*size,lower:43*size};
   }
 
+  function armRig(spec,pose,body=frame(spec,pose)) {
+    const {local,size,lateral}=body;
+    const drake=spec.form==='drake';
+    const width=spec.hero?17:drake?23*(spec.id==='frost-drake'?1.13:spec.id==='ember-raptor'?.81:1):31;
+    const height=spec.hero?159:drake?147:162;
+    const chest=local(drake?15:0,-height+42);
+    return {
+      chest,width,
+      shoulders:[-1,1].map(side=>add(chest,mul(lateral,side*width*size))),
+      rests:[-1,1].map(side=>local(19,-height+88,side*(width+10))),
+      upper:(spec.hero?38:47)*size,lower:(spec.hero?39:47)*size
+    };
+  }
+
+  function armJoints(spec,pose,index,body=frame(spec,pose),rig=armRig(spec,pose,body)) {
+    const side=index*2-1;
+    const pole=add(mul(body.forward,-.72),[0,pose.climbing?-.15:.44,side*.54]);
+    const shoulder=rig.shoulders[index];
+    const {bend:elbow,end:wrist}=joint(shoulder,pose.arms?.[index]??rig.rests[index],rig.upper,rig.lower,pole);
+    return {shoulder,elbow,wrist};
+  }
+
   function draw(renderer,id,pose) {
     const spec=specs[id], {hero,form,skin,detail,cloth,metal,light}=spec;
     const drake=form==='drake', mage=form==='arcane';
@@ -258,7 +280,9 @@ const SiegeRigs = (() => {
     const snoutLength=marsh?34:ember?19:22;
     const accent=rgb(frost?'476074':ember?'5b3431':marsh?'5d713b':'59454a');
     const {size,forward,lateral,local}=frame(spec,pose);
-    const wide=hero?17:drake?23*lizardSize:31;
+    const body={local,size,lateral,forward};
+    const arms=armRig(spec,pose,body);
+    const {chest,width:wide}=arms;
     const h=hero?159:drake?147:162;
     const neck=local(drake?33:8,-h+20);
     let head=local(drake?55:9,-h-3);
@@ -267,8 +291,7 @@ const SiegeRigs = (() => {
       const mouthReach=(drake?snoutLength*1.70:22)*size;
       head=between(head,sub(sub(pose.bite,mul(biteAxis,mouthReach)),[0,9*size,0]),pose.biteDrive??1);
     }
-    const chest=local(drake?15:0,-h+42);
-    const {pelvis,hips,upper,lower}=legRig(spec,pose,{local,size,lateral});
+    const {pelvis,hips,upper,lower}=legRig(spec,pose,body);
     const point=(center,ext,color,options={})=>renderer.part(center,mul(ext,size),color,{twist:lateral,...options});
     const sphere=(f,y,d,ext,color,options)=>point(local(f,y,d),ext,color,options);
     function bone(a,b,width,depth,color,shape='skin',shine=0) {
@@ -291,15 +314,13 @@ const SiegeRigs = (() => {
       }
     }
     for(let side of [-1,1]){
-      const arm=pose.arms?.[side===1?1:0];
-      const leg=pose.legs?.[side===1?1:0];
-      const hip=hips[side===1?1:0];
-      const shoulder=add(chest,mul(lateral,side*wide*size));
-      const hand=arm||local(19,-h+88,side*(wide+10));
+      const index=side===1?1:0;
+      const leg=pose.legs?.[index];
+      const hip=hips[index];
+      const {shoulder,elbow,wrist:hand}=armJoints(spec,pose,index,body,arms);
       const desiredFoot=leg||local(side*16,-5,side*(hero?16:23));
       const kneePole=pose.climbing?add(mul(forward,-1),[0,-.38,side*.32]):add(forward,[0,0,side*.12]);
       const {bend:knee,end:foot}=joint(hip,desiredFoot,upper,lower,kneePole);
-      const elbow=joint(shoulder,hand,(hero?38:47)*size,(hero?39:47)*size,add(mul(forward,-.8),[0,.39,side*.45])).bend;
       bone(hip,knee,hero?11:19,hero?10:16,hero?cloth:skin);
       bone(knee,foot,hero?8:12,hero?8:10,hero?leather:detail,hero?'plate':'skin',hero?.52:0);
       point(knee,[hero?10:13,hero?11:14,hero?9:13],hero?metal:skin,plate);
@@ -314,9 +335,9 @@ const SiegeRigs = (() => {
       bone(shoulder,elbow,hero?10:17,hero?10:15,hero?cloth:skin);
       bone(elbow,hand,hero?8:13,hero?8:11,hero?metal:detail,hero?'plate':'skin',hero?.55:.13);
       point(shoulder,[hero?14:19,hero?15:20,hero?13:18],hero?metal:skin,hero?plate:{});
-      point(hand,[hero?7:11,hero?9:13,hero?7:10],hero?leather:skin,{axis:sub(hand,elbow),shape:'plate'});
+      const fingers=pose.handDirections?.[index]??unit(sub(hand,elbow));
+      point(hand,[hero?7:11,hero?9:13,hero?7:10],hero?leather:skin,{axis:fingers,shape:'plate'});
       if(!hero){
-        const fingers=unit(sub(hand,elbow));
         for(let n=-1;n<=1;n++){
           const a=add(hand,mul(lateral,n*5*size));
           spike(add(a,mul(fingers,6*size)),add(a,mul(fingers,(drake?18:15)*size)),3,ivory);
@@ -424,5 +445,5 @@ const SiegeRigs = (() => {
       }
     }
   }
-  return {specs,createRenderer,draw,frame,legRig,joint,add,sub,mul,len,unit,between};
+  return {specs,createRenderer,draw,frame,legRig,armRig,armJoints,joint,add,sub,mul,len,unit,between};
 })();

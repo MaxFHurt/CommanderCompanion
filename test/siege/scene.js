@@ -146,15 +146,22 @@ function choreograph(encounter){
       const drop=move('drop',[clamp(finish.to[0]+bodySide*77,45,W-50),FLOOR],clamp(Math.sqrt((FLOOR-topLip)/950)*910,400,865),{face:railFace});
       const route={climb:{...climb},traverse:{...traverse},attack:{...attack},finish:{...finish}};
       for(const segment of new Set([mount,climb,traverse,attack,finish,drop]))segment.route=route;
+      if(toss){
+        hit.launch=SiegeMotion.throwGrip(encounter,finish,hit.release);
+      }
     }else{
       const distance=hit.method==='stomp'?57:hit.method==='bite'?141:103;
       walk(c[0]+bodySide*distance);
-      const attack=move(hit.method,[position[0],FLOOR],hit.method==='stomp'?920:780,{face:direction,contact:c,hit});
+      const duration={smash:1010,bite:940,stomp:980,claw:880,throw:1210}[hit.method];
+      const attack=move(hit.method,[position[0],FLOOR],duration,{face:direction,contact:c,hit});
       hit.detach=attack.start+(attack.end-attack.start)*(hit.method==='stomp'?.69:.61);
-      hit.release=toss?attack.end-30*tempo:hit.detach;
+      hit.release=toss?attack.start+(attack.end-attack.start)*.84:hit.detach;
       hit.from=toss?[clamp(c[0]+bodySide*111,35,W-35),c[1]-85]:c;
       hit.to=toss?[clamp(c[0]+bodySide*237,35,W-35),FLOOR-10]:c;
       hit.impact=toss?hit.release+480:hit.release;
+      if(toss){
+        hit.launch=SiegeMotion.throwGrip(encounter,attack,hit.release);
+      }
     }
     move('settle',position,Math.max(165,hit.impact-cursor+130)/tempo,{face:direction});
   }
@@ -177,6 +184,7 @@ function rampageActor(e,t){
   const segment=e.segments.find(s=>t>=s.start&&t<s.end);
   if(!segment)return;
   const pose=SiegeMotion.rampage(e,segment,t);
+  pose.breathe=t/310;
   shadow(pose.x,FLOOR,1,.56*(1-clamp((FLOOR-pose.y)/420)));
   actors.clear();
   SiegeRigs.draw(actors,e.mid,pose);
@@ -269,14 +277,15 @@ function materialBits(hit,t){
     ctx.restore();
   }
 }
-function movingPiece(hit,t){
+function movingPiece(e,hit,t){
   if(t<hit.detach||t>=hit.impact)return;
   const tex=hit.target.texture;
   const c=center(hit.target);
   let point,turn,size;
   if(t<hit.release){
     const u=ease(norm(t,hit.detach,hit.release));
-    point=SiegeMotion.carriedPiece(hit,t);
+    const segment=e.segments.find(move=>move.hit===hit&&t>=move.start&&t<move.end);
+    point=SiegeMotion.throwGrip(e,segment,t);
     turn=(hit.to[0]>c[0]?1:-1)*.30*u;
     size=1;
   }else{
@@ -289,8 +298,8 @@ function movingPiece(hit,t){
     turn=direction*mix(.30,endTurn,u);
     size=mix(1,landingScale,u);
     const arc=hit.target.high?112:66;
-    const fall=mix(hit.from[1],endCenter,u)-4*arc*u*(1-u);
-    point=[mix(hit.from[0],hit.to[0],u),Math.min(fall,FLOOR-size*halfHeight(turn))];
+    const fall=mix(hit.launch[1],endCenter,u)-4*arc*u*(1-u);
+    point=[mix(hit.launch[0],hit.to[0],u),Math.min(fall,FLOOR-size*halfHeight(turn))];
   }
   ctx.save();
   ctx.translate(...point);ctx.rotate(turn);ctx.scale(size,size);
@@ -448,7 +457,7 @@ function paint(t,e=current){
   ctx.fillStyle='rgba(10,5,18,'+shade+')';ctx.fillRect(0,0,W,H);
   for(const hit of e.hits)if(t>=hit.detach)paintSocket(hit.target,ease(norm(t,hit.detach,hit.detach+120)));
   if(e.hits.length===targets.length&&t>=e.hits.at(-1).impact)cracks();
-  for(const hit of e.hits)movingPiece(hit,t);
+  for(const hit of e.hits)movingPiece(e,hit,t);
   if(t<e.heroEntry)rampageActor(e,t);
   else finalFight(e,t);
   for(const hit of e.hits)materialBits(hit,t);

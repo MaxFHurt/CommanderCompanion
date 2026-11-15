@@ -39,6 +39,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Monster Siege test page — 15 Nov 2026
 
+- Attack-specific keyframes add windup, weight transfer, contact and follow-through to smash, claw, bite, stomp and throw. The elbow and wrist use fixed bone lengths, including climbing and hero combat. Weapons and grabbed panels stay aligned with the solved wrists.
+
 - Climbing knees and ankles keep fixed bone lengths and feet brace below the ledge. Climbing starts after all nine bottom targets break. Smash, bite and stomp break targets at contact, and elevated assets can be smashed, bitten or thrown.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
