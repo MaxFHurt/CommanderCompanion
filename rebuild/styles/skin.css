@@ -124,7 +124,6 @@
 :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__head .btn-back { left: 0; width: 9.2rem; }
 :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__frame {
   display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0;
-  filter: drop-shadow(0 0.8rem 2rem rgba(0, 0, 0, 0.8));
 }
 :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__body { padding: 0.5rem 0.6rem; }
 :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__foot { padding: 0.6rem 0.6rem 0.2rem; border-top: 0; background: none; }
