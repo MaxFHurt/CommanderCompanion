@@ -39,6 +39,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Monster Siege test page — 15 Nov 2026
 
+- Climbing knees and ankles keep fixed bone lengths and feet brace below the ledge. Climbing starts after all nine bottom targets break. Smash, bite and stomp break targets at contact, and elevated assets can be smashed, bitten or thrown.
+
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
 

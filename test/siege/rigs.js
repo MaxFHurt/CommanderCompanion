@@ -218,13 +218,19 @@ const SiegeRigs = (() => {
     return {canvas,part,clear(){gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);}};
   }
 
-  // Analytic two-bone inverse kinematics. The pole chooses the bend plane without moving the world-space contact.
+  // Solve both bones within their physical reach. The returned end is what the mesh draws.
   function joint(root,end,upper,lower,pole) {
-    const delta=sub(end,root),forward=unit(delta);
-    const reach=Math.max(Math.abs(upper-lower)+.01,Math.min(upper+lower-.01,len(delta)));
-    const bend=unit(sub(pole,mul(forward,dot(pole,forward))));
+    const delta=sub(end,root);
+    const distance=len(delta);
+    const forward=distance>1e-6?mul(delta,1/distance):[0,1,0];
+    const reach=Math.max(Math.abs(upper-lower)+.01,Math.min(upper+lower-.01,distance));
+    const projected=sub(pole,mul(forward,dot(pole,forward)));
+    const bend=len(projected)>1e-6?unit(projected):basis(forward,[0,0,1])[0];
     const along=(upper*upper+reach*reach-lower*lower)/(2*reach);
-    return add(add(root,mul(forward,along)),mul(bend,Math.sqrt(Math.max(0,upper*upper-along*along))));
+    return {
+      bend:add(add(root,mul(forward,along)),mul(bend,Math.sqrt(Math.max(0,upper*upper-along*along)))),
+      end:add(root,mul(forward,reach))
+    };
   }
   function frame(spec,pose) {
     const {x,y,face}=pose;
@@ -237,6 +243,13 @@ const SiegeRigs = (() => {
       [0,h*Math.cos(pitch)-f*Math.sin(pitch),0]),mul(lateral,d)),size));
     return {size,forward,lateral,local};
   }
+  function legRig(spec,pose,body=frame(spec,pose)) {
+    const {local,size,lateral}=body;
+    const pelvis=local(spec.form==='drake'?-26:0,spec.hero?-83:-72);
+    const hips=[-1,1].map(side=>add(pelvis,mul(lateral,side*(spec.hero?12:19)*size)));
+    return {pelvis,hips,upper:(spec.hero?45:47)*size,lower:43*size};
+  }
+
   function draw(renderer,id,pose) {
     const spec=specs[id], {hero,form,skin,detail,cloth,metal,light}=spec;
     const drake=form==='drake', mage=form==='arcane';
@@ -249,9 +262,13 @@ const SiegeRigs = (() => {
     const h=hero?159:drake?147:162;
     const neck=local(drake?33:8,-h+20);
     let head=local(drake?55:9,-h-3);
-    if(pose.bite) head=between(head,sub(pose.bite,mul(forward,36*size)),.94);
+    const biteAxis=unit(add(forward,[0,pose.biteTilt||0,0]));
+    if(pose.bite){
+      const mouthReach=(drake?snoutLength*1.70:22)*size;
+      head=between(head,sub(sub(pose.bite,mul(biteAxis,mouthReach)),[0,9*size,0]),pose.biteDrive??1);
+    }
     const chest=local(drake?15:0,-h+42);
-    const pelvis=local(drake?-26:0,hero?-83:-72);
+    const {pelvis,hips,upper,lower}=legRig(spec,pose,{local,size,lateral});
     const point=(center,ext,color,options={})=>renderer.part(center,mul(ext,size),color,{twist:lateral,...options});
     const sphere=(f,y,d,ext,color,options)=>point(local(f,y,d),ext,color,options);
     function bone(a,b,width,depth,color,shape='skin',shine=0) {
@@ -276,12 +293,13 @@ const SiegeRigs = (() => {
     for(let side of [-1,1]){
       const arm=pose.arms?.[side===1?1:0];
       const leg=pose.legs?.[side===1?1:0];
-      const hip=add(pelvis,mul(lateral,side*(hero?12:19)*size));
+      const hip=hips[side===1?1:0];
       const shoulder=add(chest,mul(lateral,side*wide*size));
       const hand=arm||local(19,-h+88,side*(wide+10));
-      const foot=leg||local(side*16,-5,side*(hero?16:23));
-      const knee=joint(hip,foot,(hero?45:47)*size,(hero?43:43)*size,add(forward,[0,0,side*.12]));
-      const elbow=joint(shoulder,hand,(hero?38:47)*size,(hero?39:47)*size,add(mul(forward,-.8),[0,.39,side*.45]));
+      const desiredFoot=leg||local(side*16,-5,side*(hero?16:23));
+      const kneePole=pose.climbing?add(mul(forward,-1),[0,-.38,side*.32]):add(forward,[0,0,side*.12]);
+      const {bend:knee,end:foot}=joint(hip,desiredFoot,upper,lower,kneePole);
+      const elbow=joint(shoulder,hand,(hero?38:47)*size,(hero?39:47)*size,add(mul(forward,-.8),[0,.39,side*.45])).bend;
       bone(hip,knee,hero?11:19,hero?10:16,hero?cloth:skin);
       bone(knee,foot,hero?8:12,hero?8:10,hero?leather:detail,hero?'plate':'skin',hero?.52:0);
       point(knee,[hero?10:13,hero?11:14,hero?9:13],hero?metal:skin,plate);
@@ -308,10 +326,10 @@ const SiegeRigs = (() => {
     bone(chest,neck,hero?10:drake?18:23,hero?10:18,skin);
     bone(neck,head,hero?12:17,hero?11:18,skin);
     point(head,[hero?13:drake?19:24,hero?17:drake?21:24,hero?13:drake?18:22],skin,drake?{axis:forward}:{});
-    const snout=add(head,mul(forward,(drake?snoutLength:hero?10:13)*size));
-    const jawGap=pose.bite?1:pose.jaw||0;
+    const snout=add(head,mul(biteAxis,(drake?snoutLength:hero?10:13)*size));
+    const jawGap=pose.jaw??(pose.bite?1:0);
     if(drake){
-      point(snout,[10*lizardSize,snoutLength*.91,13*lizardSize],detail,{axis:forward,shape:'plate',shine:.19});
+      point(snout,[10*lizardSize,snoutLength*.91,13*lizardSize],detail,{axis:biteAxis,shape:'plate',shine:.19});
       const nostril=add(snout,add(mul(forward,12*size),add([0,-6*size,0],mul(lateral,8*size))));
       point(nostril,[3,3.5,2.5],eyeWhite,{axis:forward});
       for(let row=0;row<4;row++){
@@ -320,7 +338,7 @@ const SiegeRigs = (() => {
           point(tile,[5.6,5.1,4],(row+column)%3===0?accent:skin,{shape:'edge',shine:.30});
         }
       }
-      point(add(snout,[0,(11+jawGap*10)*size,0]),[7,21,13],skin,{axis:add(forward,[0,jawGap*.46,0]),shape:'plate'});
+      point(add(snout,[0,(11+jawGap*10)*size,0]),[7,21,13],skin,{axis:add(biteAxis,[0,jawGap*.46,0]),shape:'plate'});
       for(let i=0;i<4;i++){
         const fang=add(snout,add(mul(forward,(i*7-9)*size),add([0,6*size,0],mul(lateral,12*size))));
         spike(fang,add(fang,[0,(i===2?11:8)*size,0]),2.6,ivory);
@@ -335,9 +353,15 @@ const SiegeRigs = (() => {
       }
     }else{
       point(add(snout,[0,5*size,0]),[hero?5:12,hero?5:9,hero?5:13],detail);
-      if(!hero) for(const side of [-1,1]){
-        const tusk=add(snout,add([0,12*size,0],mul(lateral,side*13*size)));
-        spike(tusk,add(tusk,mul(add(forward,[0,-1.3,0]),12*size)),5,ivory);
+      if(!hero){
+        const mouth=add(snout,[0,(10+jawGap*5)*size,0]);
+        point(mouth,[10,12,13],eyeWhite,{axis:biteAxis,shape:'plate'});
+        const jaw=add(snout,[0,(16+jawGap*17)*size,0]);
+        point(jaw,[11,14,15],skin,{axis:add(biteAxis,[0,jawGap*.5,0]),shape:'plate'});
+        for(const side of [-1,1]){
+          const tusk=add(jaw,mul(lateral,side*12*size));
+          spike(tusk,add(tusk,mul(add(biteAxis,[0,-1.3,0]),12*size)),5,ivory);
+        }
       }
     }
     for(const side of [-1,1]){
@@ -400,5 +424,5 @@ const SiegeRigs = (() => {
       }
     }
   }
-  return {specs,createRenderer,draw,frame,add,sub,mul,len,unit,between};
+  return {specs,createRenderer,draw,frame,legRig,joint,add,sub,mul,len,unit,between};
 })();

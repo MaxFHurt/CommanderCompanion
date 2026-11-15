@@ -1,7 +1,7 @@
 'use strict';
 
 const SiegeMotion = (() => {
-  const {specs, frame, sub, mul, unit, between} = SiegeRigs;
+  const {specs, frame, legRig, sub, mul, len, unit, between} = SiegeRigs;
   const sideOffset = (p, depth) => [p[0],p[1],depth];
   const smooth = (t,a,b) => ease(norm(t,a,b));
   const lift = t => Math.sin(Math.PI*t);
@@ -33,7 +33,28 @@ const SiegeMotion = (() => {
     return pose;
   }
 
-  function climbRoute(segment,t,route) {
+  // Move the pelvis into reach of both prescribed contacts before solving the knees.
+  function fitFeet(spec,pose) {
+    for(let pass=0;pass<8;pass++){
+      let resolved=true;
+      for(const [i,foot] of pose.legs.entries()){
+        const {hips,upper,lower}=legRig(spec,pose);
+        const delta=sub(foot,hips[i]);
+        const length=len(delta);
+        const reach=upper+lower-6;
+        if(length<=reach+.01)continue;
+        const correction=mul(delta,(length-reach)/length);
+        pose.x+=correction[0];
+        pose.y+=correction[1];
+        pose.depth=(pose.depth||0)+correction[2];
+        resolved=false;
+      }
+      if(resolved)break;
+    }
+    return pose;
+  }
+
+  function climbRoute(spec,segment,t,route) {
     const {start,end,face}=segment;
     const {climb,traverse}=route;
     const rise=Math.abs(climb.to[1]-climb.from[1]);
@@ -48,7 +69,7 @@ const SiegeMotion = (() => {
     const u=norm(t,start,end);
     const progress=segment.kind==='climb'?rise*u:rise+along*u;
     // Each contact stays on its rung for two beats. The reach starts after the other hand settles.
-    const spacing=57;
+    const spacing=40;
     const beat=Math.floor(progress/spacing);
     const phase=(progress-beat*spacing)/spacing;
     const hand=beat%2;
@@ -57,22 +78,29 @@ const SiegeMotion = (() => {
     const oldGrip=anchor((beat-1)*spacing);
     const transfer=smooth(phase,.12,.80);
     const grips=[];
-    set(grips,1-hand,sideOffset(startGrip,1-(1-hand)*6));
+    set(grips,1-hand,sideOffset(startGrip,(1-hand)*15-6));
     const reaching=lerp(oldGrip,nextGrip,transfer);
     reaching[0]-=face*23*lift(transfer);
     reaching[1]-=16*lift(transfer);
-    set(grips,hand,sideOffset(reaching,1-hand*6));
+    set(grips,hand,sideOffset(reaching,hand*15-6));
 
-    const footPhase=smooth(phase,.55,.98);
-    const leadToe=anchor(beat*spacing-112);
-    const movingToe=lerp(anchor((beat-1)*spacing-112),anchor((beat+1)*spacing-112),footPhase);
-    movingToe[0]-=face*24*lift(footPhase);
-    const toes=[];
-    set(toes,1-hand,[leadToe[0]-face*13,Math.min(FLOOR-6,leadToe[1]),-7]);
-    set(toes,hand,[movingToe[0]-face*13,Math.min(FLOOR-6,movingToe[1]),18]);
-    const body=anchor(progress-34);
-    return {x:body[0]-face*51,y:body[1]+149,face,pitch:-face*.19,breathe:progress/44,arms:grips,legs:toes};
+    // A ledge has a separate foothold below the lip, including during horizontal travel.
+    function footRung(n,index){
+      const point=anchor(n);
+      return [point[0]-face*12,Math.min(FLOOR-7,point[1]+121),index*25-7];
+    }
+    const footPhase=smooth(phase,.49,.98);
+    const lead=footRung(beat*spacing,1-hand);
+    const moving=between(footRung((beat-1)*spacing,hand),footRung((beat+1)*spacing,hand),footPhase);
+    moving[0]-=face*21*lift(footPhase);
+    moving[1]-=11*lift(footPhase);
+    const legs=[];
+    set(legs,1-hand,lead);
+    set(legs,hand,moving);
+    const body=anchor(progress-17);
+    return fitFeet(spec,{x:body[0]-face*46,y:body[1]+158,face,pitch:-.14,breathe:progress/44,arms:grips,legs,climbing:true});
   }
+
 
   // The detached panel and the claw use the same position until release.
   function carriedPiece(hit,t) {
@@ -86,45 +114,91 @@ const SiegeMotion = (() => {
     const {kind,from,to,start,end}=s;
     const u=norm(t,start,end);
     const face=s.face??(to[0]<from[0]?-1:1);
+    const spec=specs[e.mid];
     if(kind==='walk')return walkPose(e.mid,from,to,t,start,end,face);
-    if(kind==='climb'||kind==='traverse')return climbRoute(s,t,route);
+    if(kind==='climb'||kind==='traverse')return climbRoute(spec,s,t,route);
     const p=lerp(from,to,ease(u));
     if(kind==='mount'){
-      const climbPose=climbRoute(route.climb,end,route);
+      const climbPose=climbRoute(spec,route.climb,end,route);
       const walk=walkPose(e.mid,from,from,end,start,end,face);
-      return blendPose(walk,climbPose,ease(u));
+      return fitFeet(spec,blendPose(walk,climbPose,ease(u)));
     }
-    if(kind==='grab'||kind==='fling'){
-      const traverse=route.traverse;
-      const base=climbRoute(traverse,traverse.end,route);
-      const {target,detach}=s.hit;
-      const secure=ease(norm(t,route.grab.start,detach));
-      const grip=t<detach?center(target):carriedPiece(s.hit,t);
+    if(kind==='ledge-hit'||kind==='fling'){
+      const {traverse,attack}=route;
+      const base=climbRoute(spec,traverse,traverse.end,route);
+      const {method,target,detach}=s.hit;
+      const contact=sideOffset(center(target),15);
+      const power=pulse(t,detach,detach-attack.start,attack.end-detach);
       const support=base.arms[0];
-      const hand=sideOffset(grip,15);
-      const rest={...base,x:base.x+(kind==='fling'?-face*30*ease(u):0),pitch:-face*.25,
-        arms:[support,hand],breathe:base.breathe+u};
-      return blendPose(base,rest,secure);
+      const toss=method==='throw';
+      const drive=toss?smooth(t,attack.start,detach):power;
+      const pose={...base,breathe:base.breathe+u};
+      if(toss){
+        const point=t<detach?contact:sideOffset(carriedPiece(s.hit,t),15);
+        pose.x-=face*30*(kind==='fling'?ease(u):0);
+        pose.arms=[support,between(base.arms[1],point,drive)];
+      }else if(method==='bite'){
+        pose.pitch-=.40*drive;
+        pose.y+=12*drive;
+        pose.jaw=lift(norm(t,attack.start,detach));
+        pose.bite=contact;
+        pose.biteDrive=drive;
+        pose.biteTilt=.24*drive;
+      }else{
+        const windup=lift(norm(t,start,detach));
+        const rest=[base.arms[1][0]-face*28*windup,base.arms[1][1]-44*windup,17];
+        pose.arms=[support,between(rest,contact,drive)];
+        pose.pitch-=.20*drive;
+      }
+      return fitFeet(spec,pose);
     }
     if(kind==='drop'){
-      const startPose=rampage(e,route.fling,start,route);
+      const startPose=rampage(e,route.finish,start,route);
       const z=walkPose(e.mid,to,to,end,start,end,face);
-      const airborne={...z,y:mix(startPose.y,FLOOR,u*u),x:p[0],pitch:face*.24*lift(u),arms:undefined,legs:undefined};
-      if(u<.30)return blendPose(startPose,airborne,smooth(u,0,.30),specs[e.mid]);
+      const airborne={...z,y:mix(startPose.y,FLOOR,u*u),x:mix(startPose.x,to[0],ease(u)),pitch:.24*lift(u),arms:undefined,legs:undefined};
+      if(u<.30)return blendPose(startPose,airborne,smooth(u,0,.30),spec);
       return airborne;
     }
     const pose={x:p[0],y:FLOOR,face,breathe:t/230};
-    if(kind==='settle')return {...pose,pitch:-face*.09*(1-u),y:FLOOR+7*lift(u)};
+    if(kind==='settle')return {...pose,pitch:-.09*(1-u),y:FLOOR+7*lift(u)};
     const at=s.hit.detach;
     const power=pulse(t,at,at-start,end-at);
+    const windup=lift(norm(t,start,at));
+    if(kind==='stomp'){
+      const raised=[s.contact[0]-face*34,s.contact[1]-56,19];
+      const {local,forward,size}=frame(spec,pose);
+      const planted=local(-24,-6,-20);
+      const standing=local(13,-6,20);
+      const target=[s.contact[0]-forward[0]*17*size,s.contact[1]-6,23];
+      const foot=t<at?between(between(standing,raised,windup),target,power):between(standing,target,power);
+      pose.x+=face*power*12;
+      pose.y+=11*power-8*windup;
+      pose.pitch=.20*windup-.22*power;
+      pose.legs=[planted,foot];
+      pose.arms=[local(-20,-115,-29),local(5,-106-windup*26,29)];
+      return fitFeet(spec,pose);
+    }
+    if(kind==='bite'){
+      const {local}=frame(spec,pose);
+      pose.legs=[local(-24,-6,-22),local(21,-6,23)];
+      pose.pitch=-1.12*power+.14*windup;
+      pose.y-=23*power;
+      pose.jaw=windup;
+      pose.bite=sideOffset(s.contact,17);
+      pose.biteDrive=power;
+      pose.biteTilt=.87*power;
+      const {local:bent}=frame(spec,pose);
+      pose.arms=[bent(23,-87,-25),bent(36,-82,28)];
+      return fitFeet(spec,pose);
+    }
     pose.x+=face*power*26;
-    pose.pitch=-face*(.31*power-.15*lift(norm(t,start,at)));
+    pose.pitch=-(kind==='smash'?.71:.31)*power+.15*windup;
+    if(kind==='smash')pose.y-=12*power;
     const toss=kind==='throw';
     const throwing=toss&&t>=at&&t<=s.hit.release;
     const trajectory=throwing?carriedPiece(s.hit,t):s.contact;
     const target=sideOffset(trajectory,14);
     const {local,forward,size}=frame(specs[e.mid],pose);
-    const windup=lift(norm(t,start,at));
     const rest=local(23-(kind==='claw'?51:18)*windup,-83-(kind==='smash'?99:32)*windup,27);
     const contact=sub(target,mul(forward,toss?0:12*size));
     const backHand=kind==='smash'?between(local(4,-96-windup*84,-29),[contact[0]+face*22,contact[1]-5,-9],power):local(-16,-117,-28);
@@ -132,10 +206,6 @@ const SiegeMotion = (() => {
     const finishHand=releaseRecovery?sideOffset(s.hit.from,14):contact;
     const follow=throwing?1:releaseRecovery?1-ease(norm(t,s.hit.release,end)):power;
     pose.arms=[backHand,between(rest,finishHand,follow)];
-    if(kind==='bite'&&power>.12){
-      pose.jaw=power;
-      pose.bite=between(local(82,-145),target,power);
-    }
     return pose;
   }
 
@@ -144,7 +214,7 @@ const SiegeMotion = (() => {
       const side=i===0?-1:1;
       return frame(spec,pose).local(field==='arms'?19:side*16,field==='arms'?-83:-5,side*(field==='arms'?35:21));
     };
-    const pose={...b,x:mix(a.x,b.x,u),y:mix(a.y,b.y,u),pitch:mix(a.pitch||0,b.pitch||0,u)};
+    const pose={...b,x:mix(a.x,b.x,u),y:mix(a.y,b.y,u),pitch:mix(a.pitch||0,b.pitch||0,u),depth:mix(a.depth||0,b.depth||0,u)};
     for(const field of ['arms','legs']){
       if(a[field]&&b[field])pose[field]=a[field].map((p,i)=>between(p,b[field][i],u));
       else if(spec)pose[field]=[0,1].map(i=>between(a[field]?.[i]??defaults(a,field,i),b[field]?.[i]??defaults(b,field,i),u));

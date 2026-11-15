@@ -94,5 +94,6 @@ M5. ☐ Phone and iPad: the picker fits without sideways scrolling and the thumb
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
 S2. ☐ Watch the entire fight. Strikes meet their targets, the hero can drop and recover, and the battlefield restores after the speech bubble. Tap the battlefield mid-encounter to restore it immediately.
+S3. ☐ Watch smash, bite and stomp on the bottom row. The monster never starts climbing until all nine bottom targets have broken. Watch the knees bend as the creature transfers weight between footholds.
 
 Reply with the numbers that failed and a screenshot.

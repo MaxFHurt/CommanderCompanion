@@ -73,17 +73,16 @@ function center(target){
   const [x,y,w,h]=target.rect;
   return [x+w/2,y+h/2];
 }
-function pickTargets(mode){
-  const all=shuffle(targets);
-  const count=Math.min(all.length,rampage[mode]??choose([2,3,3,4,4,5,Infinity]));
-  const top=choose(all.filter(t=>t.high&&t.rect[1]<70));
-  const ordered=[top,...all.filter(t=>t!==top)];
-  if(count===targets.length){
-    const sides=shuffle([...new Set(targets.filter(t=>t.high).map(t=>t.rail))]);
-    return [top,...sides.flatMap(rail=>ordered.filter(t=>t!==top&&t.rail===rail).sort((a,b)=>a.rect[1]-b.rect[1])),...ordered.filter(t=>!t.high)];
-  }
-  const ground=all.find(t=>!t.high);
-  return [top,ground,...ordered.filter(t=>t!==top&&t!==ground)].slice(0,count);
+function pickHits(mode){
+  const ground=shuffle(targets.filter(target=>!target.high));
+  const count=rampage[mode]??choose([3,4,ground.length-2,ground.length,ground.length+1,ground.length+2,ground.length+3,Infinity]);
+  const high=shuffle(targets.filter(target=>target.high));
+  const groundMethods=[...shuffle(['smash','bite','stomp']),...shuffle(['throw','claw'])];
+  const highMethods=shuffle(['throw','smash','bite']);
+  return [
+    ...ground.map((target,i)=>({target,method:groundMethods[i%groundMethods.length]})),
+    ...high.map((target,i)=>({target,method:highMethods[i%highMethods.length]}))
+  ].slice(0,count);
 }
 
 function plan(mode='random',options={}){
@@ -91,10 +90,8 @@ function plan(mode='random',options={}){
   for(let attempt=0;attempt<120;attempt++){
     const mid=monsters.includes(options.monster)?options.monster:choose(monsters);
     const hid=heroes.includes(options.hero)?options.hero:choose(heroes);
-    const order=pickTargets(mode);
-    const attacks=shuffle(SIEGE_ART[mid].attacks);
     const quip=choose(QUIPS);
-    const hits=order.map((target,i)=>({target,method:target.high?'throw':attacks[i%attacks.length]}));
+    const hits=pickHits(mode);
     signature=JSON.stringify([mid,hid,hits.map(h=>[h.target.id,h.method]),quip]);
     result={mid,hid,hits,quip};
     if(!history.includes(signature))break;
@@ -123,32 +120,38 @@ function choreograph(encounter){
     const c=center(t);
     const direction=(t.high?t.rail:c[0])>W*.62?1:-1;
     const bodySide=-direction;
+    const toss=hit.method==='throw';
     if(t.high){
       const rail=t.rail, railFace=rail>W*.6?1:-1;
       const firstGrip=[rail,FLOOR-163];
       const topLip=y<70?46:clamp(c[1]-3,115,FLOOR-220);
-      walk(rail-railFace*73);
+      walk(rail-railFace*62);
       const mount=move('mount',firstGrip,520,{face:railFace});
-      const climb=move('climb',[rail,topLip],clamp((firstGrip[1]-topLip)*4.65,690,3450),{face:railFace});
-      const moveX=y<70?c[0]:clamp(c[0],rail-130,rail+130);
-      const traverse=move('traverse',[moveX,topLip],clamp(Math.abs(moveX-rail)*5,320,1220),{face:railFace});
-      const grab=move('grab',c,690,{face:railFace,hit});
-      hit.detach=grab.start+(grab.end-grab.start)*.70;
-      const release=[clamp(c[0]+bodySide*117,55,W-55),clamp(c[1]-36,44,FLOOR-80)];
-      const fling=move('fling',release,555,{face:railFace,hit});
-      hit.release=fling.end;
-      hit.from=release;
-      hit.to=[clamp(release[0]+bodySide*clamp(90+(FLOOR-c[1])*.32,110,410),35,W-35),FLOOR-12];
-      hit.impact=hit.release+clamp(Math.sqrt((FLOOR-c[1])/990)*1150,440,1000);
-      const drop=move('drop',[clamp(release[0]+bodySide*77,45,W-50),FLOOR],clamp(Math.sqrt((FLOOR-topLip)/950)*910,400,865),{face:railFace});
-      const route={climb:{...climb},traverse:{...traverse},grab:{...grab},fling:{...fling}};
-      for(const segment of [mount,climb,traverse,grab,fling,drop])segment.route=route;
+      const climb=move('climb',[rail,topLip],clamp((firstGrip[1]-topLip)*5.1,690,3650),{face:railFace});
+      const traverse=move('traverse',[c[0],topLip],clamp(Math.abs(c[0]-rail)*6.2,260,1560),{face:railFace});
+      const attack=move('ledge-hit',c,toss?650:775,{face:railFace,hit});
+      hit.detach=attack.start+(attack.end-attack.start)*.64;
+      let finish=attack;
+      if(toss){
+        const release=[clamp(c[0]+bodySide*117,55,W-55),clamp(c[1]-36,44,FLOOR-80)];
+        finish=move('fling',release,555,{face:railFace,hit});
+        hit.release=finish.end;
+        hit.from=release;
+        hit.to=[clamp(release[0]+bodySide*clamp(90+(FLOOR-c[1])*.32,110,410),35,W-35),FLOOR-12];
+        hit.impact=hit.release+clamp(Math.sqrt((FLOOR-c[1])/990)*1150,440,1000);
+      }else{
+        hit.release=hit.impact=hit.detach;
+        hit.from=hit.to=c;
+      }
+      const drop=move('drop',[clamp(finish.to[0]+bodySide*77,45,W-50),FLOOR],clamp(Math.sqrt((FLOOR-topLip)/950)*910,400,865),{face:railFace});
+      const route={climb:{...climb},traverse:{...traverse},attack:{...attack},finish:{...finish}};
+      for(const segment of new Set([mount,climb,traverse,attack,finish,drop]))segment.route=route;
     }else{
-      walk(c[0]+bodySide*103);
-      const attack=move(hit.method,[position[0],FLOOR],750,{face:direction,contact:c,hit});
-      hit.detach=attack.start+(attack.end-attack.start)*.61;
-      const toss=hit.method==='throw';
-      hit.release=toss?attack.end-35:hit.detach;
+      const distance=hit.method==='stomp'?57:hit.method==='bite'?141:103;
+      walk(c[0]+bodySide*distance);
+      const attack=move(hit.method,[position[0],FLOOR],hit.method==='stomp'?920:780,{face:direction,contact:c,hit});
+      hit.detach=attack.start+(attack.end-attack.start)*(hit.method==='stomp'?.69:.61);
+      hit.release=toss?attack.end-30*tempo:hit.detach;
       hit.from=toss?[clamp(c[0]+bodySide*111,35,W-35),c[1]-85]:c;
       hit.to=toss?[clamp(c[0]+bodySide*237,35,W-35),FLOOR-10]:c;
       hit.impact=toss?hit.release+480:hit.release;
@@ -208,7 +211,7 @@ function materialBits(hit,t){
   const [x,y]=hit.to;
   const [,,w,h]=hit.target.rect;
   const c=hit.target.texture;
-  const ground=hit.method==='throw';
+  const ground=hit.method==='throw'||hit.method==='stomp';
   const tint=PIGMENT[hit.target.type];
   const id=targets.indexOf(hit.target)+1;
   const material=hit.target.type;
@@ -251,6 +254,12 @@ function materialBits(hit,t){
       const a=ground?-Math.PI*(i+1)/18:TAU*i/17;
       const r=11+q*(54+pureRand(id*17+i)*91);
       ctx.beginPath();ctx.moveTo(x+Math.cos(a)*r,y+Math.sin(a)*r);ctx.lineTo(x+Math.cos(a)*(r+7+q*9),y+Math.sin(a)*(r+7+q*9));ctx.stroke();
+    }
+    if(['smash','stomp','bite'].includes(hit.method)){
+      ctx.strokeStyle=tint;ctx.lineWidth=(1-q)*3;
+      ctx.beginPath();
+      ctx.ellipse(x,y,9+q*(hit.method==='stomp'?96:58),5+q*25,0,0,TAU);
+      ctx.stroke();
     }
     if(hit.method==='claw'){
       for(const n of [-1,0,1]){
@@ -476,7 +485,7 @@ function pause(){
 }
 const ready=Promise.all([
   loadImage('siege/battlefield.png'),
-  fetch('siege/targets.json?v=3').then(r=>{if(!r.ok)throw new Error('Could not load battlefield targets');return r.json();})
+  fetch('siege/targets.json?v=4').then(r=>{if(!r.ok)throw new Error('Could not load battlefield targets');return r.json();})
 ]).then(([board,metadata])=>{
   background=board;targets=metadata;
   actors=SiegeRigs.createRenderer(W,H);
