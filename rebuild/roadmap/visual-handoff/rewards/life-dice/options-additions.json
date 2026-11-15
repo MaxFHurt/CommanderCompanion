@@ -1,0 +1,104 @@
+{
+  "options": [
+    {
+      "id": "Peacock-Cats-Eye",
+      "art": "Peacock-Cats-Eye.png"
+    },
+    {
+      "id": "Ruby-Cats-Eye",
+      "art": "Ruby-Cats-Eye.png"
+    },
+    {
+      "id": "Indigo-Cats-Eye",
+      "art": "Indigo-Cats-Eye.png"
+    },
+    {
+      "id": "Tigers-Eye",
+      "art": "Tigers-Eye.png"
+    },
+    {
+      "id": "Moon-Cats-Eye",
+      "art": "Moon-Cats-Eye.png"
+    },
+    {
+      "id": "Violet-Tempest",
+      "art": "Violet-Tempest.png"
+    },
+    {
+      "id": "Verdigris-Tide",
+      "art": "Verdigris-Tide.png"
+    },
+    {
+      "id": "Cherry-Smoke",
+      "art": "Cherry-Smoke.png"
+    },
+    {
+      "id": "Solar-Flare",
+      "art": "Solar-Flare.png"
+    },
+    {
+      "id": "Ghost-Pearl",
+      "art": "Ghost-Pearl.png"
+    },
+    {
+      "id": "Cobalt-Relic",
+      "art": "Cobalt-Relic.png"
+    },
+    {
+      "id": "Opal-Eclipse",
+      "art": "Opal-Eclipse.png"
+    },
+    {
+      "id": "Malachite-Crown",
+      "art": "Malachite-Crown.png"
+    },
+    {
+      "id": "Ultraviolet-Labradorite",
+      "art": "Ultraviolet-Labradorite.png"
+    },
+    {
+      "id": "Bloodstone",
+      "art": "Bloodstone.png"
+    },
+    {
+      "id": "Damascus-Noir",
+      "art": "Damascus-Noir.png"
+    },
+    {
+      "id": "Scorched-Titanium",
+      "art": "Scorched-Titanium.png"
+    },
+    {
+      "id": "Copper-Forge",
+      "art": "Copper-Forge.png"
+    },
+    {
+      "id": "Midnight-Mokume",
+      "art": "Midnight-Mokume.png"
+    },
+    {
+      "id": "Obsidian-Kintsugi",
+      "art": "Obsidian-Kintsugi.png"
+    },
+    {
+      "id": "Ivory-Ossuary",
+      "art": "Ivory-Ossuary.png"
+    },
+    {
+      "id": "Jade-Fossil",
+      "art": "Jade-Fossil.png"
+    },
+    {
+      "id": "Glacier-Wraith",
+      "art": "Glacier-Wraith.png"
+    },
+    {
+      "id": "Charred-Reliquary",
+      "art": "Charred-Reliquary.png"
+    },
+    {
+      "id": "Astral-Marrow",
+      "art": "Astral-Marrow.png"
+    }
+  ]
+}
