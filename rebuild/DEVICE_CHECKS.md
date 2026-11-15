@@ -143,4 +143,12 @@ V36. ☐ Rules (Table rules before a game, Table Defaults, host Rules edit): Com
 V37. ☐ Help (Ask the Judge): Search rules panel (search box and topic chips) and Result panel; the dialog has the plain panel background, no striped judge background. Searching filters the results.
 V38. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the panels are taller and centred.
 
+## In-game dialogs, Table Tracker, host Table View and Judge View (visual rebuild, stage 3d)
+V39. ☐ Every popup of a game has the plate, one or two recessed panels and steel buttons (no old Back pill, no grey frame): opening hand, Discard, game log, stack, chat, Card ID (Find a card / Card), card detail (Card art / Rules text, abilities and Host tools still there), zone lists, land pile, player info (status light), your options, Cast / Play prompts, Are-you-sure questions, number and text pickers. Back is "Close" or Cancel; a prompt that must be answered has no Close.
+V40. ☐ Choices during play (choose one / many / number / text / arrange / yes-no), table votes and requests, Declare attackers (creatures on the left with their own target chips, "All" buttons on the right) and Declare blockers: every control still works, tap targets are comfortable, long lists scroll from the top and card art and mana colours are unchanged.
+V41. ☐ Host tools / Edit game: Players panel (life steppers, More...) and Game panel (turn, stack, cards tools); the sub-dialogs (player adjust, token, add any card, rules) match.
+V42. ☐ Table Tracker: title plate, one framed card per player (name, life with - / +, status, counters, mana, tax, tracked cards), Game Log panel, steel buttons for Home / Next Turn / Undo / Settings / Profile and the bottom row; every popup (life, status, counters, Edit Players / Decks, Game Stats, Track a Card, Table Menu, End Game) uses the same frame. The host's Table / Judge switch works and the Judge panel keeps Reverse, Undo Last, Devices.
+V43. ☐ Host device: Table View (one panel per player: name, life, commander, Counters / Graveyard / Exile / Command zone buttons, battlefield and lands cards that open their detail) and Judge View (Players panel, Plays panel with Reverse, Stack, Undo Last, Full Log); bottom row has Table / Judge, Game Log, Stack, Undo, Host Tools.
+V44. ☐ All of V39-V43 on the iPad (panels taller, centred) and in Ember and Frost.
+
 Reply with the numbers that failed and a screenshot.
