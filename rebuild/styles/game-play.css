@@ -1,0 +1,97 @@
+/* Game screen: opponent seats (centre + left/right), status lights, legal-only turn controls, phone log and the
+   table tools. Structure only, in the current styles; the reskin art replaces the look later. Loaded after app.css. */
+
+/* Centre column: opponent row, your battlefield, lands, hand share the height; the action bar sits below. */
+.game:not(.game--judge) .game__center { grid-template-rows: repeat(4, minmax(0, 1fr)) auto; }
+
+/* ── Opponent seats ── */
+.opp-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.35rem; min-height: 0; min-width: 0; }
+.opp-side { display: grid; gap: 0.3rem; align-content: stretch; min-height: 0; }
+.opp-side:empty { display: none; }
+.opp-row:has(.opp-side--left:empty) { grid-template-columns: minmax(0, 1fr) auto; }
+.opp-row:has(.opp-side--left:empty):has(.opp-side--right:empty) { grid-template-columns: minmax(0, 1fr); }
+.seat { --player: var(--accent); position: relative; min-width: 0; }
+.seat--side {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.2rem; width: 9.4rem; min-height: 0;
+  border-left: 0.3rem solid var(--player); border-radius: 0.5rem; background: rgba(10, 7, 20, 0.9);
+  box-shadow: inset 0 0 0 1px var(--line-soft); padding: 0.15rem 0.2rem 0.15rem 0.4rem;
+}
+.seat__main { min-height: 36px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 0.4rem; min-width: 0; text-align: left; }
+.seat--side .seat__main { grid-template-columns: minmax(0, 1fr); }
+.seat__name { display: flex; align-items: center; gap: 0.35rem; min-width: 0; font: 700 1.05rem/1.2 var(--font-head); letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.seat__name .status-light { width: 0.75rem; height: 0.75rem; }
+.seat__life { font: 800 1.8rem/1 var(--font-head); font-variant-numeric: tabular-nums; }
+.seat__meta { font-size: 0.8rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.seat.is-active { box-shadow: inset 0 0 0 1px var(--accent-strong), 0 0 0.8rem var(--accent-glow); }
+.seat.is-waiting { box-shadow: inset 0 0 0 1px var(--gold); }
+.seat.is-out { opacity: 0.5; }
+.seat--side .seat__main:active, .seat--centre .seat__main:active { filter: brightness(1.3); }
+
+.zone--opp {
+  display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0.1rem; padding: 0.3rem 0.6rem 0.35rem; border-radius: 0.7rem; min-height: 0;
+  border: 0; border-image: none; border-left: 0.3rem solid var(--player);
+  background: linear-gradient(rgba(6, 4, 12, 0.55), rgba(6, 4, 12, 0.7)), var(--mat-image, none) center / cover, rgba(10, 7, 20, 0.9);
+}
+.seat__head { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.seat__head .seat__main { flex: 1; grid-template-columns: auto minmax(0, 1fr) auto; }
+.seat__head .seat__life { font-size: 1.5rem; }
+.seat__head .life-light { width: 36px; height: 36px; margin: -0.5rem 0; }
+.zone--opp .zone__cards { container-type: size; min-height: 0; align-items: center; gap: 0.3rem; }
+.zone--opp .card { --h: min(calc(100cqh - 0.3rem), 12rem); }
+.zone--opp .zone__empty { font-size: 0.95rem; }
+
+/* ── Status light: its own button beside a player's life ── */
+.life-light { flex: none; display: grid; place-items: center; width: max(36px, 2.8rem); height: max(36px, 2.8rem); border-radius: 50%; }
+.life-light i { width: 1.3rem; height: 1.3rem; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.life-light.is-green i { background: var(--good); box-shadow: 0 0 0.6rem var(--good); }
+.life-light.is-yellow i { background: var(--gold); box-shadow: 0 0 0.7rem var(--gold); }
+.life-light.is-red i { background: var(--bad); box-shadow: 0 0 0.8rem var(--bad); }
+.life-light:active { filter: brightness(1.4); }
+.rail-chips { align-items: center; }
+.rail-chips .life-light { width: max(36px, 2.6rem); height: max(36px, 2.6rem); margin: -0.3rem 0; }
+
+/* ── Action bar: phase | tip | the controls that are legal now ── */
+.game__bar { grid-template-columns: auto minmax(0, 1fr) auto; }
+.game__bar .tip { display: grid; align-content: center; gap: 0.1rem; min-height: 0; height: 100%; padding: 0.2rem 0.8rem; }
+.game__bar .tip b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game__bar .tip.is-quiet { visibility: hidden; }
+.game__bar .tip b { font-size: 1rem; }
+.game__bar .tip span { font-size: 0.85rem; line-height: 1.15; -webkit-line-clamp: 2; }
+.play-controls { display: flex; align-items: center; justify-content: flex-end; gap: 0.4rem; }
+.play-controls:empty { display: none; }
+.play-btn { width: 8.4rem; }
+
+/* ── Right rail: log, then the table tools ── */
+.game__right { grid-template-rows: minmax(0, 1fr) auto; }
+.game__right:has(.opps) { grid-template-rows: minmax(0, auto) minmax(0, 1fr) auto; }
+.glog { grid-template-rows: auto minmax(0, 1fr); }
+.glog--phone .glog__list { align-content: start; }
+.game-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.35rem; padding: 0.2rem 0; }
+.game-tools .chip { min-height: max(36px, 2.6rem); font-size: 0.9rem; padding: 0 0.7rem; }
+.game-tools .glog__undo { height: max(36px, 2.6rem); }
+.game-tools .glog__undo img { height: 100%; width: auto; }
+.opps .seat--side { width: auto; }
+
+@media (min-width: 1000px) and (min-height: 700px) {
+  .seat--side { width: 10.5rem; padding: 0.3rem 0.3rem 0.3rem 0.6rem; }
+  .seat__name { font-size: 1.25rem; }
+  .seat__life { font-size: 2.3rem; }
+  .seat__meta { font-size: 0.95rem; }
+  .seat__head .seat__life { font-size: 2.1rem; }
+  .game__bar .tip b { font-size: 1.2rem; }
+  .game__bar .tip span { font-size: 1rem; -webkit-line-clamp: 3; }
+  .play-btn { width: 9.4rem; }
+  .game-tools .chip { font-size: 1rem; }
+}
+@media not all and (min-width: 1000px) and (min-height: 700px) {
+  .play-btn { width: 7.6rem; }
+  .game__bar { gap: 0.5rem; padding: 0.2rem 0.5rem; }
+  .game:not(.game--judge) .zone--battle, .game:not(.game--judge) .zone--lands, .game:not(.game--judge) .zone--hand { padding: 0.3rem 0.8rem 0.35rem; }
+  .game:not(.game--judge) .zone__head { min-height: 1.2rem; }
+  /* Phone: the centre seat's name and life sit left of its cards, so the cards keep the row's full height. */
+  .zone--opp { grid-template-columns: 10rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 0.4rem; padding: 0.25rem 0.5rem 0.25rem 0.4rem; }
+  .seat__head { align-self: stretch; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0; }
+  .seat__head .seat__main { align-self: stretch; grid-template-columns: minmax(0, 1fr); align-content: center; }
+  .seat__head .seat__meta { order: 3; }
+  .seat__head .life-light { margin: 0; }
+}

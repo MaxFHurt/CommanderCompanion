@@ -21,6 +21,7 @@ import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
 import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml } from '../game/card-modals.js';
 import { openHostTools } from '../game/host-tools.js';
+import { statusLight, playControls, seatLayout, rotateTo, opponentsInOrder, PHONE_QUERY, logLength } from '../game/play-state.js';
 import { openOpeningHand, openDiscard, openGuided, openVote, openProposal, openCorrection, openPostGame, openLog, openStack, openChat, openGameSettings, openCardId, openPlayerInfo } from '../game/panels.js';
 
 const PHASE_STEPS = [['untap', 'Untap'], ['upkeep', 'Upkeep'], ['draw', 'Draw'], ['precombat-main', 'Main 1'], ['combat', 'Combat'], ['postcombat-main', 'Main 2'], ['end-step', 'End']];
@@ -32,7 +33,8 @@ export const gameScreen = {
   mount(root, params = {}) {
     let session = getSession();
     const offs = [];
-    const ui = { screen: null, seenNotices: new Set(), promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0 };
+    const ui = { screen: null, seenNotices: new Set(), promptKey: '', closePrompt: null, minimized: false, curtainFor: null, lastViewer: undefined, focusId: null, sort: 'played', highlight: new Set(), timer: null, recorded: false, chatSeen: 0, seats: null };
+    const phoneMq = typeof matchMedia === 'function' ? matchMedia(PHONE_QUERY) : null;
     const ctx = {
       get session() { return session; },
       get view() { return session?.view(); },
@@ -102,6 +104,73 @@ export const gameScreen = {
       </aside>`;
     }
 
+    const LIGHT_TEXT = { green: 'healthy', yellow: 'temporary status', red: 'poison or a harmful lasting effect' };
+    /** The status light beside a player's life: its own button, opening that player's details (never rotates seats). */
+    function lightHtml(p) {
+      const { level, reasons } = statusLight(p);
+      return html`<button type="button" class="life-light is-${level}" data-act="player-info" data-id="${p.playerId}" data-light="${level}" aria-label="${p.name}: ${LIGHT_TEXT[level]}${reasons.length ? ` (${reasons.join(', ')})` : ''}" title="${reasons.join(', ') || 'Healthy'}"><i></i></button>`;
+    }
+
+    function seatMeta(p) {
+      return html`<span class="seat__meta">✋${p.handCount} • ▤${p.libraryCount} • ⚔${p.battlefield.filter(c => c.creature).length}${p.poison ? ` • ☠${p.poison}` : ''}</span>`;
+    }
+
+    function seatCls(view, p) {
+      return `${p.playerId === view.activePlayerId ? 'is-active' : ''} ${p.eliminated ? 'is-out' : ''} ${view.prompt.kind === 'waiting' && view.prompt.playerId === p.playerId ? 'is-waiting' : ''}`;
+    }
+
+    /** A compact left/right seat: tapping it brings that opponent to the centre. */
+    function sideSeatHtml(view, p, side) {
+      return html`<div class="seat seat--side ${seatCls(view, p)}" data-side="${side}" data-id="${p.playerId}" style="--player:${p.color}">
+        <button type="button" class="seat__main" data-act="seat" data-id="${p.playerId}" aria-label="Show ${p.name} in the centre">
+          <span class="seat__name"><i class="status-light ${p.eliminated ? 'is-out' : p.playerId === view.activePlayerId ? 'is-active' : ''}"></i>${p.name}</span>
+          <b class="seat__life">${p.eliminated ? 'OUT' : p.life}</b>
+          ${seatMeta(p)}
+        </button>
+        ${lightHtml(p)}
+      </div>`;
+    }
+
+    /** The centre opponent: seat (tap opens their board) and their whole battlefield. Hand count only. */
+    function centreSeatHtml(view, p) {
+      const cards = [...p.battlefield.filter(c => !c.land), ...p.battlefield.filter(c => c.land)];
+      return html`<div class="zone zone--opp seat seat--centre ${seatCls(view, p)}" data-id="${p.playerId}" style="--player:${p.color}; ${matFor(p)}">
+        <header class="seat__head">
+          <button type="button" class="seat__main" data-act="opponent" data-id="${p.playerId}" aria-label="Open ${p.name}'s board">
+            <span class="seat__name"><i class="status-light ${p.eliminated ? 'is-out' : p.playerId === view.activePlayerId ? 'is-active' : ''}"></i>${p.name}</span>
+            ${seatMeta(p)}
+            <b class="seat__life">${p.eliminated ? 'OUT' : p.life}</b>
+          </button>
+          ${lightHtml(p)}
+        </header>
+        <div class="zone__cards" data-keep-scroll="opp-${p.playerId}">
+          ${cards.length ? cards.map(c => cardHtml(c, view.defs[c.def], { cls: c.land ? 'card--land' : '', zone: 'battlefield', badge: c.attacking ? '⚔' : c.blocking ? '🛡' : '' }))
+            : html`<p class="zone__empty">No permanents.</p>`}
+        </div>
+      </div>`;
+    }
+
+    function oppRowHtml(view, me) {
+      const opps = opponentsInOrder(view.players, me.playerId);
+      ui.seats = seatLayout(opps.map(p => p.playerId), ui.seats);
+      if (!ui.seats.centre) return '';
+      const byId = id => view.players.find(p => p.playerId === id);
+      return html`<div class="opp-row" data-count="${opps.length}">
+        <div class="opp-side opp-side--left">${ui.seats.left.map(id => sideSeatHtml(view, byId(id), 'left'))}</div>
+        ${centreSeatHtml(view, byId(ui.seats.centre))}
+        <div class="opp-side opp-side--right">${ui.seats.right.map(id => sideSeatHtml(view, byId(id), 'right'))}</div>
+      </div>`;
+    }
+
+    /** Draw / Attack / Next Phase / End Turn (and Pass or a reopened prompt), each only when it is legal now. */
+    function controlsHtml(view) {
+      const list = playControls(view);
+      return html`<div class="play-controls" data-count="${list.length}">${list.map(c => html`
+        <button type="button" class="jewel play-btn play-btn--${c.act}" data-act="${c.act}" data-label="${c.label}">
+          <i class="jewel__gem"></i><span>${c.label}</span>${c.act === 'pass' ? html`<small data-timer></small>` : ''}
+        </button>`)}</div>`;
+    }
+
     function render() {
       const view = session?.view();
       if (!view) {
@@ -116,7 +185,6 @@ export const gameScreen = {
       const focus = view.players.find(p => p.playerId === (judge ? (ui.focusId || view.activePlayerId) : view.you)) || view.players[0];
       const others = judge ? view.players : view.players.filter(p => p.playerId !== focus.playerId);
       const coach = view.coach || {};
-      const prompt = view.prompt;
       const myTurn = view.activePlayerId === focus.playerId;
       const cmd = focus.commanders[0];
       const cmdDef = cmd ? view.defs[cmd.def] : null;
@@ -134,9 +202,8 @@ export const gameScreen = {
       const glow = c => (ui.highlight.has(c.id) ? 'is-suggested' : '') + (respond.has(c.id) ? ' is-playable' : '');
       const advice = view.players.find(p => p.playerId === view.you)?.advice !== false;
       const showCoach = true;
-      const jewel = coach.jewel;
       const chatNew = (view.chat?.length || 0) - ui.chatSeen;
-      const endLabel = view.phase === 'postcombat-main';
+      const phone = !!phoneMq?.matches;
 
       setHtml(root, html`
       <main class="game ${judge ? 'game--judge' : ''} ${screen === 'judge' ? 'game--judge-mode' : ''} ${myTurn ? 'is-my-turn' : ''}" data-mode="${view.mode}" data-guidance="${settings.guidance}">
@@ -173,9 +240,9 @@ export const gameScreen = {
               <button type="button" class="rail-life" data-act="player-info" data-id="${focus.playerId}"><b class="rail-life__value" data-digits="${String(focus.life).length}">${focus.life}</b><small>LIFE</small></button>
               <div class="rail-pair"><span><b>${focus.handCount}</b><small>HAND</small></span><span><b>${focus.libraryCount}</b><small>LIBRARY</small></span></div>
               <div class="rail-chips">
+                ${lightHtml(focus)}
                 ${focus.poison ? html`<span class="chip chip--bad">☠ ${focus.poison}</span>` : ''}
                 ${focus.statuses.slice(0, 2).map(s => html`<span class="chip chip--gold">${s}</span>`)}
-                ${!focus.poison && !focus.statuses.length ? html`<span class="chip chip--none">No status</span>` : ''}
               </div>
             </div>
           </div>
@@ -188,13 +255,11 @@ export const gameScreen = {
               <button type="button" class="rail-zone ${(focus[z] || []).some?.(c => c.playable) ? 'is-playable' : ''}" data-act="zone" data-zone="${z}"><img src="assets/img/game/zone-${z}.png" alt="${z}"><i>${n}</i></button>`)}
           </div>
           ${screens.length > 1 ? html`<div class="rail-host">${switchHtml(view, screens, screen)}</div>` : ''}
-          ${view.correction?.mine ? html`<button type="button" class="btn btn--small rail-tools" data-act="correction">Correcting…</button>`
-            : view.canEdit ? html`<button type="button" class="btn btn--small rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>`
-            : view.canChallenge ? html`<button type="button" class="btn btn--small rail-tools" data-act="challenge">Challenge</button>` : ''}
         </aside>`}
 
         <section class="game__center">
           ${judge ? html`<div class="zone zone--table" data-keep-scroll="table">${tableHtml(view)}</div>` : html`
+          ${oppRowHtml(view, focus)}
           <div class="zone zone--battle" data-mat="${playmatById(focus.matId).id === DEFAULT_MAT.id ? 'default' : 'custom'}" style="${matFor(focus)}">
             <header class="zone__head">
               <h3>${judge ? `${focus.name}'s Battlefield` : 'Your Battlefield'}</h3>
@@ -222,10 +287,7 @@ export const gameScreen = {
                 : html`<div class="hand-backs">${Array.from({ length: Math.min(focus.handCount, 12) }, () => cardBackHtml())}</div>`}
             </div>
           </div>
-          <button type="button" class="tip ${showCoach ? '' : 'is-quiet'}" data-act="coach">
-            <b>${coach.headline || ''}</b>
-            ${advice ? html`<span>${coach.detail || ''}</span>` : ''}
-          </button>`}
+          `}
           <footer class="game__bar">
             <button type="button" class="phase-box" data-act="phase-info">
               <b>Turn ${view.turn} — ${view.phaseLabel}${view.dayNight ? ` · ${view.dayNight === 'night' ? 'Night' : 'Day'}` : ''}</b>
@@ -234,34 +296,41 @@ export const gameScreen = {
             ${judge ? html`
             ${screens.length > 1 ? switchHtml(view, screens, screen) : html`<span></span>`}
             ${view.canEdit ? html`<button type="button" class="btn" data-act="tools">Host Tools</button>` : html`<span></span>`}` : html`
-            <button type="button" class="jewel ${jewel ? '' : 'is-idle'}" data-act="jewel" ${jewel ? '' : raw('disabled')}>
-              <i class="jewel__gem"></i>
-              <span>${jewel?.label || (prompt.kind === 'waiting' ? 'WAIT' : '•')}</span>
-              <small data-timer></small>
+            <button type="button" class="tip ${showCoach ? '' : 'is-quiet'}" data-act="coach">
+              <b>${coach.headline || ''}</b>
+              ${advice ? html`<span>${coach.detail || ''}</span>` : ''}
             </button>
-            <button type="button" class="btn-art game__next" data-act="${endLabel ? 'end-turn' : 'next-phase'}" ${view.actions.nextPhase ? '' : raw('disabled')}>
-              <img src="assets/img/game/${endLabel ? 'end-turn' : 'next-phase'}.png" alt="${endLabel ? 'End Turn' : 'Next Phase'}">
-            </button>`}
+            ${controlsHtml(view)}`}
           </footer>
         </section>
 
         ${screen === 'judge' ? judgePanelHtml(view) : html`<aside class="game__right">
-          <div class="opps">
-            <h4>${judge ? 'Players' : 'Opponents'}</h4>
+          ${judge ? html`<div class="opps">
+            <h4>Players</h4>
             <div class="opps__list">
               ${others.map(p => html`
-                <button type="button" class="opp ${p.playerId === view.activePlayerId ? 'is-active' : ''} ${p.eliminated ? 'is-out' : ''} ${prompt.kind === 'waiting' && prompt.playerId === p.playerId ? 'is-waiting' : ''}" data-act="opponent" data-id="${p.playerId}" style="--player:${p.color}">
-                  <span class="opp__name">${p.name}</span>
-                  <b class="opp__life">${p.eliminated ? 'OUT' : p.life}</b>
-                  <span class="opp__meta">✋${p.handCount} • ▤${p.libraryCount} • ⚔${p.battlefield.filter(c => c.creature).length}${p.poison ? ` • ☠${p.poison}` : ''}</span>
-                  <span class="opp__mana">${['W', 'U', 'B', 'R', 'G', 'C'].filter(c => p.mana.fixed[c]).map(c => html`<i><img src="assets/img/mana/${c}.png" alt="${c}">${p.mana.fixed[c]}</i>`)}${p.mana.flex.length ? html`<i><img src="assets/img/mana/any.png" alt="any">${p.mana.flex.reduce((n, g) => n + g.count, 0)}</i>` : ''}</span>
-                </button>`)}
+                <div class="seat seat--side ${seatCls(view, p)}" data-id="${p.playerId}" style="--player:${p.color}">
+                  <button type="button" class="seat__main" data-act="opponent" data-id="${p.playerId}">
+                    <span class="seat__name"><i class="status-light ${p.eliminated ? 'is-out' : p.playerId === view.activePlayerId ? 'is-active' : ''}"></i>${p.name}</span>
+                    <b class="seat__life">${p.eliminated ? 'OUT' : p.life}</b>
+                    ${seatMeta(p)}
+                  </button>
+                  ${lightHtml(p)}
+                </div>`)}
             </div>
+          </div>` : ''}
+          <div class="glog ${phone ? 'glog--phone' : ''}">
+            <header><button type="button" class="link-btn glog__title" data-act="log">Game Log</button></header>
+            <ol class="glog__list">${view.log.slice(0, logLength(phone)).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>
           </div>
-          <div class="glog">
-            <header><button type="button" class="link-btn glog__title" data-act="log">Game Log</button><button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button></header>
-            <ol class="glog__list">${view.log.slice(0, 14).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>
+          <div class="game-tools">
+            <button type="button" class="chip ${view.stack.length ? 'chip--gold' : 'chip--none'}" data-act="stack">Stack (${view.stack.length})</button>
             <button type="button" class="btn-art glog__undo" data-act="undo" ${view.canUndo || (view.canAskUndo && view.undoRule) ? '' : raw('disabled')}><img src="assets/img/game/undo.png" alt="Undo"></button>
+            ${judge ? '' : html`<button type="button" class="chip" data-act="board">Board</button>`}
+            <button type="button" class="chip" data-act="table">Table</button>
+            ${view.correction?.mine ? html`<button type="button" class="chip chip--gold rail-tools" data-act="correction">Correcting…</button>`
+              : view.canEdit ? html`<button type="button" class="chip rail-tools" data-act="tools">${view.mode === 'freeplay' ? 'Edit Game' : 'Host Tools'}</button>`
+              : view.canChallenge ? html`<button type="button" class="chip rail-tools" data-act="challenge">Challenge</button>` : ''}
           </div>
         </aside>`}
         ${ui.curtainFor ? html`<button type="button" class="curtain" data-act="curtain"><img src="assets/img/ui/crest.png" alt=""><b>Pass the device to ${view.players.find(p => p.playerId === ui.curtainFor)?.name || 'the next player'}</b><em>Tap when ready</em></button>` : ''}
@@ -419,7 +488,11 @@ export const gameScreen = {
         }
         case 'counters': return openPlayerInfo(ctx, focusId);
         case 'sort': ui.sort = ui.sort === 'played' ? 'type' : ui.sort === 'type' ? 'power' : 'played'; return render();
-        case 'jewel': return doJewel(view);
+        case 'seat': ui.seats = rotateTo(ui.seats, el.dataset.id); return render();
+        case 'board': return openPlayerBoard(ctx, focusId);
+        case 'pass': return send({ type: 'pass' });
+        case 'attack': return openAttack(ctx);
+        case 'prompt': ui.minimized = false; return openPrompt(view, { manual: true });
         case 'coach': return view.coach?.tip && view.players.find(p => p.playerId === view.you)?.advice !== false ? toast(`Tip: ${view.coach.tip}`, { ms: 5200 }) : doJewel(view);
         case 'phase-info': return openJudge({ query: view.phaseLabel.toLowerCase().includes('main') ? 'main phase' : view.phaseLabel.toLowerCase() });
         case 'next-phase': return send({ type: 'next-phase' });
@@ -446,6 +519,8 @@ export const gameScreen = {
 
     function boot() {
       offs.push(session.onChange(update));
+      // The log length follows the screen size (phone: three entries), so a rotation or resize redraws.
+      if (phoneMq?.addEventListener) { const redraw = () => render(); phoneMq.addEventListener('change', redraw); offs.push(() => phoneMq.removeEventListener('change', redraw)); }
       update();
     }
 
