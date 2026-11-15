@@ -87,7 +87,7 @@
 .game--gp .gp-key { font-size: calc(var(--u) * 10.5); }
 .game--gp .gp-key .gp-face { overflow: hidden; }
 .game--gp .gp-key:active:not(:disabled) .gp-face { color: #fff; text-shadow: 0 0 calc(var(--u) * 5) var(--pal-glow), 0 0 calc(var(--u) * 2) var(--pal-secondary); }
-.gp-wordmark { display: flex; align-items: center; justify-content: center; font-size: calc(var(--u) * 15.5); letter-spacing: 0.04em; pointer-events: none; }
+.gp-wordmark { display: flex; align-items: center; justify-content: center; line-height: 1; font-size: calc(var(--u) * 13.5); letter-spacing: 0.04em; pointer-events: none; }
 .game--gp .gp-title { display: flex; align-items: center; padding: 0 calc(var(--u) * 6); font-size: calc(var(--u) * 10); overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .game--gp .gp-handtitle { justify-content: center; font-size: calc(var(--u) * 7.2); }
 .game--gp .gp-label { display: flex; align-items: center; justify-content: center; font-size: calc(var(--u) * 7.6); text-transform: none; letter-spacing: 0.02em; pointer-events: none; }
@@ -147,6 +147,37 @@
 .game--gp .gp-hand .hand-backs { display: flex; gap: calc(var(--u) * 4); height: 100%; align-items: center; }
 .game--gp .zone__empty { font-size: calc(var(--u) * 9); color: #b9b1cf; }
 
+/* Zones share each band by content (board-layout.js zoneLayout): creatures full height; planeswalkers and full
+   enchantments at 85%; artifacts, lands (and enchantments when creatures need the room) as preview tiles and piles. */
+.game--gp .gp-cards:not(.gp-hand) { justify-content: safe start; }   /* zones read left to right from the band's start */
+.game--gp .gp-cards--planeswalkers .card, .game--gp .gp-cards--enchantments.gp-cards--full .card { --h: calc(85cqh - 4px); }
+.game--gp .gp-cards--compact {
+  display: grid; grid-auto-flow: column; grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-columns: calc(var(--u) * 74);
+  gap: calc(var(--u) * 3) calc(var(--u) * 4); align-content: stretch; align-items: stretch; justify-content: safe start; padding: 2px calc(var(--u) * 2);
+}
+.gp--tablet .gp-cards--compact { grid-template-rows: repeat(3, minmax(0, 1fr)); grid-auto-columns: calc(var(--u) * 80); }
+.game--gp .gp-tile {
+  --h: auto; position: relative; display: block; width: auto; height: auto; min-height: 0; overflow: hidden; margin: 0; transform: none;
+  border: 1px solid #50465e; border-radius: calc(var(--u) * 3); background: #120d1c; color: #f8f1ff; text-align: left;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.gp-tile__art { position: absolute; inset: 0; background: center 30% / cover no-repeat; opacity: 0.85; }
+.gp-tile__art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10, 7, 18, 0.05) 0%, rgba(10, 7, 18, 0.55) 45%, rgba(10, 7, 18, 0.95) 100%); }
+.game--gp .gp-tile__name { position: absolute; left: calc(var(--u) * 3); right: calc(var(--u) * 3); bottom: calc(var(--u) * 10);
+  font: 700 calc(var(--u) * 8.4)/1.1 var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 #000, 0 0 3px #000; }
+.gp-tile__meta { position: absolute; left: calc(var(--u) * 3); right: calc(var(--u) * 3); bottom: calc(var(--u) * 2);
+  font: 600 calc(var(--u) * 6.6)/1.1 var(--font-ui); color: #cfc6e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-tile__count { position: absolute; right: calc(var(--u) * 2); top: calc(var(--u) * 2); padding: 0 calc(var(--u) * 3); border-radius: calc(var(--u) * 6);
+  background: rgba(8, 5, 16, 0.9); border: 1px solid var(--pal-secondary); font: 800 calc(var(--u) * 7.5)/1.3 var(--font-ui); font-style: normal; }
+.gp-tile__ctr { position: absolute; left: calc(var(--u) * 2); top: calc(var(--u) * 2); display: flex; gap: 2px; }
+.gp-tile__ctr i { padding: 0 calc(var(--u) * 2); border-radius: calc(var(--u) * 4); background: rgba(69, 212, 131, 0.92); color: #04120a; font: 800 calc(var(--u) * 5.8)/1.35 var(--font-ui); font-style: normal; white-space: nowrap; }
+.gp-tile__clip { position: absolute; right: calc(var(--u) * 2); bottom: calc(var(--u) * 9); font-size: calc(var(--u) * 6.5); background: rgba(8, 5, 16, 0.85); border-radius: calc(var(--u) * 3); padding: 0 2px; }
+.gp-tile__tap { position: absolute; left: calc(var(--u) * 2); top: calc(var(--u) * 1); font: 800 calc(var(--u) * 9)/1 var(--font-ui); color: var(--gold); text-shadow: 0 0 3px #000; }
+.game--gp .gp-tile.is-all-tapped .gp-tile__art, .game--gp .gp-tile.is-turned .gp-tile__art { filter: grayscale(0.5) brightness(0.6); }
+.game--gp .gp-tile.is-all-tapped, .game--gp .gp-tile.is-turned { border-color: #6b5a2a; }
+.game--gp .gp-tile:active { filter: brightness(1.3); }
+.game--gp .gp-empty { display: flex; align-items: center; justify-content: center; pointer-events: none; }
+
 /* ── mana well: seven icon/count cells and the total ── */
 .gp-mana { pointer-events: none; }
 .gp-manalabel, .gp-manatotal { display: flex; align-items: center; font-size: calc(var(--u) * 8.7); pointer-events: none; }
@@ -184,22 +215,27 @@
 /* ── jewels: Draw / Attack / Next Phase / End Turn, only when legal ── */
 .game--gp .gp-jewel { display: block; width: auto; height: auto; border: 0; background: none; box-shadow: none; filter: none; animation: none; }
 .game--gp .gp-jewel > .gp-face {
-  flex-direction: column; gap: 0; z-index: 1; bottom: auto; right: auto; min-width: 0; padding: 0; border: 0;
-  background: var(--sk-continue-normal) center / contain no-repeat;
+  display: block; z-index: 1; bottom: auto; right: auto; min-width: 0; padding: 0; border: 0;
+  background: var(--sk-continue-normal) 0 0 / 100% 100% no-repeat;
   font: 800 calc(var(--u) * 12)/1.05 var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase; color: #fff; white-space: normal; text-align: center;
   text-shadow: 0 1px 0 #12052e, 0 0 calc(var(--u) * 5) #12052e, 0 0 calc(var(--u) * 2) #000;
 }
+/* The label is centred on the gem (--lx/--ly: the gem's centre in the art box). */
+.game--gp .gp-jewel__label { position: absolute; left: var(--lx, 50%); top: var(--ly, 50%); transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; width: max-content; max-width: calc(var(--u) * 70); }
+.game--gp .gp-face--noart { background: none !important; }
+.gp-jewel-art { pointer-events: none; background: var(--sk-start-normal) 0 0 / 100% 100% no-repeat; }
+.gp-jewel-art:has(~ .play-controls .gp-jewel--context-top:active, ~ .play-controls .gp-jewel--context-bottom:active) { background-image: var(--sk-start-pressed); }
 .game--gp .gp-jewel[class*="gp-jewel--context"] > .gp-face { background-image: var(--sk-start-normal); font-size: calc(var(--u) * 10.5); }
 .game--gp .gp-jewel--context-top > .gp-face, .game--gp .gp-jewel--context-bottom > .gp-face { font-size: calc(var(--u) * 8); }
 .game--gp .gp-jewel:active > .gp-face { background-image: var(--sk-continue-pressed); }
 .game--gp .gp-jewel[class*="gp-jewel--context"]:active > .gp-face { background-image: var(--sk-start-pressed); }
-.game--gp .gp-jewel > .gp-face > span { max-width: 70%; }
 .game--gp .gp-glyph { font-style: normal; font-size: 1.25em; line-height: 1; }
 .game--gp .gp-jewel small { right: 12%; top: 10%; font-size: calc(var(--u) * 7); }
 .game--gp .gp-jewel:not(.is-idle) { animation: gp-jewel-pulse 2.4s ease-in-out infinite; }
 @keyframes gp-jewel-pulse { 50% { filter: drop-shadow(0 0 calc(var(--u) * 8) var(--pal-glow)) brightness(1.12); } }
 @media (prefers-reduced-motion: reduce) { .game--gp .gp-jewel:not(.is-idle) { animation: none; } }
-.gp-jewel-off { pointer-events: none; background: var(--sk-continue-disabled) center / contain no-repeat; opacity: 0.85; }
+.gp-jewel-off { pointer-events: none; background: var(--sk-continue-disabled) 0 0 / 100% 100% no-repeat; opacity: 0.85; }
 .gp-jewel-off.gp-jewel--context { background-image: var(--sk-start-disabled); }
 
 /* ── local player ── */
