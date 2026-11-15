@@ -158,6 +158,14 @@ V35. ☐ iPhone held sideways: one header line (plate on the left, Home and icon
 V36. ☐ Panels, the card window and pop-ups (Show all details, Fix, Export) have the metal frame with the crystal; text fields and pickers sit in recessed wells and the chosen value stays readable in the Card search filters.
 V37. ☐ Upgrades: the power bar fills in the palette colour with the Budget / Mid / Apex marks where they were; Build stats bars, numbers and the bracket line read as before (no number changes).
 
+## Deck Builder V3 skin (ChatGPT's V3 masters, installed over the stage 3c look)
+V40. ☐ iPad and iPhone held sideways: Deck Builder header is the crest with the screen title (DECK BUILDER, Decks, Builder, a deck's name), steel nav keys, and a Home key with the house in the palette colour; the open page's key has a lit underline. Long deck names are cut short with ...; nothing overlaps the keys.
+V41. ☐ Builder: all seven ways to start a deck (Generate from a commander, Decks you can build, Generate from cards, Load a precon, Import a text list, Empty Commander deck, Empty Standard deck) show flat recessed tiles with uppercase titles; each of the first five opens a dialog with the cut-steel frame, steel keys and square fields.
+V42. ☐ Open deck: Duplicate, Share link, Compare, History, Delete deck and (after an edit) Undo are steel keys, Delete in rose; the Share link, Compare and History dialogs read cleanly and every key is at least 36 px tall.
+V43. ☐ iPad Build sidebar and iPhone Build tab: fields are square wells, Regenerate upgrades is the lit (palette) key, the Group / Sort / Role choices are steel keys with the chosen one lit; the open tab is a lit recessed box with its count under the name.
+V44. ☐ iPhone upright (390 wide): header keys four to a row with Home fully readable; tabs wrap to two rows; no sideways scroll.
+V45. ☐ Choose Ember, then Gold: frames, keys and the lit key take the palette colour (no leftover purple), under Amethyst they match the V3 masters.
+
 ## Monster Siege (/test)
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
