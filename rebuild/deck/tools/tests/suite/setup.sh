@@ -15,6 +15,7 @@ git -C "$(git -C "$REPO" rev-parse --show-toplevel)" archive FETCH_HEAD | tar -x
 rm -rf "$WORK/proto/candidate" "$WORK/proto/tests"; mkdir -p "$WORK/proto/candidate" "$WORK/proto/out"
 cp "$REPO"/*.js "$REPO"/*.css "$REPO"/index.html "$REPO"/version.json "$REPO"/manifest.json "$WORK/proto/candidate/"
 cp -r "$REPO/../assets" "$WORK/proto/candidate/assets"   # the Commander Companion art the page uses (../assets from deck/)
+mkdir -p "$WORK/proto/candidate/styles" && cp "$REPO/../styles/skin-palettes.css" "$WORK/proto/candidate/styles/"   # the skin art for each palette (../styles from deck/)
 cp -r "$REPO/engine" "$REPO/ui" "$REPO/files.json" "$WORK/proto/candidate/"   # the split scripts (0.9.3)
 cp -r "$REPO/tools" "$WORK/proto/candidate/tools"
 cp -r "$REPO/tools/tests/suite" "$WORK/proto/tests"
