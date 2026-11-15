@@ -2,6 +2,7 @@
 
 import { html, on } from './dom.js';
 import { openModal } from './modal.js';
+import { routePanel, routePanels } from './route-kit.js';
 import { loadSettings, saveSettings } from '../data/store.js';
 import { VERSION, BUILD_DATE } from '../version.js';
 import { devReport, reportText } from '../net/corrections.js';
@@ -17,36 +18,38 @@ const GUIDANCE = [
 export function openSettings() {
   const settings = loadSettings();
   openModal({
-    title: 'Settings',
-    body: html`
-      <h3 class="section-title">Guidance level (Guided games)</h3>
-      <div class="option-list" id="guidanceOptions">
-        ${GUIDANCE.map(([id, label, text]) => html`
-          <button type="button" class="option ${settings.guidance === id ? 'is-on' : ''}" data-guidance="${id}">
-            <span><strong>${label}</strong><small>${text}</small></span>
-          </button>`)}
-      </div>
-      <h3 class="section-title">Preferences</h3>
-      <div class="option-list">
-        <button type="button" class="option ${settings.tips ? 'is-on' : ''}" data-toggle="tips" aria-pressed="${settings.tips ? 'true' : 'false'}">
-          <span><strong>Learning tips</strong><small>Short explanations of phases and keywords as they come up.</small></span>
-          <span class="option__end skin-switch ${settings.tips ? 'is-on' : ''}">${settings.tips ? 'On' : 'Off'}</span>
-        </button>
-      </div>
-      <h3 class="section-title">Help improve the rules</h3>
-      <div class="option-list">
-        <button type="button" class="option ${settings.sendCorrections !== false ? 'is-on' : ''}" data-toggle="sendCorrections" aria-pressed="${settings.sendCorrections !== false ? 'true' : 'false'}">
-          <span><strong>Send rule corrections</strong><small>When a card has to be resolved by hand or a play is corrected, send the card and what was done (no names, decks or hands) so it can be automated.</small></span>
-          <span class="option__end skin-switch ${settings.sendCorrections !== false ? 'is-on' : ''}">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
-        </button>
-      </div>
-      ${backupSectionHtml()}
-      <p class="muted">Commander Companion ${VERSION} • ${BUILD_DATE}</p>
-      <div class="option-list">
-        <button type="button" class="option" data-dev-report>
-          <span><strong>Dev report</strong><small>PIN protected. Every correction from every game, ready to copy.</small></span>
-        </button>
-      </div>`,
+    title: 'Settings', route: { w: 1160, h: 515, ph: 343, back: 'Close', cls: 'modal--settings' },
+    body: routePanels([
+      routePanel('Guidance level', html`
+        <p class="route-note">For Guided games.</p>
+        <div class="option-list" id="guidanceOptions">
+          ${GUIDANCE.map(([id, label, text]) => html`
+            <button type="button" class="option ${settings.guidance === id ? 'is-on' : ''}" data-guidance="${id}">
+              <span><strong>${label}</strong><small>${text}</small></span>
+            </button>`)}
+        </div>`, 'route-panel--form'),
+      routePanel('Preferences', html`
+        <div class="option-list">
+          <button type="button" class="option ${settings.tips ? 'is-on' : ''}" data-toggle="tips" aria-pressed="${settings.tips ? 'true' : 'false'}">
+            <span><strong>Learning tips</strong><small>Short explanations of phases and keywords as they come up.</small></span>
+            <span class="option__end skin-switch ${settings.tips ? 'is-on' : ''}">${settings.tips ? 'On' : 'Off'}</span>
+          </button>
+        </div>
+        <h3 class="section-title">Help improve the rules</h3>
+        <div class="option-list">
+          <button type="button" class="option ${settings.sendCorrections !== false ? 'is-on' : ''}" data-toggle="sendCorrections" aria-pressed="${settings.sendCorrections !== false ? 'true' : 'false'}">
+            <span><strong>Send rule corrections</strong><small>When a card has to be resolved by hand or a play is corrected, send the card and what was done (no names, decks or hands) so it can be automated.</small></span>
+            <span class="option__end skin-switch ${settings.sendCorrections !== false ? 'is-on' : ''}">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
+          </button>
+        </div>
+        ${backupSectionHtml()}
+        <div class="option-list">
+          <button type="button" class="option" data-dev-report>
+            <span><strong>Dev report</strong><small>PIN protected. Every correction from every game, ready to copy.</small></span>
+          </button>
+        </div>
+        <p class="route-note">Commander Companion ${VERSION} • ${BUILD_DATE}</p>`, 'route-panel--form')
+    ]),
     onMount(el, { close }) {
       on(el, 'click', '[data-guidance]', (event, button) => {
         saveSettings({ guidance: button.dataset.guidance });

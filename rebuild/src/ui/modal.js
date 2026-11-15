@@ -23,13 +23,13 @@ function layer() {
  * @param {string} [options.size] 'small' | 'wide' | 'full'
  * @param {object} [options.route] visual handoff composition (styles/skin-routes.css): { w, h, ph } in map units. Plate,
  *   panels from the body, and one bottom row: Back (or Close, `back`) unless a Cancel action is given, which then
- *   carries the Back behaviour itself.
+ *   carries the Back behaviour itself. `back: false` leaves the Back button out (the actions close it); `cls` adds a class to the dialog.
  */
 export function openModal({ title = '', body = '', actions = [], onMount, onClose, dismissible = true, size = '', route = null } = {}) {
   const el = document.createElement('section');
-  el.className = `modal${size ? ` modal--${size}` : ''}${route ? ' modal--route' : ''}`;
+  el.className = `modal${size ? ` modal--${size}` : ''}${route ? ` modal--route${route.cls ? ` ${route.cls}` : ''}` : ''}`;
   if (route) el.setAttribute('style', `--W:${route.w || 1160};--H:${route.h || 515};--PH:${route.ph || 328}`);
-  const routeBack = route && dismissible && !actions.some(a => a.kind === 'cancel');
+  const routeBack = route && dismissible && route.back !== false && !actions.some(a => a.kind === 'cancel');
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-label', title);

@@ -2,19 +2,19 @@
 
 import { html, setHtml, $, on } from './dom.js';
 import { openModal } from './modal.js';
+import { routePanel, routePanels } from './route-kit.js';
 import { JUDGE_TOPICS, searchJudge } from '../data/judge.js';
 
 export function openJudge({ query = '' } = {}) {
   let topic = '';
   openModal({
-    title: 'Ask the Judge',
-    size: 'wide',
-    body: html`
-      <div class="judge">
-        <input class="input" id="judgeSearch" type="search" placeholder="Search the rules — try “commander tax” or “trample”" value="${query}" autocomplete="off">
-        <div class="judge__topics" id="judgeTopics"></div>
-        <div class="option-list" id="judgeResults"></div>
-      </div>`,
+    title: 'Ask the Judge', route: { w: 1160, h: 515, ph: 343, back: 'Close', cls: 'modal--help' },
+    body: routePanels([
+      routePanel('Search rules', html`
+        <input class="input" id="judgeSearch" type="search" placeholder="Search the rules — try “commander tax” or “trample”" aria-label="Search the rules" value="${query}" autocomplete="off">
+        <div class="judge__topics" id="judgeTopics"></div>`, 'route-panel--form'),
+      routePanel('Result', html`<div class="judge-help"><div class="option-list" id="judgeResults"></div></div>`, 'route-panel--form')
+    ]),
     onMount(el) {
       const input = $('#judgeSearch', el);
       const draw = () => {

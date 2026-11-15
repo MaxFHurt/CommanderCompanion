@@ -130,4 +130,13 @@ V29. ☐ Table Tracker setup (names, commander, playmat per player; Starting lif
 V30. ☐ Sign in / Sign up (from Settings or Welcome): "Your account" panel with Email then the code step; Send code / Confirm / Send a new code still work; Close returns.
 V31. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the same screens are centred and larger.
 
+## Profile, playmats, history, achievements, settings, rules, help (visual rebuild, stage 3b)
+V32. ☐ Player Profile: two panels ("Your profile": avatar with upload, name, Most Played Deck, Achievements, Game History; "Profile tools": games / wins / win rate / decks, Playmats and Dice, Table Defaults) and Back. Editing the name still saves; the panel scrolls from the top if it is taller than the screen.
+V33. ☐ Playmats and Dice: Playmats panel (thumbnails of all 33 mats, locked ones dim with a lock and how to earn them) and Life dice panel (Match playmat plus 33 dice); tap an unlocked one → it shows "In use" and the app colours change; the "Next playmat in N games" line sits under the thumbnails; Done closes.
+V34. ☐ Game History (Recent games panel, Close) and Achievements (Level panel with bar, next reward, drawn rewards, game awards; "All achievements" list with Earned / Not yet; Close). Long lists scroll from the top.
+V35. ☐ Settings: Guidance level (Coach / Assist / Rules only) and Preferences (Learning tips and Send rule corrections switches, Account, Backup, Dev report); Close. Switches show on/off art.
+V36. ☐ Rules (Table rules before a game, Table Defaults, host Rules edit): Commander panel and Table options panel with switches, House rule chips still appear, and Who goes first? sits at the bottom of Table options. Cancel/Back and Save/Start still work. Table Defaults: Players on the left, house rules on the right.
+V37. ☐ Help (Ask the Judge): Search rules panel (search box and topic chips) and Result panel; the dialog has the plain panel background, no striped judge background. Searching filters the results.
+V38. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the panels are taller and centred.
+
 Reply with the numbers that failed and a screenshot.

@@ -171,8 +171,8 @@ export function openAddCard(ctx, playerId, closeParent) {
 export function openRulesEdit(ctx, closeParent, { propose = false } = {}) {
   let read = null;
   openModal({
-    title: propose ? 'Propose a rule change' : 'Table rules', size: 'wide',
-    body: html`${propose ? html`<p class="muted">Everyone still in the game must agree before the change applies.</p>` : ''}${rulesEditorHtml(ctx.view.rules)}`,
+    title: propose ? 'Propose a rule change' : 'Table rules', route: { w: 1160, h: 515, ph: 343, cls: 'modal--rules' },
+    body: rulesEditorHtml(ctx.view.rules, { extra: propose ? html`<p class="route-note">Everyone still in the game must agree before the change applies.</p>` : '' }),
     actions: [{ label: 'Cancel', kind: 'cancel' }, propose
       ? { label: 'Ask the table', kind: 'confirm', onClick: async ({ close }) => { close(); closeParent?.(); const r = await ctx.send({ type: 'propose-rules', rules: read() }); if (r.ok) toast('Sent to the table.'); } }
       : { label: 'Save rules', kind: 'confirm', onClick: ({ close }) => { close(); closeParent?.(); ctx.send({ type: 'edit', edit: { kind: 'rules', patch: read() } }); } }],

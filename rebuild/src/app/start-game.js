@@ -57,9 +57,8 @@ export function chooseRules({ mode, names = [] }) {
   return new Promise(resolve => {
     let read = null, first = 'random';
     openModal({
-      title: mode === 'freeplay' ? 'Free Play rules' : 'Table rules', size: 'wide', onClose: () => resolve(null),
-      body: html`${rulesEditorHtml(defaults)}
-        ${names.length ? html`<h4 class="section-title">Who goes first?</h4><div class="row row--wrap" data-first><button type="button" class="chip is-on chip--gold" data-first-pick="random">Random</button>${names.map((n, i) => html`<button type="button" class="chip" data-first-pick="${i}">${n}</button>`)}</div>` : ''}`,
+      title: mode === 'freeplay' ? 'Free Play rules' : 'Table rules', route: { w: 1160, h: 515, ph: 343, cls: 'modal--rules' }, onClose: () => resolve(null),
+      body: rulesEditorHtml(defaults, { extra: names.length ? html`<h4 class="section-title">Who goes first?</h4><div class="row row--wrap" data-first><button type="button" class="chip is-on chip--gold" data-first-pick="random">Random</button>${names.map((n, i) => html`<button type="button" class="chip" data-first-pick="${i}">${n}</button>`)}</div>` : '' }),
       actions: [{ label: 'Back', kind: 'cancel', onClick: ({ close }) => { close(); resolve(null); } }, { label: 'Start game', kind: 'confirm', onClick: ({ close }) => { close(); resolve({ rules: read(), firstPlayer: first === 'random' ? 'random' : Number(first) }); } }],
       onMount(el) {
         read = bindRulesEditor(el, defaults);

@@ -1,6 +1,7 @@
 // The game rules form, shared by Table Defaults and the per-game Rules page.
 
 import { html } from './dom.js';
+import { routePanel } from './route-kit.js';
 import { normalizeRulesConfig } from '../engine/rules.js';
 
 const TOGGLES = [
@@ -41,35 +42,41 @@ export function rulesSummaryHtml(config) {
   return html`<div class="kv-list rules-summary">${rows.map(([label, value, house]) => html`<div class="kv"><span>${label}</span><span class="rules-summary__end">${house ? chip() : ''}<b>${value}</b></span></div>`)}</div>`;
 }
 
-export function rulesEditorHtml(config) {
+const COMMANDER_KEYS = ['commanderDamage', 'poisonLoss', 'commanderTax', 'bannedList', 'colorIdentity', 'singleton', 'firstPlayerDraw'];
+
+/**
+ * The rules form. Default: two recessed panels as in the handoff map (Commander, Table options) for a route dialog
+ * (openModal `route`), with `extra` (html) at the end of the second. `inline: true`: one plain list, to sit inside a panel.
+ */
+export function rulesEditorHtml(config, { inline = false, extra = '' } = {}) {
   const r = normalizeRulesConfig(config);
-  return html`
-    <div class="rules-editor">
-      <div class="grid-3">
-        <label class="field">Starting life
-          <input type="number" inputmode="numeric" min="1" max="999" data-rule="startingLife" value="${Number(r.startingLife || 40)}">
-          ${Number(r.startingLife || 40) !== 40 ? chip() : ''}
-        </label>
-        <label class="field">Mulligan rule
-          <select data-rule="mulligan">
-            <option value="commander" ${r.mulligan === 'commander' ? 'selected' : ''}>Commander — first one free</option>
-            <option value="london" ${r.mulligan === 'london' ? 'selected' : ''}>London mulligan</option>
-            <option value="free" ${r.mulligan === 'free' ? 'selected' : ''}>Free mulligans (house rule)</option>
-          </select>
-        </label>
-        <label class="field">Response timer (seconds, 0 = off)
-          <input type="number" inputmode="numeric" min="0" max="600" data-rule="priorityTimer" value="${Number(r.priorityTimer || 0)}">
-        </label>
-      </div>
-      <div class="grid-2">
-        ${TOGGLES.map(([key, label, text, house]) => {
-          const on = key === 'autoSkip' ? r.autoSkip !== false : (house ? !!r[key] : r[key] !== false);
-          return html`<button type="button" class="option ${on ? 'is-on' : ''}" data-rule-toggle="${key}" aria-pressed="${on ? 'true' : 'false'}">
-            <span><strong>${label}</strong><small>${text}</small></span><span class="option__end">${isHouse(key, on) ? chip() : ''}<b data-state>${on ? 'On' : 'Off'}</b></span>
-          </button>`;
-        })}
-      </div>
-    </div>`;
+  const toggle = ([key, label, text, house]) => {
+    const on = key === 'autoSkip' ? r.autoSkip !== false : (house ? !!r[key] : r[key] !== false);
+    return html`<button type="button" class="option option--rule ${on ? 'is-on' : ''}" data-rule-toggle="${key}" aria-pressed="${on ? 'true' : 'false'}">
+      <span class="option__text"><strong>${label}</strong><small>${text}</small></span><span class="option__end">${isHouse(key, on) ? chip() : ''}<b data-state class="skin-switch ${on ? 'is-on' : ''}">${on ? 'On' : 'Off'}</b></span>
+    </button>`;
+  };
+  const fields = html`
+    <label class="field">Starting life
+      <input type="number" inputmode="numeric" min="1" max="999" data-rule="startingLife" value="${Number(r.startingLife || 40)}">
+      ${Number(r.startingLife || 40) !== 40 ? chip() : ''}
+    </label>
+    <label class="field">Mulligan rule
+      <select data-rule="mulligan">
+        <option value="commander" ${r.mulligan === 'commander' ? 'selected' : ''}>Commander — first one free</option>
+        <option value="london" ${r.mulligan === 'london' ? 'selected' : ''}>London mulligan</option>
+        <option value="free" ${r.mulligan === 'free' ? 'selected' : ''}>Free mulligans (house rule)</option>
+      </select>
+    </label>
+    <label class="field">Response timer (seconds, 0 = off)
+      <input type="number" inputmode="numeric" min="0" max="600" data-rule="priorityTimer" value="${Number(r.priorityTimer || 0)}">
+    </label>`;
+  const commander = TOGGLES.filter(t => COMMANDER_KEYS.includes(t[0])), table = TOGGLES.filter(t => !COMMANDER_KEYS.includes(t[0]));
+  if (inline) return html`<div class="rules-editor rules-editor--inline">${fields}${TOGGLES.map(toggle)}</div>`;
+  return html`<div class="rules-editor route__panels">
+    ${routePanel('Commander', commander.map(toggle), 'route-panel--form')}
+    ${routePanel('Table options', html`${fields}${table.map(toggle)}${extra}`, 'route-panel--form')}
+  </div>`;
 }
 
 /** Wire the toggles inside `root` and return a function that reads the current values. */
@@ -86,7 +93,9 @@ export function bindRulesEditor(root, initial) {
     const end = button.querySelector('.option__end');
     end.querySelector('.chip--house')?.remove();
     if (isHouse(key, state[key])) end.insertAdjacentHTML('afterbegin', '<i class="chip chip--house">House rule</i>');
-    end.querySelector('[data-state]').textContent = state[key] ? 'On' : 'Off';
+    const sw = end.querySelector('[data-state]');
+    sw.textContent = state[key] ? 'On' : 'Off';
+    sw.classList.toggle('is-on', state[key]);
   });
   return () => {
     const life = root.querySelector('[data-rule="startingLife"]');

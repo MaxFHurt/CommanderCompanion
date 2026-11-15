@@ -194,7 +194,75 @@ async def routes_main(only=None):
         await browser.close()
     print('page errors:', errors or 'none')
 
-if 'routes' in sys.argv[3:]:
+# ── Stage 3b: profile, playmats and dice, history, achievements, settings, rules, help ──────────────────
+# python3 tests/shots_skin.py out_dir handoff_dir routes3b [names...]
+SEED3B = """async () => {
+  const { saveAccountProfile } = await import('./src/data/profile.js');
+  await saveAccountProfile({ displayName: 'Aaron' });
+  const raw = JSON.parse(localStorage.getItem('ccv07-profile'));
+  raw.games = 12; raw.wins = 5; raw.awards = { 'Most commander damage': 2, 'Comeback': 1 };
+  raw.history = [
+    { at: '2026-11-10T20:00:00Z', mode: 'fully-tracked', winnerName: 'Aaron', turnNumber: 9, players: [{ name: 'Aaron', commanders: ['Atraxa'] }, { name: 'Heather', commanders: [] }, { name: 'Sam', commanders: [] }, { name: 'Lee', commanders: [] }] },
+    { at: '2026-11-08T20:00:00Z', mode: 'freeplay', winnerName: '', turnNumber: 6, players: [{ name: 'Aaron', commanders: [] }, { name: 'Heather', commanders: [] }] }];
+  raw.rewardDraws = [{ id: 'mat:ember', slot: 'a1', at: '2026-11-15T00:00:00Z' }, { id: 'die:ember', slot: 'a2', at: '2026-11-15T00:00:00Z' }];
+  raw.rewardsShown = ['mat:ember', 'die:ember'];
+  raw.milestones = ['first-game', 'first-win'];
+  raw.token.updatedAt = new Date().toISOString();
+  localStorage.setItem('ccv07-profile', JSON.stringify(raw));
+  const { durableSet } = await import('./src/data/userdata-db.js'); await durableSet('profile', raw);
+}"""
+
+
+async def routes3b(browser, only=None):
+    for device in DEVICES:
+        ctx = await browser.new_context(**DEVICES[device])
+        await ctx.add_init_script("localStorage.setItem('cc.welcome.done', '1')")
+        page = await ctx.new_page()
+        page.on('pageerror', lambda e: errors.append(f'{device}: {e}'))
+        await page.goto(URL)
+        await page.wait_for_function('window.__ccReady === true', timeout=15000)
+        await page.evaluate(SEED3B)
+        await page.reload(); await page.wait_for_function('window.__ccReady === true')
+        shot = lambda name, route=None: snap(page, name, route or name, device)
+        want = lambda name: not only or name in only
+        back = lambda: page.click('.modal [data-modal-back]')
+        await page.wait_for_timeout(800)
+        if await page.locator('.modal--small .btn').count(): await page.click('.modal--small .btn >> nth=0'); await page.wait_for_timeout(300)
+        await page.click('[data-act="profile"]'); await page.wait_for_selector('.profile')
+        if want('profile'): await shot('profile')
+        await page.click('[data-act="playmats"]'); await page.wait_for_selector('.mat-slots')
+        if want('playmats'): await shot('playmats')
+        await page.click('.modal .btn--confirm')
+        await page.click('[data-act="history"]'); await page.wait_for_selector('.history-row')
+        if want('profile-history'): await shot('profile-history')
+        await back()
+        await page.click('[data-act="achievements"]'); await page.wait_for_selector('[data-level]')
+        if want('achievements'): await shot('achievements')
+        await back()
+        await page.click('[data-act="defaults"]'); await page.wait_for_selector('#defaultRules')
+        if want('table-defaults'): await shot('table-defaults', 'rules')
+        await back()
+        await page.click('[data-act="back"]'); await page.wait_for_selector('.landing')
+        await page.click('[data-act="settings"]'); await page.wait_for_selector('#guidanceOptions')
+        if want('settings'): await shot('settings')
+        await back()
+        await page.click('[data-act="help"]'); await page.wait_for_selector('#judgeSearch')
+        await page.fill('#judgeSearch', 'commander damage')
+        if want('help'): await shot('help')
+        await ctx.close()
+
+
+async def routes3b_main(only=None):
+    os.makedirs(OUT, exist_ok=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        await routes3b(browser, only)
+        await browser.close()
+    print('page errors:', errors or 'none')
+
+if 'routes3b' in sys.argv[3:]:
+    asyncio.run(routes3b_main([a for a in sys.argv[4:]] or None))
+elif 'routes' in sys.argv[3:]:
     asyncio.run(routes_main([a for a in sys.argv[4:]] or None))
 else:
     asyncio.run(main())
