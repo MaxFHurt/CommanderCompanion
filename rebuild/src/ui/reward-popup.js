@@ -20,7 +20,7 @@ export async function showNewRewards() {
     dismissible: false,
     body: html`<div class="reward-popup" data-reward-popup>
       ${list.map(r => html`<div class="reward-popup__row" data-reward="${r.kind}:${r.id}">
-        <span class="reward-popup__swatch reward-popup__swatch--${r.kind}" style="display:inline-block;width:44px;height:44px;border-radius:${r.kind === 'die' ? '50%' : '8px'};vertical-align:middle;margin-right:10px;background:${r.kind === 'die' ? `radial-gradient(circle at 35% 30%, ${r.secondary}, ${r.primary} 70%)` : `linear-gradient(135deg, ${r.primary}, ${r.secondary})`}"></span>
+        <span class="reward-popup__swatch reward-popup__swatch--${r.kind}" style="display:inline-block;width:44px;height:44px;border-radius:${r.kind === 'die' ? '50%' : '8px'};vertical-align:middle;margin-right:10px;background:${r.art ? `url('${r.art}') center / ${r.kind === 'die' ? 'contain' : 'cover'} no-repeat` : r.kind === 'die' ? `radial-gradient(circle at 35% 30%, ${r.secondary}, ${r.primary} 70%)` : `linear-gradient(135deg, ${r.primary}, ${r.secondary})`}"></span>
         <strong>${r.name} ${r.kind === 'mat' ? 'playmat' : 'die'}</strong></div>`)}
     </div>`,
     actions: [

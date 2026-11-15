@@ -136,7 +136,7 @@ async def main():
         await page.wait_for_selector('.landing')
         await page.wait_for_selector('[data-reward-popup]', timeout=5000)
         pop = await page.inner_text('[data-reward-popup]')
-        check('back on the menu, the first game announces the Dark Alley playmat (level 3)', 'Dark Alley playmat' in pop, pop)
+        check('back on the menu, the first game announces its random rewards, a playmat then a die then a playmat …', pop.lower().count('playmat') >= 2 and 0 <= pop.lower().count('playmat') - pop.lower().count(' die') <= 1, pop)
         await page.click('.modal__foot .btn--cancel')
         await page.click('[data-act="profile"]')
         await page.wait_for_selector('.profile')
@@ -147,7 +147,8 @@ async def main():
         await page.wait_for_selector('.mat-slots')
         locked = await page.locator('.mat-slots:not(.mat-slots--dice) .mat-slot.is-locked').count()
         locked_dice = await page.locator('[data-die-locked]').count()
-        check('1 game + 1 win + first tracker game = level 3: one mat open, no die', locked == 6 and locked_dice == 7, f'{locked} mats, {locked_dice} dice locked')
+        lvl = await page.evaluate("async () => { const a = await import('./src/data/achievements.js'); const p = await import('./src/data/profile.js'); return a.achievementLevel(p.loadProfile()); }")
+        check('every achievement drew one reward, mat then die then mat …: open mats = ceil(level/2), open dice = floor(level/2)', lvl >= 3 and 32 - locked == (lvl + 1) // 2 and 32 - locked_dice == lvl // 2, f'level {lvl}: {locked} mats, {locked_dice} dice locked')
         await page.screenshot(path=f'{OUT}phone-playmats.png')
         # blocked card lookups are expected offline; online, Scryfall answers a made-up card name with 404 (not a page error)
         real = [e for e in page.errors if 'ERR_FAILED' not in e and 'status of 404' not in e]
