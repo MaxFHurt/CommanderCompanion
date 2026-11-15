@@ -438,7 +438,7 @@ export function openPlayerInfo(ctx, playerId) {
       ${sources.length ? sources.map(c => html`<p>${p.commanderDamage[c.id]} from ${c.name} (${c.owner})${p.commanderDamage[c.id] >= (view.rules.commanderDamageThreshold || 21) ? ' — lethal' : ''}</p>`) : html`<p class="muted">None.</p>`}
       ${(p.emblems || []).length ? html`<h4 class="section-title">Emblems</h4>${p.emblems.map(e => html`<p>${e.source ? `${e.source}: ` : ''}“${e.text}”</p>`)}` : ''}
       <h4 class="section-title">Counters and status</h4>
-      <p>${[...Object.entries(p.counters).map(([k, v]) => `${k}: ${v}`), ...p.statuses].join(' • ') || 'None'}</p>
+      <p>${[...Object.entries(p.counters).map(([k, v]) => `${k}: ${v}`), ...p.statuses, ...(p.effects || []).map(e => e.text)].join(' • ') || 'None'}</p>
       <p class="muted">Deck: ${p.deckName || 'Unknown'} • Library ${p.libraryCount} • Graveyard ${p.graveyard.length} • Exile ${p.exile.length}</p>`,
     actions: [{ label: 'Close', kind: 'cancel' }, ...(view.canEdit ? [{ label: view.mode === 'freeplay' ? 'Edit game' : 'Host tools', kind: 'plain', onClick: ({ close }) => { close(); openHostTools(ctx); } }] : [])]
   });

@@ -194,6 +194,12 @@ export function buildView(game, viewer = {}, { canUndo = false, reversible = new
       playerId: p.playerId, name: p.displayName, seat: p.seat, color: p.color, matId: p.matId || null, advice: p.settings?.advice !== false,
       life: p.life, poison: Number(p.poison || 0), eliminated: !!p.eliminated, eliminationReason: p.eliminationReason || null,
       statuses: [...(p.statuses || [])],
+      // Player-level effects with an end (the status light shows these yellow): until: 'turn' | 'next-turn'.
+      effects: [
+        ...(p.noLandPlayTurn === game.turnNumber ? [{ text: "Can't play lands this turn", until: 'turn', harmful: true }] : []),
+        ...((p.skipNextUntap || []).length ? [{ text: 'Skips their next untap', until: 'next-turn', harmful: true }] : []),
+        ...(Number(p.skipTurns || 0) > 0 ? [{ text: `Skips their next ${Number(p.skipTurns) === 1 ? 'turn' : `${p.skipTurns} turns`}`, until: 'next-turn', harmful: true }] : [])
+      ],
       emblems: (p.emblems || []).map(e => ({ id: e.id, text: e.text, source: e.source || '' })),
       counters: Object.fromEntries(Object.entries(p.counters || {}).filter(([k, v]) => Number(v) > 0 && !/ThisTurn$|^damageDealt$|^failedDraws$/.test(k))),
       commanderDamage: { ...(p.commanderDamage || {}) },

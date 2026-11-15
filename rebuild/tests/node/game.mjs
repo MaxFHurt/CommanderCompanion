@@ -1387,4 +1387,54 @@ section('old cached card data: split and adventure costs');
   check('a game started from old saved data uses the repaired cost', g.cardDefinitions['old-bonecrusher'].manaCost === '{2}{R}');
 }
 
+section('game screen: status light, legal turn controls, opponent seats, phone log');
+{
+  const { statusLight, playControls, seatLayout, rotateTo, opponentsInOrder, logLength } = await import('../../src/ui/game/play-state.js');
+  check('healthy player is green', statusLight({ poison: 0, counters: {}, statuses: ['Monarch'], effects: [] }).level === 'green');
+  check('poison makes the light red', statusLight({ poison: 2, counters: {}, effects: [] }).level === 'red');
+  check('rad counters make the light red', statusLight({ poison: 0, counters: { rad: 3 }, effects: [] }).level === 'red');
+  check('an until-end-of-turn effect is yellow', statusLight({ poison: 0, counters: {}, effects: [{ text: "Can't play lands this turn", until: 'turn', harmful: true }] }).level === 'yellow');
+  check('an until-your-next-turn effect is yellow', statusLight({ poison: 0, counters: {}, effects: [{ text: 'Skips their next untap', until: 'next-turn' }] }).level === 'yellow');
+  check('a harmful lasting effect is red', statusLight({ poison: 0, counters: {}, effects: [{ text: 'x', until: 'lasting', harmful: true }] }).level === 'red');
+  const both = statusLight({ poison: 1, counters: {}, effects: [{ text: 'Skips their next turn', until: 'next-turn' }] });
+  check('poison wins over a temporary status, both listed', both.level === 'red' && both.reasons.length === 2, JSON.stringify(both));
+  check('energy counters stay green', statusLight({ poison: 0, counters: { energy: 4 }, effects: [] }).level === 'green');
+
+  const v = (prompt, phase, actions = {}) => ({ you: 'a', status: 'active', prompt, phase, actions });
+  const acts = list => list.map(c => c.act).join(',');
+  check('main 1: Combat (next phase) and End Turn', acts(playControls(v({ kind: 'turn' }, 'precombat-main', { nextPhase: true, endTurn: true }))) === 'next-phase,end-turn');
+  check('combat with attackers: Attack, Next Phase, End Turn', acts(playControls(v({ kind: 'turn' }, 'combat', { nextPhase: true, endTurn: true, attack: ['x'] }))) === 'attack,next-phase,end-turn');
+  check('main 2: End Turn only', acts(playControls(v({ kind: 'turn' }, 'postcombat-main', { nextPhase: true, endTurn: true }))) === 'end-turn');
+  check('response window: Pass only', acts(playControls(v({ kind: 'priority' }, 'precombat-main', { nextPhase: false }))) === 'pass');
+  check('waiting on someone else: nothing', playControls(v({ kind: 'waiting' }, 'precombat-main')).length === 0);
+  check('a judge display has no controls', playControls({ you: null, prompt: { kind: 'turn' }, actions: { nextPhase: true } }).length === 0);
+  const draw = playControls(v({ kind: 'decision', decision: { source: 'Draw', title: 'Draw a card' } }, 'draw'));
+  check('a physical draw shows Draw', draw.length === 1 && draw[0].label === 'Draw' && draw[0].act === 'prompt');
+  check('other choices show Choose', playControls(v({ kind: 'decision', decision: { title: 'Pick a target' } }, 'precombat-main'))[0].label === 'Choose');
+  check('vote only when this player may vote', playControls(v({ kind: 'vote', canVote: false }, 'x')).length === 0 && playControls(v({ kind: 'vote', canVote: true }, 'x')).length === 1);
+  {
+    const t = newGame(['white', 'simic']);
+    t.keepAll();
+    const view = t.view(0);
+    const live = playControls(view);
+    check('live game, main 1: next phase and end turn are offered', live.some(c => c.act === 'next-phase') && live.some(c => c.act === 'end-turn') && !live.some(c => c.act === 'attack'), JSON.stringify(live));
+    check('live game: the other player sees no turn controls', playControls(t.view(1)).length === 0);
+    t.P(1).noLandPlayTurn = t.game.turnNumber;
+    check('view lists a player\'s temporary effect, light yellow', statusLight(t.view(0).players[1]).level === 'yellow' && t.view(0).players[1].effects.length === 1);
+  }
+
+  const players = ['me', 'b', 'c', 'd'].map(playerId => ({ playerId }));
+  const order = opponentsInOrder(players, 'me').map(p => p.playerId);
+  check('opponents in turn order after me', order.join() === 'b,c,d');
+  const start = seatLayout(order);
+  check('4 players: the opponent across is centred, others left/right', start.centre === 'c' && start.left.join() === 'b' && start.right.join() === 'd');
+  const r = rotateTo(start, 'd');
+  check('tapping the right seat centres it; old centre takes the right slot', r.centre === 'd' && r.right.join() === 'c' && r.left.join() === 'b');
+  check('the layout is kept across redraws', seatLayout(order, r) === r);
+  check('tapping the centre changes nothing', rotateTo(r, 'd') === r);
+  check('a changed table resets the layout', seatLayout(['x', 'y'], r).centre === 'y');
+  check('2 players: the one opponent is centred', seatLayout(['b']).centre === 'b' && !seatLayout(['b']).left.length);
+  check('phone log shows 3, larger screens more', logLength(true) === 3 && logLength(false) > 3);
+}
+
 done();
