@@ -40,7 +40,7 @@ export const profileScreen = {
       setHtml(root, html`
         <main class="page profile">
           <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
+            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
             <h1 class="chrome-text">Player Profile</h1>
           </header>
           <div class="page__body profile__body">
@@ -167,9 +167,9 @@ function openPlaymats() {
           <div class="mat-slots">
             ${matUnlockPlan(profile).map(({ mat, via, unlocked }) => unlocked
               ? html`<div class="mat-slot ${mat.id === current ? 'is-on' : ''}">
-                  <button type="button" class="mat-slot__preview" data-mat-pick="${mat.id}" style="background-image:url('${mat.image}')" aria-pressed="${mat.id === current}" aria-label="${mat.name}"></button>
+                  <button type="button" class="mat-slot__preview" data-mat-pick="${mat.id}" style="background-image:url('${mat.thumb || mat.image}')" aria-pressed="${mat.id === current}" aria-label="${mat.name}"></button>
                   <strong>${mat.name}</strong><small class="muted">${mat.id === current ? 'In use' : via ? 'Unlocked' : 'Always available'}</small></div>`
-              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
+              : html`<div class="mat-slot is-locked" data-locked="${mat.id}"><div class="mat-slot__preview" style="background-image:url('${mat.thumb || mat.image}')">🔒</div><strong>${mat.name}</strong><small class="muted">${via ? `${via.label}: ${via.description}` : 'Locked'}</small></div>`)}
           </div>
           <h3 class="profile-section-title">Life dice</h3>
           <p class="muted">Pick a die for your life total, or let it match your playmat (now ${active.name}).</p>

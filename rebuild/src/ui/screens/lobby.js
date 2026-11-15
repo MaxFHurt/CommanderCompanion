@@ -22,7 +22,7 @@ export const lobbyScreen = {
       setHtml(root, html`
         <main class="page">
           <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
+            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
             <h1 class="chrome-text">${hostDevice ? 'Host Device' : 'Host Room'}</h1>
           </header>
           <div class="page__body lobby">

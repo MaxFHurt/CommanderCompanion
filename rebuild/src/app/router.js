@@ -22,6 +22,7 @@ export function go(name, params = {}) {
   const root = document.getElementById('app');
   root.innerHTML = '';
   root.dataset.screen = name;
+  document.documentElement.dataset.screen = name;   // styles/skin.css: menus show the playmat, game screens keep theirs
   window.scrollTo(0, 0);
   const cleanup = screen.mount(root, params);
   current = { name, cleanup: typeof cleanup === 'function' ? cleanup : null };
