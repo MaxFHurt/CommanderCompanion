@@ -50,6 +50,14 @@ optimization. That way we don't have to rework anything later due to new mechani
    step: `rebuild/wip/README.md`.
 4. **Optimise all the code** (section 99), after everything else.
 
+## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/)
+Apply the supplied art to every screen (51 routes incl. Deck Builder), iPhone and iPad, per
+`rebuild/roadmap/Commander-Companion-Claude-Integration-Handoff.md`. Owner's answers (15 Nov): keep portrait support (masters
+cover landscape); 7c (landing art, enlarge small buttons) folds in; centre-opponent rotation, eight playmats, independent dice
+are in scope: check what exists and flag gaps before coding; send iPhone+iPad screenshot pairs after theme+headers, after
+gameplay, after each screen batch, full device pass at the end; card rules batch 6 held until this is integrated and tested.
+Gap inventory: `rebuild/roadmap/visual-handoff/GAPS.md`. Assets: 17 ZIPs to upload to rebuild/roadmap/visual-handoff/.
+
 ## 1. Check first after the reset (owed from the minimum-testing week)
 
 1. **(Done, build 68.)** **Run every suite once on the live build** (the full list above, plus `offline_ui.py`, `pair_ui.py`, and the Deck Builder
