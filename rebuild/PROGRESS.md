@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.113 (Deck Builder 0.9.71, build 216)
+- **Live build:** 1.0.0-rebuild.114 (Deck Builder 0.9.71, build 216)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -36,6 +36,13 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 - Still by hand: Banding, Haunt, Assist, Forecast, Clockspinning, Herald of Leshrac's upkeep, and most of the long tail.
 
 ## Log
+
+### Build 114 — 15 Nov 2026 (app 1.0.0-rebuild.114; Deck Builder unchanged, 0.9.71): visual rebuild, behaviour part (before the art)
+- Owner, 15 Nov: visual rebuild is priority 1 (handoff in rebuild/roadmap/); answers recorded in ROADMAP.md section 0.
+- Game screen: the centre opponent's seat and battlefield above yours, other opponents compact at the sides; tapping a side seat swaps it into the centre. Status light beside every life total (green healthy, yellow temporary status, red poison or harmful lasting effect) opens player details without rotating. Separate Combat / Attack / Next Phase / End Turn (Draw with the real-deck table rule) shown only when legal; the suggested-action button is gone. Phone-sized screens show the 3 newest log entries. Stack, Undo, Board, Table, Host Tools grouped under the log.
+- Playmats: eight built-in mats (Amethyst free), image upload removed ("uploaded mats are not a thing"; old uploads kept in the profile, not shown). One palette for the whole app, set by the chosen playmat (tokens only, Amethyst look unchanged). Life dice chosen separately (default match playmat).
+- Unlocks (owner: "every 5 levels"): a mat at 5, 10 … 35 games, a die at 5, 10 … 35 wins; First Game, First Win, 50 and 100 games have no reward.
+- Tests (suites.sh, 261 s): game 282, mechanics 102, smoke 6, tracker 20, practice 20; soak 40 x3 0 problems; game_ui 42, flows_ui 34, mats_ui 20 (new), net_ui 30, online_ui 41, accounts_ui 56, offline_ui 5, pair_ui 5, challenge_ui 13, tracker_test 40, tracker_net_ui 44.
 
 ### Build 113 — 14 Nov 2026 (app 1.0.0-rebuild.113; Deck Builder unchanged, 0.9.71): rules long tail batch 5 complete
 - 23,523 → 23,871 of 32,300 run by themselves (batch 5: 515 new); every newly passing card's compiled effects read.
