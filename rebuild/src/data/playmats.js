@@ -6,7 +6,7 @@
 // its unlock thresholds, picker slot and settings choice are generated. Also add a die row in data/dice.js
 // ORDER if it should have a matching die, and the picture later as `art`.
 // The chosen mat also sets the app palette (app/theme.js) and the default life die (data/dice.js).
-// The mat pictures arrive later as art; until then every mat but Amethyst shows a gradient from its palette.
+// Pictures: the handoff's playmats (tools/skin-assets.py).
 
 import { durableGet } from './userdata-db.js';
 import { rewardFor, isUnlocked } from './rewards.js';
@@ -29,15 +29,12 @@ const PALETTES = [
   ['emerald', 'Emerald', '#2cd88e', '#8dffb0']
 ];
 
-function placeholderImage(primary, secondary) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${primary}" stop-opacity="0.55"/><stop offset="1" stop-color="${secondary}" stop-opacity="0.22"/></linearGradient></defs><rect width="200" height="100" fill="#0d0919"/><rect width="200" height="100" fill="url(#g)"/></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-/** The eight built-in mats, in unlock order. `art` is where the real picture will go. */
-export const MATS = PALETTES.map(([id, name, primary, secondary], i) => ({
+/** The eight built-in mats, in unlock order. `image` is the full playmat (assets/skin/<id>/, downloaded when a seat or
+ * the app uses it; Amethyst's installs with the app), `thumb` a small picture for pickers (all eight install). */
+export const MATS = PALETTES.map(([id, name, primary, secondary]) => ({
   id, name, primary, secondary, builtIn: true, dim: 0.2,
-  image: i === 0 ? 'assets/img/ui/background.webp' : placeholderImage(primary, secondary)
+  image: `assets/skin/${id}/playmat.webp`,
+  thumb: `assets/skin/shared/thumb-${id}.webp`
 }));
 
 /** Amethyst: the free mat and the fallback for anything unknown. Older saves that say "default" resolve to it. */

@@ -31,11 +31,13 @@ export function openModal({ title = '', body = '', actions = [], onMount, onClos
   setHtml(el, html`
     <div class="modal__panel">
       <header class="modal__head">
-        ${dismissible ? raw('<button class="btn-back" type="button" data-modal-back aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>') : ''}
+        ${dismissible ? raw('<button class="btn-back" type="button" data-modal-back aria-label="Back"><span>Back</span></button>') : ''}
         <h2 class="chrome-text">${title}</h2>
       </header>
-      <div class="modal__body">${body}</div>
-      <footer class="modal__foot" ${actions.length ? '' : raw('hidden')}></footer>
+      <div class="modal__frame">
+        <div class="modal__body">${body}</div>
+        <footer class="modal__foot" ${actions.length ? '' : raw('hidden')}></footer>
+      </div>
     </div>`);
 
   const entry = { el, onClose, dismissible };

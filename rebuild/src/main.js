@@ -12,6 +12,7 @@ import { needsWelcome, startAuth } from './app/account.js';
 import { readAuthReturn, handleAuthReturn } from './ui/account-ui.js';
 import { welcomeScreen } from './ui/screens/welcome.js';
 import { watchCardImages } from './ui/card-view.js';
+import { watchPlates } from './ui/plate.js';
 import { landingScreen } from './ui/screens/landing.js';
 import { modeSelectScreen } from './ui/screens/mode-select.js';
 import { trackerSetupScreen } from './ui/screens/tracker-setup.js';
@@ -42,6 +43,7 @@ registerScreen('welcome', welcomeScreen);
 async function start() {
   // Card images that fail to load fall back to the text version everywhere (screens and popups).
   watchCardImages(document);
+  watchPlates();   // menu and dialog titles fit their header plate
   const authReturn = readAuthReturn();   // a tapped sign-in link: the tokens leave the address at once
   // Saved data loads in parallel; a failure in one store must not block the app.
   await Promise.allSettled([initDeckStore(), initProfileStore(), initPlaymats()]);

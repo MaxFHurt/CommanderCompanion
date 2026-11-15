@@ -26,18 +26,22 @@ async function latestSave() {
 export const landingScreen = {
   mount(root) {
     setHtml(root, html`
-      <main class="landing">
-        <div class="landing__brand"><img src="assets/img/landing/logo.png" alt="Commander Companion — Track, Play, Learn"></div>
-        <div class="landing__primary">
-          <button type="button" data-act="start"><img src="assets/img/landing/start.png" alt="Start Game"></button>
-          <button type="button" data-act="continue" disabled><img src="assets/img/landing/continue.png" alt="Continue Game"></button>
+      <main class="landing menu" aria-label="Commander Companion">
+        <div class="menu__stack landing__stack">
+          <header class="plate plate--landing"><h1 class="plate__title">Commander Companion</h1></header>
+          <img class="landing__crest" src="assets/skin/shared/crest.webp" alt="">
+          <div class="landing__primary">
+            <button type="button" class="jewel-key jewel-key--start" data-act="start"><span>Start Game</span></button>
+            <button type="button" class="jewel-key jewel-key--continue" data-act="continue" disabled><span>Continue Game</span></button>
+          </div>
+          <nav class="landing__tools" aria-label="Tools">
+            <button type="button" class="btn" data-act="profile">Profile</button>
+            <button type="button" class="btn" data-act="decks">Deck Builder</button>
+            <button type="button" class="btn" data-act="settings">Settings</button>
+            <button type="button" class="btn" data-act="help">Help</button>
+          </nav>
+          <div class="skin-sep" aria-hidden="true"></div>
         </div>
-        <nav class="landing__tools" aria-label="Tools">
-          <button type="button" data-act="profile"><img src="assets/img/landing/profile.png" alt="Profile"></button>
-          <button type="button" data-act="decks"><img src="assets/img/landing/deck-builder.png" alt="Deck Builder"></button>
-          <button type="button" data-act="settings"><img src="assets/img/landing/settings.png" alt="Settings"></button>
-          <button type="button" data-act="help"><img src="assets/img/landing/help.png" alt="Help"></button>
-        </nav>
         <div class="landing__foot">Commander Companion • ${VERSION}</div>
       </main>`);
 

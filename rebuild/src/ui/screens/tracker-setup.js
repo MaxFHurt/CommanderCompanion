@@ -22,7 +22,7 @@ export const trackerSetupScreen = {
       setHtml(root, html`
         <main class="page">
           <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
+            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
             <h1 class="chrome-text">${play === 'host-device' ? 'Host Table' : play === 'host-player' ? 'Host a Table' : 'Table Tracker'}</h1>
           </header>
           <div class="page__body">
@@ -36,7 +36,7 @@ export const trackerSetupScreen = {
                   <input class="input" data-field="name" maxlength="24" placeholder="Player name" value="${p.name}" autocomplete="off">
                   <input class="input" data-field="commander" maxlength="60" placeholder="Commander (optional)" value="${p.commander}" autocomplete="off">
                   <div class="mat-pick" aria-label="Playmat">
-                    ${mats.map(m => html`<button type="button" class="mat-thumb ${playmatById(p.matId).id === m.id ? 'is-on' : ''}" data-act="mat" data-seat="${i}" data-mat="${m.id}" style="background-image:url('${m.image}')" aria-label="${m.name}"></button>`)}
+                    ${mats.map(m => html`<button type="button" class="mat-thumb ${playmatById(p.matId).id === m.id ? 'is-on' : ''}" data-act="mat" data-seat="${i}" data-mat="${m.id}" style="background-image:url('${m.thumb || m.image}')" aria-label="${m.name}"></button>`)}
                   </div>
                 </section>`)}
               ${players.length < 6 ? html`<button type="button" class="setup-player setup-player--add" data-act="add">+ Add player</button>` : ''}

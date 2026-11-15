@@ -1,0 +1,284 @@
+/* Visual rebuild, stage 1: the shared theme for menus and dialogs (handoff "Controls, palettes and layering").
+ *
+ * Art: assets/skin/ (tools/skin-assets.py). The images for the chosen palette come from --sk-* variables in
+ * skin-palettes.css, set by <html data-palette> (app/theme.js); a palette's files download only when it is chosen.
+ * The handoff's lit variants are its neutral art with the light masks already tinted in the palette's primary and
+ * secondary colours, so they are used as they are; colours drawn in CSS use --pal-primary / --pal-secondary.
+ *
+ * Map units: the handoff's menu maps are 1200 wide; at the app's scale one map unit is 0.0703rem (--u). Menu screens
+ * built from a map (Landing, Welcome, Mode Select) shrink --u further so their whole stack fits the safe area.
+ *
+ * Sections 4-6 apply in menus and every dialog (SKIN scope below); the game and Table Tracker screens keep their own
+ * controls until their own stage of the rebuild:  :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"]))
+ *
+ * Sections: 1 tokens  2 backdrop  3 title plates  4 buttons  5 panels and dialogs  6 wells, rows, switches, checks
+ *           7 menu screens (shared)  8 Landing  9 Welcome  10 Mode Select  11 pages  12 iPad tier
+ */
+
+/* ── 1. Tokens ───────────────────────────────────────────────────────────────── */
+:root {
+  --accent: var(--pal-primary);
+  --accent-strong: var(--pal-secondary);
+  --accent-glow: var(--pal-glow);
+  --line: color-mix(in srgb, var(--pal-primary) 70%, #1a1426);
+  --line-soft: color-mix(in srgb, var(--pal-primary) 34%, transparent);
+  --u: 0.0703rem;
+  --skin-text: #f6f2ff;
+  --skin-shadow: 0 1px 0 #000, 0 0 0.5rem color-mix(in srgb, var(--pal-secondary) 60%, transparent);
+  --skin-readout: url("../assets/skin/shared/inset-readout.webp");
+  --bh: 3.6rem;   /* text button height: 36 px on an iPhone held sideways, the smallest comfortable target */
+}
+
+/* ── 2. Backdrop: the chosen playmat behind every menu (game screens keep their own surface) ── */
+:root:not([data-screen="game"]):not([data-screen="tracker"]) body::before {
+  left: 0; top: 0; width: 100vw; height: max(100lvh, var(--cc-screen-h, 0px));
+  background: #06040b var(--sk-playmat) center / cover no-repeat;
+}
+
+/* ── 3. Title plates (art/screen-header): one per menu and dialog, live title in the map's titleBox ── */
+/* Plate on its own element (Landing, Welcome, Mode Select). Title box from screens/<route>/<device>.layout.json. */
+.plate {
+  position: relative; flex: none;
+  width: calc(572 * var(--u)); aspect-ratio: 1416 / 208;
+  background: var(--sk-header) center / contain no-repeat;
+}
+.plate__title {
+  position: absolute; left: 31.3%; width: 37.4%; top: 51.2%; height: 26.2%;
+  margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center;
+  font: 700 calc(18 * var(--u)) / calc(22 * var(--u)) var(--font-ui); letter-spacing: 0.02em; text-transform: none;
+  color: var(--skin-text); text-shadow: var(--skin-shadow);
+}
+.plate--landing { width: calc(782.56 * var(--u)); }
+.plate--landing .plate__title {
+  left: 29.2%; width: 41.7%; top: 53.8%; height: 20.9%;
+  font-size: calc(19 * var(--u)); line-height: calc(24 * var(--u)); text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+/* Plate drawn on the title itself (pages and dialogs, no markup change). --pw is the plate width. */
+.page__head, .modal__head { container-type: inline-size; }
+.page__head h1, .modal__head h2 {
+  --pw: min(36rem, 100cqw - 24rem);
+  flex: none; box-sizing: border-box; margin: 0 auto;
+  width: var(--pw); height: calc(var(--pw) * 208 / 1416);
+  padding: calc(var(--pw) * 0.042) calc(var(--pw) * 0.313) 0;
+  background: var(--sk-header) center / contain no-repeat;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center;
+  font: 700 calc(var(--pw) * 0.034) / calc(var(--pw) * 0.1049) var(--font-ui);
+  letter-spacing: 0.02em; text-transform: none;
+  -webkit-text-fill-color: var(--skin-text); color: var(--skin-text); filter: none; text-shadow: var(--skin-shadow);
+}
+.modal__head h2 { --pw: min(36rem, 100cqw - 22rem); }
+
+/* ── 4. Buttons: faceted steel faces (art/nav, art/tab-key), states from the existing control state ── */
+/* Three-slice: the angled ends keep their shape, the face between them stretches. */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-frame, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-back {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem;
+  min-height: var(--bh); padding: 0 0.6rem;
+  border: solid transparent; border-width: 0 calc(var(--bh) * 0.42);
+  border-image: var(--sk-nav-normal) 0 120 fill / 0 calc(var(--bh) * 0.94) stretch;
+  background: none;
+  font: 700 1.25rem/1.1 var(--font-ui); letter-spacing: 0.02em; text-transform: none; white-space: nowrap;
+  color: var(--skin-text); text-shadow: var(--skin-shadow);
+  filter: none;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn:active:not(:disabled), :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-frame:active:not(:disabled), :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-back:active { border-image-source: var(--sk-nav-pressed); filter: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn:disabled, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-frame:disabled { border-image-source: var(--sk-nav-disabled); opacity: 0.85; color: #a39cb8; text-shadow: 0 1px 0 #000; }
+/* Selected / committing: the lit tab face. Cancel: the utility face. Danger keeps the steel face with a red label. */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn.is-on, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn[aria-pressed="true"], :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--confirm { border-image-source: var(--sk-tab-on); filter: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--cancel { border-image-source: var(--sk-tab-off); filter: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--danger { filter: none; color: #ffd9dd; text-shadow: 0 1px 0 #000, 0 0 0.6rem rgba(255, 90, 106, 0.85); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--confirm:active:not(:disabled), :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--cancel:active:not(:disabled), :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--danger:active:not(:disabled) { border-image-source: var(--sk-nav-pressed); filter: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--confirm:disabled, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--cancel:disabled { border-image-source: var(--sk-tab-disabled); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn--small { --bh: 3.2rem; font-size: 1.1rem; padding: 0 0.4rem; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn:focus-visible, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-back:focus-visible, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-frame:focus-visible { outline: 2px solid var(--pal-secondary); outline-offset: 2px; }
+
+/* Back (pages and dialogs): the same face with its label as text. */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-back { width: 9.6rem; flex: none; font-size: 1.25rem; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .btn-back img { display: none; }
+
+/* ── 5. Panels and dialogs: recessed panel (art/dialog), nine-slice from the maps (x .23/.77, y .26/.74) ── */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .panel, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .skin-dialog, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__frame {
+  --cap-x: 4.6rem; --cap-y: 2.6rem;
+  border: solid transparent; border-width: var(--cap-y) calc(var(--cap-x) * 0.5) calc(var(--cap-y) * 0.55);
+  border-image: var(--sk-dialog) 63 83 fill / var(--cap-y) var(--cap-x) stretch;
+  background: none;
+}
+/* The recess carries the crown's glow down into the panel; a veil keeps text over it readable (dialogs and the
+   Welcome panel hold running text, unlike the map's button-only panels). */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__frame, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .welcome__panel { position: relative; isolation: isolate; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__frame::before, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .welcome__panel::before {
+  content: ""; position: absolute; inset: -0.4rem -0.6rem -0.2rem; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(7, 5, 13, 0.82) 0%, rgba(7, 5, 13, 0.6) 35%, rgba(7, 5, 13, 0.25) 75%, rgba(7, 5, 13, 0) 100%);
+  border-radius: 0.6rem;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .panel { --cap-x: 3rem; --cap-y: 1.7rem; border-width: 1.25rem 1.3rem 0.9rem; padding: 0.2rem 0.4rem; }
+
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__panel {
+  grid-template-rows: auto minmax(0, 1fr);
+  border: 0; border-image: none; background: none; box-shadow: none; overflow: visible; min-height: 0;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__head {
+  position: relative; z-index: 1; min-height: 0; padding: 0; margin-bottom: -0.9rem;
+  border: 0; background: none;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__head .btn-back { left: 0; width: 9.2rem; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__frame {
+  display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__body { padding: 0.5rem 0.6rem; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal__foot { padding: 0.6rem 0.6rem 0.2rem; border-top: 0; background: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .modal { background: rgba(3, 2, 8, 0.62); }
+
+/* ── 6. Input wells, list rows, chips, switches, checks, radios, sliders ─────── */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .input, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field input, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field select, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field textarea {
+  border: solid transparent; border-width: 0.45rem 1.2rem; border-radius: 0;
+  border-image: var(--sk-input-well) 30 48 fill / 1.1rem 1.8rem stretch;
+  background: none; box-shadow: none;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .input:focus, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field input:focus, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field select:focus, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field textarea:focus {
+  border-color: transparent; box-shadow: none; filter: drop-shadow(0 0 0.35rem var(--pal-glow));
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .field select option { background: #0d0919; }
+
+/* Rows (option lists) and readouts: the recessed readout face (art/status/inset-readout). */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .option, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .readout {
+  border: solid transparent; border-width: 0.3rem; border-radius: 0;
+  border-image: var(--skin-readout) 12 fill / 0.6rem stretch;
+  background: none;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .option.is-on { box-shadow: 0 0 0 1px var(--pal-secondary), 0 0 0.9rem var(--pal-glow); background: none; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .readout { margin: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--skin-text); }
+
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .chip.is-on { border-color: var(--pal-secondary); box-shadow: 0 0 0.6rem var(--pal-glow); color: #fff; }
+
+/* Switch (art/switch): the On/Off word stays for screen readers and tests; the art shows the state. */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .skin-switch {
+  flex: none; width: 5.4rem; height: 1.8rem; overflow: hidden;
+  background: var(--sk-switch-off) center / contain no-repeat;
+  font-size: 0; color: transparent;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .skin-switch.is-on { background-image: var(--sk-switch-on); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) :disabled .skin-switch { background-image: var(--sk-switch-disabled); }
+
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="checkbox"], :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="radio"] {
+  -webkit-appearance: none; appearance: none; flex: none; margin: 0;
+  width: 2.6rem; height: 2.6rem; border: 0; cursor: pointer;
+  background: var(--sk-check-unchecked) center / contain no-repeat;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="checkbox"]:checked { background-image: var(--sk-check-checked); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="checkbox"]:disabled { background-image: var(--sk-check-disabled); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="radio"] { background-image: var(--sk-radio-unselected); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="radio"]:checked { background-image: var(--sk-radio-selected); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="radio"]:disabled { background-image: var(--sk-radio-disabled); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="checkbox"]:focus-visible, :where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="radio"]:focus-visible { outline: 2px solid var(--pal-secondary); outline-offset: 2px; }
+
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="range"] {
+  -webkit-appearance: none; appearance: none; height: 2.6rem; margin: 0; background: var(--sk-slider-rail) center / 100% 1.3rem no-repeat;
+}
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 2.6rem; height: 2.6rem; border: 0; background: var(--sk-thumb-normal) center / contain no-repeat; }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="range"]:active::-webkit-slider-thumb { background-image: var(--sk-thumb-pressed); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="range"]:disabled::-webkit-slider-thumb { background-image: var(--sk-thumb-disabled); }
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) input[type="range"]::-moz-range-thumb { width: 2.6rem; height: 2.6rem; border: 0; background: var(--sk-thumb-normal) center / contain no-repeat; }
+
+/* Footer ornament (art/separator). */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .skin-sep { flex: none; width: calc(328 * var(--u)); height: calc(22 * var(--u)); background: var(--sk-separator) center / 100% 100% no-repeat; }
+
+/* Titles drawn in chrome elsewhere pick up the palette's glow. */
+:where(#modalLayer, #app:not([data-screen="game"]):not([data-screen="tracker"])) .chrome-text { filter: drop-shadow(0 0 0.5rem var(--pal-glow)) drop-shadow(0 0.12rem 0 rgba(0, 0, 0, 0.9)); }
+
+/* ── 7. Menu screens built from a map: one stack, centred in the safe area on both axes ── */
+/* --W / --H: the stack's size in map units. --u shrinks so it always fits; a stack taller than the screen scrolls
+   from its top (auto margins never push content out of reach). */
+.menu {
+  position: absolute; inset: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column;
+  padding: max(0.8rem, var(--safe-t)) max(1.2rem, var(--safe-r)) max(0.8rem, var(--safe-b)) max(1.2rem, var(--safe-l));
+  background: none;
+  container-type: size;
+}
+.menu__stack {
+  --u: min(0.0703rem, 100cqw / var(--W), 100cqh / var(--H));
+  margin: auto; display: flex; flex-direction: column; align-items: center; gap: calc(12 * var(--u));
+}
+.menu .btn { --bh: max(3.6rem, calc(44 * var(--u))); font-size: max(1.2rem, calc(17 * var(--u))); }
+
+/* ── 8. Landing (screens/landing): Landing header, crest, Start / Continue jewels, four tools, separator ── */
+.landing { display: flex; grid-template-columns: none; grid-template-rows: none; }
+.landing__stack {
+  --W: 880; --H: 486;
+  --jewel-h: 150; --tool-h: 62; --crest-h: 75;
+}
+.landing__crest { flex: none; height: calc(var(--crest-h) * var(--u)); width: auto; max-width: none; }
+.landing__primary { display: flex; justify-content: center; gap: calc(80 * var(--u)); min-height: 0; }
+.jewel-key {
+  position: relative; flex: none; display: grid; place-items: center;
+  width: calc(274 * var(--u)); height: calc(var(--jewel-h) * var(--u));
+  background: var(--sk-start-normal) center / contain no-repeat;
+  color: #fff; text-shadow: 0 1px 2px #000, 0 0 0.6rem rgba(0, 0, 0, 0.8);
+  font: 800 max(1.05rem, calc(15 * var(--u))) / 1.1 var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase;
+}
+.landing .jewel-key { display: grid; }
+.jewel-key span { display: block; max-width: calc(var(--jewel-h) * 0.62 * var(--u)); text-align: center; }
+.jewel-key--start:active { background-image: var(--sk-start-pressed); }
+.jewel-key--continue { background-image: var(--sk-continue-normal); }
+.jewel-key--continue:active:not(:disabled) { background-image: var(--sk-continue-pressed); }
+/* No resumable game: the kit's disabled face, label dimmed; the button stays in place. */
+.jewel-key--continue:disabled { background-image: var(--sk-continue-disabled); opacity: 1; color: #9d97ad; }
+.jewel-key:focus-visible { outline: 2px solid var(--pal-secondary); outline-offset: -0.6rem; border-radius: 1rem; }
+.landing .landing__primary button:disabled { filter: none; }
+.landing button:active:not(:disabled) { filter: none; }
+.landing__tools { display: flex; justify-content: center; gap: calc(14 * var(--u)); grid-column: auto; grid-template-columns: none; }
+.landing__tools .btn { --bh: max(3.6rem, calc(var(--tool-h) * var(--u))); width: calc(205 * var(--u)); min-width: 9.6rem; padding: 0; }
+.landing__foot {
+  position: absolute; left: max(1.2rem, var(--safe-l)); bottom: max(0.4rem, var(--safe-b)); padding: 0;
+  font-size: 0.85rem; opacity: 0.8;
+}
+
+/* ── 9. Welcome (screens/welcome): plate, one panel, separator. The sign-in form opens in the same panel. ── */
+.welcome { display: flex; grid-template-columns: none; }
+.welcome__stack { --W: 858; --H: 406; }
+.welcome__panel {
+  --cap-x: calc(86 * var(--u)); --cap-y: calc(50 * var(--u));
+  width: calc(858 * var(--u)); max-width: 100%;
+  display: grid; gap: calc(6 * var(--u)); align-content: center;
+  border-width: calc(66 * var(--u)) calc(56 * var(--u)) calc(40 * var(--u));
+  padding: 0;
+}
+.welcome__intro {
+  text-align: center; font-size: max(1.1rem, calc(14 * var(--u))); line-height: 1.3; padding: 0.3rem 1rem; margin-bottom: calc(4 * var(--u));
+  border: solid transparent; border-width: 0.3rem; border-image: var(--skin-readout) 12 fill / 0.6rem stretch;
+}
+.welcome__actions { display: grid; gap: calc(6 * var(--u)); }
+.welcome__actions .btn { width: 100%; }
+
+/* ── 10. Mode Select (screens/mode-select): plate, three panels (title, mode, what it is), Back, separator ── */
+.mode-select { background: none; }
+.mode-select__stack { --W: 1140; --H: 420; }
+.mode-select .mode-select__choices {
+  position: static; inset: auto; display: flex; justify-content: center; gap: calc(16 * var(--u));
+  container-type: normal;
+}
+.mode-card {
+  --cap-x: calc(62 * var(--u)); --cap-y: calc(40 * var(--u));
+  flex: none; width: calc(366 * var(--u)); height: calc(224 * var(--u));
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: calc(6 * var(--u));
+  border-width: calc(48 * var(--u)) calc(43 * var(--u)) calc(36 * var(--u));
+  padding: 0;
+}
+.mode-card__title { width: calc(280 * var(--u)); min-height: calc(27 * var(--u)); margin-bottom: calc(10 * var(--u)); font: 700 max(1.1rem, calc(15 * var(--u))) / 1.1 var(--font-ui); }
+.mode-card .btn { width: calc(254 * var(--u)); height: auto; max-height: none; aspect-ratio: auto; }
+.mode-card__text { width: calc(262 * var(--u)); min-height: calc(38.6 * var(--u)); padding: 0 0.6rem; font-size: max(1rem, calc(14 * var(--u))); line-height: 1.1; }
+.mode-select .mode-select__back { width: calc(205 * var(--u)); min-width: 9.6rem; }
+
+/* ── 11. Pages (Profile, setup, lobby, join, online): plate header, Back beside it ── */
+.page__head { min-height: 0; padding: 0.2rem 0 0; border-bottom: 0; }
+.page__head .btn-back { left: 0.6rem; }
+.page__foot { border-top: 0; }
+
+/* ── 12. iPad tier: the iPad maps give the landing art more height ───────────── */
+@media (min-width: 1000px) and (min-height: 700px) {
+  .landing__stack { --H: 610; --jewel-h: 210; --tool-h: 68; --crest-h: 105; gap: calc(20 * var(--u)); }
+  .plate--landing { width: calc(837 * var(--u)); }
+  .landing__stack { --W: 920; }
+  .landing__foot { font-size: 0.75rem; }
+}

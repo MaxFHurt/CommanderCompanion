@@ -45,7 +45,7 @@ export const onlineScreen = {
       setHtml(root, html`
         <main class="page ${stage === 'join' ? 'page--setup' : ''}">
           <header class="page__head">
-            <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
+            <button class="btn-back" type="button" data-act="back" aria-label="Back"><span>Back</span></button>
             <h1 class="chrome-text">${stage === 'list' ? 'Online Games' : `Online Game ${code}`}</h1>
           </header>
           ${body}

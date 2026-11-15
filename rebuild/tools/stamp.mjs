@@ -9,12 +9,15 @@ writeFileSync(join(root, 'build.json'), JSON.stringify({ version: VERSION, date:
 // The app: the page, its code, styles, art and the Deck Builder. Not tests, tools, reports, notes or original art.
 const SKIP_DIR = new Set(['tests', 'tools', 'reports', 'orig', 'roadmap', 'wip', 'node_modules', '.git', '--json']);
 const SKIP_FILE = /\.(md|txt|py|mjs\.map)$|^\.|^--/;
+// Skin art (tools/skin-assets.py): only the shared pieces and the free Amethyst palette install with the app; the other
+// palettes download when their playmat is chosen and the service worker keeps them then (sw.js, SKIN cache).
+const LAZY = /^assets\/skin\/(?!shared\/|amethyst\/)/;
 const files = [];
 (function walk(dir) {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name), rel = relative(root, full).split('\\').join('/');
     if (statSync(full).isDirectory()) { if (!SKIP_DIR.has(name) && rel !== 'deck/tools') walk(full); continue; }
-    if (SKIP_FILE.test(name) || rel === 'precache.json' || rel === 'sw.js') continue;
+    if (SKIP_FILE.test(name) || LAZY.test(rel) || rel === 'precache.json' || rel === 'sw.js') continue;
     files.push(rel);
   }
 })(root);

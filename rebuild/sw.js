@@ -10,6 +10,10 @@
 const CACHE = 'commander-companion-v114';
 const ASSETS = 'commander-companion-assets-v1';   // kept across releases
 const DATA = 'commander-companion-data-v1';
+// Skin art for the palettes not in precache.json (assets/skin/<palette>/): downloaded when that playmat is chosen and
+// kept across releases, so a chosen palette keeps working offline after an update.
+const SKIN = 'commander-companion-skin-v1';
+const LAZY_SKIN = /\/assets\/skin\/(?!shared\/|amethyst\/)/;
 const ASSET_HOSTS = /(^|\.)(cards\.scryfall\.io|svgs\.scryfall\.io|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|cdn\.jsdelivr\.net)$/;
 const DATA_HOSTS = /(^|\.)(api\.scryfall\.com|json\.edhrec\.com|json\.commanderspellbook\.com)$/;
 const MAX_ASSETS = 4000;
@@ -30,7 +34,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => ![CACHE, ASSETS, DATA].includes(key)).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => ![CACHE, ASSETS, DATA, SKIN].includes(key)).map(key => caches.delete(key)));
     await self.clients.claim();
   })());
 });
@@ -46,7 +50,8 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin === self.location.origin) {
     event.respondWith((async () => {
-      const cache = await caches.open(CACHE);
+      const lazySkin = LAZY_SKIN.test(url.pathname);
+      const cache = await caches.open(lazySkin ? SKIN : CACHE);
       try {
         const fresh = await fetch(request, { cache: 'no-cache' });
         if (fresh.ok) cache.put(request, fresh.clone());

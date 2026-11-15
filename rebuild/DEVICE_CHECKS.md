@@ -87,9 +87,24 @@ G7. ☐ Same checks on iPad (landscape), and on iPhone in portrait if the game i
 M1. ☐ Profile → Playmats and Dice → expect eight mats and eight dice (plus Match playmat); Amethyst mat and die open, the other seven of each locked, each showing the achievement that opens it. No upload button anywhere.
 M2. ☐ Two routes to every reward: mats at 3, 6 … 21 games (3 = Dark Alley … 21 = Emerald), dice at 3, 6 … 21 wins (3 = Night Flight, 6 = Dark Alley … 21 = Emerald); or by achievement level (1 achievement = 1 level): mat k at level 3, 9, 15 …, die k at level 6, 12, 18 …. Locked slots read "Play 3 games, or reach level 3" / "Win 3 games, or reach level 6". After 3 games Dark Alley unlocks; tap it → "In use"; the app looks unchanged for now (colours arrive with the reskin). Close and reopen the app → still selected.
 M3. ☐ Life dice: pick an unlocked die → it stays when you change the playmat. Match playmat is the default and shows the mat's own die even while that die is still locked. Profile → Achievements shows "Level N of 29", a progress bar and "N more achievements for the <name> playmat/die", and each achievement as Earned / Not yet.
+M2. ☐ Mats unlock every 5 games (5 = Dark Alley, 10 = Night Flight … 35 = Emerald), dice every 5 wins (5 = Night Flight, 10 = Dark Alley … 35 = Emerald). After 5 games Dark Alley unlocks; tap it → "In use" and the menus take the Dark Alley playmat and colours. Close and reopen the app → still selected.
+M3. ☐ Life dice: pick an unlocked die → it stays when you change the playmat. Match playmat is the default and shows the mat's own die even while that die is still locked. Profile → Achievements lists "Unlocks <name> playmat/die" on each reward.
 M4. ☐ A profile that had an uploaded playmat before this build opens with Amethyst and nothing missing. Player setup and Table Tracker setup list only unlocked mats.
 M5. ☐ Phone and iPad: the picker fits without sideways scrolling and the thumbnails are easy to tap.
 M6. ☐ Reward pop-up: finish a game that earns a mat or die → back on the main menu a pop-up names it with its colour; "Equip now" opens Profile → Playmats and Dice, "Later" closes it. It never shows during a game, and not again afterwards, also on a second device with the same profile. Several at once → one pop-up listing them. An existing player opening this build gets no flood of pop-ups for rewards they already had.
 M7. ☐ Achievements: play a 4-player game, an online game (host and join), a Table Tracker game, a game as judge; win by commander damage / poison in Table Tracker; build, import and upgrade a deck in the Deck Builder, load a precon and play it → each earns its achievement (open Achievements to check; the Deck Builder ones show after going Home). Win 2 games in a row, and play on 3 days in a row.
+
+## Theme and headers (visual rebuild, stage 1)
+V1. ☐ iPhone and iPad (landscape): Landing shows the title plate "Commander Companion", the crest, Start Game and Continue Game jewels, then Profile, Deck Builder, Settings, Help and a small ornament, all centred, nothing under the notch or home bar.
+V2. ☐ No saved game: Continue Game shows the grey (disabled) jewel and does nothing. Start a game, go Home → Continue Game lights up and resumes it.
+V3. ☐ Every small button (Back, Profile, Settings, Help, dialog buttons) is easy to hit with a thumb and none overlap.
+V4. ☐ First launch (or a fresh install): Welcome shows a "Welcome" plate and one panel with Sign up, Sign in and Skip; signing in opens in the same panel.
+V5. ☐ Start Game: Choose Game Mode shows three panels (Guided Play, Free Play, Table Tracker) and Back; each opens the same options as before.
+V6. ☐ Profile, Settings, Help (Ask the Judge), Playmats and Dice and every other dialog: the title sits in the metal plate at the top, long titles shrink or end in "…" inside the plate, Back is a steel button with the word Back.
+V7. ☐ Settings: Learning tips and Send rule corrections show a metal switch that flips when tapped.
+V8. ☐ Buttons look pressed while held; a selected choice (e.g. the current guidance level) is lit.
+V9. ☐ Change the playmat (Profile → Playmats and Dice) → menus show that playmat behind them and its colour on buttons, plates and panels. Open the app offline afterwards → the chosen palette still shows (first open of a new palette needs internet once).
+V10. ☐ The game and Table Tracker screens look as before apart from the buttons and dialogs.
+V11. ☐ Turn the phone to portrait on the Landing → the rotate message shows as before.
 
 Reply with the numbers that failed and a screenshot.

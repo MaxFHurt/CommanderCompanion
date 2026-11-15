@@ -28,16 +28,16 @@ export function openSettings() {
       </div>
       <h3 class="section-title">Preferences</h3>
       <div class="option-list">
-        <button type="button" class="option ${settings.tips ? 'is-on' : ''}" data-toggle="tips">
+        <button type="button" class="option ${settings.tips ? 'is-on' : ''}" data-toggle="tips" aria-pressed="${settings.tips ? 'true' : 'false'}">
           <span><strong>Learning tips</strong><small>Short explanations of phases and keywords as they come up.</small></span>
-          <span class="option__end">${settings.tips ? 'On' : 'Off'}</span>
+          <span class="option__end skin-switch ${settings.tips ? 'is-on' : ''}">${settings.tips ? 'On' : 'Off'}</span>
         </button>
       </div>
       <h3 class="section-title">Help improve the rules</h3>
       <div class="option-list">
-        <button type="button" class="option ${settings.sendCorrections !== false ? 'is-on' : ''}" data-toggle="sendCorrections">
+        <button type="button" class="option ${settings.sendCorrections !== false ? 'is-on' : ''}" data-toggle="sendCorrections" aria-pressed="${settings.sendCorrections !== false ? 'true' : 'false'}">
           <span><strong>Send rule corrections</strong><small>When a card has to be resolved by hand or a play is corrected, send the card and what was done (no names, decks or hands) so it can be automated.</small></span>
-          <span class="option__end">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
+          <span class="option__end skin-switch ${settings.sendCorrections !== false ? 'is-on' : ''}">${settings.sendCorrections !== false ? 'On' : 'Off'}</span>
         </button>
       </div>
       ${backupSectionHtml()}
