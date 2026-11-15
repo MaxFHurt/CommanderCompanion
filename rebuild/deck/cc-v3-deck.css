@@ -1,0 +1,165 @@
+/* Commander Companion V3 Deck Builder skin (ChatGPT's V3 masters, installed 15 Nov 2026). Load after cc-theme.css.
+ * Paint only: the page's renderers, responsive rules, control sizes and touch targets stay in index.html / cc-theme.css.
+ * V3 is drawn in amethyst. Owner rule: one palette for the whole app, chosen by the playmat. So every amethyst tone below
+ * is mixed from the palette tokens (cc-theme.css section 1): under Amethyst this is the V3 master, under the others it
+ * follows the palette. The cut-steel art has one recoloured copy per palette in v3-deck-art/<palette>/
+ * (made by tools/v3-palette-art.mjs). The backdrop is the player's playmat (cc-theme.css section 2), not V3's fixed picture.
+ */
+:root {
+  --panel: color-mix(in srgb, var(--pal-primary) 5%, #0e0d14);
+  --panel2: color-mix(in srgb, var(--pal-primary) 9%, #13121a);
+  --v3-line: color-mix(in srgb, var(--pal-primary) 16%, #3f3b48);
+  --v3-line2: color-mix(in srgb, var(--pal-primary) 20%, #46424f);
+  --v3-field: color-mix(in srgb, var(--pal-primary) 24%, #55515e);
+  --v3-lit: color-mix(in srgb, var(--pal-secondary) 62%, #fff);
+  --v3-sel-edge: color-mix(in srgb, var(--pal-secondary) 80%, #fff);
+  --v3-well: color-mix(in srgb, var(--pal-primary) 6%, #0f0e14);
+  --deck-frame: url("v3-deck-art/steel-panel.svg");
+  --deck-button: url("v3-deck-art/steel-control.svg");
+  --deck-button-pri: url("v3-deck-art/amethyst-control.svg");
+  --deck-recess: linear-gradient(color-mix(in srgb, var(--pal-primary) 6%, #1f1e25), var(--v3-well));
+  --deck-selected: linear-gradient(color-mix(in srgb, var(--pal-primary) 35%, #1a1420), color-mix(in srgb, var(--pal-primary) 14%, #120d18));
+  --deck-edge: inset 0 1px #dbcced32, inset 0 -1px #08050b;
+}
+:root[data-palette="dark-alley"] { --deck-frame: url("v3-deck-art/dark-alley/steel-panel.svg"); --deck-button: url("v3-deck-art/dark-alley/steel-control.svg"); --deck-button-pri: url("v3-deck-art/dark-alley/amethyst-control.svg"); }
+:root[data-palette="night-flight"] { --deck-frame: url("v3-deck-art/night-flight/steel-panel.svg"); --deck-button: url("v3-deck-art/night-flight/steel-control.svg"); --deck-button-pri: url("v3-deck-art/night-flight/amethyst-control.svg"); }
+:root[data-palette="ember"] { --deck-frame: url("v3-deck-art/ember/steel-panel.svg"); --deck-button: url("v3-deck-art/ember/steel-control.svg"); --deck-button-pri: url("v3-deck-art/ember/amethyst-control.svg"); }
+:root[data-palette="frost"] { --deck-frame: url("v3-deck-art/frost/steel-panel.svg"); --deck-button: url("v3-deck-art/frost/steel-control.svg"); --deck-button-pri: url("v3-deck-art/frost/amethyst-control.svg"); }
+:root[data-palette="gold"] { --deck-frame: url("v3-deck-art/gold/steel-panel.svg"); --deck-button: url("v3-deck-art/gold/steel-control.svg"); --deck-button-pri: url("v3-deck-art/gold/amethyst-control.svg"); }
+:root[data-palette="forge"] { --deck-frame: url("v3-deck-art/forge/steel-panel.svg"); --deck-button: url("v3-deck-art/forge/steel-control.svg"); --deck-button-pri: url("v3-deck-art/forge/amethyst-control.svg"); }
+:root[data-palette="emerald"] { --deck-frame: url("v3-deck-art/emerald/steel-panel.svg"); --deck-button: url("v3-deck-art/emerald/steel-control.svg"); --deck-button-pri: url("v3-deck-art/emerald/amethyst-control.svg"); }
+
+/* ── Header: crest, live title (DECK BUILDER on the home screens), steel keys ── */
+.top, .top.home { border: solid transparent; border-width: 3px 9.5px; border-radius: 0; padding: 0 10px; }
+button.brand {
+  width: auto; min-width: 0; aspect-ratio: auto; container-type: normal; background: none; border: 0;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+.brand img { display: block !important; height: 42px; width: auto; filter: drop-shadow(0 0 5px var(--pal-glow)); }
+.brand > div { position: static; width: auto; height: auto; min-width: 0; }
+.brand b, .top.home .brand b {
+  font: 800 26px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  background-image: linear-gradient(#fff 18%, #f0eafa 46%, #bbb0cd 58%, #f4effa 84%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 1px 2px #000) drop-shadow(0 0 5px var(--pal-glow)); text-shadow: none;
+}
+.brand:hover { filter: brightness(1.12); }
+
+/* ── Frames ── */
+.app :is(.top, .panel, .tile.big), .modal .panel {
+  border: solid transparent; border-width: 5px 9.5px; border-radius: 0;
+  border-image: var(--deck-frame) 16 19 fill / 13px 17px stretch;
+  background: none; box-shadow: 0 7px 18px #0008;
+}
+.app .panel { padding: 3px 12px; }
+.modal .panel { padding: 10px 12px; box-shadow: 0 12px 38px #000c, 0 0 16px var(--pal-glow); }
+.tile.big { border-width: 5px 9.5px; }
+.modal { background: #08060bd4; backdrop-filter: none; -webkit-backdrop-filter: none; }
+h1, h2, h3 { text-transform: uppercase; letter-spacing: 0.06em; }
+:is(.app, .modal) .ph, :is(.app, .modal) :is(.pane, .side, .panel) > .ph {
+  border: 0; border-image: none; border-bottom: 1px solid color-mix(in srgb, var(--pal-primary) 20%, #5a5460);
+  box-shadow: 0 1px #0a070e; padding: 0 0 6px;
+}
+.modal .panel > .ph { padding: 0 0 6px; }
+.ph h2 { text-shadow: none; }
+
+/* ── Steel keys ── */
+:is(.app, .modal) .btn, .app .nav button:not(.cc-home), .app .nav .cc-home, #undo-fab {
+  border: solid transparent; border-width: 7px 11px; border-radius: 0;
+  border-image: var(--deck-button) 7 11 fill / 7px 11px stretch;
+  background: none; box-shadow: none; padding: 2px 4px;
+  font: 800 14px/1.1 var(--label); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink);
+  text-shadow: 0 1px #08050e, 0 0 4px #afa1c87a;
+}
+:is(.app, .modal) .btn.sm { font-size: 12.5px; padding: 0 2px; }
+.app .nav button:not(.cc-home) { font-size: 12px; letter-spacing: 0.08em; flex-direction: column; gap: 1px; }
+@media (max-width: 820px) { .app .top .nav button:not(.cc-home) { flex-direction: row; letter-spacing: 0.04em; } }
+:is(.app, .modal) .btn.pri, :is(.app, .modal) .btn[aria-pressed="true"], :is(.app, .modal) .seg button.on {
+  color: #faf0ff; filter: none; border-image-source: var(--deck-button-pri); background: none; box-shadow: none;
+}
+:is(.app, .modal) .btn.gold { color: #ffdf94; filter: none; }
+:is(.app, .modal) .btn.danger { color: #ffb4c2; filter: none; }
+:is(.app, .modal) .btn:disabled { border-image-source: var(--deck-button); opacity: 0.55; filter: grayscale(0.4); }
+:is(.app, .modal) .btn:not(:disabled):hover, .app .nav button:not(.cc-home):hover, .app .nav .cc-home:hover, #undo-fab:hover {
+  filter: brightness(1.25);
+}
+:is(.app, .modal) .btn:not(:disabled):active, .app .nav button:not(.cc-home):active, .app .nav .cc-home:active, #undo-fab:active {
+  border-image-source: var(--deck-button); filter: brightness(1.4);
+}
+.app .nav button[aria-current="page"] {
+  color: #fff; border-image-source: var(--deck-button); box-shadow: inset 0 -2px var(--v3-lit); filter: brightness(1.17);
+}
+.nav .cc-home::after { text-transform: uppercase; }
+
+/* ── Recessed boxes, rows, tiles ── */
+:is(.app, .modal) :is(.tile:not(.big), .aim, .cmdbox, .ddl, .s4, .path, .opt, .hist, .rec, .pre, .tierbox, .sgrid > div) {
+  border-radius: 2px; border-color: var(--v3-line); background: var(--deck-recess) padding-box; box-shadow: var(--deck-edge);
+}
+:is(.app, .modal) .tile.newdeck { border-color: color-mix(in srgb, var(--pal-primary) 45%, #6a6070); }
+:is(.app, .modal) :is(.tile, .s4, .ico):not(:disabled):hover { border-color: var(--v3-lit); box-shadow: var(--deck-edge); }
+:is(.app, .modal) :is(.tile.on, .s4.on) { border-color: var(--v3-sel-edge); background: var(--deck-selected); box-shadow: var(--deck-edge); }
+:is(.app, .modal) .dl { border-bottom-color: var(--v3-line); }
+:is(.app, .modal) .dl:hover, :is(.app, .modal) .ddl button:hover { background: color-mix(in srgb, var(--pal-primary) 14%, transparent); }
+.hicon { border-radius: 2px; border-color: var(--v3-lit); background: var(--deck-selected); box-shadow: var(--deck-edge); }
+:is(.app, .modal) :is(.ico, .qty button) {
+  border-radius: 2px; border-color: var(--v3-line2); background: var(--deck-recess); box-shadow: var(--deck-edge);
+}
+:is(.app, .modal) .ico.on { color: #171009; background: linear-gradient(#f6d98b, #b68f46); border-color: #ffe4a1; }
+
+/* ── Tabs: flat recessed boxes, the open one lit ── */
+:is(.app, .modal) .tabs { border: 0; gap: 4px; }
+:is(.app, .modal) .tab {
+  border: 1px solid var(--v3-line2); border-image: none; border-radius: 2px; padding: 3px 8px;
+  background: var(--deck-recess); box-shadow: var(--deck-edge);
+  font: 800 15px/1.05 var(--label); letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); text-shadow: 0 1px 0 #000;
+}
+:is(.app, .modal) .tab:hover:not(.on) { color: var(--ink); filter: brightness(1.15); }
+:is(.app, .modal) .tab.on {
+  color: #fff; background: var(--deck-selected); border-color: var(--v3-lit); filter: none;
+  box-shadow: inset 0 2px var(--v3-sel-edge), inset 0 -1px #090710;
+}
+.seg { border: 0; background: none; box-shadow: none; }
+.seg button { border: solid transparent; border-width: 7px 11px; border-image: var(--deck-button) 7 11 fill / 7px 11px stretch; background: none; border-radius: 0; box-shadow: none; color: var(--ink); text-transform: uppercase; letter-spacing: 0.1em; }
+.seg button.on { border-image-source: var(--deck-button-pri); }
+.seg button + button { border-left: solid transparent; border-left-width: 11px; }
+
+/* ── Fields ── */
+:is(.app, .modal) :is(input[type="text"], input[type="search"], input[type="number"], select, textarea) {
+  color: var(--ink); border: 1px solid var(--v3-field); border-image: none; border-radius: 2px;
+  background: var(--v3-well); box-shadow: inset 0 2px 5px #0007; padding-inline: 12px;
+}
+:is(.app, .modal) select { padding-inline: 9px 4px; }
+:is(.app, .modal) textarea { padding: 10px 12px; }
+:is(.app, .modal) :is(input, select, textarea):focus { border-color: var(--v3-lit); filter: none; box-shadow: inset 0 2px 5px #0007, 0 0 0 1px var(--v3-lit); }
+:is(.app, .modal) .statbar { border: 1px solid var(--v3-line); border-image: none; border-radius: 2px; background: var(--deck-recess); box-shadow: var(--deck-edge); }
+:is(.app, .modal) :is(.meter i, .curve .bar) { border-radius: 2px; }
+:is(.app, .modal) :is(button, input, select, textarea, summary, a):focus-visible { outline: 2px solid var(--v3-lit); outline-offset: 2px; }
+:is(.app, .modal) .tab { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; min-height: 40px; }
+
+/* ── Short and narrow screens ── */
+@media (max-width: 820px) {
+  button.brand { flex: 1 1 auto; min-width: 0; justify-content: flex-start; }
+  .brand img { height: 34px; }
+  .brand b, .top.home .brand b { font-size: 20px; letter-spacing: 0.1em; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  button.brand { flex: 0 1 auto; min-width: 0; margin-right: auto; gap: 6px; }
+  .top.home button.brand { margin: 0 auto; }
+  .brand img { height: 30px; }
+  .brand b, .top.home .brand b { font-size: 18px; letter-spacing: 0.08em; }
+}
+@media (max-width: 500px) {
+  .app .nav button:not(.cc-home), .app .nav .cc-home { letter-spacing: 0.03em; font-size: 12px; padding-inline: 0; }
+  .app .nav .cc-home::before { width: 13px; height: 13px; }
+}
+
+/* Scroll-edge cues (index.html draws them in violet): cover colour matches the frame glass, glow takes the palette. */
+.scroll {
+  --v3-cover: color-mix(in srgb, var(--pal-primary) 5%, #14121a);
+  scrollbar-color: var(--violet) var(--panel);
+  background:
+    linear-gradient(var(--v3-cover) 30%, transparent) 0 0/100% 34px no-repeat local,
+    linear-gradient(transparent, var(--v3-cover) 70%) 0 100%/100% 34px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--pal-glow), transparent) 0 0/100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--pal-glow), transparent) 0 100%/100% 12px no-repeat scroll;
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="68" viewBox="0 0 144 68">
+  <defs>
+    <linearGradient id="steel" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#8b879a"/><stop offset=".12" stop-color="#373542"/>
+      <stop offset=".47" stop-color="#191722"/><stop offset=".86" stop-color="#333140"/><stop offset="1" stop-color="#555062"/>
+    </linearGradient>
+    <linearGradient id="glass" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#18141f"/><stop offset=".58" stop-color="#100e17"/><stop offset="1" stop-color="#0c0a12"/>
+    </linearGradient>
+  </defs>
+  <path d="M11 0H133L144 11V57L133 68H11L0 57V11Z" fill="#070609"/>
+  <path d="M12 1H132L143 12V56L132 67H12L1 56V12Z" fill="url(#steel)" stroke="#4b4757"/>
+  <path d="M14 4H130L140 14V54L130 64H14L4 54V14Z" fill="#0a0811" stroke="#6a6379" stroke-opacity=".58"/>
+  <path d="M15 6H129L138 15V53L129 62H15L6 53V15Z" fill="url(#glass)" stroke="#373041"/>
+  <path d="M3 18V12L12 3H23M121 3H132L141 12V18M3 50V56L12 65H23M121 65H132L141 56V50" fill="none" stroke="#b381ed" stroke-opacity=".8"/>
+  <path d="M24 3H120" stroke="#ece2fc" stroke-opacity=".34"/>
+  <path d="M24 65H120" stroke="#b27cf4" stroke-opacity=".4"/>
+</svg>
