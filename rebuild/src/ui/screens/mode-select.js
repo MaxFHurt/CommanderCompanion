@@ -10,16 +10,29 @@ function pickRemoteCount(onPick) {
   });
 }
 
-// The background art carries the "Choose Game Mode" title; the three buttons are the approved assets.
+// Visual handoff screens/mode-select: title plate, three panels (title, mode button, what it is), Back.
+const MODES = [
+  ['fully-tracked', 'Guided Play', 'Fully Guided', 'Rulebook enforced guided games.'],
+  ['freeplay', 'Free Play', 'Free Play', 'Create, test, and play.'],
+  ['table-tracker', 'Table Tracker', 'Table Tracker', 'Shared table tracking.']
+];
+
 export const modeSelectScreen = {
   mount(root) {
     setHtml(root, html`
-      <main class="mode-select" aria-label="Choose game mode">
-        <button class="btn-back" type="button" data-act="back" aria-label="Back"><img src="assets/img/ui/back.png" alt="Back"></button>
-        <div class="mode-select__choices">
-          <button type="button" data-mode="fully-tracked"><img src="assets/img/mode/guided.png" alt="Fully Guided — Rulebook enforced guided games."></button>
-          <button type="button" data-mode="freeplay"><img src="assets/img/mode/freeplay.png" alt="Free Play — Create, Test, and Play."></button>
-          <button type="button" data-mode="table-tracker"><img src="assets/img/mode/tracker.png" alt="Table Tracker — Shared table tracking."></button>
+      <main class="mode-select menu" aria-label="Choose game mode">
+        <div class="menu__stack mode-select__stack">
+          <header class="plate"><h1 class="plate__title">Choose Game Mode</h1></header>
+          <div class="mode-select__choices">
+            ${MODES.map(([mode, panel, label, text]) => html`
+              <section class="mode-card skin-dialog" aria-labelledby="mode-${mode}-title">
+                <h2 class="readout mode-card__title" id="mode-${mode}-title">${panel}</h2>
+                <button type="button" class="btn" id="mode-${mode}" data-mode="${mode}" aria-describedby="mode-${mode}-text">${label}</button>
+                <p class="readout mode-card__text" id="mode-${mode}-text">${text}</p>
+              </section>`)}
+          </div>
+          <button class="btn mode-select__back" type="button" data-act="back">Back</button>
+          <div class="skin-sep" aria-hidden="true"></div>
         </div>
       </main>`);
     const offBack = on(root, 'click', '[data-act="back"]', () => go('landing'));
