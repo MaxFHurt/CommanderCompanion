@@ -1,0 +1,504 @@
+{
+  "playmats": [
+    {
+      "id": "cedar-moon-archer",
+      "title": "Cedar Moon Archer",
+      "category": "character",
+      "artDirection": "an adult woman elven archer in moss-green waxed leather and dark gray scale, crescent silver fletching, rain-soaked elevated cedar forest trail with moonlit fog",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/01-cedar-moon-archer.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "d12ca747081f19c2333736cf9f54fd3311bd92c23fc80911994b59305b988ffc"
+        },
+        "iPad": {
+          "path": "iPad/01-cedar-moon-archer.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "ef0013374765b5346076ec9a9e71584cc67e63bb2d9cdab2c8187e33b0d45fb3"
+        }
+      }
+    },
+    {
+      "id": "the-plasma-smith",
+      "title": "The Plasma Smith",
+      "category": "character",
+      "artDirection": "a futuristic blacksmith wearing a ceramic mask and articulated brass gauntlets at a maglev anvil, shaping a glowing bar with an induction hammer, blue industrial darkness broken by vermilion sparks",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/02-the-plasma-smith.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "8354a4126bf6f965267b212f9340d9ec6c0144a47c06dce3984b527d20e06e7a"
+        },
+        "iPad": {
+          "path": "iPad/02-the-plasma-smith.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "13916312401ffad548f0e9a1fa655388f928bb29ee4880ff2d9d52049a353e18"
+        }
+      }
+    },
+    {
+      "id": "moonwell-unicorn",
+      "title": "Moonwell Unicorn",
+      "category": "creature",
+      "artDirection": "a silver unicorn with a naturally spiraled translucent horn stepping out of a deep indigo pool beneath black alder trees, blue-white moonlight dusting water and leaves",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/03-moonwell-unicorn.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "239f3b243563dcc009a401a6cca7f79bf6aa00c98d88d9309300ba942f780242"
+        },
+        "iPad": {
+          "path": "iPad/03-moonwell-unicorn.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "cb0dad928c4ae8147289dfd9f33bf8b75102c083721807d9ff7cce45151af03a"
+        }
+      }
+    },
+    {
+      "id": "stormglass-mage",
+      "title": "Stormglass Mage",
+      "category": "character",
+      "artDirection": "a gray-haired woman mage in a weathered ink-blue traveling cloak gathering a miniature thunderstorm into a glass orb on a crumbling cliff observatory, turquoise flash inside the orb",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/04-stormglass-mage.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "cf88a62053834cd0f162024d7d7dbde75d03d37dffce95adc38e0d99dc151efd"
+        },
+        "iPad": {
+          "path": "iPad/04-stormglass-mage.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "a31ee3e8cb3d2893634430d28df320d2ba597846c10ce986ebb979fbc2fe38ff"
+        }
+      }
+    },
+    {
+      "id": "cinderwing-griffin",
+      "title": "Cinderwing Griffin",
+      "category": "creature",
+      "artDirection": "an imposing sable griffin with amber eyes perched on a broken sandstone bridge with updrafts of ochre dust, late afternoon bronze light",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/05-cinderwing-griffin.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "c7b495e7f52b8bd4902f0700ca5c38fb493812ca4f7029ad85e11e696dadb7e3"
+        },
+        "iPad": {
+          "path": "iPad/05-cinderwing-griffin.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "a12c3443f1f02be191330ea6232615743bb5513196ade57752e6448e7e921188"
+        }
+      }
+    },
+    {
+      "id": "mirelight-druid",
+      "title": "Mirelight Druid",
+      "category": "character",
+      "artDirection": "an adult antler-crowned druid in hessian and dark bronze, quietly tending cold blue bioluminescent orchids in a flooded cypress swamp, fog and black water",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/06-mirelight-druid.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "cee658ba689620b67c07c60ae991643f342a6829dae8f15296b7f38128dfbf58"
+        },
+        "iPad": {
+          "path": "iPad/06-mirelight-druid.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "b2f4d724527472d3f1de79ad15824d96499e2d60761b26d3b9d1388b67d32059"
+        }
+      }
+    },
+    {
+      "id": "midnight-koi-dragon",
+      "title": "Midnight Koi Dragon",
+      "category": "creature",
+      "artDirection": "an enormous jade and charcoal river dragon with koi-like whiskers and ridged scales emerging from a night river by a slate cliff, lantern-colored light within the water",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/07-midnight-koi-dragon.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "8d158abf320396df867f2914a69288dd2d5a9f99936a5901396b58ebc4297301"
+        },
+        "iPad": {
+          "path": "iPad/07-midnight-koi-dragon.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "a830d23b13ba28ebba8b2ad01a85d3bf5a93357a9bb73cc13b68ccf9b467c1ec"
+        }
+      }
+    },
+    {
+      "id": "brass-citadel-artificer",
+      "title": "Brass Citadel Artificer",
+      "category": "character",
+      "artDirection": "a young adult dwarven artificer in oil-stained ochre workwear repairing a tiny winged clockwork bird on a basalt workbench overlooking a rainy elevated city of copper domes",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/08-brass-citadel-artificer.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "1692832e514f107633c134643e79b29c7b4af3ea63837c5feac47da6e6b429cc"
+        },
+        "iPad": {
+          "path": "iPad/08-brass-citadel-artificer.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "b842640dd81b9548aa8e6a4a86c2922d4fddad9fede57bde518112f19170c886"
+        }
+      }
+    },
+    {
+      "id": "ashen-phoenix",
+      "title": "Ashen Phoenix",
+      "category": "creature",
+      "artDirection": "a giant phoenix with coal-dark feathers and bright coral embers along the wings, rising over black obsidian terraces during an ash flurry, volcanic orange rim light",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/09-ashen-phoenix.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "d9e6c4d086542e1ca6c60a72bd0af8613cc18f3d99aae9ea80a480ec95c2fe43"
+        },
+        "iPad": {
+          "path": "iPad/09-ashen-phoenix.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "96e32b3e8ced1b68219a79164f065539440141bff18a27b98bbb420ae04db0a0"
+        }
+      }
+    },
+    {
+      "id": "starlit-grave-mage",
+      "title": "Starlit Grave Mage",
+      "category": "character",
+      "artDirection": "an adult Black man necromancer in elegant midnight wool and tarnished brass closing a hovering ring of smoky spectral lanterns inside a weathered roofless mausoleum, soft amethyst haze",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/10-starlit-grave-mage.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "2b46203a910d4ab8a35b5c064a126275f29c0647c98089ba86a418fc6bfc26d0"
+        },
+        "iPad": {
+          "path": "iPad/10-starlit-grave-mage.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "2a6143b4b49f786672fd2066b18d3727a5db2bac7ff98cc8c239616e2d4858c6"
+        }
+      }
+    },
+    {
+      "id": "frost-antler-colossus",
+      "title": "Frost Antler Colossus",
+      "category": "creature",
+      "artDirection": "a towering creature made from glacier ice and bare birch trunks, elk-like crown and glowing amber eyes, stepping through a twilight birch clearing with icy ground fog",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/11-frost-antler-colossus.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "d0483187cf9453b8282973ed9a9d44eb3b59e8f518c109d494b4acff116181c8"
+        },
+        "iPad": {
+          "path": "iPad/11-frost-antler-colossus.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "bb215a329cabb5521fff43e5bff7c5bc207e88d7a76ad26e0d15df76fff146fd"
+        }
+      }
+    },
+    {
+      "id": "deepglass-leviathan",
+      "title": "Deepglass Leviathan",
+      "category": "creature",
+      "artDirection": "a colossal slate-blue whale-like leviathan with layered mineral armor and incandescent teal gills visible beneath a dark underwater basalt arch, water suspended with particles",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/12-deepglass-leviathan.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "64ae802dc4b364d438121540a647bbddc7177a39939ddc1962d67f01637b407e"
+        },
+        "iPad": {
+          "path": "iPad/12-deepglass-leviathan.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "420f30d17e6972cf738176fd6e8ca38dcb53e63b3e5661e1766cf86f341cb2c1"
+        }
+      }
+    },
+    {
+      "id": "sirocco-sphinx",
+      "title": "Sirocco Sphinx",
+      "category": "creature",
+      "artDirection": "a leonine sphinx with weathered obsidian skin and dark copper wings resting amid wind-carved red-sand ruins at dawn, sand suspended like smoke",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/13-sirocco-sphinx.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "138f89514b3500f97671d6302225f6413dea82d71875687ac3aa7d7ed2d5f260"
+        },
+        "iPad": {
+          "path": "iPad/13-sirocco-sphinx.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "2cf5eee2dd964a376f390f67376e198aaec264594bdc471d989ba355242ea4d8"
+        }
+      }
+    },
+    {
+      "id": "the-iron-forges",
+      "title": "The Iron Forges",
+      "category": "landscape",
+      "artDirection": "empty medieval ironworks hewn from black rock around a blinding arc of molten iron deep on the right, distant heavy gantries, iron anvil silhouettes and smoke, dark low-reflectance stone across the center",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/14-the-iron-forges.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "82682b06fa35d0d10767d9198a45c7c6c5967c42a9a0d13f709aeacbd0869220"
+        },
+        "iPad": {
+          "path": "iPad/14-the-iron-forges.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "eff03d999f1b126765d3369990f926e422894b9a23f9172ba6f5254640ab8b64"
+        }
+      }
+    },
+    {
+      "id": "violet-reef",
+      "title": "Violet Reef",
+      "category": "landscape",
+      "artDirection": "an uninhabited coral reef canyon with basalt walls, restrained violet and teal coral growth, deep crevices, calm midnight-blue sand and soft sunbeams reaching the seafloor",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/15-violet-reef.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "f1f628145acec65075990b638dfdb30a13f5a46312b5c945854cf74706951003"
+        },
+        "iPad": {
+          "path": "iPad/15-violet-reef.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "02a6957ef321ff2a8680999bd7c0a12e44385352ffa14103ab6c488aa6ed3747"
+        }
+      }
+    },
+    {
+      "id": "glass-salt-flats",
+      "title": "Glass Salt Flats",
+      "category": "landscape",
+      "artDirection": "a desaturated alien salt flat stretching to sharp obsidian monoliths and an enormous crescent reflected in the thin shallow water, pearl gray and muted sea green",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/16-glass-salt-flats.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "d0f9bd28fb73c3df0745d610a908fec875049793b89e1e881d3ceb5987ce0ca5"
+        },
+        "iPad": {
+          "path": "iPad/16-glass-salt-flats.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "56810cfa0dfe90a4101ed10e806fa72b03340da2c95bfb9e773ec7b5b30d8928"
+        }
+      }
+    },
+    {
+      "id": "the-drowned-abbey",
+      "title": "The Drowned Abbey",
+      "category": "landscape",
+      "artDirection": "a half-submerged gothic abbey over black water, still ripples and scattered broken arches, wintry blue dawn, fog and distant wooded hills",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/17-the-drowned-abbey.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "007cbad3222442ccbb464146e224c78b12d6b62d8389abe72c074a72290570f9"
+        },
+        "iPad": {
+          "path": "iPad/17-the-drowned-abbey.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "f69d425e99ed082dc8093aa0104a09c3a834f11e6dcf963a0e66582b1929d5a1"
+        }
+      }
+    },
+    {
+      "id": "lanterns-over-kyren",
+      "title": "Lanterns Over Kyren",
+      "category": "landscape",
+      "artDirection": "an uninhabited mountain city with slate rooftops and restrained warm lanterns on high bridges, copper roofs receding into rain and graphite dusk",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/18-lanterns-over-kyren.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "59b79c1efe083aef50432e21a4d43247605c3e51762942f860e024845e560111"
+        },
+        "iPad": {
+          "path": "iPad/18-lanterns-over-kyren.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "1ba42087312b01ce3639b375cf9058a5eadbbe8fd4428cb49e6389fcc6404ea2"
+        }
+      }
+    },
+    {
+      "id": "blackwater-mangroves",
+      "title": "Blackwater Mangroves",
+      "category": "landscape",
+      "artDirection": "empty mangrove channels winding through tangled dark roots into moss-green haze, spreading branches and smooth black water, tiny faint yellow firefly points only in the far background",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/19-blackwater-mangroves.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "35812d55b1cad7fdcf33a4b9d9f3ac2e1796a3c421ae81ab5b4c6b27a39b40cc"
+        },
+        "iPad": {
+          "path": "iPad/19-blackwater-mangroves.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "d6a86aff830ad55bbfea2e5e0ef50f3d5c2ee0769ae054b4e104fcc8fd0a6dca"
+        }
+      }
+    },
+    {
+      "id": "aurora-bastion",
+      "title": "Aurora Bastion",
+      "category": "landscape",
+      "artDirection": "transparent teal aurora over a ruined basalt fortress and a vast empty blue-black snowfield, ghostly ice clouds with a subtle peach pre-dawn rim",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/20-aurora-bastion.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "6c97eac6842af6a4c1bb13360b4f60b5ccd83d6572f7863f6874715fd297e25f"
+        },
+        "iPad": {
+          "path": "iPad/20-aurora-bastion.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "b907bf9b2006ee0ce928d0aeb0a9f1144db477ad83e64cbb522d166a2b1bf2d3"
+        }
+      }
+    },
+    {
+      "id": "saffron-dunes",
+      "title": "Saffron Dunes",
+      "category": "landscape",
+      "artDirection": "an abandoned monumental sandstone stair and crumbling observatory half swallowed by deep ochre dunes in dusty copper sunset, long quiet broad shadows",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/21-saffron-dunes.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "36aae2b365eee19ba6ad193ea4461dd85ca211da5f5e00d0cce652f55fe97c75"
+        },
+        "iPad": {
+          "path": "iPad/21-saffron-dunes.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "e3d92e2a76643970a750e86eadc51057b779f6df07ea000724b859a501c6ac62"
+        }
+      }
+    },
+    {
+      "id": "floating-orchards",
+      "title": "Floating Orchards",
+      "category": "landscape",
+      "artDirection": "uninhabited slate islands suspended above clouds, each carrying misty rust-red maple orchards, dark emerald stone ridges, soft rose and deep teal dusk",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/22-floating-orchards.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "6825916bd00ebfc54df5483e6e67eb6a73899a753f86117d51dce9ac3d49a20a"
+        },
+        "iPad": {
+          "path": "iPad/22-floating-orchards.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "4374dabfd99bc7c2841209d22504176bca9f54d4418326c4e134e860fcfb0768"
+        }
+      }
+    },
+    {
+      "id": "thunderhead-causeway",
+      "title": "Thunderhead Causeway",
+      "category": "landscape",
+      "artDirection": "derelict stone causeway running through shallow slate surf to an eroded arch under dense storm fronts, diffuse cobalt lightning confined to upper sky at right",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/23-thunderhead-causeway.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "fc55cfcb18a26a82e66640afbe93f6b9b38fda4b6fc8b10d62b2d6236417eb6b"
+        },
+        "iPad": {
+          "path": "iPad/23-thunderhead-causeway.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "9fd42e31e8f77134ac2759c352cac2c9b337b084f83886039f72551125e09704"
+        }
+      }
+    },
+    {
+      "id": "eventide-ringworks",
+      "title": "Eventide Ringworks",
+      "category": "landscape",
+      "artDirection": "a dead orbital shipyard floating above a gas giant, enormous industrial rings falling away in sequence, dull titanium, cold slate space, hints of warm sun on the far rim",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/24-eventide-ringworks.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "25016f39dcadb49796753f8ff76fc642e90e33cb5c231fdc060aa231f00c1d89"
+        },
+        "iPad": {
+          "path": "iPad/24-eventide-ringworks.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "bd6a617be52b2f1fc0f5680193a0b48d2d0b3f77341ed3f3b4478447ed575cc3"
+        }
+      }
+    },
+    {
+      "id": "emberroot-caldera",
+      "title": "Emberroot Caldera",
+      "category": "landscape",
+      "artDirection": "traditional fantasy waterfall of cooled obsidian cascading into a volcanic caldera with scattered deep red rivers, a charcoal foreground and orderly distant embers outlining the caldera rim",
+      "images": {
+        "iPhone": {
+          "path": "iPhone/25-emberroot-caldera.jpg",
+          "width": 1160,
+          "height": 535,
+          "sha256": "7919c8371e9ba5d239b980e247bfd1cb9f4047b6907c9189073c646fcd443b3a"
+        },
+        "iPad": {
+          "path": "iPad/25-emberroot-caldera.jpg",
+          "width": 1180,
+          "height": 760,
+          "sha256": "80d000e34848810d7049b87201560a9ce4ef17dc335cbf7692db20f608a0859b"
+        }
+      }
+    }
+  ]
+}
