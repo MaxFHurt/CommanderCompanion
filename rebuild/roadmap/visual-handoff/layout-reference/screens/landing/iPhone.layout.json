@@ -1,0 +1,122 @@
+{
+  "source": "src/ui/screens/landing.js",
+  "viewport": [
+    1200,
+    554
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "Landing-Header.png",
+      "rect": [
+        208.72000000000003,
+        41.0,
+        782.56,
+        115
+      ],
+      "titleBox": [
+        437.0,
+        102.86178861788618,
+        326,
+        24
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436.0,
+        491.0,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Commander Companion crest",
+      "asset": "art/identity/Commander-Companion-Crest.png",
+      "rect": [
+        517.0,
+        168.0,
+        166,
+        75
+      ],
+      "fit": "contain",
+      "decorative": true
+    },
+    {
+      "name": "Start Game",
+      "asset": "art/attack/Amethyst-normal.png",
+      "rect": [
+        286,
+        255.0,
+        274,
+        150
+      ]
+    },
+    {
+      "name": "Continue Game",
+      "asset": "art/phase/Amethyst-normal.png",
+      "rect": [
+        640,
+        255.0,
+        274,
+        150
+      ],
+      "states": {
+        "normal": "art/phase/Amethyst-normal.png",
+        "pressed": "art/phase/Amethyst-pressed.png",
+        "disabled": "art/phase/Amethyst-disabled.png"
+      },
+      "enableWhen": "A resumable game exists"
+    },
+    {
+      "name": "Profile",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        169,
+        417.0,
+        205,
+        62
+      ]
+    },
+    {
+      "name": "Deck Builder",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        388,
+        417.0,
+        205,
+        62
+      ]
+    },
+    {
+      "name": "Settings",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        607,
+        417.0,
+        205,
+        62
+      ]
+    },
+    {
+      "name": "Help",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        826,
+        417.0,
+        205,
+        62
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered horizontally and vertically in the landscape safe area",
+    "rows": "Center each row independently with matching gap sizes.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  }
+}

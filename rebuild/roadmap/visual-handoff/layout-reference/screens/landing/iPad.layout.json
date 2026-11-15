@@ -1,0 +1,122 @@
+{
+  "source": "src/ui/screens/landing.js",
+  "viewport": [
+    1200,
+    773
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "Landing-Header.png",
+      "rect": [
+        181.5,
+        82.5,
+        837.0,
+        123
+      ],
+      "titleBox": [
+        437.0,
+        149.5,
+        326,
+        24
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436.0,
+        668.5,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Commander Companion crest",
+      "asset": "art/identity/Commander-Companion-Crest.png",
+      "rect": [
+        517.0,
+        225.5,
+        166,
+        105
+      ],
+      "fit": "contain",
+      "decorative": true
+    },
+    {
+      "name": "Start Game",
+      "asset": "art/attack/Amethyst-normal.png",
+      "rect": [
+        286,
+        350.5,
+        274,
+        210
+      ]
+    },
+    {
+      "name": "Continue Game",
+      "asset": "art/phase/Amethyst-normal.png",
+      "rect": [
+        640,
+        350.5,
+        274,
+        210
+      ],
+      "states": {
+        "normal": "art/phase/Amethyst-normal.png",
+        "pressed": "art/phase/Amethyst-pressed.png",
+        "disabled": "art/phase/Amethyst-disabled.png"
+      },
+      "enableWhen": "A resumable game exists"
+    },
+    {
+      "name": "Profile",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        169,
+        580.5,
+        205,
+        68
+      ]
+    },
+    {
+      "name": "Deck Builder",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        388,
+        580.5,
+        205,
+        68
+      ]
+    },
+    {
+      "name": "Settings",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        607,
+        580.5,
+        205,
+        68
+      ]
+    },
+    {
+      "name": "Help",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        826,
+        580.5,
+        205,
+        68
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered horizontally and vertically in the landscape safe area",
+    "rows": "Center each row independently with matching gap sizes.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  }
+}

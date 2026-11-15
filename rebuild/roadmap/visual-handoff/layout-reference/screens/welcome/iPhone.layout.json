@@ -1,0 +1,125 @@
+{
+  "source": "src/ui/screens/welcome.js",
+  "viewport": [
+    1200,
+    554
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "art/screen-header/Amethyst-normal.png",
+      "rect": [
+        314.0,
+        74,
+        572,
+        84
+      ],
+      "titleBox": [
+        493.0,
+        117,
+        214,
+        22
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436,
+        458,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Your profile",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        171,
+        170,
+        858,
+        276
+      ],
+      "liveContentRect": [
+        223,
+        257,
+        754,
+        149
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          214,
+          218,
+          772,
+          27
+        ],
+        "textRect": [
+          225,
+          223,
+          750,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          50
+        ]
+      }
+    },
+    {
+      "name": "Sign in",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        227,
+        261.42,
+        746,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Create an account",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        227,
+        309.42,
+        746,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Continue without an account",
+      "asset": "art/utility/Amethyst-normal.png",
+      "rect": [
+        227,
+        357.42,
+        746,
+        44.160000000000004
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered within the landscape safe area on both axes",
+    "panels": "Equal widths and shared centerline",
+    "rows": "Center short groups vertically within their content well. Start tall or scrolling groups at the top when they fill the well. Keep row accessories aligned to their reserved columns.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  },
+  "titleAlignment": "center"
+}

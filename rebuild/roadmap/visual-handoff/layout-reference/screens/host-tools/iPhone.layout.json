@@ -1,0 +1,224 @@
+{
+  "source": "src/ui/game/host-tools.js",
+  "viewport": [
+    1200,
+    554
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "art/screen-header/Amethyst-normal.png",
+      "rect": [
+        314.0,
+        19,
+        572,
+        84
+      ],
+      "titleBox": [
+        493.0,
+        62,
+        214,
+        22
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436,
+        512,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Players",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        34,
+        115,
+        558,
+        328
+      ],
+      "liveContentRect": [
+        86,
+        202,
+        454,
+        201
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          77,
+          163,
+          472,
+          27
+        ],
+        "textRect": [
+          88,
+          168,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          59
+        ]
+      }
+    },
+    {
+      "name": "Edit Life",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        230.96,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Draw cards",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        279.96,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Mill cards",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        328.96,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Game",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        608,
+        115,
+        558,
+        328
+      ],
+      "liveContentRect": [
+        660,
+        202,
+        454,
+        201
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          651,
+          163,
+          472,
+          27
+        ],
+        "textRect": [
+          662,
+          168,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          59
+        ]
+      }
+    },
+    {
+      "name": "Move Card",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        664,
+        206.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Add Counter",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        664,
+        255.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Change Phase",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        664,
+        304.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Correction",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        664,
+        353.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Close",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        497.5,
+        455,
+        205,
+        45
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered within the landscape safe area on both axes",
+    "panels": "Equal widths and shared centerline",
+    "rows": "Center short groups vertically within their content well. Start tall or scrolling groups at the top when they fill the well. Keep row accessories aligned to their reserved columns.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  },
+  "titleAlignment": "center"
+}

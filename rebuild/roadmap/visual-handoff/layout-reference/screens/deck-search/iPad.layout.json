@@ -1,0 +1,238 @@
+{
+  "source": "deck/ui/deck.js",
+  "viewport": [
+    1200,
+    773
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "art/screen-header/Amethyst-normal.png",
+      "rect": [
+        314.0,
+        129,
+        572,
+        84
+      ],
+      "titleBox": [
+        493.0,
+        172,
+        214,
+        22
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436,
+        622,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Search",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        34,
+        225,
+        558,
+        328
+      ],
+      "liveContentRect": [
+        86,
+        312,
+        454,
+        201
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          77,
+          273,
+          472,
+          27
+        ],
+        "textRect": [
+          88,
+          278,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          59
+        ]
+      }
+    },
+    {
+      "name": "Search by name or text",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        90,
+        316.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Color   Any",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        90,
+        365.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Type   Any",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        90,
+        414.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Search",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        463.46,
+        446,
+        45.080000000000005
+      ]
+    },
+    {
+      "name": "Results",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        608,
+        225,
+        558,
+        328
+      ],
+      "liveContentRect": [
+        660,
+        312,
+        454,
+        201
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          651,
+          273,
+          472,
+          27
+        ],
+        "textRect": [
+          662,
+          278,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          59
+        ]
+      }
+    },
+    {
+      "name": "Sol Ring",
+      "asset": "art/status/inset-readout.png",
+      "live": true,
+      "rect": [
+        660,
+        367.42,
+        454,
+        41.16
+      ],
+      "textRect": [
+        668,
+        369.42,
+        438,
+        37.16
+      ]
+    },
+    {
+      "name": "Arcane Signet",
+      "asset": "art/status/inset-readout.png",
+      "live": true,
+      "rect": [
+        660,
+        416.42,
+        454,
+        41.16
+      ],
+      "textRect": [
+        668,
+        418.42,
+        438,
+        37.16
+      ]
+    },
+    {
+      "name": "Builder",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        389.0,
+        565,
+        205,
+        45
+      ]
+    },
+    {
+      "name": "Decks",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        606.0,
+        565,
+        205,
+        45
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered within the landscape safe area on both axes",
+    "panels": "Equal widths and shared centerline",
+    "rows": "Center short groups vertically within their content well. Start tall or scrolling groups at the top when they fill the well. Keep row accessories aligned to their reserved columns.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  },
+  "titleAlignment": "center"
+}

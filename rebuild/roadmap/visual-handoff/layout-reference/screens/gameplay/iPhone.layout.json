@@ -1,0 +1,484 @@
+{
+  "viewBox": [
+    0,
+    0,
+    1160,
+    535
+  ],
+  "contentTransform": {
+    "x": 0,
+    "y": 0,
+    "scale": 1
+  },
+  "coordSpace": "Full-bleed gameplay viewBox",
+  "regions": {
+    "Home": [
+      40.43,
+      2,
+      98.22,
+      28
+    ],
+    "Card ID": [
+      158.04,
+      2,
+      98.22,
+      28
+    ],
+    "Chat": [
+      262.32,
+      2,
+      98.15,
+      28
+    ],
+    "Help": [
+      815.35,
+      2,
+      92.62,
+      28
+    ],
+    "Settings": [
+      919.25,
+      2,
+      91.41,
+      28
+    ],
+    "Profile": [
+      1029.85,
+      2,
+      91.15,
+      28
+    ],
+    "left.commander": [
+      58,
+      60,
+      53,
+      57
+    ],
+    "left.life": [
+      247,
+      59,
+      37,
+      49
+    ],
+    "left.grave": [
+      116,
+      100,
+      43,
+      13
+    ],
+    "left.exile": [
+      162,
+      100,
+      43,
+      13
+    ],
+    "left.seat": [
+      58,
+      59,
+      228,
+      59
+    ],
+    "center.commander": [
+      360,
+      60,
+      53,
+      57
+    ],
+    "center.life": [
+      736,
+      59,
+      37,
+      49
+    ],
+    "center.grave": [
+      418,
+      100,
+      43,
+      13
+    ],
+    "center.exile": [
+      464,
+      100,
+      43,
+      13
+    ],
+    "center.seat": [
+      360,
+      59,
+      415,
+      59
+    ],
+    "right.commander": [
+      824,
+      60,
+      53,
+      57
+    ],
+    "right.life": [
+      1080,
+      59,
+      37,
+      49
+    ],
+    "right.grave": [
+      882,
+      100,
+      43,
+      13
+    ],
+    "right.exile": [
+      928,
+      100,
+      43,
+      13
+    ],
+    "right.seat": [
+      824,
+      59,
+      295,
+      59
+    ],
+    "center.creatures": [
+      119.0,
+      163.0,
+      158.0,
+      86.0
+    ],
+    "center.artifacts": [
+      295.8,
+      162.7,
+      114.4,
+      94.6
+    ],
+    "center.enchantments": [
+      464.0,
+      163.0,
+      105.0,
+      86.0
+    ],
+    "center.planeswalkers": [
+      621.0,
+      163.0,
+      105.0,
+      86.0
+    ],
+    "center.lands": [
+      769.0,
+      163.0,
+      195.0,
+      86.0
+    ],
+    "Counters": [
+      692,
+      250,
+      59,
+      14
+    ],
+    "Sort": [
+      763,
+      250,
+      67,
+      14
+    ],
+    "View Full": [
+      852,
+      250,
+      66,
+      14
+    ],
+    "local.creatures": [
+      109.52,
+      275.64,
+      176.96,
+      96.32
+    ],
+    "local.artifacts": [
+      297.88,
+      275.82,
+      110.24,
+      91.16
+    ],
+    "local.enchantments": [
+      460.85,
+      275.82,
+      111.3,
+      91.16
+    ],
+    "local.planeswalkers": [
+      617.85,
+      275.82,
+      111.3,
+      91.16
+    ],
+    "local.lands": [
+      757.3,
+      275.64,
+      218.4,
+      96.32
+    ],
+    "Game Log": [
+      1016,
+      139,
+      132,
+      103
+    ],
+    "Stack": [
+      1018,
+      255,
+      61,
+      23
+    ],
+    "Undo": [
+      1086,
+      255,
+      61,
+      23
+    ],
+    "Board": [
+      1018,
+      283,
+      61,
+      22
+    ],
+    "Table": [
+      1086,
+      283,
+      61,
+      22
+    ],
+    "Host Tools": [
+      1018,
+      311,
+      129,
+      22
+    ],
+    "local.commander": [
+      36,
+      355,
+      68,
+      83
+    ],
+    "local.life": [
+      109,
+      404,
+      50,
+      44
+    ],
+    "local.Grave": [
+      104,
+      465,
+      48,
+      17
+    ],
+    "local.Exile": [
+      104,
+      494,
+      48,
+      17
+    ],
+    "local.Tokens": [
+      156,
+      465,
+      48,
+      17
+    ],
+    "local.Attach.": [
+      156,
+      494,
+      48,
+      17
+    ],
+    "Phase Info": [
+      485.0,
+      250,
+      104,
+      14
+    ],
+    "Mana": [
+      318,
+      373,
+      360,
+      29
+    ],
+    "Hand": [
+      245,
+      408,
+      630,
+      116
+    ],
+    "Context Action": [
+      929,
+      409,
+      93,
+      114
+    ],
+    "Phase Action": [
+      1025,
+      403,
+      116,
+      123
+    ],
+    "local.status": [
+      160,
+      416,
+      14,
+      14
+    ],
+    "left.status": [
+      260,
+      103,
+      14,
+      14
+    ],
+    "center.status": [
+      748,
+      103,
+      14,
+      14
+    ],
+    "right.status": [
+      1092,
+      103,
+      14,
+      14
+    ]
+  },
+  "playerStatus": {
+    "asset": "art/status/player-status-light.svg",
+    "visibleWhen": "poison > 0 or statuses contains a nonempty entry",
+    "action": "player-info",
+    "idSource": "Displayed seat playerId, including after rotation",
+    "placement": "Beside each life die",
+    "hitAreaCss": 44,
+    "hitAreaRule": "Reserve a separate target in the responsive player cluster. Do not place one button inside another or cover the die, zone buttons or the opponent rotation target.",
+    "accessibleLabel": "{playerName} status details",
+    "expandedView": "Existing openPlayerInfo(ctx, playerId) for poison count, statuses, counters and commander damage.",
+    "previewExamples": {
+      "local": [
+        "Poison counters"
+      ],
+      "center": [
+        "Active example status"
+      ]
+    }
+  },
+  "readoutLayout": {
+    "asset": "art/status/inset-readout.svg",
+    "localIdentity": [
+      101,
+      372,
+      110,
+      77
+    ],
+    "opponentIdentity": {
+      "left": [
+        113,
+        60,
+        128,
+        53
+      ],
+      "center": [
+        415,
+        60,
+        315,
+        53
+      ],
+      "right": [
+        879,
+        60,
+        195,
+        53
+      ]
+    },
+    "manaLabel": [
+      325,
+      378,
+      41,
+      19
+    ],
+    "manaTotal": [
+      575,
+      378,
+      91,
+      19
+    ],
+    "manaCells": [
+      [
+        368,
+        377,
+        29,
+        21
+      ],
+      [
+        397,
+        377,
+        29,
+        21
+      ],
+      [
+        426,
+        377,
+        29,
+        21
+      ],
+      [
+        455,
+        377,
+        29,
+        21
+      ],
+      [
+        484,
+        377,
+        29,
+        21
+      ],
+      [
+        513,
+        377,
+        29,
+        21
+      ],
+      [
+        542,
+        377,
+        29,
+        21
+      ]
+    ],
+    "manaLayout": "Display available symbols and amounts in the defined cells. Keep additional flexible groups accessible through the existing player board detail, with the visible groups clipped to the well.",
+    "textOverflow": "Use ellipsis for identity labels with full value on tap; wrap or scroll log and help content; use measured fit for concise control labels. Keep tech art outside safe text bounds."
+  },
+  "viewport": [
+    1160,
+    535
+  ],
+  "phoneGameplay": {
+    "foreground": "art/chassis/iPhone-{playmat}-edge.png",
+    "playmat": "Cover the full viewport with the selected background.",
+    "liveControls": "Anchor inside the actual landscape safe area in both orientations. Keep the chassis and playmat full bleed, and use responsive padding for interactive controls and readouts. Reflow the side rail, header, and lower control clusters inward as needed.",
+    "gameLog": {
+      "mode": "Recent preview",
+      "visibleEntries": 3,
+      "liveRowsRect": [
+        1025,
+        169,
+        115,
+        65
+      ],
+      "openAction": "Existing full Game Log",
+      "longEntry": "Single line with ellipsis. Full entry is available in the full log."
+    }
+  },
+  "alignment": {
+    "wordmarkCenter": 580.0,
+    "phaseCenter": 537,
+    "handCenter": [
+      560,
+      470
+    ],
+    "logCenter": 1082,
+    "exception": "Keep opponents and their details above, local player and hand below, log on the right, and gameplay actions on their existing edge. Center content within each usable recess. Fill the full iPhone viewport.",
+    "artwork": "The phone chassis crest and live wordmark share the viewport centerline."
+  }
+}

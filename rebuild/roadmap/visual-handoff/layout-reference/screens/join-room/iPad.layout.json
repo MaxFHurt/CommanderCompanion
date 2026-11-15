@@ -1,0 +1,214 @@
+{
+  "source": "src/ui/screens/join.js",
+  "viewport": [
+    1200,
+    773
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "art/screen-header/Amethyst-normal.png",
+      "rect": [
+        314.0,
+        155,
+        572,
+        84
+      ],
+      "titleBox": [
+        493.0,
+        198,
+        214,
+        22
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436,
+        596,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Room",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        34,
+        251,
+        558,
+        276
+      ],
+      "liveContentRect": [
+        86,
+        338,
+        454,
+        149
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          77,
+          299,
+          472,
+          27
+        ],
+        "textRect": [
+          88,
+          304,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          50
+        ]
+      }
+    },
+    {
+      "name": "Enter room code",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        90,
+        342.42,
+        446,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Scan QR",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        390.42,
+        446,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Paste pairing code",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        90,
+        438.42,
+        446,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Seat",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        608,
+        251,
+        558,
+        276
+      ],
+      "liveContentRect": [
+        660,
+        338,
+        454,
+        149
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          651,
+          299,
+          472,
+          27
+        ],
+        "textRect": [
+          662,
+          304,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          50
+        ]
+      }
+    },
+    {
+      "name": "Join as a player",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        664,
+        366.42,
+        446,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Watch table",
+      "asset": "art/utility/Amethyst-normal.png",
+      "rect": [
+        664,
+        414.42,
+        446,
+        44.160000000000004
+      ]
+    },
+    {
+      "name": "Back",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        389.0,
+        539,
+        205,
+        45
+      ]
+    },
+    {
+      "name": "Join",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        606.0,
+        539,
+        205,
+        45
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered within the landscape safe area on both axes",
+    "panels": "Equal widths and shared centerline",
+    "rows": "Center short groups vertically within their content well. Start tall or scrolling groups at the top when they fill the well. Keep row accessories aligned to their reserved columns.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  },
+  "titleAlignment": "center"
+}

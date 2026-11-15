@@ -1,0 +1,38 @@
+{
+  "default": "match-playmat",
+  "options": [
+    {
+      "id": "Amethyst",
+      "art": "Amethyst.png"
+    },
+    {
+      "id": "Night-Flight",
+      "art": "Night-Flight.png"
+    },
+    {
+      "id": "Dark-Alley",
+      "art": "Dark-Alley.png"
+    },
+    {
+      "id": "Ember",
+      "art": "Ember.png"
+    },
+    {
+      "id": "Frost",
+      "art": "Frost.png"
+    },
+    {
+      "id": "Gold",
+      "art": "Gold.png"
+    },
+    {
+      "id": "Forge",
+      "art": "Forge.png"
+    },
+    {
+      "id": "Emerald",
+      "art": "Emerald.png"
+    }
+  ],
+  "number": "render live life total above the art"
+}

@@ -1,0 +1,558 @@
+{
+  "source": "src/ui/rules-editor.js",
+  "viewport": [
+    1200,
+    773
+  ],
+  "background": "playmats/Amethyst.jpg",
+  "header": [
+    {
+      "asset": "art/screen-header/Amethyst-normal.png",
+      "rect": [
+        314.0,
+        12,
+        572,
+        84
+      ],
+      "titleBox": [
+        493.0,
+        55,
+        214,
+        22
+      ],
+      "fit": "contain"
+    }
+  ],
+  "footer": [
+    {
+      "asset": "art/separator/Amethyst-normal.png",
+      "rect": [
+        436,
+        739,
+        328,
+        22
+      ]
+    }
+  ],
+  "elements": [
+    {
+      "name": "Commander",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        34,
+        108,
+        558,
+        562
+      ],
+      "liveContentRect": [
+        86,
+        195,
+        454,
+        435
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          77,
+          156,
+          472,
+          27
+        ],
+        "textRect": [
+          88,
+          161,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          62
+        ]
+      }
+    },
+    {
+      "name": "Commander damage loss label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        267.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        269.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Commander damage loss",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        268.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Poison loss label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        310.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        312.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Poison loss",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        311.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Commander tax label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        353.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        355.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Commander tax",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        354.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Banned list label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        396.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        398.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Banned list",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        397.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Color identity label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        439.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        441.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Color identity",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        440.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Singleton label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        482.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        484.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Singleton",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        483.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "First player draws label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        86,
+        525.16,
+        375,
+        32.68
+      ],
+      "textRect": [
+        94,
+        527.16,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "First player draws",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        465,
+        526.02,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Table options",
+      "asset": "art/dialog/Amethyst-normal.png",
+      "rect": [
+        608,
+        108,
+        558,
+        562
+      ],
+      "liveContentRect": [
+        660,
+        195,
+        454,
+        435
+      ],
+      "titleReadout": {
+        "asset": "art/status/inset-readout.png",
+        "rect": [
+          651,
+          156,
+          472,
+          27
+        ],
+        "textRect": [
+          662,
+          161,
+          450,
+          17
+        ]
+      },
+      "slice": {
+        "xFractions": [
+          0,
+          0.23,
+          0.77,
+          1
+        ],
+        "yFractions": [
+          0,
+          0.26,
+          0.74,
+          1
+        ],
+        "destinationCaps": [
+          86,
+          62
+        ]
+      }
+    },
+    {
+      "name": "Starting life   40",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        664,
+        199.22,
+        446,
+        39.56
+      ]
+    },
+    {
+      "name": "Mulligan rule   Commander",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        664,
+        242.22,
+        446,
+        39.56
+      ]
+    },
+    {
+      "name": "Response timer   69 seconds",
+      "asset": "art/input-well/Amethyst-normal.png",
+      "rect": [
+        664,
+        285.22,
+        446,
+        39.56
+      ]
+    },
+    {
+      "name": "Real cards: pick what you drew label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        331.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        333.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Real cards: pick what you drew",
+      "asset": "art/switch/Amethyst-off.png",
+      "rect": [
+        1039,
+        332.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Confirm End Turn label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        374.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        376.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Confirm End Turn",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        1039,
+        375.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Skip empty phases label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        417.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        419.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Skip empty phases",
+      "asset": "art/switch/Amethyst-on.png",
+      "rect": [
+        1039,
+        418.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Outside-the-game effects label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        460.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        462.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Outside-the-game effects",
+      "asset": "art/switch/Amethyst-off.png",
+      "rect": [
+        1039,
+        461.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Rule Zero overrides label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        503.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        505.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Rule Zero overrides",
+      "asset": "art/switch/Amethyst-off.png",
+      "rect": [
+        1039,
+        504.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Extra land play label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        546.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        548.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Extra land play",
+      "asset": "art/switch/Amethyst-off.png",
+      "rect": [
+        1039,
+        547.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Undo (multiplayer) label",
+      "asset": "art/status/inset-readout.png",
+      "rect": [
+        660,
+        589.66,
+        375,
+        32.68
+      ],
+      "textRect": [
+        668,
+        591.66,
+        360,
+        28.68
+      ]
+    },
+    {
+      "name": "Undo (multiplayer)",
+      "asset": "art/switch/Amethyst-off.png",
+      "rect": [
+        1039,
+        590.52,
+        69,
+        30.959999999999997
+      ]
+    },
+    {
+      "name": "Cancel",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        389.0,
+        682,
+        205,
+        45
+      ]
+    },
+    {
+      "name": "Confirm",
+      "asset": "art/nav/Amethyst-normal.png",
+      "rect": [
+        606.0,
+        682,
+        205,
+        45
+      ]
+    }
+  ],
+  "alignment": {
+    "group": "Centered within the landscape safe area on both axes",
+    "panels": "Equal widths and shared centerline",
+    "rows": "Center short groups vertically within their content well. Start tall or scrolling groups at the top when they fill the well. Keep row accessories aligned to their reserved columns.",
+    "artwork": "Center the visible crystal and plate on the frame axis. The supplied artwork already includes this adjustment."
+  },
+  "titleAlignment": "center"
+}
