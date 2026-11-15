@@ -31,6 +31,11 @@
   --sk-continue-normal: url("../assets/skin/amethyst/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/amethyst/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/amethyst/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/amethyst/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/amethyst/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/amethyst/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/amethyst/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/amethyst/chassis-tablet.webp");
 }
 :root[data-palette="dark-alley"] {
   --sk-playmat: url("../assets/skin/dark-alley/playmat.webp");
@@ -63,6 +68,11 @@
   --sk-continue-normal: url("../assets/skin/dark-alley/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/dark-alley/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/dark-alley/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/dark-alley/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/dark-alley/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/dark-alley/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/dark-alley/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/dark-alley/chassis-tablet.webp");
 }
 :root[data-palette="night-flight"] {
   --sk-playmat: url("../assets/skin/night-flight/playmat.webp");
@@ -95,6 +105,11 @@
   --sk-continue-normal: url("../assets/skin/night-flight/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/night-flight/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/night-flight/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/night-flight/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/night-flight/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/night-flight/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/night-flight/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/night-flight/chassis-tablet.webp");
 }
 :root[data-palette="ember"] {
   --sk-playmat: url("../assets/skin/ember/playmat.webp");
@@ -127,6 +142,11 @@
   --sk-continue-normal: url("../assets/skin/ember/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/ember/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/ember/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/ember/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/ember/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/ember/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/ember/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/ember/chassis-tablet.webp");
 }
 :root[data-palette="frost"] {
   --sk-playmat: url("../assets/skin/frost/playmat.webp");
@@ -159,6 +179,11 @@
   --sk-continue-normal: url("../assets/skin/frost/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/frost/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/frost/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/frost/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/frost/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/frost/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/frost/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/frost/chassis-tablet.webp");
 }
 :root[data-palette="gold"] {
   --sk-playmat: url("../assets/skin/gold/playmat.webp");
@@ -191,6 +216,11 @@
   --sk-continue-normal: url("../assets/skin/gold/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/gold/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/gold/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/gold/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/gold/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/gold/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/gold/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/gold/chassis-tablet.webp");
 }
 :root[data-palette="forge"] {
   --sk-playmat: url("../assets/skin/forge/playmat.webp");
@@ -223,6 +253,11 @@
   --sk-continue-normal: url("../assets/skin/forge/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/forge/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/forge/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/forge/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/forge/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/forge/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/forge/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/forge/chassis-tablet.webp");
 }
 :root[data-palette="emerald"] {
   --sk-playmat: url("../assets/skin/emerald/playmat.webp");
@@ -255,4 +290,17 @@
   --sk-continue-normal: url("../assets/skin/emerald/continue-normal.webp");
   --sk-continue-pressed: url("../assets/skin/emerald/continue-pressed.webp");
   --sk-continue-disabled: url("../assets/skin/emerald/continue-disabled.webp");
+  --sk-utility-normal: url("../assets/skin/emerald/utility-normal.webp");
+  --sk-utility-pressed: url("../assets/skin/emerald/utility-pressed.webp");
+  --sk-utility-disabled: url("../assets/skin/emerald/utility-disabled.webp");
+  --sk-chassis-phone: url("../assets/skin/emerald/chassis-phone.webp");
+  --sk-chassis-tablet: url("../assets/skin/emerald/chassis-tablet.webp");
 }
+:root, :root[data-dice="amethyst"] { --sk-die: url("../assets/skin/amethyst/die.webp"); }
+:root[data-dice="dark-alley"] { --sk-die: url("../assets/skin/dark-alley/die.webp"); }
+:root[data-dice="night-flight"] { --sk-die: url("../assets/skin/night-flight/die.webp"); }
+:root[data-dice="ember"] { --sk-die: url("../assets/skin/ember/die.webp"); }
+:root[data-dice="frost"] { --sk-die: url("../assets/skin/frost/die.webp"); }
+:root[data-dice="gold"] { --sk-die: url("../assets/skin/gold/die.webp"); }
+:root[data-dice="forge"] { --sk-die: url("../assets/skin/forge/die.webp"); }
+:root[data-dice="emerald"] { --sk-die: url("../assets/skin/emerald/die.webp"); }

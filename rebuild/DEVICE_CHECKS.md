@@ -106,4 +106,18 @@ V9. ☐ Change the playmat (Profile → Playmats and Dice) → menus show that p
 V10. ☐ The game and Table Tracker screens look as before apart from the buttons and dialogs.
 V11. ☐ Turn the phone to portrait on the Landing → the rotate message shows as before.
 
+## Gameplay screen (visual rebuild, stage 2)
+V12. ☐ iPhone, a game in progress, held sideways with the notch on the left, then on the right → the metal frame and playmat reach all four screen edges; no button or text sits under the notch, in the rounded corners or on the home bar.
+V13. ☐ iPhone and iPad: your commander, name, "Commander · Tax", the die with your life, the status light and Lib sit at the bottom left; Grave, Exile, Tokens and Attach. below them each open that zone.
+V14. ☐ Lose or gain life → the number on your die changes at once; an opponent's die does the same on their seat. Choose a different die (Profile → Playmats and Dice) → every die changes, the playmat does not.
+V15. ☐ Status lights: green when healthy; give a player poison (Host Tools) → their light turns red; a "can't play lands this turn" effect → yellow. Tapping a light opens that player's details and does not move the seats.
+V16. ☐ Tap a side opponent → they move to the centre with their battlefield; the old centre player goes to the side. Your own battlefield and hand stay put.
+V17. ☐ Add mana (tap lands) → the mana well shows the count beside each symbol and the total; a two-colour choice shows its split symbol in the last cell; Board shows the whole pool.
+V18. ☐ Turn controls on the two jewels: in main 1 Combat and End Turn; in combat Attack, Next Phase and End Turn (three: the left jewel splits in two); only legal ones show, empty jewels stay dark.
+V19. ☐ Phone: the log shows the three newest lines, tapping Game Log opens the full log. iPad: the log shows more lines. Stack, Undo, Board, Table and Host Tools (or Challenge) work as before.
+V20. ☐ A crowded board (10+ lands, many creatures, tokens) and a big hand → each area scrolls sideways; tapped cards lie sideways; counters and attachment marks stay on their cards.
+V21. ☐ Five or six players → two opponents share each side slot, each with name, life and its own status light.
+V22. ☐ Change the playmat to Ember and Frost → the gameplay frame, jewels and buttons change colour; the status light colours do not.
+V23. ☐ Hosted game: the host's Table and Judge screens, and the Table Tracker, look and work as before.
+
 Reply with the numbers that failed and a screenshot.
