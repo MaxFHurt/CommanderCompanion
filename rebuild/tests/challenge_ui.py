@@ -56,7 +56,7 @@ async def main():
         await answer(host, False)
         await b.wait_for_selector('text=Correction rejected', timeout=15000)
         check('the challenger is told "Correction rejected"', True)
-        check('the rejected change is taken back', '35' not in (await host.locator('.opp__life').first.text_content()))
+        check('the rejected change is taken back', '35' not in (await host.locator('.seat__life').first.text_content()))
         # Aaron asks to undo his land; Lex accepts.
         await host.click('[data-act="undo"]'); await host.click('.modal .btn--confirm')
         await answer(b, True)

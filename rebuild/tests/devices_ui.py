@@ -207,9 +207,9 @@ async def game_app(browser, p, dev):
     mx = lambda a, i: max([x[i] for x in a] or [0])
     ok = bool(sizes['hand']) and (not sizes['bf'] or (mx(sizes['hand'], 0) <= mx(sizes['bf'], 0) + 1)) and (not sizes['lands'] or (mx(sizes['hand'], 0) <= mx(sizes['lands'], 0) + 1))
     check(dev, 'guided-game', 'hand cards not larger than battlefield/land cards', ok, json.dumps({k: (mx(v, 0), mx(v, 1), len(v)) for k, v in sizes.items()}) + ' (w,h,count)')
-    # the jewel / decision modal
-    await page.click('.jewel'); await page.wait_for_timeout(300)
-    await audit(page, dev, 'guided-jewel-options', safe=sa)
+    # the coach tip (a tip, or what the player can do now)
+    await page.click('.tip'); await page.wait_for_timeout(300)
+    await audit(page, dev, 'guided-coach', safe=sa)
     check(dev, 'game-app', 'console errors', not page.errors, str(page.errors[:3]))
     await page.context.close()
 

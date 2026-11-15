@@ -12,14 +12,21 @@ for c in FIX['cards']:
         BY_NAME.setdefault(f['name'].lower(), c)
 
 
-async def jewel_go(page):
-    """Press the jewel; if it lays out options, take the one matching its label."""
-    label = (await page.locator('.jewel span').text_content()).strip()
-    await page.click('.jewel')
-    await page.wait_for_timeout(150)
-    act = {'PASS': 'pass', 'ATTACK': 'attack'}.get(label)
-    if act and await page.locator('.jewel-options').count():
-        await page.click(f'.jewel-options [data-opt-act="{act}"]')
+async def controls(page):
+    """The turn controls shown now (each only when legal), as their data-act values."""
+    return await page.eval_on_selector_all('.play-controls .play-btn', 'els => els.map(e => e.dataset.act)')
+
+
+async def can_pass(page):
+    return await page.locator('.play-btn[data-act="pass"]').count() > 0
+
+
+async def full_log(page):
+    """Open the full log from its heading and return its text (phones show only the newest three entries)."""
+    await page.click('.glog__title'); await page.wait_for_selector('.glog__list--full')
+    text = await page.locator('.glog__list--full').text_content()
+    await page.click('.modal [data-modal-back]'); await page.wait_for_timeout(150)
+    return text
 
 
 async def mock_scryfall(page):
@@ -108,9 +115,8 @@ async def pass_all(page, limit=8):
         await tap_curtain(page)
         if await page.locator('.modal').count():
             return
-        jewel = page.locator('.jewel:not([disabled]) span')
-        if await jewel.count() and (await jewel.text_content()).strip() == 'PASS':
-            await jewel_go(page)
+        if await can_pass(page):
+            await page.click('.play-btn[data-act="pass"]')
         else:
             return
 
@@ -183,8 +189,8 @@ async def flow(browser, device, tag):
     await tap_curtain(page)
     await page.wait_for_timeout(200)
     # Lex holds Giant Growth and could respond → priority prompt on Lex's view
-    jewel = (await page.locator('.jewel span').text_content()).strip()
-    check('opponent gets a PASS prompt (has an instant)', jewel == 'PASS', jewel)
+    acts = await controls(page)
+    check('opponent gets only a Pass button (has an instant)', acts == ['pass'], str(acts))
     await page.screenshot(path=f'{OUT}{tag}-priority.png')
     await pass_all(page)
     check("Healer's Hawk resolved", await page.locator(".zone--battle .card[aria-label=\"Healer's Hawk\"]").count() == 1)
@@ -196,14 +202,18 @@ async def flow(browser, device, tag):
     await page.screenshot(path=f'{OUT}{tag}-target.png')
     await page.click('.pick:has-text("Colossal Dreadmaw")')
     await pass_all(page)
-    log = await page.locator('.glog__list').text_content()
+    log = await full_log(page)
     check('swords exiled the dreadmaw and gave life', 'exiled' in log and 'gains 6 life' in log, log[:300])
 
     # Combat
+    check('main 1: Combat and End Turn shown, no Attack', await controls(page) == ['next-phase', 'end-turn'], str(await controls(page)))
+    check('no single suggested-action button', await page.locator('[data-act="jewel"]').count() == 0)
+    rows = await page.locator('.game__right .glog__list .glog__row').count()
+    check(f'{tag}: log shows {"3" if tag == "phone" else "more than 3"} entries', rows == 3 if tag == 'phone' else rows > 3, str(rows))
     await page.click('[data-act="next-phase"]')
     await page.wait_for_timeout(300)
-    check('jewel says ATTACK', (await page.locator('.jewel span').text_content()).strip() == 'ATTACK')
-    await jewel_go(page)
+    check('combat: Attack, Next Phase, End Turn', await controls(page) == ['attack', 'next-phase', 'end-turn'], str(await controls(page)))
+    await page.click('.play-btn[data-act="attack"]')
     await page.wait_for_selector('.combat-list')
     await page.click('[data-all]:has-text("Lex")')
     await page.screenshot(path=f'{OUT}{tag}-attack.png')
@@ -216,23 +226,41 @@ async def flow(browser, device, tag):
         await tap_curtain(page)
         if await page.locator('.block-row').count():
             break
-        if (await page.locator('.jewel span').text_content()).strip() == 'PASS':
-            await jewel_go(page); await page.wait_for_timeout(300)
+        if await can_pass(page):
+            await page.click('.play-btn[data-act="pass"]'); await page.wait_for_timeout(300)
     await page.wait_for_selector('.block-row')
     await page.screenshot(path=f'{OUT}{tag}-blocks.png')
     await page.click('#blockConfirm')
     for _ in range(6):
         await page.wait_for_timeout(250)
         await tap_curtain(page)
-        if await page.locator('.jewel:not([disabled])').count() and (await page.locator('.jewel span').text_content()).strip() == 'PASS':
-            await jewel_go(page)
-    life = await page.locator('.opp__life').first.text_content()
+        if await can_pass(page):
+            await page.click('.play-btn[data-act="pass"]')
+    life = await page.locator('.seat--centre .seat__life').first.text_content()
     check('Lex took combat damage', int(life) < 46, life)
     await page.screenshot(path=f'{OUT}{tag}-after-combat.png')
 
     # Guided Play on one device has no host tools (hosted games: see net_ui.py). Table + log + settings popups.
     check('host tools on one device, no challenge', await page.locator('[data-act="tools"]').count() >= 1 and await page.locator('[data-act="challenge"]').count() == 0)
     await page.click('[data-act="table"]'); await page.wait_for_selector('.table-view'); await page.screenshot(path=f'{OUT}{tag}-table.png'); await page.click('.modal [data-modal-back]')
+    lights = await page.eval_on_selector_all('.life-light', 'els => els.map(e => e.dataset.light)')
+    check('a status light beside each player\'s life, green when healthy', len(lights) == 2 and set(lights) == {'green'}, str(lights))
+    await page.evaluate("""async () => {
+      const { getSession } = await import('./src/app/session.js');
+      const s = getSession(), g = s.game, host = { playerId: null, isHost: true }, dm = g.deviceMode; g.deviceMode = 'multi-device';
+      s.controller.dispatch({ type: 'edit', edit: { kind: 'poison', playerId: g.players[1].playerId, delta: 2 } }, host);
+      g.players[0].noLandPlayTurn = g.turnNumber;
+      g.deviceMode = dm; s.actAs(s.actingAs());
+    }""")
+    await page.wait_for_timeout(300); await tap_curtain(page); await page.wait_for_timeout(200)
+    me_light = await page.locator('.game__left .life-light').get_attribute('data-light')
+    opp_light = await page.locator('.seat--centre .life-light').get_attribute('data-light')
+    check('status light: temporary effect yellow, poison red', me_light == 'yellow' and opp_light == 'red', f'{me_light} {opp_light}')
+    box = await page.locator('.seat--centre .life-light').bounding_box()
+    check('status light is a 36px touch target', box and box['width'] >= 35.5 and box['height'] >= 35.5, str(box))
+    await page.click('.seat--centre .life-light'); await page.wait_for_selector('text=Commander damage taken')
+    check('status light opens that player\'s details, not their board', await page.locator('.board').count() == 0 and 'poison' in (await page.locator('.modal').text_content()).lower())
+    await page.click('.modal [data-modal-back]')
     await page.click('[data-act="opponent"]'); await page.wait_for_selector('.board'); await page.screenshot(path=f'{OUT}{tag}-opponent.png'); await page.click('.modal [data-modal-back]')
     await page.click('[data-act="settings"]'); await page.wait_for_selector('text=Guidance on this device'); await page.screenshot(path=f'{OUT}{tag}-settings.png'); await page.click('.modal [data-modal-back]')
 

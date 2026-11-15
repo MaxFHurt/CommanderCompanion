@@ -3,7 +3,7 @@ import asyncio, os, sys
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(__file__))
 from shots import PHONE, IPAD, OUT, URL
-from game_ui import new_page, start_guided, continue_to_game, tap_curtain, pass_all, check, results, FIX
+from game_ui import new_page, start_guided, continue_to_game, tap_curtain, pass_all, check, results, FIX, full_log
 
 HOST = "{ playerId: null, isHost: true }"
 SETUP = """async (rows) => {
@@ -65,7 +65,7 @@ async def guided(browser):
     await page.screenshot(path=f'{OUT}phone-scry.png')
     await page.click('[data-move="other"]'); await page.click('.modal .btn--confirm')
     await pass_all(page)
-    check('Opt resolved', 'Opt resolves' in await page.locator('.glog__list').text_content())
+    check('Opt resolved', 'Opt resolves' in await full_log(page))
     # Card detail explains why something cannot be played
     await card(page, 'hand', 'Colossal Dreadmaw')
     why = await page.locator('.card-detail__why').count()
@@ -74,8 +74,8 @@ async def guided(browser):
     # End turn → Lex (rakdos) → by-hand card
     for _ in range(5):
         if await page.locator('.curtain').count() or await page.locator('.modal').count(): break
-        btn = page.locator('.game__next:not([disabled])')
-        if await btn.count(): await btn.click()
+        btn = page.locator('.play-btn[data-act="next-phase"], .play-btn[data-act="end-turn"]')
+        if await btn.count(): await btn.first.click()
         await page.wait_for_timeout(250)
     await pass_all(page)
     if await page.locator('#discardConfirm').count():
@@ -88,9 +88,11 @@ async def guided(browser):
     check('turn passed to Lex', name == 'Lex', name)
     await card(page, 'hand', 'Storm the Vault Oddity'); await page.click('.modal .btn--confirm')
     await pass_all(page)
-    jewel = (await page.locator('.jewel span').text_content()).strip()
-    check('unsupported card asks to RESOLVE by hand', jewel == 'RESOLVE', jewel)
-    await page.click('.jewel'); await page.wait_for_selector('.guided__steps')
+    if not await page.locator('.guided__steps').count():
+        labels = await page.eval_on_selector_all('.play-btn', 'els => els.map(e => e.dataset.label)')
+        check('unsupported card asks to Resolve by hand', labels == ['Resolve'], str(labels))
+        await page.click('.play-btn[data-act="prompt"]')
+    await page.wait_for_selector('.guided__steps')
     await page.screenshot(path=f'{OUT}phone-guided.png')
     # the toolbox: stage "gain 2 life" for you, then Done; on one device the table is asked to agree
     life0 = await page.evaluate("window.__cc?.session?.view?.()?.players?.find(p => p.isYou)?.life ?? null")
@@ -103,7 +105,7 @@ async def guided(browser):
     await page.locator('.modal .btn--confirm').last.click(); await page.wait_for_timeout(300)
     if await page.locator('text=Does everyone agree?').count():
         await page.locator('.modal .btn--confirm').last.click(); await page.wait_for_timeout(300)
-    log = await page.locator('.glog__list').text_content()
+    log = await full_log(page)
     check('by-hand card finished with the toolbox step (gains 2 life, applied by hand)', 'gains 2 life' in log and 'applied by hand' in log, log[:200])
     # Stack / log / card id / chat popups open
     for act, sel in (('log', '.glog__list--full'), ('stack', 'text=The stack is empty'), ('card-id', '[data-q]'), ('help', '#judgeSearch'), ('profile', 'text=Commander damage taken')):
@@ -132,7 +134,17 @@ async def freeplay(browser):
         await page.wait_for_selector('text=opening hand'); await page.click('#keepHand'); await page.wait_for_selector('.curtain'); await tap_curtain(page)
     await page.wait_for_selector('.zone--hand .card')
     check('free play label and Edit Game button', await page.locator('text=FREE PLAY').count() == 1 and 'Edit' in await page.locator('[data-act="tools"]').text_content())
-    check('three players: two opponents listed', await page.locator('.opp').count() == 2)
+    check('three players: two opponent seats (centre + one side)', await page.locator('.seat--centre').count() == 1 and await page.locator('.seat--side').count() == 1)
+    centre = await page.locator('.seat--centre').get_attribute('data-id')
+    side = await page.locator('.seat--side').get_attribute('data-id')
+    await page.click('.seat--side [data-act="seat"]'); await page.wait_for_timeout(200)
+    check('tapping a side seat centres it and the old centre moves to the side', await page.locator('.seat--centre').get_attribute('data-id') == side and await page.locator('.seat--side').get_attribute('data-id') == centre)
+    check('seat buttons rebound to the new players', await page.locator('.seat--centre [data-act="opponent"]').get_attribute('data-id') == side and await page.locator('.seat--side [data-act="seat"]').get_attribute('data-id') == centre)
+    check('no dialog opened by the rotation; own board and hand stay', await page.locator('.modal').count() == 0 and await page.locator('.zone--hand .card').count() > 0 and await page.locator('.zone--battle').count() == 1)
+    check('opponents show hand counts only', await page.locator('.seat--centre .card[data-zone="hand"]').count() == 0)
+    await page.click('.seat--side .life-light'); await page.wait_for_selector('text=Commander damage taken')
+    check('side seat status light opens details without rotating', await page.locator('.seat--centre').get_attribute('data-id') == side)
+    await page.click('.modal [data-modal-back]')
     await page.evaluate(SETUP, [[0, 'Serra Angel', 'hand']])
     await page.wait_for_timeout(200)
     await card(page, 'hand', 'Serra Angel')
