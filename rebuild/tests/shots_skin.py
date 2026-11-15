@@ -260,9 +260,10 @@ async def routes3b_main(only=None):
         await browser.close()
     print('page errors:', errors or 'none')
 
-if 'routes3b' in sys.argv[3:]:
-    asyncio.run(routes3b_main([a for a in sys.argv[4:]] or None))
-elif 'routes' in sys.argv[3:]:
-    asyncio.run(routes_main([a for a in sys.argv[4:]] or None))
-else:
-    asyncio.run(main())
+if __name__ == '__main__':
+    if 'routes3b' in sys.argv[3:]:
+        asyncio.run(routes3b_main([a for a in sys.argv[4:]] or None))
+    elif 'routes' in sys.argv[3:]:
+        asyncio.run(routes_main([a for a in sys.argv[4:]] or None))
+    else:
+        asyncio.run(main())
