@@ -90,4 +90,9 @@ M3. ☐ Life dice: pick an unlocked die → it stays when you change the playmat
 M4. ☐ A profile that had an uploaded playmat before this build opens with Amethyst and nothing missing. Player setup and Table Tracker setup list only unlocked mats.
 M5. ☐ Phone and iPad: the picker fits without sideways scrolling and the thumbnails are easy to tap.
 
+## Monster Siege (/test)
+
+S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
+S2. ☐ Watch the entire fight. Strikes meet their targets, the hero can drop and recover, and the battlefield restores after the speech bubble. Tap the battlefield mid-encounter to restore it immediately.
+
 Reply with the numbers that failed and a screenshot.

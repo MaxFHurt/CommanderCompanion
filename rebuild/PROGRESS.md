@@ -37,6 +37,11 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ## Log
 
+### Monster Siege test page — 15 Nov 2026
+
+- The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion.
+- Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
 ### Build 114 — 15 Nov 2026 (app 1.0.0-rebuild.114; Deck Builder unchanged, 0.9.71): visual rebuild, behaviour part (before the art)
 - Owner, 15 Nov: visual rebuild is priority 1 (handoff in rebuild/roadmap/); answers recorded in ROADMAP.md section 0.
 - Game screen: the centre opponent's seat and battlefield above yours, other opponents compact at the sides; tapping a side seat swaps it into the centre. Status light beside every life total (green healthy, yellow temporary status, red poison or harmful lasting effect) opens player details without rotating. Separate Combat / Attack / Next Phase / End Turn (Draw with the real-deck table rule) shown only when legal; the suggested-action button is gone. Phone-sized screens show the 3 newest log entries. Stack, Undo, Board, Table, Host Tools grouped under the log.
