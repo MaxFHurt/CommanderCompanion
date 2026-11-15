@@ -7,7 +7,7 @@ import { VERSION, BUILD_DATE } from '../src/version.js';
 const root = fileURLToPath(new URL('..', import.meta.url));
 writeFileSync(join(root, 'build.json'), JSON.stringify({ version: VERSION, date: BUILD_DATE }) + '\n');
 // The app: the page, its code, styles, art and the Deck Builder. Not tests, tools, reports, notes or original art.
-const SKIP_DIR = new Set(['tests', 'tools', 'reports', 'orig', 'node_modules', '.git', '--json']);
+const SKIP_DIR = new Set(['tests', 'tools', 'reports', 'orig', 'roadmap', 'wip', 'node_modules', '.git', '--json']);
 const SKIP_FILE = /\.(md|txt|py|mjs\.map)$|^\.|^--/;
 const files = [];
 (function walk(dir) {
