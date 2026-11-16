@@ -548,13 +548,24 @@ function engineFit(c, E) {
   )
     return {v: 0.8, why: 'Uses the cards your commander puts in your graveyard'};
   const en = {
-    'cast-spell': () => /Instant|Sorcery/.test(t) && (c.cmc || 0) <= 3,
-    'cast-creature': () => /Creature/.test(t) && (c.cmc || 0) <= 3,
-    etb: () => (/Creature/.test(t) && (c.cmc || 0) <= 3) || /\bcreates? [^.]*creature tokens?/i.test(o) || ROLE_RE.blink.test(o),
+    // reason text only: the card must itself perform the commander's trigger event, read from its own text or type
+    // (a cheap instant is not "casting spells"; equipment that grants haste is not "attacking")
+    'cast-spell': () =>
+      /\b(cascade|storm|rebound|replicate)\b|\bcast (target|a|an|that|it|up to|any|one of|the exiled|spells?|each|those)\b|copy (target|that|each|a|an)[^.]*\b(instant|sorcery|spell)|casts? [^.]*without paying/i.test(o) &&
+      !/can't cast|whenever you cast/i.test(o),
+    'cast-creature': () =>
+      /\bcascade\b|\bcast (target|a|an|that|it|up to|any|one of|the exiled|each|those|creature)[^.]*creature|creature spells? (you|from|with)|creature cards? (from|with)[^.]*\bcast\b/i.test(o) &&
+      !/can't cast|whenever you cast/i.test(o),
+    etb: () =>
+      /\bcreates? [^.]*creature tokens?|\bpopulate\b|creature cards?[^.]*onto the battlefield|onto the battlefield[^.]*creature|return[^.]*creature cards?[^.]*to the battlefield/i.test(o) ||
+      ROLE_RE.blink.test(o),
     dies: () =>
       /sacrifice (a|another|one or more) (creatures?|permanents?|artifacts?)[^.:]*:|each (opponent|player) sacrifices/i.test(o) ||
       /\bcreates? [^.]*creature tokens?/i.test(o),
-    attack: () => /\b(flying|menace|trample|can't be blocked|haste|additional combat|untap all creatures)\b/i.test(o),
+    attack: () =>
+      /additional combat|untap all creatures|\battacks? each (combat|turn)|\bcreatures? (you control )?(attack|attacks)\b/i.test(o) ||
+      /\bcreatures? you control (get|gain|have)[^.]*\b(flying|menace|trample|haste|can't be blocked)\b/i.test(o) ||
+      (/Creature/.test(t) && /\b(flying|menace|trample|haste|can't be blocked)\b/i.test(o.replace(/\([^)]*\)/g, '')) && !/equipped|enchanted|target creature/i.test(o)),
     life: () => /gain [^.]{0,20}life|lifelink/i.test(o),
     land: () => /search your library for [^.]*land|play an additional land|additional land|lands? from your graveyard/i.test(o),
     draw: () => tg.roles.has('draw'),
@@ -797,6 +808,48 @@ function aimLabel(a, tribe) {
     return t ? t.label : a.slice(4).replace(/-/g, ' ');
   }
   return a === 'tribal' ? (tribe || 'Creature type') + ' tribal' : (THEMES[a] || {label: a}).label;
+}
+// Does the card itself do what the plan label says (its own text, type or role)? Popularity on a theme page earns no label (reason
+// text only; the score still counts it). A plan with no test here falls back to its own word in the card's text or type.
+const OWN_THEME = {
+  'plus-1-plus-1-counters': 'counters', 'go-wide': 'tokens', tokens: 'tokens', lifegain: 'lifegain', graveyard: 'graveyard',
+  'self-mill': 'mill', mill: 'mill', blink: 'blink', voltron: 'voltron', burn: 'burn', clones: 'clones', theft: 'theft',
+  stax: 'stax', 'pillow-fort': 'pillowfort', topdeck: 'topdeck', 'x-spells': 'xspells', spellslinger: 'spells',
+  enchantress: 'enchantments', flying: 'flying', aggro: 'aggro'
+};
+const OWN_ROLE = {ramp: 'ramp', 'mana-rocks': 'ramp', rock: 'ramp', 'big-mana': 'ramp', 'card-draw': 'draw', counterspells: 'counter'};
+const OWN_RE = {
+  burn: /deals? (\d+|X|that much|damage equal)[^.]*damage to (each opponent|each player|target (player|opponent)|any target|that player)|each opponent loses \d+ life/i,
+  discard: /(target player|target opponent|each opponent|each player|that player|an opponent) (?:\w+ ){0,3}discards?\b|\bwhenever (?:you|a player|an opponent|one or more players?|another player) discards?|\bmadness\b|you may discard/i,
+  'self-discard': /\bwhenever you discard|\bmadness\b|\bdiscards? your hand/i,
+  lifegain: /\bgains? (\d+|X|that much|twice|life)[^.]*life|\blifelink\b|gain life|whenever you gain|drain/i,
+  cycling: /\bcycling\b|whenever you cycle/i,
+  populate: /\bpopulate\b|create a token that'?s a copy|copy of (?:target|a|each|another)[^.]{0,30}\btoken|token copy|copies of tokens?/i,
+  equipment: /\bequip\b|equipped creature|\bEquipment\b/i,
+  lifedrain: /each opponent loses \d+ life|loses? (\d+|X) life[^.]*you gain/i,
+  'land-destruction': /destroy target (nonbasic )?land|destroy all lands|each player sacrifices a land/i,
+  'lands-matter': /\blands? (enters|you control)|additional land|lands? from your graveyard|\blandfall\b|search your library for [^.]*land/i,
+  landfall: /\blandfall\b|whenever a land (enters|you control)/i,
+  'group-slug': /each opponent loses|damage to each (opponent|player)/i,
+  wheels: /each player discards (their|his or her) hand|discards? their hand[^.]*draws?/i,
+  looting: /draw a card, then discard|discard a card, then draw|\bconnives?\b/i,
+  connive: /\bconnives?\b/i
+};
+function ownAim(c, slug, ctx) {
+  if (!c) return false;
+  const o = c.o || '',
+    t = frontType(c),
+    tg = tags(c);
+  if (slug === 'combo') return !!(ctx && typeof comboFor === 'function' && comboFor(c, ctx));
+  if (slug === 'control') return tg.roles.has('counter') || tg.roles.has('removal') || tg.roles.has('wipe');
+  if (OWN_ROLE[slug]) return tg.roles.has(OWN_ROLE[slug]);
+  if (OWN_RE[slug]) return OWN_RE[slug].test(o) || (slug === 'equipment' && /Equipment/.test(t));
+  if (slug === 'legends') return /\bLegendary\b/.test(t) || /\blegendary\b/i.test(o);
+  if (slug === 'artifacts') return /\bArtifact\b/.test(t) || /\bartifacts?\b/i.test(o);
+  if (OWN_THEME[slug])
+    return (tg.th[OWN_THEME[slug]] || 0) >= 0.7 && (slug !== 'tokens' || /\btokens?\b|populate|amass|incubate|investigate|treasure|food|clue/i.test(o));
+  const w = slug.replace(/-/g, ' ').replace(/ies$/, 'y').replace(/s$/, '');
+  return new RegExp('\\b' + w + '(s|ies)?\\b', 'i').test(o + ' ' + t);
 }
 // "Heroes: in 84% of Heroes decks" — the share of the commander's decks built around that theme that run the card.
 function themeWhy(a, c) {
