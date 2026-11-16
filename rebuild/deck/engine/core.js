@@ -548,13 +548,24 @@ function engineFit(c, E) {
   )
     return {v: 0.8, why: 'Uses the cards your commander puts in your graveyard'};
   const en = {
-    'cast-spell': () => /Instant|Sorcery/.test(t) && (c.cmc || 0) <= 3,
-    'cast-creature': () => /Creature/.test(t) && (c.cmc || 0) <= 3,
-    etb: () => (/Creature/.test(t) && (c.cmc || 0) <= 3) || /\bcreates? [^.]*creature tokens?/i.test(o) || ROLE_RE.blink.test(o),
+    // reason text only: the card must itself perform the commander's trigger event, read from its own text or type
+    // (a cheap instant is not "casting spells"; equipment that grants haste is not "attacking")
+    'cast-spell': () =>
+      /\b(cascade|storm|rebound|replicate)\b|\bcast (target|a|an|that|it|up to|any|one of|the exiled|spells?|each|those)\b|copy (target|that|each|a|an)[^.]*\b(instant|sorcery|spell)|casts? [^.]*without paying/i.test(o) &&
+      !/can't cast|whenever you cast/i.test(o),
+    'cast-creature': () =>
+      /\bcascade\b|\bcast (target|a|an|that|it|up to|any|one of|the exiled|each|those|creature)[^.]*creature|creature spells? (you|from|with)|creature cards? (from|with)[^.]*\bcast\b/i.test(o) &&
+      !/can't cast|whenever you cast/i.test(o),
+    etb: () =>
+      /\bcreates? [^.]*creature tokens?|\bpopulate\b|creature cards?[^.]*onto the battlefield|onto the battlefield[^.]*creature|return[^.]*creature cards?[^.]*to the battlefield/i.test(o) ||
+      ROLE_RE.blink.test(o),
     dies: () =>
       /sacrifice (a|another|one or more) (creatures?|permanents?|artifacts?)[^.:]*:|each (opponent|player) sacrifices/i.test(o) ||
       /\bcreates? [^.]*creature tokens?/i.test(o),
-    attack: () => /\b(flying|menace|trample|can't be blocked|haste|additional combat|untap all creatures)\b/i.test(o),
+    attack: () =>
+      /additional combat|untap all creatures|\battacks? each (combat|turn)|\bcreatures? (you control )?(attack|attacks)\b/i.test(o) ||
+      /\bcreatures? you control (get|gain|have)[^.]*\b(flying|menace|trample|haste|can't be blocked)\b/i.test(o) ||
+      (/Creature/.test(t) && /\b(flying|menace|trample|haste|can't be blocked)\b/i.test(o.replace(/\([^)]*\)/g, '')) && !/equipped|enchanted|target creature/i.test(o)),
     life: () => /gain [^.]{0,20}life|lifelink/i.test(o),
     land: () => /search your library for [^.]*land|play an additional land|additional land|lands? from your graveyard/i.test(o),
     draw: () => tg.roles.has('draw'),
