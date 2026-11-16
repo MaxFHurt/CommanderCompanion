@@ -240,6 +240,7 @@ function simulate0(d, games, seed) {
       spent: [0, 0, 0, 0, 0, 0, 0, 0],
       colourStuck: 0,
       screw: 0,
+      short: 0,
       flood: 0,
       landsT4: [],
       noPlayT3: 0,
@@ -401,6 +402,7 @@ function simulate0(d, games, seed) {
             Object.assign({}, x, {
               sickNow: x.sick,
               tappedNow: !!x.tappedRock,
+              at: turn,
               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
             })
           );
@@ -445,6 +447,9 @@ function simulate0(d, games, seed) {
       if (turn === 4) R.landsT4.push(L);
       if (turn === 3 && !spent && !cmdT) R.noPlayT3++;
       if (turn === 5 && L < 4) R.screw++;
+      // short of mana (the score with card strength reads this): a mana rock or creature counts as a source from the turn after it
+      // was cast, as land ramp does; fewer than 3 lands on turn 5 is short whatever else is out
+      if (turn === 5 && (L < 3 || L + bf.reduce((a, s) => a + (!s.land && s.mana && s.at < turn ? s.mana : 0), 0) < 4)) R.short++;
       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
     }
     R.cmdTurn.push(cmdT || 11);
@@ -463,6 +468,7 @@ function simulate0(d, games, seed) {
     manaUsedBy6: +(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
     colourStuck: +(R.colourStuck / n).toFixed(3),
     screwT5: +(R.screw / n).toFixed(3),
+    shortT5: +(R.short / n).toFixed(3),
     floodT8: +(R.flood / n).toFixed(3),
     mulligan: +(R.mull / n).toFixed(3),
     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)
@@ -486,6 +492,7 @@ function practiceGames(d, games, seed) {
       spent: [0, 0, 0, 0, 0, 0, 0, 0],
       colourStuck: 0,
       screw: 0,
+      short: 0,
       flood: 0,
       landsT4: [],
       noPlayT3: 0,
@@ -665,6 +672,7 @@ function practiceGames(d, games, seed) {
             Object.assign({}, x, {
               sickNow: x.sick,
               tappedNow: !!x.tappedRock,
+              at: turn,
               cols: x.cols.length ? x.cols.filter(k => ident.includes(k)) : ['C']
             })
           );
@@ -712,6 +720,9 @@ function practiceGames(d, games, seed) {
       if (turn === 4) R.landsT4.push(L);
       if (turn === 3 && !spent && !cmdT) R.noPlayT3++;
       if (turn === 5 && L < 4) R.screw++;
+      // short of mana (the score with card strength reads this): a mana rock or creature counts as a source from the turn after it
+      // was cast, as land ramp does; fewer than 3 lands on turn 5 is short whatever else is out
+      if (turn === 5 && (L < 3 || L + bf.reduce((a, s) => a + (!s.land && s.mana && s.at < turn ? s.mana : 0), 0) < 4)) R.short++;
       if (turn === 8 && L + hand.filter(c => simCard(c, ident).land).length - ramped >= 9) R.flood++; // flood: 9+ of the ~15 cards seen by turn 8 are lands
     }
     R.cmdTurn.push(cmdT || 11);
@@ -733,6 +744,7 @@ function practiceGames(d, games, seed) {
     manaUsedBy6: +(R.spent.slice(0, 6).reduce((a, b) => a + b, 0) / n).toFixed(1),
     colourStuck: +(R.colourStuck / n).toFixed(3),
     screwT5: +(R.screw / n).toFixed(3),
+    shortT5: +(R.short / n).toFixed(3),
     floodT8: +(R.flood / n).toFixed(3),
     mulligan: +(R.mull / n).toFixed(3),
     landsT4: +(R.landsT4.reduce((a, b) => a + b, 0) / n).toFixed(2)

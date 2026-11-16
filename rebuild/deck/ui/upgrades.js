@@ -2281,13 +2281,14 @@ function evalFor(d) {
       .join('|')
   ].join('#');
   const ar = apexFor(d),
-    k2 = key + '#' + (ar ? 'apex' : 'pending');
+    st = typeof strengthOn === 'function' && strengthOn(d),
+    k2 = key + '#' + (ar ? 'apex' : 'pending') + (st ? '#str' + STRENGTH.date + ':' + STRENGTH.cmd.size : '');
   const old = EVC.get(d.id);
   if (old && old.key === k2) return old.v;
   const sim = old && old.base === key && old.v ? old.v.sim : undefined; // same cards: the practice games need not be replayed
   let v = null;
   try {
-    v = evaluateDeck(d, {games: 300, apex: ar, sim});
+    v = evaluateDeck(d, {games: 300, apex: ar, sim, str: st}); // the score players see measures against the strongest build (owner, 12 Nov)
   } catch (e) {}
   EVC.set(d.id, {key: k2, base: key, v});
   return v;
@@ -2708,7 +2709,20 @@ function statsHtml(d, A, R, mode) {
   // UP.str (roadmap 6.1): power by card strength, from replacement level (0) to this deck's Apex build (100), with its own
   // Budget and Mid builds marked (engine/strength.js)
   // (Owner, 13 Nov: the bar is the deck score against the Apex build's score, so it always agrees with Build stats; strengthPower still drives picks and gains, not this bar.)
-  const T0r = (apexFor(d) || {}).tot,
+  // with card strength the deck score counts it (evalFor, opt.str): the builds it is measured against are the strength builds
+  // scored the same way, so the bar still reads deck score as a share of the Apex build's score on one scale (owner, 12-13 Nov)
+  const SRP =
+      e && e.str
+        ? (() => {
+            try {
+              return strRefParts(d, strengthRef(d));
+            } catch (x) {
+              return null;
+            }
+          })()
+        : null,
+    T0r = SRP || (apexFor(d) || {}).tot,
+    GR = T0r,
     T0 = refOrder(T0r),
     pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
@@ -2783,7 +2797,7 @@ function statsHtml(d, A, R, mode) {
             ', all-under-$12 ' +
             Math.round(pctOf(T0.mid)) +
             '.</p>' +
-            gapHtml(e, T0r, lvl)
+            gapHtml(e, GR, lvl)
       : '';
   // Deck health in one line (owner, 1 Nov): red = needs attention now (any bad), yellow = needs attention (any warn), green =
   // healthy; ignored alerts and info (Interaction) never set the colour. It names the problem areas; tapping it opens the pop-up.
