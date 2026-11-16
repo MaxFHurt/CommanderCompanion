@@ -51,7 +51,7 @@ optimization. That way we don't have to rework anything later due to new mechani
 **Change (owner, 15 Nov):** quickest items first, with several agents on them: the parked judgement work (reasons, strongest decks) and plan-aware Fix picks were pulled forward alongside card rules batch 6; results still go to the owner before shipping.
 4. **Optimise all the code** (section 99), after everything else.
 
-## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/)
+## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/) — live in Build 115 (7c done with it); left: owner's device check, iPhone log-column art, more achievements
 Apply the supplied art to every screen (51 routes incl. Deck Builder), iPhone and iPad, per
 `rebuild/roadmap/Commander-Companion-Claude-Integration-Handoff.md`. Owner's answers (15 Nov): keep portrait support (masters
 cover landscape); 7c (landing art, enlarge small buttons) folds in; centre-opponent rotation, eight playmats, independent dice
@@ -331,6 +331,7 @@ size and duplication, with no change in behaviour. Measure first (load time on a
 suite time), change only what the numbers point to, and prove each step with the full suites and the benchmarks unchanged.
 
 ## Done (recent, newest first)
+- Build 115: visual rebuild live (all screens, V3 Deck Builder skin, gameplay layout), achievements with random rewards, 33 mats / 33 dice; 7c done.
 
 - Build 102 (Deck Builder 0.9.67, build 212): the Upgrades tab counts the cards the page lists to replace.
 - Build 100 (Deck Builder 0.9.66, build 211): decklist names follow the printing the picture shows (Heralds of the Shredder); card pictures load as they come into view.
