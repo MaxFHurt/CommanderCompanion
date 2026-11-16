@@ -36,7 +36,8 @@
   Judgement work in progress was parked in `rebuild/wip/` (see its README). See `rebuild/ROADMAP.md` "Order of work".
 - **Device checklist** (owner, 13 Nov: "compile this until the end because it keeps changing"): every build that changes
   something a phone or iPad shows adds its checks to `rebuild/DEVICE_CHECKS.md`; don't send it to the owner until the
-  roadmap is done.
+  roadmap is done. Exception (owner, 16 Nov): once only long-tail card fixes remain, run the device checklist and the other
+  final checks on everything except the card interactions being worked on and what they can affect.
 - **This session also runs the other chats' tasks** (owner, 13 Nov), including the rules long tail and `team/apex2`.
 
 ## Owner's rules (summary; full list in rebuild/HANDOFF.md section 2)

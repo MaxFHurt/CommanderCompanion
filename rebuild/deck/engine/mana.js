@@ -10,6 +10,45 @@ function landCovers(cut, add, ident) {
   }
   return [...landColors(cut)].filter(z => ident.includes(z)).every(z => A.has(z));
 }
+// Plan-aware Fix picks (owner, 13 Nov, roadmap 6b).
+// A wipe is judged by what it hits: "all creatures" in a creature deck takes out the deck's own plan, so such wipes are offered
+// only after the wipes that spare it (one-sided ones like Vandalblast, "creatures your opponents control", attackers only).
+const FIX_OWN_HIT = {
+  Creature: /\b(?:all|each|every) (?:other |nontoken |nonland )?creatures?\b|\bcreatures (?:get|gets|can't)|damage to each (?:other )?creature|\bnonland permanents?\b|\ball permanents\b/i,
+  Artifact: /\b(?:all|each) (?:other |nonland |nontoken )?(?:artifacts?|permanents)\b|\bnonland permanents?\b/i,
+  Enchantment: /\b(?:all|each) (?:other |nonland )?(?:enchantments?|permanents)\b|\bartifacts? and enchantments\b|\bnonland permanents?\b/i
+};
+function fixWipeHitsOwn(c, d) {
+  const o = ((c && c.o) || '').replace(/\([^)]*\)/g, '').replace(/creatures? you control/g, ''),
+    n = {Creature: 0, Artifact: 0, Enchantment: 0};
+  let all = 0;
+  d.cards.forEach(e => {
+    const x = find(e.n);
+    if (!x || e.l || tags(x).land) return;
+    const q = e.q || 1,
+      t = frontType(x);
+    all += q;
+    Object.keys(n).forEach(k => t.includes(k) && (n[k] += q));
+  });
+  if (!all || /attacking creatures|your opponents control|you don't control|target opponent's|each opponent's/i.test(o)) return false;
+  return Object.keys(n).some(k => n[k] / all >= 0.4 && FIX_OWN_HIT[k].test(o));
+}
+function fixSpareWipes(list, d) {
+  const hit = list.map(a => fixWipeHitsOwn(a.c, d));
+  return list.filter((a, i) => !hit[i]).concat(list.filter((a, i) => hit[i]));
+}
+// "Gain life" only makes a win when the deck's plan uses life: a lifegain aim, or several cards that pay off gaining it.
+function fixUsesLife(d) {
+  if ((d.aims || []).some(a => /life/i.test(String(a)))) return true;
+  const PAY = /whenever you gain life|if you would gain life|life you('ve| have)? gained/i;
+  let k = 0;
+  d.cards.forEach(e => {
+    const x = find(e.n);
+    if (x && PAY.test(x.o || '')) k += 1;
+  });
+  const cm = find(d.commander);
+  return k + (cm && PAY.test(cm.o || '') ? 2 : 0) >= 3;
+}
 function fixSwaps(d, kind, o) {
   o = o || {};
   if (d.format !== 'commander' || !find(d.commander)) return [];
@@ -86,7 +125,9 @@ function fixSwaps(d, kind, o) {
   };
   if (['ramp', 'draw', 'removal', 'wipe'].includes(kind))
     return pairUp(
-      best(c => !tags(c).land && tags(c).roles.has(kind), n),
+      kind === 'wipe'
+        ? fixSpareWipes(best(c => !tags(c).land && tags(c).roles.has(kind), n + 8), d).slice(0, n)
+        : best(c => !tags(c).land && tags(c).roles.has(kind), n),
       cutsFor(kind),
       'Adds ' + FIX_KINDS[kind].toLowerCase()
     );
@@ -196,8 +237,9 @@ function fixSwaps(d, kind, o) {
   if (kind === 'wins') {
     const cb = COMBOS.list.length ? combosOf(d, ctx.ident) : {near: []},
       seen = new Set();
+    const life = fixUsesLife(d);
     const adds = cb.near
-      .filter(x => x.x.win)
+      .filter(x => x.x.win && (life || !/way to gain life/i.test(x.x.note || '')))
       .map(x => find(x.miss))
       .filter(c => addOk(c) && !seen.has(c._k) && seen.add(c._k))
       .map(c => ({c, v: val(c)}));

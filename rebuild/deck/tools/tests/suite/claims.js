@@ -56,6 +56,7 @@ for (const [slug] of list){
       else if (s === 'Tournament staple: free or one-mana interaction') check('tournament free interaction', /rather than pay|without paying|\bEvoke\b/i.test(c.o || '') || (c.cmc || 0) <= 1, s, p);
       else if (s === 'Tournament staple: one of the best lands') check('tournament land', !!run('tags')(c).land && (run('landSpeed')(c) === 'untapped' || /search your library/i.test(c.o || '')), s, p);
       else if (s === 'From your chosen set') check('in chosen set', run('inSets')(c, d), s, p);
+      else if (Object.values(run('LEAD_LABEL')).includes(s)) { const j = Object.keys(run('LEAD_LABEL')).find(j => run('LEAD_LABEL')[j] === s); check('lead job label', run('jobsOf')(c.n).includes(j), s, p); }
       else check('UNRECOGNISED', false, s, p);
     }); }));
 }
