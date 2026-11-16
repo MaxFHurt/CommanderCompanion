@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.115 (Deck Builder 0.9.72, build 217)
+- **Live build:** 1.0.0-rebuild.116 (Deck Builder 0.9.73, build 218)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -49,6 +49,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 116 — 16 Nov 2026 (app 1.0.0-rebuild.116; Deck Builder 0.9.73, build 218): Fix picks and upgrade reasons
+- Owner, 15 Nov: quickest items first; parked judgement work pulled forward; both changes owner-approved after before/after review.
+- Plan-aware Fix picks (engine/mana.js): wipes that hit the deck's own main card type (40%+ of spells) rank below wipes that spare it; lifegain counts as a Win route only when the deck uses life; one-sided wipes count as sparing.
+- Upgrade reasons (parked patch applied): the card's job leads ("Removal", "Mana ramp"), a plan is named only when the card does it; "Sets off your commander" only when the card really performs the commander's trigger event (owner chose tighten, job first). Picks and benchmark byte-identical.
+- Tests (check.sh screens,all,upgrade live, 2,414 s): benchmark identical to Build 115; accept 39 x 2; semantics 2 old failures; claims unrecognised 128 (was 40: reasons that were hidden in 3rd place now show; none false); scheck bad 2; cisweep 0; edge 0; UI suite 148/149 (UI-STATS-01, pre-existing flake, fails ~2 in 3 on Build 114 too).
 
 ### Build 115 — 16 Nov 2026 (app 1.0.0-rebuild.115; Deck Builder 0.9.72, build 217): visual rebuild live
 - Owner, 15 Nov: visual rebuild is priority 1 (ChatGPT handoff in rebuild/roadmap/); owner approved the look ("Looks fine") and the Judge View.
