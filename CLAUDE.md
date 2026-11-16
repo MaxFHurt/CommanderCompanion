@@ -24,7 +24,9 @@
   Ask first for anything off the roadmap. **Push every build live (`main`) once it is proven bug free** (owner, 14 Nov),
   no separate yes needed.
 
-- **Batch releases** (owner, 13 Nov): group changes into one build so the full suite runs once per build, not per change, but
+- **One at a time now** (owner, 16 Nov: "Finish items one at a time and push them live. Smallest to biggest."): this replaces
+  batching for now: finish one item, test it, push it live, then the next, smallest first.
+- **Batch releases** (owner, 13 Nov; paused by the rule above): group changes into one build so the full suite runs once per build, not per change, but
   keep batches small enough to pin a bug to its change: about 3-5 small items, or one large item on its own. Targeted tests
   per change while working; the full run once before the batch goes live. **Never ship finished items one at a time**
   (owner, 13 Nov: "Push build updates live in batches"): collect what the agents finish on the release branch and push one
