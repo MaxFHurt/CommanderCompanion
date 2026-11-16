@@ -798,6 +798,48 @@ function aimLabel(a, tribe) {
   }
   return a === 'tribal' ? (tribe || 'Creature type') + ' tribal' : (THEMES[a] || {label: a}).label;
 }
+// Does the card itself do what the plan label says (its own text, type or role)? Popularity on a theme page earns no label (reason
+// text only; the score still counts it). A plan with no test here falls back to its own word in the card's text or type.
+const OWN_THEME = {
+  'plus-1-plus-1-counters': 'counters', 'go-wide': 'tokens', tokens: 'tokens', lifegain: 'lifegain', graveyard: 'graveyard',
+  'self-mill': 'mill', mill: 'mill', blink: 'blink', voltron: 'voltron', burn: 'burn', clones: 'clones', theft: 'theft',
+  stax: 'stax', 'pillow-fort': 'pillowfort', topdeck: 'topdeck', 'x-spells': 'xspells', spellslinger: 'spells',
+  enchantress: 'enchantments', flying: 'flying', aggro: 'aggro'
+};
+const OWN_ROLE = {ramp: 'ramp', 'mana-rocks': 'ramp', rock: 'ramp', 'big-mana': 'ramp', 'card-draw': 'draw', counterspells: 'counter'};
+const OWN_RE = {
+  burn: /deals? (\d+|X|that much|damage equal)[^.]*damage to (each opponent|each player|target (player|opponent)|any target|that player)|each opponent loses \d+ life/i,
+  discard: /(target player|target opponent|each opponent|each player|that player|an opponent) (?:\w+ ){0,3}discards?\b|\bwhenever (?:you|a player|an opponent|one or more players?|another player) discards?|\bmadness\b|you may discard/i,
+  'self-discard': /\bwhenever you discard|\bmadness\b|\bdiscards? your hand/i,
+  lifegain: /\bgains? (\d+|X|that much|twice|life)[^.]*life|\blifelink\b|gain life|whenever you gain|drain/i,
+  cycling: /\bcycling\b|whenever you cycle/i,
+  populate: /\bpopulate\b|create a token that'?s a copy|copy of (?:target|a|each|another)[^.]{0,30}\btoken|token copy|copies of tokens?/i,
+  equipment: /\bequip\b|equipped creature|\bEquipment\b/i,
+  lifedrain: /each opponent loses \d+ life|loses? (\d+|X) life[^.]*you gain/i,
+  'land-destruction': /destroy target (nonbasic )?land|destroy all lands|each player sacrifices a land/i,
+  'lands-matter': /\blands? (enters|you control)|additional land|lands? from your graveyard|\blandfall\b|search your library for [^.]*land/i,
+  landfall: /\blandfall\b|whenever a land (enters|you control)/i,
+  'group-slug': /each opponent loses|damage to each (opponent|player)/i,
+  wheels: /each player discards (their|his or her) hand|discards? their hand[^.]*draws?/i,
+  looting: /draw a card, then discard|discard a card, then draw|\bconnives?\b/i,
+  connive: /\bconnives?\b/i
+};
+function ownAim(c, slug, ctx) {
+  if (!c) return false;
+  const o = c.o || '',
+    t = frontType(c),
+    tg = tags(c);
+  if (slug === 'combo') return !!(ctx && typeof comboFor === 'function' && comboFor(c, ctx));
+  if (slug === 'control') return tg.roles.has('counter') || tg.roles.has('removal') || tg.roles.has('wipe');
+  if (OWN_ROLE[slug]) return tg.roles.has(OWN_ROLE[slug]);
+  if (OWN_RE[slug]) return OWN_RE[slug].test(o) || (slug === 'equipment' && /Equipment/.test(t));
+  if (slug === 'legends') return /\bLegendary\b/.test(t) || /\blegendary\b/i.test(o);
+  if (slug === 'artifacts') return /\bArtifact\b/.test(t) || /\bartifacts?\b/i.test(o);
+  if (OWN_THEME[slug])
+    return (tg.th[OWN_THEME[slug]] || 0) >= 0.7 && (slug !== 'tokens' || /\btokens?\b|populate|amass|incubate|investigate|treasure|food|clue/i.test(o));
+  const w = slug.replace(/-/g, ' ').replace(/ies$/, 'y').replace(/s$/, '');
+  return new RegExp('\\b' + w + '(s|ies)?\\b', 'i').test(o + ' ' + t);
+}
 // "Heroes: in 84% of Heroes decks" — the share of the commander's decks built around that theme that run the card.
 function themeWhy(a, c) {
   const m = EDH.tmap && EDH.tmap[a.slice(4)],

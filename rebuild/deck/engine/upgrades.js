@@ -131,12 +131,32 @@ function comboFor(c, ctx) {
   const others = cb.names.filter(n => n !== c.n).map(n => n.split(',')[0]);
   return 'Combo with ' + others.join(' + ') + (cb.what ? ': ' + cb.what : '');
 }
+// Reason text for an upgrade row: what ties the card to the commander's own mechanic first; otherwise what the card does (its job);
+// then the plan labels and the play data. Text only: nothing here feeds a score or a pick.
+const LEAD_LABEL = {
+  wipe: 'A board wipe', removal: 'Removal', counter: 'A counterspell', tutor: 'A tutor', draw: 'Card draw', ramp: 'Mana ramp',
+  protect: 'Protects your board', cost: 'Cost reducer'
+};
+function whyOrder(c, b, pre) {
+  const eng = b.eng || [],
+    rest = b.why.filter(w => !eng.includes(w)),
+    pop = rest.filter(w => /^In \d+% of /.test(w)),
+    weak = rest.filter(w => /^(Proven staple|Works with \d|Commander strategy)/.test(w)),
+    strong = rest.filter(w => !pop.includes(w) && !weak.includes(w));
+  let lead = [];
+  if (!eng.length && !tags(c).land) {
+    const j = JOB_ORDER.find(x => jobsOf(c.n).includes(x));
+    if (j && LEAD_LABEL[j]) lead = [LEAD_LABEL[j]];
+  }
+  return eng.concat(lead, strong, pre, pop, weak).filter((w, i, L) => L.indexOf(w) === i);
+}
 const KEYMAP = () => KEYMAP.m || (KEYMAP.m = new Map(LIB.map(x => [x._k, x])));
 function baseScore(c, d, ctx) {
   let s = 0,
     hit = false,
     a0 = 0;
-  const why = [];
+  const why = [],
+    eng = []; // reasons that tie the card to the commander's own mechanic (shown first)
   // Little or no play data for this commander (obscure or new; UP.th*): the deck's own mechanics count more and generic power
   // (tournament staples, Game Changers, tutors, the most-played staples) less, so the build follows the commander's plan.
   const thinE = d.format === 'commander' && (!ctx.edh || !ctx.edh.map || ctx.edh.map.size < 60),
@@ -150,7 +170,8 @@ function baseScore(c, d, ctx) {
       s += kA * AIM_K * (AIM_W[i] || 1) * m;
       if (m >= 0.7) {
         hit = true;
-        why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe));
+        // reason text only: a theme-page label needs the card itself to do that (ownAim); the score above is unchanged
+        if ((!isEdhAim(a) && a !== 'lifegain') || ownAim(c, isEdhAim(a) ? a.slice(4) : a, ctx)) why.push(a === 'tribal' ? ctx.tribe + ' synergy' : isEdhAim(a) ? themeWhy(a, c) : aimLabel(a, ctx.tribe));
       }
     }
   });
@@ -158,7 +179,7 @@ function baseScore(c, d, ctx) {
     if (!(d.aims || []).includes(a) && matchAim(c, a, ctx.cmdTribe) >= 1) {
       s += 2;
       hit = true;
-      why.push('Commander strategy');
+      if (!isEdhAim(a) || ownAim(c, a.slice(4), ctx)) why.push('Commander strategy');
     }
   });
   // the commander's engine (Build 139): shown as the reason only (adding it to the value, UP.kwB, did not pass the benchmark;
@@ -168,13 +189,14 @@ function baseScore(c, d, ctx) {
     if (f.v) {
       if (f.v >= 0.8) why.unshift(f.why);
       else why.push(f.why);
+      eng.push(f.why);
     }
   }
   // a combo with the commander, or with cards a quarter of its players run (Commander Spellbook): said as a reason only;
   // combos already count in the deck score (21 Oct)
   {
     const cb = comboFor(c, ctx);
-    if (cb) why.push(cb);
+    if (cb) (why.push(cb), eng.push(cb));
   }
   // engine v2 (UP.xPlan): a card that fits another plan this commander's players build (beyond the deck's own plans) counts a
   // little, so the small packages players add are found too; the deck's own plans still lead (owner, 21 Oct)
@@ -183,7 +205,7 @@ function baseScore(c, d, ctx) {
     if (xp) {
       s += UP.xPlan;
       hit = true;
-      why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
+      if (!isEdhAim(xp) || ownAim(c, xp.slice(4), ctx)) why.push(aimLabel(xp, ctx.tribe) + ' (a plan ' + ctx.cmd.n.split(',')[0] + ' players build)');
     }
   }
   // 0.9.49 (roadmap 5.2): the card feeds or is fed by cards already in the deck (the card window's "Works with": creatures dying,
@@ -200,6 +222,7 @@ function baseScore(c, d, ctx) {
       s += UP.syn * Math.min(2, y.n);
       hit = true;
       why.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
+      eng.push('Works with ' + ctx.cmd.n.split(',')[0] + ' (' + y.words.join(', ') + ')');
     }
   }
   // engine v2 (UP.optW): what the commander's stronger decks (EDHREC's bracket 4 page) run more often than its decks overall,
@@ -299,7 +322,7 @@ function baseScore(c, d, ctx) {
       }
     }
   }
-  return {s, hit, why, a: a0};
+  return {s, hit, why, a: a0, eng};
 }
 function splitBasics(k, ctx) {
   const cols = ctx.ident.length ? ctx.ident : [];
@@ -463,7 +486,7 @@ function recommend(d, swaps, fillOnly) {
       if (!best) break;
       best.used = true;
       const q = std ? Math.min(nAdd, /Legendary/.test(best.c.t) ? 2 : 4) : 1;
-      const why = best.b.why.slice(0, 2);
+      const why = whyOrder(best.c, best.b, []).slice(0, 2);
       if (bw)
         why.push(
           bw === 'fin' ? 'A way to win' : bw === 'prot' ? 'Protects your plan' : 'Fills ' + ROLE_LABEL[bw].toLowerCase() + ' gap'
@@ -2446,7 +2469,7 @@ function upgradePaths(d, opt) {
       add: a.n,
       q: e.q,
       fix: true,
-      why: baseScore(a, dd, ctx).why.slice(0, 2),
+      why: whyOrder(a, baseScore(a, dd, ctx), []).slice(0, 2),
       cutWhy: [why],
       gc: !!a.gc
     });
@@ -2600,10 +2623,16 @@ function upgradePaths(d, opt) {
   };
   const whyAdd = (a, cu) => {
     const pa = PA(a.c),
-      why = comboWhy(a.c)
-        .concat(pa ? ['Added in ' + pct(pa.inc) + '% of ' + preDecks + 'decks built from ' + preName] : [])
-        .concat(isNew(a.c) ? ['New card · not enough play data yet'] : [])
-        .concat(baseScore(a.c, dd, ctx).why);
+      bs = baseScore(a.c, dd, ctx),
+      why = comboWhy(a.c).concat(
+        whyOrder(
+          a.c,
+          bs,
+          (pa ? ['Added in ' + pct(pa.inc) + '% of ' + preDecks + 'decks built from ' + preName] : []).concat(
+            isNew(a.c) ? ['New card · not enough play data yet'] : []
+          )
+        )
+      );
     const gap = a.jobs.find(j => !cu.jobs.includes(j) && (cnt[j] || 0) < K.T * 0.75);
     if (gap && why.length < 2 && JOB_LABEL[gap]) why.push('Adds ' + JOB_LABEL[gap]);
     return why.slice(0, 2);
