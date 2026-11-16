@@ -188,3 +188,11 @@ event chain (voltron, stax, pillow fort, flying, X spells, legends); combos (Com
    benchmark must not drop" still the bar for each, or may a plan-aware change that lowers it slightly come to you?
 6. Should the facts table be regenerated with each app build, or added to the daily card-data job (4b) so new cards get
    facts the day they appear?
+
+
+## Owner's answers (16 Nov)
+- Batch A: build now. B–E: all wanted, each comes back with before/after numbers.
+- Source: game engine first, Deck Builder reader as fallback.
+- Benchmark: a small drop comes to the owner with reasons; the owner decides.
+- Orchestrator's calls (layout): read-out in Build stats; card table regenerated with each build.
+- Still open: the 15-deck check set (owner to label the 5 workbook decks from a first guess; which web-slinging deck).
