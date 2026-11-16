@@ -49,6 +49,7 @@ optimization. That way we don't have to rework anything later due to new mechani
    upgrade reasons, Fix menu picks, generator picks, game-plan awareness (6, 6b, 7f.3, 7f.5, 5.1-5.2). Parked work for this
    step: `rebuild/wip/README.md`.
 **Change (owner, 15 Nov):** quickest items first, with several agents on them: the parked judgement work (reasons, strongest decks) and plan-aware Fix picks were pulled forward alongside card rules batch 6; results still go to the owner before shipping.
+**Final checks early (owner, 16 Nov):** when the roadmap is down to long-tail card fixes, run the device checklist and other final checks on everything except the card interactions in progress and what they can affect.
 4. **Optimise all the code** (section 99), after everything else.
 
 ## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/) — live in Build 115 (7c done with it); left: owner's device check, iPhone log-column art, more achievements
