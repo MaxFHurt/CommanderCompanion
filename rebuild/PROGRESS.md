@@ -39,6 +39,8 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 ### Monster Siege test page — 15 Nov 2026
 
+- Final encounter holds both characters and the existing speech bubble on the damaged battlefield until tapped or restarted. Reload restores that finished scene.
+
 - The hero’s final quip stays as a dismissible note over the restored battlefield. Refreshing the test page keeps the note, and starting a new encounter clears it.
 
 - Marsh Stalker and Frost Drake walk on four limbs, Ember Raptor stays bipedal, Ironback walks on its knuckles, Slag Orc stands upright, and Gutter Troll takes a longer hunched stride. Reptiles open with a bite and an articulated tail swipe. The ogre, orc and troll open with a punch and a kick. Dorsal plates and side armor attach to the underlying torso or tail joints.

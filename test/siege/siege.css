@@ -12,15 +12,3 @@ canvas{display:block;width:100%;height:auto;border-radius:6px;background:#110b18
 p{margin:.4rem 0;font-size:.82rem;line-height:1.2;color:#cfc2dd}
 @media (orientation:portrait){main{width:100%;padding-top:max(.4rem,env(safe-area-inset-top))}}
 @media (max-height:520px) and (orientation:landscape){main{width:min(100%,calc((100dvh - 77px) * 1.4562));padding-top:0}h1{font-size:.82rem}button,select{min-height:30px;font-size:.76rem}p{font-size:.70rem}}
-
-
-.battlefield-wrap{position:relative}
-.hero-note{
-  position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);z-index:1;
-  width:min(calc(100% - 24px),36rem);padding:clamp(.75rem,2vw,1.4rem);
-  background:#181021;border:1px solid var(--hero-accent,#d5abff);border-radius:9px;
-  box-shadow:0 10px 40px #070310d9,inset 0 0 20px #0003;
-}
-.note-author{margin:0;color:var(--hero-accent,#d5abff);font-size:.72rem;font-weight:750;letter-spacing:.08em;text-transform:uppercase}
-.hero-note blockquote{margin:.45rem 0 .65rem;color:#fbf5ff;font-size:clamp(.94rem,2.5vw,1.25rem);line-height:1.35;overflow-wrap:anywhere}
-.hero-note button{display:block;margin-left:auto}
