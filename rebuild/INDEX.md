@@ -29,6 +29,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Upgrades tab number | ui/views.js · upCardCount |
 | Fix menus / land rule | engine/mana.js · fixSwaps, landCovers; engine/upgrades.js · landColors |
 | Card reading (roles, tags) | engine/reading.js, engine/library.js · analyze, tags |
+| Game plan chains (6b) | engine/plans.js · planFacts, CHAINS, planOf, chainFit, chainWhy; table plan-facts.js from tools/plan-facts.mjs (run by tools/build.sh); read-out ui/deck.js · chainsHtml; check tools/tests/suite/plancheck.js + plans/LABELS.md |
 | Decklist rows, names, pictures | ui/views.js · listRows, printedName; ui/base.js · shownPrint, pidOf, artFor, ensureTheme |
 | Page redraw | ui/cards.js · render |
 | EDHREC data (one shared slot `EDH`) | ui/base.js · loadEdh, loadThemes, ensureEdh |
