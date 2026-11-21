@@ -40,6 +40,14 @@ suite below still runs once before every live build (not alongside the benchmark
 
 Run the Node checks one after another: started together, several stopped with an error (seen in Build 143; cause not traced).
 
+## Strength scoring and finish (Build 118, roadmap 7f.3 / 7f.5)
+
+    node apexmeasure.js ../candidate precon out.json          # benchmark precons: score, power, parts, Apex picks left (own: as Mid/Budget decks)
+    node apexmeasure.js ../candidate gen out.json decks.json  # generated decks per tier and theme, before and after strFinish (decks.json caches them)
+    node apexstrong.js ../candidate out.json [0,0.5,1]        # finished decks vs tournament lists and bracket 4+ decks, per blend w (UP.strPopW = 1 - w)
+    node apextable.js precon|gen ; node apexsweep.js <dir>    # tables from those files
+UP='{"strPopW":0}' before any of them (and bench.js) sets the blend. Owner, 21 Nov: w 0.5 (strPopW 0.5).
+
 ## Before every build goes live (all must pass)
 
     node accept.js ../candidate | tail -1           # acceptance: 39 passed, 0 failed

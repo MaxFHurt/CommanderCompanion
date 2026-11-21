@@ -1,8 +1,8 @@
-// node measure.js <candidateDir> precon|gen <out.json> [decks.json]
+// node apexmeasure.js <candidateDir> (from proto/tests; results for apextable.js) precon|gen <out.json> [decks.json]
 // precon: benchmark precons as players see them (score with card strength when the engine has it), power vs the Apex build.
 // gen: generate (or read decks.json), finish (strFinish when present), score.
 const path = require('path'), fs = require('fs');
-const [CD, MODE, OUT, DECKS] = process.argv.slice(2), TD = path.resolve(CD, "../tests");
+const [CD, MODE, OUT, DECKS] = process.argv.slice(2), TD = __dirname;
 const B = require(path.join(TD, 'bench.js')), H = B.H, X = H.ctx, run = H.run;
 const HAS = run('typeof strRefParts === "function"');
 const sets = B.SETS.test.concat(B.SETS.tune);

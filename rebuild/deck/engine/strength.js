@@ -148,8 +148,9 @@ function strValue(c, d, casual) {
     // upgrading at those prices add the commander's popular cards, not what strong decks of every commander play
     const inc = casual && UP.strInc ? strInc(c, d) : 0,
       base = casual && UP.strInc ? (1 - w - UP.strInc) * cardStrength(c, d, casual) + w * strFit(c, d) + UP.strInc * inc : (1 - w) * cardStrength(c, d, casual) + w * strFit(c, d);
-    // UP.strPopW (middle-ground sweep for the owner, 21 Nov; 0 = option A): share of the value taken from what this commander's
-    // players run (EDHREC play rate, precon bias removed) instead of strength
+    // UP.strPopW (owner, 21 Nov: the 50/50 blend): share of the value taken from what this commander's players run (EDHREC
+    // play rate, precon bias removed) instead of strength; 0 = strength alone (option A). The sweep (tools/tests/suite/apex*.js)
+    // kept the strength builds' gain (generated Apex power 100) while upgrade picks stayed close to what players add
     const pw = UP.strPopW || 0,
       b2 = pw ? (1 - pw) * base + pw * (casual && UP.strInc ? inc : strInc(c, d)) : base;
     v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
@@ -241,7 +242,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, UP.strTierQ, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)

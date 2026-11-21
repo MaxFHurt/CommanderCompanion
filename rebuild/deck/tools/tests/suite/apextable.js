@@ -1,4 +1,4 @@
-// node table.js precon|gen  -> markdown table from the before/after json files
+// node apextable.js precon|gen  -> markdown table from the before/after json files
 const fs = require('fs'), P = __dirname, mode = process.argv[2];
 const J = f => JSON.parse(fs.readFileSync(P + '/' + f, 'utf8'));
 const ab = (a, b) => (a == null ? '—' : a) + ' → ' + (b == null ? '—' : b);

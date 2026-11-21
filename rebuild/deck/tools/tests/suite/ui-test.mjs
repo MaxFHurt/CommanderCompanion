@@ -1959,13 +1959,29 @@ const b164 = await page.evaluate(async () => { const out = {};
   S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300)); render();   /* the meter and gaps are on Upgrades since 0.9.20 */
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
   out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.leg = leg; out.marks = /Apex\s*100/.test(leg);
-  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);
-  /* 13 Nov: the bar is the deck score against the Apex build's score even with card strength on (UP-POWER-01 checks it against the stats page) */
+  const e = evalFor(d), T = refOrder(e.str ? strRefParts(d, strengthRef(d)) : apexFor(d).tot); out.str = !!e.str; out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);
+  /* 13 Nov: the bar is the deck score against the Apex build's score even with card strength on (UP-POWER-01 checks it against the stats page);
+     with card strength the reference builds are the strength builds scored the same way (strRefParts, Build 118) */
   openDeckPop(); out.gaps = [...document.querySelectorAll('#modal .gapbox li')].map(x => x.textContent.slice(0, 40)); $('#modal').hidden = true;   /* 0.9.29: in Show all details */ out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
   S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B164-01', 'The strip and meter show deck power as a share of this deck’s Apex build (Budget and Mid builds marked the same way); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.floor && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
 } catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-BLEND-01')) { try { if (SHARD) await RESET();
+// Owner, 21 Nov: card values are half card strength, half this commander's play rate (UP.strPopW 0.5, the 50/50 blend), and the
+// score players see reads card strength
+const bl = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 100 && !(STRENGTH.cmd && STRENGTH.cmd.size && strengthOn(d)); i++) await new Promise(r => setTimeout(r, 100));
+  out.w = UP.strPopW; out.on = strengthOn(d);
+  const cs = d.cards.map(e => find(e.n)).filter(c => c && !tags(c).land && !isBasic(c.n)).slice(0, 12), w0 = UP.strPopW, ex = UP.strExp;
+  const at = w => { UP.strPopW = w; return cs.map(c => Math.pow(strValue(c, d, false), 1 / ex)); };
+  const a = at(0), b = at(1), m = at(0.5); UP.strPopW = w0;
+  out.blend = m.every((v, i) => Math.abs(v - (a[i] + b[i]) / 2) < 1e-6); out.differs = a.some((v, i) => Math.abs(v - b[i]) > 1e-3);
+  out.str = !!(evalFor(d) || {}).str;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-BLEND-01', 'Owner, 21 Nov: card values are the 50/50 blend of card strength and this commander’s play rate (UP.strPopW 0.5), and the deck score reads card strength', bl.w === 0.5 && bl.on && bl.blend && bl.differs && bl.str, JSON.stringify(bl));
+} catch (e) { QUIET = false; T('UI-BLEND-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 // Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
 // plan sit on Upgrades under the progress bar; Build stats keeps a short one-line-per-few health list; the Apply All buttons sit below

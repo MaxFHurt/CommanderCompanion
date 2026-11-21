@@ -1,4 +1,4 @@
-// node sweeptab.js <sweepDir>: one table per blend weight w (1 = option A strength, 0 = commander play rate)
+// node apexsweep.js <sweepDir>: one table per blend weight w (1 = option A strength, 0 = commander play rate)
 const fs = require('fs'), D = process.argv[2], WS = ['1', '0.75', '0.5', '0.25', '0'];
 const J = f => (fs.existsSync(D + '/' + f) ? JSON.parse(fs.readFileSync(D + '/' + f, 'utf8')) : null);
 const mean = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : NaN), f1 = v => (isNaN(v) ? '—' : v.toFixed(1)), f3 = v => (isNaN(v) ? '—' : v.toFixed(3));

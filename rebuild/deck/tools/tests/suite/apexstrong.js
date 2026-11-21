@@ -1,11 +1,11 @@
-// node strong.js <candidateDir> <out.json> [w list]   per blend weight w (UP.strPopW = 1 - w), the generated deck finished by
+// node apexstrong.js <candidateDir> <out.json> [w list]   per blend weight w (UP.strPopW = 1 - w), the generated deck finished by
 // strFinish, compared with real strong decks:
 //   tourney: 10 tournament commanders, 20 top-16 lists each: match (share of our cards each list runs), core (share of cards in
 //            half the lists we include), for Apex and Mid
 //   strong:  tuneall + test precon commanders, bracket 4+ player decks: typicality (mean share of strong decks running each of
 //            our spells), strong-core coverage
 const path = require('path'), fs = require('fs');
-const [CD, OUT, WL] = process.argv.slice(2), TD = path.resolve(CD, '../tests');
+const [CD, OUT, WL] = process.argv.slice(2), TD = __dirname;
 const B = require(path.join(TD, 'bench.js')), H = B.H, X = H.ctx, run = H.run;
 const WS = (WL || '0,0.25,0.5,0.75,1').split(',').map(Number);
 const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;

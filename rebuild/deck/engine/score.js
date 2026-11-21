@@ -431,22 +431,12 @@ function evaluateDeck(d, opt) {
       qOver = Math.max(0, pw - 100);
       qPct = Math.round(qExact);
       qTier = null;
-      why.quality = qPct + '% of the way from replacement level to this deck’s strongest build (card strength: how often strong decks that could play each card do)';
+      why.quality = qPct + '% of the way from replacement level to this deck’s strongest build (card strength, half how often strong decks that could play each card do and half how often this commander’s players run it)';
       // a Budget or Mid deck also reads against the strongest build at its price level, on the same scale
       const TB = (d.tier === 'budget' || d.tier === 'mid') && SRx[d.tier] && SRx[d.tier].list ? (100 * (strMean(d, SRx[d.tier].list) - SRx.floor)) / (SRx.top - SRx.floor) : null;
       if (TB != null && TB > 0) {
         qTier = {tier: d.tier, pct: Math.round(Math.max(0, Math.min(100, (100 * pw) / TB)))};
         why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
-        // UP.strTierQ (variant for the owner, 16 Nov; off): a Budget or Mid deck's card quality is measured against the strongest
-        // build at its own price level (100 = that build), not against the Apex build
-        if (UP.strTierQ) {
-          const tq = (100 * pw) / TB;
-          qExact = Math.max(0, Math.min(100, tq));
-          qOver = Math.max(0, tq - 100);
-          qPct = Math.round(qExact);
-          why.quality = qPct + '% of the way from replacement level to the strongest build with every card under $' + (d.tier === 'budget' ? 3 : 12) + ' (card strength)';
-          qTier = null;
-        }
       }
     }
   }
