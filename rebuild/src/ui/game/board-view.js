@@ -53,13 +53,12 @@ function seatHtml(view, p, slotName, L, i = 0, n = 1, extra = '') {
   const meta = `Hand ${p.handCount} · Tax ${cmd?.tax || 0} · Lib ${p.libraryCount}`;
   return html`<div class="seat ${centre ? 'seat--centre' : 'seat--side'} gp-contents ${seatCls(view, p)}" data-side="${slotName}" data-id="${p.playerId}" style="--player:${p.color}">
     ${s.compact ? '' : html`<img ${at(s.portrait, 'gp-portrait is-clamp', { cluster: c })} src="${commanderArt(view, p)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK}'">`}
-    <span ${at(s.id, 'gp-inset gp-id', { cluster: c })}></span>
     <button type="button" ${at(s.seat, 'seat__main gp-seat is-clamp', { face: s.idText, cluster: c })} data-act="${act}" data-id="${p.playerId}" aria-label="${label}">
       <span class="gp-face gp-idtext">
-        <span class="seat__name">${p.name}</span>
-        ${s.compact ? html`<b class="seat__life gp-mini-life">${life}</b>` : html`<small class="gp-cmd">${cmd?.name || ''}</small>`}
-        <small class="seat__meta">${s.compact ? `H${p.handCount} · L${p.libraryCount}` : meta}${p.poison ? ` · ☠${p.poison}` : ''}</small>
-        ${s.compact ? '' : html`<small class="gp-zonesline"><span>Grave ${p.graveyard.length}</span><span>Exile ${p.exile.length}</span>${centre ? html`<em>Focused</em>` : ''}</small>`}
+        <span class="seat__name" data-fit title="${p.name}">${p.name}</span>
+        ${s.compact ? html`<b class="seat__life gp-mini-life">${life}</b>` : html`<small class="gp-cmd" data-fit title="${cmd?.name || ''}">${cmd?.name || ''}</small>`}
+        <small class="seat__meta" data-fit>${s.compact ? `H${p.handCount} · L${p.libraryCount}` : meta}${p.poison ? ` · ☠${p.poison}` : ''}</small>
+        ${s.compact ? '' : html`<small class="gp-zonesline" data-fit>Grave ${p.graveyard.length} · Exile ${p.exile.length}${centre ? html`<em>Focused</em>` : ''}</small>`}
       </span>
     </button>
     ${s.compact ? '' : html`<span ${at(s.die, 'gp-die', { cluster: c })}><b class="seat__life" data-digits="${String(life).length}">${life}</b></span>`}
@@ -123,7 +122,7 @@ function oppHtml(view, me, ui, L) {
     ${ui.seats.left.map((id, i) => seatHtml(view, byId(id), 'left', L, i, ui.seats.left.length))}
     ${ui.seats.right.map((id, i) => seatHtml(view, byId(id), 'right', L, i, ui.seats.right.length))}
     ${seatHtml(view, centre, 'centre', L, 0, 1, html`
-      <span ${at(L.opp.title, 'gp-inset gp-title')}>${centre.name}'s Battlefield</span>
+      <span ${at(L.opp.title, 'gp-title')} data-fit>${centre.name}'s Battlefield</span>
       ${bandHtml(view, L === BOARD.phone, 'opp', groups, `opp-${centre.playerId}`, opts)}`)}`;
 }
 
@@ -159,7 +158,22 @@ function controlsHtml(view, L) {
 }
 
 function key(L, rect, act, label, cls = '', attrs = '') {
-  return html`<button type="button" ${at(rect.hit, `gp-key ${cls} is-clamp`, { face: rect.face })} data-act="${act}" ${raw(attrs)}><span class="gp-face">${label}</span></button>`;
+  return html`<button type="button" ${at(rect.hit, `gp-key ${cls} is-clamp`, { face: rect.face })} data-act="${act}" ${raw(attrs)}><span class="gp-face"><span class="gp-fit" data-fit>${label}</span></span></button>`;
+}
+
+/**
+ * Fit every [data-fit] text to its zone (owner, 21 Nov: no text may cross its zone's edge): shrink down to 72% of its
+ * size (or the share given in data-fit)
+ * size, then end in "…" with the full value in its title. Call after each render.
+ */
+export function fitText(root) {
+  for (const el of root.querySelectorAll('.game--gp [data-fit]')) {
+    el.style.fontSize = '';
+    let fs = parseFloat(getComputedStyle(el).fontSize);
+    const min = fs * (Number(el.dataset.fit) || 0.72);
+    while (el.scrollWidth > el.clientWidth + 0.5 && fs > min) { fs = Math.max(min, fs - 0.5); el.style.fontSize = `${fs}px`; }
+    if (el.scrollWidth > el.clientWidth + 0.5 && !el.title) el.title = el.textContent.trim();
+  }
 }
 
 /**
@@ -184,7 +198,8 @@ export function boardHtml(o) {
   const cells = manaCells(focus.mana);
   const T = L.tools;
   const rail = L.log.cluster;
-  const tool = (r, act, label, cls = '', attrs = '') => html`<button type="button" ${at(r.hit, `gp-key gp-tool ${cls} is-clamp`, { face: r.face, cluster: rail })} data-act="${act}" ${raw(attrs)}><span class="gp-face">${label}</span></button>`;
+  // Board and Table sit on the frame's own key housings; Stack, Undo and Host Tools carry the kit's utility key art.
+  const tool = (r, act, label, cls = '', attrs = '') => html`<button type="button" ${at(r.hit, `gp-key gp-tool ${r.art ? 'gp-tool--art' : ''} ${cls} is-clamp`, { face: r.face, cluster: rail })} data-act="${act}" ${raw(attrs)}><span class="gp-face"><span class="gp-fit" data-fit>${label}</span></span></button>`;
   const undoOk = view.canUndo || (view.canAskUndo && view.undoRule);
   const other = screens.find(s => s !== 'player');
 
@@ -204,7 +219,7 @@ export function boardHtml(o) {
 
       ${oppHtml(view, focus, ui, L)}
 
-      <span ${at(L.mine.title, 'gp-inset gp-title')}>Your Battlefield</span>
+      <span ${at(L.mine.title, 'gp-title')}>Your Battlefield</span>
       ${view.mode === 'freeplay' ? html`<span ${at(L.mine.chip, 'gp-chip')}><span class="chip">FREE PLAY</span></span>` : ''}
       <button type="button" ${at(L.heading.phase.hit, 'gp-key gp-readout phase-box is-clamp', { face: L.heading.phase.face })} data-act="phase-info"><span class="gp-face"><b>Turn ${view.turn} · ${view.phaseLabel}${view.dayNight ? ` · ${view.dayNight === 'night' ? 'Night' : 'Day'}` : ''}</b></span></button>
       ${key(L, L.heading.counters, 'counters', 'Counters', 'gp-readout')}
@@ -241,25 +256,24 @@ export function boardHtml(o) {
         <button type="button" ${at(L.local.commander, `rail-cmd__card gp-cmdbtn is-clamp ${cmdCard?.playable ? 'is-playable' : ''} ${cmdCard && ui.highlight.has(cmdCard.id) ? 'is-suggested' : ''}`)} data-act="commander" data-id="${cmdCard?.id || ''}" aria-label="Commander: ${cmd?.name || 'none'}">
           ${cmd && cmd.zone !== 'command' ? html`<span class="rail-cmd__zone">${cmd.zone === 'battlefield' ? 'IN PLAY' : cmd.zone.toUpperCase()}</span>` : ''}
         </button>
-        <span ${at(L.local.id, 'gp-inset gp-id')}></span>
-        <div ${at(L.local.name, 'rail-name gp-name')}><i class="status-light ${focus.eliminated ? 'is-out' : myTurn ? 'is-active' : ''}"></i><strong>${focus.name}</strong></div>
-        <div ${at(L.local.sub, 'gp-sub')}>${cmd?.name || 'No commander'} · Tax ${cmd?.tax || 0}</div>
+        <div ${at(L.local.name, 'rail-name gp-name')}><i class="status-light ${focus.eliminated ? 'is-out' : myTurn ? 'is-active' : ''}"></i><strong data-fit title="${focus.name}">${focus.name}</strong></div>
+        <div ${at(L.local.sub, 'gp-sub')} data-fit title="${cmd?.name || ''}">${cmd?.name || 'No commander'} · Tax ${cmd?.tax || 0}</div>
         <span ${at(L.local.die, 'gp-die gp-die--local')}><b class="rail-life__value" data-digits="${String(life).length}">${life}</b></span>
         ${lightHtml(focus, L.local.light, L.local.lens)}
         <span ${at(L.local.lib, 'gp-lib')}>Lib ${focus.libraryCount}</span>
         ${[['graveyard', 'Grave', focus.graveyard.length], ['exile', 'Exile', focus.exile.length], ['tokens', 'Tokens', tokens], ['attachments', 'Attach.', attached]].map(([z, label, n]) => html`
-          <button type="button" ${at(L.local.zones[z].hit, `gp-key gp-zone rail-zone is-clamp ${(focus[z] || []).some?.(c => c.playable) ? 'is-playable' : ''}`, { face: L.local.zones[z].face })} data-act="zone" data-zone="${z}" aria-label="${label} ${n}"><span class="gp-face gp-inset">${label} ${n}</span></button>`)}
+          <button type="button" ${at(L.local.zones[z].hit, `gp-key gp-zone rail-zone is-clamp ${(focus[z] || []).some?.(c => c.playable) ? 'is-playable' : ''}`, { face: L.local.zones[z].face })} data-act="zone" data-zone="${z}" aria-label="${label} ${n}"><span class="gp-face"><span class="gp-fit" data-fit>${label} ${n}</span></span></button>`)}
       </div>
 
-      <div ${at(L.mana.well, 'gp-inset gp-mana')} data-total="${focus.mana.total}" aria-label="Available mana ${focus.mana.total}">
+      <div ${at(L.mana.well, 'gp-mana')} data-total="${focus.mana.total}" aria-label="Available mana ${focus.mana.total}">
+        <span class="gp-manalabel">Mana</span>
+        <span class="gp-manacells">${cells.filter(c => c.count).length ? cells.filter(c => c.count).map(c => html`<span class="gp-manacell" data-mana="${c.key}" data-count="${c.count}" title="${c.title}"><img src="${c.icon}" alt="${c.key}"><b>${c.count}</b></span>`) : html`<span class="gp-manaempty">None</span>`}</span>
+        <span class="gp-manatotal" title="${focus.mana.total} available"><b>${focus.mana.total}</b></span>
       </div>
-      <span ${at(L.mana.label, 'gp-manalabel')}>Mana</span>
-      ${cells.map((c, i) => html`<span ${at([L.mana.cell0[0] + L.mana.pitch * i, ...L.mana.cell0.slice(1)], `gp-manacell ${c.count ? '' : 'is-zero'}`)} data-mana="${c.key}" data-count="${c.count}" title="${c.title}"><img src="${c.icon}" alt="${c.key}"><b>${c.count}</b></span>`)}
-      <span ${at(L.mana.total, 'gp-manatotal')}><b>${focus.mana.total}</b> Available</span>
 
-      <button type="button" ${at(L.tip, `gp-key tip is-clamp ${coach.headline ? '' : 'is-quiet'}`)} data-act="coach"><b>${coach.headline || ''}</b>${advice && coach.detail ? html` <span>${coach.detail}</span>` : ''}</button>
+      <button type="button" ${at(L.tip, `gp-key tip is-clamp ${coach.headline ? '' : 'is-quiet'}`)} data-act="coach" aria-label="${coach.headline || ''}. ${coach.detail || ''}"><b class="tip__head" data-fit="0.62">${coach.headline || ''}</b>${advice && coach.brief ? html`<span class="tip__brief" data-fit="0.62">${coach.brief}</span>` : ''}</button>
 
-      <span ${at(L.hand.title, 'gp-inset gp-title gp-handtitle')}>Your Hand · ${focus.handCount}</span>
+      <span ${at(L.hand.title, 'gp-title gp-handtitle')}>Your Hand · ${focus.handCount}</span>
       <div class="zone zone--hand gp-contents">
         <div ${at(L.hand.cards, 'gp-cards gp-hand is-clamp')} data-keep-scroll="hand">
           ${focus.hand ? (focus.hand.length ? focus.hand.map(c => cardHtml(c, view.defs[c.def], { cls: `card--hand ${o.glow(c)}`, zone: 'hand' })) : html`<p class="zone__empty">Your hand is empty.</p>`)

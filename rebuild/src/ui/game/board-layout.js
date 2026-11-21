@@ -44,13 +44,16 @@ const PHONE = {
     creatures: [109.52, 275.64, 176.96, 96.32], artifacts: [297.88, 275.82, 110.24, 91.16], enchantments: [460.85, 275.82, 111.3, 91.16],
     planeswalkers: [617.85, 275.82, 111.3, 91.16], lands: [757.3, 275.64, 218.4, 96.32]
   },
-  log: { cluster: [1016, 139, 132, 261], face: [1016, 139, 132, 26], hit: [1016, 139, 132, 50], rows: [1025, 169, 115, 65] },
+  // Housings measured in the frame art (chassis/iPhone-*-edge.png): the log window (x 1014.6-1153, y 132.5-315.5) and one
+  // pair of key housings under it (y 317.8-338.3): Board and Table sit on those. Stack / Undo and Host Tools have no
+  // housing in the frame, so they keep the kit's utility key art, on the same columns, inside the window and below the pair.
+  log: { cluster: [1016, 139, 132, 261], face: [1014.6, 139, 138.6, 26], hit: [1016, 139, 132, 50], rows: [1025, 169, 115, 65] },
   tools: {
-    stack: { face: [1018, 259, 61, 23], hit: [1016, 244, 66, 52] },
-    undo: { face: [1086, 259, 61, 23], hit: [1082, 244, 66, 52] },
-    board: { face: [1018, 311, 61, 22], hit: [1016, 296, 66, 52] },
-    table: { face: [1086, 311, 61, 22], hit: [1082, 296, 66, 52] },
-    host: { face: [1018, 363, 129, 22], hit: [1016, 348, 132, 52] }
+    stack: { face: [1023.7, 257.75, 55.6, 20.5], hit: [1016, 244, 68.7, 50.7], art: true },
+    undo: { face: [1090.1, 257.75, 56.3, 20.5], hit: [1084.7, 244, 63.3, 50.7], art: true },
+    board: { face: [1023.7, 317.8, 55.6, 20.5], hit: [1016, 294.7, 68.7, 52.7] },
+    table: { face: [1090.1, 317.8, 56.3, 20.5], hit: [1084.7, 294.7, 63.3, 52.7] },
+    host: { face: [1023.7, 358, 122.7, 20.5], hit: [1016, 347.4, 132, 52.6], art: true }
   },
   // Jewels: hit = the map's control rect; art = where the jewel art lines up with the chassis housing (matched against
   // the art); centre = the gem's centre in the chassis, where the label sits.
@@ -63,15 +66,18 @@ const PHONE = {
     name: [107, 376, 102, 14], sub: [107, 390, 102, 12], die: [109, 404, 50, 44],
     lens: [160, 416, 14, 14], light: [159, 405, 52, 52], lib: [160, 430, 50, 12],
     zones: {
-      graveyard: { face: [104, 465, 48, 17], hit: [36, 440, 118, 48] },
-      exile: { face: [104, 494, 48, 17], hit: [36, 488, 118, 47] },
-      tokens: { face: [156, 465, 48, 17], hit: [154, 457, 91, 31] },
-      attachments: { face: [156, 494, 48, 17], hit: [154, 488, 91, 47] }
+      // Two bars in the frame (x 97.7-198.8; y 466.5-487.5 and 492-514.2), each holding two keys side by side.
+      graveyard: { face: [97.7, 466.5, 50.55, 21], hit: [36, 440, 112.25, 49.75] },
+      exile: { face: [97.7, 492, 50.55, 22.2], hit: [36, 489.75, 112.25, 45.25] },
+      tokens: { face: [148.25, 466.5, 50.55, 21], hit: [148.25, 457, 96.75, 32.75] },
+      attachments: { face: [148.25, 492, 50.55, 22.2], hit: [148.25, 489.75, 96.75, 45.25] }
     }
   },
-  mana: { well: [318, 373, 360, 29], label: [325, 378, 41, 19], total: [575, 378, 91, 19], cell0: [368, 377, 29, 21], pitch: 29 },
-  tip: [684, 375, 216, 26],
-  hand: { title: [512, 408, 96, 12], cards: [250, 421, 620, 103] }
+  // The two bars above the hand trough: the left one is the mana well, the right one the tips pane; the hand title
+  // sits at the top of the trough's window (x 252.2-890.2, y 412.2-524.2).
+  mana: { well: [314.1, 369.6, 186.4, 29.5] },
+  tip: [634, 372, 182.3, 26.5],   // bar y 369-398.5; the target starts below the battlefield band (372)
+  hand: { title: [511.2, 413, 120, 10], cards: [262, 425, 600, 98] }
 };
 
 const TABLET = {
@@ -107,13 +113,14 @@ const TABLET = {
     creatures: [82, 320, 158, 116], artifacts: [244, 320, 104, 116], enchantments: [351, 320, 105, 116],
     planeswalkers: [462, 320, 105, 116], lands: [571, 320, 195, 116]
   },
-  log: { cluster: [792, 137, 126, 315], face: [792, 137, 126, 25], hit: [792, 137, 126, 29], rows: [800, 167, 112, 190] },
+  // Frame (chassis/iPad-*.png): log window x 785.8-942, y 132.5-388.9; key housings y 392.8-413.3 (Board, Table).
+  log: { cluster: [792, 137, 126, 315], face: [785.8, 137, 156.2, 25], hit: [792, 137, 126, 29], rows: [800, 167, 112, 183] },
   tools: {
-    stack: { face: [796, 368, 61, 15], hit: [794, 361, 65, 29] },
-    undo: { face: [863, 368, 61, 15], hit: [861, 361, 65, 29] },
-    board: { face: [796, 397, 61, 15], hit: [794, 390, 65, 29] },
-    table: { face: [863, 397, 61, 15], hit: [861, 390, 65, 29] },
-    host: { face: [796, 426, 128, 15], hit: [794, 419, 132, 29] }
+    stack: { face: [796, 358, 63.1, 20.5], hit: [790, 350, 75, 35.5], art: true },
+    undo: { face: [871, 358, 63.7, 20.5], hit: [865, 350, 75, 35.5], art: true },
+    board: { face: [796, 392.8, 63.1, 20.5], hit: [790, 385.5, 75, 34] },
+    table: { face: [871, 392.8, 63.7, 20.5], hit: [865, 385.5, 75, 34] },
+    host: { face: [796, 426, 138.7, 20.5], hit: [790, 419.5, 150, 32.5], art: true }
   },
   jewels: {
     context: { hit: [719, 484, 93, 114], art: [704, 479, 119.4, 114.8], centre: [763.7, 537] },
@@ -124,15 +131,15 @@ const TABLET = {
     name: [107, 451, 102, 14], sub: [107, 465, 102, 12], die: [109, 479, 50, 44],
     lens: [160, 491, 14, 14], light: [159, 480, 52, 36], lib: [160, 505, 50, 12],
     zones: {
-      graveyard: { face: [104, 540, 48, 17], hit: [36, 520, 118, 43] },
-      exile: { face: [104, 569, 48, 17], hit: [36, 563, 118, 41] },
-      tokens: { face: [156, 540, 48, 17], hit: [154, 520, 91, 43] },
-      attachments: { face: [156, 569, 48, 17], hit: [154, 563, 91, 41] }
+      graveyard: { face: [97.7, 541.5, 50.55, 21], hit: [36, 520, 112.25, 44.75] },
+      exile: { face: [97.7, 567, 50.55, 22.2], hit: [36, 564.75, 112.25, 39.25] },
+      tokens: { face: [148.25, 541.5, 50.55, 21], hit: [148.25, 520, 96.75, 44.75] },
+      attachments: { face: [148.25, 567, 50.55, 22.2], hit: [148.25, 564.75, 96.75, 39.25] }
     }
   },
-  mana: { well: [237, 448, 360, 29], label: [244, 453, 41, 19], total: [494, 453, 91, 19], cell0: [287, 452, 29, 21], pitch: 29 },
-  tip: [600, 450, 112, 27],
-  hand: { title: [410, 483, 90, 12], cards: [250, 496, 410, 103] }
+  mana: { well: [285.8, 444.6, 129, 29.5] },
+  tip: [508, 444, 126.7, 29.6],
+  hand: { title: [404.5, 488, 120, 10], cards: [252, 500, 425, 99] }
 };
 
 export const BOARD = { phone: PHONE, tablet: TABLET };
@@ -161,7 +168,7 @@ export const AREAS = ['creatures', 'artifacts', 'enchantments', 'planeswalkers',
 export const AREA_LABEL = { creatures: 'Creatures', artifacts: 'Artifacts', enchantments: 'Enchantments', planeswalkers: 'Planeswalkers', lands: 'Lands' };
 
 /**
- * The seven mana cells of the well: W U B R G C and one flexible cell (the first flexible group, or "any" with the sum
+ * The mana cells of the well: W U B R G C and one flexible cell (the first flexible group, or "any" with the sum
  * of all groups when there are several; the full pool stays in the player board). Each: { key, count, icon, title }.
  */
 export function manaCells(mana) {

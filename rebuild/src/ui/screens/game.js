@@ -21,7 +21,7 @@ import { openDecision } from '../game/decision.js';
 import { openAttack, openBlocks } from '../game/combat-ui.js';
 import { openCardDetail, openZone, openPlayerBoard, openTable, tableHtml, openPile } from '../game/card-modals.js';
 import { openHostTools } from '../game/host-tools.js';
-import { boardHtml } from '../game/board-view.js';
+import { boardHtml, fitText } from '../game/board-view.js';
 import { statusLight, playControls, seatLayout, rotateTo, opponentsInOrder, PHONE_QUERY, logLength } from '../game/play-state.js';
 import { openOpeningHand, openDiscard, openGuided, openVote, openProposal, openCorrection, openPostGame, openLog, openStack, openChat, openGameSettings, openCardId, openPlayerInfo } from '../game/panels.js';
 
@@ -214,6 +214,7 @@ export const gameScreen = {
           const s = scroll[el.dataset.keepScroll];
           if (s) { el.scrollLeft = s[0]; el.scrollTop = s[1]; }
         }
+        fitText(root);
         startTimer(view);
         return;
       }
@@ -371,17 +372,18 @@ export const gameScreen = {
       }
     }
 
-    /** The jewel always lays out everything the player can do, with the suggestion first. */
-    function doJewel(view) {
-      const j = view.coach?.jewel;
-      if (!j) return;
-      const opts = view.coach.options || [];
-      if (!opts.length) return runOption(view, { act: j.act });
-      if (opts.length === 1) return runOption(view, opts[0]);
-      if (j.ids) { ui.highlight = new Set(j.ids); render(); }
+    /** The tips pane shows a short line; tapping it gives the whole explanation, the tip, and what can be done now. */
+    function openCoach(view) {
+      const c = view.coach || {};
+      const advice = view.players.find(p => p.playerId === view.you)?.advice !== false;
+      const opts = c.options || [];
       openModal({
-        title: 'What you can do now', route: { size: 'm', panel: 'Your options', panelCls: 'route-panel--list' },
-        body: html`<div class="option-list jewel-options">${opts.map((o, i) => html`<button type="button" class="option ${o.best ? 'is-on' : ''}" data-opt="${i}" data-opt-act="${o.act}"><span><strong>${o.label}${o.best ? html` <em class="option__best">Suggested</em>` : ''}</strong>${o.sub ? html`<small>${o.sub}</small>` : ''}</span></button>`)}</div>`,
+        title: c.full || c.headline || 'Tip', size: 'small',
+        body: html`<div class="coach-full">
+          ${c.detail ? html`<p>${c.detail}</p>` : ''}
+          ${advice && c.tip ? html`<p class="muted">Tip: ${c.tip}</p>` : ''}
+          ${opts.length ? html`<div class="option-list jewel-options">${opts.map((o, i) => html`<button type="button" class="option ${o.best ? 'is-on' : ''}" data-opt="${i}" data-opt-act="${o.act}"><span><strong>${o.label}${o.best ? html` <em class="option__best">Suggested</em>` : ''}</strong>${o.sub ? html`<small>${o.sub}</small>` : ''}</span></button>`)}</div>` : ''}
+        </div>`,
         onMount(el, { close }) { on(el, 'click', '[data-opt]', (event, b) => { close(); runOption(view, opts[Number(b.dataset.opt)]); }); }
       });
     }
@@ -426,7 +428,7 @@ export const gameScreen = {
         case 'pass': return send({ type: 'pass' });
         case 'attack': return openAttack(ctx);
         case 'prompt': ui.minimized = false; return openPrompt(view, { manual: true });
-        case 'coach': return view.coach?.tip && view.players.find(p => p.playerId === view.you)?.advice !== false ? toast(`Tip: ${view.coach.tip}`, { ms: 5200 }) : doJewel(view);
+        case 'coach': return openCoach(view);
         case 'phase-info': return openJudge({ query: view.phaseLabel.toLowerCase().includes('main') ? 'main phase' : view.phaseLabel.toLowerCase() });
         case 'next-phase': return send({ type: 'next-phase' });
         case 'end-turn': return endTurn(view);

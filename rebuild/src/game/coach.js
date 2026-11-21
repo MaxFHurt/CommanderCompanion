@@ -103,36 +103,55 @@ function adviseLands(view, row, lands, hand) {
   return { rows, best: rows[0], tie };
 }
 
+const PANE = 26;   // characters per tips-pane line (fits the iPhone and iPad panes at their smallest lettering)
+function cap(t) {
+  if (!t || t.length <= PANE) return t || '';
+  const cut = t.slice(0, PANE - 1), i = cut.lastIndexOf(' ');
+  return (i > PANE * 0.6 ? cut.slice(0, i) : cut).replace(/[\s—–:,;·.-]+$/, '') + '…';
+}
+
 export function coachFor(game, view, me, active) {
   const prompt = view.prompt;
-  const out = { headline: '', detail: '', tip: '', jewel: null, options: [] };
+  // brief: the tips pane's second line, short enough to fit the pane on a phone (24 characters at most; the full
+  // explanation is `detail`, shown when the pane is tapped).
+  const out = { headline: '', brief: '', detail: '', tip: '', jewel: null, options: [] };
   const name = id => playerById(game, id)?.displayName || 'another player';
   switch (prompt.kind) {
     case 'complete':
       out.headline = view.winner ? `${name(view.winner)} wins!` : 'Game over';
+      out.brief = 'New game from the menu';
       break;
     case 'opening':
-      out.headline = 'Keep this hand or mulligan?';
+      out.headline = 'Keep or mulligan?';
+      out.brief = prompt.bottom ? `Then bottom ${prompt.bottom} card${prompt.bottom === 1 ? '' : 's'}` : 'Lands plus early spells';
       out.detail = prompt.bottom ? `If you keep, put ${prompt.bottom} card${prompt.bottom === 1 ? '' : 's'} on the bottom of your library.` : 'Look for a mix of lands and spells you can cast early.';
       out.tip = tip(game, 'opening');
       break;
     case 'decision':
-      out.headline = prompt.decision.title || 'Make a choice';
+      {
+        // "Card — what to do": the card on the first line, the action on the second (both short; the full text on tap).
+        const [head, rest] = String(prompt.decision.title || 'Make a choice').split(/\s+[—–]\s+/);
+        out.headline = head;
+        out.brief = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : 'Tap Choose to answer';
+      }
       out.detail = prompt.decision.prompt || '';
       out.jewel = { label: 'CHOOSE', act: 'decision' };
       break;
     case 'guided':
       out.headline = `Resolve ${prompt.name} by hand`;
+      out.brief = 'Not automated: do it by hand';
       out.detail = 'This card is not automated. Read it, make the changes it asks for, then mark it done.';
       out.jewel = { label: 'RESOLVE', act: 'guided' };
       break;
     case 'vote':
       out.headline = `Vote: allow ${prompt.label}?`;
+      out.brief = 'The table decides';
       out.jewel = { label: 'VOTE', act: 'vote' };
       break;
     case 'priority': {
       const top = view.stack.at(-1);
       out.headline = top ? `Respond to ${top.name}?` : `${prompt.reason || 'A step is ending'} — respond?`;
+      out.brief = 'Glowing card, or Pass';
       out.detail = 'Highlighted cards can be used right now. Pass if you do not want to respond.';
       out.tip = tip(game, 'priority');
       out.jewel = { label: 'PASS', act: 'pass' };
@@ -149,12 +168,14 @@ export function coachFor(game, view, me, active) {
     }
     case 'blocks':
       out.headline = 'You are being attacked';
+      out.brief = 'Block, or take the damage';
       out.detail = 'Choose which of your creatures block, or take the damage.';
       out.tip = tip(game, 'blocks');
       out.jewel = { label: 'BLOCK', act: 'blocks' };
       break;
     case 'discard':
       out.headline = `Discard ${prompt.need} card${prompt.need === 1 ? '' : 's'}`;
+      out.brief = 'Hand size is 7 at end of turn';
       out.detail = 'Your maximum hand size is seven at the end of your turn.';
       out.jewel = { label: 'DISCARD', act: 'discard' };
       break;
@@ -167,7 +188,8 @@ export function coachFor(game, view, me, active) {
       const commander = view.players.find(p => p.playerId === view.you)?.command.find(c => c.playable);
       if (view.phase === 'combat' || view.phase === 'begin-combat') {
         const n = view.actions.attack?.length || 0;
-        out.headline = n ? 'Combat: choose attackers' : 'Combat';
+        out.headline = n ? 'Choose attackers' : 'Combat';
+        out.brief = n ? `${n} creature${n === 1 ? '' : 's'} can attack` : 'No attackers: move on';
         out.detail = n ? `${n} of your creatures can attack. Pick who each one attacks, or skip combat.` : 'None of your creatures can attack. Move to your second main phase.';
         out.tip = tip(game, 'combat');
         out.jewel = n ? { label: 'ATTACK', act: 'attack' } : { label: 'NEXT PHASE', act: 'next-phase' };
@@ -178,6 +200,7 @@ export function coachFor(game, view, me, active) {
         bestId = best.card.id;
         const names = [...new Set(lands.map(c => c.name))];
         out.headline = 'Play a land';
+        out.brief = 'One land each turn';
         out.detail = names.length === 1
           ? `${best.card.name} is the only land you can play. You may play one land each turn. ${best.why}`
           : advice.tie
@@ -188,16 +211,19 @@ export function coachFor(game, view, me, active) {
       } else if (spells.length || commander) {
         const names = [...(commander ? [commander] : []), ...spells].slice(0, 3).map(c => c.name).join(', ');
         out.headline = 'Cast a spell';
+        out.brief = 'Tap a glowing card';
         out.detail = `You have the mana for ${names}${spells.length + (commander ? 1 : 0) > 3 ? '…' : ''}. Tap a glowing card to read it and cast it.`;
         out.tip = tip(game, view.phase);
         out.jewel = { label: 'CAST SPELL', act: 'suggest', ids: [...(commander ? [commander.id] : []), ...spells.map(c => c.id)] };
       } else if (view.phase === 'precombat-main') {
         out.headline = 'Nothing more to play';
+        out.brief = 'Go to combat when ready';
         out.detail = 'Move to combat when you are ready.';
         out.tip = tip(game, view.phase);
         out.jewel = { label: 'TO COMBAT', act: 'next-phase' };
       } else {
         out.headline = 'End your turn';
+        out.brief = 'Nothing left this turn';
         out.detail = 'You have nothing else to do this turn.';
         out.tip = tip(game, view.phase);
         out.jewel = { label: 'END TURN', act: 'end-turn' };
@@ -217,8 +243,16 @@ export function coachFor(game, view, me, active) {
     }
     default:
       out.headline = prompt.text || 'Waiting';
+      out.brief = active && view.you && active.playerId !== view.you ? 'Respond with instants' : 'Nothing to do yet';
       out.detail = active && view.you && active.playerId !== view.you ? 'You can still use instants and abilities when you get the chance to respond.' : '';
   }
+  // The tips pane holds two short lines (owner, 21 Nov: never past the text area): longer ones are cut at a word with "…",
+  // and the full wording stays in `full` / `detail` for the tap.
+  out.full = out.headline;
+  if (out.headline.length > PANE) out.detail = [out.headline + '.', out.detail].filter(Boolean).join(' ');
+  out.headline = cap(out.headline);
+  out.brief = cap(out.brief);
+  if (!out.brief) out.brief = prompt.kind === 'vote' ? 'The table decides' : 'Nothing to do yet';
   if (!out.detail) {
     out.detail = prompt.kind === 'vote' ? 'The table decides together. Say yes if the play looks fair to you.'
       : view.status === 'complete' ? 'Start a new game from the main menu when you are ready.'

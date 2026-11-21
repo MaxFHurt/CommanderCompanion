@@ -89,11 +89,13 @@
 .game--gp .gp-key:active:not(:disabled) .gp-face { color: #fff; text-shadow: 0 0 calc(var(--u) * 5) var(--pal-glow), 0 0 calc(var(--u) * 2) var(--pal-secondary); }
 .gp-wordmark { display: flex; align-items: center; justify-content: center; line-height: 1; font-size: calc(var(--u) * 13.5); letter-spacing: 0.04em; pointer-events: none; }
 .game--gp .gp-title { display: flex; align-items: center; padding: 0 calc(var(--u) * 6); font-size: calc(var(--u) * 10); overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
-.game--gp .gp-handtitle { justify-content: center; font-size: calc(var(--u) * 7.2); }
+.game--gp .gp-handtitle { justify-content: center; padding: 0; font-size: calc(var(--u) * 7.2); }
 .game--gp .gp-label { display: flex; align-items: center; justify-content: center; font-size: calc(var(--u) * 7.6); text-transform: none; letter-spacing: 0.02em; pointer-events: none; }
 .game--gp .gp-label i { font-style: normal; color: var(--pal-secondary); margin-left: 0.3em; }
 .game--gp .gp-readout { font-size: calc(var(--u) * 7.6); text-transform: none; letter-spacing: 0.02em; }
-.game--gp .gp-readout .gp-face { background: url("../assets/skin/shared/inset-readout.webp") 0 0 / 100% 100% no-repeat; }
+/* No drawn boxes (owner, 21 Nov): every label sits straight on the frame's recess, fitted to it (board-view.js fitText). */
+.game--gp [data-fit] { display: block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game--gp .gp-face > .gp-fit { flex: 0 1 auto; padding: 0 calc(var(--u) * 3); }
 .game--gp .phase-box { border: 0; border-radius: 0; display: block; }
 .game--gp .phase-box b { font: inherit; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 .gp-chip { display: flex; align-items: center; pointer-events: none; }
@@ -106,13 +108,12 @@
 .gp-idtext > * { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
 .game--gp .seat__name { display: block; font: 700 calc(var(--u) * 10.8)/1.15 var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase; }
 .gp-cmd, .game--gp .seat__meta, .gp-zonesline { font: 700 calc(var(--u) * 7.6)/1.3 var(--font-ui); color: #f8f1ff; }
-.gp-zonesline { display: flex !important; gap: calc(var(--u) * 10); }
-.gp-zonesline em { margin-left: auto; font-style: normal; font-size: calc(var(--u) * 6.4); letter-spacing: 0.1em; text-transform: uppercase; color: var(--pal-secondary); }
+.gp-zonesline em { float: right; margin-left: calc(var(--u) * 6); font-style: normal; font-size: calc(var(--u) * 6.4); letter-spacing: 0.1em; text-transform: uppercase; color: var(--pal-secondary); }
 .game--gp .seat--side .gp-zonesline em { display: none; }
 .game--gp .gp-mini-life { font: 800 calc(var(--u) * 12)/1.1 var(--font-ui) !important; }
-.game--gp .seat.is-active .gp-id { box-shadow: 0 0 0 1px var(--pal-secondary), 0 0 calc(var(--u) * 8) var(--pal-glow); border-radius: calc(var(--u) * 4); }
-.game--gp .seat.is-waiting .gp-id { box-shadow: 0 0 0 1px var(--gold), 0 0 calc(var(--u) * 8) rgba(242, 193, 78, 0.6); border-radius: calc(var(--u) * 4); }
-.game--gp .seat.is-out .gp-id, .game--gp .seat.is-out .gp-portrait, .game--gp .seat.is-out .gp-die { opacity: 0.45; filter: grayscale(1); }
+.game--gp .seat.is-active .seat__name { color: #fff; text-shadow: 0 0 calc(var(--u) * 4) var(--pal-glow), 0 0 calc(var(--u) * 2) var(--pal-secondary); }
+.game--gp .seat.is-waiting .seat__name { color: var(--gold); }
+.game--gp .seat.is-out .gp-portrait, .game--gp .seat.is-out .gp-die { opacity: 0.45; filter: grayscale(1); }
 .game--gp .gp-seat:active .gp-face { filter: brightness(1.3); }
 
 /* Life: live text on the chosen die (data-dice). */
@@ -179,20 +180,29 @@
 .game--gp .gp-empty { display: flex; align-items: center; justify-content: center; pointer-events: none; }
 
 /* ── mana well: seven icon/count cells and the total ── */
-.gp-mana { pointer-events: none; }
-.gp-manalabel, .gp-manatotal { display: flex; align-items: center; font-size: calc(var(--u) * 8.7); pointer-events: none; }
-.gp-manatotal { justify-content: center; gap: 0.35em; }
-.gp-manacell { display: flex; align-items: center; justify-content: flex-start; gap: calc(var(--u) * 2); pointer-events: none; }
-.gp-manacell img { width: calc(var(--u) * 16); height: calc(var(--u) * 16); flex: none; }
-.gp-manacell b { font: 700 calc(var(--u) * 7.7)/1 var(--font-ui); color: #f8f1ff; }
-.gp-manacell.is-zero img { opacity: 0.5; }
-.gp-manacell.is-zero b { color: #8d86a3; }
+.gp-mana { display: flex; align-items: center; gap: calc(var(--u) * 4); padding: 0 calc(var(--u) * 9); pointer-events: none; }
+.gp-manalabel { flex: none; font-size: calc(var(--u) * 7.6); }
+.gp--tablet .gp-manalabel { font-size: calc(var(--u) * 6.6); }
+.gp-manacells { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: calc(var(--u) * 4); overflow: hidden; }
+.gp-manacell { flex: none; display: flex; align-items: center; gap: calc(var(--u) * 1.5); }
+.gp-manacell img { width: calc(var(--u) * 13); height: calc(var(--u) * 13); flex: none; }
+.gp--tablet .gp-manacell img { width: calc(var(--u) * 11); height: calc(var(--u) * 11); }
+.gp-manacell b { font: 700 calc(var(--u) * 8)/1 var(--font-ui); color: #f8f1ff; }
+.gp-manaempty { font: 600 calc(var(--u) * 7)/1 var(--font-ui); color: #8d86a3; }
+.gp-manatotal { flex: none; display: grid; place-items: center; min-width: calc(var(--u) * 15); height: calc(var(--u) * 15); padding: 0 calc(var(--u) * 2); border-radius: calc(var(--u) * 8);
+  border: 1px solid var(--pal-secondary); background: rgba(8, 5, 16, 0.85); }
+.gp-manatotal b { font: 800 calc(var(--u) * 8.5)/1 var(--font-ui); color: #fff; }
 
 /* ── coach line ── */
-.game--gp .tip { box-shadow: none; display: flex; align-items: center; gap: 0.4em; padding: 0 calc(var(--u) * 8); min-height: 0; border: 0; border-radius: 0;
-  background: url("../assets/skin/shared/inset-readout.webp") 0 0 / 100% 100% no-repeat; overflow: hidden; white-space: nowrap; text-align: left; }
-.game--gp .tip b { font: 700 calc(var(--u) * 8)/1 var(--font-ui); color: var(--pal-secondary); flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.game--gp .tip span { font: 500 calc(var(--u) * 7.4)/1 var(--font-ui); color: #ddd6f3; overflow: hidden; text-overflow: ellipsis; display: block; }
+/* Tips pane: the right-hand bar above the hand. Two short lines (headline, brief); tapping opens the full explanation. */
+.game--gp .tip { box-shadow: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  padding: 0 calc(var(--u) * 10); min-height: 0; border: 0; border-radius: 0; overflow: hidden; text-align: center; text-transform: none; letter-spacing: 0; }
+.game--gp .tip b, .game--gp .tip span { flex: none; max-width: 100%; text-shadow: 0 1px 0 #000; }
+.game--gp .tip .tip__head { font: 700 calc(var(--u) * 11.6)/1.12 var(--font-ui); color: var(--pal-secondary); text-transform: none; letter-spacing: 0; }
+.game--gp .tip .tip__brief { font: 500 calc(var(--u) * 10.6)/1.12 var(--font-ui); color: #e6e0f5; }
+.gp--tablet .tip { padding: 0 calc(var(--u) * 6); }
+.gp--tablet .tip .tip__head { font-size: calc(var(--u) * 8.8); }
+.gp--tablet .tip .tip__brief { font-size: calc(var(--u) * 8.2); }
 .game--gp .tip.is-quiet { visibility: hidden; }
 .game--gp .tip::before { display: none; }
 .game--gp .tip:active { filter: brightness(1.25); }
@@ -207,9 +217,10 @@
 .game--gp .gp-logrows .glog__row--turn { color: var(--gold); }
 .game--gp .gp-tool { font-size: calc(var(--u) * 8.5); }
 .gp--tablet .gp-tool { font-size: calc(var(--u) * 7.5); }
-.game--gp .gp-tool .gp-face { background: var(--sk-utility-normal) 0 0 / 100% 100% no-repeat; }
-.game--gp .gp-tool:active:not(:disabled) .gp-face { background-image: var(--sk-utility-pressed); }
-.game--gp .gp-tool:disabled .gp-face { background-image: var(--sk-utility-disabled); color: #8d86a3; }
+.game--gp .gp-tool--art .gp-face { background: var(--sk-utility-normal) 0 0 / 100% 100% no-repeat; }
+.game--gp .gp-tool--art:active:not(:disabled) .gp-face { background-image: var(--sk-utility-pressed); }
+.game--gp .gp-tool--art:disabled .gp-face { background-image: var(--sk-utility-disabled); }
+.game--gp .gp-tool:disabled .gp-face { color: #8d86a3; }
 .game--gp .gp-tool.is-hot .gp-face { color: var(--gold); }
 
 /* ── jewels: Draw / Attack / Next Phase / End Turn, only when legal ── */
@@ -247,7 +258,7 @@
 .gp-sub { font: 700 calc(var(--u) * 8.5)/1.3 var(--font-ui); color: #f8f1ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .gp-lib { display: flex; align-items: center; justify-content: center; font-size: calc(var(--u) * 8.3); text-transform: none; pointer-events: none; z-index: 1; }
 .game--gp .gp-zone { font-size: calc(var(--u) * 7.2); text-transform: none; letter-spacing: 0.02em; }
-.game--gp .gp-zone.is-playable .gp-face { box-shadow: 0 0 0 1px var(--good), 0 0 calc(var(--u) * 6) rgba(69, 212, 131, 0.75); }
+.game--gp .gp-zone.is-playable .gp-face { color: #b9ffd6; text-shadow: 0 0 calc(var(--u) * 4) rgba(69, 212, 131, 0.95); }
 
 /* The pass curtain covers the whole stage. */
 .game--gp .curtain { z-index: 50; }
