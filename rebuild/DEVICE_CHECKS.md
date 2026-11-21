@@ -181,6 +181,13 @@ S4. ☐ Watch the arms during overhead smash, claw swipe, a ledge grab and a her
 S5. ☐ Watch two lizard encounters for bites and tail contacts. Marsh Stalker and Frost Drake plant their front and rear feet, Ember Raptor stays on its rear legs, and Ironback plants its knuckles. Ogre, orc and troll encounters open with a punch and a kick. The back plates follow the body through each move.
 S6. ☐ Let the encounter finish. The battlefield restores underneath the hero’s note. Refresh to verify the note stays, then dismiss it or start a new encounter to clear it.
 
+
+## Game screen fit and alignment (owner, 21 Nov)
+V46. ☐ Game screen, iPhone (notch left and right) and iPad: Grave / Exile / Tokens / Attach., Board / Table, the mana well, the tips pane and the hand title sit centred on their metal housings; Stack, Undo and Host Tools on their own key art.
+V47. ☐ Top bar: no boxes behind the players' names and counts; long names or commander names shrink a little, then end in "…", never past the edge of their window; tapping a name's seat keeps the full name reachable (long press shows it).
+V48. ☐ Tips pane (right of the mana well): one or two short lines that always fit; tap it → the full explanation, the tip and what you can do now.
+V49. ☐ Mana well: only the colours you have, with their counts, and the total in a ring.
+
 Reply with the numbers that failed and a screenshot.
 
 S7. ☐ Let Monster Siege finish. Both characters and the speech bubble remain on screen. Refresh retains the scene, and tapping the battlefield or starting a new encounter clears it.

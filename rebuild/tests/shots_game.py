@@ -87,6 +87,17 @@ PLATES = {
     'iPad': {'home': (86.35, 14.5), 'card-id': (179.25, 14.5), 'chat': (263.65, 14.8), 'help': (686.05, 14.5), 'settings': (771.3, 14.5), 'profile': (863.95, 14.5), 'wordmark': (475, 35.5)},
 }
 VB = {'iPhone': (1160, 535), 'iPad': (950, 610)}
+# Bottom chassis housings measured in the frame art (map units): the two zone bars (two keys each), the Board / Table key
+# housings under the log, the mana well and tips pane bars above the hand, the hand window's centre line.
+HOUSINGS = {
+    'iPhone': {'graveyard': (97.7, 466.5, 148.25, 487.5), 'tokens': (148.25, 466.5, 198.8, 487.5), 'exile': (97.7, 492, 148.25, 514.2), 'attachments': (148.25, 492, 198.8, 514.2),
+               'board': (1023.7, 317.8, 1079.3, 338.3), 'table': (1090.1, 317.8, 1146.4, 338.3), 'mana': (314.1, 369.6, 500.5, 399.1), 'tip': (634, 369, 816.3, 398.5), 'hand': (252.2, 413, 890.2, 423)},
+    'iPad': {'graveyard': (97.7, 541.5, 148.25, 562.5), 'tokens': (148.25, 541.5, 198.8, 562.5), 'exile': (97.7, 567, 148.25, 589.2), 'attachments': (148.25, 567, 198.8, 589.2),
+             'board': (796, 392.8, 859.1, 413.3), 'table': (871, 392.8, 934.7, 413.3), 'mana': (285.8, 444.6, 414.8, 474.1), 'tip': (508, 444, 634.7, 473.6), 'hand': (242.6, 488, 686.4, 498)},
+}
+# The seat windows of the top bar in the frame art (map units): text on a seat must stay inside its window.
+SEAT_WINDOWS = {'iPhone': {'left': (46, 60, 306, 120), 'centre': (337, 52, 789, 124), 'right': (818, 60, 1115, 119)},
+                'iPad': {'left': (44, 60, 261, 120), 'centre': (284, 52, 617, 123), 'right': (643, 60, 905, 119)}}
 
 # Every visible control on the stage: [name, kind, left, top, right, bottom]. Cards are their own targets (sized by the
 # card) and sit inside scrolling areas, so they are left out of the size check but kept in the overlap check.
@@ -166,8 +177,10 @@ async def layout_checks(page, device):
       const cells = [...document.querySelectorAll('.gp-manacell')].map(c => [c.dataset.mana, Number(c.dataset.count), c.querySelector('b').textContent]);
       return { cells, fixed: me.mana.fixed, total: me.mana.total, shown: document.querySelector('.gp-manatotal b').textContent }; }""")
     fixed = mana['fixed']
-    ok = len(mana['cells']) == 7 and all(c[1] == int(c[2]) for c in mana['cells']) and all(c[1] == int(fixed.get(c[0], 0) or 0) for c in mana['cells'][:6]) and mana['shown'] == str(mana['total'])
-    check(f'{device}: mana well shows 7 live cells and the total', ok, str(mana))
+    want = {k: int(v) for k, v in fixed.items() if int(v or 0) > 0}
+    got = {c[0]: c[1] for c in mana['cells'] if c[0] != 'flex'}
+    ok = got == want and all(c[1] == int(c[2]) and c[1] > 0 for c in mana['cells']) and mana['shown'] == str(mana['total'])
+    check(f'{device}: mana well shows the live pool (like mana together, empty colours hidden) and the total', ok, str(mana))
     lights = await page.evaluate("""() => [...document.querySelectorAll('.game--gp .life-light')].map(e => [e.dataset.light, getComputedStyle(e.querySelector('.gp-lens')).backgroundImage.split('/').pop()])""")
     levels = sorted(l[0] for l in lights)
     check(f'{device}: status lights green / yellow / red with matching lens art', levels == ['green', 'green', 'red', 'yellow'] and all(l[1].startswith('status-' + l[0]) for l in lights), str(lights))
@@ -227,6 +240,58 @@ async def align_checks(page, device):
     check(f'{device}: jewel art boxes drawn', len(art) >= 2 and all(a[2] > 40 for a in art), str(art))
 
 
+async def chassis_checks(page, device):
+    """Owner, 21 Nov: bottom controls centred in their frame housings (2 px); top-bar text never crosses its zone; the tips
+    pane's lines always fit (shrunk if needed, never cut) inside the pane."""
+    r = await page.evaluate("""() => {
+      const st = document.querySelector('.gp-stage').getBoundingClientRect();
+      const text = el => { const g = document.createRange(); g.selectNodeContents(el); const b = g.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
+      const box = el => { const b = el.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; };
+      const ctl = {};
+      for (const z of ['graveyard', 'tokens', 'exile', 'attachments']) ctl[z] = text(document.querySelector(`.gp-zone[data-zone="${z}"] .gp-fit`));
+      for (const a of ['board', 'table']) ctl[a] = text(document.querySelector(`.gp-tool[data-act="${a}"] .gp-fit`));
+      ctl.mana = box(document.querySelector('.gp-mana'));
+      ctl.hand = text(document.querySelector('.gp-handtitle'));
+      const tip = document.querySelector('.game--gp .tip');
+      const lines = [...tip.querySelectorAll('[data-fit]')].map(e => ({ t: e.textContent, cut: e.scrollWidth > e.clientWidth + 0.5, r: text(e), fs: parseFloat(getComputedStyle(e).fontSize) }));
+      const seats = [...document.querySelectorAll('.game--gp .seat')].map(s => ({ side: s.dataset.side, lines: [...s.querySelectorAll('.gp-idtext [data-fit]')].map(e => ({ t: e.textContent.trim(),
+        b: box(e), cut: e.scrollWidth > e.clientWidth + 0.5, clip: getComputedStyle(e).overflow === 'hidden' && getComputedStyle(e).textOverflow === 'ellipsis', title: !!e.title })) }));
+      const boxes = document.querySelectorAll('.game--gp .gp-inset.gp-id, .game--gp .gp-idtext .gp-inset').length;
+      const nav = ['home', 'card-id', 'chat', 'help', 'settings', 'profile'].map(a => { const e = document.querySelector(`.game--gp [data-act="${a}"] .gp-fit`), f = e.parentElement;
+        return [a, e.scrollWidth > e.clientWidth + 0.5, ...box(e), ...box(f)]; });
+      return { st: [st.left, st.top, st.width, st.height], ctl, tip: [box(tip), lines], seats, boxes, nav };
+    }""")
+    sx, sy = r['st'][2] / VB[device][0], r['st'][3] / VB[device][1]
+    px = lambda x, y: (r['st'][0] + x * sx, r['st'][1] + y * sy)
+    H = HOUSINGS[device]
+    off = {}
+    for k, b in r['ctl'].items():
+        x0, y0, x1, y1 = H['tip' if k == 'tip' else k]
+        cx, cy = px((x0 + x1) / 2, (y0 + y1) / 2)
+        off[k] = (round((b[0] + b[2]) / 2 - cx, 1), round((b[1] + b[3]) / 2 - cy, 1))
+    bad = {k: v for k, v in off.items() if abs(v[0]) > 2 or abs(v[1]) > 2}
+    check(f'{device}: bottom controls centred in their frame housings (2 px)', not bad, str(bad))
+    tipbox, lines = r['tip']
+    tx0, ty0, tx1, ty1 = H['tip']; (a0, b0), (a1, b1) = px(tx0, ty0), px(tx1, ty1)
+    inside = all(l['r'][0] >= a0 - 0.5 and l['r'][2] <= a1 + 0.5 and l['r'][1] >= b0 - 0.5 and l['r'][3] <= b1 + 0.5 for l in lines)
+    check(f'{device}: tips pane lines fit the pane, uncut ({len(lines)} lines)', lines and len(lines) <= 2 and inside and not any(l['cut'] for l in lines), str(lines))
+    W = SEAT_WINDOWS[device]
+    out = []
+    for seat in r['seats']:
+        w = W.get(seat['side'])
+        if not w:
+            continue
+        (wx0, wy0), (wx1, wy1) = px(w[0], w[1]), px(w[2], w[3])
+        for l in seat['lines']:
+            b = l['b']
+            if b[0] < wx0 - 0.5 or b[2] > wx1 + 0.5 or b[1] < wy0 - 0.5 or b[3] > wy1 + 0.5 or (l['cut'] and not (l['clip'] and l['title'])):
+                out.append((seat['side'], l['t'], [round(v) for v in b]))
+    check(f'{device}: top-bar seat text stays inside its window (shrunk, then "…" with the full value in its title)', not out, str(out[:6]))
+    navbad = [n[0] for n in r['nav'] if n[1] or n[2] < n[6] - 0.5 or n[4] > n[8] + 0.5]
+    check(f'{device}: nav labels fit their plates', not navbad, str(navbad))
+    check(f'{device}: no drawn boxes behind seat readouts', r['boxes'] == 0, str(r['boxes']))
+
+
 async def safe_checks(page, device, side):
     """Simulated iPhone safe area (env() is 0 in Chromium): nothing to tap or read may leave the safe rect."""
     await page.evaluate("""() => { const s = document.documentElement.style; s.setProperty('--safe-l', '47px'); s.setProperty('--safe-r', '47px'); s.setProperty('--safe-b', '21px'); }""")
@@ -266,6 +331,7 @@ async def main():
                     await layout_checks(page, device)
                     await board_checks(page, device, 'crowded')
                     await align_checks(page, device)
+                    await chassis_checks(page, device)
             await page.evaluate("document.documentElement.dataset.palette = 'amethyst'; document.documentElement.dataset.dice = 'amethyst'")
             if device == 'iPhone':
                 for side in ('left', 'right'):
@@ -274,12 +340,14 @@ async def main():
                     await page.wait_for_timeout(300)
                     await page.screenshot(path=os.path.join(OUT, f'iPhone-game-notch-{side}.png'))
                     await page.evaluate("document.querySelectorAll('#sim-notch, body > div[style*=\"bottom:8px\"]').forEach(e => e.remove())")
+                await page.evaluate("() => { const s = document.documentElement.style; for (const k of ['--safe-l', '--safe-r', '--safe-b']) s.removeProperty(k); }")
             await page.evaluate(EDITOR)
             for name, js in SCENARIOS.items():
                 await page.evaluate(js)
                 await page.wait_for_timeout(400); await tap_curtain(page); await page.wait_for_timeout(300)
                 await page.screenshot(path=os.path.join(OUT, f'{device}-game-{name}.png'))
                 await board_checks(page, device, name)
+                await chassis_checks(page, device)
             # a game prompt may be up after the edits: put it aside (it reopens from its jewel)
             await page.evaluate("async () => (await import('./src/ui/modal.js')).closeAllModals()"); await page.wait_for_timeout(200)
             pile = page.locator('.zone--lands .card[data-act="pile"]').first
