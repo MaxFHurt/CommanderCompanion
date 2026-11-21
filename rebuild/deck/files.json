@@ -2,7 +2,8 @@
  "_": "The app\u2019s scripts in load order (0.9.3 flattening). index.html loads data, lists, engine and ui; work.js loads data, lists and engine; the tests read this list.",
  "data": [
   "data.js",
-  "lists.js"
+  "lists.js",
+  "plan-facts.js"
  ],
  "engine": [
   "engine/core.js",
@@ -10,6 +11,7 @@
   "engine/reading.js",
   "engine/rules.js",
   "engine/functions.js",
+  "engine/plans.js",
   "engine/score.js",
   "engine/library.js",
   "engine/upgrades.js",
