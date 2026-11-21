@@ -17,23 +17,23 @@ if (mode === 'precon') {
   const m = f => ab((s['a' + f] / s.n).toFixed(1), (s['b' + f] / s.n).toFixed(1));
   console.log('| **mean** | ' + m('score') + ' | ' + m('power') + ' | ' + m('quality') + ' | ' + m('synergy') + ' | ' + m('mana') + ' | ' + m('apexScore') + ' | ' + ab((s.ap / s.n).toFixed(1), (s.bp / s.n).toFixed(1)) + ' | | |');
 } else {
-  const A = J('gen-before.json'), B = J('gen-after.json');
-  console.log('| Deck (commander, tier, theme) | Score | Power | Card quality | Synergy | Mana | Swaps by finish | Picks left at its tier | Lands | Score unfinished, new scale |');
-  console.log('|---|---|---|---|---|---|---|---|---|---|');
+  const A = J('gen-before.json'), B = J('gen-after.json'), V = fs.existsSync(P + '/gen-var.json') ? J('gen-var.json') : {};
+  console.log('| Deck (commander, tier, theme) | Score | Power | Card quality | Synergy | Mana | Swaps by finish | Picks left at its tier | Lands | Score unfinished, new scale | Variant: score / power / quality |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   const G = {};
   for (const k of Object.keys(B)) {
     const a = A[k] && A[k].gen, b = B[k] && B[k].fin, g = B[k] && B[k].gen, t = k.split('|')[1];
     if (!a || !b) { console.log('| ' + k + ' | error ' + JSON.stringify((A[k] || {}).err || (B[k] || {}).err || '').slice(0, 80) + ' |'); continue; }
-    console.log('| ' + k.replace(/\|/g, ' · ') + ' | ' + ab(a.score, b.score) + ' | ' + ab(a.power, b.power) + ' | ' + ab(a.quality, b.quality) + ' | ' + ab(a.synergy, b.synergy) + ' | ' + ab(a.mana, b.mana) + ' | ' + B[k].swapped + ' | ' + ab(a.picks && a.picks[t], b.picks && b.picks[t]) + ' | ' + ab(a.lands, b.lands) + ' | ' + g.score + ' |');
+    console.log('| ' + k.replace(/\|/g, ' · ') + ' | ' + ab(a.score, b.score) + ' | ' + ab(a.power, b.power) + ' | ' + ab(a.quality, b.quality) + ' | ' + ab(a.synergy, b.synergy) + ' | ' + ab(a.mana, b.mana) + ' | ' + B[k].swapped + ' | ' + ab(a.picks && a.picks[t], b.picks && b.picks[t]) + ' | ' + ab(a.lands, b.lands) + ' | ' + g.score + ' | ' + (V[k] && V[k].fin ? V[k].fin.score + ' / ' + V[k].fin.power + ' / ' + V[k].fin.quality : '—') + ' |');
     const gk = t + ' · ' + k.split('|')[2], o = G[gk] || (G[gk] = {n: 0});
     o.n++;
     for (const f of ['score', 'power', 'quality', 'synergy', 'mana', 'lands']) { o['a' + f] = (o['a' + f] || 0) + a[f]; o['b' + f] = (o['b' + f] || 0) + b[f]; }
-    o.sw = (o.sw || 0) + B[k].swapped; o.ap = (o.ap || 0) + a.picks[t]; o.bp = (o.bp || 0) + b.picks[t]; o.g = (o.g || 0) + g.score;
+    o.sw = (o.sw || 0) + B[k].swapped; o.ap = (o.ap || 0) + a.picks[t]; o.bp = (o.bp || 0) + b.picks[t]; o.g = (o.g || 0) + g.score; if (V[k] && V[k].fin) { o.vn = (o.vn || 0) + 1; o.vs = (o.vs || 0) + V[k].fin.score; o.vp = (o.vp || 0) + V[k].fin.power; o.vq = (o.vq || 0) + V[k].fin.quality; }
   }
-  console.log('\n| Tier · theme (mean of ' + 'decks) | Score | Power | Card quality | Synergy | Mana | Swaps by finish | Picks left | Lands | Unfinished, new scale |');
-  console.log('|---|---|---|---|---|---|---|---|---|---|');
+  console.log('\n| Tier · theme (mean of ' + 'decks) | Score | Power | Card quality | Synergy | Mana | Swaps by finish | Picks left | Lands | Unfinished, new scale | Variant score / power / quality |');
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   for (const gk of Object.keys(G).sort()) {
     const o = G[gk], m = f => ab((o['a' + f] / o.n).toFixed(1), (o['b' + f] / o.n).toFixed(1));
-    console.log('| ' + gk + ' (' + o.n + ') | ' + m('score') + ' | ' + m('power') + ' | ' + m('quality') + ' | ' + m('synergy') + ' | ' + m('mana') + ' | ' + (o.sw / o.n).toFixed(1) + ' | ' + ab((o.ap / o.n).toFixed(1), (o.bp / o.n).toFixed(1)) + ' | ' + m('lands') + ' | ' + (o.g / o.n).toFixed(1) + ' |');
+    console.log('| ' + gk + ' (' + o.n + ') | ' + m('score') + ' | ' + m('power') + ' | ' + m('quality') + ' | ' + m('synergy') + ' | ' + m('mana') + ' | ' + (o.sw / o.n).toFixed(1) + ' | ' + ab((o.ap / o.n).toFixed(1), (o.bp / o.n).toFixed(1)) + ' | ' + m('lands') + ' | ' + (o.g / o.n).toFixed(1) + ' | ' + (o.vn ? (o.vs / o.vn).toFixed(1) + ' / ' + (o.vp / o.vn).toFixed(1) + ' / ' + (o.vq / o.vn).toFixed(1) : '—') + ' |');
   }
 }

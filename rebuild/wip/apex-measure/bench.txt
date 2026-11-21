@@ -4,9 +4,6 @@ after test budget: MEAN weighted (3,6) agreement@5 0.135 row@5 0.170 @10 -0.016 
 after tuneall apex: MEAN weighted (3,6) agreement@5 0.043 row@5 0.105 @10 -0.091 MEAN agreement@5 0.011 row@5 0.076 gain@5 2.09 @10 -0.122 
 after tuneall mid: MEAN weighted (3,6) agreement@5 0.191 row@5 0.194 @10 0.078 MEAN agreement@5 0.163 row@5 0.165 gain@5 1.64 @10 0.051 
 after tuneall budget: MEAN weighted (3,6) agreement@5 0.156 row@5 0.187 @10 0.033 MEAN agreement@5 0.132 row@5 0.157 gain@5 1.38 @10 0.01 
-before test apex: MEAN weighted (3,6) agreement@5 -0.066 row@5 0.114 @10 -0.163 MEAN agreement@5 -0.078 row@5 0.102 gain@5 1.66 @10 -0.176 
-before test mid: MEAN weighted (3,6) agreement@5 0.259 row@5 0.263 @10 0.088 MEAN agreement@5 0.245 row@5 0.25 gain@5 1.07 @10 0.075 
-before test budget: MEAN weighted (3,6) agreement@5 0.201 row@5 0.233 @10 0.040 MEAN agreement@5 0.188 row@5 0.218 gain@5 0.96 @10 0.03 
-before tuneall apex: MEAN weighted (3,6) agreement@5 0.050 row@5 0.103 @10 -0.083 MEAN agreement@5 0.02 row@5 0.074 gain@5 1.82 @10 -0.112 
-before tuneall mid: MEAN weighted (3,6) agreement@5 0.215 row@5 0.221 @10 0.077 MEAN agreement@5 0.187 row@5 0.193 gain@5 1.44 @10 0.051 
-before tuneall budget: MEAN weighted (3,6) agreement@5 0.177 row@5 0.209 @10 0.042 MEAN agreement@5 0.156 row@5 0.182 gain@5 1.2 @10 0.019 
+after holdout apex: MEAN weighted (3,6) agreement@5 0.075 row@5 0.181 @10 -0.014 MEAN agreement@5 0.037 row@5 0.151 gain@5 1.93 @10 -0.051 
+after holdout mid: MEAN weighted (3,6) agreement@5 0.299 row@5 0.311 @10 0.190 MEAN agreement@5 0.27 row@5 0.28 gain@5 1.39 @10 0.164 
+after holdout budget: MEAN weighted (3,6) agreement@5 0.266 row@5 0.284 @10 0.144 MEAN agreement@5 0.238 row@5 0.254 gain@5 1.11 @10 0.116 

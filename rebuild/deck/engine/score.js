@@ -437,6 +437,16 @@ function evaluateDeck(d, opt) {
       if (TB != null && TB > 0) {
         qTier = {tier: d.tier, pct: Math.round(Math.max(0, Math.min(100, (100 * pw) / TB)))};
         why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
+        // UP.strTierQ (variant for the owner, 16 Nov; off): a Budget or Mid deck's card quality is measured against the strongest
+        // build at its own price level (100 = that build), not against the Apex build
+        if (UP.strTierQ) {
+          const tq = (100 * pw) / TB;
+          qExact = Math.max(0, Math.min(100, tq));
+          qOver = Math.max(0, tq - 100);
+          qPct = Math.round(qExact);
+          why.quality = qPct + '% of the way from replacement level to the strongest build with every card under $' + (d.tier === 'budget' ? 3 : 12) + ' (card strength)';
+          qTier = null;
+        }
       }
     }
   }

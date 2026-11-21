@@ -1,0 +1,22 @@
+== check.sh all live (1759 s)
+bench tuneall apex:  MEAN weighted (3,6) agreement@5 0.043 row@5 0.105 @10 -0.091 MEAN agreement@5 0.011 row@5 0.076 gain@5 2.09 @10 -0.122 
+bench tuneall mid:  MEAN weighted (3,6) agreement@5 0.191 row@5 0.194 @10 0.078 MEAN agreement@5 0.163 row@5 0.165 gain@5 1.64 @10 0.051 
+bench tuneall budget:  MEAN weighted (3,6) agreement@5 0.156 row@5 0.187 @10 0.033 MEAN agreement@5 0.132 row@5 0.157 gain@5 1.38 @10 0.01 
+bench test apex:  MEAN weighted (3,6) agreement@5 -0.107 row@5 0.103 @10 -0.221 MEAN agreement@5 -0.123 row@5 0.092 gain@5 1.94 @10 -0.239 
+bench test mid:  MEAN weighted (3,6) agreement@5 0.192 row@5 0.193 @10 0.075 MEAN agreement@5 0.178 row@5 0.18 gain@5 1.19 @10 0.061 
+bench test budget:  MEAN weighted (3,6) agreement@5 0.135 row@5 0.170 @10 -0.016 MEAN agreement@5 0.121 row@5 0.155 gain@5 1.05 @10 -0.027 
+bench holdout apex:  MEAN weighted (3,6) agreement@5 0.075 row@5 0.181 @10 -0.014 MEAN agreement@5 0.037 row@5 0.151 gain@5 1.93 @10 -0.051 
+bench holdout mid:  MEAN weighted (3,6) agreement@5 0.299 row@5 0.311 @10 0.190 MEAN agreement@5 0.27 row@5 0.28 gain@5 1.39 @10 0.164 
+bench holdout budget:  MEAN weighted (3,6) agreement@5 0.266 row@5 0.284 @10 0.144 MEAN agreement@5 0.238 row@5 0.254 gain@5 1.11 @10 0.116 
+semantics:    61 passed, 2 failed
+claims:        UNRECOGNISED 128
+accept:       39 passed, 0 failed, 1 not applicable
+accept edh:   39 passed, 0 failed, 1 not applicable
+scheck:       TOTAL {"paths0":138,"paths":134,"opts":238,"bad":2,"dropped":19,"ms":40497,"refilled":0,"themed":2}
+cisweep:      { decks: 26, cardsChecked: 4841, outsideIdentity: 0 }
+edge throws:  0
+genstrong:    MEAN strong-deck typicality: generated 0.407 | median strong deck 0.358 | precon 0.367 | strong-core coverage 0.72 | gen beats median strong deck in 11/13 | GC 2.9 vs 1.7 | tutors 1.9 vs 2.0 | interaction 12.7 vs 11.0 | mv 3.30 vs 3.44 | score 92.9
+tourney:      MEAN match 59% | core 58% | score raised by missed core cards (Build 117 decks) 33/80 | app mid 0% | best possible Mid 0% | app mid, no polish 0% | mid match 34%
+UI suite:     build 218 | 148 passed, 2 failed in 601 s (3 groups side by side; planned 430 / 430 / 430 s)
+[group 2] FAIL UI-TAB-01 Build 101: the Upgrades tab counts the cards the page lists to replace (the same N as "Upgrade 1 of N"), not only the deck’s own price level — {"tab":1
+[group 2] FAIL UI-B164-01 The strip and meter show deck power as a share of this deck’s Apex build (Budget and Mid builds marked the same way); below a level, what keeps it there
