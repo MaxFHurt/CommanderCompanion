@@ -212,8 +212,13 @@ function baseScore(c, d, ctx) {
   // entering, life gain, card draw … — library.js IX). Said as a reason only: adding it to the value (0.1 to 1 per card, capped at
   // 2 or 6) never raised agreement with the expert lists and at 0.3+ lowered it (8 Nov: tuneall 0.280 → 0.277 / 0.265).
   if (d.cards && d.cards.length) {
-    const n = ixDeckMatches(d, c);
-    if (n >= 3) why.push('Works with ' + n + ' cards in the deck');
+    // roadmap 6b: the deck's game-plan chain the card joins, when there is one (text only, like the count it replaces)
+    const cw = typeof chainWhy === 'function' ? chainWhy(d, c) : null;
+    if (cw) why.push(cw);
+    else {
+      const n = ixDeckMatches(d, c);
+      if (n >= 3) why.push('Works with ' + n + ' cards in the deck');
+    }
   }
   // engine v2 (UP.syn): the card makes what the commander uses, or uses what it makes (engine/functions.js)
   if (UP.syn && ctx.cmd && d.format === 'commander') {

@@ -25,7 +25,9 @@ const fp = (() => {
   const h = crypto.createHash('sha256');
   h.update(fs.readFileSync(cardsFile)); h.update(fs.readFileSync(fileURLToPath(import.meta.url)));
   for (const dir of ['engine', 'data']) for (const f of fs.readdirSync(path.join(SRC, dir)).filter(f => f.endsWith('.js')).sort()) h.update(f + fs.readFileSync(path.join(SRC, dir, f)));
-  for (const f of ['engine/rules.js', 'engine/core.js', 'engine/plans.js', 'files.json']) h.update(fs.readFileSync(path.join(DECK, f)));
+  for (const f of ['engine/rules.js', 'engine/core.js', 'files.json']) h.update(fs.readFileSync(path.join(DECK, f)));
+  // of engine/plans.js only the chains' E and P patterns (which facts are kept), so its wording can change without a rerun
+  h.update((fs.readFileSync(path.join(DECK, 'engine/plans.js'), 'utf8').match(/\b[EP]: \/[^,]*\//g) || []).join('\n'));
   return h.digest('hex').slice(0, 12);
 })();
 if (!flags.has('--force') && fs.existsSync(OUT) && fs.readFileSync(OUT, 'utf8').slice(0, 200).includes('facts ' + fp)) { console.log('plan-facts.js: up to date (' + fp + ')'); process.exit(0); }

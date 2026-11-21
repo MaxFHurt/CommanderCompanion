@@ -1253,9 +1253,27 @@ function worksWith(d, c, max) {
   if (!d || !c) return [];
   const me = ixOf(c),
     out = [];
+  // roadmap 6b: the deck's game-plan chains first ("Re-cast for enters and cast triggers: has an enters trigger"), then the
+  // older text pairs (IX) for what the chains do not cover
+  const by = new Map();
+  for (const f of typeof chainFit === 'function' ? chainFit(d, c) : []) {
+    const ch = CHAINS.find(x => x.id === f.id),
+      // what the other card does in that chain
+      label = (f.side === 'E' ? ch.pay : ch.en) + ' (' + f.label.toLowerCase() + ')';
+    for (const n of f.with) {
+      const x = find(n);
+      if (!x || x._n === c._n) continue;
+      if (!by.has(x.n)) by.set(x.n, []);
+      if (!by.get(x.n).includes(label)) by.get(x.n).push(label);
+    }
+  }
+  for (const [n, why] of by) {
+    out.push({n, why});
+    if (out.length >= (max || 8)) return out;
+  }
   for (const e of d.cards || []) {
     const x = find(e.n);
-    if (!x || x._n === c._n) continue;
+    if (!x || x._n === c._n || by.has(x.n)) continue;
     const ix = ixOf(x),
       why = IX.filter(r => (me.gives.has(r.k) && ix.wants.has(r.k)) || (ix.gives.has(r.k) && me.wants.has(r.k))).map(r => r.label);
     if (why.length) out.push({n: x.n, why});

@@ -1,3 +1,62 @@
+// Game plan read-out (roadmap 6b, batch A; in Build stats): the deck's enabler -> payoff chains (engine/plans.js planOf), read
+// from what the cards do in a game. Shown only: no score or pick uses it.
+function chainsHtml(d) {
+  if (!d.cards || d.cards.length < 20 || typeof planOf !== 'function') return '';
+  let P;
+  try {
+    P = planOf(d);
+  } catch (e) {
+    return '';
+  }
+  const L = P.chains,
+    chip = n => '<button class="chip" data-act="card" data-n="' + esc(n) + '">' + esc(n.split(' // ')[0]) + '</button>',
+    list = (a, k) => a.slice(0, k).map(chip).join('') + (a.length > k ? '<span class="note">+' + (a.length - k) + ' more</span>' : '');
+  let h =
+    '<details class="grp" id="plan-chains"' +
+    (S.chainsOpen ? ' open' : '') +
+    '><summary class="lab" style="cursor:pointer">Game plan' +
+    (L.length ? ' · ' + esc(L.slice(0, 3).map(x => x.label).join(' · ')) : '') +
+    '</summary>';
+  if (!L.length)
+    h += '<p class="note" style="margin:0">No chain found yet: no group of cards here sets off another group’s triggers.</p>';
+  for (const x of L) {
+    const ch = x.ch;
+    h +=
+      '<div class="grp chain" data-chain="' +
+      x.id +
+      '"><span class="lab">' +
+      esc(x.label) +
+      '</span><p class="note" style="margin:0"><b>' +
+      x.en.length +
+      (x.en.length === 1 ? ' enabler' : ' enablers') +
+      '</b> (each ' +
+      esc(ch.en) +
+      ') → <b>' +
+      x.pay.length +
+      (x.pay.length === 1 ? ' payoff' : ' payoffs') +
+      '</b> (each ' +
+      esc(ch.pay) +
+      ')' +
+      (x.thin ? '. <b>Thin: more ' + x.thin + ' would help.</b>' : '.') +
+      '</p><div class="row">' +
+      list(x.en, 8) +
+      '</div><div class="row"><span class="note">→</span>' +
+      list(x.pay, 8) +
+      '</div></div>';
+  }
+  const c = P.cover;
+  if (c.cards)
+    h +=
+      '<p class="note" style="margin:0">Read from what the cards do in a game: the game’s rules engine read ' +
+      c.e +
+      ' of the ' +
+      c.cards +
+      ' spells, the Deck Builder’s own reader helped with ' +
+      c.r +
+      (c.none ? ', and ' + c.none + ' set off nothing here' : '') +
+      '.</p>';
+  return h + '</details>';
+}
 // Visible practice games (Build 136, roadmap): opening hands, mulligans and the first turns of the same practice games the deck
 // score plays (practiceGames, a step-by-step copy of simulate). Worked out only while the panel is open.
 const PRAC = {k: '', v: null};
@@ -432,6 +491,7 @@ function upPanel(d, A, mode) {
             .join('') +
           '</div></div>';
     }
+    h += chainsHtml(d); // roadmap 6b: the deck's game-plan chains
     h += practiceHtml(d); // Build 136: visible practice games
     const mx = Math.max(1, ...A.curve);
     h +=

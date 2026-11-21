@@ -166,6 +166,12 @@ V43. ☐ iPad Build sidebar and iPhone Build tab: fields are square wells, Regen
 V44. ☐ iPhone upright (390 wide): header keys four to a row with Home fully readable; tabs wrap to two rows; no sideways scroll.
 V45. ☐ Choose Ember, then Gold: frames, keys and the lit key take the palette colour (no leftover purple), under Amethyst they match the V3 masters.
 
+## Game plan read-out (Deck Builder, Build stats; roadmap 6b batch A)
+P1. ☐ Open a built Commander deck → Build stats → "Game plan" → expect it closed, its title listing up to three plans (e.g. "Sacrifice into death triggers").
+P2. ☐ Open it on iPhone (upright and sideways) and iPad → expect each plan with its enablers → payoffs line and two rows of card chips that wrap, no sideways scroll.
+P3. ☐ Tap a card chip in the read-out → expect that card's window to open; its "Works with" names cards with the plan in brackets.
+P4. ☐ Swap a card on Upgrades and come back → expect the read-out to follow the new list, and the deck score and upgrade picks to be the same as before this build.
+
 ## Monster Siege (/test)
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
