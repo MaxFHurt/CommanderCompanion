@@ -176,3 +176,5 @@ S5. ☐ Watch two lizard encounters for bites and tail contacts. Marsh Stalker a
 S6. ☐ Let the encounter finish. The battlefield restores underneath the hero’s note. Refresh to verify the note stays, then dismiss it or start a new encounter to clear it.
 
 Reply with the numbers that failed and a screenshot.
+
+S7. ☐ Let Monster Siege finish. Both characters and the speech bubble remain on screen. Refresh retains the scene, and tapping the battlefield or starting a new encounter clears it.

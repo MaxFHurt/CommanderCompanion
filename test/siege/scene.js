@@ -5,10 +5,6 @@ const ctx = scene.getContext('2d');
 const status = document.querySelector('#status');
 const startButton = document.querySelector('#start');
 const pauseButton = document.querySelector('#pause');
-const notePanel = document.querySelector('#hero-note');
-const noteAuthor = document.querySelector('#note-author');
-const noteMessage = document.querySelector('#note-message');
-const dismissNote = document.querySelector('#dismiss-note');
 const NOTE_KEY = 'cc-siege-hero-note';
 const W = scene.width, H = scene.height, FLOOR = 913;
 const params = new URLSearchParams(location.search);
@@ -52,7 +48,7 @@ const loadImage = src => new Promise((resolve,reject)=>{
   image.src=src;
 });
 
-let background, targets, actors, current, startTime=0, pausedAt=null, frame=0, history=[];
+let background, targets, actors, current, startTime=0, pausedAt=null, holding=false, frame=0, history=[];
 try{history=JSON.parse(localStorage.getItem('cc-siege-history-v3')||'[]');}catch{}
 const reduced=matchMedia('(prefers-reduced-motion: reduce)');
 const monsters=Object.keys(SIEGE_ART).filter(id=>!SIEGE_ART[id].hero);
@@ -459,7 +455,8 @@ function bubble(e,t){
 }
 function paint(t,e=current){
   ctx.drawImage(background,0,0,W,H);
-  if(!e||t<0||t>=e.end)return;
+  if(!e||t<0)return;
+  t=Math.min(t,e.line+250);
   const shade=ease(norm(t,0,650))*.22;
   ctx.fillStyle='rgba(10,5,18,'+shade+')';ctx.fillRect(0,0,W,H);
   for(const hit of e.hits)if(t>=hit.detach)paintSocket(hit.target,ease(norm(t,hit.detach,hit.detach+120)));
@@ -469,57 +466,59 @@ function paint(t,e=current){
   else finalFight(e,t);
   for(const hit of e.hits)materialBits(hit,t);
   bubble(e,t);
-  if(t>e.restore){ctx.save();ctx.globalAlpha=ease(norm(t,e.restore,e.end));ctx.drawImage(background,0,0,W,H);ctx.restore();}
 }
 
 function wake(message='Battlefield restored.'){
   cancelAnimationFrame(frame);
-  current=null;pausedAt=null;
+  current=null;pausedAt=null;holding=false;
+  try{localStorage.removeItem(NOTE_KEY);}catch{}
   pauseButton.textContent='Pause';pauseButton.disabled=true;
   paint(-1);status.textContent=message;
 }
-function showNote(note){
-  const hero=SIEGE_ART[note?.hero];
-  if(!hero?.hero||typeof note.message!=='string'||!note.message.trim()||note.message.length>300)return false;
-  noteAuthor.textContent=hero.name;
-  noteMessage.textContent=note.message;
-  notePanel.style.setProperty('--hero-accent',hero.color);
-  notePanel.hidden=false;
-  status.textContent='Battlefield restored.';
+function holdScene(){
+  cancelAnimationFrame(frame);
+  holding=true;
+  pausedAt=null;
+  pauseButton.disabled=true;
+  pauseButton.textContent='Pause';
+  paint(current.line+250);
+  status.textContent=SIEGE_ART[current.hid].name+' · '+current.quip+' · Tap to return.';
+  try{
+    localStorage.setItem(NOTE_KEY,JSON.stringify({
+      hero:current.hid,monster:current.mid,message:current.quip,
+      hits:current.hits.map(hit=>({id:hit.target.id,method:hit.method}))
+    }));
+  }catch{}
+}
+
+function restoreScene(saved){
+  if(!SIEGE_ART[saved?.hero]?.hero||typeof saved.message!=='string'||!saved.message.trim()||saved.message.length>300)return false;
+  const mid=monsters.includes(saved.monster)?saved.monster:monsters[0];
+  const methods=['bite','tail','punch','kick','smash','stomp','claw','throw'];
+  const hits=Array.isArray(saved.hits)?saved.hits.slice(0,targets.length).flatMap(hit=>{
+    const target=targets.find(target=>target.id===hit?.id);
+    return target&&methods.includes(hit.method)?[{target,method:hit.method}]:[];
+  }):[];
+  current=choreograph({mid,hid:saved.hero,quip:saved.message,hits});
+  holdScene();
   return true;
 }
 
-function clearNote(returnFocus=false){
-  const hasFocus=notePanel.contains(document.activeElement);
-  notePanel.hidden=true;
-  try{localStorage.removeItem(NOTE_KEY);}catch{}
-  if(returnFocus&&hasFocus)scene.focus({preventScroll:true});
-}
-
-function leaveNote(){
-  const note={hero:current.hid,message:current.quip};
-  wake();
-  showNote(note);
-  try{localStorage.setItem(NOTE_KEY,JSON.stringify(note));}catch{}
-}
-
 function interrupt(){
-  if(!current)return;
-  const elapsed=(pausedAt??performance.now())-startTime;
-  if(elapsed>=current.line)leaveNote();
-  else wake();
+  if(current)wake();
 }
 
 function render(now){
-  if(!current||pausedAt!==null)return;
+  if(!current||pausedAt!==null||holding)return;
   const t=now-startTime;
-  if(t>=current.end){leaveNote();return;}
+  if(t>=current.line+250){holdScene();return;}
   paint(t);
   frame=requestAnimationFrame(render);
 }
 function start(mode='random',options={}){
   cancelAnimationFrame(frame);
-  clearNote();
+  holding=false;
+  try{localStorage.removeItem(NOTE_KEY);}catch{}
   current=plan(mode,options);
   startTime=performance.now();
   pausedAt=null;pauseButton.disabled=false;pauseButton.textContent='Pause';
@@ -528,7 +527,7 @@ function start(mode='random',options={}){
   return current;
 }
 function pause(){
-  if(!current)return;
+  if(!current||holding)return;
   if(pausedAt!==null){startTime+=performance.now()-pausedAt;pausedAt=null;pauseButton.textContent='Pause';frame=requestAnimationFrame(render);}
   else{pausedAt=performance.now();cancelAnimationFrame(frame);pauseButton.textContent='Resume';}
 }
@@ -543,23 +542,16 @@ const ready=Promise.all([
   if(!params.has('capture')){
     let saved;
     try{saved=JSON.parse(localStorage.getItem(NOTE_KEY));}catch{}
-    if(showNote(saved))return;
+    if(restoreScene(saved))return;
   }
   if(reduced.matches||params.has('capture'))status.textContent='Real Commander Companion battlefield. Start an encounter to play.';
   else start();
 }).catch(error=>{status.textContent=error.message;throw error;});
 startButton.addEventListener('click',()=>start());
 pauseButton.addEventListener('click',pause);
-dismissNote.addEventListener('click',()=>clearNote(true));
 scene.addEventListener('pointerdown',event=>{if(current){event.preventDefault();interrupt();}});
 scene.addEventListener('keydown',event=>{
   if(current&&['Escape','Enter',' '].includes(event.key)){event.preventDefault();interrupt();}
 });
-document.addEventListener('keydown',event=>{
-  if(event.key==='Escape'&&!notePanel.hidden&&!event.defaultPrevented){
-    event.preventDefault();
-    clearNote(true);
-  }
-});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)interrupt();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!holding)interrupt();});
 window.siegeTest={ready,paint,start,plan,wake,get current(){return current;}};
