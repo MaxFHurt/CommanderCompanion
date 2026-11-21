@@ -140,7 +140,7 @@ function strInc(c, d) {
 function strValue(c, d, casual) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strPopW + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
@@ -148,7 +148,11 @@ function strValue(c, d, casual) {
     // upgrading at those prices add the commander's popular cards, not what strong decks of every commander play
     const inc = casual && UP.strInc ? strInc(c, d) : 0,
       base = casual && UP.strInc ? (1 - w - UP.strInc) * cardStrength(c, d, casual) + w * strFit(c, d) + UP.strInc * inc : (1 - w) * cardStrength(c, d, casual) + w * strFit(c, d);
-    v = Math.pow(base, UP.strExp) * (tags(c).land ? UP.strLand : 1);
+    // UP.strPopW (middle-ground sweep for the owner, 21 Nov; 0 = option A): share of the value taken from what this commander's
+    // players run (EDHREC play rate, precon bias removed) instead of strength
+    const pw = UP.strPopW || 0,
+      b2 = pw ? (1 - pw) * base + pw * (casual && UP.strInc ? inc : strInc(c, d)) : base;
+    v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
   }
   return v;
@@ -237,7 +241,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, UP.strTierQ, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)

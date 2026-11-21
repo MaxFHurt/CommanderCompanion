@@ -2211,6 +2211,7 @@ const UP = {
   strKeepJobs: 1, // strength builds never lower the deck's ramp, draw, removal and wipe counts, nor trade away a finisher or protection
   strManaGuard: 1, // the strength finish adds lands back while its practice-game mana is below the deck as generated
   strPips: 1, // strength picks need enough sources for their coloured pips (Karsten), as the generator's mana base does
+  strPopW: 0, // sweep (owner, 21 Nov): share of card values from the commander's play rate instead of strength (strength.js strValue)
   strTierQ: 0, // variant (off): Budget / Mid card quality against their own price level's strength build (score.js)
   strLands: 0, // strength builds swap spells only (12 Nov): land strength ignores how a mana base works together (mono-red Mountains gave way to off-colour fetches; five-colour fetches to shocks, stuck on colour 9% -> 27%), and leaving lands to the mana base kept tournament match (Apex 66.8% -> 66.7%) with better mana
   sjx: 1,

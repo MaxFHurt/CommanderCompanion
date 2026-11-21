@@ -23,7 +23,20 @@ function measure(d, tier) {
       lands: A.lands, screw: S.screwT5, short: S.shortT5, stuck: S.colourStuck};
   })()`);
 }
-if (MODE === 'precon') {
+if (MODE === 'own') {
+  // the precons as players' own decks at Mid and Budget: plain score (live), with card strength (option A), and UP.strTierQ
+  for (const [slug] of sets) for (const tier of ['mid', 'budget']) {
+    const d = H.retail(slug); H.edh(d.commander); d.tier = tier; X.__d = d;
+    try {
+      const r = {};
+      run('UP.strTierQ = 0'); const p = run('evaluateDeck(__d, {games: 300, apex: apexRef(__d)})'); r.live = {score: p.total, quality: p.parts.quality};
+      r.a = measure(JSON.parse(JSON.stringify(d)), tier);
+      run('UP.strTierQ = 1'); r.v = measure(JSON.parse(JSON.stringify(d)), tier); run('UP.strTierQ = 0');
+      out[slug + '|' + tier] = r;
+    } catch (e) { out[slug + '|' + tier] = {err: String(e.stack || e).slice(0, 300)}; }
+    console.error(slug, tier, JSON.stringify(out[slug + '|' + tier]));
+  }
+} else if (MODE === 'precon') {
   for (const [slug] of sets) {
     const d = H.retail(slug); H.edh(d.commander);
     try { out[slug] = measure(d, 'apex'); } catch (e) { out[slug] = {err: String(e.stack || e).slice(0, 300)}; }

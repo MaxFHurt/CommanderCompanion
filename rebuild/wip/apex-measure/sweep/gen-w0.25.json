@@ -1,0 +1,2942 @@
+{
+ "avengers-assemble|budget|best": {
+  "gen": {
+   "score": 91,
+   "exact": 91.188,
+   "power": 98.3,
+   "apexScore": 92.8,
+   "midScore": 92.7,
+   "budgetScore": 92.1,
+   "quality": 86,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 86.4,
+   "picks": {
+    "apex": 14,
+    "mid": 13,
+    "budget": 9
+   },
+   "lands": 35,
+   "screw": 0.16,
+   "short": 0.09,
+   "stuck": 0.023
+  },
+  "swapped": 9,
+  "fin": {
+   "score": 92,
+   "exact": 92.157,
+   "power": 99.4,
+   "apexScore": 92.8,
+   "midScore": 92.7,
+   "budgetScore": 92.2,
+   "quality": 89,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 89,
+   "picks": {
+    "apex": 9,
+    "mid": 8,
+    "budget": 0
+   },
+   "lands": 35,
+   "screw": 0.227,
+   "short": 0.093,
+   "stuck": 0.043
+  }
+ },
+ "avengers-assemble|mid|best": {
+  "gen": {
+   "score": 93,
+   "exact": 93.048,
+   "power": 99.7,
+   "apexScore": 93.3,
+   "midScore": 93.3,
+   "budgetScore": 93.4,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 95.7,
+   "picks": {
+    "apex": 10,
+    "mid": 10,
+    "budget": 9
+   },
+   "lands": 35,
+   "screw": 0.163,
+   "short": 0.103,
+   "stuck": 0.06
+  },
+  "swapped": 11,
+  "fin": {
+   "score": 93,
+   "exact": 93.273,
+   "power": 100,
+   "apexScore": 93.3,
+   "midScore": 93.3,
+   "budgetScore": 93.3,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 55,
+   "mana": 100,
+   "strPower": 99.9,
+   "picks": {
+    "apex": 2,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 35,
+   "screw": 0.227,
+   "short": 0.093,
+   "stuck": 0.043
+  }
+ },
+ "avengers-assemble|apex|best": {
+  "gen": {
+   "score": 93,
+   "exact": 92.622,
+   "power": 99.3,
+   "apexScore": 93.3,
+   "midScore": 93.3,
+   "budgetScore": 93,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 93.5,
+   "picks": {
+    "apex": 12,
+    "mid": 12,
+    "budget": 10
+   },
+   "lands": 35,
+   "screw": 0.16,
+   "short": 0.09,
+   "stuck": 0.033
+  },
+  "swapped": 16,
+  "fin": {
+   "score": 92,
+   "exact": 92.206,
+   "power": 100,
+   "apexScore": 92.2,
+   "midScore": 92.8,
+   "budgetScore": 92.8,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 48,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 3,
+    "budget": 3
+   },
+   "lands": 38,
+   "screw": 0.163,
+   "short": 0.07,
+   "stuck": 0.033
+  }
+ },
+ "avengers-assemble|budget|theme": {
+  "gen": {
+   "score": 92,
+   "exact": 91.526,
+   "power": 98.7,
+   "apexScore": 92.8,
+   "midScore": 93.3,
+   "budgetScore": 91.6,
+   "quality": 89,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 88.6,
+   "picks": {
+    "apex": 10,
+    "mid": 10,
+    "budget": 6
+   },
+   "lands": 35,
+   "screw": 0.21,
+   "short": 0.117,
+   "stuck": 0.04
+  },
+  "swapped": 5,
+  "fin": {
+   "score": 91,
+   "exact": 90.923,
+   "power": 98.1,
+   "apexScore": 92.7,
+   "midScore": 92.6,
+   "budgetScore": 91.6,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 55,
+   "mana": 100,
+   "strPower": 88.3,
+   "picks": {
+    "apex": 10,
+    "mid": 9,
+    "budget": 3
+   },
+   "lands": 36,
+   "screw": 0.213,
+   "short": 0.117,
+   "stuck": 0.057
+  }
+ },
+ "avengers-assemble|mid|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 93.495,
+   "power": 100.7,
+   "apexScore": 92.9,
+   "midScore": 92.9,
+   "budgetScore": 92.9,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 99,
+   "strPower": 98.3,
+   "picks": {
+    "apex": 6,
+    "mid": 7,
+    "budget": 7
+   },
+   "lands": 35,
+   "screw": 0.217,
+   "short": 0.137,
+   "stuck": 0.04
+  },
+  "swapped": 6,
+  "fin": {
+   "score": 93,
+   "exact": 93.083,
+   "power": 100.4,
+   "apexScore": 92.8,
+   "midScore": 92.7,
+   "budgetScore": 92.7,
+   "quality": 99,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 56,
+   "mana": 100,
+   "strPower": 98.6,
+   "picks": {
+    "apex": 4,
+    "mid": 3,
+    "budget": 3
+   },
+   "lands": 36,
+   "screw": 0.2,
+   "short": 0.113,
+   "stuck": 0.043
+  }
+ },
+ "avengers-assemble|apex|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 92.654,
+   "power": 99.3,
+   "apexScore": 93.3,
+   "midScore": 93.3,
+   "budgetScore": 92.7,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 93.7,
+   "picks": {
+    "apex": 11,
+    "mid": 11,
+    "budget": 8
+   },
+   "lands": 35,
+   "screw": 0.18,
+   "short": 0.097,
+   "stuck": 0.033
+  },
+  "swapped": 9,
+  "fin": {
+   "score": 94,
+   "exact": 93.622,
+   "power": 100.3,
+   "apexScore": 93.3,
+   "midScore": 93.3,
+   "budgetScore": 93.3,
+   "quality": 99,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 59,
+   "mana": 100,
+   "strPower": 98.5,
+   "picks": {
+    "apex": 5,
+    "mid": 5,
+    "budget": 4
+   },
+   "lands": 37,
+   "screw": 0.2,
+   "short": 0.1,
+   "stuck": 0.023
+  }
+ },
+ "doom-prevails|budget|best": {
+  "gen": {
+   "score": 91,
+   "exact": 90.833,
+   "power": 97.3,
+   "apexScore": 93.4,
+   "midScore": 92.1,
+   "budgetScore": 89.1,
+   "quality": 81,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 65,
+   "mana": 99,
+   "strPower": 80.7,
+   "picks": {
+    "apex": 19,
+    "mid": 16,
+    "budget": 8
+   },
+   "lands": 35,
+   "screw": 0.163,
+   "short": 0.093,
+   "stuck": 0.047
+  },
+  "swapped": 8,
+  "fin": {
+   "score": 89,
+   "exact": 89.065,
+   "power": 95.8,
+   "apexScore": 93,
+   "midScore": 92,
+   "budgetScore": 88.6,
+   "quality": 83,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 54,
+   "mana": 93,
+   "strPower": 83.2,
+   "picks": {
+    "apex": 17,
+    "mid": 13,
+    "budget": 0
+   },
+   "lands": 35,
+   "screw": 0.163,
+   "short": 0.103,
+   "stuck": 0.11
+  }
+ },
+ "doom-prevails|mid|best": {
+  "gen": {
+   "score": 93,
+   "exact": 93.377,
+   "power": 99.6,
+   "apexScore": 93.8,
+   "midScore": 92.8,
+   "budgetScore": 91.4,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 92,
+   "strPower": 92.1,
+   "picks": {
+    "apex": 11,
+    "mid": 9,
+    "budget": 9
+   },
+   "lands": 35,
+   "screw": 0.19,
+   "short": 0.123,
+   "stuck": 0.09
+  },
+  "swapped": 10,
+  "fin": {
+   "score": 92,
+   "exact": 91.741,
+   "power": 98.3,
+   "apexScore": 93.3,
+   "midScore": 91.8,
+   "budgetScore": 91.8,
+   "quality": 95,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 60,
+   "mana": 87,
+   "strPower": 95.3,
+   "picks": {
+    "apex": 6,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 36,
+   "screw": 0.17,
+   "short": 0.097,
+   "stuck": 0.1
+  }
+ },
+ "doom-prevails|apex|best": {
+  "gen": {
+   "score": 94,
+   "exact": 94.138,
+   "power": 100.5,
+   "apexScore": 93.7,
+   "midScore": 92.5,
+   "budgetScore": 92.4,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 100,
+   "strPower": 91.7,
+   "picks": {
+    "apex": 13,
+    "mid": 12,
+    "budget": 10
+   },
+   "lands": 35,
+   "screw": 0.127,
+   "short": 0.06,
+   "stuck": 0.04
+  },
+  "swapped": 14,
+  "fin": {
+   "score": 94,
+   "exact": 93.579,
+   "power": 100.2,
+   "apexScore": 93.4,
+   "midScore": 93.4,
+   "budgetScore": 93.4,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 64,
+   "mana": 90,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 1,
+    "budget": 1
+   },
+   "lands": 36,
+   "screw": 0.16,
+   "short": 0.077,
+   "stuck": 0.103
+  }
+ },
+ "doom-prevails|budget|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 91.043,
+   "power": 97.4,
+   "apexScore": 93.5,
+   "midScore": 91.9,
+   "budgetScore": 89,
+   "quality": 81,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 91,
+   "strPower": 80.7,
+   "picks": {
+    "apex": 21,
+    "mid": 16,
+    "budget": 7
+   },
+   "lands": 35,
+   "screw": 0.143,
+   "short": 0.097,
+   "stuck": 0.07
+  },
+  "swapped": 3,
+  "fin": {
+   "score": 90,
+   "exact": 89.423,
+   "power": 95.7,
+   "apexScore": 93.4,
+   "midScore": 92.2,
+   "budgetScore": 88.7,
+   "quality": 81,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 66,
+   "mana": 89,
+   "strPower": 81.2,
+   "picks": {
+    "apex": 21,
+    "mid": 16,
+    "budget": 5
+   },
+   "lands": 35,
+   "screw": 0.17,
+   "short": 0.123,
+   "stuck": 0.077
+  }
+ },
+ "doom-prevails|mid|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 93.173,
+   "power": 99.6,
+   "apexScore": 93.6,
+   "midScore": 91.4,
+   "budgetScore": 91.2,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 89,
+   "strPower": 92.5,
+   "picks": {
+    "apex": 11,
+    "mid": 9,
+    "budget": 7
+   },
+   "lands": 35,
+   "screw": 0.173,
+   "short": 0.12,
+   "stuck": 0.08
+  },
+  "swapped": 7,
+  "fin": {
+   "score": 92,
+   "exact": 91.887,
+   "power": 98,
+   "apexScore": 93.8,
+   "midScore": 92.5,
+   "budgetScore": 92.4,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 60,
+   "mana": 90,
+   "strPower": 94.5,
+   "picks": {
+    "apex": 8,
+    "mid": 2,
+    "budget": 1
+   },
+   "lands": 35,
+   "screw": 0.177,
+   "short": 0.11,
+   "stuck": 0.083
+  }
+ },
+ "doom-prevails|apex|theme": {
+  "gen": {
+   "score": 95,
+   "exact": 94.852,
+   "power": 100.6,
+   "apexScore": 94.3,
+   "midScore": 92.9,
+   "budgetScore": 93,
+   "quality": 95,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 74,
+   "mana": 97,
+   "strPower": 95.1,
+   "picks": {
+    "apex": 11,
+    "mid": 10,
+    "budget": 7
+   },
+   "lands": 35,
+   "screw": 0.137,
+   "short": 0.077,
+   "stuck": 0.043
+  },
+  "swapped": 7,
+  "fin": {
+   "score": 93,
+   "exact": 93.591,
+   "power": 99.5,
+   "apexScore": 94,
+   "midScore": 92.8,
+   "budgetScore": 92.8,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 64,
+   "mana": 92,
+   "strPower": 98.5,
+   "picks": {
+    "apex": 5,
+    "mid": 4,
+    "budget": 3
+   },
+   "lands": 36,
+   "screw": 0.163,
+   "short": 0.093,
+   "stuck": 0.07
+  }
+ },
+ "tramplesaurus-rex|budget|best": {
+  "gen": {
+   "score": 91,
+   "exact": 91.031,
+   "power": 97,
+   "apexScore": 93.9,
+   "midScore": 90.1,
+   "budgetScore": 90.1,
+   "quality": 77,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 100,
+   "strPower": 77.3,
+   "picks": {
+    "apex": 25,
+    "mid": 22,
+    "budget": 12
+   },
+   "lands": 34,
+   "screw": 0.147,
+   "short": 0.09,
+   "stuck": 0
+  },
+  "swapped": 12,
+  "fin": {
+   "score": 90,
+   "exact": 90.075,
+   "power": 96,
+   "apexScore": 93.9,
+   "midScore": 90.1,
+   "budgetScore": 90.1,
+   "quality": 82,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 81.9,
+   "picks": {
+    "apex": 19,
+    "mid": 16,
+    "budget": 0
+   },
+   "lands": 34,
+   "screw": 0.12,
+   "short": 0.083,
+   "stuck": 0
+  }
+ },
+ "tramplesaurus-rex|mid|best": {
+  "gen": {
+   "score": 94,
+   "exact": 93.83,
+   "power": 99.5,
+   "apexScore": 94.3,
+   "midScore": 92.9,
+   "budgetScore": 92.7,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 75,
+   "mana": 100,
+   "strPower": 88.3,
+   "picks": {
+    "apex": 17,
+    "mid": 16,
+    "budget": 14
+   },
+   "lands": 34,
+   "screw": 0.163,
+   "short": 0.077,
+   "stuck": 0.003
+  },
+  "swapped": 18,
+  "fin": {
+   "score": 93,
+   "exact": 92.9,
+   "power": 99.2,
+   "apexScore": 93.6,
+   "midScore": 92.9,
+   "budgetScore": 92.9,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 57,
+   "mana": 100,
+   "strPower": 96.7,
+   "picks": {
+    "apex": 7,
+    "mid": 1,
+    "budget": 1
+   },
+   "lands": 35,
+   "screw": 0.11,
+   "short": 0.053,
+   "stuck": 0
+  }
+ },
+ "tramplesaurus-rex|apex|best": {
+  "gen": {
+   "score": 93,
+   "exact": 92.635,
+   "power": 100.9,
+   "apexScore": 91.8,
+   "midScore": 90.3,
+   "budgetScore": 91.7,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 92,
+   "routes": 72,
+   "mana": 100,
+   "strPower": 93.8,
+   "picks": {
+    "apex": 14,
+    "mid": 14,
+    "budget": 14
+   },
+   "lands": 34,
+   "screw": 0.153,
+   "short": 0.087,
+   "stuck": 0.003
+  },
+  "swapped": 17,
+  "fin": {
+   "score": 92,
+   "exact": 92.364,
+   "power": 100,
+   "apexScore": 92.4,
+   "midScore": 91.8,
+   "budgetScore": 91.8,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 92,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 4,
+    "budget": 5
+   },
+   "lands": 36,
+   "screw": 0.163,
+   "short": 0.07,
+   "stuck": 0.003
+  }
+ },
+ "tramplesaurus-rex|budget|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 90.79,
+   "power": 96.5,
+   "apexScore": 94.1,
+   "midScore": 93,
+   "budgetScore": 89.9,
+   "quality": 76,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 100,
+   "strPower": 76.5,
+   "picks": {
+    "apex": 22,
+    "mid": 21,
+    "budget": 14
+   },
+   "lands": 35,
+   "screw": 0.137,
+   "short": 0.097,
+   "stuck": 0.003
+  },
+  "swapped": 3,
+  "fin": {
+   "score": 90,
+   "exact": 90.073,
+   "power": 96.1,
+   "apexScore": 93.7,
+   "midScore": 93,
+   "budgetScore": 89.3,
+   "quality": 78,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 63,
+   "mana": 100,
+   "strPower": 77.9,
+   "picks": {
+    "apex": 21,
+    "mid": 19,
+    "budget": 12
+   },
+   "lands": 36,
+   "screw": 0.123,
+   "short": 0.067,
+   "stuck": 0
+  }
+ },
+ "tramplesaurus-rex|mid|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 93.393,
+   "power": 99,
+   "apexScore": 94.3,
+   "midScore": 93,
+   "budgetScore": 92.7,
+   "quality": 86,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 75,
+   "mana": 100,
+   "strPower": 86.1,
+   "picks": {
+    "apex": 18,
+    "mid": 16,
+    "budget": 15
+   },
+   "lands": 35,
+   "screw": 0.157,
+   "short": 0.113,
+   "stuck": 0
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 93,
+   "exact": 92.734,
+   "power": 98.4,
+   "apexScore": 94.3,
+   "midScore": 93.5,
+   "budgetScore": 92.8,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 88.1,
+   "picks": {
+    "apex": 15,
+    "mid": 14,
+    "budget": 12
+   },
+   "lands": 35,
+   "screw": 0.18,
+   "short": 0.09,
+   "stuck": 0
+  }
+ },
+ "tramplesaurus-rex|apex|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 93.901,
+   "power": 98.8,
+   "apexScore": 95,
+   "midScore": 94.2,
+   "budgetScore": 93.9,
+   "quality": 90,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 73,
+   "mana": 100,
+   "strPower": 89.9,
+   "picks": {
+    "apex": 18,
+    "mid": 16,
+    "budget": 15
+   },
+   "lands": 35,
+   "screw": 0.143,
+   "short": 0.067,
+   "stuck": 0.003
+  },
+  "swapped": 8,
+  "fin": {
+   "score": 92,
+   "exact": 92.404,
+   "power": 98.2,
+   "apexScore": 94.1,
+   "midScore": 93.3,
+   "budgetScore": 93.3,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 99,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 91.7,
+   "picks": {
+    "apex": 12,
+    "mid": 15,
+    "budget": 11
+   },
+   "lands": 36,
+   "screw": 0.183,
+   "short": 0.08,
+   "stuck": 0.003
+  }
+ },
+ "turtle-power|budget|best": {
+  "gen": {
+   "score": 90,
+   "exact": 89.542,
+   "power": 99,
+   "apexScore": 90.4,
+   "midScore": 90,
+   "budgetScore": 89.5,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 47,
+   "mana": 91,
+   "strPower": 91.9,
+   "picks": {
+    "apex": 15,
+    "mid": 12,
+    "budget": 8
+   },
+   "lands": 38,
+   "screw": 0.127,
+   "short": 0.093,
+   "stuck": 0.147
+  },
+  "swapped": 8,
+  "fin": {
+   "score": 91,
+   "exact": 90.511,
+   "power": 99.7,
+   "apexScore": 90.8,
+   "midScore": 90.7,
+   "budgetScore": 90.4,
+   "quality": 95,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 47,
+   "mana": 95,
+   "strPower": 95.1,
+   "picks": {
+    "apex": 10,
+    "mid": 5,
+    "budget": 0
+   },
+   "lands": 38,
+   "screw": 0.117,
+   "short": 0.063,
+   "stuck": 0.183
+  }
+ },
+ "turtle-power|mid|best": {
+  "gen": {
+   "score": 91,
+   "exact": 90.894,
+   "power": 100,
+   "apexScore": 90.9,
+   "midScore": 90.5,
+   "budgetScore": 90.5,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 49,
+   "mana": 93,
+   "strPower": 96.1,
+   "picks": {
+    "apex": 9,
+    "mid": 10,
+    "budget": 9
+   },
+   "lands": 38,
+   "screw": 0.127,
+   "short": 0.093,
+   "stuck": 0.163
+  },
+  "swapped": 10,
+  "fin": {
+   "score": 91,
+   "exact": 91.445,
+   "power": 99.6,
+   "apexScore": 91.8,
+   "midScore": 91.5,
+   "budgetScore": 91.5,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 46,
+   "mana": 98,
+   "strPower": 98.4,
+   "picks": {
+    "apex": 6,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 38,
+   "screw": 0.127,
+   "short": 0.073,
+   "stuck": 0.123
+  }
+ },
+ "turtle-power|apex|best": {
+  "gen": {
+   "score": 91,
+   "exact": 91.148,
+   "power": 100.6,
+   "apexScore": 90.6,
+   "midScore": 90.5,
+   "budgetScore": 90.5,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 47,
+   "mana": 99,
+   "strPower": 96,
+   "picks": {
+    "apex": 10,
+    "mid": 11,
+    "budget": 10
+   },
+   "lands": 38,
+   "screw": 0.127,
+   "short": 0.08,
+   "stuck": 0.073
+  },
+  "swapped": 10,
+  "fin": {
+   "score": 92,
+   "exact": 91.532,
+   "power": 100.1,
+   "apexScore": 91.4,
+   "midScore": 91.3,
+   "budgetScore": 91.3,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 44,
+   "mana": 99,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 2,
+    "budget": 2
+   },
+   "lands": 38,
+   "screw": 0.137,
+   "short": 0.093,
+   "stuck": 0.09
+  }
+ },
+ "turtle-power|budget|theme": {
+  "gen": {
+   "score": 90,
+   "exact": 89.424,
+   "power": 99,
+   "apexScore": 90.3,
+   "midScore": 89.1,
+   "budgetScore": 88.9,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 44,
+   "mana": 94,
+   "strPower": 92.5,
+   "picks": {
+    "apex": 11,
+    "mid": 8,
+    "budget": 7
+   },
+   "lands": 39,
+   "screw": 0.107,
+   "short": 0.07,
+   "stuck": 0.157
+  },
+  "swapped": 7,
+  "fin": {
+   "score": 88,
+   "exact": 88.376,
+   "power": 98.1,
+   "apexScore": 90.1,
+   "midScore": 89.4,
+   "budgetScore": 88.7,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 39,
+   "mana": 88,
+   "strPower": 93.1,
+   "picks": {
+    "apex": 12,
+    "mid": 7,
+    "budget": 5
+   },
+   "lands": 42,
+   "screw": 0.097,
+   "short": 0.073,
+   "stuck": 0.157
+  }
+ },
+ "turtle-power|mid|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 90.486,
+   "power": 100.1,
+   "apexScore": 90.4,
+   "midScore": 89.4,
+   "budgetScore": 89.4,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 44,
+   "mana": 95,
+   "strPower": 97.1,
+   "picks": {
+    "apex": 8,
+    "mid": 5,
+    "budget": 5
+   },
+   "lands": 39,
+   "screw": 0.097,
+   "short": 0.063,
+   "stuck": 0.16
+  },
+  "swapped": 5,
+  "fin": {
+   "score": 90,
+   "exact": 89.695,
+   "power": 99.9,
+   "apexScore": 89.8,
+   "midScore": 89,
+   "budgetScore": 89,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 39,
+   "mana": 92,
+   "strPower": 97.7,
+   "picks": {
+    "apex": 7,
+    "mid": 2,
+    "budget": 2
+   },
+   "lands": 40,
+   "screw": 0.133,
+   "short": 0.09,
+   "stuck": 0.163
+  }
+ },
+ "turtle-power|apex|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 91.07,
+   "power": 100.4,
+   "apexScore": 90.7,
+   "midScore": 90,
+   "budgetScore": 90,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 44,
+   "mana": 99,
+   "strPower": 98,
+   "picks": {
+    "apex": 7,
+    "mid": 4,
+    "budget": 4
+   },
+   "lands": 39,
+   "screw": 0.097,
+   "short": 0.063,
+   "stuck": 0.103
+  },
+  "swapped": 3,
+  "fin": {
+   "score": 91,
+   "exact": 90.528,
+   "power": 99.8,
+   "apexScore": 90.7,
+   "midScore": 90.2,
+   "budgetScore": 90.2,
+   "quality": 99,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 39,
+   "mana": 99,
+   "strPower": 98.5,
+   "picks": {
+    "apex": 4,
+    "mid": 3,
+    "budget": 3
+   },
+   "lands": 39,
+   "screw": 0.137,
+   "short": 0.09,
+   "stuck": 0.08
+  }
+ },
+ "wakanda-forever|budget|best": {
+  "gen": {
+   "score": 92,
+   "exact": 91.637,
+   "power": 99.2,
+   "apexScore": 92.4,
+   "midScore": 92.8,
+   "budgetScore": 90.3,
+   "quality": 82,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 99,
+   "strPower": 81.6,
+   "picks": {
+    "apex": 19,
+    "mid": 19,
+    "budget": 14
+   },
+   "lands": 34,
+   "screw": 0.203,
+   "short": 0.153,
+   "stuck": 0.103
+  },
+  "swapped": 15,
+  "fin": {
+   "score": 92,
+   "exact": 91.93,
+   "power": 98.1,
+   "apexScore": 93.7,
+   "midScore": 94.2,
+   "budgetScore": 91.9,
+   "quality": 86,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 65,
+   "mana": 100,
+   "strPower": 86,
+   "picks": {
+    "apex": 15,
+    "mid": 9,
+    "budget": 0
+   },
+   "lands": 35,
+   "screw": 0.12,
+   "short": 0.093,
+   "stuck": 0.09
+  }
+ },
+ "wakanda-forever|mid|best": {
+  "gen": {
+   "score": 93,
+   "exact": 92.754,
+   "power": 100.8,
+   "apexScore": 92,
+   "midScore": 92.2,
+   "budgetScore": 92.5,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 94,
+   "routes": 70,
+   "mana": 100,
+   "strPower": 94,
+   "picks": {
+    "apex": 15,
+    "mid": 13,
+    "budget": 13
+   },
+   "lands": 34,
+   "screw": 0.153,
+   "short": 0.093,
+   "stuck": 0.097
+  },
+  "swapped": 15,
+  "fin": {
+   "score": 94,
+   "exact": 93.84,
+   "power": 100.2,
+   "apexScore": 93.7,
+   "midScore": 94.1,
+   "budgetScore": 94.1,
+   "quality": 99,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 62,
+   "mana": 98,
+   "strPower": 99,
+   "picks": {
+    "apex": 6,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 36,
+   "screw": 0.157,
+   "short": 0.14,
+   "stuck": 0.097
+  }
+ },
+ "wakanda-forever|apex|best": {
+  "gen": {
+   "score": 95,
+   "exact": 94.7,
+   "power": 101.8,
+   "apexScore": 93.1,
+   "midScore": 92.6,
+   "budgetScore": 92.6,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 100,
+   "strPower": 96.2,
+   "picks": {
+    "apex": 12,
+    "mid": 12,
+    "budget": 11
+   },
+   "lands": 34,
+   "screw": 0.133,
+   "short": 0.073,
+   "stuck": 0.05
+  },
+  "swapped": 14,
+  "fin": {
+   "score": 94,
+   "exact": 94.274,
+   "power": 100,
+   "apexScore": 94.3,
+   "midScore": 94.2,
+   "budgetScore": 94.2,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 1,
+    "budget": 1
+   },
+   "lands": 36,
+   "screw": 0.127,
+   "short": 0.107,
+   "stuck": 0.05
+  }
+ },
+ "wakanda-forever|budget|theme": {
+  "gen": {
+   "score": 92,
+   "exact": 91.665,
+   "power": 97.2,
+   "apexScore": 94.3,
+   "midScore": 94.1,
+   "budgetScore": 91.8,
+   "quality": 83,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 83.4,
+   "picks": {
+    "apex": 17,
+    "mid": 16,
+    "budget": 11
+   },
+   "lands": 36,
+   "screw": 0.173,
+   "short": 0.147,
+   "stuck": 0.027
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 92,
+   "exact": 91.73,
+   "power": 98.2,
+   "apexScore": 93.4,
+   "midScore": 93.9,
+   "budgetScore": 91.5,
+   "quality": 84,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 83.9,
+   "picks": {
+    "apex": 16,
+    "mid": 14,
+    "budget": 8
+   },
+   "lands": 37,
+   "screw": 0.157,
+   "short": 0.14,
+   "stuck": 0.027
+  }
+ },
+ "wakanda-forever|mid|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 94.126,
+   "power": 99.8,
+   "apexScore": 94.3,
+   "midScore": 94.1,
+   "budgetScore": 94,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 95.6,
+   "picks": {
+    "apex": 11,
+    "mid": 10,
+    "budget": 9
+   },
+   "lands": 36,
+   "screw": 0.1,
+   "short": 0.07,
+   "stuck": 0.02
+  },
+  "swapped": 6,
+  "fin": {
+   "score": 95,
+   "exact": 94.701,
+   "power": 100.5,
+   "apexScore": 94.3,
+   "midScore": 94.1,
+   "budgetScore": 94,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 69,
+   "mana": 100,
+   "strPower": 96.8,
+   "picks": {
+    "apex": 9,
+    "mid": 5,
+    "budget": 5
+   },
+   "lands": 37,
+   "screw": 0.147,
+   "short": 0.127,
+   "stuck": 0.023
+  }
+ },
+ "wakanda-forever|apex|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 94.288,
+   "power": 100,
+   "apexScore": 94.3,
+   "midScore": 94.1,
+   "budgetScore": 94,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 96.4,
+   "picks": {
+    "apex": 10,
+    "mid": 10,
+    "budget": 9
+   },
+   "lands": 36,
+   "screw": 0.1,
+   "short": 0.07,
+   "stuck": 0.02
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 94,
+   "exact": 94.419,
+   "power": 100.2,
+   "apexScore": 94.3,
+   "midScore": 94.2,
+   "budgetScore": 94.2,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 97.1,
+   "picks": {
+    "apex": 8,
+    "mid": 7,
+    "budget": 7
+   },
+   "lands": 38,
+   "screw": 0.077,
+   "short": 0.067,
+   "stuck": 0.033
+  }
+ },
+ "calling-all-angels|budget|best": {
+  "gen": {
+   "score": 88,
+   "exact": 88.231,
+   "power": 93.9,
+   "apexScore": 94,
+   "midScore": 91.7,
+   "budgetScore": 89,
+   "quality": 67,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 65,
+   "mana": 100,
+   "strPower": 67.1,
+   "picks": {
+    "apex": 27,
+    "mid": 22,
+    "budget": 9
+   },
+   "lands": 39,
+   "screw": 0.15,
+   "short": 0.06,
+   "stuck": 0
+  },
+  "swapped": 10,
+  "fin": {
+   "score": 89,
+   "exact": 89.052,
+   "power": 94.6,
+   "apexScore": 94.1,
+   "midScore": 91.8,
+   "budgetScore": 89,
+   "quality": 71,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 100,
+   "strPower": 70.8,
+   "picks": {
+    "apex": 24,
+    "mid": 17,
+    "budget": 0
+   },
+   "lands": 40,
+   "screw": 0.087,
+   "short": 0.047,
+   "stuck": 0
+  }
+ },
+ "calling-all-angels|mid|best": {
+  "gen": {
+   "score": 92,
+   "exact": 92.17,
+   "power": 97.6,
+   "apexScore": 94.4,
+   "midScore": 91.8,
+   "budgetScore": 91.5,
+   "quality": 85,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 85,
+   "picks": {
+    "apex": 16,
+    "mid": 9,
+    "budget": 9
+   },
+   "lands": 39,
+   "screw": 0.123,
+   "short": 0.107,
+   "stuck": 0
+  },
+  "swapped": 9,
+  "fin": {
+   "score": 92,
+   "exact": 91.75,
+   "power": 97.2,
+   "apexScore": 94.4,
+   "midScore": 91.8,
+   "budgetScore": 91.8,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 61,
+   "mana": 100,
+   "strPower": 88.2,
+   "picks": {
+    "apex": 12,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 39,
+   "screw": 0.117,
+   "short": 0.097,
+   "stuck": 0
+  }
+ },
+ "calling-all-angels|apex|best": {
+  "gen": {
+   "score": 95,
+   "exact": 94.623,
+   "power": 100.5,
+   "apexScore": 94.1,
+   "midScore": 94,
+   "budgetScore": 93.9,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 97.2,
+   "picks": {
+    "apex": 6,
+    "mid": 9,
+    "budget": 5
+   },
+   "lands": 39,
+   "screw": 0.107,
+   "short": 0.083,
+   "stuck": 0
+  },
+  "swapped": 7,
+  "fin": {
+   "score": 94,
+   "exact": 94.111,
+   "power": 100,
+   "apexScore": 94.1,
+   "midScore": 94,
+   "budgetScore": 94,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 61,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 5,
+    "budget": 4
+   },
+   "lands": 40,
+   "screw": 0.12,
+   "short": 0.083,
+   "stuck": 0
+  }
+ },
+ "calling-all-angels|budget|theme": {
+  "gen": {
+   "score": 88,
+   "exact": 88.063,
+   "power": 93.6,
+   "apexScore": 94.1,
+   "midScore": 92.2,
+   "budgetScore": 89.1,
+   "quality": 69,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 68.6,
+   "picks": {
+    "apex": 26,
+    "mid": 19,
+    "budget": 9
+   },
+   "lands": 39,
+   "screw": 0.147,
+   "short": 0.07,
+   "stuck": 0
+  },
+  "swapped": 3,
+  "fin": {
+   "score": 89,
+   "exact": 88.684,
+   "power": 94.2,
+   "apexScore": 94.1,
+   "midScore": 92.3,
+   "budgetScore": 88.9,
+   "quality": 69,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 100,
+   "strPower": 69,
+   "picks": {
+    "apex": 25,
+    "mid": 19,
+    "budget": 8
+   },
+   "lands": 40,
+   "screw": 0.13,
+   "short": 0.07,
+   "stuck": 0
+  }
+ },
+ "calling-all-angels|mid|theme": {
+  "gen": {
+   "score": 90,
+   "exact": 90.422,
+   "power": 96.1,
+   "apexScore": 94.1,
+   "midScore": 92.2,
+   "budgetScore": 91.4,
+   "quality": 83,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 83.4,
+   "picks": {
+    "apex": 17,
+    "mid": 11,
+    "budget": 6
+   },
+   "lands": 39,
+   "screw": 0.117,
+   "short": 0.087,
+   "stuck": 0
+  },
+  "swapped": 1,
+  "fin": {
+   "score": 91,
+   "exact": 90.474,
+   "power": 96.1,
+   "apexScore": 94.1,
+   "midScore": 92.2,
+   "budgetScore": 91.5,
+   "quality": 84,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 83.6,
+   "picks": {
+    "apex": 16,
+    "mid": 10,
+    "budget": 5
+   },
+   "lands": 39,
+   "screw": 0.143,
+   "short": 0.097,
+   "stuck": 0
+  }
+ },
+ "calling-all-angels|apex|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 93.623,
+   "power": 99.5,
+   "apexScore": 94.1,
+   "midScore": 93.5,
+   "budgetScore": 93.9,
+   "quality": 95,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 64,
+   "mana": 100,
+   "strPower": 95.4,
+   "picks": {
+    "apex": 9,
+    "mid": 10,
+    "budget": 5
+   },
+   "lands": 39,
+   "screw": 0.12,
+   "short": 0.093,
+   "stuck": 0.003
+  },
+  "swapped": 2,
+  "fin": {
+   "score": 94,
+   "exact": 93.662,
+   "power": 99.5,
+   "apexScore": 94.1,
+   "midScore": 93.5,
+   "budgetScore": 93.3,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 64,
+   "mana": 100,
+   "strPower": 95.6,
+   "picks": {
+    "apex": 7,
+    "mid": 9,
+    "budget": 6
+   },
+   "lands": 39,
+   "screw": 0.143,
+   "short": 0.12,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|budget|best": {
+  "gen": {
+   "score": 92,
+   "exact": 92.378,
+   "power": 98,
+   "apexScore": 94.2,
+   "midScore": 93.4,
+   "budgetScore": 91.3,
+   "quality": 87,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 86.6,
+   "picks": {
+    "apex": 21,
+    "mid": 19,
+    "budget": 14
+   },
+   "lands": 33,
+   "screw": 0.12,
+   "short": 0.053,
+   "stuck": 0
+  },
+  "swapped": 14,
+  "fin": {
+   "score": 91,
+   "exact": 91.316,
+   "power": 96.9,
+   "apexScore": 94.2,
+   "midScore": 93,
+   "budgetScore": 91.3,
+   "quality": 91,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 54,
+   "mana": 100,
+   "strPower": 90.9,
+   "picks": {
+    "apex": 16,
+    "mid": 10,
+    "budget": 0
+   },
+   "lands": 33,
+   "screw": 0.14,
+   "short": 0.077,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|mid|best": {
+  "gen": {
+   "score": 94,
+   "exact": 93.455,
+   "power": 99.2,
+   "apexScore": 94.2,
+   "midScore": 93.4,
+   "budgetScore": 93.2,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 100,
+   "strPower": 93,
+   "picks": {
+    "apex": 14,
+    "mid": 13,
+    "budget": 13
+   },
+   "lands": 33,
+   "screw": 0.127,
+   "short": 0.063,
+   "stuck": 0
+  },
+  "swapped": 13,
+  "fin": {
+   "score": 93,
+   "exact": 93.39,
+   "power": 99.1,
+   "apexScore": 94.2,
+   "midScore": 93.4,
+   "budgetScore": 93.4,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 60,
+   "mana": 100,
+   "strPower": 97.2,
+   "picks": {
+    "apex": 9,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 33,
+   "screw": 0.153,
+   "short": 0.073,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|apex|best": {
+  "gen": {
+   "score": 94,
+   "exact": 93.903,
+   "power": 99.6,
+   "apexScore": 94.2,
+   "midScore": 94.2,
+   "budgetScore": 94,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 69,
+   "mana": 100,
+   "strPower": 93,
+   "picks": {
+    "apex": 15,
+    "mid": 17,
+    "budget": 16
+   },
+   "lands": 33,
+   "screw": 0.133,
+   "short": 0.067,
+   "stuck": 0
+  },
+  "swapped": 15,
+  "fin": {
+   "score": 94,
+   "exact": 94.238,
+   "power": 100,
+   "apexScore": 94.2,
+   "midScore": 94.1,
+   "budgetScore": 94.1,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 62,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 5,
+    "budget": 5
+   },
+   "lands": 33,
+   "screw": 0.17,
+   "short": 0.09,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|budget|theme": {
+  "gen": {
+   "score": 92,
+   "exact": 92.337,
+   "power": 98.4,
+   "apexScore": 93.8,
+   "midScore": 93.3,
+   "budgetScore": 91.3,
+   "quality": 86,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 86.4,
+   "picks": {
+    "apex": 22,
+    "mid": 20,
+    "budget": 14
+   },
+   "lands": 33,
+   "screw": 0.107,
+   "short": 0.047,
+   "stuck": 0
+  },
+  "swapped": 12,
+  "fin": {
+   "score": 91,
+   "exact": 91.43,
+   "power": 97.4,
+   "apexScore": 93.8,
+   "midScore": 93.2,
+   "budgetScore": 90.7,
+   "quality": 89,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 57,
+   "mana": 100,
+   "strPower": 89.3,
+   "picks": {
+    "apex": 19,
+    "mid": 13,
+    "budget": 2
+   },
+   "lands": 33,
+   "screw": 0.127,
+   "short": 0.063,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|mid|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 93.918,
+   "power": 100.1,
+   "apexScore": 93.8,
+   "midScore": 93.3,
+   "budgetScore": 92.2,
+   "quality": 90,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 73,
+   "mana": 100,
+   "strPower": 90,
+   "picks": {
+    "apex": 19,
+    "mid": 17,
+    "budget": 17
+   },
+   "lands": 33,
+   "screw": 0.11,
+   "short": 0.047,
+   "stuck": 0.003
+  },
+  "swapped": 12,
+  "fin": {
+   "score": 93,
+   "exact": 92.795,
+   "power": 98.9,
+   "apexScore": 93.8,
+   "midScore": 93.3,
+   "budgetScore": 93.3,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 63,
+   "mana": 97,
+   "strPower": 93.6,
+   "picks": {
+    "apex": 14,
+    "mid": 5,
+    "budget": 5
+   },
+   "lands": 33,
+   "screw": 0.14,
+   "short": 0.093,
+   "stuck": 0
+  }
+ },
+ "keen-engineering|apex|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 93.445,
+   "power": 99.2,
+   "apexScore": 94.2,
+   "midScore": 93.6,
+   "budgetScore": 92.7,
+   "quality": 89,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 71,
+   "mana": 100,
+   "strPower": 89,
+   "picks": {
+    "apex": 17,
+    "mid": 21,
+    "budget": 20
+   },
+   "lands": 33,
+   "screw": 0.14,
+   "short": 0.07,
+   "stuck": 0
+  },
+  "swapped": 10,
+  "fin": {
+   "score": 94,
+   "exact": 93.646,
+   "power": 99.4,
+   "apexScore": 94.2,
+   "midScore": 93.8,
+   "budgetScore": 93.8,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 67,
+   "mana": 100,
+   "strPower": 93.3,
+   "picks": {
+    "apex": 7,
+    "mid": 11,
+    "budget": 11
+   },
+   "lands": 33,
+   "screw": 0.153,
+   "short": 0.107,
+   "stuck": 0.003
+  }
+ },
+ "wretched-ranks|budget|best": {
+  "gen": {
+   "score": 92,
+   "exact": 91.689,
+   "power": 97,
+   "apexScore": 94.5,
+   "midScore": 93.6,
+   "budgetScore": 91.4,
+   "quality": 84,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 100,
+   "strPower": 84,
+   "picks": {
+    "apex": 21,
+    "mid": 19,
+    "budget": 13
+   },
+   "lands": 35,
+   "screw": 0.153,
+   "short": 0.087,
+   "stuck": 0
+  },
+  "swapped": 12,
+  "fin": {
+   "score": 91,
+   "exact": 91.167,
+   "power": 96,
+   "apexScore": 95,
+   "midScore": 93.5,
+   "budgetScore": 91.4,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 57,
+   "mana": 100,
+   "strPower": 88.2,
+   "picks": {
+    "apex": 16,
+    "mid": 11,
+    "budget": 1
+   },
+   "lands": 35,
+   "screw": 0.113,
+   "short": 0.053,
+   "stuck": 0
+  }
+ },
+ "wretched-ranks|mid|best": {
+  "gen": {
+   "score": 94,
+   "exact": 93.46,
+   "power": 98.9,
+   "apexScore": 94.5,
+   "midScore": 93.8,
+   "budgetScore": 93.8,
+   "quality": 90,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 100,
+   "strPower": 90.1,
+   "picks": {
+    "apex": 16,
+    "mid": 14,
+    "budget": 11
+   },
+   "lands": 35,
+   "screw": 0.173,
+   "short": 0.103,
+   "stuck": 0
+  },
+  "swapped": 13,
+  "fin": {
+   "score": 94,
+   "exact": 93.81,
+   "power": 98.9,
+   "apexScore": 94.9,
+   "midScore": 93.8,
+   "budgetScore": 93.8,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 63,
+   "mana": 100,
+   "strPower": 96.7,
+   "picks": {
+    "apex": 7,
+    "mid": 1,
+    "budget": 1
+   },
+   "lands": 35,
+   "screw": 0.17,
+   "short": 0.073,
+   "stuck": 0
+  }
+ },
+ "wretched-ranks|apex|best": {
+  "gen": {
+   "score": 94,
+   "exact": 93.785,
+   "power": 98.9,
+   "apexScore": 94.8,
+   "midScore": 94.6,
+   "budgetScore": 94.7,
+   "quality": 90,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 100,
+   "strPower": 89.9,
+   "picks": {
+    "apex": 17,
+    "mid": 17,
+    "budget": 16
+   },
+   "lands": 35,
+   "screw": 0.123,
+   "short": 0.073,
+   "stuck": 0
+  },
+  "swapped": 17,
+  "fin": {
+   "score": 95,
+   "exact": 94.594,
+   "power": 99.8,
+   "apexScore": 94.8,
+   "midScore": 94.8,
+   "budgetScore": 94.8,
+   "quality": 99,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 65,
+   "mana": 100,
+   "strPower": 98.9,
+   "picks": {
+    "apex": 1,
+    "mid": 3,
+    "budget": 2
+   },
+   "lands": 36,
+   "screw": 0.153,
+   "short": 0.083,
+   "stuck": 0
+  }
+ },
+ "wretched-ranks|budget|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 91.318,
+   "power": 96.3,
+   "apexScore": 94.8,
+   "midScore": 93.7,
+   "budgetScore": 91.6,
+   "quality": 79,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 71,
+   "mana": 100,
+   "strPower": 78.5,
+   "picks": {
+    "apex": 25,
+    "mid": 22,
+    "budget": 17
+   },
+   "lands": 34,
+   "screw": 0.117,
+   "short": 0.053,
+   "stuck": 0
+  },
+  "swapped": 1,
+  "fin": {
+   "score": 91,
+   "exact": 90.919,
+   "power": 96.2,
+   "apexScore": 94.5,
+   "midScore": 93.7,
+   "budgetScore": 91.6,
+   "quality": 79,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 78.9,
+   "picks": {
+    "apex": 24,
+    "mid": 21,
+    "budget": 16
+   },
+   "lands": 34,
+   "screw": 0.14,
+   "short": 0.07,
+   "stuck": 0
+  }
+ },
+ "wretched-ranks|mid|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 94.299,
+   "power": 99.8,
+   "apexScore": 94.5,
+   "midScore": 94.1,
+   "budgetScore": 94,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 73,
+   "mana": 100,
+   "strPower": 91.5,
+   "picks": {
+    "apex": 14,
+    "mid": 13,
+    "budget": 13
+   },
+   "lands": 34,
+   "screw": 0.173,
+   "short": 0.093,
+   "stuck": 0
+  },
+  "swapped": 2,
+  "fin": {
+   "score": 94,
+   "exact": 94.299,
+   "power": 99.8,
+   "apexScore": 94.5,
+   "midScore": 94.1,
+   "budgetScore": 94.1,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 73,
+   "mana": 100,
+   "strPower": 91.8,
+   "picks": {
+    "apex": 13,
+    "mid": 11,
+    "budget": 11
+   },
+   "lands": 34,
+   "screw": 0.18,
+   "short": 0.11,
+   "stuck": 0
+  }
+ },
+ "wretched-ranks|apex|theme": {
+  "gen": {
+   "score": 94,
+   "exact": 93.936,
+   "power": 98.9,
+   "apexScore": 95,
+   "midScore": 94.4,
+   "budgetScore": 94.3,
+   "quality": 90,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 73,
+   "mana": 100,
+   "strPower": 89.7,
+   "picks": {
+    "apex": 15,
+    "mid": 15,
+    "budget": 15
+   },
+   "lands": 34,
+   "screw": 0.13,
+   "short": 0.073,
+   "stuck": 0
+  },
+  "swapped": 7,
+  "fin": {
+   "score": 93,
+   "exact": 93.231,
+   "power": 98.3,
+   "apexScore": 94.9,
+   "midScore": 94.3,
+   "budgetScore": 94.3,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 100,
+   "strPower": 91.6,
+   "picks": {
+    "apex": 10,
+    "mid": 10,
+    "budget": 10
+   },
+   "lands": 35,
+   "screw": 0.2,
+   "short": 0.113,
+   "stuck": 0.003
+  }
+ },
+ "reign-of-dragons|budget|best": {
+  "gen": {
+   "score": 89,
+   "exact": 88.52,
+   "power": 95.7,
+   "apexScore": 92.5,
+   "midScore": 91.5,
+   "budgetScore": 89,
+   "quality": 78,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 53,
+   "mana": 100,
+   "strPower": 77.6,
+   "picks": {
+    "apex": 21,
+    "mid": 15,
+    "budget": 13
+   },
+   "lands": 36,
+   "screw": 0.133,
+   "short": 0.09,
+   "stuck": 0
+  },
+  "swapped": 16,
+  "fin": {
+   "score": 89,
+   "exact": 88.716,
+   "power": 96.8,
+   "apexScore": 91.7,
+   "midScore": 90.3,
+   "budgetScore": 88.8,
+   "quality": 84,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 49,
+   "mana": 97,
+   "strPower": 83.6,
+   "picks": {
+    "apex": 15,
+    "mid": 7,
+    "budget": 0
+   },
+   "lands": 39,
+   "screw": 0.14,
+   "short": 0.09,
+   "stuck": 0
+  }
+ },
+ "reign-of-dragons|mid|best": {
+  "gen": {
+   "score": 90,
+   "exact": 90.565,
+   "power": 98.3,
+   "apexScore": 92.2,
+   "midScore": 91.3,
+   "budgetScore": 90.8,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 53,
+   "mana": 99,
+   "strPower": 88.4,
+   "picks": {
+    "apex": 16,
+    "mid": 11,
+    "budget": 10
+   },
+   "lands": 36,
+   "screw": 0.16,
+   "short": 0.103,
+   "stuck": 0
+  },
+  "swapped": 11,
+  "fin": {
+   "score": 92,
+   "exact": 91.506,
+   "power": 99.3,
+   "apexScore": 92.2,
+   "midScore": 91.3,
+   "budgetScore": 91.3,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 57,
+   "mana": 93,
+   "strPower": 93.5,
+   "picks": {
+    "apex": 10,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 36,
+   "screw": 0.2,
+   "short": 0.13,
+   "stuck": 0
+  }
+ },
+ "reign-of-dragons|apex|best": {
+  "gen": {
+   "score": 93,
+   "exact": 92.564,
+   "power": 99.8,
+   "apexScore": 92.8,
+   "midScore": 92.2,
+   "budgetScore": 92.2,
+   "quality": 95,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 58,
+   "mana": 100,
+   "strPower": 94.6,
+   "picks": {
+    "apex": 12,
+    "mid": 14,
+    "budget": 13
+   },
+   "lands": 36,
+   "screw": 0.15,
+   "short": 0.103,
+   "stuck": 0
+  },
+  "swapped": 14,
+  "fin": {
+   "score": 91,
+   "exact": 91.338,
+   "power": 100,
+   "apexScore": 91.4,
+   "midScore": 91.2,
+   "budgetScore": 91.2,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 47,
+   "mana": 93,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 3,
+    "budget": 3
+   },
+   "lands": 38,
+   "screw": 0.187,
+   "short": 0.123,
+   "stuck": 0
+  }
+ },
+ "reign-of-dragons|budget|theme": {
+  "gen": {
+   "score": 88,
+   "exact": 88.225,
+   "power": 96.6,
+   "apexScore": 91.3,
+   "midScore": 90.9,
+   "budgetScore": 89.1,
+   "quality": 80,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 50,
+   "mana": 98,
+   "strPower": 80,
+   "picks": {
+    "apex": 17,
+    "mid": 14,
+    "budget": 9
+   },
+   "lands": 37,
+   "screw": 0.167,
+   "short": 0.11,
+   "stuck": 0
+  },
+  "swapped": 3,
+  "fin": {
+   "score": 88,
+   "exact": 88.173,
+   "power": 96.8,
+   "apexScore": 91.1,
+   "midScore": 90.3,
+   "budgetScore": 89.3,
+   "quality": 82,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 49,
+   "mana": 94,
+   "strPower": 81.9,
+   "picks": {
+    "apex": 16,
+    "mid": 11,
+    "budget": 6
+   },
+   "lands": 37,
+   "screw": 0.18,
+   "short": 0.14,
+   "stuck": 0
+  }
+ },
+ "reign-of-dragons|mid|theme": {
+  "gen": {
+   "score": 90,
+   "exact": 90.049,
+   "power": 98.2,
+   "apexScore": 91.7,
+   "midScore": 90.9,
+   "budgetScore": 90.3,
+   "quality": 91,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 50,
+   "mana": 95,
+   "strPower": 90.7,
+   "picks": {
+    "apex": 13,
+    "mid": 9,
+    "budget": 6
+   },
+   "lands": 37,
+   "screw": 0.177,
+   "short": 0.12,
+   "stuck": 0
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 91,
+   "exact": 90.546,
+   "power": 99.1,
+   "apexScore": 91.3,
+   "midScore": 90.7,
+   "budgetScore": 90.7,
+   "quality": 93,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 51,
+   "mana": 93,
+   "strPower": 92.6,
+   "picks": {
+    "apex": 10,
+    "mid": 5,
+    "budget": 3
+   },
+   "lands": 37,
+   "screw": 0.193,
+   "short": 0.137,
+   "stuck": 0
+  }
+ },
+ "reign-of-dragons|apex|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 91.322,
+   "power": 99.2,
+   "apexScore": 92.1,
+   "midScore": 91.9,
+   "budgetScore": 91.9,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 51,
+   "mana": 95,
+   "strPower": 96.2,
+   "picks": {
+    "apex": 10,
+    "mid": 10,
+    "budget": 9
+   },
+   "lands": 38,
+   "screw": 0.14,
+   "short": 0.103,
+   "stuck": 0
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 92,
+   "exact": 91.562,
+   "power": 98.5,
+   "apexScore": 93,
+   "midScore": 92.5,
+   "budgetScore": 92.4,
+   "quality": 98,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 51,
+   "mana": 93,
+   "strPower": 97.8,
+   "picks": {
+    "apex": 7,
+    "mid": 8,
+    "budget": 7
+   },
+   "lands": 38,
+   "screw": 0.18,
+   "short": 0.127,
+   "stuck": 0
+  }
+ },
+ "fantastic-four|budget|best": {
+  "gen": {
+   "score": 92,
+   "exact": 92.036,
+   "power": 98.1,
+   "apexScore": 93.8,
+   "midScore": 93.8,
+   "budgetScore": 91.9,
+   "quality": 84,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 70,
+   "mana": 97,
+   "strPower": 84.3,
+   "picks": {
+    "apex": 23,
+    "mid": 14,
+    "budget": 11
+   },
+   "lands": 35,
+   "screw": 0.143,
+   "short": 0.11,
+   "stuck": 0.187
+  },
+  "swapped": 13,
+  "fin": {
+   "score": 92,
+   "exact": 92.065,
+   "power": 97.8,
+   "apexScore": 94.1,
+   "midScore": 94.1,
+   "budgetScore": 92.2,
+   "quality": 87,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 66,
+   "mana": 98,
+   "strPower": 86.7,
+   "picks": {
+    "apex": 21,
+    "mid": 9,
+    "budget": 0
+   },
+   "lands": 36,
+   "screw": 0.14,
+   "short": 0.087,
+   "stuck": 0.173
+  }
+ },
+ "fantastic-four|mid|best": {
+  "gen": {
+   "score": 94,
+   "exact": 94.263,
+   "power": 101,
+   "apexScore": 93.3,
+   "midScore": 93.7,
+   "budgetScore": 93.5,
+   "quality": 94,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 98,
+   "strPower": 93.6,
+   "picks": {
+    "apex": 17,
+    "mid": 12,
+    "budget": 13
+   },
+   "lands": 35,
+   "screw": 0.097,
+   "short": 0.083,
+   "stuck": 0.22
+  },
+  "swapped": 12,
+  "fin": {
+   "score": 94,
+   "exact": 94.004,
+   "power": 100.5,
+   "apexScore": 93.5,
+   "midScore": 94,
+   "budgetScore": 94,
+   "quality": 97,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 64,
+   "mana": 100,
+   "strPower": 97.2,
+   "picks": {
+    "apex": 12,
+    "mid": 0,
+    "budget": 0
+   },
+   "lands": 35,
+   "screw": 0.137,
+   "short": 0.08,
+   "stuck": 0.21
+  }
+ },
+ "fantastic-four|apex|best": {
+  "gen": {
+   "score": 95,
+   "exact": 94.895,
+   "power": 101.9,
+   "apexScore": 93.1,
+   "midScore": 93.7,
+   "budgetScore": 94.2,
+   "quality": 96,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 72,
+   "mana": 100,
+   "strPower": 95.7,
+   "picks": {
+    "apex": 13,
+    "mid": 12,
+    "budget": 10
+   },
+   "lands": 35,
+   "screw": 0.1,
+   "short": 0.087,
+   "stuck": 0.143
+  },
+  "swapped": 14,
+  "fin": {
+   "score": 93,
+   "exact": 93.141,
+   "power": 100,
+   "apexScore": 93.1,
+   "midScore": 93.4,
+   "budgetScore": 93.4,
+   "quality": 100,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 58,
+   "mana": 100,
+   "strPower": 100,
+   "picks": {
+    "apex": 0,
+    "mid": 7,
+    "budget": 7
+   },
+   "lands": 36,
+   "screw": 0.16,
+   "short": 0.093,
+   "stuck": 0.157
+  }
+ },
+ "fantastic-four|budget|theme": {
+  "gen": {
+   "score": 91,
+   "exact": 91.377,
+   "power": 97.5,
+   "apexScore": 93.7,
+   "midScore": 93.4,
+   "budgetScore": 92.3,
+   "quality": 81,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 99,
+   "strPower": 81.3,
+   "picks": {
+    "apex": 25,
+    "mid": 18,
+    "budget": 13
+   },
+   "lands": 36,
+   "screw": 0.12,
+   "short": 0.093,
+   "stuck": 0.17
+  },
+  "swapped": 2,
+  "fin": {
+   "score": 92,
+   "exact": 91.583,
+   "power": 97.7,
+   "apexScore": 93.7,
+   "midScore": 93.5,
+   "budgetScore": 92.1,
+   "quality": 82,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 82,
+   "picks": {
+    "apex": 24,
+    "mid": 17,
+    "budget": 11
+   },
+   "lands": 36,
+   "screw": 0.14,
+   "short": 0.093,
+   "stuck": 0.133
+  }
+ },
+ "fantastic-four|mid|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 93.398,
+   "power": 99.2,
+   "apexScore": 94.1,
+   "midScore": 93.5,
+   "budgetScore": 93.4,
+   "quality": 91,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 91.1,
+   "picks": {
+    "apex": 18,
+    "mid": 14,
+    "budget": 11
+   },
+   "lands": 36,
+   "screw": 0.13,
+   "short": 0.09,
+   "stuck": 0.167
+  },
+  "swapped": 5,
+  "fin": {
+   "score": 93,
+   "exact": 93.059,
+   "power": 99.7,
+   "apexScore": 93.3,
+   "midScore": 94,
+   "budgetScore": 93.1,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 98,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 92.4,
+   "picks": {
+    "apex": 17,
+    "mid": 10,
+    "budget": 7
+   },
+   "lands": 36,
+   "screw": 0.163,
+   "short": 0.11,
+   "stuck": 0.153
+  }
+ },
+ "fantastic-four|apex|theme": {
+  "gen": {
+   "score": 93,
+   "exact": 92.807,
+   "power": 98.6,
+   "apexScore": 94.1,
+   "midScore": 93.5,
+   "budgetScore": 93,
+   "quality": 88,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 68,
+   "mana": 100,
+   "strPower": 88.1,
+   "picks": {
+    "apex": 18,
+    "mid": 15,
+    "budget": 11
+   },
+   "lands": 36,
+   "screw": 0.107,
+   "short": 0.083,
+   "stuck": 0.117
+  },
+  "swapped": 4,
+  "fin": {
+   "score": 93,
+   "exact": 93.081,
+   "power": 98.9,
+   "apexScore": 94.1,
+   "midScore": 93.6,
+   "budgetScore": 93.6,
+   "quality": 92,
+   "synergy": 100,
+   "balance": 100,
+   "routes": 65,
+   "mana": 100,
+   "strPower": 91.8,
+   "picks": {
+    "apex": 14,
+    "mid": 12,
+    "budget": 9
+   },
+   "lands": 36,
+   "screw": 0.16,
+   "short": 0.103,
+   "stuck": 0.08
+  }
+ }
+}
