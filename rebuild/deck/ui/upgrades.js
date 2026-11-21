@@ -1794,6 +1794,12 @@ function altList(d, s) {
     L1 = s.cut && find(s.cut) && !tags(find(s.cut)).land === !tags(pc || {}).land ? altsFor(d, s.cut, {cut: s.cut, val, skip: skip.concat([s.n]), n: 14, all: !!G, band: priceBand(pc && pc.p), refP: pc && pc.p}) : [],
     L = L0.concat(L1.filter(a => !L0.some(b => b.n === a.n)).map(a => Object.assign(a, {forCut: true})));
   if (G) {
+    // the strength list's own alternatives for the slot (strengthPaths: the next strongest cards that fit it), which the job
+    // search above can miss once card values also weigh this commander's play rate (the 50/50 blend, 21 Nov)
+    const row = R.paths.find(x => x.cut === s.cut);
+    ((row && row.alts && row.alts[s.t]) || []).forEach(a => {
+      if (!L.some(b => b.n === a.n) && priceBand(a.p) === priceBand(pc && pc.p)) L.push({n: a.n, p: a.p}); // same price band as the pick
+    });
     // as good as half the pick by the measure its tier picks with (Apex: power; Mid and Budget: the casual rating with this
     // commander's play rate), and never worse than the card in the slot (it adds power)
     const cas = s.t === 'mid' || s.t === 'budget',

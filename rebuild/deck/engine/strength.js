@@ -146,13 +146,15 @@ function strValue(c, d, casual) {
     const w = UP.strFit;
     // Budget and Mid picks also weigh what this commander's players run (EDHREC play rate, precon bias removed): players
     // upgrading at those prices add the commander's popular cards, not what strong decks of every commander play
-    const inc = casual && UP.strInc ? strInc(c, d) : 0,
-      base = casual && UP.strInc ? (1 - w - UP.strInc) * cardStrength(c, d, casual) + w * strFit(c, d) + UP.strInc * inc : (1 - w) * cardStrength(c, d, casual) + w * strFit(c, d);
-    // UP.strPopW (owner, 21 Nov: the 50/50 blend): share of the value taken from what this commander's players run (EDHREC
-    // play rate, precon bias removed) instead of strength; 0 = strength alone (option A). The sweep (tools/tests/suite/apex*.js)
-    // kept the strength builds' gain (generated Apex power 100) while upgrade picks stayed close to what players add
+    // UP.strPopW (owner, 21 Nov: the 50/50 blend): the card's strength is blended with what this commander's players run
+    // (EDHREC play rate, precon bias removed); 0 = strength alone (option A). Only the strength part is blended: fit with the
+    // deck's themes keeps its weight, so the chosen themes still steer the picks. The sweep (tools/tests/suite/apex*.js) kept
+    // the strength builds' gain (generated Apex power 100) while upgrade picks stayed close to what players add.
     const pw = UP.strPopW || 0,
-      b2 = pw ? (1 - pw) * base + pw * (casual && UP.strInc ? inc : strInc(c, d)) : base;
+      inc = (casual && UP.strInc) || pw ? strInc(c, d) : 0,
+      S0 = cardStrength(c, d, casual),
+      S1 = pw ? (1 - pw) * S0 + pw * inc : S0,
+      b2 = casual && UP.strInc ? (1 - w - UP.strInc) * S1 + w * strFit(c, d) + UP.strInc * inc : (1 - w) * S1 + w * strFit(c, d);
     v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
   }
@@ -562,7 +564,9 @@ function strengthPaths(d, R) {
         o = {};
       for (const t of ['apex', 'mid', 'budget']) {
         const n = H[t] || T[t].get(cut);
-        if (n && find(n)) o[t] = pick(cut, n, t, !!H[t]);
+        if (!n || !find(n)) continue;
+        const p = pick(cut, n, t, !!H[t]);
+        if (p.held || !(p.dScore <= 0)) o[t] = p; // a pick that lowers power on the strength scale is not an upgrade
       }
       // Apex is the row's strongest pick, Mid the stronger of Mid and Budget (each within its price)
       const best = (ts, t) => ts.map(x => o[x]).filter(p => p && priceOk(find(p.add), t)).sort((a, b) => b.dScore - a.dScore)[0];
