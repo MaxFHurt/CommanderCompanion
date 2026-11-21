@@ -64,6 +64,11 @@ T('Q-CARD', 'Card window opens with its swap box and says when a card is over th
 // Q5. Decklist, Build stats (with practice games) and Buy list tabs draw.
 const q5 = {}; for (const t of ['list', 'stats', 'buy']){ await open(t, true); await page.waitForTimeout(300); q5[t] = await page.evaluate(() => ({len:document.querySelector('#main').innerText.length, practice:/Practice games/i.test(document.body.textContent)})); }
 T('Q-TABS', 'Decklist, Build stats (practice games) and Buy list draw', q5.list.len > 500 && q5.stats.practice && q5.buy.len > 200, JSON.stringify(q5));
+// Q5b (roadmap 6b). Build stats shows the Game plan read-out: the deck's chains, each with card buttons that open the card.
+{ await open('stats', true); await page.waitForTimeout(200);
+  const q = await page.evaluate(() => { const el = document.querySelector('#plan-chains'); if (!el) return {found:false}; el.open = true; const ch = el.querySelectorAll('.chain'), b = el.querySelector('.chain button[data-act="card"]');
+    const out = {found:true, chains:ch.length, title:el.querySelector('summary').textContent, chips:el.querySelectorAll('.chain button').length}; if (b){ b.click(); const m = $('#modal'); out.card = !m.hidden; out.works = /Works with/.test(m.textContent); m.hidden = true; } return out; });
+  T('Q-PLAN', 'Build stats: the Game plan read-out lists the deck’s chains with card buttons that open the card', q.found && q.chains >= 1 && q.chips >= 4 && q.card, JSON.stringify(q)); }
 // Q6. Fix: Mana opens at once and fills in.
 const q6 = await page.evaluate(async () => { openFixSoon(['Mana']); const first = /checking land swaps/i.test($('#modal').textContent); for (let i = 0; i < 150 && /checking land swaps/i.test($('#modal').textContent); i++) await new Promise(r => setTimeout(r, 100));
   const done = !/checking land swaps/i.test($('#modal').textContent); $('#modal').hidden = true; return {first, done}; });

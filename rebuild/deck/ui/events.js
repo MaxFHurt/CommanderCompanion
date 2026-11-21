@@ -2580,6 +2580,7 @@ document.addEventListener(
     if (ev.target && ev.target.id === 'libstats') S.libStatsOpen = ev.target.open;
     if (ev.target && ev.target.id === 'score-more') S.scoreOpen = ev.target.open;
     if (ev.target && ev.target.id === 'plan-more') S.planOpen = ev.target.open;
+    if (ev.target && ev.target.id === 'plan-chains') S.chainsOpen = ev.target.open;
     if (ev.target && ev.target.id === 'stats-more') S.statsOpen = ev.target.open;
     if (ev.target && ev.target.id === 'dmeta') S.dmetaOpen = ev.target.open;
     if (ev.target && ev.target.id && ev.target.id.startsWith('bs-'))

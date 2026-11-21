@@ -256,6 +256,9 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    5, rather than keywords), what each part of the app does with them, and how it is measured (owner's decks, the upgrade
    benchmark, tournament match).
 2. Build in batches; each batch measured. Builds on 5.1-5.2 (engine readings, card interactions from triggers).
+   Batch A built (branch wt/6b-a, 21 Nov): plan facts from the game engine (plan-facts.js), 12 chains, Game plan read-out in
+   Build stats, chain-based "Works with" and upgrade reasons; picks and scores unchanged. Waiting: owner's labels for rows 1-5
+   of deck/tools/tests/suite/plans/LABELS.md. Next: B Fix menus, C plans list, D upgrade value, E score and generator.
 
 ## 7. Look and layout
 

@@ -471,7 +471,7 @@ a{color:var(--glow)}
 <script>
 // Self-update: browsers hold on to an old copy of this page. Ask the server which build is current (never cached)
 // and, if it is newer than this one, reload through a fresh address so the new page is fetched.
-window.BUILD = 218; window.VERSION = '0.9.73';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
+window.BUILD = 219; window.VERSION = '0.9.74';   // Version 0.9 from build 145 (owner, 19 Oct); the build number still drives self-update
 (function(){
   var last = 0;
   function check(){
@@ -487,7 +487,7 @@ window.BUILD = 218; window.VERSION = '0.9.73';   // Version 0.9 from build 145 (
 // The app (owner's choice 2c, 0.9.3): one minified bundle made by tools/build.sh; with ?dev=1 the readable files instead, in
 // files.json order (the same program). In order, one after another (async false), after the page above is in place.
 window.DEV = /[?&]dev=1(&|$)/.test(location.search);
-window.DEV_FILES = ["data.js", "lists.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js", "engine/strength.js", "ui/base.js", "ui/companion.js", "ui/storage.js", "ui/library.js", "ui/views.js", "ui/upgrades.js", "ui/deck.js", "ui/cards.js", "ui/events.js", "ui/boot.js"];
+window.DEV_FILES = ["data.js", "lists.js", "plan-facts.js", "engine/core.js", "engine/practice.js", "engine/reading.js", "engine/rules.js", "engine/functions.js", "engine/plans.js", "engine/score.js", "engine/library.js", "engine/upgrades.js", "engine/mana.js", "engine/generator.js", "engine/strength.js", "ui/base.js", "ui/companion.js", "ui/storage.js", "ui/library.js", "ui/views.js", "ui/upgrades.js", "ui/deck.js", "ui/cards.js", "ui/events.js", "ui/boot.js"];
 (window.DEV ? window.DEV_FILES : ['app.min.js']).forEach(function(f){ var s = document.createElement('script'); s.src = f + '?v=' + window.BUILD; s.async = false; document.body.appendChild(s); });
 </script>
 </body>
