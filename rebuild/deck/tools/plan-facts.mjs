@@ -20,6 +20,8 @@ const args = process.argv.slice(2), flags = new Set(args.filter(a => a.startsWit
 const [cardsFile, outArg] = pos, OUT = path.resolve(outArg || path.join(DECK, 'plan-facts.js'));
 if (!cardsFile) { console.error('usage: node tools/plan-facts.mjs <cards.json.gz> [out] [--force] [--stats]'); process.exit(1); }
 
+// a copy of the Deck Builder without the game app next to it (the test folders): keep the table it has
+if (!fs.existsSync(path.join(SRC, 'engine/triggers.js'))) { console.log('plan-facts.js: no game engine next to this copy; the table is kept'); process.exit(0); }
 // ---- fingerprint: the card file, the game engine's rules files and this script ----
 const fp = (() => {
   const h = crypto.createHash('sha256');
