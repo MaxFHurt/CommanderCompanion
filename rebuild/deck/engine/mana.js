@@ -388,6 +388,13 @@ const IMPACT = [
   [-SCORE_MIN + 1e-9, 'No real change', 'ok'],
   [-Infinity, 'Lowers the deck score', 'poor']
 ];
+const POWER_IMPACT = [
+  [1.5, 'Major upgrade', 'great'],
+  [0.75, 'Strong upgrade', 'good'],
+  [0.05, 'Small upgrade', 'ok'],
+  [-0.05, 'Power unchanged', 'ok'],
+  [-Infinity, 'Lowers power', 'poor']
+];
 const PART_LABEL = {
   synergy: 'synergy',
   balance: 'balance (jobs and lands)',
@@ -596,12 +603,13 @@ function evalFit(d, c, sw) {
   if (!pros.length && !cons.length) cons.push('Nothing in its text connects to the deck’s plan, but nothing clashes with it.');
   const fitT = {great: 'Great fit', good: 'Good fit', ok: 'Playable, not a natural fit', poor: 'Poor fit'}[level];
   if (sw && sw.dScore != null && !tags(c).land) {
-    const im = IMPACT.find(x => sw.dScore >= x[0]),
+    // with card strength on (sw.pw, the power change the Upgrades row shows) the verdict follows power, not the deck score
+    const im = sw.pw != null ? POWER_IMPACT.find(x => sw.pw >= x[0]) : IMPACT.find(x => sw.dScore >= x[0]),
       g = Object.entries(sw.gain || {})
         .filter(([, v]) => Math.abs(v) >= 0.05)
         .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
     const s = (sw.dScore >= 0 ? '+' : '−') + Math.abs(sw.dScore).toFixed(1);
-    pros.unshift(
+    if (sw.pw == null) pros.unshift(
       'Swapping out ' +
         sw.cut +
         ' changes the deck score by ' +

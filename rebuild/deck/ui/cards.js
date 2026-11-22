@@ -634,16 +634,23 @@ function landRank(d, addName, ar) {
   out.pool = lands.length + spells.length;
   return out;
 }
-// The deck score change for one swap in the card window; tiny changes read as unchanged.
-function wantChip(v) {
+// One swap in the card window: with card strength on, only its change in power (the same number as the Upgrades row); with
+// strength off, the deck score change. Tiny changes read as unchanged.
+function wantChip(v, cut, add) {
+  const d = cur(),
+    pw = cut && add && d && typeof strengthOn === 'function' && strengthOn(d) ? strengthGain(d, cut, add, 1) : null;
+  return pw != null ? strChip(pw) : dsChip(v);
+}
+function dsChip(v) {
   return v == null
     ? ''
     : Math.abs(v) < SCORE_MIN
-      ? '<span class="chip" title="Change to the deck’s power if you make this swap">Score unchanged</span>'
+      ? '<span class="chip" title="Change to the deck score if you make this swap">Deck score unchanged</span>'
       : '<span class="chip ' +
         (v > 0 ? 'good' : 'warn') +
-        '" title="Change to the deck’s power if you make this swap">' +
-        gainTxt(v) +
+        '" title="Change to the deck score if you make this swap">Deck score ' +
+        (v >= 0 ? '+' : '−') +
+        Math.abs(v).toFixed(1) +
         '</span>';
 }
 // Which parts of the deck score a swap moves (practice games reused, as swapScore does; land swaps are not split).
@@ -769,11 +776,15 @@ function wantHtml(d, c) {
               ' ' +
               (cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') +
               ' it could replace. ') +
-          (b.dScore >= SCORE_MIN
-            ? 'Each swap shows how the deck score would change.'
-            : 'Every swap would ' +
-              (b.dScore <= -SCORE_MIN ? 'lower' : 'barely change') +
-              ' the deck score; the least harmful one is first.') +
+          (() => {
+            const P = strengthOn(d) ? strengthGain(d, b.n, c.n, 1) : null,
+              v = P != null ? P : b.dScore,
+              m = P != null ? 0.05 : SCORE_MIN,
+              w = P != null ? 'the deck’s power' : 'the deck score';
+            return v >= m
+              ? 'Each swap shows how ' + w + ' would change.'
+              : 'Every swap would ' + (v <= -m ? 'lower' : 'barely change') + ' ' + w + '; the least harmful one is first.';
+          })() +
           '</p>'
         : '';
   let h =
@@ -788,7 +799,7 @@ function wantHtml(d, c) {
     '<div class="row"><span class="chip good">' +
     (b.row ? 'This upgrade’s swap' : 'Best swap') +
     '</span>' +
-    wantChip(b.dScore) +
+    wantChip(b.dScore, b.n, c.n) +
     '<span class="chip">' +
     esc(b.why[0]) +
     '</span><button class="btn pri sm" data-act="want" data-n="' +
@@ -796,7 +807,7 @@ function wantHtml(d, c) {
     '" data-v="' +
     esc(b.n) +
     '" style="margin-left:auto">Swap in</button></div>' +
-    tipHtml(d, c, b.dScore != null ? {cut: b.n, dScore: b.dScore, gain: swapGain(d, e, ar, b, c)} : null) +
+    tipHtml(d, c, b.dScore != null ? {cut: b.n, dScore: b.dScore, gain: swapGain(d, e, ar, b, c), pw: strengthOn(d) ? strengthGain(d, b.n, c.n, 1) : null} : null) +
     '</div>';
   S.wantMore =
     '<div class="grp"><span class="lab">Or take out instead</span>' +
@@ -807,7 +818,7 @@ function wantHtml(d, c) {
           '<div class="path">' +
           side(x.n, 'out', 'Take out') +
           '<div class="row">' +
-          wantChip(x.dScore) +
+          wantChip(x.dScore, x.n, c.n) +
           '<span class="chip">' +
           esc(x.why[0]) +
           '</span><button class="btn sm" data-act="want" data-n="' +
