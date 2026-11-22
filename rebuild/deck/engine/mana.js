@@ -735,7 +735,7 @@ function newCard(c) {
 // The Lands and Ramp fixes used to offer one specific card per swap, which fails a player who doesn't own it. These give
 // several complete options: basics split by colour, ramp (the commander's own set first), a mix, each naming the cards to
 // pull so the deck stays at 100. Advice only: nothing here changes a score or a card pick of the generator or the upgrade list.
-const LFIX = {rampCredit: 0.5, rampMax: 6}; // a cheap ramp piece stands in for about half a land
+const LFIX = {rampMax: 6}; // a cheap ramp piece stands in for LAND_RAMP of a land (library.js, the land formula's own share)
 // The cards the commander's own set holds: the precon it leads (lists.js), else the precon list EDHREC gave for it.
 function commanderSet(d) {
   const k = keyOf(d.commander || ''),
@@ -864,7 +864,7 @@ function landFixPlans(d, o) {
       own = rp.mine.filter(m => !rp.fromSet.slice(0, 4).some(s => s.n === m.n));
     const nr1 = Math.min(LFIX.rampMax, gap, lead.length),
       nr2 = gap >= 4 ? Math.min(3, Math.ceil(gap / 4), lead.length) : 0,
-      cr = n => Math.floor(n * LFIX.rampCredit);
+      cr = n => Math.round(n * LAND_RAMP);
     if (nr1 >= 2) plans.push(mk('ramp', 'Add ramp instead of some lands', gap - cr(nr1), nr1, lead));
     if (nr2 >= 2 && nr2 !== nr1) plans.push(mk('mix', 'Fewer basics plus cheap ramp', gap - cr(nr2), nr2, lead));
     plans.forEach(p => (p.setName = rp.set));
