@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.117 (Deck Builder 0.9.74, build 219)
+- **Live build:** 1.0.0-rebuild.118 (Deck Builder 0.9.75, build 220)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -51,6 +51,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 118 — 22 Nov 2026 (app 1.0.0-rebuild.118; Deck Builder 0.9.75, build 220): strongest decks blend + game screen
+- Strongest decks: card strength blended 50/50 with this commander's play rate (`UP.strPopW=0.5`, owner approved); theme fit keeps full weight; picks that lower power are dropped; strength-list alternatives. Holdout agreement@5 0.234 / 0.272 / 0.240 (Apex/Mid/Budget); precon Apex swaps left 62.7 → 20.9.
+- Game screen: bottom-right buttons aligned to the frame, top-bar text boxes removed, tips pane brief text that fits.
+- Tests: UI-B81-02 now regenerates a Mid build (Apex build has no Apex swaps by design); align_check measures the drawn part of ellipsised titles.
+- Suites: UI 148/151 then failures rerun clean; Deck Builder baselines unchanged; node, browser, soak all pass.
 
 ### Build 117 — 21 Nov 2026 (app 1.0.0-rebuild.117; Deck Builder 0.9.74, build 219): game plan read-out (6b batch A)
 - Owner, 16 Nov: build 6b Batch A now (no result changes); game engine readings first, Deck Builder reader as fallback.
