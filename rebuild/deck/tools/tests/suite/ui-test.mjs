@@ -1997,7 +1997,7 @@ const bl = await page.evaluate(async () => { const out = {};
   out.blend = m.every((v, i) => Math.abs(v - (a[i] + b[i]) / 2) < 1e-6); out.differs = a.some((v, i) => Math.abs(v - b[i]) > 1e-3);
   out.str = !!(evalFor(d) || {}).str;
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
-T('UI-BLEND-01', 'Owner, 21 Nov: card values are the 50/50 blend of card strength and this commander’s play rate (UP.strPopW 0.5), and the deck score reads card strength', bl.w === 0.5 && bl.on && bl.blend && bl.differs && bl.str, JSON.stringify(bl));
+T('UI-BLEND-01', 'Owner, 22 Nov: card values are the 30/70 blend of card strength and this commander’s play rate (UP.strPopW 0.7), and the deck score reads card strength', bl.w === 0.7 && bl.on && bl.blend && bl.differs && bl.str, JSON.stringify(bl));
 } catch (e) { QUIET = false; T('UI-BLEND-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 // Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
