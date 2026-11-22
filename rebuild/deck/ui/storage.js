@@ -1024,7 +1024,10 @@ function genKey(j) {
     UP
   ]);
 }
-async function genRun(nd, seeds, ownOnly, ownAll, fill) {
+function genRun(nd, seeds, ownOnly, ownAll, fill) {
+  return genHold(() => genRun1(nd, seeds, ownOnly, ownAll, fill));
+}
+async function genRun1(nd, seeds, ownOnly, ownAll, fill) {
   // the card strength file is read once at launch: a deck generated before it arrives waits for it (up to 20 s)
   if (fill && UP.str && !STRENGTH.cards && loadStrength.wait) await Promise.race([loadStrength.wait, new Promise(r => setTimeout(r, 20000))]);
   // a deck generated at a price level is finished on the strength scale its power is measured on (strFinish); not for decks
