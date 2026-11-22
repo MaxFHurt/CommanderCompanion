@@ -1937,7 +1937,10 @@ function useAlt(d, v, n) {
   return true;
 }
 // The commander's top EDHREC themes as build aims, with their theme pages loaded (none when the data can't be read).
-async function edhAimsFor(c) {
+function edhAimsFor(c) {
+  return genHold(() => edhAimsFor0(c));
+}
+async function edhAimsFor0(c) {
   try {
     await loadEdh(c.n);
     if (EDH.key !== c.n || EDH.state !== 'ok' || !(EDH.tags || []).length) return [];
@@ -1995,7 +1998,10 @@ function planDeck(cmdName, extraAims, partner, opts) {
 // level chosen the deck is built like a precon: at Budget (every card under $3), the level nearest a retail precon (Turtle
 // Power's precon scores 80 against the best Budget build's 87). A commander with no strategy of its own is built on what its
 // players build (EDHREC themes) or, with none, on card strength and jobs alone, like a precon.
-async function startPlan(cmdName, seeds, extraAims, partner, opts) {
+function startPlan(cmdName, seeds, extraAims, partner, opts) {
+  return genHold(() => startPlan0(cmdName, seeds, extraAims, partner, opts));
+}
+async function startPlan0(cmdName, seeds, extraAims, partner, opts) {
   opts = Object.assign({}, opts);
   const preconLike = !opts.fill;
   if (preconLike) opts.fill = 'budget';

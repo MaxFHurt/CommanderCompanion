@@ -694,10 +694,22 @@ function themeDefaults(d) {
   d.aimAuto = true;
   return true;
 }
+// Generations running (startPlan, edhAimsFor): while one runs, the deck open behind it does not take the EDHREC slot either
+let GEN_BUSY = 0;
+async function genHold(f) {
+  GEN_BUSY++;
+  try {
+    return await f();
+  } finally {
+    GEN_BUSY--;
+  }
+}
 function ensureEdh() {
   // while Generate (or its building window) is open it reads the commander being generated: the deck open behind it does not
   // take the one EDHREC slot back meanwhile (that dropped the deck built ahead, and the strength finish read the wrong page)
-  if (!$('#modal').hidden && document.querySelector('#modal #genmode, #modal #genbuild, #modal #themebuild')) return;
+  // nor while a generation runs: a page switched mid-build dropped its theme pages and the strength finish, so the first
+  // build of a commander differed from the next ones
+  if (GEN_BUSY || (!$('#modal').hidden && document.querySelector('#modal #genmode, #modal #genbuild, #modal #themebuild'))) return;
   const d = S.view === 'decks' && S.open ? cur() : null,
     c = d && d.format === 'commander' ? find(d.commander) : null;
   if (!c) return;
