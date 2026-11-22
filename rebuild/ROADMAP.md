@@ -53,7 +53,7 @@ optimization. That way we don't have to rework anything later due to new mechani
 **Change (owner, 22 Nov):** all card data and card interactions (long tail, batch 6, rule wordings) go last; first finish every other roadmap item with several agents, then the card work, then every final test as stated (device checklist and full suites).
 4. **Optimise all the code** (section 99), after everything else.
 
-## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/) — live in Build 115 (7c done with it); left: owner's device check, iPhone log-column art, more achievements
+## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/) — live in Build 115 (7c done with it); iPhone log-column art live in Build 120; left: owner's device check, more achievements
 Apply the supplied art to every screen (51 routes incl. Deck Builder), iPhone and iPad, per
 `rebuild/roadmap/Commander-Companion-Claude-Integration-Handoff.md`. Owner's answers (15 Nov): keep portrait support (masters
 cover landscape); 7c (landing art, enlarge small buttons) folds in; centre-opponent rotation, eight playmats, independent dice
@@ -243,7 +243,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    cisweep 1,466 s -> 623 s and genstrong 727 s -> 250 s split across 3 processes; every number identical. Still open: the
    UI suite itself (about 650 s on 3 browsers) needs less work per test (fewer practice games, a smaller card library).
 
-## 6b. Game-plan aware Deck Builder (owner, 13 Nov)
+## 6b. Game-plan aware Deck Builder (owner, 13 Nov) — batches A–E live (E in Build 120, with the synergy cap fix A+B)
 
 Owner: "The app needs to be gameplan aware for decks also. Some functions such as web-slinging instigate reactions from other
 effects. If I keep putting cards into my hand I'm either trying to force a discard OR I'm using spells that have an entering

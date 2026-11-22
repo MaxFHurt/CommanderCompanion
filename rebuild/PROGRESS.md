@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.119 (Deck Builder 0.9.76, build 221)
+- **Live build:** 1.0.0-rebuild.120 (Deck Builder 0.9.77, build 222)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -51,6 +51,12 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 120 — 22 Nov 2026 (app 1.0.0-rebuild.120; Deck Builder 0.9.77, build 222): game-plan chains in score and generator, synergy cap fix, iPhone log housing
+- **6b batch E** (owner approved 0.5 / on / keep guard): UP.chainSyn 0.5, spells on a working chain get deck-score synergy; UP.chainGen 2, the generator keeps chains whole and fills a thin side; the strength finish skips chain-breaking swaps.
+- **Synergy cap fix A+B** (owner: "fix it", chose A+B): UP.synCap 0.9 (was 0.72) and UP.synPlan 0.3 (30% of synergy = how full the best chain's two sides are). Keyword-only decks drop below 100; shown scores fall (precons about -4, workbook Turtle Power 85 to 77), as approved.
+- **iPhone game log** (owner's art, "Replace that area"): the housing replaces the baked log column in all 8 palettes; Stack/Undo in its key slots, Board/Table above them. V50 in DEVICE_CHECKS.md.
+- **Tests:** UI 152/152; semantics 61/2, claims 128, accept 39 x2, scheck bad 2, cisweep 0, edge throws 0 (all baseline); tourney 58/57 to 60/58%; genstrong typicality 0.405 to 0.423, core 0.71 to 0.76; bench unchanged; holdout agreement@5 0.251/0.272/0.238 (unchanged); all browser and node suites pass, align_check 0 misaligned.
 
 ### Build 119 — 22 Nov 2026 (app 1.0.0-rebuild.119; Deck Builder 0.9.76, build 221): game-plan Fix menus, plans list, thin-side bonus, 70/30 blend
 - 6b batch B: plan-aware Fix picks (`UP.planFix` 1, owner approved): plan picks lead at half the best gain; wipes say whether they spare or hit your creatures.
