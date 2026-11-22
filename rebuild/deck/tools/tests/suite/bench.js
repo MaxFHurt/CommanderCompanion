@@ -81,6 +81,9 @@ const out = {label, engine:dir, at:new Date().toISOString(), set:which, decks:{}
 for (const [slug, file] of list){
   const ev = evidence(slug, file), d = ev.d; H.edh(d.commander); X.__d = d;
   // AIMS=edh: aim the deck with the commander's own top themes (EDHREC tags), most-built first
+  // AIMS=thin (6b batch C): aim the deck with the build analysis' suggestion as if the commander had no play data (buildThemes
+  // with the EDHREC page hidden: the game plans with UP.planList 1, the keyword mechanics with 0); the picks still use the page
+  if (process.env.AIMS === 'thin') run('(() => { const m = EDH.map; EDH.map = null; try { __d.aims = buildThemes(__d).suggest.slice(); __d.tribe = buildThemes(__d).tribe || __d.tribe; } finally { EDH.map = m; } })()');
   if (process.env.AIMS === 'edh'){ const E = run('EDH'); const t = E.tags.filter(x => E.tmap[x.slug]).slice(0, +(process.env.NTHEMES || 3)); if (t.length) d.aims = t.map(x => 'edh:' + x.slug); }
   // BUDGETONLY=3: experiment — the whole engine restricted to cards under $3 (everything else ruled out for this deck).
   if (process.env.BUDGETONLY){ X.__cap = +process.env.BUDGETONLY; run('__d.dismissed = LIB.filter(c => c.p == null || c.p >= __cap).map(c => c.n)'); }

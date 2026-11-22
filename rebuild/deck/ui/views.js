@@ -426,6 +426,7 @@ function mechDesc(a, ctx) {
       (top.length ? ' Cards that define it: ' + top.map(esc).join(', ') + '.' : '')
     );
   }
+  if (isPlanAim(a)) return planDesc(a);
   if (a === 'tribal') return MECH_DESC.tribal + (ctx.tribe ? ' This build uses ' + esc(ctx.tribe) + '.' : '');
   return MECH_DESC[a] || '';
 }
@@ -491,6 +492,10 @@ function openMechList() {
         '’s mechanics (how players build it)</span>' +
         own.map(t => row('edh:' + t.slug, t.label, t.count.toLocaleString() + ' decks')).join('')
       : '') +
+    // UP.planList: the deck's strong game plans (plans.js planList), and any plan already in the build
+    ((pl => (pl.length ? '<span class="lab">Game plans in your cards</span>' + pl.map(a => row(a, aimLabel(a), '')).join('') : ''))(
+      [...new Set(planList(d).map(x => 'plan:' + x.id).concat(d.aims.filter(isPlanAim)))]
+    )) +
     '<span class="lab">Other mechanics</span>' +
     themeKeys()
       .map(k => row(k, THEMES[k].label, ''))

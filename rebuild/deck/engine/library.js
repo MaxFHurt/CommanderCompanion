@@ -421,6 +421,7 @@ const AIM_TEXT = {
   graveyard: c => isReanimEngine(c) || REANIM_PLAN.test(c.o || '') || ENTOMB_PLAN.test(c.o || '')
 };
 function matchAim(c, key, tribe) {
+  if (isPlanAim(key)) return planAim(c, key);   // a game plan read from the deck's cards (plans.js, UP.planList)
   if (isEdhAim(key)) {
     const m = EDH.tmap && EDH.tmap[key.slice(4)],
       x = m && edhOf(m, c),

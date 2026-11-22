@@ -1607,7 +1607,7 @@ function readBackup(text) {
           dismissed: []
         },
         d,
-        {tier: TIERS[d.tier] ? d.tier : 'budget', aims: (d.aims || []).filter(a => THEMES[a] || isEdhAim(a))}
+        {tier: TIERS[d.tier] ? d.tier : 'budget', aims: (d.aims || []).filter(a => THEMES[a] || isEdhAim(a) || isPlanAim(a))}
       )
     );
   S.pendingRestore = {p, when};

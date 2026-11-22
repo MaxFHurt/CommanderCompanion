@@ -913,7 +913,7 @@ async function openAnalysis() {
     v = validateDeck(d),
     open = Math.max(0, T.size - A.size);
   const label = k =>
-    isEdhAim(k)
+    isEdhAim(k) || isPlanAim(k)
       ? aimLabel(k)
       : k === 'tribal'
         ? (B.tribe || ctx.tribe || 'Creature type') + ' tribal'
@@ -987,6 +987,13 @@ async function openAnalysis() {
             esc(c.n.split(',')[0]) +
             '’s themes (what players build it around):</p>' +
             B.edh.slice(0, 5).map(row).join('')
+          : '') +
+        // UP.planList: the strong game plans read from the cards (enablers and payoffs that set each other off)
+        ((B.plans || []).length
+          ? '<p class="note" style="margin:0">Game plans in your cards' +
+            (B.thinData || !c ? '' : ' (' + esc(c.n.split(',')[0]) + '’s themes lead the suggested build)') +
+            ':</p>' +
+            B.plans.slice(0, 3).map(row).join('')
           : '') +
         (B.gen.length
           ? '<p class="note" style="margin:0">' +

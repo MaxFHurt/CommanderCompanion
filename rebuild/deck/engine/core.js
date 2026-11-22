@@ -807,6 +807,7 @@ function aimLabel(a, tribe) {
     const t = (EDH.tags || []).find(x => 'edh:' + x.slug === a);
     return t ? t.label : a.slice(4).replace(/-/g, ' ');
   }
+  if (isPlanAim(a)) return planLabel(a);
   return a === 'tribal' ? (tribe || 'Creature type') + ' tribal' : (THEMES[a] || {label: a}).label;
 }
 // Does the card itself do what the plan label says (its own text, type or role)? Popularity on a theme page earns no label (reason
