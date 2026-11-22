@@ -42,6 +42,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 
 ## Order of work (owner, 13 Nov: "All judgement tools should come last on actual changes, right before the code
 - **Owner, 22 Nov:** when only card corrections (card data, rules long tail, batch 6) are left, do NOT start them without consulting the owner first.
+- **Forge (owner, 22 Nov):** MTG Forge card scripts (GPL-3.0) are an OFFLINE check only: the clone and translator stay outside the repo (/home/user/dc-runs/forge); never commit or ship anything Forge-derived; only our own fixes go in. Each card batch compares our readings with Forge's to catch misreads.
 optimization. That way we don't have to rework anything later due to new mechanics.")
 
 1. **Features and screens** that are not judgement: 1.4 device checks, 4, 4b, 7, 7b, 7c, 7f.2.
