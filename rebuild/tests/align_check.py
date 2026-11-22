@@ -43,6 +43,14 @@ MEASURE = """() => {
       for (const q of rects) { T = Math.min(T, q.top); B = Math.max(B, q.bottom); }
       n++;
     }
+    // A title cut short with an ellipsis (a long card name in the hand's card detail: the hand is shuffled, so it comes and goes)
+    // shows its text across the whole content box; the range's rects run on past the clip, so measure what is drawn.
+    const es = getComputedStyle(el);
+    if (n && es.overflowX === 'hidden' && es.textOverflow === 'ellipsis' && el.scrollWidth > el.clientWidth + 1) {
+      const eb = el.getBoundingClientRect();
+      L = Math.max(L, eb.left + parseFloat(es.borderLeftWidth) + parseFloat(es.paddingLeft));
+      R = Math.min(R, eb.right - parseFloat(es.borderRightWidth) - parseFloat(es.paddingRight));
+    }
     return n ? { cx: (L + R) / 2, cy: (T + B) / 2, w: R - L } : null;
   };
   const box = e => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2, w: r.width, h: r.height }; };
