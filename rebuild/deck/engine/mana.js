@@ -49,6 +49,80 @@ function fixUsesLife(d) {
   const cm = find(d.commander);
   return k + (cm && PAY.test(cm.o || '') ? 2 : 0) >= 3;
 }
+// Plan-aware Fix picks, batch B (UP.planFix; roadmap 6b, design rebuild/roadmap/6b-design.md section 2). From the deck's
+// chains (plans.js): a card that fills the thin side of a detected chain, a discard outlet in a deck that fills its hand, a
+// sacrifice outlet in a deck of death triggers, or (Win routes) a death-trigger drain in a sacrifice deck is a plan pick
+// (t 2) and leads its Fix menu when it does at least half as much for the deck as the best swap; a wipe that hits the deck's
+// own main card type (t -1) comes after the others whatever its score; one that spares it is named so (t 1, order as before).
+// p.pt: the tier; its reason is added to p.why.
+const FIX_PLAN = new Map();
+function fixPlanDeck(d) {
+  const k = d.id + '#' + d.commander + '#' + d.cards.map(e => e.n + '×' + (e.q || 1)).join('|'),
+    hit = FIX_PLAN.get(d.id);
+  if (hit && hit.k === k) return hit.v;
+  const P = planOf(d),
+    rows = [];
+  for (const n of [d.commander, d.partner].filter(Boolean)) {
+    const c = find(n);
+    if (c) rows.push({c, m: 3});
+  }
+  d.cards.forEach(e => {
+    const c = find(e.n);
+    if (c && !tags(c).land) rows.push({c, m: e.q || 1});
+  });
+  // weight of cards doing it from their own text (not the type line): enablers of a full hand, death triggers
+  const own = re => rows.reduce((s, r) => s + (chainOwn(r.c, re) ? chainSide(r.c, re) * r.m : 0), 0);
+  const v = {
+    P,
+    // fills its hand (12+ repeatable draw, or 9+ and no maximum hand size), few ways to use it, and no plan to keep the cards
+    // (hand-size payoffs)
+    hand: (own(/^gdrm-1/) >= 12 || (own(/^ghs/) > 0 && own(/^gdrm-1/) >= 9)) && own(/^gdcm-1|^wdc[sm]/) < 3 && !P.chains.some(x => x.id === 'handsize'),
+    dies: own(/^wdy[ma]|^wsc[ma]/) >= 4 && own(/^gscm.1/) < 3, // death triggers, few repeatable sacrifice outlets
+    ar: P.chains.some(x => x.id === 'aristocrats') || own(/^wdy[ma]|^wsc[ma]/) >= 4,
+    main: ''
+  };
+  // the deck's main card type (40%+ of its spells, as fixWipeHitsOwn counts), named in the wipe reasons
+  {
+    const n = {Creature: 0, Artifact: 0, Enchantment: 0};
+    let all = 0;
+    d.cards.forEach(e => {
+      const x = find(e.n);
+      if (!x || e.l || tags(x).land) return;
+      all += e.q || 1;
+      Object.keys(n).forEach(k => frontType(x).includes(k) && (n[k] += e.q || 1));
+    });
+    const k = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+    if (all && n[k] / all >= 0.4) v.main = k.toLowerCase() + 's';
+  }
+  FIX_PLAN.set(d.id, {k, v});
+  if (FIX_PLAN.size > 20) FIX_PLAN.delete(FIX_PLAN.keys().next().value);
+  return v;
+}
+const FIX_DRAIN = /each opponent loses \d+ life|loses? \d+ life and you gain|deals? \d+ damage to each opponent|target (?:player|opponent) loses \d+ life/i;
+function fixPlan(d, c, kind) {
+  if (!UP.planFix || !c || !['ramp', 'draw', 'removal', 'wipe', 'wins'].includes(kind)) return {t: 0, w: ''};
+  const F = fixPlanDeck(d);
+  if (kind === 'wipe' && F.main) return fixWipeHitsOwn(c, d) ? {t: -1, w: 'also hits your ' + F.main} : {t: 1, w: 'spares your ' + F.main};
+  for (const x of F.P.chains) {
+    if (!x.thin) continue;
+    const re = x.thin === 'enablers' ? x.ch.E : x.ch.P;
+    if (chainOwn(c, re) && !x[x.thin === 'enablers' ? 'en' : 'pay'].includes(c.n))
+      return {t: 2, w: 'thin side of your plan: ' + (x.thin === 'enablers' ? x.ch.en : x.ch.pay)};
+  }
+  if (F.hand && chainOwn(c, /^gdcm-1|^wdc[sm]/)) return {t: 2, w: 'a discard outlet for a deck that fills its hand'};
+  if (F.dies && chainOwn(c, /^gscm.1/)) return {t: 2, w: 'a sacrifice outlet for your death triggers'};
+  if (kind === 'wins' && F.ar && chainOwn(c, /^wdy[ma]/) && FIX_DRAIN.test(c.o || '')) return {t: 2, w: 'drains opponents as creatures die'};
+  return {t: 0, w: ''};
+}
+// The Fix menu's order with the plan picks (UP.planFix): with 0 (or no scores) best score first, as before.
+function fixPlanSort(list) {
+  const by = (a, b) => (b.dScore || 0) - (a.dScore || 0);
+  if (!UP.planFix) return list.sort(by);
+  const top = list.reduce((m, p) => Math.max(m, p.dScore || 0), 0),
+    lead = p => (p.pt || 0) >= 2 && (p.dScore == null || top <= 0 || p.dScore >= top / 2);
+  const rank = p => (lead(p) ? 0 : (p.pt || 0) < 0 ? 2 : 1);
+  return list.sort((a, b) => rank(a) - rank(b) || (rank(a) === 0 ? (b.pt || 0) - (a.pt || 0) : 0) || by(a, b));
+}
 function fixSwaps(d, kind, o) {
   o = o || {};
   if (d.format !== 'commander' || !find(d.commander)) return [];
@@ -83,20 +157,36 @@ function fixSwaps(d, kind, o) {
     const e = ctx.edh && edhOf(ctx.edh.map, c);
     return (e && e.inc >= 0.05) || (c.r && c.r < 3000);
   };
-  const best = (f, k) =>
+  const best0 = (f, k) =>
     LIB.filter(c => addOk(c) && f(c) && (o.only || evid(c)))
       .map(c => ({c, v: val(c)}))
       .sort((a, b) => b.v - a.v)
       .slice(0, k);
+  // UP.planFix: the best plan picks (fixPlan t 2) among the 60 strongest are tried after the usual cards (ext), so the usual
+  // cards keep the cuts they get today
+  const ext = [];
+  const best = (f, k) => {
+    if (!UP.planFix) return best0(f, k);
+    const L = best0(f, Math.max(k, 60));
+    L.forEach(a => (a.pf = fixPlan(d, a.c, kind)));
+    ext.push(...L.slice(k).filter(a => a.pf.t >= 2).slice(0, 3));
+    return L.slice(0, k);
+  };
   // With o.score (the deck-score change of a swap), each fixing card is tried against the five cards the deck can best spare
   // and keeps the cut that leaves the deck strongest; the swaps are then listed best first.
   const pairUp = (adds, cuts, why) => {
-    if (!o.score) return adds.slice(0, Math.min(n, cuts.length)).map((a, i) => ({cut: cuts[i].n, add: a.c.n, q: 1, kind, why}));
+    if (UP.planFix) {
+      adds.forEach(a => (a.pf = a.pf || fixPlan(d, a.c, kind)));
+      const X = ext.filter((a, i) => !adds.some(b => b.c._k === a.c._k) && ext.findIndex(b => b.c._k === a.c._k) === i);
+      adds = o.score ? adds.slice(0, n + 4).concat(X) : adds.concat(X).map((a, i) => [a, i]).sort((x, y) => (y[0].pf.t >= 2) - (x[0].pf.t >= 2) || (x[0].pf.t < 0) - (y[0].pf.t < 0) || x[1] - y[1]).map(x => x[0]);
+    }
+    const tag = (s, a) => (a.pf && a.pf.t ? Object.assign(s, {pt: a.pf.t, why: s.why + ' · ' + a.pf.w}) : s);
+    if (!o.score) return adds.slice(0, Math.min(n, cuts.length)).map((a, i) => tag({cut: cuts[i].n, add: a.c.n, q: 1, kind, why}, a));
     const spare = o.spareLands && o.landScore && !adds.some(a => tags(a.c).land) ? spareLands(d) : [],
       uL = [];
     const used = new Set(),
       out = [];
-    for (const [ai, a] of adds.slice(0, n + 4).entries()) {
+    for (const [ai, a] of (UP.planFix ? adds : adds.slice(0, n + 4)).entries()) {
       let b = null;
       for (const cu of cuts.filter(x => !used.has(x.n)).slice(0, 5)) {
         const v = o.score(cu.n, a.c.n);
@@ -111,17 +201,17 @@ function fixSwaps(d, kind, o) {
       if (b) {
         if (b.land != null) uL.push(b.land);
         else used.add(b.cu.n);
-        out.push({
+        out.push(tag({
           cut: b.cu.n,
           add: a.c.n,
           q: 1,
           kind,
           why: b.land != null ? why + ' · takes out a spare land' : why,
           dScore: b.v
-        });
+        }, a));
       }
     }
-    return out.sort((x, y) => y.dScore - x.dScore).slice(0, n);
+    return (UP.planFix ? fixPlanSort(out) : out.sort((x, y) => y.dScore - x.dScore)).slice(0, n);
   };
   if (['ramp', 'draw', 'removal', 'wipe'].includes(kind))
     return pairUp(
@@ -245,6 +335,9 @@ function fixSwaps(d, kind, o) {
       .map(c => ({c, v: val(c)}));
     const fin =
       adds.length >= n ? [] : best(c => !tags(c).land && isFinisher(c) && !adds.some(a => a.c._k === c._k), n - adds.length);
+    // UP.planFix: in a sacrifice deck, death-trigger drains (Blood Artist, Zulaport Cutthroat) are ways to win too
+    if (UP.planFix && fixPlanDeck(d).ar)
+      ext.push(...best(c => !tags(c).land && !isFinisher(c) && FIX_DRAIN.test(c.o || '') && chainOwn(c, /^wdy[ma]/) && !adds.some(a => a.c._k === c._k), 2));
     return pairUp(adds.concat(fin), cutsFor(''), 'Adds a way to win');
   }
   return [];

@@ -171,6 +171,7 @@ P1. ☐ Open a built Commander deck → Build stats → "Game plan" → expect i
 P2. ☐ Open it on iPhone (upright and sideways) and iPad → expect each plan with its enablers → payoffs line and two rows of card chips that wrap, no sideways scroll.
 P3. ☐ Tap a card chip in the read-out → expect that card's window to open; its "Works with" names cards with the plan in brackets.
 P4. ☐ Swap a card on Upgrades and come back → expect the read-out to follow the new list, and the deck score and upgrade picks to be the same as before this build.
+P5. ☐ (batch B, if approved) Health pop-up and Fix menus on iPhone and iPad: a plan pick's reason chip (e.g. "Adds board wipes · spares your creatures", "… the thin side of the plan") wraps inside the row, the Swap button stays on screen.
 
 ## Monster Siege (/test)
 
