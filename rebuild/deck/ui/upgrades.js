@@ -3273,12 +3273,12 @@ function fixList(d, key) {
     if (G) {
       const cas = d.tier === 'mid' || d.tier === 'budget';
       try {
-        return fixSwaps(d, kind, {n: 6, val: c => strValue(c, d, cas), score: (cut, add) => G(cut, add, 1)})
+        const L = fixSwaps(d, kind, {n: 6, val: c => strValue(c, d, cas), score: (cut, add) => G(cut, add, 1)})
           .filter(p => !hasCard(d, p.add))
           .map(p => Object.assign(p, {dScore: G(p.cut, p.add, p.q || 1), str: true}))
-          .filter(p => p.dScore >= SCORE_MIN)
-          .sort((a, b) => b.dScore - a.dScore)
-          .slice(0, 5);
+          .filter(p => p.dScore >= SCORE_MIN);
+        // UP.planFix: plan picks lead when they do at least half as much as the best swap (mana.js fixPlanSort)
+        return (UP.planFix ? fixPlanSort(L) : L.sort((a, b) => b.dScore - a.dScore)).slice(0, 5);
       } catch (err) {
         return [];
       }

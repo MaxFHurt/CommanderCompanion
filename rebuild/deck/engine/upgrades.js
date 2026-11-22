@@ -2206,6 +2206,7 @@ const UP = {
   bsP: 9,
   starve: 0.08,
   lfix: 1,
+  planFix: 1, // roadmap 6b batch B (owner approved 22 Nov): Fix menus read the deck's game plan (mana.js fixPlan); 0 = the picks before
   strKeepLands: 1, // the strength finish keeps the generator's land count as a floor (owner, 12 Nov: fix the mana first)
   strKeepCombos: 1, // the strength finish keeps the pieces of the deck's winning combos (a combo is a finisher in two or three cards)
   strKeepJobs: 1, // strength builds never lower the deck's ramp, draw, removal and wipe counts, nor trade away a finisher or protection
