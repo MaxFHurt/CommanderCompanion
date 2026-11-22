@@ -269,3 +269,4 @@
 
 /* The pass curtain covers the whole stage. */
 .game--gp .curtain { z-index: 50; }
+.gp--phone .gp-loghousing { background: var(--sk-log-housing) 0 0 / 100% 100% no-repeat; pointer-events: none; }

@@ -234,6 +234,7 @@ export function boardHtml(o) {
       </div>
 
       <div class="game__right gp-contents">
+        ${L.log.housing ? html`<span ${at(L.log.housing, 'gp-loghousing', { cluster: rail })} aria-hidden="true"></span>` : ''}
         <div class="glog gp-contents ${phone ? 'glog--phone' : ''}">
           <button type="button" ${at(L.log.hit, 'gp-key gp-logtitle link-btn glog__title is-clamp', { face: L.log.face, cluster: rail })} data-act="log"><span class="gp-face">Game Log</span></button>
           <ol ${at(L.log.rows, 'glog__list gp-logrows', { cluster: rail })}>${view.log.slice(0, logLength(phone)).map(e => html`<li class="glog__row glog__row--${e.type || 'plain'}">${e.text}</li>`)}</ol>

@@ -4,7 +4,7 @@
     python3 -I tools/skin-assets.py /path/to/extracted/handoff [--sizes]   (about 2 minutes)
     python3 -I tools/skin-assets.py --dice [life-dice folder]               (reward dice art -> assets/skin/dice/)
     python3 -I tools/skin-assets.py --mats [playmats folder]                (reward playmats -> assets/skin/mats/, prints palette picks)
-    python3 -I tools/skin-assets.py --log [frame folder]                    (iPhone Stack/Undo log command keys (the housing is already in the chassis art) -> assets/skin/<palette>/log-*.webp)
+    python3 -I tools/skin-assets.py --log [frame folder]                    (iPhone Stack/Undo log command keys and the game-log housing; the iPhone chassis is rebuilt with the baked log column erased -> assets/skin/<palette>/log-*.webp)
     python3 -I tools/skin-assets.py --css                                  (only rewrite styles/skin-palettes.css)
 
 Layout written (ids are the app's lower-case playmat ids, data/playmats.js):
@@ -49,7 +49,9 @@ GAME = [
 # The player status light (art/status, amber in the handoff) tinted per state (owner, 15 Nov: green / yellow / red).
 STATUS_TINTS = {'green': 105, 'yellow': 18, 'red': -32}   # hue shift in degrees from the amber lens
 QUALITY = 82
-# iPhone game-log keys (owner's frame folder: art/log-command-key-left/right; 8 palettes; keys also pressed/disabled)
+# iPhone game-log housing + keys (owner's frame folder: art/game-log-housing, art/log-command-key-left/right; 8 palettes; keys also pressed/disabled)
+# Baked log column of the iPhone chassis (1160 x 535 map units: window, Board/Table bays) that the owner's housing replaces (22 Nov).
+LOG_ERASE = (992, 112, 1160, 343)
 LOG_KEYS = [('log-command-key-left', 'log-key-l'), ('log-command-key-right', 'log-key-r')]
 
 
@@ -65,6 +67,15 @@ def fit(im, box):
     if scale >= 1:
         return im
     return im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
+
+
+def erase_log_column(im):
+    """Clear the chassis' baked log column (alpha 0) so the playmat and the owner's housing art show there."""
+    k = im.width / 1160
+    x0, y0, x1, y1 = (round(v * k) for v in LOG_ERASE)
+    im = im.convert('RGBA')
+    im.paste((0, 0, 0, 0), (x0, y0, min(x1, im.width), y1))
+    return im
 
 
 def save(im, out, lossless=False):
@@ -111,6 +122,7 @@ def write_css(root):
         for _, name, _ in GAME:
             if name != 'die':
                 decl.append(f'--sk-{name}: url("../assets/skin/{pid(p)}/{name}.webp")')
+        decl.append(f'--sk-log-housing: url("../assets/skin/{pid(p)}/log-housing.webp")')
         for _, name in LOG_KEYS:
             for st in ('normal', 'pressed', 'disabled'):
                 decl.append(f'--sk-{name}-{st}: url("../assets/skin/{pid(p)}/{name}-{st}.webp")')
@@ -157,6 +169,9 @@ def main():
     if '--log' in sys.argv:   # iPhone game-log housing and command keys (lazy per palette, like the other palette art)
         d = args[0] if args else '/home/user/dc-runs/ilog/frame'
         for p in PALETTES:
+            save(Image.open(os.path.join(d, 'art/game-log-housing', f'{p}-normal.png')).convert('RGBA'), os.path.join(dest, pid(p), 'log-housing.webp'))
+            ch = fit(Image.open(os.path.join(args[1] if len(args) > 1 else '/home/user/vh', f'art/chassis/iPhone-{p}-edge.png')).convert('RGBA'), (1800, None))
+            save(erase_log_column(ch), os.path.join(dest, pid(p), 'chassis-phone.webp'))
             for fam, name in LOG_KEYS:
                 for st in ('normal', 'pressed', 'disabled'):
                     save(Image.open(os.path.join(d, 'art', fam, f'{p}-{st}.png')).convert('RGBA'), os.path.join(dest, pid(p), f'{name}-{st}.webp'))
@@ -176,6 +191,8 @@ def main():
         im = Image.open(os.path.join(src, rel_src))
         im.load()
         im = fit(im.convert('RGBA') if 'A' in im.getbands() or im.mode == 'P' else im.convert('RGB'), box)
+        if rel_out.endswith('/chassis-phone.webp'):
+            im = erase_log_column(im)
         n = save(im, os.path.join(dest, rel_out), lossless)
         group = rel_out.split('/')[0]
         totals[group] = totals.get(group, 0) + n

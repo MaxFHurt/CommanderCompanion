@@ -44,16 +44,16 @@ const PHONE = {
     creatures: [109.52, 275.64, 176.96, 96.32], artifacts: [297.88, 275.82, 110.24, 91.16], enchantments: [460.85, 275.82, 111.3, 91.16],
     planeswalkers: [617.85, 275.82, 111.3, 91.16], lands: [757.3, 275.64, 218.4, 96.32]
   },
-  // Housings measured in the frame art (chassis/iPhone-*-edge.png): the log window (x 1014.6-1153, y 132.5-315.5) and one
-  // pair of key housings under it (y 317.8-338.3): Board and Table sit on those. Stack / Undo and Host Tools have no
-  // housing in the frame, so they keep the kit's utility key art, on the same columns, inside the window and below the pair.
-  log: { cluster: [1016, 139, 132, 261], face: [1014.6, 139, 138.6, 26], hit: [1016, 139, 132, 50], rows: [1025, 169, 115, 65] },
+  // Log column: the chassis' own column is erased in the phone art; the owner's housing replaces it (see tools below).
+  log: { cluster: [1011.8, 114, 136.2, 261], housing: [994, 114, 166, 229], face: [1014.6, 139, 138.6, 26], hit: [1016, 139, 132, 50], rows: [1025, 169, 115, 65] },
   tools: {
-    // iPhone: the owner's log command keys (left / right, 133 x 64 and 130 x 64 art), centred on the old utility keys.
-    stack: { face: [1017, 252.5, 66, 31.7], hit: [1016, 244, 68.7, 50.7], art: true, logKey: 'l' },
-    undo: { face: [1083.4, 252.5, 66, 32.5], hit: [1084.7, 244, 63.3, 50.7], art: true, logKey: 'r' },
-    board: { face: [1023.7, 317.8, 55.6, 20.5], hit: [1016, 294.7, 68.7, 52.7] },
-    table: { face: [1090.1, 317.8, 56.3, 20.5], hit: [1084.7, 294.7, 63.3, 52.7] },
+    // iPhone (owner, 22 Nov: "replace that area"): the owner's log housing, 166 x 229 at the housing's 308 x 425 proportions,
+    // covers the erased chassis column (assets/skin tools/skin-assets.py LOG_ERASE). Its two key slots (y 298.9-327) take Stack and
+    // Undo; Board and Table are the same command keys in a row above them, under the three entries.
+    stack: { face: [1012.5, 296.5, 69.4, 33.4], hit: [1011.8, 291.7, 69.5, 50.7], art: true, logKey: 'l' },
+    undo: { face: [1085, 296.5, 68, 33.4], hit: [1084.5, 291.7, 69.5, 50.7], art: true, logKey: 'r' },
+    board: { face: [1012.5, 249.8, 69.4, 33.4], hit: [1011.8, 241, 69.5, 50.7], art: true, logKey: 'l' },
+    table: { face: [1085, 249.8, 68, 33.4], hit: [1084.5, 241, 69.5, 50.7], art: true, logKey: 'r' },
     host: { face: [1023.7, 358, 122.7, 20.5], hit: [1016, 347.4, 132, 52.6], art: true }
   },
   // Jewels: hit = the map's control rect; art = where the jewel art lines up with the chassis housing (matched against
