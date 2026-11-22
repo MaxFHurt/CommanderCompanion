@@ -137,10 +137,62 @@ function strInc(c, d) {
   const D = preDeflate(E);
   return Math.max(0, Math.min(1, D.inc(c, x.inc)));
 }
-function strValue(c, d, casual, raw) {
+// Roadmap 6.1 (smarter deck score), read from the card's text and the practice games' reading, no card lists:
+// strSpeed: how much mana a card gives over the first four turns, against playing a land (-1..1): Sol Ring, Mana Vault, the
+// Moxen and Ancient Tomb high; a two-mana Signet a little; a three-mana rock, Cultivate and lands that enter tapped below zero.
+function strSpeed(c) {
+  if (c._spd !== undefined) return c._spd;
+  const o = (c.o || '').split(' // ')[0],
+    t = frontType(c),
+    land = tags(c).land;
+  let g = 0;
+  if (land) {
+    // a land: more than one mana a turn (Ancient Tomb), or entering tapped (a turn without its mana)
+    const m = /\{T\}(?:, Pay \d+ life)?: Add ((?:\{[WUBRGC]\})+)(?:\.| or )/i.exec(o),
+      n = m && !/ or /.test(m[0]) ? (m[1].match(/\{/g) || []).length : 1;
+    g = (Math.max(1, n) - 1) * 4 - (landSpeed(c) === 'tapped' ? 1 : 0);
+  } else {
+    const x = simCard(c),
+      cmc = c.cmc || 0;
+    let mana = x.mana || 0;
+    // the reading misses some sources it cannot follow (Chrome Mox's imprint): the text's own tap ability counts as one mana
+    if (!mana && /^\{T\}: Add /im.test(o) && !/sacrifice ~|sacrifice this/i.test(o) && /Artifact|Creature/.test(t)) mana = 1;
+    if (mana) {
+      const s = Math.max(1, Math.ceil(cmc)) + (x.sick || x.tappedRock ? 1 : 0),
+        uses = /doesn['’]t untap during your untap step/i.test(o) ? Math.min(2, 5 - s) : 5 - s;
+      g = mana * Math.max(0, uses) - cmc;
+    } else if (x.ramp) {
+      const tp = /onto the battlefield tapped|put (it|them|that card|those cards) onto the battlefield tapped/i.test(o) ? 1 : 0,
+        s = Math.max(1, Math.ceil(cmc)) + tp;
+      g = x.ramp * Math.max(0, 5 - s) - cmc;
+    } else if (/^(Instant|Sorcery)/.test(t) || /\{T\}, Sacrifice|Sacrifice ~|Sacrifice this/i.test(o)) {
+      // a one-shot: Dark Ritual, Lotus Petal
+      const m = /Add ((?:\{[WUBRGC]\})+|one mana)/i.exec(o);
+      if (m && tags(c).roles.has('ramp')) g = (m[1].match(/\{/g) || [1]).length - cmc;
+    }
+  }
+  return (c._spd = Math.max(-1, Math.min(1, g / 6)));
+}
+// strTempo: what one answer costs (-1..1): free (an alternative cost, phyrexian or no mana) 1, one mana 0.5, two 0, three -0.5;
+// instants and sorceries that remove or counter only; a counter the opponent can pay through counts half a step lower.
+function strTempo(c) {
+  if (c._tmp !== undefined) return c._tmp;
+  const r = tags(c).roles,
+    o = (c.o || '').split(' // ')[0];
+  let v = 0;
+  if (/^(Instant|Sorcery)/.test(frontType(c)) && (r.has('removal') || r.has('counter'))) {
+    const pips = (c.m || '').match(/\{[^}]+\}/g) || [],
+      eff = /rather than pay this spell['’]s mana cost|without paying (its|this spell['’]s) mana cost|If it['’]s not your turn, you may/i.test(o)
+        ? 0
+        : pips.reduce((a, p) => a + (/\/P\}/.test(p) ? 0 : /^\{\d+\}$/.test(p) ? +p.slice(1, -1) : /^\{X\}$/.test(p) ? 0 : 1), 0);
+    v = (2 - eff) / 2 - (r.has('counter') && /unless its controller pays/i.test(o) ? 0.5 : 0);
+  }
+  return (c._tmp = Math.max(-1, Math.min(1, v)));
+}
+function strValue(c, d, casual, raw, sc) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strPopW + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strPopW + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '') + (!casual && (sc || UP.sPick) && (UP.sPow || UP.sSpd || UP.sInt) ? '|' + UP.sPow + ':' + UP.sSpd + ':' + UP.sInt : '');
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
@@ -155,7 +207,20 @@ function strValue(c, d, casual, raw) {
       S0 = cardStrength(c, d, casual),
       S1 = pw ? (1 - pw) * S0 + pw * inc : S0,
       b2 = casual && UP.strInc ? (1 - w - UP.strInc) * S1 + w * strFit(c, d) + UP.strInc * inc : (1 - w) * S1 + w * strFit(c, d);
-    v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
+    // Roadmap 6.1, the strongest version of the deck (not Budget and Mid picks): UP.sPow, a card much more powerful than its play
+    // rate here says is not buried by it (owner: "cards that fit the deck better should be the clear winner unless the other card is
+    // meaningfully more powerful"): its value is at least sPow x its strength; UP.sSpd, mana speed (strSpeed); UP.sInt, the cost of
+    // an answer (strTempo). 0 = the values before.
+    // sc: the score's reading of the deck (strMean, strTopSpell, the score's synergy); the picks (strength builds, the finish,
+    // upgrade rows) read them too only with UP.sPick (sweep 22 Nov: sPow in the picks dropped the upgrade benchmark 0.167 -> 0.076)
+    let b3 = b2;
+    if (!casual && (sc || UP.sPick) && (UP.sPow || UP.sSpd || UP.sInt)) {
+      if (UP.sPow) b3 = Math.max(b3, UP.sPow * S0);
+      if (UP.sSpd) b3 += UP.sSpd * strSpeed(c);
+      if (UP.sInt) b3 += UP.sInt * strTempo(c);
+      b3 = Math.max(0, b3);
+    }
+    v = Math.pow(b3, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
   }
   // UP.chain (roadmap 6b batch D): a spell that fills the thin side of one of the deck's game-plan chains (plans.js
@@ -251,7 +316,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0, UP.sPow || 0, UP.sSpd || 0, UP.sInt || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
@@ -279,7 +344,7 @@ function strengthRef(d) {
 function strTopSpell(d, SR) {
   if (SR.topS == null) {
     const sp = SR.apex.list.filter(c => !tags(c).land);
-    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false, true), 0) / sp.length : 0;
+    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false, true, true), 0) / sp.length : 0;
   }
   return SR.topS;
 }
@@ -301,7 +366,7 @@ function strRefParts(d, SR) {
   return (SR.parts = out);
 }
 function strMean(d, list) {
-  return list.length ? list.reduce((a, c) => a + strValue(c, d, false), 0) / list.length : 0;
+  return list.length ? list.reduce((a, c) => a + strValue(c, d, false, false, true), 0) / list.length : 0;
 }
 // Deck power 0..100+ on the strength scale, with the Budget and Mid builds marked the same way; null when off.
 function strengthPower(d) {

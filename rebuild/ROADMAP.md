@@ -207,6 +207,15 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    we miss fetch lands, original duals, fast mana, free interaction, tutors and win cards; we include protection equipment,
    slow rocks, wipes and big creatures they never play). Must be measured against the upgrade benchmark and the tournament
    comparison before and after. (deck/ROADMAP.md "Queue", Large 3)
+   - **Built on wt/score61 (22 Nov), switches ON awaiting the owner's approval:** UP.sPow 0.7 (a card's Apex value is at least 0.7 x
+     its strength, so a much stronger card is not buried by a low play rate), UP.sSpd 0.2 (mana speed from text and the practice
+     reading: Sol Ring, Vault, Moxen, Ancient Tomb up; 3-mana rocks, Cultivate, tapped lands down), UP.sInt 0.1 (free/1-mana answers
+     up, 3-mana and soft counters down). The score's reading only (UP.sPick 0). Sweep: Mana Vault swap +0.54 -> +1.29 (power -0.1 ->
+     +2.6), Chrome Mox +0.44 -> +1.19, Demonic Tutor +0.34 -> +0.96 (power -0.6 -> +1.9), Ancient Tomb 0.01 -> 0.07; Apex ref 88.7 ->
+     91.6, precons 82.7 -> 82.6, Apex > precon 10/10; bench, tourney, genstrong, we-play-they-don't unchanged (the generator does not
+     read them). Dropped: sPow in the picks (bench tuneall 0.167 -> 0.076, test 0.220 -> 0.007); qSpd/qInt in the plain score (tourney
+     60 -> 59%, we-play 193 -> 196). Still open: the generator's picks (judgement step), lands (fetches/duals, Ancient Tomb in practice
+     games), the weak-card spread.
 2. **Open questions for the owner** (deck/WORK_SESSION_HANDOFF.md section 0):
    - (Answered 9 Nov: keep it as it is.) The Apex rule against players: keep, or review the biggest score finds (Archpriest
      of Shadows, Evolution Witness, The Soul Stone…) in case the score overrates them.

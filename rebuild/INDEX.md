@@ -18,6 +18,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Topic | File · function |
 |---|---|
 | Deck score (synergy, balance, quality, routes, mana) | engine/score.js · evaluateDeck (EV_W weights; `opt.str` = strength version) |
+| Smarter deck score 6.1 (UP.sPow power floor, UP.sSpd mana speed, UP.sInt answer cost; score's reading only unless UP.sPick; UP.qSpd/qInt plain score, off) | engine/strength.js · strValue (5th arg sc), strSpeed, strTempo; score.js qualVal; sweep tools in /home/user/dc-runs/score61/proto/tests/s61 (sweep.sh, sum.js) |
 | Reference Apex/Mid/Budget builds (engine) | engine/score.js · apexRef, refScores; ui/upgrades.js · apexFor |
 | Score shown on the page | ui/upgrades.js · evalFor |
 | Card strength, power, strength builds | engine/strength.js · strengthRef, strBuild, strPicks, strengthPower, strengthPaths, strFinish (branch team/apex2) |

@@ -90,6 +90,9 @@ function qualVal(c, d, ctx) {
     v += W_INC * (D.inc(c, x.inc) - x.inc);
   }
   if (QPOW) v += QPOW * (CORE.has(c._n) ? 1 : c.r ? Math.max(0, 1 - Math.log(c.r + 1) / Math.log(40000)) : 0.35);
+  // roadmap 6.1: mana speed and the cost of an answer (strength.js strSpeed, strTempo) on the swap scale too, at QPOW x the
+  // weight (the card-power term's own range); 0 = the score before
+  if (UP.qSpd || UP.qInt) v += QPOW * ((UP.qSpd || 0) * strSpeed(c) + (UP.qInt || 0) * strTempo(c));
   return v;
 }
 function spellMean(cards, d, ctx, vf) {
@@ -303,7 +306,7 @@ function evaluateDeck(d, opt) {
   // so the staples strong decks run (Sol Ring, tutors) no longer lower the score of a deck that plays them
   const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
     topS = SRx ? strTopSpell(d, SRx) : 0,
-    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false, true) / topS) : 0);
+    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false, true, true) / topS) : 0);
   // UP.chainSyn (roadmap 6b batch E): that share of a spell's synergy comes from the deck's game-plan chains when they give it
   // more (plans.js chainSyn: the card does a chain and the chain's other side is there), so a deck that does the thing scores
   // above one that only has the keywords; 0 = the score before
