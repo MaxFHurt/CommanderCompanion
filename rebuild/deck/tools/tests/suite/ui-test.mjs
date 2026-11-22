@@ -1687,6 +1687,40 @@ const b195 = await page.evaluate(async () => { const out = {};
 if (process.env.SHOT) { await page.evaluate(() => document.querySelector('.sheet')?.scrollIntoView()); await page.screenshot({ path: process.env.SHOT, fullPage: false }); await page.evaluate(() => { const d = window.__shotDeck; S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); }); }
 T('UI-B195-01', 'Build 195: a Budget swap keeps the upgrade list: the row now holds the Budget card (in your deck), the old card is marked Replaced, the Apex pick is the same card and now replaces the Budget one, and the other rows are unchanged', b195.found && b195.inDeck && b195.sameList && b195.row && b195.othersKept && b195.chip && b195.applied, JSON.stringify(b195));
 } catch (e) { QUIET = false; T('UI-B195-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-SWAP-01')) { try { if (SHARD) await RESET();
+// Owner, 22 Nov ("The decks still regenerate if a swap is made in the cards detailed pop up. So the 'replaced' chip doesn't show
+// for that card"): every swap button keeps the upgrade list as a row's Swap does (owner, 8 Nov): the card pop-up's Swap in for a
+// row's card (the row now holds it, the old card is Replaced, the dearer picks stay), its Or take out instead for another card,
+// the Fix menu's Swap and a Fix's top swaps. The list is the same object, its other rows as they were.
+const swp = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  d.tier = 'mid'; S.manaOK = true;
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
+  const settle = async () => { await new Promise(r => setTimeout(r, 150)); $('#modal').hidden = true; render(); await recsReady(d); render(); };
+  const sig = (R, skip) => R.paths.filter(x => !skip.includes(x)).map(x => x.cut + '>' + Object.values(x.opts).filter(Boolean).map(o => o.add).join(',')).join('|');
+  // 1. the pop-up opened from a row (data-cut), Swap in its pick
+  let R = recsFor(d), i = R.paths.findIndex(L => L.opts.apex && !hasCard(d, L.opts.apex.add)), L = R.paths[i];
+  out.found = i >= 0; if (i < 0) return out;
+  const cut = L.cut, add = L.opts.apex.add, others = sig(R, [L]); out.cut = cut;
+  S.rowCut = cut; openCard(add); for (let k = 0; k < 50 && !document.querySelector('#modal [data-act="want"]'); k++) await new Promise(r => setTimeout(r, 100));
+  out.popup = [...document.querySelectorAll('#modal [data-act="want"]')].map(b => b.dataset.v)[0] || null;
+  handleAct('want', cut, add); await settle();
+  let R2 = recsFor(d), L2 = R2.paths.find(x => x.orig && norm(x.orig) === norm(cut));
+  out.want = {inDeck: hasCard(d, add) && !hasCard(d, cut), same: R2 === R, row: !!L2 && norm(L2.cut) === norm(add) && !!L2.applied, others: sig(R2, [L2]) === others,
+    chip: document.querySelectorAll('.chip.replaced').length > 0};
+  // 2. Or take out instead: a card on another row goes in for a card no row replaces
+  R = recsFor(d); const rowCuts = new Set(R.paths.map(x => norm(x.cut))), L3 = R.paths.find(x => !x.applied && x.opts.apex && !hasCard(d, x.opts.apex.add)),
+    other = d.cards.find(e => { const c = find(e.n); return c && !tags(c).land && c.n !== d.commander && !rowCuts.has(norm(e.n)); });
+  if (L3 && other) { const add3 = L3.opts.apex.add; handleAct('want', other.n, add3); await settle(); R2 = recsFor(d);
+    out.other = {same: R2 === R, gone: !R2.paths.some(x => Object.values(x.opts).some(o => o && norm(o.add) === norm(add3))), chips: document.querySelectorAll('.chip.replaced').length}; }
+  // 3. the Fix menu's Swap: a removal swap for a card a row replaces keeps the list too
+  R = recsFor(d); let fx = null;
+  for (const k of ['Removal', 'Draw', 'Ramp']) { openFix([k]); const g = (S.fixG || []).find(x => x.k === k), j = g ? g.L.findIndex(p => entryOf(d, p.cut) && !hasCard(d, p.add)) : -1; if (j >= 0) { fx = {k, cut: g.L[j].cut, add: g.L[j].add}; handleAct('fix-swap', k + '|' + j); break; } }
+  if (fx) { await settle(); R2 = recsFor(d); out.fix = {same: R2 === R, inDeck: hasCard(d, fx.add), rowKept: !R.paths.some(x => norm(x.cut) === norm(fx.cut)) || R2.paths.some(x => x.orig && norm(x.orig) === norm(fx.cut))}; }
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-SWAP-01', 'Owner, 22 Nov: a swap from the card pop-up (Swap in for a row’s pick, Or take out instead) or the Fix menu keeps the upgrade list like a row’s Swap: the same list, the row now holds the new card with the old one marked Replaced, the other rows unchanged, the card put in no longer offered elsewhere', swp.found && swp.popup === swp.cut && swp.want && swp.want.inDeck && swp.want.same && swp.want.row && swp.want.others && swp.want.chip && swp.other && swp.other.same && swp.other.gone && swp.fix && swp.fix.same && swp.fix.inDeck && swp.fix.rowKept, JSON.stringify(swp));
+} catch (e) { QUIET = false; T('UI-SWAP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B196-01')) { try { if (SHARD) await RESET();
 // Build 196 (owner, 8 Nov): the tokens a deck makes are listed at the very bottom of the decklist, one per card that makes each
 // kind, and they don't count toward the deck's 100.

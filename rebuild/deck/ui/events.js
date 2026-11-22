@@ -997,6 +997,8 @@ function handleAct(act, v, n, pArg, cutArg) {
       return;
     }
     case 'want': {
+      // the card pop-up's Swap in is a swap like a row's (owner, 22 Nov): the upgrade list is kept, its row shows Replaced
+      keepRecsAny(d, {cut: v, add: n});
       doSwap(d, {cut: v, add: n, q: 1}, 0);
       if (S.pick && S.pick.n === n && S.pick.set) {
         const en = d.cards.find(e2 => e2.n === n);
@@ -1073,7 +1075,10 @@ function handleAct(act, v, n, pArg, cutArg) {
         );
         return;
       }
-      list.forEach(p => doSwap(d, Object.assign({}, p, {t: v}), Math.max(0, TIER_KEYS.indexOf(v) + 1)));
+      list.forEach(p => {
+        keepRecsAny(d, p);
+        doSwap(d, Object.assign({}, p, {t: v}), Math.max(0, TIER_KEYS.indexOf(v) + 1));
+      });
       toast('Made ' + list.length + ' swap' + (list.length === 1 ? '' : 's') + ' using cards under $' + TIERS[v].cap + ' each.');
       break;
     }
@@ -1099,13 +1104,11 @@ function handleAct(act, v, n, pArg, cutArg) {
         );
         return;
       }
-      list.forEach(x =>
-        doSwap(
-          d,
-          x.p,
-          x.L.opts.apex && x.L.opts.apex.add === x.p.add ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(x.p.t) + 1)
-        )
-      );
+      list.forEach(x => {
+        const top = !!x.L.opts.apex && x.L.opts.apex.add === x.p.add;
+        keepRecs(d, x.p, top ? 'apex' : v === 'free' ? swapTier(d, x.L, x.p.add) : x.p.t || v, R.paths.indexOf(x.L));
+        doSwap(d, x.p, top ? TIER_KEYS.length : Math.max(0, TIER_KEYS.indexOf(x.p.t) + 1));
+      });
       toast(
         'Made ' + list.length + ' ' + (v === 'free' ? 'free' : TIERS[v].label) + ' swap' + (list.length === 1 ? '' : 's') + '.'
       );
@@ -1213,6 +1216,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         toast(gcBlockMsg(d));
         return;
       }
+      keepRecsAny(d, p);
       doSwap(d, p, 0);
       break;
     }
@@ -1984,7 +1988,6 @@ function handleAct(act, v, n, pArg, cutArg) {
         g = POPFIX.G.get(k),
         p = g && (i === 'now' ? g.now : g.L[+i]);
       if (!d || !p) return;
-      keepRecs(d, p, 'apex', -1);
       if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + ' (' + k + (i === 'now' ? ', for now' : '') + ').');
       touch();
       render();
@@ -1997,7 +2000,6 @@ function handleAct(act, v, n, pArg, cutArg) {
         g = (UPFIX.G || []).find(x => x.k === k),
         p = g && g.L[+i];
       if (!d || !p) return;
-      keepRecs(d, p, 'apex', -1);
       if (fixApply(d, [p])) toast('Swapped ' + p.cut + ' for ' + p.add + ' (' + k + ').');
       touch();
       render();
@@ -2046,6 +2048,7 @@ function handleAct(act, v, n, pArg, cutArg) {
         toast('Not swapped: ' + bad[0].key.replace(/_/g, ' ') + '.');
         return;
       }
+      keepRecsAny(d, p);
       doSwap(d, p, 0);
       S.noHave = null;
       $('#modal').hidden = true;
@@ -2322,6 +2325,7 @@ function handleAct(act, v, n, pArg, cutArg) {
       const F = recsFor(d).fixes.filter(p => isBasic(p.add));
       let k = 0;
       F.forEach(p => {
+        keepRecsAny(d, p);
         doSwap(d, p, 0);
         k += p.q;
       });

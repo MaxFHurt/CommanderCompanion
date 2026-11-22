@@ -3800,6 +3800,7 @@ function fixApply(d, list) {
   let k = 0;
   list.forEach(p => {
     if (entryOf(d, p.cut) && !entryOf(d, p.add)) {
+      keepRecsAny(d, p); // the upgrade list is kept (owner, 8 Nov), as for a swap on its own rows
       doSwap(d, {cut: p.cut, add: p.add, q: 1}, 0);
       k++;
     }

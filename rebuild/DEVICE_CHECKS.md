@@ -180,6 +180,10 @@ LF1. ☐ iPhone (upright and sideways) and iPad: open a Commander deck that is s
 LF2. ☐ Same deck, Fix window for Lands and for Ramp (Health → Fix): the option cards appear above "Or swap in one card"; every swap row ends with "Or pull instead: …". Tap a chip → that card's window opens. On a ramp-short deck the first option is named after the commander's precon and its cards carry the set chip.
 LF3. ☐ "Make this change" on Add basics: a confirm opens; accept → the deck stays at 100 cards, the lands rise by the shortfall, the pulled cards are gone; Undo puts it all back.
 
+## Swaps keep the upgrade list (owner, 22 Nov)
+W1. ☐ iPhone and iPad, a precon on Upgrades: tap a row's card, then Swap in from the card window → expect the list to stay as it was (no Thinking…), that row to show the new card as In your deck and the old one with the red Replaced chip, its dearer picks still offered.
+W2. ☐ Same deck: open a card from Card Search, Swap in with an Or take out instead card, and make a swap from a Fix menu → expect the list kept each time, and the card put in no longer offered on other rows.
+
 ## Monster Siege (/test)
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
