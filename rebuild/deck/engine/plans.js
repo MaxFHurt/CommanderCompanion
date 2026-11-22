@@ -176,6 +176,26 @@ function chainSyn(d, c) {
   m.set(c.n, v);
   return v;
 }
+// Synergy cap (UP.synPlan, 22 Nov): how far the deck's game plan really works, 0-1. 'deck' mode (UP.synMode 0): its best
+// chain's fullness, each side's weight against UP.synFull (8 = full; the commander counts x3), multiplied, so a chain with
+// both sides full is 1 and a thin side pulls it down. 'card' mode (UP.synMode 1): the spells' mean chainSyn against
+// UP.synConn (how connected the average spell is). Returns {v, x} (x: the chain read, deck mode).
+function chainFull(d, spells) {
+  if (!d || !(d.cards || []).length) return {v: 0, x: null};
+  if (UP.synMode === 1) {
+    const n = Math.max(1, spells.length);
+    let s = 0;
+    for (const c of spells) s += chainSyn(d, c);
+    return {v: Math.min(1, s / n / (UP.synConn || 0.35)), x: null};
+  }
+  const F = UP.synFull || 8;
+  let v = 0, x = null;
+  for (const y of planOf(d).chains) {
+    const f = Math.min(1, y.E / F) * Math.min(1, y.P / F);
+    if (f > v) (v = f), (x = y);
+  }
+  return {v, x};
+}
 // Generator (UP.chainGen): the chains it keeps whole: 4+ on the weaker side, or the commander on a side.
 const chainKept = x => x.strength >= 4 || !!x.cmd;
 // May one copy of `cut` go (for `add`, or for nothing) without breaking one of the deck's kept chains? Broken: the chain is no

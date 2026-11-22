@@ -327,6 +327,12 @@ function evaluateDeck(d, opt) {
   };
   spells.forEach(c => (syn += synOf(c)));
   syn /= n;
+  // Synergy cap (owner approved fixing it, 22 Nov): most decks reach the 0.72 saturation, so "has the keywords" and "the plan
+  // really works" both showed 100. UP.synCap: saturate later instead (0 = EV_SUFF.synergy). UP.synPlan: that share of the
+  // synergy part is how far the game plan works (plans.js chainFull: chain sides full), the rest the saturating measure
+  // above; 0 = the score before.
+  const synW = UP.synPlan && typeof chainFull === 'function' ? UP.synPlan : 0,
+    synF = synW ? chainFull(d, spells) : null;
   why.synergy =
     spells.filter(c => synOf(c) >= 0.5).length +
     ' of ' +
@@ -342,6 +348,11 @@ function evaluateDeck(d, opt) {
           .join(', ') +
         ')'
       : '');
+  if (synW)
+    why.synergy +=
+      synF.x
+        ? '; game plan ' + Math.round(100 * synF.v) + '% complete (' + synF.x.label.toLowerCase() + ')'
+        : '; game plan ' + Math.round(100 * synF.v) + '% connected';
   // Balance: the deck's jobs against what this commander's players run (roleNeeds), and lands against the target. A short
   // role costs per missing card; an overfull one costs a little (those slots could do something else).
   const short = [],
@@ -522,7 +533,10 @@ function evaluateDeck(d, opt) {
   } else why.mana = 'available once the deck has its full 100 cards';
   // the parts' weights and where a part stops rising (UP.evW / UP.evSuff override them: score experiments, 25 Oct)
   const EVW = UP.evW || EV_W,
-    SU = UP.evSuff || EV_SUFF;
+    SU0 = UP.evSuff || EV_SUFF,
+    SU = UP.synCap ? Object.assign({}, SU0, {synergy: UP.synCap}) : SU0;
+  // the synergy part on its 0-100 scale: the saturating measure, and with UP.synPlan that share from the game plan working
+  const synPe = () => (1 - synW) * 100 * Math.min(1, syn / SU.synergy) + (synW ? synW * 100 * synF.v : 0);
   const raw = {synergy: syn, balance: bal, quality: qual, routes, mana},
     parts = {};
   let total = 0;
@@ -534,7 +548,7 @@ function evaluateDeck(d, opt) {
   const pastMax = k => {
     if (!UP.unc || (UP.uncK && UP.uncK !== k)) return 0;
     if (k === 'quality') return qOver;
-    if (SU[k]) return Math.max(0, raw[k] / SU[k] - 1) * 100;
+    if (SU[k]) return Math.max(0, raw[k] / SU[k] - 1) * 100 * (k === 'synergy' ? 1 - synW : 1);
     const a = k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k],
       top = a[1] > a[0] ? 60 + (25 * (raw[k] - a[0])) / (a[1] - a[0]) : 0;
     return Math.max(0, top - 100);
@@ -544,7 +558,7 @@ function evaluateDeck(d, opt) {
   // win routes, mana and curve) placed between the same rating for random playable cards (0%) and for the Apex build (100%), both
   // worked out once per Apex reference. Not how widely a card is played.
   const peOf = k =>
-    SU[k] ? 100 * Math.min(1, raw[k] / SU[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);
+    k === 'synergy' && SU[k] ? synPe() : SU[k] ? 100 * Math.min(1, raw[k] / SU[k]) : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);
   let other = 0, ow = 0;
   for (const k in EVW) if (k !== 'quality' && !(k === 'mana' && !S)) { other += peOf(k) * EVW[k]; ow += EVW[k]; }
   other = ow ? other / ow : 0;
@@ -585,7 +599,9 @@ function evaluateDeck(d, opt) {
     const pe =
       k === 'quality' && qExact != null
         ? qExact
-        : SU[k]
+        : k === 'synergy' && SU[k]
+          ? synPe()
+          : SU[k]
           ? 100 * Math.min(1, raw[k] / SU[k])
           : evScale(raw[k], k === 'routes' && UP.rs ? UP.ra : EV_ANCHOR[k]);
     cmp += ((pe + UP.unc * pastMax(k)) * EVW[k]) / 100; // stage 2: the smoother ways-to-win, shifted so a typical deck keeps its score

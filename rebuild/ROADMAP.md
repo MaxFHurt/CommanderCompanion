@@ -273,6 +273,10 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    prefers same-side stand-ins, and fills a thin side with up to UP.chainGen cards. Switches UP.chainSyn 0.5, UP.chainGen 2
    (awaiting the owner's approval; 0 = before). Bench tune/tuneall/test identical at every setting (picks come from the
    strength list); tourney match/core 59/58% -> 58/57% combined; holdout still sealed.
+   Synergy cap (branch wt/syncap, 22 Nov; owner approved fixing it): synergy saturated at 0.72 raw, so most decks showed 100.
+   Now UP.synCap 0.9 (saturates later) and UP.synPlan 0.3 (30% of the part is how full the best chain's two sides are,
+   plans.js chainFull, 8 weight = full); awaiting the owner's approval, both 0 = before. Synergy 100: precons 6 -> 2 of 10,
+   generated decks 60 -> 16 of 60; bench identical; tourney 58/57 -> 60/58%; genstrong 0.405/0.71 -> 0.423/0.76.
 
 ## 7. Look and layout
 
