@@ -50,6 +50,7 @@ optimization. That way we don't have to rework anything later due to new mechani
    step: `rebuild/wip/README.md`.
 **Change (owner, 15 Nov):** quickest items first, with several agents on them: the parked judgement work (reasons, strongest decks) and plan-aware Fix picks were pulled forward alongside card rules batch 6; results still go to the owner before shipping.
 **Final checks early (owner, 16 Nov):** when the roadmap is down to long-tail card fixes, run the device checklist and other final checks on everything except the card interactions in progress and what they can affect.
+**Change (owner, 22 Nov):** all card data and card interactions (long tail, batch 6, rule wordings) go last; first finish every other roadmap item with several agents, then the card work, then every final test as stated (device checklist and full suites).
 4. **Optimise all the code** (section 99), after everything else.
 
 ## 0. Priority 1: visual rebuild (owner, 15 Nov; handoff in rebuild/roadmap/) — live in Build 115 (7c done with it); left: owner's device check, iPhone log-column art, more achievements
