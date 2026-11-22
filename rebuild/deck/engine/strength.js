@@ -395,7 +395,7 @@ function strFinish(d, tier, keep) {
     let k = 0;
     for (const s of L) {
       const e = entryOf(d, s.cut);
-      if (!e || e.l || entryOf(d, s.add)) continue;
+      if (!e || e.l || entryOf(d, s.add) || !chainCutOk(d, e.n, s.add)) continue; // UP.chainGen: no kept game-plan chain loses its last cards
       cutCard(d, e.n, 1);
       addCard(d, s.add, 1);
       k++;
@@ -431,7 +431,7 @@ function strFinish(d, tier, keep) {
         let left = -diff - 1;
         for (const c of cuts) {
           if (!left) break;
-          if (STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < need(r))) continue;
+          if (STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < need(r)) || !chainCutOk(d, c.n)) continue;
           cutCard(d, c.n, 1);
           addCard(d, BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes', 1);
           left--;
@@ -457,7 +457,7 @@ function strFinish(d, tier, keep) {
         vv = c => strValue(c, d, casual),
         cut = strSlots(d)
           .filter((c, j, a) => a.indexOf(c) === j && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
-          .filter(c => !STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < Math.min(A2.T[r], A2.roles[r])))
+          .filter(c => !STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < Math.min(A2.T[r], A2.roles[r])) && chainCutOk(d, c.n))
           .sort((a, b) => vv(a) - vv(b))[0];
       if (!cut) break;
       const mp = manaPlan(d),

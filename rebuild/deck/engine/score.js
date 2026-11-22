@@ -304,7 +304,11 @@ function evaluateDeck(d, opt) {
   const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
     topS = SRx ? strTopSpell(d, SRx) : 0,
     strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false, true) / topS) : 0);
-  const synOf = c => Math.max(synOf0(c), strSyn(c));
+  // UP.chainSyn (roadmap 6b batch E): that share of a spell's synergy comes from the deck's game-plan chains when they give it
+  // more (plans.js chainSyn: the card does a chain and the chain's other side is there), so a deck that does the thing scores
+  // above one that only has the keywords; 0 = the score before
+  const synOf1 = c => Math.max(synOf0(c), strSyn(c)),
+    synOf = UP.chainSyn && typeof chainSyn === 'function' ? c => { const b = synOf1(c); return b + UP.chainSyn * Math.max(0, chainSyn(d, c) - b); } : synOf1;
   const synOf0 = c => {
     const x = hasE ? incOf(c) : null,
       l = x ? Math.max(0, Math.min(1, 3 * x.syn + 0.25 * x.inc)) : 0;

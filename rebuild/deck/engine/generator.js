@@ -469,7 +469,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
   // for the next best card. The player's own seeds stay.
   if (UP.weak && d.format === 'commander')
     for (let i = 0; i < 8; i++) {
-      const w = weakHere(tmp).filter(x => !seedSet.has(norm(x.n)));
+      const w = weakHere(tmp).filter(x => !seedSet.has(norm(x.n)) && chainCutOk(tmp, x.n));
       if (!w.length) break;
       const ctx0 = ctxOf(tmp),
         worst = [...new Set(w.map(x => x.n))].map(n => ({n, s: baseScore(find(n), tmp, ctx0).s})).sort((a, b) => a.s - b.s)[0];
@@ -523,7 +523,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
             bs = xs;
           }
         }
-        if (best) {
+        if (best && chainCutOk(tmp, e.n, best.n)) {
           if (cur == null) cur = ev();
           cutCard(tmp, e.n, 1);
           addCard(tmp, best.n, 1);
@@ -534,6 +534,69 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
           } else if (nx != null) cur = nx;
         }
       }
+  }
+  // Thin side (UP.chainGen, roadmap 6b batch E): a kept game-plan chain short of payoffs (or enablers) gets up to UP.chainGen
+  // cards that do that side from their own text, each for the weakest spell whose cut breaks no chain, when the card scores
+  // within 10% of it for this deck and the whole deck scores no more than 0.3 lower (the theme swap's rule). Seeds and owned
+  // cards stay; the price level, the deck's rules and the player's exclusions hold.
+  if (UP.chainGen && d.format === 'commander' && typeof chainThin === 'function') {
+    const tried = new Set(),
+      dis = () => new Set((tmp.dismissed || []).map(norm));
+    let left = UP.chainGen,
+      simC = null,
+      cur = null;
+    const ev = () => {
+      try {
+        if (!simC) simC = simulate(tmp, 150, 7);
+        return evaluateDeck(tmp, {sim: simC}).exact;
+      } catch (err) {
+        return null;
+      }
+    };
+    while (left > 0) {
+      const t = chainThin(tmp).find(y => !tried.has(y.x.id));
+      if (!t) break;
+      const ctxC = ctxOf(tmp),
+        TC = d.themeFirst ? themeCtx(tmp) : null,
+        used = new Set(tmp.cards.map(x => norm(x.n)).concat(norm(d.commander), d.partner ? norm(d.partner) : '')),
+        no = dis();
+      let best = null,
+        bs = -1e9;
+      for (const c of LIB) {
+        if (tags(c).land && t.x.id !== 'landfall') continue;
+        if (isBasic(c.n) || used.has(c._n) || no.has(c._n) || !planFacts(c).some(f => f.src !== 'y' && t.re.test(f.code))) continue;
+        if (!legalIn(c, d.format) || !c.ci.every(k => ctxC.ident.includes(k)) || !mustOk(c, d)) continue;
+        if (ownOnly && ownOnly.size && !ownOnly.has(c._n)) continue;
+        if (tmp.tier && tmp.tier !== 'apex' && !(c.p != null && underCap(c.p, tmp.tier))) continue;
+        const v = baseScore(c, tmp, ctxC).s;
+        if (v > bs) (bs = v), (best = c);
+      }
+      const worst = best
+        ? tmp.cards
+            .map(e => ({e, c: find(e.n)}))
+            .filter(x => x.c && !tags(x.c).land && !x.e.l && !seedSet.has(x.c._n) && !(ownOnly && ownOnly.has(x.c._n)) && !(TC && themeOf(x.c, TC)))
+            .map(x => ({n: x.e.n, s: baseScore(x.c, tmp, ctxC).s}))
+            .sort((a, b) => a.s - b.s)
+            .find(x => chainCutOk(tmp, x.n, best.n))
+        : null;
+      if (!worst || bs < worst.s - Math.abs(worst.s) * 0.1) {
+        tried.add(t.x.id);
+        continue;
+      }
+      if (cur == null) cur = ev();
+      cutCard(tmp, worst.n, 1);
+      addCard(tmp, best.n, 1);
+      const nx = ev();
+      if (cur != null && nx != null && nx < cur - 0.3) {
+        cutCard(tmp, best.n, 1);
+        addCard(tmp, worst.n, 1);
+        (tmp.dismissed = tmp.dismissed || []).push(best.n); // not offered again in this build
+        tried.add(t.x.id);
+        continue;
+      }
+      if (nx != null) cur = nx;
+      left--;
+    }
   }
   // Mana base v2: the spells are chosen, so the lands are rebuilt for them. The player's own lands (seeds, owned) stay.
   if (UP.mb && d.format === 'commander') {
@@ -559,8 +622,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
           .filter(x => x.c && !tags(x.c).land && !x.e.l && !seedSet.has(x.c._n) && !(ownOnly && ownOnly.has(x.c._n)))
           .map(x => ({n: x.e.n, s: baseScore(x.c, tmp, ctxL).s}))
           .sort((a, b) => a.s - b.s)
-          .slice(0, diff)
-          .forEach(x => cutCard(tmp, x.n, 1));
+          .reduce((k, x) => (k < diff && chainCutOk(tmp, x.n) ? (cutCard(tmp, x.n, 1), k + 1) : k), 0); // the weakest go, one by one, but not a kept chain's last cards (UP.chainGen)
         nL = want;
       } else if (diff < 0) {
         const used = new Set(
@@ -607,7 +669,8 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
               !(ownOnly && ownOnly.has(c._n)) &&
               tags(c).roles.size === 1 &&
               tags(c).roles.has('ramp') &&
-              !themeOf(c, TR)
+              !themeOf(c, TR) &&
+              chainCutOk(tmp, c.n)
           );
       if (!pure.length) break;
       const worst = pure.map(c => ({c, s: baseScore(c, tmp, ctxR).s})).sort((a, b) => a.s - b.s)[0];
@@ -675,7 +738,8 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
           cutU.has(norm(p.cut)) ||
           addU.has(norm(p.add)) ||
           !entryOf(tmp, p.cut) ||
-          tmp.cards.some(e => keyOf(e.n) === keyOf(p.add))
+          tmp.cards.some(e => keyOf(e.n) === keyOf(p.add)) ||
+          !chainCutOk(tmp, p.cut, p.add)
         )
           continue;
         cutCard(tmp, p.cut, p.q || 1);
@@ -707,6 +771,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
   // loose (owner, 25 Oct: "it is okay to recommend another card that may not be quite as useful to the deck but provides value
   // to the slot rather than just filling it with anything"): when no card does the same job, the best card under the price that
   // still serves the slot: it shares a job with the Apex card or fits one of the deck's plans the Apex card is there for.
+  const KEPT = UP.chainGen && typeof chainKept === 'function' ? planOf(tmp).chains.filter(chainKept).flatMap(x => [x.ch.E, x.ch.P]) : null;
   const AIMS = new Map(),
     aimsOf = y => {
       if (!AIMS.has(y._k)) AIMS.set(y._k, new Set((tmp.aims || []).filter(a => matchAim(y, a, ctx.tribe) >= 0.7)));
@@ -716,7 +781,10 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
       const tx = tags(x),
         ty = mainType(x),
         j = mainJob(x.n),
-        xa = loose ? aimsOf(x) : null;
+        xa = loose ? aimsOf(x) : null,
+        // UP.chainGen: the kept game-plan chain sides the card is on; a stand-in on the same side is preferred, so a cheaper
+        // build keeps the chain the Apex build has
+        xs = KEPT ? KEPT.filter(re => chainSide(x, re)) : [];
       let best = null,
         bs = -1e9;
       for (const p of pool) {
@@ -734,6 +802,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
           if (tx.roles.has(r)) share++;
         });
         s += share * 2;
+        if (xs.length && xs.some(re => chainSide(p.c, re))) s += 2;
         if (s > bs) {
           bs = s;
           best = p;
@@ -797,7 +866,7 @@ function* buildPlanG(d, seeds, ownOnly, ownAll) {
         if (S0.seed || S0.own || S0.land || S0.basic) continue;
         for (const k of ['m', 'b']) {
           const alt = S0[k];
-          if (!alt) continue;
+          if (!alt || !chainCutOk(tmp, S0.a, alt)) continue;
           const u = JSON.parse(JSON.stringify(tmp));
           cutCard(u, S0.a, 1);
           addCard(u, alt, 1);
@@ -890,7 +959,8 @@ function* polishDeckG(d, rounds, slots) {
         cutU.has(norm(p.cut)) ||
         addU.has(norm(p.add)) ||
         !entryOf(d, p.cut) ||
-        d.cards.some(x => keyOf(x.n) === keyOf(p.add))
+        d.cards.some(x => keyOf(x.n) === keyOf(p.add)) ||
+        !chainCutOk(d, p.cut, p.add)
       )
         continue;
       cutCard(d, p.cut, p.q || 1);

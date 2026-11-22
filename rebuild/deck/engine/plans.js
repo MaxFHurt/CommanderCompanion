@@ -3,7 +3,8 @@
 // engine's readings first, the Deck Builder's reader second): a card that returns creatures to hand feeds the cards with
 // enters triggers, a sacrifice outlet feeds the death triggers, and so on. Batch A uses it for what is shown only (the Game
 // plan read-out in Build stats, "Works with" in the card window, the upgrade reasons); batches B-D add Fix picks (UP.planFix),
-// suggested plans (UP.planList) and upgrade value (UP.chain, chainBonus).
+// suggested plans (UP.planList) and upgrade value (UP.chain, chainBonus); batch E deck score synergy (UP.chainSyn, chainSyn)
+// and the generator keeping chains whole (UP.chainGen, chainCutOk, chainThin).
 // A fact is 6 characters (tools/plan-facts.mjs): g/w · event · side · what · repeat; its source is e (game engine),
 // r (Deck Builder reader), k (keyword) or x (text).
 const PF_SRC = {e: 'game engine', r: 'Deck Builder reader', k: 'keyword', x: 'text', y: 'card type'};
@@ -151,6 +152,56 @@ function chainBonus(d, c) {
   for (const re of T.sides) for (const f of planFacts(c)) if (f.src !== 'y' && re.test(f.code)) v = Math.max(v, f.code[5] === '1' ? 1 : 0.5);
   T.m.set(c.n, v);
   return v;
+}
+// ===== Score + generator (roadmap 6b batch E, UP.chainSyn and UP.chainGen; design 6b-design.md section 2) =====
+// Deck score synergy (UP.chainSyn): how much card c does one of the deck's chains, connected: its own-text weight on a side
+// (1 again and again, 0.5 once; not its type line, so a plain creature is not a token plan) times how full the other side is
+// (CH_CONN weight = fully connected). A payoff without enablers, or an enabler without payoffs, gets little: the deck has the
+// keyword, not the plan. evaluateDeck takes UP.chainSyn of each spell's synergy from this when it is higher.
+const CH_CONN = 6, CH_SYN = new WeakMap();
+function chainSyn(d, c) {
+  if (!d || !c || !(d.cards || []).length) return 0;
+  const P = planOf(d);
+  let m = CH_SYN.get(P);
+  if (!m) CH_SYN.set(P, (m = new Map()));
+  let v = m.get(c.n);
+  if (v !== undefined) return v;
+  v = 0;
+  const own = re => {
+    let w = 0;
+    for (const f of planFacts(c)) if (f.src !== 'y' && re.test(f.code)) w = Math.max(w, f.code[5] === '1' ? 1 : 0.5);
+    return w;
+  };
+  for (const x of P.chains) v = Math.max(v, own(x.ch.E) * Math.min(1, x.P / CH_CONN), own(x.ch.P) * Math.min(1, x.E / CH_CONN));
+  m.set(c.n, v);
+  return v;
+}
+// Generator (UP.chainGen): the chains it keeps whole: 4+ on the weaker side, or the commander on a side.
+const chainKept = x => x.strength >= 4 || !!x.cmd;
+// May one copy of `cut` go (for `add`, or for nothing) without breaking one of the deck's kept chains? Broken: the chain is no
+// longer detected, a full side turns thin, or a thin side loses weight (its last payoffs or enablers). True when off.
+function chainCutOk(d, cut, add) {
+  if (!UP.chainGen || !d || !(d.cards || []).length) return true;
+  const C = find(cut), A = add ? find(add) : null;
+  if (!C) return true;
+  const P = planOf(d),
+    side = (c, re, id) => (!c || (tags(c).land && id !== 'landfall') ? 0 : chainSide(c, re));
+  for (const x of P.chains) {
+    if (!chainKept(x)) continue;
+    const dE = side(C, x.ch.E, x.id) - side(A, x.ch.E, x.id),
+      dP = side(C, x.ch.P, x.id) - side(A, x.ch.P, x.id);
+    if (dE <= 0 && dP <= 0) continue;
+    const E = x.E - dE, Pw = x.P - dP,
+      ok = (E >= 3 && Pw >= 3) || (x.cmd.includes('E') && Pw >= 2) || (x.cmd.includes('P') && E >= 2),
+      thin = E < Pw / 2 ? 'enablers' : Pw < E / 3 ? 'payoffs' : '';
+    if (!ok || (thin && !x.thin) || (x.thin === 'enablers' && dE > 0) || (x.thin === 'payoffs' && dP > 0)) return false;
+  }
+  return true;
+}
+// The kept chains' thin sides, weakest first: [{x, re}] (what buildPlan fills, UP.chainGen cards at most)
+function chainThin(d) {
+  if (!d || !(d.cards || []).length) return [];
+  return planOf(d).chains.filter(x => x.thin && chainKept(x)).sort((a, b) => a.strength - b.strength).map(x => ({x, re: x.thin === 'enablers' ? x.ch.E : x.ch.P}));
 }
 // The reason an upgrade shows (text only): "Re-cast for enters and cast triggers: returns creatures to hand for 6 cards in
 // the deck". Null when the card joins no chain with 3+ cards on the other side.

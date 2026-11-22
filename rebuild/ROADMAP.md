@@ -267,6 +267,12 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    text, not its type line) adds UP.chain to its card value (strength.js strValue, plans.js chainBonus); the deck score's
    synergy part reads the value without it (batch E). Switch UP.chain 0.03 (awaiting the owner's approval; 0 = picks before).
    Sweep 0 / 0.03 / 0.06 / 0.1: bench test 0.211 / 0.220 / 0.220 / 0.217, tuneall 0.168 / 0.167 / 0.160 / 0.158.
+   Batch E built (branch wt/6b-e, 22 Nov): deck score synergy takes UP.chainSyn of a spell's synergy from the chains when
+   higher (plans.js chainSyn: own-text side weight x how full the other side is); the generator keeps kept chains (4+ on the
+   weaker side, or the commander on a side) whole at every cut (plans.js chainCutOk in buildPlanG, polishDeckG, strFinish),
+   prefers same-side stand-ins, and fills a thin side with up to UP.chainGen cards. Switches UP.chainSyn 0.5, UP.chainGen 2
+   (awaiting the owner's approval; 0 = before). Bench tune/tuneall/test identical at every setting (picks come from the
+   strength list); tourney match/core 59/58% -> 58/57% combined; holdout still sealed.
 
 ## 7. Look and layout
 
