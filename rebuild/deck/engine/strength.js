@@ -704,6 +704,17 @@ function strengthPaths(d, R) {
         .map(x => ({n: x.c.n, dScore: x.g}));
   });
   // spare lands (a deck over its land target) come from the regular list, measured on this scale
+  // a spare basic for a row whose tapped land no spell beats: a basic the deck runs more than one of (spareLands' rule) that no
+  // other row cuts
+  const spareBasic = () => {
+    const cutN = new Map();
+    rows.concat((R.paths || []).filter(L => L.spare)).forEach(L => isBasic(L.cut) && cutN.set(L.cut, (cutN.get(L.cut) || 0) + 1));
+    const e = d.cards
+      .filter(x => !x.l && isBasic(x.n))
+      .sort((a, b) => b.q - a.q)
+      .find(x => x.q > 1 && !cutN.has(x.n)); // one row per card cut (rows are keyed by their cut)
+    return e ? e.n : null;
+  };
   const spare = (R.paths || [])
     .filter(L => L.spare && !rows.some(x => x.cut === L.cut))
     .map(L => {
@@ -715,19 +726,41 @@ function strengthPaths(d, R) {
     })
     .filter(L => {
       // a card already picked on another row, or one that doesn't raise power, is not offered here
-      for (const t of Object.keys(L.opts)) {
-        const p = L.opts[t];
-        if (!used.has(p.add) && p.dScore >= SCORE_MIN) continue;
-        // its card went to another row (or doesn't raise power): the strongest spell for the spare land at that tier's price
-        let b = null;
-        for (const c of P.pool) {
-          if (tags(c).land || used.has(c.n) || Object.values(L.opts).some(x => x.add === c.n) || !(t === 'apex' || (c.p != null && underCap(c.p, t)))) continue;
-          const g = gain(L.cut, c.n);
-          if (g >= SCORE_MIN && (!b || g > b.g)) b = {c, g};
+      const fill = (cut, O0) => {
+        const O = {};
+        for (const t of Object.keys(O0)) {
+          const p = Object.assign({}, O0[t], {cut, dScore: gain(cut, O0[t].add), str: true});
+          if (!used.has(p.add) && p.dScore >= SCORE_MIN) {
+            O[t] = p;
+            continue;
+          }
+          // its card went to another row (or doesn't raise power): the strongest spell for the spare land at that tier's price
+          let b = null;
+          for (const c of P.pool) {
+            if (tags(c).land || used.has(c.n) || Object.values(O0).some(x => x.add === c.n) || Object.values(O).some(x => x.add === c.n) || !(t === 'apex' || (c.p != null && underCap(c.p, t)))) continue;
+            const g = gain(cut, c.n);
+            if (g >= SCORE_MIN && (!b || g > b.g)) b = {c, g};
+          }
+          if (b) O[t] = Object.assign({}, p, {add: b.c.n, dScore: b.g, gain: b.g, why: ['Card strength: uses a spare land'], str: true});
         }
-        if (b) L.opts[t] = Object.assign({}, p, {add: b.c.n, dScore: b.g, gain: b.g, why: ['Card strength: uses a spare land'], str: true});
-        else delete L.opts[t];
+        return O;
+      };
+      let O = fill(L.cut, L.opts);
+      // owner, 22 Nov (option a): a spare tapped land this commander's players often run can be worth about as much as any
+      // spell on this scale; the row then cuts one of the deck's spare basics instead (still one row per extra land, tapped
+      // lands first), so a deck over its land target is still offered its best spell
+      if (!Object.keys(O).length && !isBasic(L.cut)) {
+        const b = spareBasic();
+        if (b) {
+          O = fill(b, L.opts);
+          if (Object.keys(O).length) {
+            const cw = 'Spare land (' + A0.lands + ' lands, about ' + A0.T.lands + ' needed)';
+            Object.values(O).forEach(p => (p.cutWhy = [cw]));
+            L.cut = b;
+          }
+        }
       }
+      L.opts = O;
       const ps = Object.values(L.opts);
       ps.forEach(p => used.set(p.add, L));
       return ps.length > 0;
