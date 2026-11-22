@@ -259,6 +259,9 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    Batch A built (branch wt/6b-a, 21 Nov): plan facts from the game engine (plan-facts.js), 12 chains, Game plan read-out in
    Build stats, chain-based "Works with" and upgrade reasons; picks and scores unchanged. Waiting: owner's labels for rows 1-5
    of deck/tools/tests/suite/plans/LABELS.md. Next: B Fix menus, C plans list, D upgrade value, E score and generator.
+   Batch C built (branch wt/6b-c, 22 Nov): strong chains offered as plans ('plan:<id>' aims) in Build analysis and the
+   Mechanics list, leading the suggested build only for commanders with little or no play data; switch UP.planList (1,
+   awaiting the owner's approval; 0 = suggestions before). Bench and tourney identical (no test-set commander is thin).
 
 ## 7. Look and layout
 

@@ -141,3 +141,28 @@ function chainWhy(d, c) {
   const ch = CHAINS.find(x => x.id === f.id);
   return f.label + ': ' + (f.side === 'E' ? ch.en : ch.pay) + ', works with ' + f.n + ' cards in the deck';
 }
+// ===== Plans list (roadmap 6b batch C, UP.planList; design 6b-design.md section 2) =====
+// A strong chain is offered as a plan ('plan:<id>' in d.aims) next to the commander's EDHREC themes. Only strong chains:
+// 4+ weight on its weaker side and no thin side (a few incidental tokens are not a plan), unless the commander itself is on
+// both sides (Anje loots and pays off the discard). Suggested in the build only while the commander has little or no play
+// data (buildThemes); a well-known commander keeps its EDHREC themes.
+const isPlanAim = a => typeof a === 'string' && a.startsWith('plan:');
+const PLAN_TWIN = {aristocrats: 'sacrifice', tokens: 'tokens', spells: 'spells', landfall: 'lands', counters: 'counters', lifegain: 'lifegain', graveyard: 'graveyard', blink: 'blink'};
+function planList(d) {
+  if (!UP.planList || !d || !(d.cards || []).length) return [];
+  return planOf(d).chains.filter(x => x.strength >= 4 && (!x.thin || x.cmd.includes('E') && x.cmd.includes('P')));
+}
+// How well card c fits the plan: 1 when its own text does it again and again, 0.7 once, 0.5 from its type line only (an
+// instant for a spells plan: in the plan, not a reason on its own), as the keyword themes weigh their text and type.
+function planAim(c, key) {
+  const ch = CHAINS.find(x => 'plan:' + x.id === key);
+  if (!ch || !c) return 0;
+  let v = 0;
+  for (const f of planFacts(c)) if (ch.E.test(f.code) || ch.P.test(f.code)) v = Math.max(v, f.src === 'y' ? 0.5 : f.code[5] === '1' ? 1 : 0.7);
+  return v;
+}
+const planLabel = key => (CHAINS.find(x => 'plan:' + x.id === key) || {label: key.slice(5)}).label;
+function planDesc(key) {
+  const ch = CHAINS.find(x => 'plan:' + x.id === key);
+  return ch ? 'A game plan read from your deck’s cards: cards that ' + ch.en + ' set off cards that ' + ch.pay + '. Suggestions lean toward cards on either side.' : '';
+}

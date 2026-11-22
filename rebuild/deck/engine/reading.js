@@ -446,10 +446,21 @@ function buildThemes(d) {
   edh.sort((a, b) => b.r - a.r);
   gen.sort((a, b) => b.n - a.n);
   // the suggested build: the commander's own themes when it has play data, otherwise the general mechanics
-  const pick = (edh.length ? edh : gen).slice(0, 3);
+  let pick = (edh.length ? edh : gen).slice(0, 3);
+  // UP.planList (roadmap 6b batch C): the deck's strong game-plan chains (plans.js planList). With little or no play data for
+  // the commander (no EDHREC page, or under 60 cards on it) they lead the suggested build, up to two, ahead of the themes or
+  // mechanics (a mechanic that is the same plan by keywords is left out); a well-known commander keeps its EDHREC themes.
+  const plans = planList(d).map(x => ({key: 'plan:' + x.id, label: x.label, n: new Set(x.en.concat(x.pay)).size, cards: x.en.concat(x.pay.filter(n => !x.en.includes(n))), strength: x.strength}));
+  const thinData = !E || !E.map || E.map.size < 60;
+  if (plans.length && thinData) {
+    const top = plans.slice(0, 2),
+      twin = new Set(top.map(x => PLAN_TWIN[x.key.slice(5)]).filter(Boolean));
+    pick = top.concat((edh.length ? edh : gen).filter(x => !twin.has(x.key))).slice(0, 3);
+  }
   return {
     edh,
     gen,
+    ...(UP.planList ? {plans, thinData} : {}),
     suggest: pick.map(x => x.key),
     tribe: (pick.find(x => x.key === 'tribal') || {}).tribe || '',
     spells: spells.length
