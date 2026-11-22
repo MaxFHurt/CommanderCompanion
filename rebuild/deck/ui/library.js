@@ -684,9 +684,33 @@ function dropHolds(d) {
 // as they were (a card now in the deck is no longer offered elsewhere). The list is worked out again only when asked
 // (Regenerate) or when the deck or its settings change some other way.
 function keepRecs(d, p, t, i) {
-  // prevKey: the list is carried only into the refresh this swap causes; a Regenerate (or any forced refresh) in between drops it
-  recsFor.carry = recsFor.v && !recsFor.v.pending ? {id: d.id, R: recsFor.v, cut: p.cut, add: p.add, t: t || 'apex', i, prevKey: recsFor.k} : null;
+  // prevKey: the list is carried only into the refresh this swap causes; a Regenerate (or any forced refresh) in between drops it.
+  // Several swaps made at once (a Fix menu's top swaps, Make every swap) are carried together.
+  const R = recsFor.v && !recsFor.v.pending ? recsFor.v : null,
+    sw = {cut: p.cut, add: p.add, t: t || 'apex', i},
+    cy = recsFor.carry;
+  if (cy && R && cy.id === d.id && cy.R === R && cy.prevKey === recsFor.k) cy.list.push(sw);
+  else recsFor.carry = R ? {id: d.id, R, list: [sw], prevKey: recsFor.k} : null;
   if (!recsFor.carry) recDrop(d);
+}
+// The tier a swap made outside the row's own buttons counts as (the card pop-up, the Fix menus): the row's tier whose pick or
+// alternative it is, else the price level the card fits (Budget under $3, Mid under $12, else Apex), so a cheap card put in by
+// hand still leaves the dearer picks on its row
+function swapTier(d, L, add) {
+  const k = norm(add);
+  if (L) {
+    for (const t of ['apex', 'mid', 'budget']) if (L.opts[t] && norm(L.opts[t].add) === k) return t;
+    for (const t of ['apex', 'mid', 'budget']) if (((L.alts && L.alts[t]) || []).some(a => norm(a.n) === k)) return t;
+  }
+  const c = find(add),
+    pr = c && c.p != null && !ownSet().has(c._n) ? c.p : 0;
+  return pr < TIERS.budget.cap ? 'budget' : pr < TIERS.mid.cap ? 'mid' : 'apex';
+}
+// keepRecs for a swap from anywhere: finds the row that replaces the card going out, if there is one
+function keepRecsAny(d, p) {
+  const R = recsFor.v && !recsFor.v.pending ? recsFor.v : null,
+    i = R ? R.paths.findIndex(L => !L.applied && norm(L.cut) === norm(p.cut)) : -1;
+  keepRecs(d, p, swapTier(d, i >= 0 ? R.paths[i] : null, p.add), i);
 }
 function carryRecs(d, key) {
   const cy = recsFor.carry;
@@ -694,29 +718,39 @@ function carryRecs(d, key) {
   if (!cy || cy.id !== d.id || cy.R !== recsFor.v || !cy.prevKey || recsFor.k !== cy.prevKey) return null;
   const R = cy.R,
     rank = t => ['budget', 'mid', 'apex'].indexOf(t),
-    row = Number.isInteger(+cy.i) && R.paths[+cy.i] && norm(R.paths[+cy.i].cut) === norm(cy.cut) ? R.paths[+cy.i] : R.paths.find(L => norm(L.cut) === norm(cy.cut));
-  if (row && !entryOf(d, row.cut)) {
-    // the row you swapped on: what was there is kept (Replaced), the card you put in is now the row's card, and the tiers above
-    // the one you used still offer to replace it
-    row.orig = row.orig || row.cut;
-    row.applied = {t: cy.t, n: cy.add, opt: row.opts[cy.t] && norm(row.opts[cy.t].add) === norm(cy.add) ? row.opts[cy.t] : {add: cy.add, cut: cy.cut, q: 1}};
-    row.cut = cy.add;
-    for (const t of Object.keys(row.opts)) {
-      const o = row.opts[t];
-      if (!o || norm(o.add) === norm(cy.add) || rank(t) <= rank(cy.t)) delete row.opts[t];
-      else o.cut = cy.add;
+    rows = new Set();
+  for (const sw of cy.list) {
+    const row =
+      Number.isInteger(+sw.i) && R.paths[+sw.i] && norm(R.paths[+sw.i].cut) === norm(sw.cut)
+        ? R.paths[+sw.i]
+        : R.paths.find(L => norm(L.cut) === norm(sw.cut));
+    if (row && !entryOf(d, row.cut)) {
+      // the row you swapped on: what was there is kept (Replaced), the card you put in is now the row's card, and the tiers above
+      // the one you used still offer to replace it
+      row.orig = row.orig || row.cut;
+      row.applied = {t: sw.t, n: sw.add, opt: row.opts[sw.t] && norm(row.opts[sw.t].add) === norm(sw.add) ? row.opts[sw.t] : {add: sw.add, cut: sw.cut, q: 1}};
+      row.cut = sw.add;
+      for (const t of Object.keys(row.opts)) {
+        const o = row.opts[t];
+        if (!o || norm(o.add) === norm(sw.add) || rank(t) <= rank(sw.t)) delete row.opts[t];
+        else o.cut = sw.add;
+      }
+      delete row.top; // its "Highest score" was measured against the old card
+      rows.add(row);
     }
-    delete row.top;   // its "Highest score" was measured against the old card
+    R.paths = R.paths.filter(L => rows.has(L) || norm(L.cut) !== norm(sw.cut) || entryOf(d, L.cut));
+    R.paths.forEach(L => {
+      if (rows.has(L) && norm(L.cut) === norm(sw.add)) return;
+      for (const t of Object.keys(L.opts)) {
+        const o = L.opts[t];
+        if (o && norm(o.add) === norm(sw.add) && !isBasic(o.add) && hasCard(d, o.add)) delete L.opts[t];
+      }
+    });
   }
-  R.paths = R.paths.filter(L => L === row || norm(L.cut) !== norm(cy.cut) || entryOf(d, L.cut));
-  R.paths.forEach(L => {
-    if (L === row) return;
-    for (const t of Object.keys(L.opts)) {
-      const o = L.opts[t];
-      if (o && norm(o.add) === norm(cy.add) && !isBasic(o.add) && hasCard(d, o.add)) delete L.opts[t];
-    }
-  });
   R.paths = R.paths.filter(L => L.applied || Object.values(L.opts).some(Boolean));
+  // the fixes and cuts listed with it: only those still possible in the deck as it now stands
+  if (R.fixes) R.fixes = R.fixes.filter(p => entryOf(d, p.cut) && (isBasic(p.add) || !hasCard(d, p.add)));
+  if (R.drops) R.drops = R.drops.filter(c => entryOf(d, c.n));
   ROWC.k = null;
   recsFor.k = key;
   recsFor.done(d);

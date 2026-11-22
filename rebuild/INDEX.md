@@ -26,7 +26,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Practice games (mana part) | engine/practice.js · simulate (screw = <4 lands on turn 5) |
 | Generator | engine/generator.js · buildPlan, genDeck, manaPlan (KARSTEN pips), validateDeck; ui/storage.js · genRun, genPrefetch |
 | Generate button | ui/events.js case 'gen-go' → ui/upgrades.js · startPlan |
-| Upgrade list | engine/upgrades.js · upgradePaths, tierPick; ui/library.js · recsFor; page: ui/deck.js (PV rows, sheets) |
+| Upgrade list | engine/upgrades.js · upgradePaths, tierPick; ui/library.js · recsFor; kept after a swap: ui/library.js · keepRecs / keepRecsAny / carryRecs (every swap button; test UI-SWAP-01); page: ui/deck.js (PV rows, sheets) |
 | Upgrades tab number | ui/views.js · upCardCount |
 | Fix menus / land rule | engine/mana.js · fixSwaps, landCovers; engine/upgrades.js · landColors |
 | Card reading (roles, tags) | engine/reading.js, engine/library.js · analyze, tags |

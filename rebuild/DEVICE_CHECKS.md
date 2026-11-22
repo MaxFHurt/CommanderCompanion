@@ -175,6 +175,10 @@ P4. ☐ Swap a card on Upgrades and come back → expect the read-out to follow 
 P5. ☐ (batch B, if approved) Health pop-up and Fix menus on iPhone and iPad: a plan pick's reason chip (e.g. "Adds board wipes · spares your creatures", "… the thin side of the plan") wraps inside the row, the Swap button stays on screen.
 P6. ☐ (batch C, if approved) A deck whose commander has little or no play data (e.g. Brago, King Eternal with a blink list) → Analyze this build → expect "Game plans in your cards" with "Blink for enters triggers" and its card count, and it first in "Suggested build"; Use the suggested build → the Build panel lists it, tapping it explains the plan, Mechanics list shows it under "Game plans in your cards"; on iPhone the long plan names wrap, no sideways scroll. A well-known commander (Teysa with EDHREC data) keeps its EDHREC themes in the suggestion.
 
+## Swaps keep the upgrade list (owner, 22 Nov)
+W1. ☐ iPhone and iPad, a precon on Upgrades: tap a row's card, then Swap in from the card window → expect the list to stay as it was (no Thinking…), that row to show the new card as In your deck and the old one with the red Replaced chip, its dearer picks still offered.
+W2. ☐ Same deck: open a card from Card Search, Swap in with an Or take out instead card, and make a swap from a Fix menu → expect the list kept each time, and the card put in no longer offered on other rows.
+
 ## Monster Siege (/test)
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.
