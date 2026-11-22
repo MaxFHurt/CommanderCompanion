@@ -36,6 +36,12 @@
   --sk-utility-disabled: url("../assets/skin/amethyst/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/amethyst/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/amethyst/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/amethyst/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/amethyst/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/amethyst/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/amethyst/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/amethyst/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/amethyst/log-key-r-disabled.webp");
 }
 :root[data-palette="dark-alley"] {
   --sk-playmat: url("../assets/skin/dark-alley/playmat.webp");
@@ -73,6 +79,12 @@
   --sk-utility-disabled: url("../assets/skin/dark-alley/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/dark-alley/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/dark-alley/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/dark-alley/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/dark-alley/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/dark-alley/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/dark-alley/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/dark-alley/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/dark-alley/log-key-r-disabled.webp");
 }
 :root[data-palette="night-flight"] {
   --sk-playmat: url("../assets/skin/night-flight/playmat.webp");
@@ -110,6 +122,12 @@
   --sk-utility-disabled: url("../assets/skin/night-flight/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/night-flight/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/night-flight/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/night-flight/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/night-flight/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/night-flight/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/night-flight/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/night-flight/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/night-flight/log-key-r-disabled.webp");
 }
 :root[data-palette="ember"] {
   --sk-playmat: url("../assets/skin/ember/playmat.webp");
@@ -147,6 +165,12 @@
   --sk-utility-disabled: url("../assets/skin/ember/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/ember/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/ember/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/ember/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/ember/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/ember/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/ember/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/ember/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/ember/log-key-r-disabled.webp");
 }
 :root[data-palette="frost"] {
   --sk-playmat: url("../assets/skin/frost/playmat.webp");
@@ -184,6 +208,12 @@
   --sk-utility-disabled: url("../assets/skin/frost/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/frost/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/frost/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/frost/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/frost/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/frost/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/frost/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/frost/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/frost/log-key-r-disabled.webp");
 }
 :root[data-palette="gold"] {
   --sk-playmat: url("../assets/skin/gold/playmat.webp");
@@ -221,6 +251,12 @@
   --sk-utility-disabled: url("../assets/skin/gold/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/gold/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/gold/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/gold/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/gold/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/gold/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/gold/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/gold/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/gold/log-key-r-disabled.webp");
 }
 :root[data-palette="forge"] {
   --sk-playmat: url("../assets/skin/forge/playmat.webp");
@@ -258,6 +294,12 @@
   --sk-utility-disabled: url("../assets/skin/forge/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/forge/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/forge/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/forge/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/forge/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/forge/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/forge/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/forge/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/forge/log-key-r-disabled.webp");
 }
 :root[data-palette="emerald"] {
   --sk-playmat: url("../assets/skin/emerald/playmat.webp");
@@ -295,6 +337,12 @@
   --sk-utility-disabled: url("../assets/skin/emerald/utility-disabled.webp");
   --sk-chassis-phone: url("../assets/skin/emerald/chassis-phone.webp");
   --sk-chassis-tablet: url("../assets/skin/emerald/chassis-tablet.webp");
+  --sk-log-key-l-normal: url("../assets/skin/emerald/log-key-l-normal.webp");
+  --sk-log-key-l-pressed: url("../assets/skin/emerald/log-key-l-pressed.webp");
+  --sk-log-key-l-disabled: url("../assets/skin/emerald/log-key-l-disabled.webp");
+  --sk-log-key-r-normal: url("../assets/skin/emerald/log-key-r-normal.webp");
+  --sk-log-key-r-pressed: url("../assets/skin/emerald/log-key-r-pressed.webp");
+  --sk-log-key-r-disabled: url("../assets/skin/emerald/log-key-r-disabled.webp");
 }
 :root, :root[data-dice="amethyst"] { --sk-die: url("../assets/skin/amethyst/die.webp"); }
 :root[data-dice="dark-alley"] { --sk-die: url("../assets/skin/dark-alley/die.webp"); }

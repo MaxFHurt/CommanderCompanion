@@ -199,7 +199,7 @@ export function boardHtml(o) {
   const T = L.tools;
   const rail = L.log.cluster;
   // Board and Table sit on the frame's own key housings; Stack, Undo and Host Tools carry the kit's utility key art.
-  const tool = (r, act, label, cls = '', attrs = '') => html`<button type="button" ${at(r.hit, `gp-key gp-tool ${r.art ? 'gp-tool--art' : ''} ${cls} is-clamp`, { face: r.face, cluster: rail })} data-act="${act}" ${raw(attrs)}><span class="gp-face"><span class="gp-fit" data-fit>${label}</span></span></button>`;
+  const tool = (r, act, label, cls = '', attrs = '') => html`<button type="button" ${at(r.hit, `gp-key gp-tool ${r.art ? 'gp-tool--art' : ''} ${r.logKey ? `gp-tool--log-${r.logKey}` : ''} ${cls} is-clamp`, { face: r.face, cluster: rail })} data-act="${act}" ${raw(attrs)}><span class="gp-face"><span class="gp-fit" data-fit>${label}</span></span></button>`;
   const undoOk = view.canUndo || (view.canAskUndo && view.undoRule);
   const other = screens.find(s => s !== 'player');
 

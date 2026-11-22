@@ -220,6 +220,13 @@
 .game--gp .gp-tool--art .gp-face { background: var(--sk-utility-normal) 0 0 / 100% 100% no-repeat; }
 .game--gp .gp-tool--art:active:not(:disabled) .gp-face { background-image: var(--sk-utility-pressed); }
 .game--gp .gp-tool--art:disabled .gp-face { background-image: var(--sk-utility-disabled); }
+.gp--phone .gp-tool--log-l .gp-face, .gp--phone .gp-tool--log-r .gp-face { padding: 0 calc(var(--u) * 5); }
+.gp--phone .gp-tool--log-l .gp-face { background-image: var(--sk-log-key-l-normal); }
+.gp--phone .gp-tool--log-r .gp-face { background-image: var(--sk-log-key-r-normal); }
+.gp--phone .gp-tool--log-l:active:not(:disabled) .gp-face { background-image: var(--sk-log-key-l-pressed); }
+.gp--phone .gp-tool--log-r:active:not(:disabled) .gp-face { background-image: var(--sk-log-key-r-pressed); }
+.gp--phone .gp-tool--log-l:disabled .gp-face { background-image: var(--sk-log-key-l-disabled); }
+.gp--phone .gp-tool--log-r:disabled .gp-face { background-image: var(--sk-log-key-r-disabled); }
 .game--gp .gp-tool:disabled .gp-face { color: #8d86a3; }
 .game--gp .gp-tool.is-hot .gp-face { color: var(--gold); }
 

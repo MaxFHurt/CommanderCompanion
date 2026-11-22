@@ -4,6 +4,7 @@
     python3 -I tools/skin-assets.py /path/to/extracted/handoff [--sizes]   (about 2 minutes)
     python3 -I tools/skin-assets.py --dice [life-dice folder]               (reward dice art -> assets/skin/dice/)
     python3 -I tools/skin-assets.py --mats [playmats folder]                (reward playmats -> assets/skin/mats/, prints palette picks)
+    python3 -I tools/skin-assets.py --log [frame folder]                    (iPhone Stack/Undo log command keys (the housing is already in the chassis art) -> assets/skin/<palette>/log-*.webp)
     python3 -I tools/skin-assets.py --css                                  (only rewrite styles/skin-palettes.css)
 
 Layout written (ids are the app's lower-case playmat ids, data/playmats.js):
@@ -48,6 +49,8 @@ GAME = [
 # The player status light (art/status, amber in the handoff) tinted per state (owner, 15 Nov: green / yellow / red).
 STATUS_TINTS = {'green': 105, 'yellow': 18, 'red': -32}   # hue shift in degrees from the amber lens
 QUALITY = 82
+# iPhone game-log keys (owner's frame folder: art/log-command-key-left/right; 8 palettes; keys also pressed/disabled)
+LOG_KEYS = [('log-command-key-left', 'log-key-l'), ('log-command-key-right', 'log-key-r')]
 
 
 def pid(name):
@@ -108,6 +111,9 @@ def write_css(root):
         for _, name, _ in GAME:
             if name != 'die':
                 decl.append(f'--sk-{name}: url("../assets/skin/{pid(p)}/{name}.webp")')
+        for _, name in LOG_KEYS:
+            for st in ('normal', 'pressed', 'disabled'):
+                decl.append(f'--sk-{name}-{st}: url("../assets/skin/{pid(p)}/{name}-{st}.webp")')
         lines.append(sel + ' {\n  ' + ';\n  '.join(decl) + ';\n}')
     # The life die follows data-dice (data/dice.js: chosen on its own, default the playmat's die), not the palette.
     for p in PALETTES:
@@ -147,6 +153,14 @@ def main():
             best = min(pal, key=dist)
             c = (round(hue * 360), 0, 0)
             print(f"{m['id']}\t{best.lower()}\thue {c[0]}")
+        return
+    if '--log' in sys.argv:   # iPhone game-log housing and command keys (lazy per palette, like the other palette art)
+        d = args[0] if args else '/home/user/dc-runs/ilog/frame'
+        for p in PALETTES:
+            for fam, name in LOG_KEYS:
+                for st in ('normal', 'pressed', 'disabled'):
+                    save(Image.open(os.path.join(d, 'art', fam, f'{p}-{st}.png')).convert('RGBA'), os.path.join(dest, pid(p), f'{name}-{st}.webp'))
+        print('log art written for', len(PALETTES), 'palettes')
         return
     if '--dice' in sys.argv:   # reward dice art (lazy: assets/skin/dice/ is not precached); args[0] = the life-dice folder
         d = args[0] if args else os.path.join(root, 'roadmap', 'visual-handoff', 'rewards', 'life-dice')

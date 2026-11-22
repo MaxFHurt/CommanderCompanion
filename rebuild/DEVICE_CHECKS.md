@@ -196,3 +196,5 @@ Reply with the numbers that failed and a screenshot.
 S7. ☐ Let Monster Siege finish. Both characters and the speech bubble remain on screen. Refresh retains the scene, and tapping the battlefield or starting a new encounter clears it.
 
 T1. ☐ iPhone, in a game: tap a card with a long name in your hand (e.g. "Ulamog, the Ceaseless Hunger of the Infinite Void"). The dialog title shrinks, then wraps to two lines inside its plate; it is never cut with "…". Short names keep their normal size.
+
+V50. ☐ iPhone game screen, every palette (change the playmat in Settings): Stack and Undo wear the owner's log command keys (left and right, same width as Board and Table below, same palette colours); text stays centred on them. Press and hold each: the pressed look shows. With nothing to undo, Undo shows the dimmed key. The first time a palette is chosen offline-then-online its key art may load a moment later. iPad and desktop unchanged.

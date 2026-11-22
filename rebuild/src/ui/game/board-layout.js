@@ -49,8 +49,9 @@ const PHONE = {
   // housing in the frame, so they keep the kit's utility key art, on the same columns, inside the window and below the pair.
   log: { cluster: [1016, 139, 132, 261], face: [1014.6, 139, 138.6, 26], hit: [1016, 139, 132, 50], rows: [1025, 169, 115, 65] },
   tools: {
-    stack: { face: [1023.7, 257.75, 55.6, 20.5], hit: [1016, 244, 68.7, 50.7], art: true },
-    undo: { face: [1090.1, 257.75, 56.3, 20.5], hit: [1084.7, 244, 63.3, 50.7], art: true },
+    // iPhone: the owner's log command keys (left / right, 133 x 64 and 130 x 64 art), centred on the old utility keys.
+    stack: { face: [1017, 252.5, 66, 31.7], hit: [1016, 244, 68.7, 50.7], art: true, logKey: 'l' },
+    undo: { face: [1083.4, 252.5, 66, 32.5], hit: [1084.7, 244, 63.3, 50.7], art: true, logKey: 'r' },
     board: { face: [1023.7, 317.8, 55.6, 20.5], hit: [1016, 294.7, 68.7, 52.7] },
     table: { face: [1090.1, 317.8, 56.3, 20.5], hit: [1084.7, 294.7, 63.3, 52.7] },
     host: { face: [1023.7, 358, 122.7, 20.5], hit: [1016, 347.4, 132, 52.6], art: true }
