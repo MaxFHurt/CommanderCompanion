@@ -303,7 +303,7 @@ function evaluateDeck(d, opt) {
   // so the staples strong decks run (Sol Ring, tutors) no longer lower the score of a deck that plays them
   const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
     topS = SRx ? strTopSpell(d, SRx) : 0,
-    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false) / topS) : 0);
+    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false, true) / topS) : 0);
   const synOf = c => Math.max(synOf0(c), strSyn(c));
   const synOf0 = c => {
     const x = hasE ? incOf(c) : null,
