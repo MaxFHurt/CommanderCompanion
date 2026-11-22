@@ -203,7 +203,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
 
 ## 6. Deck Builder
 
-1. **Smarter deck score** (large, discuss first): close the gap to top tournament lists at Apex (about half our cards match;
+1. **Smarter deck score** (owner, 22 Nov: build it; audit of Build 120: the score barely tells fast mana from any ramp, rates Ancient Tomb 0, disagrees with card power on tutors; the 4 named categories are only 37 of 193 'we play, they don't' cards, most are cheap green ramp and value cards; prototype on wt/score61) (large, discuss first): close the gap to top tournament lists at Apex (about half our cards match;
    we miss fetch lands, original duals, fast mana, free interaction, tutors and win cards; we include protection equipment,
    slow rocks, wipes and big creatures they never play). Must be measured against the upgrade benchmark and the tournament
    comparison before and after. (deck/ROADMAP.md "Queue", Large 3)
@@ -329,10 +329,10 @@ tap-target check) are enlarged to at least 36 px in the same pass, so the button
 2. **Decklist images slow (Build 100: pictures load lazily):** not reproduced in Chromium; owner to say whether it is better on the
    phone, and if not: which deck, how long, Wi-Fi or cell, and whether only on the first open after an update.
 4. **(Done, Build 102.)** The Upgrades tab's number did not match the cards listed to replace.
-5. **Deck score to agree with the strongest version (owner, 12 Nov: "make the score match the strongest version of the deck"):**
+5. **(Done, closed by the owner 22 Nov after the Build 120 audit: staples raise the score, Mana Vault +0.54, Chrome Mox +0.44, tutors +0.3.)** **Deck score to agree with the strongest version (owner, 12 Nov: "make the score match the strongest version of the deck"):**
    the score's synergy part rewards cards specific to the commander, so strong staples (Sol Ring, tutors) lower it, and its card
    quality part measures against the engine's own Apex reference, not the strength build. Next, before item 3 ships.
-3. **Generated Apex deck at power 66 with 28 upgrades (owner chose the strongest version, 12 Nov; built on branch team/apex):** power and the upgrade list use the strength
+3. **(Done, closed by the owner 22 Nov after the Build 120 audit: generated Apex power 100-106 with 0-3 rows; Theme-first leftovers by design.)** **Generated Apex deck at power 66 with 28 upgrades (owner chose the strongest version, 12 Nov; built on branch team/apex):** power and the upgrade list use the strength
    builds (Build 93), the generator does not. Built and reverted (commit 8fa9ab2): finishing generated decks on the strength build
    (power 100), which swaps 59-76 of the generator's cards and lowers the engine's score (Turtles 91 -> 77, synergy 100 -> 62) and
    needs Theme first, the land formula, no-play-data decks and building ahead reworked (five tests). Other way: generate with
