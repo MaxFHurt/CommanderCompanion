@@ -263,6 +263,10 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    Batch C built (branch wt/6b-c, 22 Nov): strong chains offered as plans ('plan:<id>' aims) in Build analysis and the
    Mechanics list, leading the suggested build only for commanders with little or no play data; switch UP.planList (1,
    awaiting the owner's approval; 0 = suggestions before). Bench and tourney identical (no test-set commander is thin).
+   Batch D built (branch wt/6b-d, 22 Nov): upgrade value: a spell that fills the thin side of a detected chain (its own
+   text, not its type line) adds UP.chain to its card value (strength.js strValue, plans.js chainBonus); the deck score's
+   synergy part reads the value without it (batch E). Switch UP.chain 0.03 (awaiting the owner's approval; 0 = picks before).
+   Sweep 0 / 0.03 / 0.06 / 0.1: bench test 0.211 / 0.220 / 0.220 / 0.217, tuneall 0.168 / 0.167 / 0.160 / 0.158.
 
 ## 7. Look and layout
 

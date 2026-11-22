@@ -2,7 +2,8 @@
 // What a deck's cards set off in a game, from the plan facts (plan-facts.js, made by tools/plan-facts.mjs from the game
 // engine's readings first, the Deck Builder's reader second): a card that returns creatures to hand feeds the cards with
 // enters triggers, a sacrifice outlet feeds the death triggers, and so on. Batch A uses it for what is shown only (the Game
-// plan read-out in Build stats, "Works with" in the card window, the upgrade reasons); no score or pick reads it.
+// plan read-out in Build stats, "Works with" in the card window, the upgrade reasons); batches B-D add Fix picks (UP.planFix),
+// suggested plans (UP.planList) and upgrade value (UP.chain, chainBonus).
 // A fact is 6 characters (tools/plan-facts.mjs): g/w · event · side · what · repeat; its source is e (game engine),
 // r (Deck Builder reader), k (keyword) or x (text).
 const PF_SRC = {e: 'game engine', r: 'Deck Builder reader', k: 'keyword', x: 'text', y: 'card type'};
@@ -132,6 +133,24 @@ function chainFit(d, c) {
     }
   }
   return out.sort((a, b) => b.n - a.n);
+}
+// ===== Upgrade value (roadmap 6b batch D, UP.chain; design 6b-design.md section 2) =====
+// How much card c fills the thin side of one of the deck's chains: 1 when its own text does it again and again, 0.5 once,
+// 0 when it only joins a full side or does it from its type line alone (any creature is a creature entering). strValue
+// adds UP.chain times this to the card's value. The thin sides are read once per deck reading (planOf's result).
+const CH_THIN = new WeakMap();
+function chainBonus(d, c) {
+  if (!d || !c || !(d.cards || []).length) return 0;
+  const P = planOf(d);
+  let T = CH_THIN.get(P);
+  if (!T) CH_THIN.set(P, (T = {sides: P.chains.filter(x => x.thin).map(x => (x.thin === 'enablers' ? x.ch.E : x.ch.P)), m: new Map()}));
+  if (!T.sides.length) return 0;
+  let v = T.m.get(c.n);
+  if (v !== undefined) return v;
+  v = 0;
+  for (const re of T.sides) for (const f of planFacts(c)) if (f.src !== 'y' && re.test(f.code)) v = Math.max(v, f.code[5] === '1' ? 1 : 0.5);
+  T.m.set(c.n, v);
+  return v;
 }
 // The reason an upgrade shows (text only): "Re-cast for enters and cast triggers: returns creatures to hand for 6 cards in
 // the deck". Null when the card joins no chain with 3+ cards on the other side.

@@ -137,7 +137,7 @@ function strInc(c, d) {
   const D = preDeflate(E);
   return Math.max(0, Math.min(1, D.inc(c, x.inc)));
 }
-function strValue(c, d, casual) {
+function strValue(c, d, casual, raw) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
     k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strPopW + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
@@ -157,6 +157,13 @@ function strValue(c, d, casual) {
       b2 = casual && UP.strInc ? (1 - w - UP.strInc) * S1 + w * strFit(c, d) + UP.strInc * inc : (1 - w) * S1 + w * strFit(c, d);
     v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
+  }
+  // UP.chain (roadmap 6b batch D): a spell that fills the thin side of one of the deck's game-plan chains (plans.js
+  // chainBonus) adds UP.chain to its blend, as fit does; joining a full side adds nothing. raw: the value without it (the
+  // deck score's synergy part, which batch E covers)
+  if (UP.chain && !raw && !tags(c).land) {
+    const f = chainBonus(d, c);
+    if (f) v = Math.pow(Math.pow(v, 1 / UP.strExp) + UP.chain * f, UP.strExp);
   }
   return v;
 }
@@ -244,7 +251,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
@@ -272,7 +279,7 @@ function strengthRef(d) {
 function strTopSpell(d, SR) {
   if (SR.topS == null) {
     const sp = SR.apex.list.filter(c => !tags(c).land);
-    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false), 0) / sp.length : 0;
+    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false, true), 0) / sp.length : 0;
   }
   return SR.topS;
 }
