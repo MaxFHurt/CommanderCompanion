@@ -193,3 +193,5 @@ V49. ☐ Mana well: only the colours you have, with their counts, and the total 
 Reply with the numbers that failed and a screenshot.
 
 S7. ☐ Let Monster Siege finish. Both characters and the speech bubble remain on screen. Refresh retains the scene, and tapping the battlefield or starting a new encounter clears it.
+
+T1. ☐ iPhone, in a game: tap a card with a long name in your hand (e.g. "Ulamog, the Ceaseless Hunger of the Infinite Void"). The dialog title shrinks, then wraps to two lines inside its plate; it is never cut with "…". Short names keep their normal size.
