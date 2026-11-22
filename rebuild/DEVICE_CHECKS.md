@@ -141,6 +141,7 @@ V34. ☐ Game History (Recent games panel, Close) and Achievements (Level panel 
 V35. ☐ Settings: Guidance level (Coach / Assist / Rules only) and Preferences (Learning tips and Send rule corrections switches, Account, Backup, Dev report); Close. Switches show on/off art.
 V36. ☐ Rules (Table rules before a game, Table Defaults, host Rules edit): Commander panel and Table options panel with switches, House rule chips still appear, and Who goes first? sits at the bottom of Table options. Cancel/Back and Save/Start still work. Table Defaults: Players on the left, house rules on the right.
 V37. ☐ Help (Ask the Judge): Search rules panel (search box and topic chips) and Result panel; the dialog has the plain panel background, no striped judge background. Searching filters the results.
+V50. ☐ Open a card that is not in the deck (card window) with card strength on, next to the Upgrades row for the same swap → expect the same power number on both (e.g. "+0.1 power"), plus a separate "Deck score ±x" chip; "power" never labels the deck-score change.
 V38. ☐ Change the playmat to Ember and Frost: all these routes take the colour; on the iPad the panels are taller and centred.
 
 ## In-game dialogs, Table Tracker, host Table View and Judge View (visual rebuild, stage 3d)
