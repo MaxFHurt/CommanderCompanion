@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.118 (Deck Builder 0.9.75, build 220)
+- **Live build:** 1.0.0-rebuild.119 (Deck Builder 0.9.76, build 221)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -51,6 +51,16 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 119 — 22 Nov 2026 (app 1.0.0-rebuild.119; Deck Builder 0.9.76, build 221): game-plan Fix menus, plans list, thin-side bonus, 70/30 blend
+- 6b batch B: plan-aware Fix picks (`UP.planFix` 1, owner approved): plan picks lead at half the best gain; wipes say whether they spare or hit your creatures.
+- 6b batch C: detected game plans suggested for commanders with thin play data (`UP.planList` 1); "Game plans in your cards" in Build analysis.
+- 6b batch D: thin-side bonus `UP.chain` 0.03 (owner approved; tuneall 0.168→0.167, test 0.211→0.220).
+- Strength blend `UP.strPopW` 0.5 → 0.7 (owner): universal Apex staples 4.7% → 2.9%; Apex vs tournament 0.66 → 0.65, generated Apex −0.5.
+- Spare lands over the land target: when no spell beats the tapped land, cut a spare basic (owner's option a).
+- Generation deterministic: the open deck can't take the EDHREC slot while a generation runs (UI-B81-02).
+- Card window rates swaps by power (matches the Upgrades row); dialog/page titles shrink then wrap instead of ellipsis.
+- Suites: UI 152/152; Deck Builder baselines unchanged; holdout agreement@5 0.251 / 0.272 / 0.238; all browser suites pass.
 
 ### Build 118 — 22 Nov 2026 (app 1.0.0-rebuild.118; Deck Builder 0.9.75, build 220): strongest decks blend + game screen
 - Strongest decks: card strength blended 50/50 with this commander's play rate (`UP.strPopW=0.5`, owner approved); theme fit keeps full weight; picks that lower power are dropped; strength-list alternatives. Holdout agreement@5 0.234 / 0.272 / 0.240 (Apex/Mid/Budget); precon Apex swaps left 62.7 → 20.9.
