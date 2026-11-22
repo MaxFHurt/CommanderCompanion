@@ -1,0 +1,364 @@
+{
+ "cards": 32643,
+ "a": 3671,
+ "b": 20543,
+ "c": 8429,
+ "evidence": {
+  "test-wording": 663,
+  "test-wording-effect-half": 693,
+  "keyword-only": 1110,
+  "batch-review": 862,
+  "vanilla": 343
+ },
+ "vanilla_not_audited": 343,
+ "audited": 32300,
+ "audit_automatic": 23871,
+ "static_unchecked_cards": 5965,
+ "keywords_tested": 169,
+ "groups_c": 68,
+ "groups_b": 49,
+ "top_c": [
+  {
+   "id": "conditional",
+   "touch": 878,
+   "solo": 501,
+   "cx": "S"
+  },
+  {
+   "id": "that-many",
+   "touch": 708,
+   "solo": 334,
+   "cx": "S"
+  },
+  {
+   "id": "counters",
+   "touch": 903,
+   "solo": 629,
+   "cx": "M"
+  },
+  {
+   "id": "mass",
+   "touch": 309,
+   "solo": 195,
+   "cx": "S"
+  },
+  {
+   "id": "reanimate",
+   "touch": 295,
+   "solo": 172,
+   "cx": "S"
+  },
+  {
+   "id": "exile-simple",
+   "touch": 328,
+   "solo": 154,
+   "cx": "S"
+  },
+  {
+   "id": "pt-pump",
+   "touch": 186,
+   "solo": 140,
+   "cx": "S"
+  },
+  {
+   "id": "tokens",
+   "touch": 203,
+   "solo": 124,
+   "cx": "S"
+  },
+  {
+   "id": "combat-restrict",
+   "touch": 170,
+   "solo": 113,
+   "cx": "S"
+  },
+  {
+   "id": "damage-calc",
+   "touch": 169,
+   "solo": 113,
+   "cx": "S"
+  },
+  {
+   "id": "ev-attack",
+   "touch": 111,
+   "solo": 96,
+   "cx": "S"
+  },
+  {
+   "id": "keyword-grant",
+   "touch": 126,
+   "solo": 89,
+   "cx": "S"
+  },
+  {
+   "id": "tutor-put",
+   "touch": 141,
+   "solo": 80,
+   "cx": "S"
+  },
+  {
+   "id": "ev-zone",
+   "touch": 102,
+   "solo": 76,
+   "cx": "S"
+  },
+  {
+   "id": "ev-damage",
+   "touch": 94,
+   "solo": 76,
+   "cx": "S"
+  },
+  {
+   "id": "ev-misc",
+   "touch": 192,
+   "solo": 151,
+   "cx": "M"
+  },
+  {
+   "id": "ev-cast",
+   "touch": 85,
+   "solo": 74,
+   "cx": "S"
+  },
+  {
+   "id": "grant-quoted",
+   "touch": 240,
+   "solo": 146,
+   "cx": "M"
+  },
+  {
+   "id": "copy-perm",
+   "touch": 202,
+   "solo": 130,
+   "cx": "M"
+  },
+  {
+   "id": "attach",
+   "touch": 169,
+   "solo": 119,
+   "cx": "M"
+  },
+  {
+   "id": "opp-choice",
+   "touch": 339,
+   "solo": 110,
+   "cx": "M"
+  },
+  {
+   "id": "superlative",
+   "touch": 79,
+   "solo": 52,
+   "cx": "S"
+  },
+  {
+   "id": "free-cast",
+   "touch": 306,
+   "solo": 98,
+   "cx": "M"
+  },
+  {
+   "id": "prevent-dmg",
+   "touch": 131,
+   "solo": 93,
+   "cx": "M"
+  },
+  {
+   "id": "becomes",
+   "touch": 266,
+   "solo": 185,
+   "cx": "L"
+  },
+  {
+   "id": "fight-bite",
+   "touch": 74,
+   "solo": 46,
+   "cx": "S"
+  },
+  {
+   "id": "filter-target",
+   "touch": 67,
+   "solo": 42,
+   "cx": "S"
+  },
+  {
+   "id": "delayed",
+   "touch": 117,
+   "solo": 78,
+   "cx": "M"
+  },
+  {
+   "id": "library-look",
+   "touch": 408,
+   "solo": 76,
+   "cx": "M"
+  },
+  {
+   "id": "random",
+   "touch": 243,
+   "solo": 37,
+   "cx": "S"
+  },
+  {
+   "id": "half-x",
+   "touch": 51,
+   "solo": 37,
+   "cx": "S"
+  },
+  {
+   "id": "control",
+   "touch": 124,
+   "solo": 72,
+   "cx": "M"
+  },
+  {
+   "id": "tap-untap",
+   "touch": 82,
+   "solo": 31,
+   "cx": "S"
+  },
+  {
+   "id": "search",
+   "touch": 82,
+   "solo": 31,
+   "cx": "S"
+  },
+  {
+   "id": "modal",
+   "touch": 130,
+   "solo": 60,
+   "cx": "M"
+  },
+  {
+   "id": "kw-threshold",
+   "touch": 32,
+   "solo": 30,
+   "cx": "S"
+  },
+  {
+   "id": "lifeloss-unless",
+   "touch": 186,
+   "solo": 56,
+   "cx": "M"
+  },
+  {
+   "id": "life-gain",
+   "touch": 52,
+   "solo": 24,
+   "cx": "S"
+  },
+  {
+   "id": "cast-perm",
+   "touch": 88,
+   "solo": 47,
+   "cx": "M"
+  },
+  {
+   "id": "turn",
+   "touch": 73,
+   "solo": 45,
+   "cx": "M"
+  }
+ ],
+ "top_b": [
+  {
+   "id": "static-uncheckable",
+   "touch": 2874,
+   "cx": "M"
+  },
+  {
+   "id": "unv-pt-pump",
+   "touch": 1680,
+   "cx": "S"
+  },
+  {
+   "id": "unv-counters",
+   "touch": 1653,
+   "cx": "M"
+  },
+  {
+   "id": "unv-exile-simple",
+   "touch": 983,
+   "cx": "S"
+  },
+  {
+   "id": "unv-repl-etb",
+   "touch": 759,
+   "cx": "M"
+  },
+  {
+   "id": "unv-tokens",
+   "touch": 755,
+   "cx": "S"
+  },
+  {
+   "id": "unv-grant-quoted",
+   "touch": 561,
+   "cx": "M"
+  },
+  {
+   "id": "unv-search",
+   "touch": 527,
+   "cx": "S"
+  },
+  {
+   "id": "unv-combat-restrict",
+   "touch": 489,
+   "cx": "S"
+  },
+  {
+   "id": "unv-delayed",
+   "touch": 472,
+   "cx": "M"
+  },
+  {
+   "id": "unv-keyword-grant",
+   "touch": 462,
+   "cx": "S"
+  },
+  {
+   "id": "unv-library-look",
+   "touch": 432,
+   "cx": "M"
+  },
+  {
+   "id": "unv-tap-untap",
+   "touch": 432,
+   "cx": "S"
+  },
+  {
+   "id": "unv-reanimate",
+   "touch": 378,
+   "cx": "S"
+  },
+  {
+   "id": "unv-that-many",
+   "touch": 360,
+   "cx": "S"
+  },
+  {
+   "id": "unv-modal",
+   "touch": 319,
+   "cx": "M"
+  },
+  {
+   "id": "unv-opp-choice",
+   "touch": 310,
+   "cx": "M"
+  },
+  {
+   "id": "unv-becomes",
+   "touch": 267,
+   "cx": "L"
+  },
+  {
+   "id": "unv-mana-rider",
+   "touch": 253,
+   "cx": "M"
+  },
+  {
+   "id": "unv-damage-calc",
+   "touch": 212,
+   "cx": "S"
+  }
+ ]
+}

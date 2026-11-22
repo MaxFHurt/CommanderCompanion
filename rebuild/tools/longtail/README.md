@@ -18,3 +18,8 @@ by hand). Read the compiled effects of every newly automatic card (`review.mjs`)
 Batch 2 review checks that found real misreads (worth repeating each batch): "its power" / "that creature's power"
 (whose power?), "that player" inside "each player …" (per player, not once), "it" after a token is made, counts
 that compiled to a fixed number, and spells whose "it" fell back to the spell itself.
+
+Ledger (22 Nov): `node tools/longtail/ledger.mjs --audit $LT/out/base.json --clauses $LT/out/base --oracle $LT/data/oracle.jsonl.gz`
+(after audit.sh and the clauses step of cl.sh) writes ledger.jsonl.gz (tier a verified / b unverified / c by hand per card),
+ledger-summary.json and GROUPS.md; groups come from ledger-rules.mjs. After a batch, append its newly passing cards (read) with
+`ledger.mjs --make-reviewed old-audit.json new-audit.json`.
