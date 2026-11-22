@@ -19,7 +19,7 @@ import { parseDescB113 } from '../../src/engine/effects-b113.js';
 const FIX = JSON.parse(readFileSync(new URL('../fixtures/b113-cards.json', import.meta.url)));
 const only = process.argv.slice(2);
 // Newly automatic cards this driver could not settle (it cannot arrange their referent or state): left out of the verified count.
-const UNVERIFIED = new Set(["Currency Converter", "Garna, Bloodfist of Keld", "Eshki, Temur's Roar", "Obsessive Pursuit", "Thing in the Ice // Awoken Horror", "Kinetic Ooze", "Howlpack Piper // Wildsong Howler", "Otterball Antics", "Pegasus Guardian // Rescue the Foal", "Miles \"Tails\" Prower", "Guildsworn Prowler", "Council of Reeds", "Daredevil, Man Without Fear", "Sage of the Skies", "Antiquities on the Loose", "Vance's Blasting Cannons // Spitfire Bastion", "Lost Auramancers", "Shackle Slinger", "Twinned Vision", "Graveyard Trespasser // Graveyard Glutton", "Consul's Lieutenant", "Deathknell Berserker", "Lifecraft Awakening", "Rubblebelt Braggart", "Bogardan Phoenix", "Soul Reap", "Storm Elemental"]);
+const UNVERIFIED = new Set(['H.E.R.B.I.E., Lovable Robot', "Currency Converter", "Garna, Bloodfist of Keld", "Eshki, Temur's Roar", "Obsessive Pursuit", "Thing in the Ice // Awoken Horror", "Kinetic Ooze", "Howlpack Piper // Wildsong Howler", "Otterball Antics", "Pegasus Guardian // Rescue the Foal", "Miles \"Tails\" Prower", "Guildsworn Prowler", "Council of Reeds", "Daredevil, Man Without Fear", "Sage of the Skies", "Antiquities on the Loose", "Vance's Blasting Cannons // Spitfire Bastion", "Lost Auramancers", "Shackle Slinger", "Twinned Vision", "Graveyard Trespasser // Graveyard Glutton", "Consul's Lieutenant", "Deathknell Berserker", "Lifecraft Awakening", "Rubblebelt Braggart", "Bogardan Phoenix", "Soul Reap", "Storm Elemental"]);
 let uid = 0;
 const SC = (name, type, text = '', x = {}) => ({ id: `x${++uid}`, name, mana_cost: x.cost || '', type_line: type, oracle_text: text, colors: x.colors || [], color_identity: x.colors || [], keywords: [], power: x.p ?? null, toughness: x.t ?? null, cmc: x.cmc ?? 0, set: 'fix', lang: 'en', legalities: { commander: 'legal' }, layout: 'normal' });
 /** A card with its own definition standing in for one of the deck's Forests (definitions are shared per name, so each stand-in gets its own). */
@@ -30,7 +30,7 @@ function mk(t, i, zone, scry, over = {}) {
   return (t.P(i).deck[zone === 'library' ? 'remainingLibrary' : zone] || []).find(x => x.instanceId === c.instanceId) || c;
 }
 const def = (t, c) => t.game.cardDefinitions[c.definitionId];
-const auto = d => { const open = (d.options || []).filter(o => !o.disabled); return d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : open[0]?.id; };
+const auto = d => { const open = (d.options || []).filter(o => !o.disabled); return d.kind === 'choose-many' ? open.slice(0, d.min || 0).map(o => o.id) : d.kind === 'confirm' ? true : d.kind === 'number' ? (d.min || 0) : d.kind === 'arrange' ? { top: d.cards.map(c => c.id), other: [] } : open[0]?.id; };
 function settle(t, pick) {
   const seen = [];
   for (let g = 0; g < 60; g++) {
@@ -224,8 +224,78 @@ export function verify(name) {
   if (!b.driven) return { ok: null, why: b.why };
   return { ok: a.fp !== b.fp, kinds: a.kinds, why: a.fp === b.fp ? 'true and false gave the same result' : '' };
 }
+
+// ---- several cards together, through the real turn ----
+function interactions() {
+  const names = (t, i, z) => t.P(i).deck[z].map(c => def(t, c)?.name);
+  const endTurn = t => { t.ctl.dispatch({ type: 'end-turn' }, t.as(0)); settle(t); };
+  section('interaction: Revolt (Hidden Stockpile) after a creature is sacrificed to the real ability');
+  for (const sac of [true, false]) {
+    const t = base();
+    const stock = mk(t, 0, 'battlefield', FIX['Hidden Stockpile']);
+    const bear = mk(t, 0, 'battlefield', SC('Fodder', 'Creature — Bear', '', { p: 1, t: 1 }));
+    if (sac) {
+      const ab = parseActivatedAbilities(def(t, stock)).filter(a => !a.manaAbility)[0];
+      const r = t.ctl.dispatch({ type: 'activate', instanceId: stock.instanceId, abilityId: ab.id }, t.as(0));
+      if (!r.ok) throw new Error(r.error);
+      settle(t, d => (d.options || []).find(o => o.id === bear.instanceId)?.id);
+    }
+    endTurn(t);
+    const servos = t.P(0).deck.battlefield.filter(c => def(t, c)?.name === 'Servo').length;
+    check(`Hidden Stockpile: ${sac ? 'a sacrificed creature (cost of its own ability) lets the end step make a Servo' : 'no permanent left, no Servo'}`, servos === (sac ? 1 : 0), `servos=${servos} bf=${names(t, 0, 'battlefield')}`);
+  }
+  section('interaction: Celebration (Pests of Honor) after two nonland permanents entered');
+  for (const n of [2, 1]) {
+    const t = base();
+    const pests = mk(t, 0, 'battlefield', FIX['Pests of Honor']);
+    for (let i = 0; i < n; i++) enter(t, mk(t, 0, 'library', SC('Newcomer', 'Artifact', '')));
+    t.ctl.dispatch({ type: 'next-phase' }, t.as(0)); settle(t);
+    const g = t.P(0).deck.battlefield.find(c => c.instanceId === pests.instanceId);
+    check(`Pests of Honor: ${n} nonland permanents entered -> ${n >= 2 ? 'a +1/+1 counter at combat' : 'nothing'}`, Number(g?.counters?.['+1/+1'] || 0) === (n >= 2 ? 1 : 0), JSON.stringify(g?.counters) + ' phase ' + t.game.phase);
+  }
+  section('interaction: self-mill then "if there is an Elf card in your graveyard" (Dawnhand Eulogist)');
+  for (const elf of [true, false]) {
+    const t = base();
+    const lib = t.P(0).deck.remainingLibrary, opp = t.P(1).life;
+    const milled = [0, 1, 2].map(i => mk(t, 0, 'library', SC(i === 0 && elf ? 'Mill Elf' : 'Mill Bear', i === 0 && elf ? 'Creature — Elf' : 'Creature — Bear', '', { p: 1, t: 1 })));
+    for (const c of milled) lib.splice(lib.indexOf(c), 1);
+    lib.unshift(...milled);
+    const eul = mk(t, 0, 'hand', FIX['Dawnhand Eulogist'], { manaCost: '{3}' });
+    const r = t.ctl.dispatch({ type: 'play', instanceId: eul.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error);
+    settle(t);
+    check(`Dawnhand Eulogist: ${elf ? 'an Elf milled by its own trigger makes the opponent lose 2' : 'no Elf, no life loss'}`, t.P(1).life === opp - (elf ? 2 : 0), `${opp}->${t.P(1).life} gy=${names(t, 0, 'graveyard')}`);
+  }
+  section('interaction: a creature dies in real combat, then Denethor\'s end step ("if a creature died under your control this turn")');
+  for (const dies of [true, false]) {
+    const t = base();
+    const den = mk(t, 0, 'battlefield', FIX['Denethor, Ruling Steward']);
+    const mine = mk(t, 0, 'battlefield', SC('Attacker', 'Creature — Bear', '', { p: dies ? 1 : 4, t: dies ? 1 : 4 }));
+    const wall = mk(t, 1, 'battlefield', SC('Blocker', 'Creature — Wall', '', { p: 3, t: 3 }));
+    t.ctl.dispatch({ type: 'next-phase' }, t.as(0)); settle(t);
+    const a = t.ctl.dispatch({ type: 'attack', attacks: [{ instanceId: mine.instanceId, defenderId: t.P(1).playerId }] }, t.as(0)); if (!a.ok) throw new Error(a.error);
+    if (t.game.flow.blocks || t.game.combatState) t.ctl.dispatch({ type: 'block', assignments: [{ attackerId: mine.instanceId, blockerId: wall.instanceId }] }, t.as(1));
+    settle(t);
+    const seenPh = []; for (let i = 0; i < 8 && t.game.turnNumber === 1; i++) { const r = t.ctl.dispatch({ type: 'next-phase' }, t.as(0)); seenPh.push(t.game.phase + ':' + r.ok); if (!r.ok) break; settle(t); if (t.game.phase === 'end-step') break; }
+    settle(t);
+    const died = !t.P(0).deck.battlefield.some(c => c.instanceId === mine.instanceId), soldiers = t.P(0).deck.battlefield.filter(c => c.token && /Soldier/.test(def(t, c)?.typeLine || '')).length;
+    check(`Denethor: our creature ${dies ? 'dies blocked in combat -> a Human Soldier at the end step' : 'survives combat -> no token'}`, died === dies && soldiers === (dies ? 1 : 0), `died=${died} soldiers=${soldiers} phases=${seenPh} turn=${t.game.turnNumber} died=${JSON.stringify(t.game.turnTally?.died)} bf=${names(t, 0, 'battlefield').slice(-3)}`);
+  }
+  section('interaction: Thoughtweft Charge after a creature of ours entered (cast through the real path)');
+  for (const entered of [true, false]) {
+    const t = base(); furnish(t);
+    const bear = t.P(0).deck.battlefield.find(c => def(t, c)?.name === 'Pool Bear');
+    if (entered) enter(t, mk(t, 0, 'library', SC('Newcomer', 'Creature — Bear', '', { p: 1, t: 1 })));
+    const h = t.P(0).deck.hand.length;
+    const ch = mk(t, 0, 'hand', FIX['Thoughtweft Charge'], { manaCost: '{1}' });
+    const r = t.ctl.dispatch({ type: 'play', instanceId: ch.instanceId }, t.as(0)); if (!r.ok) throw new Error(r.error);
+    settle(t, d => (d.options || []).find(o => o.id === bear.instanceId)?.id);
+    check(`Thoughtweft Charge: ${entered ? 'draws after a creature entered' : 'does not draw otherwise'}`, t.P(0).deck.hand.length === h + (entered ? 1 : 0), `${h}->${t.P(0).deck.hand.length}`);
+  }
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   let n = 0, nd = 0;
+  if (only.includes('interactions')) { interactions(); done(); }
   for (const name of Object.keys(FIX)) {
     if (only.length && !only.includes(name)) continue;
     if (UNVERIFIED.has(name) && !only.length) { console.log(`  --  unverified: ${name}`); continue; }
@@ -234,5 +304,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     n++; check(`${name}: rider happens only when ${r.kinds.join(', ')} holds`, r.ok, r.why);
   }
   console.log(`\n${n} driven, ${nd} not driven`);
+  if (!only.length) interactions();
   done();
 }
