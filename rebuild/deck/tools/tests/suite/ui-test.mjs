@@ -386,13 +386,17 @@ const al = await page.evaluate(async () => { const out = {}; const wait = async 
   const w = S.profile.decks.find(x => /Doom Prevails/i.test(x.name)); S.deckId = w.id; S.tab = 'up'; await loadEdh(w.commander); await loadThemes(w.commander, w.aims); render(); await new Promise(r => setTimeout(r, 400));
   out.deck = w.name; out.upButtons = document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]').length; let U = [], p = null, t = null, R = recsFor(w);
   for (const ub of [...document.querySelectorAll('.paths [data-act="alts"][data-v^="up|"]')].slice(0, 10)){ const v = ub.dataset.v.split('|'); t = v[2]; p = R.paths[+v[1]].opts[t]; ub.click(); await wait(); U = names(); if (U.length) break; $('#modal').hidden = true; }
-  out.upAlts = U.length; if (!U.length) return out; out.pick = p.add + ' ' + p.dScore;
+  out.upAlts = U.length; if (!U.length) return out; out.pick = p.add + ' ' + p.dScore; out.t = t;
   const shown = [...document.querySelectorAll('#modal .opt.alt')].map(o => /([+−])(\d+(?:\.\d)?) (?:score|power)/.exec(o.textContent)).map(m => m ? (m[1] === '+' ? 1 : -1) * +m[2] : null);
-  out.scores = shown; out.upRule = U.every(n => band(n) === band(p.add) && !w.cards.some(e => e.n === n)) && shown.every(v => v != null && v > 0 && v >= 0.5 * p.dScore - 0.05);
+  out.scores = shown;
+  // Mid and Budget picks (card strength) are chosen by the casual rating (strength with this commander's play rate), so their
+  // alternatives keep at least half the pick's gain on that rating and add power; Apex ones keep half the pick's power gain
+  const cas = (t === 'mid' || t === 'budget') && R.str, cv = n => strValue(find(n), w, true), half = n => cv(n) - cv(p.cut) >= 0.5 * (cv(p.add) - cv(p.cut)) - 1e-9;
+  out.upRule = U.every(n => band(n) === band(p.add) && !w.cards.some(e => e.n === n)) && shown.every(v => v != null && v > 0 && (cas || v >= 0.5 * p.dScore - 0.05)) && (!cas || U.every(half));
   const before = JSON.stringify(w.cards), cut = p.cut; document.querySelector('#modal [data-act="alt-use"]').click(); await new Promise(r => setTimeout(r, 400));
   const R2 = recsFor(w), L2 = R2.paths.find(x => x.cut === cut); out.upUsed = JSON.stringify(w.cards) === before && !!L2 && !!L2.opts[t] && L2.opts[t].add === U[0] && !!(w.recP || {})[norm(U[0])];
   return out; });
-T('UI-ALT-01', 'See alternatives: on plan and upgrade picks; same job and price band, never worse than the card in the slot and at least half as good as the pick, each with its score change; choosing one makes it that tier’s suggestion without adding it to the deck', al.planButtons > 0 && al.planAlts > 0 && al.planRule && al.planText && al.planUsed && al.upButtons > 0 && al.upAlts > 0 && al.upRule && al.upUsed, JSON.stringify(al));
+T('UI-ALT-01', 'See alternatives: on plan and upgrade picks; same job and price band, never worse than the card in the slot and at least half as good as the pick (Mid and Budget picks: on the casual rating they are picked by), each with its score change; choosing one makes it that tier’s suggestion without adding it to the deck', al.planButtons > 0 && al.planAlts > 0 && al.planRule && al.planText && al.planUsed && al.upButtons > 0 && al.upAlts > 0 && al.upRule && al.upUsed, JSON.stringify(al));
 } catch (e) { QUIET = false; T('UI-ALT-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-IPAD-01')) { try { if (SHARD) await RESET();
 // 23. iPad window closed and reopened: the app comes back at full width with no resize event. The two-pane layout returns.
@@ -1696,6 +1700,24 @@ const b197 = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B197-01', 'Build 197: a commander in a reskinned printing is shown under that printing’s name (decklist, deck panel, card window)', /^Printed Commander Name/.test(b197.row) && /^Printed Commander Name/.test(b197.panel) && /^Printed Commander Name/.test(b197.win), JSON.stringify(b197));
 } catch (e) { QUIET = false; T('UI-B197-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-APEX-01')) { try { if (SHARD) await RESET();
+// Build 100 (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says it's deck power 66 with 28 cards on the
+// upgrade page"): a deck generated at a price level is that level's strength build, the scale its power is measured on: Apex at
+// power 100 with no Apex swaps left; Mid at the Mid build's mark.
+const ap1 = await page.evaluate(async () => { const out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
+  const name = 'Heroes in a Half Shell';
+  for (const t of ['apex', 'mid']) {
+    S.draft = null; const nd = await startPlan(name, [], null, null, {fill: t}); const d = S.draft || nd; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch();
+    for (let i = 0; i < 100 && !(STRENGTH.cmd && STRENGTH.cmd.size && strengthPower(d)); i++) await wait(100);
+    const P = strengthPower(d), SR = strengthRef(d), picks = SR ? strPicks(d, SR)[t] : null;
+    S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await wait(300); render();
+    const strip = (document.querySelector('.statbar') || {}).textContent || '';
+    out[t] = {power: P && +P.power.toFixed(1), mid: P && +P.mid.toFixed(1), left: picks ? picks.length : -1, strip: +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1), finished: genRun.str, cards: d.cards.reduce((a, x) => a + x.q, 0)};
+    S.profile.decks = S.profile.decks.filter(x => x !== d);
+  }
+  S.view = 'home'; render(); return out; });
+T('UI-APEX-01', 'Build 100: a generated Apex deck is its own Apex build (power 100, no Apex swaps left; the strip agrees) and a generated Mid deck sits at its Mid mark', ap1.apex.power >= 99 && ap1.apex.left === 0 && ap1.apex.strip >= 99 && ap1.apex.cards === 99 && ap1.mid.cards === 99 && Math.abs(ap1.mid.power - ap1.mid.mid) <= 3 && ap1.mid.left === 0, JSON.stringify(ap1));
+} catch (e) { QUIET = false; T('UI-APEX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-TAB-01')) { try { if (SHARD) await RESET();
 // Build 101 (owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards
 // that are currently in the deck that need to be replaced"): the tab's number is the number of upgrades the page lists ("Upgrade
@@ -1937,13 +1959,29 @@ const b164 = await page.evaluate(async () => { const out = {};
   S.view = 'decks'; S.open = true; S.tab = 'up'; render(); await new Promise(r => setTimeout(r, 300)); render();   /* the meter and gaps are on Upgrades since 0.9.20 */
   const strip = (document.querySelector('.statbar') || {}).textContent || '', leg = (document.querySelector('.tm-leg') || {}).textContent || '';
   out.power = +((/^Power\s*(\d+)/.exec(strip) || [])[1] || -1); out.leg = leg; out.marks = /Apex\s*100/.test(leg);
-  const T = refOrder(apexFor(d).tot), e = evalFor(d); out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);
-  /* 13 Nov: the bar is the deck score against the Apex build's score even with card strength on (UP-POWER-01 checks it against the stats page) */
+  const e = evalFor(d), T = refOrder(e.str ? strRefParts(d, strengthRef(d)) : apexFor(d).tot); out.str = !!e.str; out.lvl = (/Tier\s*(\w+)/.exec(strip) || [])[1]; out.match = out.power === Math.round((100 * e.exact) / T.apex); out.floor = new RegExp('Budget\\s*' + Math.round((100 * T.budget) / T.apex)).test(leg);
+  /* 13 Nov: the bar is the deck score against the Apex build's score even with card strength on (UP-POWER-01 checks it against the stats page);
+     with card strength the reference builds are the strength builds scored the same way (strRefParts, Build 118) */
   openDeckPop(); out.gaps = [...document.querySelectorAll('#modal .gapbox li')].map(x => x.textContent.slice(0, 40)); $('#modal').hidden = true;   /* 0.9.29: in Show all details */ out.gapOk = out.lvl === 'Apex' || out.gaps.length > 0;
   S.tab = 'stats'; render(); out.scoreKept = /Deck score\s*\d+/.test((document.querySelector('#stats-more .sgrid') || {}).textContent || '');
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-B164-01', 'The strip and meter show deck power as a share of this deck’s Apex build (Budget and Mid builds marked the same way); below a level, what keeps it there, part by part; the deck score stays in Build stats', b164.power >= 0 && b164.marks && b164.match && b164.floor && b164.gapOk && b164.scoreKept, JSON.stringify(b164));
 } catch (e) { QUIET = false; T('UI-B164-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-BLEND-01')) { try { if (SHARD) await RESET();
+// Owner, 21 Nov: card values are half card strength, half this commander's play rate (UP.strPopW 0.5, the 50/50 blend), and the
+// score players see reads card strength
+const bl = await page.evaluate(async () => { const out = {};
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  for (let i = 0; i < 100 && !(STRENGTH.cmd && STRENGTH.cmd.size && strengthOn(d)); i++) await new Promise(r => setTimeout(r, 100));
+  out.w = UP.strPopW; out.on = strengthOn(d);
+  const cs = d.cards.map(e => find(e.n)).filter(c => c && !tags(c).land && !isBasic(c.n)).slice(0, 12), w0 = UP.strPopW, ex = UP.strExp;
+  const at = w => { UP.strPopW = w; return cs.map(c => Math.pow(strValue(c, d, false), 1 / ex)); };
+  const a = at(0), b = at(1), m = at(0.5); UP.strPopW = w0;
+  out.blend = m.every((v, i) => Math.abs(v - (a[i] + b[i]) / 2) < 1e-6); out.differs = a.some((v, i) => Math.abs(v - b[i]) > 1e-3);
+  out.str = !!(evalFor(d) || {}).str;
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
+T('UI-BLEND-01', 'Owner, 21 Nov: card values are the 50/50 blend of card strength and this commander’s play rate (UP.strPopW 0.5), and the deck score reads card strength', bl.w === 0.5 && bl.on && bl.blend && bl.differs && bl.str, JSON.stringify(bl));
+} catch (e) { QUIET = false; T('UI-BLEND-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B165-01')) { try { if (SHARD) await RESET();
 // Version 0.9.20 (owner, 26 Oct: "The stats page should be just that, stats"): Path to Apex, the meter, upgrades left and the game
 // plan sit on Upgrades under the progress bar; Build stats keeps a short one-line-per-few health list; the Apply All buttons sit below

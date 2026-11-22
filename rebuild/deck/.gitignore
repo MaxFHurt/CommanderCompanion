@@ -1,1 +1,3 @@
 tools/tests/data/
+# build.sh leftovers (made and removed by tools/build.sh)
+.build-*.js

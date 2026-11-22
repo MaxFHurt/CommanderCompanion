@@ -711,7 +711,22 @@ function cmpOf(e) {
   return UP.unc && e && e.cmp != null ? e.cmp : e.exact;
 }
 // Both measures of one swap from a single evaluation (Build 140): [past the maximum (or exact when UP.unc is off), exact].
+// The score players see counts card strength (evaluateDeck opt.str); a swap is measured as before, on the plain score, so a
+// base read with card strength gets its plain score once (same practice games) and every swap is compared with that, not with
+// a score on another scale (that put a constant -2 on every swap: Wakanda quality 83 with strength, 71 without)
+function plainBase(d, base, apex) {
+  if (!base || !base.str) return base;
+  if (!base.plain)
+    try {
+      const p = evaluateDeck(d, {apex, sim: base.sim});
+      base.plain = {exact: p.exact, cmp: p.cmp, sim: p.sim};
+    } catch (e) {
+      return base;
+    }
+  return base.plain;
+}
 function swapScore2(d, base, apex, cut, add, q) {
+  base = plainBase(d, base, apex);
   const u = JSON.parse(JSON.stringify(d));
   delete u.plan;
   cutCard(u, cut, q || 1);
@@ -725,6 +740,7 @@ function swapScore2(d, base, apex, cut, add, q) {
   }
 }
 function swapScore(d, base, apex, cut, add, q, exactOnly) {
+  base = plainBase(d, base, apex);
   const u = JSON.parse(JSON.stringify(d));
   delete u.plan;
   cutCard(u, cut, q || 1);
@@ -788,7 +804,7 @@ function* scoreCheckG(d, R, o) {
   if (!R || d.format !== 'commander' || !find(d.commander)) return R;
   let base;
   try {
-    base = o.base || evaluateDeck(d, {apex: o.apex, games: 300});
+    base = plainBase(d, o.base || evaluateDeck(d, {apex: o.apex, games: 300}), o.apex);
   } catch (e) {
     return R;
   }
@@ -2190,6 +2206,13 @@ const UP = {
   bsP: 9,
   starve: 0.08,
   lfix: 1,
+  strKeepLands: 1, // the strength finish keeps the generator's land count as a floor (owner, 12 Nov: fix the mana first)
+  strKeepCombos: 1, // the strength finish keeps the pieces of the deck's winning combos (a combo is a finisher in two or three cards)
+  strKeepJobs: 1, // strength builds never lower the deck's ramp, draw, removal and wipe counts, nor trade away a finisher or protection
+  strManaGuard: 1, // the strength finish adds lands back while its practice-game mana is below the deck as generated
+  strPips: 1, // strength picks need enough sources for their coloured pips (Karsten), as the generator's mana base does
+  strPopW: 0.5, // owner, 21 Nov: card values half strength, half this commander's play rate (strength.js strValue)
+  strLands: 0, // strength builds swap spells only (12 Nov): land strength ignores how a mana base works together (mono-red Mountains gave way to off-colour fetches; five-colour fetches to shocks, stuck on colour 9% -> 27%), and leaving lands to the mana base kept tournament match (Apex 66.8% -> 66.7%) with better mana
   sjx: 1,
   tierPolish: 1, // generated Mid / Budget decks: the polish rounds after they are made from the Apex build (UP.polish rounds)
   polishSlot: 0, // generated Mid / Budget decks: polish only swaps a stand-in for another card serving the same Apex slot

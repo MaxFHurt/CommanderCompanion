@@ -173,6 +173,14 @@ function apexRef0(d) {
 }
 // Deck power of the reference builds: the Budget, Mid and Apex builds for this deck's settings, each scored as a whole deck by
 // evaluateDeck (the same score the player's deck gets). Apex progress places the player's deck on this scale, Apex = 100.
+// The mana part from practice games (0-1). With card strength (str), short of mana counts mana rocks and creatures as sources
+// (shortT5); the strength finish's mana guard reads the same measure as the score players see.
+function manaShort(S, str) {
+  return str && S.shortT5 != null ? S.shortT5 : S.screwT5;
+}
+function manaPart(S, str) {
+  return Math.max(0, Math.min(1, 0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * manaShort(S, str) - S.floodT8)));
+}
 function refScores(d, AR) {
   if (!AR || !AR.cards) return null;
   const out = {parts: {}}; // each build's parts too: what a deck lacks against the next level (owner, 25 Oct)
@@ -290,7 +298,14 @@ function evaluateDeck(d, opt) {
     if (!f && ctx.cmdThemes.some(a => matchAim(c, a, ctx.cmdTribe) >= 1)) f = 0.7;
     return f;
   };
-  const synOf = c => {
+  // Owner, 12 Nov ("make the score match the strongest version of the deck"): with card strength (opt.str, the score players see),
+  // a spell also counts by how strong it is for this deck, against the average spell of its strongest build (engine/strength.js),
+  // so the staples strong decks run (Sol Ring, tutors) no longer lower the score of a deck that plays them
+  const SRx = opt.str && typeof strengthOn === 'function' && strengthOn(d) ? opt.strRef || strengthRef(d) : null,
+    topS = SRx ? strTopSpell(d, SRx) : 0,
+    strSyn = c => (topS > 0 ? Math.min(1, strValue(c, d, false) / topS) : 0);
+  const synOf = c => Math.max(synOf0(c), strSyn(c));
+  const synOf0 = c => {
     const x = hasE ? incOf(c) : null,
       l = x ? Math.max(0, Math.min(1, 3 * x.syn + 0.25 * x.inc)) : 0;
     let t = 0;
@@ -359,14 +374,19 @@ function evaluateDeck(d, opt) {
   // UP.rld 2 (Build 143): extra ramp makes up for missing lands, but does not count as flood: whether ramp floods the deck is
   // what the mana part's practice games measure, and counting it here too marked down the cheap ramp players add
   if (ld < -1) pen += (-ld - 1) * 0.15;
-  else if ((UP.rld === 2 ? A.lands - T.lands : ld) > 2) pen += ((UP.rld === 2 ? A.lands - T.lands : ld) - 2) * 0.06;
+  // with card strength (opt.str): lands over the curve's target are not marked here; whether they flood the deck is what the mana
+  // part's practice games measure (as UP.rld 2 does for ramp). Strength picks are cheaper spells, so the target falls while the
+  // deck keeps the generator's land count on purpose (UP.strKeepLands). Too few lands still count.
+  else if (!SRx && (UP.rld === 2 ? A.lands - T.lands : ld) > 2) pen += ((UP.rld === 2 ? A.lands - T.lands : ld) - 2) * 0.06;
   const inter = spells.filter(c => {
     const r = tags(c).roles;
     return r.has('removal') || r.has('wipe') || r.has('counter');
   }).length;
   if (inter < 8) pen += (8 - inter) * 0.03;
   // Cards whose condition the deck barely meets (Divine Visitation without creature tokens, a Dinosaur lord with few Dinosaurs).
-  const weak = weakHere(d),
+  // with card strength: a card this commander's strong decks play at least half as much as the strongest build's average spell
+  // is supported by the deck, whatever its text asks for (the text check misses how strong decks enable it)
+  const weak = weakHere(d).filter(w => !(SRx && find(w.n) && strSyn(find(w.n)) >= 0.5)),
     dead = [...new Set(weak.map(w => w.n))];
   pen += Math.min(0.4, dead.length * 0.06);
   const bal = Math.max(0, 1 - pen / 2.5);
@@ -401,6 +421,23 @@ function evaluateDeck(d, opt) {
       const ref = d.tier === 'budget' ? AR.budget : AR.mid;
       qTier = {tier: d.tier, pct: qualityPct(m, ref, AR.floor)};
       why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
+    }
+  }
+  // with card strength (opt.str): card quality is the deck's power, from replacement level (0) to its strongest build (100)
+  if (SRx) {
+    const pw = SRx.top > SRx.floor ? (100 * (strMean(d, strSlots(d)) - SRx.floor)) / (SRx.top - SRx.floor) : null;
+    if (pw != null) {
+      qExact = Math.max(0, Math.min(100, pw));
+      qOver = Math.max(0, pw - 100);
+      qPct = Math.round(qExact);
+      qTier = null;
+      why.quality = qPct + '% of the way from replacement level to this deck’s strongest build (card strength, half how often strong decks that could play each card do and half how often this commander’s players run it)';
+      // a Budget or Mid deck also reads against the strongest build at its price level, on the same scale
+      const TB = (d.tier === 'budget' || d.tier === 'mid') && SRx[d.tier] && SRx[d.tier].list ? (100 * (strMean(d, SRx[d.tier].list) - SRx.floor)) / (SRx.top - SRx.floor) : null;
+      if (TB != null && TB > 0) {
+        qTier = {tier: d.tier, pct: Math.round(Math.max(0, Math.min(100, (100 * pw) / TB)))};
+        why.quality += '; ' + qTier.pct + '% of the best build with every card under $' + (d.tier === 'budget' ? 3 : 12);
+      }
     }
   }
   // Win routes and resilience: complete combos that win, cards that close a game, ways to protect or rebuild, card flow.
@@ -460,15 +497,12 @@ function evaluateDeck(d, opt) {
   // An unfinished deck (opt.partial) is not played out: practice games with a part of a deck say nothing about its mana.
   const S = opt.partial ? null : opt.sim || simulate(d, opt.games || 300, opt.seed || 7);
   // Running short of lands and drawing too many cost the same; mana spent counts up to about a land a turn plus a little ramp.
+  // with card strength: short of mana counts mana rocks and creatures as sources from the turn after they are cast (practice.js
+  // shortT5), so rocks that stand in for land ramp are not read as missing mana; fewer than 3 lands on turn 5 is still short
+  const scr = S ? manaShort(S, !!SRx) : 0;
   let mana = 0;
   if (S) {
-    mana = Math.max(
-      0,
-      Math.min(
-        1,
-        0.3 * Math.min(1, S.manaUsedBy6 / 19) + 0.15 * S.cmdByT6 + 0.55 * (1 - 0.6 * S.colourStuck - 1.5 * S.screwT5 - S.floodT8)
-      )
-    );
+    mana = manaPart(S, !!SRx);
     why.mana =
       'commander out by turn ' +
       S.cmdMedianTurn +
@@ -476,8 +510,8 @@ function evaluateDeck(d, opt) {
       S.manaUsedBy6 +
       ' mana used by turn 6, stuck on colour ' +
       Math.round(100 * S.colourStuck) +
-      '%, short of lands ' +
-      Math.round(100 * S.screwT5) +
+      (SRx && S.shortT5 != null ? '%, short of mana ' : '%, short of lands ') +
+      Math.round(100 * scr) +
       '%, flooded ' +
       Math.round(100 * S.floodT8) +
       '%';
@@ -606,6 +640,7 @@ function evaluateDeck(d, opt) {
       : [];
   return {
     total: Math.round(total),
+    str: !!SRx, // measured with card strength (the score players see); swaps are measured on the plain scale (plainBase)
     qShow,
     other: +other.toFixed(3),
     exact: +exact.toFixed(3),

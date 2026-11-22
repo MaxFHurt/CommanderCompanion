@@ -478,7 +478,7 @@ async function loadSavedLibrary() {
     autoUpdate(null, hadRows ? 'Saved card data was from an older version of the app' : 'No card data was saved in this browser');
   else checkReleases();
   loadCombos();
-  loadStrength();
+  loadStrength.wait = loadStrength();
   loadPrices();
   loadAltNames();
   bracketTags();
@@ -1025,6 +1025,44 @@ function genKey(j) {
   ]);
 }
 async function genRun(nd, seeds, ownOnly, ownAll, fill) {
+  // the card strength file is read once at launch: a deck generated before it arrives waits for it (up to 20 s)
+  if (fill && UP.str && !STRENGTH.cards && loadStrength.wait) await Promise.race([loadStrength.wait, new Promise(r => setTimeout(r, 20000))]);
+  // a deck generated at a price level is finished on the strength scale its power is measured on (strFinish); not for decks
+  // of owned cards only or with a dollar budget, whose limits the strength picks don't know (Theme first keeps its theme there)
+  const fin = fill && TIERS[fill] && UP.strGen !== 0 && !ownOnly && !(nd.budget && nd.budget.total) && typeof strFinish === 'function' && UP.str && STRENGTH.cards && nd.format === 'commander';
+  // the scale moves with the commander's page and the deck's themes (an automatic deck takes the page's top themes when it
+  // arrives), so both are in place before the deck is built and finished, not swapped in afterwards
+  // card strength leans on what a commander's players run, so a commander without play data of its own (built from its
+  // creature type's and theme's pages) is not finished: it would only bring in staples. Decided before anything waits, so a
+  // page set up for this build is the one it reads.
+  const playData = () => EDH.key === nd.commander && EDH.state === 'ok' && EDH.map && EDH.map.size && EDH.decks > 0 && !(EDH.fall || []).length;
+  let go = fin;
+  if (go)
+    try {
+      for (let i = 0; i < 3 && !(EDH.key === nd.commander && EDH.state); i++) await loadEdh(nd.commander); // another deck's page may take the slot meanwhile
+      if (!playData()) go = false;
+      else {
+        if (themeDefaults(nd)) nd.aimAuto = true;
+        if ((nd.aims || []).some(a => isEdhAim(a) && !(EDH.tmap || {})[a.slice(4)])) await loadThemes(nd.commander, nd.aims);
+      }
+    } catch (e) {
+      go = false;
+    }
+  const G = await genRun0(nd, seeds, ownOnly, ownAll, fill);
+  if (G && go)
+    try {
+      for (let i = 0; i < 3 && EDH.key !== nd.commander; i++) await loadEdh(nd.commander); // a deck left open may have taken the one EDHREC slot while this one was built
+      await loadThemes(nd.commander, nd.aims);
+      await loadStrengthCmd(nd.commander);
+      if (!playData()) return G;
+      const keep = new Set((seeds || []).map(x => keyOf(typeof x === 'string' ? x : x.n)));
+      genRun.str = strFinish(nd, fill, keep);
+    } catch (e) {
+      console.warn('Strength finish failed:', e);
+    }
+  return G;
+}
+async function genRun0(nd, seeds, ownOnly, ownAll, fill) {
   const local = () => genDeck(nd, seeds, ownOnly, ownAll, fill);
   if (!wkGet()) return local();
   const job = genJob(nd, seeds, ownOnly, ownAll, fill),
@@ -1059,7 +1097,7 @@ async function genRun(nd, seeds, ownOnly, ownAll, fill) {
     });
     while (apexRef.cache.size > 4) apexRef.cache.delete(apexRef.cache.keys().next().value);
   }
-  genRun.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
+  genRun.last = genRun0.last = {ms: Date.now() - t0, work: r.ms, worker: true, early, helpers: r.helpers || 0, stat: r.stat || null};
   return {n: r.n, k: r.k};
 }
 // Stop a build made ahead that is no longer wanted (the worker stops it at its next step).
@@ -1086,6 +1124,8 @@ async function genPrefetch() {
     if (EDH.key !== c.n || EDH.state !== 'ok') return;
     aims = g.mech.filter(a => !isEdhAim(a) || (EDH.tmap || {})[a.slice(4)]);
   } else aims = await edhAimsFor(c);
+  // the one EDHREC slot may have been taken by the deck open behind Generate while this waited: read this commander's page again
+  if (EDH.key !== c.n && S.gen.cmd === c.n && !g.mech.length) aims = await edhAimsFor(c);
   if (S.gen.cmd !== c.n || $('#modal').hidden || EDH.key !== c.n || thinkThen.busy) return;
   const p = find(g.partner);
   const nd = planDeck(

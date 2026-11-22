@@ -140,15 +140,22 @@ function strInc(c, d) {
 function strValue(c, d, casual) {
   if (!c || isBasic(c.n)) return 0;
   const V = strCtx(d).vals,
-    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
+    k = c._n + (casual ? '|c' : '') + '|' + UP.strFit + '|' + UP.strExp + '|' + UP.strLand + '|' + UP.strInc + '|' + UP.strPopW + '|' + strAimW(d) + '|' + (strAimW(d) ? (d.aims || []).join(',') + ':' + strTm(d) : '');
   let v = V.get(k);
   if (v === undefined) {
     const w = UP.strFit;
     // Budget and Mid picks also weigh what this commander's players run (EDHREC play rate, precon bias removed): players
     // upgrading at those prices add the commander's popular cards, not what strong decks of every commander play
-    const inc = casual && UP.strInc ? strInc(c, d) : 0,
-      base = casual && UP.strInc ? (1 - w - UP.strInc) * cardStrength(c, d, casual) + w * strFit(c, d) + UP.strInc * inc : (1 - w) * cardStrength(c, d, casual) + w * strFit(c, d);
-    v = Math.pow(base, UP.strExp) * (tags(c).land ? UP.strLand : 1);
+    // UP.strPopW (owner, 21 Nov: the 50/50 blend): the card's strength is blended with what this commander's players run
+    // (EDHREC play rate, precon bias removed); 0 = strength alone (option A). Only the strength part is blended: fit with the
+    // deck's themes keeps its weight, so the chosen themes still steer the picks. The sweep (tools/tests/suite/apex*.js) kept
+    // the strength builds' gain (generated Apex power 100) while upgrade picks stayed close to what players add.
+    const pw = UP.strPopW || 0,
+      inc = (casual && UP.strInc) || pw ? strInc(c, d) : 0,
+      S0 = cardStrength(c, d, casual),
+      S1 = pw ? (1 - pw) * S0 + pw * inc : S0,
+      b2 = casual && UP.strInc ? (1 - w - UP.strInc) * S1 + w * strFit(c, d) + UP.strInc * inc : (1 - w) * S1 + w * strFit(c, d);
+    v = Math.pow(b2, UP.strExp) * (tags(c).land ? UP.strLand : 1);
     V.set(k, v);
   }
   return v;
@@ -176,9 +183,29 @@ function strSlots(d) {
 }
 // a build from the deck: the weakest slot swapped for the strongest card allowed while it gains (cap: price limit or null)
 function strBuild(d, cap, casual, pool, core) {
-  const isL = c => tags(c).land,
+  const ident = ctxOf(d).ident,
+    isL = c => tags(c).land,
     A0 = analyze(d),
-    need = Object.fromEntries(STR_ROLES.map(r => [r, Math.min(A0.T[r], A0.roles[r])])),
+    // UP.strKeepJobs: the deck's own counts are the floor (not only the formula's targets): a 9-mana commander needs more ramp than
+    // the minimum, and the deck's finishers and protection are how it wins (owner, 12 Nov: fix the mana first)
+    need = Object.fromEntries(STR_ROLES.map(r => [r, UP.strKeepJobs ? A0.roles[r] : Math.min(A0.T[r], A0.roles[r])])),
+    winJob = c => isFinisher(c) || tags(c).roles.has('protect'),
+    // UP.strPips: a spell comes in only if the deck's lands are enough sources for its coloured pips at its mana value (Karsten's
+    // table, as the generator's mana base uses it, 2 short allowed), unless it asks no more than the card it replaces
+    src = (() => {
+      const o = {};
+      strSlots(d).forEach(c => {
+        if (tags(c).land) landColors(c).forEach(k => (o[k] = (o[k] || 0) + 1));
+      });
+      return o;
+    })(),
+    pipsOk = (cut, add) => {
+      if (!UP.strPips || tags(add).land) return true;
+      const p = pipNeed(add),
+        pc = pipNeed(cut),
+        mv = Math.max(1, Math.min(7, Math.round(add.cmc || 1)));
+      return Object.keys(p).every(k => p[k] <= (pc[k] || 0) || KARSTEN[Math.min(3, p[k])][mv - 1] <= (src[k] || 0) + 2);
+    },
     vv = c => strValue(c, d, casual),
     list = strSlots(d),
     done = [];
@@ -195,7 +222,12 @@ function strBuild(d, cap, casual, pool, core) {
       for (const cut of cutsOf[isL(add)]) {
         const g = vin - vv(cut);
         if (g <= 1e-4) break;
+        // a land only replaces a land whose deck colours it also makes (the Fix menus' rule, Build 137): strong decks of other
+        // colours run Polluted Delta and Reliquary Tower, but in a mono-red deck they would take the place of its Mountains
+        if (isL(add) && (UP.strLands === 0 || !landCovers(cut, add, ident))) continue;
         if (STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(add).roles.has(r) && rc[r] - 1 < need[r])) continue;
+        if (UP.strKeepJobs && winJob(cut) && !winJob(add)) continue;
+        if (!pipsOk(cut, add)) continue;
         if (!best || g > best.g) best = {add, cut, g};
         break;
       }
@@ -212,7 +244,7 @@ const STR_REF = new Map();
 function strengthRef(d) {
   if (!strengthOn(d)) return null;
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d)]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
@@ -235,6 +267,31 @@ function strengthRef(d) {
   STR_REF.set(k, R);
   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
   return R;
+}
+// the average strength value of the spells in a deck's strongest build (the scale the score's synergy part reads strength on)
+function strTopSpell(d, SR) {
+  if (SR.topS == null) {
+    const sp = SR.apex.list.filter(c => !tags(c).land);
+    SR.topS = sp.length ? sp.reduce((a, c) => a + strValue(c, d, false), 0) / sp.length : 0;
+  }
+  return SR.topS;
+}
+// the strength builds scored as players see the score (opt.str), for "What keeps it below the next level"
+function strRefParts(d, SR) {
+  if (SR.parts) return SR.parts;
+  const out = {parts: {}};
+  for (const t of ['budget', 'mid', 'apex']) {
+    const u = JSON.parse(JSON.stringify(d)),
+      cnt = new Map();
+    SR[t].list.forEach(c => cnt.set(c.n, (cnt.get(c.n) || 0) + 1));
+    delete u.plan;
+    u.tier = t;
+    u.cards = [...cnt].map(([n, q]) => ({n, q, l: false}));
+    const e = evaluateDeck(u, {games: 100, str: true, strRef: SR});
+    out[t] = +e.exact.toFixed(2);
+    out.parts[t] = e.parts;
+  }
+  return (SR.parts = out);
 }
 function strMean(d, list) {
   return list.length ? list.reduce((a, c) => a + strValue(c, d, false), 0) / list.length : 0;
@@ -293,6 +350,133 @@ function strPicks(d, SR) {
   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
   return SR.picks;
 }
+// A generated deck finished on the strength scale (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says
+// it's deck power 66 with 28 cards on the upgrade page"): deck power and the upgrade list measure a deck against its strength
+// builds, so a deck generated at a price level takes that level's strength build's swaps (the same rule-following picks the
+// upgrade list shows), again until the build finds nothing more. An Apex deck is then its own Apex build (power 100, no Apex
+// rows); Mid and Budget are their builds. Cards in keep (the player's own picks) and locked cards stay. Returns the swaps made.
+function strFinish(d, tier, keep) {
+  if (!strengthOn(d) || !TIERS[tier]) return 0;
+  // Theme first: the theme stays ahead of strength, so an on-theme card is only ever replaced by another on-theme card
+  const TH = d.themeFirst ? themeCtx(d) : null,
+    onT = c => !!c && themeOf(c, TH),
+    themeOk = (cut, add) => !TH || !onT(find(cut)) || onT(find(add));
+  // the pieces of the deck's winning combos stay (UP.strKeepCombos): a combo is a finisher spread over two or three cards, and
+  // each piece alone rates low on strength, so the finish broke them (Winota 5 winning combos -> 1, tournament match 75.0% -> 74.7%)
+  if (UP.strKeepCombos && COMBOS.list.length) {
+    keep = new Set(keep || []);
+    combosOf(d, ctxOf(d).ident).full.filter(x => x.win).forEach(x => x.keys.forEach(k => keep.add(k)));
+  }
+  const casual = tier !== 'apex',
+    cap = TIERS[tier].cap,
+    kept = n => keep && keep.has(keyOf(n));
+  // practice-game mana (the score's mana part), to check the finished deck against the deck as generated
+  const manaOf = () => {
+    const S = simulate(d, 200, 7);
+    return manaPart(S, true); // the score players see reads mana with card strength (rocks count as sources)
+  };
+  const mana0 = UP.strManaGuard ? manaOf() : 0;
+  let n = 0;
+  // the generator's land count is the floor (UP.strKeepLands): strength picks are cheaper spells, so the land formula would cut
+  // lands, and practice games then came up short of lands more often (Krenko 35 -> 33 lands, mana 100 -> 89)
+  const lands0 = analyze(d).lands;
+  for (let round = 0; round < 8; round++) {
+    const SR = strengthRef(d);
+    if (!SR || SR.top <= SR.floor) break;
+    const P = strPicks(d, SR),
+      L = (P[tier] || []).filter(s => !kept(s.cut) && themeOk(s.cut, s.add));
+    let k = 0;
+    for (const s of L) {
+      const e = entryOf(d, s.cut);
+      if (!e || e.l || entryOf(d, s.add)) continue;
+      cutCard(d, e.n, 1);
+      addCard(d, s.add, 1);
+      k++;
+    }
+    // the swaps change the spells, so the land count follows the deck's own land formula again (the generator's rule): spare
+    // basics give way to the strongest spells allowed, or the weakest spells (not the deck's core, not a job it is short of)
+    // to basics, whose colours are then split by what the spells need
+    const A = analyze(d),
+      diff = A.lands - (UP.strKeepLands ? Math.max(A.T.lands, lands0) : A.T.lands);
+    if (Math.abs(diff) > 1) {
+      const ok = strOk(d),
+        vv = c => strValue(c, d, casual);
+      if (diff > 1) {
+        const adds = SR.pool.filter(c => ok(c) && !tags(c).land && (!TH || onT(c)) && (cap === Infinity || (c.p != null && c.p <= cap))).sort((a, b) => vv(b) - vv(a));
+        for (let i = 0; i < diff - 1 && adds[i]; i++) {
+          // a spare basic first; a deck without basics (five colours) loses its weakest land instead
+          const b =
+            d.cards.filter(e => BASICS[e.n] && !e.l).sort((x, y) => y.q - x.q)[0] ||
+            d.cards
+              .filter(e => !e.l && !kept(e.n) && find(e.n) && tags(find(e.n)).land)
+              .sort((x, y) => vv(find(x.n)) - vv(find(y.n)))[0];
+          if (!b) break;
+          cutCard(d, b.n, 1);
+          addCard(d, adds[i].n, 1);
+          k++;
+        }
+      } else {
+        const A2 = analyze(d),
+          need = r => Math.min(A2.T[r], A2.roles[r]),
+          cuts = strSlots(d)
+            .filter((c, i, a) => a.indexOf(c) === i && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
+            .sort((a, b) => vv(a) - vv(b));
+        let left = -diff - 1;
+        for (const c of cuts) {
+          if (!left) break;
+          if (STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < need(r))) continue;
+          cutCard(d, c.n, 1);
+          addCard(d, BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes', 1);
+          left--;
+          k++;
+        }
+      }
+      try {
+        const mp = manaPlan(d);
+        if (mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
+      } catch (e) {}
+    }
+    n += k;
+    if (!k) break;
+  }
+  // mana guard (owner, 12 Nov: "Fix the mana first"): while the finished deck's practice games run worse on mana than the deck as
+  // generated did, its weakest spell (not its core, not a job it needs) gives way to a land of the colour its spells need most,
+  // kept only when the games get better; at most three lands
+  if (n && UP.strManaGuard) {
+    const SR = strengthRef(d);
+    let m = manaOf();
+    for (let i = 0; i < 3 && SR && m < mana0 - 0.005; i++) {
+      const A2 = analyze(d),
+        vv = c => strValue(c, d, casual),
+        cut = strSlots(d)
+          .filter((c, j, a) => a.indexOf(c) === j && !tags(c).land && !SR.core.has(c.n) && !kept(c.n) && !(TH && onT(c)) && !(entryOf(d, c.n) || {}).l)
+          .filter(c => !STR_ROLES.some(r => tags(c).roles.has(r) && A2.roles[r] - 1 < Math.min(A2.T[r], A2.roles[r])))
+          .sort((a, b) => vv(a) - vv(b))[0];
+      if (!cut) break;
+      const mp = manaPlan(d),
+        col = Object.keys(mp.want || {}).sort((a, b) => (mp.want[b] || 0) - (mp.have[b] || 0) - ((mp.want[a] || 0) - (mp.have[a] || 0)))[0],
+        land = BASIC_OF[col] || BASIC_OF[(ctxOf(d).ident || [])[0]] || 'Wastes',
+        snap = JSON.stringify(d.cards);
+      cutCard(d, cut.n, 1);
+      addCard(d, land, 1);
+      const m2 = manaOf();
+      if (m2 <= m) {
+        d.cards = JSON.parse(snap);
+        break;
+      }
+      m = m2;
+      n++;
+    }
+  }
+  // the basics' colours follow what the new spells need (the generator's split was for its own spells)
+  // (only a re-split: a plan that would also change how many lands there are is left out)
+  if (n)
+    try {
+      const mp = manaPlan(d);
+      if (mp.changes.length && mp.changes.reduce((a, x) => a + x.delta, 0) === 0) applyMana(d, mp);
+    } catch (e) {}
+  return n;
+}
 // A swap's change in power on the strength scale (strengthGain), with each card's value worked out once: for lists that
 // measure many swaps (the upgrade list, the Fix menus, See alternatives). Null when strength is off.
 function strGainFn(d, SR) {
@@ -335,6 +519,7 @@ function strengthPaths(d, R) {
   // deck needs
   const fits = (cutC, c) => {
     if (!cutC || !c || !!tags(cutC).land !== !!tags(c).land) return false;
+    if (tags(c).land && (UP.strLands === 0 || !landCovers(cutC, c, ctxOf(d).ident))) return false;
     return !STR_ROLES.some(r => tags(cutC).roles.has(r) && !tags(c).roles.has(r) && A0.roles[r] - 1 < Math.min(A0.T[r], A0.roles[r]));
   };
   const pick = (cut, add, t, held) => {
@@ -379,7 +564,9 @@ function strengthPaths(d, R) {
         o = {};
       for (const t of ['apex', 'mid', 'budget']) {
         const n = H[t] || T[t].get(cut);
-        if (n && find(n)) o[t] = pick(cut, n, t, !!H[t]);
+        if (!n || !find(n)) continue;
+        const p = pick(cut, n, t, !!H[t]);
+        if (p.held || !(p.dScore <= 0)) o[t] = p; // a pick that lowers power on the strength scale is not an upgrade
       }
       // Apex is the row's strongest pick, Mid the stronger of Mid and Budget (each within its price)
       const best = (ts, t) => ts.map(x => o[x]).filter(p => p && priceOk(find(p.add), t)).sort((a, b) => b.dScore - a.dScore)[0];
