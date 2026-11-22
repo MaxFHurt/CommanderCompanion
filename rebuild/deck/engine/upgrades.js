@@ -2207,7 +2207,7 @@ const UP = {
   starve: 0.08,
   lfix: 1,
   planList: 1, // roadmap 6b batch C (owner approved 22 Nov): strong game-plan chains offered as plans ('plan:<id>' aims) for commanders with little or no play data (buildThemes, plans.js planList); 0 = the suggestions before
-  chain: 0.03, // roadmap 6b batch D (awaiting the owner's approval; sweep 22 Nov: 0.03 best of 0.03/0.06/0.1): a spell that fills the thin side of a game-plan chain adds this to its card value (strength.js strValue, plans.js chainBonus); 0 = the picks before
+  chain: 0.03, // roadmap 6b batch D (owner approved 22 Nov; sweep 22 Nov: 0.03 best of 0.03/0.06/0.1): a spell that fills the thin side of a game-plan chain adds this to its card value (strength.js strValue, plans.js chainBonus); 0 = the picks before
   planFix: 1, // roadmap 6b batch B (owner approved 22 Nov): Fix menus read the deck's game plan (mana.js fixPlan); 0 = the picks before
   strKeepLands: 1, // the strength finish keeps the generator's land count as a floor (owner, 12 Nov: fix the mana first)
   strKeepCombos: 1, // the strength finish keeps the pieces of the deck's winning combos (a combo is a finisher in two or three cards)
