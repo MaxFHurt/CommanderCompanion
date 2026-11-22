@@ -2020,6 +2020,38 @@ if (RUN('UI-IPAD-02')) { try { if (SHARD) await RESET();
   const st = await page.evaluate(() => ({view:S.view, open:S.open, deckId:S.deckId, tab:S.tab, editing:document.querySelector('.app').classList.contains('editing')}));
   T('UI-IPAD-02', 'If the page is reloaded while in the background, it reopens the same deck on the same tab instead of the home screen', st.view === 'decks' && st.open && st.deckId === id && st.tab === 'buy' && st.editing, JSON.stringify(st)); }
 } catch (e) { QUIET = false; T('UI-IPAD-02', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-LANDFIX-01')) { try { if (SHARD) await RESET();
+// Owner, 22 Nov: the lands helper and the Fix menus give complete ways to fix a short deck, never one unowned card as the only way:
+// basics split by colour, ramp (the commander's own set first) and a mix, each with the exact cards to pull to stay at 100.
+const lf = await page.evaluate(async () => { const out = {}, w = S.profile.decks.find(x => /Wakanda/i.test(x.name)); await loadEdh(w.commander);
+  const mk = (name, f) => { const d = JSON.parse(JSON.stringify(w)); d.id = 'lf-' + name; d.name = name; f(d); S.profile.decks.unshift(d); S.deckId = d.id; return d; };
+  const total = d => d.cards.reduce((s, e) => s + e.q, 0) + 1;
+  const swapOut = (d, test, keep) => { let k = 0; for (const e of d.cards.slice()) { const c = find(e.n); if (c && test(c) && k < keep) { const q = Math.min(e.q, keep - k); cutCard(d, e.n, q); k += q; } } return k; };
+  const fill = d => { const ctx = ctxOf(d), want = 100 - total(d); const L = LIB.filter(c => !tags(c).land && !tags(c).roles.has('ramp') && c.cmd && c.ci.every(z => ctx.ident.includes(z)) && !hasCard(d, c.n) && c.n !== d.commander).slice(0, want + 200); for (const c of L) { if (want <= 0 || total(d) >= 100) break; addCard(d, c.n, 1); } };
+  // a deck with 12 lands too few: cut 12 lands, add 12 spells so it still has 100 cards
+  const d = mk('Short lands', d => { swapOut(d, c => tags(c).land, 12); fill(d); });
+  const A = analyze(d); out.total = total(d); out.lands = A.lands; out.target = A.T.lands; out.gap = A.T.lands - A.lands;
+  S.view = 'decks'; S.open = true; S.tab = 'up'; render(); openLands(); const m = $('#modal'); out.shown = /Ways to fix lands/.test(m.textContent);
+  const opts = [...m.querySelectorAll('.fplan')]; out.n = opts.length; out.titles = opts.map(o => o.querySelector('b').textContent);
+  out.texts = opts.map(o => o.textContent.replace(/\s+/g, ' ').slice(0, 420));
+  const P = landFixPlans(d, {}); out.plans = P.plans.map(p => ({id: p.id, nb: p.nb, nr: p.nr, pull: p.pull, cuts: p.cuts.length, basics: p.basics, ramp: p.ramp.map(x => x.n + (x.set ? '*' : ''))}));
+  const b0 = P.plans[0]; out.basicsOk = b0.nb === out.gap && Object.values(b0.basics).reduce((s, x) => s + x, 0) === out.gap && Object.keys(b0.basics).every(k => BASICS[k] && ctxOf(d).ident.includes(BASICS[k])) && /\+\d+ (Plains|Island|Swamp|Mountain|Forest)/.test(opts[0].textContent);
+  out.cutsOk = P.plans.every(p => p.cuts.length === p.pull && p.pull === p.nb + p.nr - p.room && p.cuts.every(c => entryOf(d, c.n) && !tags(find(c.n)).land && c.why));
+  out.rampOk = P.plans.filter(p => p.nr).every(p => p.ramp.every(x => !hasCard(d, x.n) && find(x.n).ci.every(z => ctxOf(d).ident.includes(z)) && tags(find(x.n)).roles.has('ramp')));
+  out.manyWays = P.plans.length >= 2 && P.plans.some(p => p.nr > 0);
+  // the Fix window for Lands carries the same options and every card swap there names an alternative pull
+  $('#modal').hidden = true; S.fixKeys = null; openFix(['Lands']); const fm = $('#modal'); out.fixLands = /Ways to fix lands/.test(fm.textContent) && fm.querySelectorAll('.fplan').length >= 2;
+  // making option 1: the basics go in, the pulled cards go out, still 100 cards
+  const before = { lands: analyze(d).lands, tot: total(d) }; S.autoYes = new Set(['plan-apply']); fm.querySelector('[data-act="plan-apply"][data-v="lands|basics"]').click(); await new Promise(r => setTimeout(r, 200)); S.autoYes = null;
+  out.applied = analyze(d).lands === before.lands + out.gap && total(d) === 100;
+  // a deck short of ramp: its commander's set (the precon it leads) is the first place to look
+  const d2 = mk('Short ramp', d => { swapOut(d, c => tags(c).roles.has('ramp') && !tags(c).land, 20); fill(d); });
+  const R = rampFixPlans(d2, {}); out.rampNeed = R && R.need; out.rampPlans = R && R.plans.map(p => ({id: p.id, title: p.title, adds: p.ramp.map(x => x.n + (x.set ? '*' : '')), pull: p.pull, cuts: p.cuts.length}));
+  out.setFirst = !!R && R.plans.length >= 2 && R.plans[0].id === 'set' && R.plans[0].ramp.every(x => x.set) && R.plans.every(p => p.cuts.length === p.pull);
+  $('#modal').hidden = true; S.fixKeys = null; openFix(['Ramp']); const rm = $('#modal'); out.fixRamp = /Ways to fix ramp/.test(rm.textContent) && rm.querySelectorAll('.fplan').length >= 2 && /Pull \d+ card/.test(rm.textContent);
+  $('#modal').hidden = true; S.profile.decks = S.profile.decks.filter(x => !/^lf-/.test(x.id)); S.deckId = w.id; render(); return out; });
+T('UI-LANDFIX-01', 'Short deck: the Lands helper and Fix window give several complete ways (basics split by colour, ramp from the commander\'s set, a mix) each with the exact cards to pull; Make this change keeps 100 cards; Ramp fix names the commander\'s set first', lf.shown && lf.n >= 2 && lf.basicsOk && lf.cutsOk && lf.rampOk && lf.manyWays && lf.fixLands && lf.applied && lf.setFirst && lf.fixRamp, JSON.stringify(lf));
+} catch (e) { QUIET = false; T('UI-LANDFIX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 QUIET = false; T('UI-ERR', 'No page errors during the run', !errs.length, errs.join(' | '));
 await page.screenshot({path:OUT + '/' + label + '-desktop.png', fullPage:false});
 fs.writeFileSync(OUT + '/' + label + '.json', JSON.stringify({build, at:new Date().toISOString(), results}, null, 1));

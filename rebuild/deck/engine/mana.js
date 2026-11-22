@@ -730,3 +730,167 @@ function newCard(c) {
     ago = (now.getFullYear() - y) * 12 + now.getMonth() + 1 - m;
   return ago >= 0 && ago <= 12 ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1] + ' ' + y : '';
 }
+
+// ---------- "short of lands" and "short of ramp": complete ways to fix, each with what to pull (owner, 22 Nov) ----------
+// The Lands and Ramp fixes used to offer one specific card per swap, which fails a player who doesn't own it. These give
+// several complete options: basics split by colour, ramp (the commander's own set first), a mix, each naming the cards to
+// pull so the deck stays at 100. Advice only: nothing here changes a score or a card pick of the generator or the upgrade list.
+const LFIX = {rampCredit: 0.5, rampMax: 6}; // a cheap ramp piece stands in for about half a land
+// The cards the commander's own set holds: the precon it leads (lists.js), else the precon list EDHREC gave for it.
+function commanderSet(d) {
+  const k = keyOf(d.commander || ''),
+    names = new Set(),
+    pcs = (typeof PRECONS === 'object' ? PRECONS : []).filter(p => keyOf(p.cmd) === k && typeof PRECON_LISTS === 'object' && PRECON_LISTS[p.name]);
+  pcs.forEach(p =>
+    PRECON_LISTS[p.name].split(';').forEach(x => {
+      const m = /^(\d+) (.+?)(@.*)?$/.exec(x.split('@')[0]);
+      const c = find(m ? m[2] : x.split('@')[0]);
+      if (c) names.add(c._k || keyOf(c.n));
+    })
+  );
+  const ctx = ctxOf(d),
+    pre = ctx.edh && ctx.edh.pre && ctx.edh.pre.list;
+  if (!pcs.length && pre) pre.forEach(n => names.add(keyOf(n)));
+  return {names, label: pcs.length ? pcs[0].name : pre && pre.length ? (ctx.edh.pre.name || 'the commander’s precon') : ''};
+}
+// The cards the deck can best spare, weakest first, each with a reason. keep: roles still short are never given up.
+function pullList(d, k, o) {
+  o = o || {};
+  const ctx = ctxOf(d),
+    A = analyze(d),
+    T = A.T,
+    val = o.val || (c => baseScore(c, d, ctx).s),
+    skip = new Set((o.skip || []).map(keyOf));
+  const L = d.cards
+    .map(e => ({e, c: find(e.n)}))
+    .filter(x => x.c && !x.e.l && !tags(x.c).land && !skip.has(keyOf(x.e.n)))
+    .map(x => ({n: x.e.n, c: x.c, v: val(x.c), roles: tags(x.c).roles}))
+    .filter(x => ![...x.roles].some(r => ['ramp', 'draw', 'removal', 'wipe'].includes(r) && (A.roles[r] || 0) <= (T[r] || 0)))
+    .sort((a, b) => a.v - b.v);
+  const why = x => {
+    const j = ['ramp', 'draw', 'removal', 'wipe'].filter(r => x.roles.has(r)),
+      cm = Math.round(x.c.cmc || 0);
+    return (cm >= 6 ? 'costs ' + cm + ' · ' : '') + (j.length ? 'its ' + j[0] + ' job is already covered' : 'no ramp, draw or removal job') + ' · among the lowest rated in the deck';
+  };
+  const all = L.map(x => ({n: x.n, why: why(x)}));
+  return {cuts: all.slice(0, k), alt: all.slice(k, k + 3)};
+}
+// n basics split by what the deck's colours need: each goes to the colour furthest below its Karsten need (colour sources
+// counted as manaPlan does), ties to the colour with more pips. Returns {Forest: 5, Island: 3}.
+function basicSplit(d, n) {
+  const ctx = ctxOf(d),
+    id = ctx.ident.filter(k => COLOR_BASIC[k]),
+    req = colourDemand(d, ctx),
+    src = {},
+    out = {};
+  id.forEach(k => (src[k] = 0));
+  d.cards.forEach(e => {
+    const c = find(e.n);
+    if (!c) return;
+    if (tags(c).land) [...landColors(c)].forEach(k => k in src && (src[k] += e.q));
+    else {
+      const sm = simCard(c, ctx.ident);
+      if (sm.mana) sm.cols.forEach(k => k in src && (src[k] += e.q * 0.75));
+    }
+  });
+  const gap = k => (req[k] ? Math.max(0, 1 - src[k] / req[k]) : 0);
+  for (let i = 0; i < n && id.length; i++) {
+    const k = id.slice().sort((a, b) => gap(b) - gap(a) || req[b] - req[a])[0];
+    out[COLOR_BASIC[k]] = (out[COLOR_BASIC[k]] || 0) + 1;
+    src[k] += 1;
+  }
+  return out;
+}
+// Ramp to add: the commander's own set first, then general picks (cheap first); cards the player owns lead inside each group.
+function rampPicks(d, k, o) {
+  o = o || {};
+  const ctx = ctxOf(d),
+    val = o.val || (c => baseScore(c, d, ctx).s),
+    own = o.own || new Set(),
+    set = commanderSet(d),
+    inDeck = new Set(d.cards.map(e => keyOf(e.n)).concat([keyOf(d.commander)], d.partner ? [keyOf(d.partner)] : [])),
+    dis = new Set((d.dismissed || []).map(keyOf)),
+    ok = c =>
+      c &&
+      tags(c).roles.has('ramp') &&
+      !tags(c).land &&
+      !inDeck.has(c._k) &&
+      !dis.has(c._k) &&
+      legalIn(c, d.format) &&
+      c.ci.every(z => ctx.ident.includes(z)) &&
+      mustOk(c, d) &&
+      (!d.tier || d.tier === 'apex' || c.p == null || underCap(c.p, d.tier)) &&
+      (c.cmc || 0) <= 4;
+  const pool = LIB.filter(ok).map(c => ({c, v: val(c) - Math.max(0, (c.cmc || 0) - 2) * 0.3, own: own.has(c._n), set: set.names.has(c._k)}));
+  const rank = (a, b) => b.own - a.own || b.v - a.v;
+  const fromSet = pool.filter(x => x.set).sort(rank),
+    general = pool.filter(x => !x.set).sort(rank),
+    mine = pool.filter(x => x.own).sort(rank);
+  const pick = (L, n) => L.slice(0, n).map(x => ({n: x.c.n, set: x.set, own: x.own}));
+  return {set: set.label, fromSet: pick(fromSet, k), general: pick(general, k), mine: pick(mine, k), nSet: fromSet.length};
+}
+// Short of lands: complete options. o = {own: Set of owned card keys (norm), val}.
+function landFixPlans(d, o) {
+  o = o || {};
+  if (d.format !== 'commander' || !find(d.commander)) return null;
+  const A = analyze(d),
+    gap = A.T.lands - A.lands,
+    total = d.cards.reduce((s, e) => s + e.q, 0) + 1 + (d.partner ? 1 : 0),
+    room = Math.max(0, 100 - total);
+  if (gap <= 0) return null;
+  const rampOver = A.roles.ramp >= A.T.ramp + 4;
+  const mk = (id, title, nb, nr, rp) => {
+    const add = nb + nr,
+      pull = Math.max(0, add - room),
+      P = pull ? pullList(d, pull, {val: o.val}) : {cuts: [], alt: []};
+    return {
+      id,
+      title,
+      basics: nb ? basicSplit(d, nb) : {},
+      nb,
+      ramp: nr ? rp.slice(0, nr) : [],
+      nr,
+      pull,
+      room,
+      cuts: P.cuts,
+      alt: P.alt
+    };
+  };
+  const plans = [];
+  plans.push(mk('basics', 'Add basics', gap, 0));
+  if (!rampOver && gap >= 2) {
+    const rp = rampPicks(d, 12, {own: o.own, val: o.val}),
+      lead = rp.fromSet.concat(rp.general.filter(g => !rp.fromSet.some(s => s.n === g.n))),
+      own = rp.mine.filter(m => !rp.fromSet.slice(0, 4).some(s => s.n === m.n));
+    const nr1 = Math.min(LFIX.rampMax, gap, lead.length),
+      nr2 = gap >= 4 ? Math.min(3, Math.ceil(gap / 4), lead.length) : 0,
+      cr = n => Math.floor(n * LFIX.rampCredit);
+    if (nr1 >= 2) plans.push(mk('ramp', 'Add ramp instead of some lands', gap - cr(nr1), nr1, lead));
+    if (nr2 >= 2 && nr2 !== nr1) plans.push(mk('mix', 'Fewer basics plus cheap ramp', gap - cr(nr2), nr2, lead));
+    plans.forEach(p => (p.setName = rp.set));
+  }
+  return {gap, lands: A.lands, target: A.T.lands, total, room, plans};
+}
+// Short of ramp: where to find it and what to pull. Options: the commander's own set, the best general ramp, ramp you own.
+function rampFixPlans(d, o) {
+  o = o || {};
+  if (d.format !== 'commander' || !find(d.commander)) return null;
+  const A = analyze(d),
+    need = Math.max(1, A.T.ramp - A.roles.ramp),
+    total = d.cards.reduce((s, e) => s + e.q, 0) + 1 + (d.partner ? 1 : 0),
+    room = Math.max(0, 100 - total),
+    rp = rampPicks(d, 8, {own: o.own, val: o.val}),
+    n = Math.min(need, 5);
+  const plans = [];
+  const mk = (id, title, adds) => {
+    adds = adds.slice(0, n);
+    if (!adds.length) return;
+    const pull = Math.max(0, adds.length - room),
+      P = pull ? pullList(d, pull, {val: o.val}) : {cuts: [], alt: []};
+    plans.push({id, title, ramp: adds, pull, room, cuts: P.cuts, alt: P.alt, nb: 0, nr: adds.length, basics: {}});
+  };
+  if (rp.fromSet.length) mk('set', 'From ' + (rp.set || 'the commander’s set'), rp.fromSet);
+  mk('general', 'Best general ramp for this deck', rp.general);
+  if (rp.mine.length) mk('own', 'Ramp you already own', rp.mine);
+  return {need, have: A.roles.ramp, target: A.T.ramp, room, set: rp.set, plans};
+}

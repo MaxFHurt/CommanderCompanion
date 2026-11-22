@@ -279,6 +279,11 @@ const CONFIRM = {
     'The deck’s lands are changed to match the colours your spells need. Undo can put them back.',
     'Adjust lands'
   ],
+  'plan-apply': v => [
+    'Make this change?',
+    'The cards listed are added and the cards to pull are taken out, so the deck stays at 100. Undo can put them back.',
+    'Make the change'
+  ],
   'cmd-switch': (v, n) => [
     'Make ' + n + ' the commander?',
     'The deck’s commander changes, which changes its colours and every suggestion. Undo can switch it back.',
@@ -1341,6 +1346,19 @@ function handleAct(act, v, n, pArg, cutArg) {
         }
       }
       return;
+    }
+    case 'plan-apply': {
+      // a complete land / ramp fix from the Lands helper or the Fix window (mana.js landFixPlans, rampFixPlans)
+      const [kind, id] = String(v).split('|'),
+        P = d && fixPlansFor(d, kind),
+        o = P && P.plans.find(x => x.id === id);
+      if (!o) return;
+      o.cuts.forEach(x => cutCard(d, x.n, 1));
+      Object.keys(o.basics).forEach(k => addCard(d, k, o.basics[k]));
+      o.ramp.forEach(x => addCard(d, x.n, 1));
+      toast('Done: ' + [Object.keys(o.basics).map(k => '+' + o.basics[k] + ' ' + k).join(', '), o.ramp.length ? '+' + o.ramp.length + ' ramp' : '', o.cuts.length ? o.cuts.length + ' pulled' : ''].filter(Boolean).join(', ') + '.');
+      if (!$('#modal').hidden) $('#modal').hidden = true;
+      break;
     }
     case 'mana-apply': {
       const plan = manaPlan(d);

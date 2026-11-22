@@ -175,6 +175,11 @@ P4. ☐ Swap a card on Upgrades and come back → expect the read-out to follow 
 P5. ☐ (batch B, if approved) Health pop-up and Fix menus on iPhone and iPad: a plan pick's reason chip (e.g. "Adds board wipes · spares your creatures", "… the thin side of the plan") wraps inside the row, the Swap button stays on screen.
 P6. ☐ (batch C, if approved) A deck whose commander has little or no play data (e.g. Brago, King Eternal with a blink list) → Analyze this build → expect "Game plans in your cards" with "Blink for enters triggers" and its card count, and it first in "Suggested build"; Use the suggested build → the Build panel lists it, tapping it explains the plan, Mechanics list shows it under "Game plans in your cards"; on iPhone the long plan names wrap, no sideways scroll. A well-known commander (Teysa with EDHREC data) keeps its EDHREC themes in the suggestion.
 
+## Lands helper and Fix ways (Deck Builder, owner 22 Nov)
+LF1. ☐ iPhone (upright and sideways) and iPad: open a Commander deck that is several lands short (Show all details → Lands helper) → expect "Ways to fix lands" with 2-3 option cards: "Add basics" (e.g. +9 Forest, +2 Plains), then ramp options; each lists the cards to pull as tappable chips with a reason, and an "Or pull instead" line. Cards, chips and the "Make this change" button wrap inside the panel; nothing runs off the right edge and the panel scrolls.
+LF2. ☐ Same deck, Fix window for Lands and for Ramp (Health → Fix): the option cards appear above "Or swap in one card"; every swap row ends with "Or pull instead: …". Tap a chip → that card's window opens. On a ramp-short deck the first option is named after the commander's precon and its cards carry the set chip.
+LF3. ☐ "Make this change" on Add basics: a confirm opens; accept → the deck stays at 100 cards, the lands rise by the shortfall, the pulled cards are gone; Undo puts it all back.
+
 ## Monster Siege (/test)
 
 S1. ☐ Open the test page in landscape on iPhone and iPad. The monster climbs with one hand on the frame as the other reaches, braces its feet, and carries a panel until throwing it.

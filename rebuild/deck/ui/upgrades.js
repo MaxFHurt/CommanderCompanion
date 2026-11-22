@@ -676,6 +676,7 @@ function openLands() {
         : '.') +
     (H.tapped.length ? ' ' + H.tapped.length + ' enter tapped.' : '') +
     '</p>' +
+    (over < 0 ? fixPlansBlock(d, 'lands') : '') +
     '<span class="lab">Colour sources</span><p class="note" style="margin:0">How many sources of each colour the spells need to be cast on time about 90% of the time (Frank Karsten’s tables, the commander counted twice), and what the deck has.</p><dl class="kv">' +
     rows +
     '</dl>' +
@@ -3398,6 +3399,70 @@ function openFixSoon(keys) {
     if (!$('#modal').hidden) openFix(keys);
   }, 40);
 }
+// "Ways to fix it" (owner, 22 Nov): a Lands or Ramp problem is a list of complete options (basics split by colour, ramp from the
+// commander's own set, a mix), each saying what to pull so the deck stays at 100. Shown in the Lands helper and in the Fix window.
+function fixOwnKeys() {
+  return typeof ownSet === 'function' ? ownSet() : new Set();
+}
+function fixPlansFor(d, kind) {
+  try {
+    return kind === 'ramp' ? rampFixPlans(d, {own: fixOwnKeys()}) : landFixPlans(d, {own: fixOwnKeys()});
+  } catch (err) {
+    return null;
+  }
+}
+function fixPlanHtml(d, kind, P) {
+  if (!P || !P.plans.length) return '';
+  const cl = n => {
+    return '<button class="chip" data-act="card" data-n="' + esc(n) + '">' + esc(n) + '</button>';
+  };
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const opts = P.plans
+    .map((o, i) => {
+      const adds = Object.keys(o.basics)
+        .map(k => '+' + o.basics[k] + ' ' + k)
+        .join(', ');
+      return (
+        '<div class="opt fplan"><b>' +
+        'Option ' +
+        (i + 1) +
+        ': ' +
+        esc(o.title) +
+        '</b>' +
+        (o.nb ? '<p class="note" style="margin:4px 0 0">Add ' + esc(adds) + (o.nb ? ' (split by the colours your spells need)' : '') + '.</p>' : '') +
+        (o.nr
+          ? '<p class="note" style="margin:4px 0 0">Add ' +
+            plural(o.nr, 'ramp card') +
+            (o.setName && o.ramp.some(x => x.set) ? ' (cards from ' + esc(o.setName) + ' first)' : '') +
+            ':</p><div class="row">' +
+            o.ramp.map(x => cl(x.n) + (x.own ? '<span class="chip good">You own this</span>' : x.set ? '<span class="chip">' + esc(P.set || o.setName || 'commander’s set') + '</span>' : '')).join('') +
+            '</div>'
+          : '') +
+        (o.pull
+          ? '<p class="note" style="margin:4px 0 0">Pull ' + plural(o.pull, 'card') + ' to stay at 100' + (o.room ? ' (the deck has ' + (100 - o.room) + ' cards, so ' + Math.min(o.room, o.nb + o.nr) + ' fit without pulling)' : '') + ':</p><div class="paths">' +
+            o.cuts.map(x => '<div class="row">' + cl(x.n) + '<span class="chip">' + esc(x.why) + '</span></div>').join('') +
+            '</div>' +
+            (o.alt.length ? '<p class="note" style="margin:4px 0 0">Or pull instead: ' + o.alt.map(x => esc(x.n)).join(', ') + '.</p>' : '')
+          : '<p class="note" style="margin:4px 0 0">Nothing needs to be pulled: the deck has ' + (100 - o.room) + ' cards, so there is room.</p>') +
+        '<div class="row"><button class="btn sm" data-act="plan-apply" data-v="' +
+        kind +
+        '|' +
+        o.id +
+        '">Make this change</button></div></div>'
+      );
+    })
+    .join('');
+  return opts;
+}
+function fixPlansBlock(d, kind) {
+  const P = fixPlansFor(d, kind);
+  if (!P || !P.plans.length) return '';
+  const head =
+    kind === 'ramp'
+      ? 'The deck has ' + P.have + ' ramp cards and about ' + P.target + ' are needed: ' + P.need + ' short. Pick one way to add it, and pull the cards listed.'
+      : 'The deck has ' + P.lands + ' lands and about ' + P.target + ' are needed: ' + P.gap + ' short. Pick one way to fix it. Adding basics needs no particular card; ramp cards you own are listed first.';
+  return '<span class="lab">Ways to fix ' + (kind === 'ramp' ? 'ramp' : 'lands') + '</span><p class="note" style="margin:0">' + head + '</p><div class="paths">' + fixPlanHtml(d, kind, P) + '</div>';
+}
 // Version 0.9.2 (owner's choice 4c): the Mana fix measures one land at a time and shows each land's best swap as soon as it is
 // measured, so the first answer comes in about a second (0.6-1.3 s on a desktop); a note says how many lands are still being checked. The run pauses
 // while a Swap is being confirmed, and stops when the window closes or the deck changes.
@@ -3449,6 +3514,23 @@ function openFix(keys) {
   };
   setTimeout(step, 0);
 }
+// Every Fix swap names what to pull and, owner (22 Nov), other cards that could go instead: the next-weakest spells the deck can
+// spare (worked out once per deck state). Not shown for a swap that cuts a land.
+function fixAltCuts(d, p) {
+  const c = find(p.cut);
+  if (!c || tags(c).land || p.kind === 'mana' || p.kind === 'landsDown') return '';
+  const sig = d.id + '#' + d.cards.map(e => e.n + '×' + e.q).join('|');
+  if (fixAltCuts.sig !== sig) {
+    fixAltCuts.sig = sig;
+    try {
+      fixAltCuts.L = pullList(d, 8).cuts;
+    } catch (err) {
+      fixAltCuts.L = [];
+    }
+  }
+  const L = fixAltCuts.L.filter(x => norm(x.n) !== norm(p.cut)).slice(0, 2);
+  return L.length ? '<p class="note" style="margin:4px 0 0">Or pull instead: ' + L.map(x => esc(x.n)).join(', ') + '.</p>' : '';
+}
 function fixDraw(d, keys, G) {
   const A = analyze(d),
     sc = $('#modal .mscroll'),
@@ -3495,7 +3577,9 @@ function fixDraw(d, keys, G) {
       esc(g.k) +
       '|' +
       i +
-      '" style="margin-left:auto">Swap</button></div></div>'
+      '" style="margin-left:auto">Swap</button></div>' +
+      fixAltCuts(d, p) +
+      '</div>'
     );
   };
   let h =
@@ -3543,8 +3627,10 @@ function fixDraw(d, keys, G) {
       ) +
       (tgt[g.k] && (over(g.k) || tgt[g.k][0] < tgt[g.k][1]) ? ' ' + n + (over(g.k) ? ' fewer' : ' more') + ' would reach the target.' : '') +
       '</p>' +
+      (g.k === 'Lands' && tgt.Lands[0] < tgt.Lands[1] ? fixPlansBlock(d, 'lands') : '') +
+      (g.k === 'Ramp' && tgt.Ramp[0] < tgt.Ramp[1] ? fixPlansBlock(d, 'ramp') : '') +
       (shown.length
-        ? '<div class="paths">' + shown.map(x => sw(g, x.p, x.i)).join('') + '</div>' + wait
+        ? (g.k === 'Lands' || g.k === 'Ramp' ? '<span class="lab">Or swap in one card</span>' : '') + '<div class="paths">' + shown.map(x => sw(g, x.p, x.i)).join('') + '</div>' + wait
         : g.L.some(p => p.dScore == null || p.dScore >= 0) && !wait
           ? '<p class="note" style="margin:0">The swaps for this alert are already offered above.</p>'
         : wait
