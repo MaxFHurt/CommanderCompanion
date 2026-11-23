@@ -96,7 +96,7 @@ const whoFits = (who, rowController, controllerId) => who === 'any' || (who === 
 function refIdB113(effect, bindings) {
   const lastMoved = [].concat(bindings.lastMoved || []).slice(-1)[0];
   const dig = Object.keys(bindings).filter(k => /^dig\d+$/.test(k)).map(k => { const v = bindings[k]; return v && (v.rest?.[0] || v.groups?.flat?.()[0]) || (typeof v === 'string' ? v : null); }).filter(Boolean).slice(-1)[0];
-  return (effect.bind && effect.bind !== 'lastTarget' ? bindings[effect.bind] : null) || bindings.revealedTop || dig || lastMoved || bindings.target0 || bindings.eventCard || bindings.thatCard || null;
+  return (effect.bind && effect.bind !== 'lastTarget' ? bindings[effect.bind] : null) || bindings.revealedTop || dig || [].concat(bindings.lastLinkedMoved || []).slice(-1)[0] || lastMoved || bindings.target0 || bindings.eventCard || bindings.thatCard || null;
 }
 function refCardB113(game, effect, bindings) { const id = refIdB113(effect, bindings); return id ? locateCardInGame(game, id) : null; }
 /** The spell being resolved (this spell's own flags), when the clause is about "this spell". */
@@ -178,8 +178,8 @@ export function parseConditionB113(t0) {
   if (/^this creature (?:attacked|dealt combat damage) this turn$/i.test(t) && /attacked/.test(t)) return { test: 'b113-src-attacked', iv: true };
   if (/^this creature (?:didn'?t|did not) attack this turn$/i.test(t)) return { test: 'b113-src-attacked', not: true, iv: true };
   if (/^this creature attacked or blocked this combat$/i.test(t)) return { test: 'b113-src-combat', iv: true };
-  if (/^it'?s not your turn$/i.test(t) || /^it isn'?t your turn$/i.test(t)) return { test: 'not-your-turn' };
-  if (/^it'?s not their turn$/i.test(t)) return { test: 'b113-not-their-turn' };
+  if (/^it (?:is|'s) not your turn$/i.test(t) || /^it isn'?t your turn$/i.test(t)) return { test: 'not-your-turn' };
+  if (/^it (?:is|'s) not their turn$/i.test(t)) return { test: 'b113-not-their-turn' };
   // ---- X ----
   if ((m = t.match(/^x is (\w+) or (more|greater|less)$/i)) && cnt(m[1]) != null) return { test: 'b113-x', n: cnt(m[1]), less: /less/i.test(m[2]) };
   // ---- this spell / this permanent: how it was cast ----
@@ -201,10 +201,11 @@ export function parseConditionB113(t0) {
       if (alts && !alts.some(a => a.token !== null)) return { test: 'b113-ref-is', alts, not: neg, bind: 'lastTarget', that: /spell/i.test(m[1]) };
     }
   }
-  if ((m = t.match(new RegExp(`^(${REF}) (?:is|was) (attacking|blocking|tapped|untapped|renowned|suspected)$`, 'i')))) return { test: 'b113-ref-state', state: m[2].toLowerCase(), bind: 'lastTarget' };
-  if ((m = t.match(new RegExp(`^(${REF}) (?:isn'?t|wasn'?t|is not|was not) (attacking|blocking|tapped|untapped|suspected)$`, 'i')))) return { test: 'b113-ref-state', state: m[2].toLowerCase(), not: true, bind: 'lastTarget' };
+  // Only the present tense: "it was attacking / tapped / blocking" asks about a card that has since changed zones, whose state is no longer known.
+  if ((m = t.match(new RegExp(`^(${REF}) is (attacking|blocking|tapped|untapped|renowned|suspected)$`, 'i')))) return { test: 'b113-ref-state', state: m[2].toLowerCase(), bind: 'lastTarget' };
+  if ((m = t.match(new RegExp(`^(${REF}) (?:isn'?t|is not) (attacking|blocking|tapped|untapped|suspected)$`, 'i')))) return { test: 'b113-ref-state', state: m[2].toLowerCase(), not: true, bind: 'lastTarget' };
   if ((m = t.match(new RegExp(`^(?:${REF}'s|its|that (?:creature|permanent|card|spell)'s) mana value (?:is|was) (\\w+) or (less|greater|more)$`, 'i'))) || (m = t.match(new RegExp(`^(?:${REF}) (?:has|had) mana value (\\w+) or (less|greater|more)$`, 'i')))) { if (cnt(m[1]) != null) return { test: 'b113-ref-mv', n: cnt(m[1]), less: /less/i.test(m[2]), bind: 'lastTarget' }; }
-  if ((m = t.match(new RegExp(`^(?:${REF}'s|its|that (?:creature|permanent|spell)'s) (power|toughness) (?:is|was) (\\w+) or (less|greater|more)$`, 'i'))) && cnt(m[2]) != null) return { test: 'b113-ref-stat', stat: m[1].toLowerCase(), n: cnt(m[2]), less: /less/i.test(m[3]), bind: 'lastTarget' };
+  if ((m = t.match(new RegExp(`^(?:${REF}'s|its|that (?:creature|permanent|spell)'s) (power|toughness) is (\\w+) or (less|greater|more)$`, 'i'))) && cnt(m[2]) != null) return { test: 'b113-ref-stat', stat: m[1].toLowerCase(), n: cnt(m[2]), less: /less/i.test(m[3]), bind: 'lastTarget' };
   if ((m = t.match(new RegExp(`^(?:${REF}) (?:has|had) (\\w+) or more ([+\\-\\d/a-z]+) counters on (?:it|them)$`, 'i'))) && cnt(m[1]) != null) return { test: 'b113-ref-counters', counter: m[2].toLowerCase(), min: cnt(m[1]), bind: 'lastTarget' };
   if ((m = t.match(new RegExp(`^(?:${REF}) (?:has|had) (?:no|an?) ([+\\-\\d/a-z]+) counters? on (?:it|them)$`, 'i')))) return { test: 'b113-ref-counters', counter: m[1].toLowerCase(), min: /\bno\b/i.test(t) ? 0 : 1, none: /\bno\b/i.test(t), bind: 'lastTarget' };
   if ((m = t.match(new RegExp(`^(?:${REF}) (?:has|had) no counters on (?:it|them)$`, 'i')))) return { test: 'b113-ref-counters', counter: '*', min: 0, none: true, bind: 'lastTarget' };
