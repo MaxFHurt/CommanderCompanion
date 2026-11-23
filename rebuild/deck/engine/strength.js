@@ -313,8 +313,21 @@ function strBuild(d, cap, casual, pool, core) {
 }
 const STR_REF = new Map();
 // The three builds and the replacement level for a deck (kept per deck settings and card data).
-function strengthRef(d) {
-  if (!strengthOn(d)) return null;
+// UP.fixRef (owner, 22 Nov: "Fix it until Regenerate"): the builds the power bar measures against are worked out once, from the
+// cards the deck had then (d.refPin, set by the app when the upgrade list is made: ui/library.js refPinFor), and kept while
+// swaps are made, so a swap moves the bar only by what the card does. Regenerate, a commander change or any other change the
+// upgrade list counts as new (settings, cards changed by hand) sets the pin again. Without a pin (the generator, the tests'
+// engine runs) the builds follow the deck's own cards, as before.
+function strBasis(d) {
+  const P = UP.fixRef && d.refPin && Array.isArray(d.refPin.cards) && d.refPin.cmd === d.commander + '|' + (d.partner || '') ? d.refPin : null;
+  if (!P) return d;
+  const u = Object.assign({}, d, {cards: P.cards.map(([n, q]) => ({n, q, l: false}))});
+  delete u.refPin;
+  return u;
+}
+function strengthRef(d0) {
+  if (!strengthOn(d0)) return null;
+  const d = strBasis(d0);
   const ctx = ctxOf(d),
     k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0, UP.sPow || 0, UP.sSpd || 0, UP.sInt || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
@@ -335,7 +348,7 @@ function strengthRef(d) {
     slots = strSlots(d),
     nS = slots.filter(c => !tags(c).land).length,
     floor = slots.length ? (nS * r0) / slots.length : 0;
-  const R = {key: k, core, pool, apex, mid, budget, floor, top: strMean(d, apex.list)};
+  const R = {key: k, core, pool, apex, mid, budget, floor, top: strMean(d, apex.list), basis: JSON.stringify(d.cards.map(e => [e.n, e.q]))};
   STR_REF.set(k, R);
   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
   return R;
@@ -412,13 +425,16 @@ function strOk(d) {
 // (the power scale stays the reference builds').
 function strPicks(d, SR) {
   const ok = strOk(d),
-    k = SR.key + '|' + JSON.stringify([d.dismissed || [], d.sets || [], !!d.setsMust, d.types || [], !!d.typesMust, d.keys || [], !!d.keysMust]);
+    k = SR.key + '|' + JSON.stringify([d.dismissed || [], d.sets || [], !!d.setsMust, d.types || [], !!d.typesMust, d.keys || [], !!d.keysMust]) + '|' + (SR.basis === JSON.stringify(d.cards.map(e => [e.n, e.q])) ? '' : JSON.stringify(d.cards.map(e => [e.n, e.q])));
   if (SR.picks && SR.picks.k === k) return SR.picks;
   const pool = SR.pool.filter(ok),
-    same = pool.length === SR.pool.length;
+    same = pool.length === SR.pool.length && SR.basis === JSON.stringify(d.cards.map(e => [e.n, e.q])); // a pinned reference (UP.fixRef) from other cards: the picks are the builds from the deck as it is now
   const B = same
     ? {apex: SR.apex, mid: SR.mid, budget: SR.budget}
-    : {apex: strBuild(d, null, false, pool, SR.core), mid: strBuild(d, 12, true, pool, SR.core), budget: strBuild(d, 3, true, pool, SR.core)};
+    : (() => {
+        const core = SR.basis === JSON.stringify(d.cards.map(e => [e.n, e.q])) ? SR.core : deckCore(d);
+        return {apex: strBuild(d, null, false, pool, core), mid: strBuild(d, 12, true, pool, core), budget: strBuild(d, 3, true, pool, core)};
+      })();
   SR.picks = {k, pool, apex: strNet(d, B.apex), mid: strNet(d, B.mid), budget: strNet(d, B.budget)};
   return SR.picks;
 }
@@ -429,6 +445,7 @@ function strPicks(d, SR) {
 // rows); Mid and Budget are their builds. Cards in keep (the player's own picks) and locked cards stay. Returns the swaps made.
 function strFinish(d, tier, keep) {
   if (!strengthOn(d) || !TIERS[tier]) return 0;
+  delete d.refPin; // the finished deck is new: the app pins its reference again from the finished cards (UP.fixRef)
   // Theme first: the theme stays ahead of strength, so an on-theme card is only ever replaced by another on-theme card
   const TH = d.themeFirst ? themeCtx(d) : null,
     onT = c => !!c && themeOf(c, TH),
@@ -458,11 +475,47 @@ function strFinish(d, tier, keep) {
     const P = strPicks(d, SR),
       L = (P[tier] || []).filter(s => !kept(s.cut) && themeOk(s.cut, s.add));
     let k = 0;
+    // One measure (UP.oneM): a swap goes in only when it raises the deck score (the measure the power bar shows: card strength,
+    // this round's reference builds, the deck's practice games at the round's start). 1: the build's own pick, else none;
+    // 2: the pick or the next UP.oneK strongest cards that fit the slot at the tier's price, whichever raises the score most.
+    const OM = UP.oneM ? {sim: simulate(d, 300, 7)} : null;
+    if (OM) OM.cur = evaluateDeck(d, {sim: OM.sim, str: true, strRef: SR}).exact;
+    const omScore = (cut, add) => {
+      const u = Object.assign({}, d, {cards: d.cards.map(e => Object.assign({}, e))});
+      delete u.plan;
+      cutCard(u, cut, 1);
+      addCard(u, add, 1);
+      return evaluateDeck(u, {sim: OM.sim, str: true, strRef: SR}).exact;
+    };
+    const omCands = s => {
+      if (UP.oneM !== 2) return [s.add];
+      const cutC = find(s.cut),
+        ok = strOk(d),
+        A0 = analyze(d),
+        vv = c => strValue(c, d, casual),
+        cv = vv(cutC),
+        fit = c =>
+          ok(c) && !!tags(c).land === !!tags(cutC).land && !tags(c).land && (cap === Infinity || (c.p != null && c.p <= cap)) && themeOk(s.cut, c.n) && vv(c) > cv &&
+          !STR_ROLES.some(r => tags(cutC).roles.has(r) && !tags(c).roles.has(r) && A0.roles[r] - 1 < Math.min(A0.T[r], A0.roles[r]));
+      return [s.add].concat(SR.pool.filter(c => c.n !== s.add && fit(c)).sort((a, b) => vv(b) - vv(a)).slice(0, UP.oneK || 6).map(c => c.n));
+    };
     for (const s of L) {
       const e = entryOf(d, s.cut);
       if (!e || e.l || entryOf(d, s.add) || !chainCutOk(d, e.n, s.add)) continue; // UP.chainGen: no kept game-plan chain loses its last cards
+      let add = s.add;
+      if (OM) {
+        let best = null;
+        for (const n of omCands(s)) {
+          if (entryOf(d, n) || !chainCutOk(d, e.n, n)) continue;
+          const v = omScore(e.n, n);
+          if (v - OM.cur >= SCORE_MIN && (!best || v > best.v)) best = {n, v};
+        }
+        if (!best) continue;
+        add = best.n;
+        OM.cur = best.v;
+      }
       cutCard(d, e.n, 1);
-      addCard(d, s.add, 1);
+      addCard(d, add, 1);
       k++;
     }
     // the swaps change the spells, so the land count follows the deck's own land formula again (the generator's rule): spare
@@ -562,6 +615,87 @@ function strGainFn(d, SR) {
     },
     gk = 100 / ((strSlots(d).length || 1) * (SR.top - SR.floor));
   return (cut, add, q) => (va(add) - va(cut)) * gk * (q || 1);
+}
+// One measure (UP.oneM; owner, 22 Nov: "If a card tells me it's an upgrade, it should be an upgrade to everything"): a swap's
+// change to the power bar. The deck is scored with the swap (the score players see: card strength, against the deck's own
+// reference builds, on the deck's own practice games, so no games are replayed) less the deck's score, as a share of the Apex
+// build's score, which is what the bar shows. Each swap is measured once per deck state. base: the deck's score when the
+// caller has it (the app's evalFor). Null when strength is off.
+function barGainFn(d, SR, base) {
+  SR = SR || strengthRef(d);
+  if (!SR || SR.top <= SR.floor) return null;
+  const sig = JSON.stringify(d.cards.map(e => [e.n, e.q]));
+  let C = SR.barC;
+  if (!C || C.sig !== sig) {
+    const b = base && base.sim && base.exact != null ? base : evaluateDeck(d, {games: 300, str: true, strRef: SR}),
+      ap = strRefParts(d, SR).apex;
+    C = SR.barC = {sig, base: b, apex: ap > 0 ? ap : 100, memo: new Map(), n: 0, ms: 0};
+  }
+  const f = (cut, add, q) => {
+    q = q || 1;
+    const k = cut + '>' + add + '>' + q;
+    let g = C.memo.get(k);
+    if (g === undefined) {
+      const t0 = Date.now(),
+        u = Object.assign({}, d, {cards: d.cards.map(e => Object.assign({}, e))});
+      delete u.plan;
+      delete u.refPin;
+      cutCard(u, cut, q);
+      addCard(u, add, q);
+      try {
+        // a swap that changes the land count changes the mana itself: its practice games are played (the same seed)
+        const lc = n => !!(find(n) && tags(find(n)).land),
+          sim = lc(cut) !== lc(add) ? undefined : C.base.sim;
+        g = (100 * (evaluateDeck(u, {sim, games: 300, str: true, strRef: SR}).exact - C.base.exact)) / C.apex;
+      } catch (e) {
+        g = null;
+      }
+      C.memo.set(k, g);
+      C.n++;
+      C.ms += Date.now() - t0;
+    }
+    return g;
+  };
+  f.ctx = C;
+  return f;
+}
+// A kept upgrade list after a swap (UP.oneM): every pick still offered is measured again on the deck as it now is, so a pick
+// the swap made worse (two cards doing the same thing, a part already full) is not still shown as an upgrade: it gives way to
+// the first of its alternatives that still raises the bar (2: the one that raises it most), else its tier is left out.
+function barRecheck(d, R, G) {
+  if (!R || !G || !R.paths) return R;
+  const strWhy = n => {
+    const c = find(n),
+      v = c && STRENGTH.cards.get(c._n);
+    return [v ? 'Card strength ' + v[0] + ' of 100 (how often strong decks that could play it do)' : 'New card: too new for play data; read by what it does'];
+  };
+  for (const L of R.paths) {
+    for (const t of Object.keys(L.opts)) {
+      const o = L.opts[t];
+      if (!o || !o.add || !o.bar) continue;
+      const g = G(o.cut || L.cut, o.add, o.q || 1);
+      if (g != null && g >= SCORE_MIN) {
+        o.dScore = o.gain = g;
+        continue;
+      }
+      const m = ((L.alts && L.alts[t]) || [])
+        .filter(a => !hasCard(d, a.n))
+        .map(a => ({a, g: G(o.cut || L.cut, a.n, 1)}))
+        .filter(x => x.g != null && x.g >= SCORE_MIN);
+      if (UP.oneM === 2) m.sort((x, y) => y.g - x.g);
+      if (m[0]) {
+        L.opts[t] = Object.assign({}, o, {add: m[0].a.n, dScore: m[0].g, gain: m[0].g, held: false, why: strWhy(m[0].a.n), q: 1});
+        L.alts[t] = L.alts[t].filter(a => a.n !== m[0].a.n);
+      } else delete L.opts[t];
+    }
+    if (L.top && L.top.n && !L.applied) {
+      const g = hasCard(d, L.top.n) ? null : G(L.cut, L.top.n, 1);
+      if (g == null || g < SCORE_MIN) L.top = null;
+      else L.top.dScore = g;
+    }
+  }
+  R.paths = R.paths.filter(L => L.applied || Object.values(L.opts).some(Boolean));
+  return R;
 }
 // The upgrade list from the strength builds (UP.str): one row per card the Apex build replaces, biggest gain first (at most
 // UP.strRows), each with that row's Apex pick and, where the Mid and Budget builds replace the same card, their picks.
@@ -758,6 +892,7 @@ function strengthPaths(d, R) {
     }
     const top = C[0];
     L.top = top ? {n: top.c.n, p: top.c.p, dScore: top.g, inc: inc(top.c)} : null;
+    if (UP.oneM) L._C = C;
     // Stick to the theme: the slot's strongest on-theme cards, for stickTheme to choose from
     if (d.stick)
       L.finds = themePool()
@@ -768,6 +903,71 @@ function strengthPaths(d, R) {
         .slice(0, 4)
         .map(x => ({n: x.c.n, dScore: x.g}));
   });
+  // One measure (UP.oneM): every pick, alternative and Highest score card is measured on the power bar (barGainFn); only swaps
+  // that raise it are offered, and the chip is that change.
+  //   1 (check): the strength builds still choose; a pick that doesn't raise the bar gives way to the next of its alternatives
+  //     (strength order) that does, else the tier is left out
+  //   2 (score ranks): the strength builds shortlist the cards for each slot (the pick, its alternatives and the next UP.oneK
+  //     strongest that fit at the tier's price); the one that raises the bar most is the pick, and rows are ordered by it
+  const BG = UP.oneM ? barGainFn(d, SR) : null;
+  if (BG) {
+    const bg = (cut, add) => BG(cut, add, 1),
+      taken = new Map(); // card -> its row, as the picks stand after this pass
+    rows.forEach(L => Object.values(L.opts).forEach(p => p.held && taken.set(p.add, L)));
+    const free = (L, n) => !taken.has(n) || taken.get(n) === L;
+    for (const t of tOrder)
+      rows.forEach(L => {
+        const p = L.opts[t];
+        if (!p) return;
+        if (p.held) {
+          p.sGain = p.dScore;
+          p.dScore = p.gain = bg(L.cut, p.add);
+          p.bar = true;
+          return;
+        }
+        const C = L._C || [];
+        let names = [p.add].concat(UP.oneSub === 0 && UP.oneM === 1 ? [] : (L.alts[t] || []).map(a => a.n));
+        if (UP.oneM === 2) names = names.concat(C.filter(x => priceOk(x.c, t)).slice(0, UP.oneK || 6).map(x => x.c.n));
+        names = [...new Set(names)].filter(n => free(L, n) && find(n) && priceOk(find(n), t));
+        const m = names.map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)})).filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN));
+        if (UP.oneM === 2) m.sort((a, b) => b.g - a.g);
+        const b = m[0];
+        if (!b) {
+          delete L.opts[t];
+          return;
+        }
+        L.opts[t] = Object.assign(pick(L.cut, b.n, t), {dScore: b.g, gain: b.g, sGain: b.s, bar: true});
+        taken.set(b.n, L);
+        L.alts[t] = m
+          .filter(x => x !== b && x.g >= 0.5 * b.g)
+          .slice(0, 3)
+          .map(x => ({n: x.n, p: find(x.n).p, dScore: x.g, inc: inc(find(x.n)), vs: b.n, vsScore: b.g, str: true, bar: true}));
+      });
+    rows.forEach(L => {
+      // Apex stays the row's best on this measure (2) / strongest pick (1); each card once on a row
+      for (const t of ['mid', 'budget']) {
+        const p = L.opts[t],
+          ap = L.opts.apex;
+        if (p && (!ap || (!ap.held && (UP.oneM === 2 ? p.dScore > ap.dScore : p.sGain > ap.sGain)))) L.opts.apex = Object.assign({}, p, {t: 'apex'});
+      }
+      if (L.opts.mid && L.opts.apex && L.opts.mid.add === L.opts.apex.add && !L.opts.mid.held) delete L.opts.mid;
+      if (L.opts.budget && [L.opts.apex, L.opts.mid].some(x => x && x.add === L.opts.budget.add) && !L.opts.budget.held) delete L.opts.budget;
+      const ps = Object.values(L.opts);
+      L.gain = L.opts.apex ? L.opts.apex.dScore : ps.length ? Math.max(...ps.map(p => p.dScore)) : 0;
+      // Highest score: the measured card that raises the bar most
+      const all = ps.map(p => ({n: p.add, g: p.dScore})).concat(...Object.values(L.alts).map(A => A.map(a => ({n: a.n, g: a.dScore})))),
+        tp = all.sort((a, b) => b.g - a.g)[0];
+      L.top = tp ? {n: tp.n, p: find(tp.n).p, dScore: tp.g, inc: inc(find(tp.n))} : null;
+      delete L._C;
+    });
+    rows = rows.filter(L => L.opts.apex || L.opts.mid || L.opts.budget);
+    if (UP.oneM === 2) {
+      rows.forEach(L => (L.rk = {apex: (tierPick(L, 'apex') || {}).dScore || -1e9, mid: (tierPick(L, 'mid') || {}).dScore || -1e9, budget: (tierPick(L, 'budget') || {}).dScore || -1e9}));
+      rows.sort((a, b) => b.rk[dt] - a.rk[dt]);
+    }
+    R.barMs = BG.ctx.ms;
+    R.barN = BG.ctx.n;
+  }
   // spare lands (a deck over its land target) come from the regular list, measured on this scale
   // a spare basic for a row whose tapped land no spell beats: a basic the deck runs more than one of (spareLands' rule) that no
   // other row cuts
@@ -830,7 +1030,16 @@ function strengthPaths(d, R) {
       ps.forEach(p => used.set(p.add, L));
       return ps.length > 0;
     });
-  R.paths = rows.concat(spare);
+  if (BG)
+    spare.forEach(L => {
+      for (const t of Object.keys(L.opts)) {
+        const p = L.opts[t],
+          g = BG(p.cut || L.cut, p.add, 1);
+        if (g == null || g < SCORE_MIN) delete L.opts[t];
+        else Object.assign(p, {sGain: p.dScore, dScore: g, gain: g, bar: true});
+      }
+    });
+  R.paths = rows.concat(spare.filter(L => Object.keys(L.opts).length));
   // every other swap the list shows (health-alert fixes, alternatives) is measured on the same scale; one that would lower
   // deck power is not offered as an upgrade (fixes the deck needs anyway, like an illegal card, stay)
   const seenObj = new Set(),
@@ -838,8 +1047,9 @@ function strengthPaths(d, R) {
       if (!o || typeof o !== 'object' || seenObj.has(o)) return;
       seenObj.add(o);
       if (typeof o.cut === 'string' && typeof o.add === 'string' && !o.str) {
-        o.dScore = gain(o.cut, o.add) * (o.q || 1);
+        o.dScore = BG ? BG(o.cut, o.add, o.q || 1) : gain(o.cut, o.add) * (o.q || 1);
         o.str = true;
+        if (BG) o.bar = true;
       }
       for (const v of Array.isArray(o) ? o : Object.values(o)) walk(v);
     };

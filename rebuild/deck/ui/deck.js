@@ -708,7 +708,7 @@ function upPanel(d, A, mode) {
       '</button><small class="note">' +
       (d.stick
         ? 'Every pick fits the deck’s theme. A slot with no on-theme upgrade keeps its usual picks.'
-        : 'Turn on to pick only on-theme cards (raw power can win otherwise).') +
+        : 'Turn on to pick only on-theme cards (stronger off-theme cards can win otherwise).') +
       '</small></div>';
     // owner, 25 Oct: the Apply all buttons sit below the upgrade sheets and suggestions; the best decks under $3 and $12 moved to
     // the Build panel (buildFoot)

@@ -654,7 +654,8 @@ const RECS_SKIP = new Set([
   'buySnap',
   'bought',
   'updatedAt',
-  'saveRev'
+  'saveRev',
+  'refPin'
 ]);
 function recsKey(d) {
   return JSON.stringify([
@@ -683,7 +684,37 @@ function dropHolds(d) {
 // you put in; its own card is shown as the one in the deck; the card you took out is shown, marked Replaced. The other rows stay
 // as they were (a card now in the deck is no longer offered elsewhere). The list is worked out again only when asked
 // (Regenerate) or when the deck or its settings change some other way.
+// The power bar's reference builds are kept until Regenerate (UP.fixRef; owner, 22 Nov: "Fix it until Regenerate"): d.refPin
+// holds the cards they are worked out from (engine/strength.js strBasis). A swap made with any swap button (keepRecs) keeps
+// it; a new commander, other settings (themes, colours, filters) or cards changed by hand set it again from the deck as it
+// is, as they make a new upgrade list. Undo brings the deck's old pin back with its cards.
+const PIN_SWAP = new Set(); // decks whose last card change was a swap
+function refPinKey(d) {
+  return JSON.stringify([d.commander, d.partner || '', d.aims || [], d.tribe || '', d.colors || [], d.types || [], d.keys || [], !!d.typesMust, !!d.keysMust, d.sets || [], !!d.setsMust]);
+}
+function refPinFor(d) {
+  if (!UP.fixRef || !d || d.format !== 'commander' || !d.commander) return;
+  const k = refPinKey(d),
+    sig = cardsSig(d),
+    P = d.refPin;
+  if (P && P.k === k && P.cmd === d.commander + '|' + (d.partner || '')) {
+    if (P.seen === sig) return PIN_SWAP.delete(d.id), undefined;
+    if (PIN_SWAP.has(d.id)) {
+      PIN_SWAP.delete(d.id);
+      P.seen = sig;
+      return;
+    }
+  }
+  PIN_SWAP.delete(d.id);
+  d.refPin = {k, cmd: d.commander + '|' + (d.partner || ''), cards: d.cards.map(e => [e.n, e.q]), seen: sig};
+}
+function refUnpin(d) {
+  if (d) delete d.refPin;
+  if (d) PIN_SWAP.delete(d.id);
+}
 function keepRecs(d, p, t, i) {
+  refPinFor(d); // the pin as it stands before the swap (a deck seen for the first time is pinned to its cards now)
+  PIN_SWAP.add(d.id);
   // prevKey: the list is carried only into the refresh this swap causes; a Regenerate (or any forced refresh) in between drops it.
   // Several swaps made at once (a Fix menu's top swaps, Make every swap) are carried together.
   const R = recsFor.v && !recsFor.v.pending ? recsFor.v : null,
@@ -748,6 +779,11 @@ function carryRecs(d, key) {
     });
   }
   R.paths = R.paths.filter(L => L.applied || Object.values(L.opts).some(Boolean));
+  // one measure (UP.oneM): the picks still offered are measured again on the deck as it now is (engine barRecheck)
+  if (UP.oneM && R.str && typeof barRecheck === 'function')
+    try {
+      barRecheck(d, R, upGainFn(d));
+    } catch (e) {}
   // the fixes and cuts listed with it: only those still possible in the deck as it now stands
   if (R.fixes) R.fixes = R.fixes.filter(p => entryOf(d, p.cut) && (isBasic(p.add) || !hasCard(d, p.add)));
   if (R.drops) R.drops = R.drops.filter(c => entryOf(d, c.n));
@@ -838,6 +874,7 @@ function recsSettling(d) {
 }
 function recsFor(d) {
   dropHolds(d);
+  refPinFor(d);
   const key = recsKey(d);
   if (recsFor.k !== key && carryRecs(d, key)) return recsFor.v;
   // held only when it is a finished, checked list for the very cards the deck has now (only the data around it is changing); it

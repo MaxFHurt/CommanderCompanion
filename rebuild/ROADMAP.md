@@ -218,6 +218,20 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
      read them). Dropped: sPow in the picks (bench tuneall 0.167 -> 0.076, test 0.220 -> 0.007); qSpd/qInt in the plain score (tourney
      60 -> 59%, we-play 193 -> 196). Still open: the generator's picks (judgement step), lands (fetches/duals, Ancient Tomb in practice
      games), the weak-card spread.
+1b. **One measure for upgrades and power** (owner, 22-23 Nov: "Fix it until Regenerate"; "If a card tells me it's an upgrade, it
+   should be an upgrade to everything"; "any time I see the word power it should be referring to the deck's overall power on a
+   unified scale"). Built on wt/onemeasure:
+   - **A, ON (approved):** UP.fixRef: the Apex/Mid/Budget builds the bar measures against are worked out once per upgrade list
+     (d.refPin) and kept through swaps; Regenerate, a commander or settings change, or cards changed by hand set it again. Drift
+     test: Apex score constant over 10 swaps (before: moved every swap). Test UI-FIXREF-01.
+   - **B, UP.oneM 1 ON, awaiting the owner's approval:** every "+x power" (rows each tier, alternatives, Highest score, card
+     window chip and its choice of cut, Fix menus, kept list after a swap) is the power bar's change on the deck's own practice
+     games; picks that don't raise the bar give way to the next alternative or are dropped; the generator's strength finish
+     takes a swap only if it raises the score. Offered upgrades that lower the bar (10 precons): 70/268 -> 3/223 (fresh-game
+     noise). Bench agreement@5 0.033/0.167/0.220 -> -0.003/0.136/0.190; finished Apex decks vs tournament lists match 65.3 ->
+     61.7%, score 89.4 -> 90.7. Dropped: oneM 2 (bar ranks a strength shortlist): bench -0.138/0.014/0.111. "Raw power" filter
+     renamed "Strongest cards". Test UI-ONEM-01. Open: paired practice games (same shuffle per card) would cut the ±0.3 bar
+     noise; the Apex reference itself is still the strength build (decks can pass 100).
 2. **Open questions for the owner** (deck/WORK_SESSION_HANDOFF.md section 0):
    - (Answered 9 Nov: keep it as it is.) The Apex rule against players: keep, or review the biggest score finds (Archpriest
      of Shadows, Evolution Witness, The Soul Stone…) in case the score overrates them.
