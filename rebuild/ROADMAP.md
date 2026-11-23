@@ -245,6 +245,12 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
      row (10 precons x 3 tiers: rows with a cheaper tier ahead 2 + 9 Budget>Mid -> 0). Bench agreement@5 tune/tuneall/test:
      0 -0.008/0.134/0.190; 1 (oneK 6) 0.007/0.117/0.163 (below the 0.17 bar, so left off); 1 with oneK 1 0.013/0.117/0.171;
      2 -0.008/0.134/0.190. Tourney match unchanged (generator not touched). Tests UI-B129-01/B130-01 compare the bar change when on.
+     **ON as 3, approved by the owner, 23 Nov ((b) for Apex only; 1 hit Mid/Budget hard: test 0.207/0.161 -> 0.158/0.065):** Apex
+     takes the biggest bar gain (on an Apex deck in the pick pass, as 1; on a Mid/Budget deck after those tiers, from no other row);
+     Mid and Budget keep the card they show and are lifted only by a card at a cheaper price that gains more. Per tier (A/M/B)
+     test 0.171/0.185/0.152, tuneall 0.117/0.147/0.127 (oneBest 0: 0.190/0.207/0.161, 0.134/0.146/0.120); rows with a cheaper
+     tier ahead 0 (oneBest 0: 2 + 9); mean bar gain 0.754/0.626/0.575 (0: 0.619/0.560/0.496); strengthPaths 23.7 s for 30 decks
+     (0: 21.6 s). Upgrades tab: no number while the page says "Thinking…" (it counted the unchecked list; UI-TAB-01 in the full run).
 2. **Open questions for the owner** (deck/WORK_SESSION_HANDOFF.md section 0):
    - (Answered 9 Nov: keep it as it is.) The Apex rule against players: keep, or review the biggest score finds (Archpriest
      of Shadows, Evolution Witness, The Soul Stone…) in case the score overrates them.

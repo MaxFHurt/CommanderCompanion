@@ -753,7 +753,7 @@ function barRecheck(d, R, G) {
         .filter(a => !hasCard(d, a.n))
         .map(a => ({a, g: G(o.cut || L.cut, a.n, 1)}))
         .filter(x => x.g != null && x.g >= SCORE_MIN);
-      if (UP.oneM === 2 || (UP.oneBest && UP.oneBest !== 2)) m.sort((x, y) => y.g - x.g);
+      if (UP.oneM === 2 || UP.oneBest === 1 || (UP.oneBest === 3 && t === 'apex')) m.sort((x, y) => y.g - x.g);
       if (m[0]) {
         L.opts[t] = Object.assign({}, o, {add: m[0].a.n, dScore: m[0].g, gain: m[0].g, held: false, why: strWhy(m[0].a.n), q: 1});
         L.alts[t] = L.alts[t].filter(a => a.n !== m[0].a.n);
@@ -1006,8 +1006,14 @@ function strengthPaths(d, R) {
     // strongest cards for the slot at its price) is taken before any tier is re-picked; a tier chooses among its own and every
     // cheaper tier's shortlist (the price ranges nest), so Apex >= Mid >= Budget in bar gain on every row
     // 2 (lift only): the strength pick stays unless a cheaper tier's pick on the row raises the bar more (it then shows there too)
+    // 3 (owner, 23 Nov: "(b) for Apex only"): Mid and Budget are picked as 2 (strength picks, lifted only by a cheaper tier's);
+    // Apex takes the card of every tier's shortlist at its price that raises the bar most: on an Apex deck in the pick pass (it
+    // picks first, as 1), on a Mid or Budget deck after the others, so each row's Mid and Budget keep the card they show (their
+    // own pick, else the cheap Apex strength pick they fall back to) and Apex takes no card from another row
     const LIFT = UP.oneM === 1 && !!UP.oneBest,
       BEST = LIFT && UP.oneBest !== 2,
+      APEX3 = LIFT && UP.oneBest === 3 && dt !== 'apex',
+      bestT = t => BEST && (UP.oneBest !== 3 || (t === 'apex' && dt === 'apex')),
       tierS = ['apex', 'mid', 'budget'];
     if (BEST)
       rows.forEach(L => {
@@ -1029,10 +1035,10 @@ function strengthPaths(d, R) {
         const C = L._C || [];
         let names = [p.add].concat(UP.oneSub === 0 && UP.oneM === 1 ? [] : (L.alts[t] || []).map(a => a.n));
         if (UP.oneM === 2) names = names.concat(C.filter(x => priceOk(x.c, t)).slice(0, UP.oneK || 6).map(x => x.c.n));
-        if (BEST) names = [].concat(...tierS.slice(tierS.indexOf(t)).map(x => L._S[x]));
+        if (bestT(t)) names = [].concat(...tierS.slice(tierS.indexOf(t)).map(x => L._S[x]));
         names = [...new Set(names)].filter(n => free(L, n) && find(n) && priceOk(find(n), t));
         const m = names.map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)})).filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN));
-        if (UP.oneM === 2 || BEST) m.sort((a, b) => b.g - a.g);
+        if (UP.oneM === 2 || bestT(t)) m.sort((a, b) => b.g - a.g);
         const b = m[0];
         if (!b) {
           delete L.opts[t];
@@ -1045,6 +1051,33 @@ function strengthPaths(d, R) {
           .slice(0, 3)
           .map(x => ({n: x.n, p: find(x.n).p, dScore: x.g, inc: inc(find(x.n)), vs: b.n, vsScore: b.g, str: true, bar: true}));
       });
+    if (APEX3)
+      rows.forEach(L => {
+        if (L.opts.apex && L.opts.apex.held) return;
+        // Mid and Budget as the row shows them now (tierPick), Mid lifted to Budget's card when that raises the bar more
+        for (const t of ['mid', 'budget']) {
+          const p = L.opts[t] && L.opts[t].held ? null : tierPick(L, t);
+          if (p && p !== L.opts[t]) L.opts[t] = Object.assign({}, p, {t});
+        }
+        const mp = L.opts.mid,
+          bp = L.opts.budget;
+        if (bp && (!mp || !mp.held) && priceOk(find(bp.add), 'mid') && (!mp || bp.dScore > mp.dScore)) L.opts.mid = Object.assign({}, bp, {t: 'mid'});
+        const own = new Set(Object.values(L.opts).map(p => p.add)),
+          names = [...new Set([...own].concat(...tierS.map(x => (L._S && L._S[x]) || [])))].filter(n => (own.has(n) || free(L, n)) && find(n) && priceOk(find(n), 'apex')),
+          m = names
+            .map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)}))
+            .filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN))
+            .sort((a, b) => b.g - a.g),
+          b = m[0];
+        if (!b) return;
+        if (L.opts.apex && L.opts.apex.add !== b.n && ![L.opts.mid, L.opts.budget].some(x => x && x.add === L.opts.apex.add)) taken.delete(L.opts.apex.add);
+        L.opts.apex = Object.assign(pick(L.cut, b.n, 'apex'), {dScore: b.g, gain: b.g, sGain: b.s, bar: true});
+        taken.set(b.n, L);
+        L.alts.apex = m
+          .filter(x => x !== b && !own.has(x.n) && x.g >= 0.5 * b.g)
+          .slice(0, 3)
+          .map(x => ({n: x.n, p: find(x.n).p, dScore: x.g, inc: inc(find(x.n)), vs: b.n, vsScore: b.g, str: true, bar: true}));
+      });
     rows.forEach(L => {
       // Apex stays the row's best on this measure (2) / strongest pick (1); each card once on a row
       for (const t of ['mid', 'budget']) {
@@ -1054,17 +1087,31 @@ function strengthPaths(d, R) {
       }
       // BEST: each tier shows the row's biggest gain at its price: a dearer tier's pick that fits a cheaper tier's price and
       // raises the bar more is that tier's card too (shown once, below); a held pick stays
+      // 3: Mid and Budget take only a cheaper tier's pick (Mid Budget's), so they keep their own strength picks otherwise
       if (LIFT)
         for (const t of ['mid', 'budget']) {
           const p = L.opts[t];
           if (p && p.held) continue;
-          const b = Object.values(L.opts)
+          const b = (UP.oneBest === 3 ? tierS.slice(tierS.indexOf(t) + 1).map(x => L.opts[x]).filter(Boolean) : Object.values(L.opts))
             .filter(x => x !== p && priceOk(find(x.add), t) && (!p || x.dScore > p.dScore))
             .sort((x, y) => y.dScore - x.dScore)[0];
           if (b) L.opts[t] = Object.assign({}, b, {t});
         }
       if (L.opts.mid && L.opts.apex && L.opts.mid.add === L.opts.apex.add && !L.opts.mid.held) delete L.opts.mid;
       if (L.opts.budget && [L.opts.apex, L.opts.mid].some(x => x && x.add === L.opts.budget.add) && !L.opts.budget.held) delete L.opts.budget;
+      // 3: a card at Budget price the row shows for Budget (its own pick, else a cheap Apex card) that raises the bar more than
+      // Mid's pick is Mid's card too, so Mid >= Budget
+      if (UP.oneBest === 3 && LIFT && !(L.opts.mid && L.opts.mid.held)) {
+        const bp = tierPick(L, 'budget'),
+          mp = tierPick(L, 'mid');
+        if (bp && mp && bp.dScore > mp.dScore) {
+          if (L.opts.apex && L.opts.apex.add === bp.add) delete L.opts.mid;
+          else {
+            L.opts.mid = Object.assign({}, bp, {t: 'mid'});
+            if (L.opts.budget && L.opts.budget.add === bp.add && !L.opts.budget.held) delete L.opts.budget;
+          }
+        }
+      }
       // Alternatives follow the picks as they now stand (a tier's pick may have moved up to Apex or been dropped as a repeat, which
       // leaves its alternatives measured against a pick that is no longer shown): each is measured again on the bar against the pick
       // its tier now shows (its own, else the Mid or Apex one), keeps at least half its gain, and is no card the row picks.

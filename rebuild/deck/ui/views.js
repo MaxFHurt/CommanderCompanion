@@ -179,7 +179,8 @@ function viewDecks() {
     if (!narrow && tab === 'build') tab = 'list';
     const hasPlan = od.plan && od.plan.length,
       R = isAimed(od) && !hasPlan ? recsFor(od) : null,
-      nUp = hasPlan ? od.plan.length : R ? upCardCount(R, od) : 0;
+      // no number while the page still says "Thinking…" (score check or whole-card search running): it lists no card yet
+      nUp = hasPlan ? od.plan.length : R && !R.pending && !(R.pool && !R.poolDone) ? upCardCount(R, od) : 0;
     const build = aimPanel(od, A.ctx)
       .replace('<section class="panel aimp">', '<section class="panel aimp"><div class="scroll" id="bscroll" data-keep>')
       .replace(/<\/section>$/, '</div>' + buildFoot(od) + '</section>');

@@ -671,7 +671,7 @@ const b88 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   const lvl = tierSum(d, R, TIERS[d.tier] ? d.tier : 'apex').n, extra = new Set(R.fixes.map(p => keyOf(p.cut)).concat(R.drops.map(p => keyOf(p.n)))).size;
   const opts = R.paths.reduce((a, L) => a + Object.keys(L.opts).length, 0), t = (document.querySelector('[data-act="tab"][data-v="up"] em') || {}).textContent || '';
   const n = upCardCount(R, d);
-  return {tab:t, cards:n, level:lvl, extra, options:opts, ok:t === n + ' card' + (n === 1 ? '' : 's') && n >= lvl && n <= R.paths.length + extra && n < opts}; });
+  return {tab:t, cards:n, level:lvl, extra, options:opts, ok:t === n + ' card' + (n === 1 ? '' : 's') && n >= lvl && n <= R.paths.length + extra && (opts > R.paths.length ? n < opts : n <= opts)}; });  /* UP.oneBest 3 (owner, 23 Nov): an Apex deck's Apex pick may be the row's cheap card, shown once, so a row can offer one card only */
 T('UI-B88-01', 'The Upgrades tab counts the cards the page lists to replace (each once, at any price level, never fewer than the deck’s own level), not the number of upgrade options', b88.ok, JSON.stringify(b88));
 } catch (e) { QUIET = false; T('UI-B88-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B89-01')) { try { if (SHARD) await RESET();
