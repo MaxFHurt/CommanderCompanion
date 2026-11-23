@@ -1162,7 +1162,7 @@ T('UI-B127-01', 'Upgrade sheets: four cards (your card, Budget, Mid, Apex) with 
 if (RUN('UI-B129-01')) { try { if (SHARD) await RESET();
 // 78. Build 129: Apex is the strongest pick on each row: no Mid or Budget pick raises the deck score more than the row's Apex pick.
 const b129 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); const R = await recsReady(d);
-  /* one measure (UP.oneM 1, owner 22-23 Nov): the strength builds still choose, so "strongest" is the strength gain (sGain); a pick's chip (dScore) is its own change to the bar, which a cheaper pick can exceed */ const sv = p => p.bar && p.sGain != null ? p.sGain : p.dScore;
+  /* one measure (UP.oneM 1, owner 22-23 Nov): the strength builds still choose, so "strongest" is the strength gain (sGain); a pick's chip (dScore) is its own change to the bar, which a cheaper pick can exceed */ const sv = p => !UP.oneBest && p.bar && p.sGain != null ? p.sGain : p.dScore; /* UP.oneBest (owner 23 Nov, "Apex = biggest gain"): the bar change itself */
   const rows = R.paths.filter(L => L.opts.apex && L.opts.apex.dScore != null), bad = rows.filter(L => ['mid', 'budget'].some(t => L.opts[t] && L.opts[t].dScore != null && sv(L.opts[t]) > sv(L.opts.apex) + SCORE_MIN)).map(L => L.cut);
   return {rows:rows.length, bad}; });
 T('UI-B129-01', 'Apex is the strongest pick on each row: no Mid or Budget pick raises the deck score more than the Apex pick', b129.rows > 0 && !b129.bad.length, JSON.stringify(b129));
@@ -1172,7 +1172,7 @@ if (RUN('UI-B130-01')) { try { if (SHARD) await RESET();
 // Apex pick replaces stays first among the alternatives marked Most played; the buy list remembers the printing you chose.
 const b130 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); const R = await recsReady(d), out = {};
   const pops = R.paths.filter(L => L.pop && L.pop.apex); out.pops = pops.length; out.mostFirst = pops.every(L => L.alts && L.alts.apex && L.alts.apex[0] && L.alts.apex[0].most && L.alts.apex[0].n === L.pop.apex.add);
-  const sv = p => p.bar && p.sGain != null ? p.sGain : p.dScore; /* strength gain under the one measure (UP.oneM 1, owner 22-23 Nov), as in UI-B129-01 */
+  const sv = p => !UP.oneBest && p.bar && p.sGain != null ? p.sGain : p.dScore; /* UP.oneBest: the bar change; else the strength gain under the one measure (UP.oneM 1, owner 22-23 Nov), as in UI-B129-01 */
   out.apexStrongest = R.paths.every(L => !L.opts.apex || ['mid', 'budget'].every(t => !L.opts[t] || L.opts[t].dScore == null || L.opts.apex.dScore == null || sv(L.opts[t]) <= sv(L.opts.apex) + SCORE_MIN));
   S.modalCard = 'Sol Ring'; S.pick = {id:'pp1', set:'Fancy Foil Edition', p:9.99}; const keep = JSON.stringify(d.want || []); d.want = []; addWant(d, 'Sol Ring', pickPrint(find('Sol Ring')));
   const w = d.want[0]; out.kept = !!w && w.ps === 'Fancy Foil Edition' && w.pp === 9.99; S.view = 'buy'; S.buySel = null; render(); const t = document.querySelector('#main').textContent; out.shown = /Fancy Foil Edition/.test(t) && /\$9\.99/.test(t);
