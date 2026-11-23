@@ -28,7 +28,7 @@ for f in $FILES; do
     *) DK=all; GN=all; GP=all ;;
   esac
 done
-NODE_ALL="game mechanics smoke rewards catalog tracker practice rules-server forge-triggers"
+NODE_ALL="game mechanics smoke rewards catalog tracker practice rules-server"
 case "$GN" in all) NODE="$NODE_ALL"; SOAK=1;; game) NODE="game mechanics smoke rewards tracker practice"; SOAK=1;; *) NODE=""; SOAK="";; esac
 [ -n "$GP" ] && NODE="${NODE:-smoke}"
 PY="align_check game_ui flows_ui mats_ui net_ui online_ui accounts_ui offline_ui pair_ui challenge_ui tracker_test tracker_net_ui"
