@@ -1,92 +1,93 @@
 {
  "cards": 32643,
- "a": 3671,
- "b": 20543,
- "c": 8429,
+ "a": 3831,
+ "b": 20698,
+ "c": 8114,
  "evidence": {
-  "test-wording": 663,
-  "test-wording-effect-half": 693,
-  "keyword-only": 1110,
+  "test-wording": 664,
+  "test-wording-effect-half": 694,
+  "keyword-only": 1120,
   "batch-review": 862,
+  "behaviour-test": 148,
   "vanilla": 343
  },
  "vanilla_not_audited": 343,
  "audited": 32300,
- "audit_automatic": 23871,
- "static_unchecked_cards": 5965,
- "keywords_tested": 169,
+ "audit_automatic": 24186,
+ "static_unchecked_cards": 5990,
+ "keywords_tested": 170,
  "groups_c": 68,
  "groups_b": 49,
  "top_c": [
   {
    "id": "conditional",
-   "touch": 878,
-   "solo": 501,
+   "touch": 691,
+   "solo": 350,
    "cx": "S"
   },
   {
    "id": "that-many",
-   "touch": 708,
-   "solo": 334,
+   "touch": 697,
+   "solo": 326,
    "cx": "S"
   },
   {
    "id": "counters",
-   "touch": 903,
-   "solo": 629,
+   "touch": 833,
+   "solo": 577,
    "cx": "M"
   },
   {
    "id": "mass",
-   "touch": 309,
-   "solo": 195,
+   "touch": 302,
+   "solo": 190,
    "cx": "S"
   },
   {
    "id": "reanimate",
-   "touch": 295,
-   "solo": 172,
+   "touch": 289,
+   "solo": 167,
    "cx": "S"
   },
   {
    "id": "exile-simple",
-   "touch": 328,
+   "touch": 327,
    "solo": 154,
    "cx": "S"
   },
   {
    "id": "pt-pump",
-   "touch": 186,
-   "solo": 140,
+   "touch": 183,
+   "solo": 139,
    "cx": "S"
   },
   {
    "id": "tokens",
-   "touch": 203,
-   "solo": 124,
+   "touch": 204,
+   "solo": 126,
    "cx": "S"
   },
   {
    "id": "combat-restrict",
-   "touch": 170,
+   "touch": 167,
    "solo": 113,
    "cx": "S"
   },
   {
    "id": "damage-calc",
-   "touch": 169,
-   "solo": 113,
+   "touch": 158,
+   "solo": 106,
    "cx": "S"
   },
   {
    "id": "ev-attack",
    "touch": 111,
-   "solo": 96,
+   "solo": 97,
    "cx": "S"
   },
   {
    "id": "keyword-grant",
-   "touch": 126,
+   "touch": 124,
    "solo": 89,
    "cx": "S"
   },
@@ -99,12 +100,18 @@
   {
    "id": "ev-zone",
    "touch": 102,
-   "solo": 76,
+   "solo": 77,
    "cx": "S"
   },
   {
    "id": "ev-damage",
    "touch": 94,
+   "solo": 77,
+   "cx": "S"
+  },
+  {
+   "id": "ev-cast",
+   "touch": 85,
    "solo": 76,
    "cx": "S"
   },
@@ -115,32 +122,26 @@
    "cx": "M"
   },
   {
-   "id": "ev-cast",
-   "touch": 85,
-   "solo": 74,
-   "cx": "S"
-  },
-  {
    "id": "grant-quoted",
-   "touch": 240,
-   "solo": 146,
+   "touch": 236,
+   "solo": 143,
    "cx": "M"
   },
   {
    "id": "copy-perm",
-   "touch": 202,
-   "solo": 130,
+   "touch": 194,
+   "solo": 125,
    "cx": "M"
   },
   {
    "id": "attach",
-   "touch": 169,
-   "solo": 119,
+   "touch": 167,
+   "solo": 117,
    "cx": "M"
   },
   {
    "id": "opp-choice",
-   "touch": 339,
+   "touch": 338,
    "solo": 110,
    "cx": "M"
   },
@@ -151,57 +152,57 @@
    "cx": "S"
   },
   {
-   "id": "free-cast",
-   "touch": 306,
-   "solo": 98,
-   "cx": "M"
+   "id": "fight-bite",
+   "touch": 74,
+   "solo": 48,
+   "cx": "S"
   },
   {
    "id": "prevent-dmg",
    "touch": 131,
-   "solo": 93,
+   "solo": 95,
+   "cx": "M"
+  },
+  {
+   "id": "free-cast",
+   "touch": 296,
+   "solo": 92,
    "cx": "M"
   },
   {
    "id": "becomes",
-   "touch": 266,
-   "solo": 185,
+   "touch": 243,
+   "solo": 170,
    "cx": "L"
   },
   {
-   "id": "fight-bite",
-   "touch": 74,
-   "solo": 46,
-   "cx": "S"
-  },
-  {
    "id": "filter-target",
-   "touch": 67,
-   "solo": 42,
+   "touch": 65,
+   "solo": 40,
    "cx": "S"
-  },
-  {
-   "id": "delayed",
-   "touch": 117,
-   "solo": 78,
-   "cx": "M"
   },
   {
    "id": "library-look",
-   "touch": 408,
-   "solo": 76,
+   "touch": 405,
+   "solo": 79,
+   "cx": "M"
+  },
+  {
+   "id": "delayed",
+   "touch": 116,
+   "solo": 77,
    "cx": "M"
   },
   {
    "id": "random",
    "touch": 243,
-   "solo": 37,
+   "solo": 38,
    "cx": "S"
   },
   {
    "id": "half-x",
    "touch": 51,
-   "solo": 37,
+   "solo": 38,
    "cx": "S"
   },
   {
@@ -212,13 +213,7 @@
   },
   {
    "id": "tap-untap",
-   "touch": 82,
-   "solo": 31,
-   "cx": "S"
-  },
-  {
-   "id": "search",
-   "touch": 82,
+   "touch": 81,
    "solo": 31,
    "cx": "S"
   },
@@ -235,14 +230,20 @@
    "cx": "S"
   },
   {
+   "id": "search",
+   "touch": 80,
+   "solo": 29,
+   "cx": "S"
+  },
+  {
    "id": "lifeloss-unless",
-   "touch": 186,
-   "solo": 56,
+   "touch": 182,
+   "solo": 52,
    "cx": "M"
   },
   {
    "id": "life-gain",
-   "touch": 52,
+   "touch": 51,
    "solo": 24,
    "cx": "S"
   },
@@ -253,8 +254,8 @@
    "cx": "M"
   },
   {
-   "id": "turn",
-   "touch": 73,
+   "id": "play-exile",
+   "touch": 105,
    "solo": 45,
    "cx": "M"
   }
@@ -262,92 +263,92 @@
  "top_b": [
   {
    "id": "static-uncheckable",
-   "touch": 2874,
+   "touch": 2878,
    "cx": "M"
   },
   {
    "id": "unv-pt-pump",
-   "touch": 1680,
+   "touch": 1691,
    "cx": "S"
   },
   {
    "id": "unv-counters",
-   "touch": 1653,
+   "touch": 1680,
    "cx": "M"
   },
   {
    "id": "unv-exile-simple",
-   "touch": 983,
+   "touch": 996,
+   "cx": "S"
+  },
+  {
+   "id": "unv-tokens",
+   "touch": 766,
    "cx": "S"
   },
   {
    "id": "unv-repl-etb",
-   "touch": 759,
+   "touch": 764,
    "cx": "M"
   },
   {
-   "id": "unv-tokens",
-   "touch": 755,
-   "cx": "S"
-  },
-  {
    "id": "unv-grant-quoted",
-   "touch": 561,
+   "touch": 569,
    "cx": "M"
   },
   {
    "id": "unv-search",
-   "touch": 527,
-   "cx": "S"
-  },
-  {
-   "id": "unv-combat-restrict",
-   "touch": 489,
+   "touch": 533,
    "cx": "S"
   },
   {
    "id": "unv-delayed",
-   "touch": 472,
+   "touch": 477,
    "cx": "M"
   },
   {
    "id": "unv-keyword-grant",
-   "touch": 462,
+   "touch": 463,
+   "cx": "S"
+  },
+  {
+   "id": "unv-combat-restrict",
+   "touch": 457,
    "cx": "S"
   },
   {
    "id": "unv-library-look",
-   "touch": 432,
+   "touch": 438,
    "cx": "M"
   },
   {
    "id": "unv-tap-untap",
-   "touch": 432,
+   "touch": 435,
    "cx": "S"
   },
   {
    "id": "unv-reanimate",
-   "touch": 378,
+   "touch": 382,
    "cx": "S"
   },
   {
    "id": "unv-that-many",
-   "touch": 360,
+   "touch": 362,
    "cx": "S"
   },
   {
    "id": "unv-modal",
-   "touch": 319,
+   "touch": 323,
    "cx": "M"
   },
   {
    "id": "unv-opp-choice",
-   "touch": 310,
+   "touch": 312,
    "cx": "M"
   },
   {
    "id": "unv-becomes",
-   "touch": 267,
+   "touch": 282,
    "cx": "L"
   },
   {
@@ -357,7 +358,7 @@
   },
   {
    "id": "unv-damage-calc",
-   "touch": 212,
+   "touch": 213,
    "cx": "S"
   }
  ]

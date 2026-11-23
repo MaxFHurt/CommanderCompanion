@@ -125,7 +125,7 @@ export function applyLinked(game, controllerId, effect, bindings, notes) {
         ids = linkedIds(game, bindings).filter(id => fits(game, id, effect.filter));
         if (effect.select === 'random' && ids.length) ids = [ids[Math.floor(Math.random() * ids.length)]];
       }
-      let moved = 0;
+      let moved = 0; const movedIds = [];
       for (const id of ids) {
         const hit = locateCardInGame(game, id);
         if (!hit || hit.zone !== 'exile') continue;
@@ -133,10 +133,11 @@ export function applyLinked(game, controllerId, effect, bindings, notes) {
         const owner = hit.card.ownerId || hit.player?.playerId;
         const res = moveCard(game, id, effect.to, { controllerId: effect.to === 'battlefield' ? (effect.owner ? owner : controllerId) : null, tapped: !!effect.tapped, onEvent: emit });
         if (effect.counter && effect.to === 'battlefield') H.addCounter(res.card, effect.counter, effect.counterN || 1);
-        moved++;
+        moved++; movedIds.push(id);
         notes.push(`${nameOf(game, id)} ${effect.to === 'battlefield' ? `enters the battlefield${effect.owner ? " under its owner's control" : ` under ${controller?.displayName || 'your'} control`}` : effect.to === 'hand' ? "returns to its owner's hand" : 'is put into its owner’s graveyard'}.`);
       }
       if (!moved && !ids.length) notes.push('There are no cards exiled with it.');
+      bindings.lastLinkedMoved = movedIds;   // "If it's a land card …" (effects-b113.js refIdB113)
       return true;
     }
     case 'linked-permit': {

@@ -6,6 +6,7 @@ import { compileCatalogClause, compileB101Only, compileB110Only, compileLinkedOn
 import { parseConditionB49, conditionHoldsB49 } from './effects-b49.js';
 import { parseConditionB110, conditionHoldsB110 } from './effects-b110.js';
 import { parseConditionB112, conditionHoldsB112 } from './effects-b112.js';
+import { parseConditionB113, conditionHoldsB113, setSourceNameB113 } from './effects-b113.js';
 import { tokenCount, counterCount, lifeGainAmount, damageAmount, graveyardDestination } from './replacements.js';
 import { parseSubject, subjectMatches } from './trigger-subject.js';
 import { effectivePower, effectiveToughness, lifeFixed } from './combat.js';
@@ -1879,13 +1880,13 @@ export function parseCondition(text) {
   if ((m = t.match(/^you have exactly (\w+) cards in (?:your )?hand$/i))) return { test: 'hand-exact', n: counts[m[1].toLowerCase()] ?? numberFromText(m[1]) ?? Number(m[1]) };
   if ((m = t.match(/^you gained (?:life|(\w+) or more life) this turn$/i))) return { test: 'gained-life', min: m[1] ? (counts[m[1].toLowerCase()] ?? Number(m[1])) : 1 };
   if ((m = t.match(/^(an opponent|that player) controls more (creatures|lands|artifacts|enchantments) than you$/i))) return { test: 'more-than-you', who: /that/i.test(m[1]) ? 'event' : 'any', filter: m[2].replace(/s$/, '').toLowerCase() };
-  return parseConditionB49(t) || parseConditionB110(t) || parseConditionB112(t);
+  return parseConditionB49(t) || parseConditionB110(t) || parseConditionB112(t) || parseConditionB113(t);
 }
 /** An intervening "if" (CR 603.4): a trigger whose whole effect is one condition on the game state checks it when it would go on the stack; true when it must be dropped. */
 const INTERVENING = /^(?:b110-(?:amount|mana-from|left-graveyard|event-mv|event-damage|control-or-gy|monarch|source-here|cost-discarded|hand-at-most|gy-type|gy-types|kick-count|source-counters|card-flag)|b49-color-spent)$/;
 export function interveningIfFails(game, controllerId, effects, bindings) {
   const fx = (effects || []).filter(e => e.kind !== 'set-x'), first = fx[0];
-  if (!first || first.kind !== 'condition' || first.skip < fx.length - 1 || !INTERVENING.test(first.test || '')) return false;
+  if (!first || first.kind !== 'condition' || first.skip < fx.length - 1 || !(INTERVENING.test(first.test || '') || (first.iv && /^b113-/.test(first.test || '')))) return false;
   const holds = conditionHolds(game, controllerId, first, bindings);
   return first.negate ? !!holds : !holds;
 }
@@ -1966,6 +1967,8 @@ export function conditionHolds(game, controllerId, effect, bindings) {
   if (b110 !== undefined) return b110;
   const b112 = conditionHoldsB112(game, controllerId, effect, bindings);
   if (b112 !== undefined) return b112;
+  const b113 = conditionHoldsB113(game, controllerId, effect, bindings);
+  if (b113 !== undefined) return b113;
   return true;
 }
 export function applyEffects(game, controllerId, effects = [], bindings = {}) {
@@ -3428,7 +3431,8 @@ function equalToAsX(clause) {
 let COMPILE_DEPTH = 0;
 function compileEffectTextUncached(text, opts = {}) {
   COMPILE_DEPTH++;
-  try { return compileEffectTextUncachedInner(text, opts); } finally { COMPILE_DEPTH--; }
+  const was = setSourceNameB113(opts.sourceName);
+  try { return compileEffectTextUncachedInner(text, opts); } finally { COMPILE_DEPTH--; setSourceNameB113(was); }
 }
 function compileEffectTextUncachedInner(text, { sourceName = 'Effect', allowGuidedFallback = false } = {}) {
   const vote = compileVote(cleanOracle(text), sourceName, allowGuidedFallback);

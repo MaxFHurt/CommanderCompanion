@@ -625,14 +625,16 @@ function dueDelayedTriggers(game, event) {
 /** What happened this turn, for "for each creature that died under your control this turn", "cards you've drawn this turn" … (build 101). */
 function tallyTurn(game, event) {
   const type = event?.type;
-  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill', 'combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent', 'spell-cast'].includes(type)) return;
+  if (!['dies', 'draw', 'discard', 'token-created', 'enters-battlefield', 'attacks', 'sacrificed', 'put-into-graveyard', 'counter-added', 'zone-change', 'mill', 'combat-damage-player', 'combat-damage-creature', 'damage-player', 'damage-permanent', 'spell-cast', 'leaves-battlefield'].includes(type)) return;
   if (type === 'zone-change' && !(event.to === 'exile' && event.from === 'battlefield')) return;
   const turn = Number(game.turnNumber || 0);
   if (game.turnTally?.turn !== turn) game.turnTally = { turn, died: [], draws: {}, discards: {}, tokens: {}, entered: [], attacked: {}, sacrificed: {}, descended: {}, countersOnMine: {}, exiled: [] };
   for (const k of ['entered']) game.turnTally[k] = game.turnTally[k] || [];
   for (const k of ['attacked', 'sacrificed', 'descended', 'countersOnMine', 'milled', 'damagePairs', 'nonHandPlays', 'countersPut']) game.turnTally[k] = game.turnTally[k] || {};
   game.turnTally.exiled = game.turnTally.exiled || [];
+  game.turnTally.left = game.turnTally.left || [];
   const t = game.turnTally, bump = (o, id) => { if (id) o[id] = Number(o[id] || 0) + 1; };
+  if (type === 'leaves-battlefield') { t.left.push({ controllerId: event.controllerId || null, typeLine: String(event.typeLine || ''), token: !!event.token }); return; }
   if (type === 'dies') t.died.push({ controllerId: event.controllerId || null, ownerId: event.ownerId || null, token: !!event.token, typeLine: String(event.typeLine || '') });
   if (type === 'draw') bump(t.draws, event.playerId);
   if (type === 'discard') bump(t.discards, event.playerId);

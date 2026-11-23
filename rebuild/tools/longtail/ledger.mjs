@@ -9,7 +9,8 @@
 //   reminder text (basic lands); (2) every non-keyword line's wording (or its effect half after "When/Whenever/At …," or "cost:") appears
 //   in a test source (tests/node/*.mjs, tests/fixtures/*.mjs), i.e. a test compiles/runs that wording; (3) the card flipped from by hand
 //   to automatic in a completed batch whose newly passing cards had their compiled effects read (reviewed.txt) and its static lines
-//   the audit cannot check are covered by (1)/(2). b = automatic in the audit but none of that. c = by hand.
+//   the audit cannot check are covered by (1)/(2); or (4) tools/longtail/behaviour-tested.txt: the card was played with its condition true and
+//   false through the real game by tests/node/b113.mjs (evidence behaviour-test). b = automatic in the audit but none of that. c = by hand.
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { classify, RULES } from './ledger-rules.mjs';
@@ -35,6 +36,7 @@ const rows = Array.isArray(audit) ? audit : audit.cards;
 const cards = gunzipSync(readFileSync(opt('--oracle'))).toString().split('\n').filter(Boolean).map(l => JSON.parse(l))
   .filter(c => c.legalities?.commander === 'legal' && !['token', 'art_series', 'double_faced_token', 'emblem'].includes(c.layout))
   .sort((a, b) => (a.edhrec_rank ?? 1e9) - (b.edhrec_rank ?? 1e9));
+const BEHAVIOUR = new Set(existsSync(OUT + '/behaviour-tested.txt') ? readFileSync(OUT + '/behaviour-tested.txt', 'utf8').split('\n').filter(Boolean) : []);   // played true and false through the real game (tests/node/b113.mjs)
 const REVIEWED = new Set(readFileSync(opt('--reviewed') || OUT + '/reviewed.txt', 'utf8').split('\n').filter(Boolean));
 
 // failing clauses by rank
@@ -104,6 +106,7 @@ cards.forEach((card, idx) => {
   const staticOpen = staticLines.filter(l => !isKeywordLine(l) && !covered(l, names));
   let tier, evidence;
   if (!uncovered.length) { tier = 'a'; evidence = kwOnly ? 'keyword-only' : halfOnly ? 'test-wording-effect-half' : 'test-wording'; }
+  else if (BEHAVIOUR.has(card.name) && !staticOpen.length) { tier = 'a'; evidence = 'behaviour-test'; }
   else if (reviewed && !staticOpen.length) { tier = 'a'; evidence = 'batch-review'; }
   else { tier = 'b'; evidence = ''; }
   const rec = { ...base, tier, evidence };
