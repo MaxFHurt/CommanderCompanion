@@ -1742,6 +1742,7 @@ async function doRegen() {
   d.recPrev = d.recP || {};
   d.recP = {};
   d.regenAt = new Date().toISOString().slice(0, 10);
+  refUnpin(d); // the power bar's reference builds are worked out again from the deck as it is now (UP.fixRef)
   recDrop(d); // the saved list is not used again
   let fresh = false;
   if (c) {

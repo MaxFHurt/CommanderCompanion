@@ -638,7 +638,7 @@ function landRank(d, addName, ar) {
 // strength off, the deck score change. Tiny changes read as unchanged.
 function wantChip(v, cut, add) {
   const d = cur(),
-    pw = cut && add && d && typeof strengthOn === 'function' && strengthOn(d) ? strengthGain(d, cut, add, 1) : null;
+    pw = cut && add && d && typeof strengthOn === 'function' && strengthOn(d) ? powGain(d, cut, add, 1) : null;
   return pw != null ? strChip(pw) : dsChip(v);
 }
 function dsChip(v) {
@@ -709,9 +709,10 @@ function wantHtml(d, c) {
     cuts = r.slice(0, 3);
     cuts.starved = r.starved;
   } else if (e && e.exact != null) {
-    const ls = cuts.some(x => x.land) ? freshDelta(d, ar) : null;
+    const ls = cuts.some(x => x.land) ? freshDelta(d, ar) : null,
+      GB = UP.oneM ? upGainFn(d) : null; // UP.oneM: the card it replaces is chosen by the power bar, the measure its chip shows
     cuts.forEach(x => {
-      x.dScore = x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1);
+      x.dScore = GB && !x.land ? GB(x.n, c.n, 1) : x.land ? ls(x.n, c.n) : swapScore(d, e, ar, x.n, c.n, 1);
     });
     const key = x => (x.s <= -80 ? 1e6 : 0) + (x.dScore ?? -1e9); // a card that is illegal or outside the colours always goes first
     // by function (owner, 1 Nov): never a card doing a job the deck is short of; the best of the cards sharing the incoming
@@ -777,7 +778,7 @@ function wantHtml(d, c) {
               (cuts0.some(x => x.land) ? 'spells and spare lands' : 'spells') +
               ' it could replace. ') +
           (() => {
-            const P = strengthOn(d) ? strengthGain(d, b.n, c.n, 1) : null,
+            const P = strengthOn(d) ? powGain(d, b.n, c.n, 1) : null,
               v = P != null ? P : b.dScore,
               m = P != null ? 0.05 : SCORE_MIN,
               w = P != null ? 'the deck’s power' : 'the deck score';
@@ -807,7 +808,7 @@ function wantHtml(d, c) {
     '" data-v="' +
     esc(b.n) +
     '" style="margin-left:auto">Swap in</button></div>' +
-    tipHtml(d, c, b.dScore != null ? {cut: b.n, dScore: b.dScore, gain: swapGain(d, e, ar, b, c), pw: strengthOn(d) ? strengthGain(d, b.n, c.n, 1) : null} : null) +
+    tipHtml(d, c, b.dScore != null ? {cut: b.n, dScore: b.dScore, gain: swapGain(d, e, ar, b, c), pw: strengthOn(d) ? powGain(d, b.n, c.n, 1) : null} : null) +
     '</div>';
   S.wantMore =
     '<div class="grp"><span class="lab">Or take out instead</span>' +

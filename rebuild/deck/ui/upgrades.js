@@ -900,7 +900,7 @@ const KIND_LAB = {
   synergy: 'Synergy',
   gc: 'Game Changers',
   land: 'Lands',
-  power: 'Raw power'
+  power: 'Strongest cards' // owner, 23 Nov: "power" only ever means the deck's overall power (the bar's scale)
 };
 function upK() {
   return S.upKind && S.upKind.id === S.deckId ? S.upKind.k : '';
@@ -1654,8 +1654,23 @@ function scoreChip(v) {
 function upChip(L, t) {
   const p = L.opts[t],
     d = cur();
-  if (p && d && typeof strengthOn === 'function' && strengthOn(d)) return strChip(strengthGain(d, p.cut, p.add, p.q));
+  if (p && d && typeof strengthOn === 'function' && strengthOn(d)) return strChip(powGain(d, p.cut, p.add, p.q));
   return p ? scoreChip(p.dScore) : '';
+}
+// The one measure a swap is shown with (UP.oneM, owner, 22 Nov: "If a card tells me it's an upgrade, it should be an upgrade
+// to everything"): its change to the power bar (engine barGainFn, the deck scored with the swap against the deck's reference
+// builds), measured once per deck state; card strength alone with UP.oneM 0. Null when strength is off.
+function upGainFn(d) {
+  if (!d || typeof strengthOn !== 'function' || !strengthOn(d)) return null;
+  if (UP.oneM && typeof barGainFn === 'function') {
+    const e = evalFor(d);
+    if (e && e.str) return barGainFn(d, null, e);
+  }
+  return strGainFn(d);
+}
+function powGain(d, cut, add, q) {
+  const G = upGainFn(d);
+  return G ? G(cut, add, q || 1) : null;
 }
 // UP.str: a swap's change in deck power on the strength scale (engine/strength.js)
 function strChip(v) {
@@ -1664,7 +1679,7 @@ function strChip(v) {
     txt = (v >= 0 ? '+' : '−') + (a >= 10 ? Math.round(a) : a.toFixed(1)) + ' power';
   return a < 0.05
     ? '<span class="chip" title="This swap keeps the deck’s power the same; it can still suit your plan or budget better">Power unchanged</span>'
-    : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="Change to the deck’s power if you make this swap (card strength)">' + (v >= 1.5 ? 'Major upgrade · ' : v >= 0.75 ? 'Strong upgrade · ' : v > 0 ? 'Small upgrade · ' : '') + txt + '</span>';
+    : '<span class="chip ' + (v > 0 ? 'good' : 'warn') + '" title="' + (UP.oneM ? 'Change to the deck’s power (the power bar) if you make this swap' : 'Change to the deck’s power if you make this swap (card strength)') + '">' + (v >= 1.5 ? 'Major upgrade · ' : v >= 0.75 ? 'Strong upgrade · ' : v > 0 ? 'Small upgrade · ' : '') + txt + '</span>';
 }
 // What applying a whole tier does to the deck's jobs and curve (from the engine's package check).
 function packLine(R, t, n) {
@@ -1785,7 +1800,7 @@ function altList(d, s) {
     return altsFor(d, s.n, {deck, skip: P.flatMap(y => [y.a, y.m, y.b]).filter(Boolean)});
   }
   const R = recsFor(d),
-    G = R.str && typeof strGainFn === 'function' ? strGainFn(d) : null,
+    G = R.str && typeof strGainFn === 'function' ? upGainFn(d) : null,
     // card strength (UP.str): candidates ranked by strength at the pick's tier, each measured on the power scale as the pick is
     val = G ? c => 50 * strValue(c, d, s.t === 'mid' || s.t === 'budget') : R.valOf, // on altsFor's scale (its type and job bonuses)
     skip = R.paths.flatMap(L => Object.values(L.opts).map(o => o.add)),
@@ -2277,6 +2292,7 @@ function apexFor(d) {
   return null;
 }
 function evalFor(d) {
+  if (typeof refPinFor === 'function') refPinFor(d);
   const key = [
     d.commander,
     d.partner || '',
@@ -2295,7 +2311,7 @@ function evalFor(d) {
   ].join('#');
   const ar = apexFor(d),
     st = typeof strengthOn === 'function' && strengthOn(d),
-    k2 = key + '#' + (ar ? 'apex' : 'pending') + (st ? '#str' + STRENGTH.date + ':' + STRENGTH.cmd.size : '');
+    k2 = key + '#' + (ar ? 'apex' : 'pending') + (st ? '#str' + STRENGTH.date + ':' + STRENGTH.cmd.size : '') + (UP.fixRef && d.refPin ? '#pin' + strHash(JSON.stringify(d.refPin.cards)) : '');
   const old = EVC.get(d.id);
   if (old && old.key === k2) return old.v;
   const sim = old && old.base === key && old.v ? old.v.sim : undefined; // same cards: the practice games need not be replayed
@@ -2737,7 +2753,9 @@ function statsHtml(d, A, R, mode) {
     T0r = SRP || (apexFor(d) || {}).tot,
     GR = T0r,
     T0 = refOrder(T0r),
-    pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+    // UP.oneRef (owner, 23 Nov): the Apex build is made with the same measure, so 100 is the ceiling; a deck past it after swaps
+    // (a different practice-game draw, a card from outside the list) reads 100, Apex level
+    pw = e && T0 && T0.apex > 0 ? (UP.oneRef && UP.oneM ? Math.min(100, (100 * e.exact) / T0.apex) : (100 * e.exact) / T0.apex) : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
     // the apex deck's power"; "appear to make progress, not be a belittling or demeaning stat", and no false information).
     // The Budget and Mid builds are marked the same way. (Before: Budget 70, Mid 85, Apex 100 with a steep curve below Budget.)
@@ -3174,7 +3192,7 @@ function fixStandIn(d, key, L) {
   const e = evalFor(d),
     ar = apexFor(d),
     R = recsFor(d),
-    G = typeof strengthOn === 'function' && strengthOn(d) && STR_FIX.includes(kind) ? strGainFn(d) : null,
+    G = typeof strengthOn === 'function' && strengthOn(d) && STR_FIX.includes(kind) ? (UP.oneM ? upGainFn(d) : strGainFn(d)) : null,
     score = G
       ? (cut, add) => G(cut, add, 1)
       : e && e.exact != null && !['landsUp', 'landsDown', 'mana'].includes(kind)
@@ -3276,16 +3294,19 @@ function fixList(d, key) {
   const kind = FIX_OF[key],
     on = typeof strengthOn === 'function' && strengthOn(d);
   if (on && STR_FIX.includes(kind)) {
-    const G = strGainFn(d);
-    if (G) {
+    const G0 = strGainFn(d),
+      // UP.oneM: each swap shown with its change to the power bar, and only swaps that raise it (2: also chosen by it)
+      GB = UP.oneM ? upGainFn(d) : G0,
+      G = UP.oneM === 2 ? GB : G0;
+    if (G && GB) {
       const cas = d.tier === 'mid' || d.tier === 'budget';
       try {
         const L = fixSwaps(d, kind, {n: 6, val: c => strValue(c, d, cas), score: (cut, add) => G(cut, add, 1)})
           .filter(p => !hasCard(d, p.add))
-          .map(p => Object.assign(p, {dScore: G(p.cut, p.add, p.q || 1), str: true}))
-          .filter(p => p.dScore >= SCORE_MIN);
+          .map(p => Object.assign(p, {sGain: G0(p.cut, p.add, p.q || 1), dScore: GB(p.cut, p.add, p.q || 1), str: true}))
+          .filter(p => p.dScore != null && p.dScore >= SCORE_MIN);
         // UP.planFix: plan picks lead when they do at least half as much as the best swap (mana.js fixPlanSort)
-        return (UP.planFix ? fixPlanSort(L) : L.sort((a, b) => b.dScore - a.dScore)).slice(0, 5);
+        return (UP.planFix ? fixPlanSort(L) : L.sort((a, b) => (UP.oneM === 1 ? b.sGain - a.sGain : b.dScore - a.dScore))).slice(0, 5);
       } catch (err) {
         return [];
       }

@@ -22,6 +22,7 @@ Line numbers drift; grep the function name (`grep -n "^function name" file`), th
 | Reference Apex/Mid/Budget builds (engine) | engine/score.js · apexRef, refScores; ui/upgrades.js · apexFor |
 | Score shown on the page | ui/upgrades.js · evalFor |
 | Card strength, power, strength builds | engine/strength.js · strengthRef, strBuild, strPicks, strengthPower, strengthPaths, strFinish (branch team/apex2) |
+| Power bar benchmark fixed until Regenerate (UP.fixRef) / one measure for upgrades (UP.oneM 1 check, 2 score ranks) | engine/strength.js · strBasis (d.refPin), strChecked + strBasisSim (UP.oneRef: references built with the one measure), barGainFn, barRecheck, strengthPaths (one-measure pass), strFinish; ui/library.js · refPinFor / refUnpin (PIN_SWAP, keepRecs, carryRecs); ui/upgrades.js · upGainFn / powGain (chips, Fix, alternatives), cards.js (card window); tests UI-FIXREF-01, UI-ONEM-01; probes /home/user/dc-runs/onemeasure/proto/tests/om (lower.js, drifts.sh, sweep.sh) |
 | Strength settings | engine/upgrades.js `UP = {…}` (str*, lfix …) |
 | Practice games (mana part) | engine/practice.js · simulate (screw = <4 lands on turn 5) |
 | Generator | engine/generator.js · buildPlan, genDeck, manaPlan (KARSTEN pips), validateDeck; ui/storage.js · genRun, genPrefetch |

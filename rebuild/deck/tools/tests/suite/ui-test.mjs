@@ -735,7 +735,7 @@ const b94 = await page.evaluate(async () => { const d = S.profile.decks.find(x =
   const t0 = performance.now(); openCard(c.n); const ms = Math.round(performance.now() - t0); await new Promise(r => setTimeout(r, 50));
   const m = document.querySelector('#modal'), rows = [m.querySelector('.swaphero') && m.querySelector('.swaphero').closest('.grp')].concat([...m.querySelectorAll('.grp')].filter(g => /Or take out instead/.test(g.textContent)).flatMap(g => [...g.querySelectorAll('.path')]));
   const outs = [...m.querySelectorAll('.sw.out')].map(b => b.dataset.n), chips = [...m.querySelectorAll('[data-act="want"]')].map(b => { const r = b.closest('.row'); const ch = [...r.querySelectorAll('.chip')].find(x => /deck score|power/i.test(x.textContent)); return ch ? ch.textContent : null; });   /* card window: the power chip with card strength on, else the deck-score chip */
-  const e = evalFor(d), ar = apexFor(d), SO = strengthOn(d), ds = outs.map(n => swapScore(d, e, ar, n, c.n, 1)), pw = outs.map(n => strengthGain(d, n, c.n, 1)), val = t => /unchanged/i.test(t) ? 0 : parseFloat(t.replace(/^[^+−\d-]*/, '').replace('−', '-'));   /* shown as the deck score */
+  const e = evalFor(d), ar = apexFor(d), SO = strengthOn(d), ds = outs.map(n => UP.oneM && SO ? powGain(d, n, c.n, 1) : swapScore(d, e, ar, n, c.n, 1)), pw = outs.map(n => UP.oneM ? powGain(d, n, c.n, 1) : strengthGain(d, n, c.n, 1)),   /* UP.oneM: cuts chosen and shown by the power bar's measure */ val = t => /unchanged/i.test(t) ? 0 : parseFloat(t.replace(/^[^+−\d-]*/, '').replace('−', '-'));   /* shown as the deck score */
   const out = {card:c.n, outs, chips, ds, ms, allShown:chips.length === outs.length && chips.every(Boolean), sorted:ds.every((v, i) => !i || v <= ds[i - 1] + 1e-9), match:chips.every((t, i) => { const x = SO ? pw[i] : ds[i]; return t && !(SO && /deck score/i.test(t)) && Math.abs(val(t) - (Math.abs(x) < 0.05 ? 0 : x)) < 0.06; })};
   $('#modal').hidden = true; return out; });
 T('UI-B94-01', 'Putting a card in a full deck: every Take out option shows the deck score change (+/-), best first, matching the score check', b94.allShown && b94.sorted && b94.match && b94.outs.length >= 2, JSON.stringify(b94));
@@ -1721,6 +1721,84 @@ const swp = await page.evaluate(async () => { const out = {};
   S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render(); return out; });
 T('UI-SWAP-01', 'Owner, 22 Nov: a swap from the card pop-up (Swap in for a row’s pick, Or take out instead) or the Fix menu keeps the upgrade list like a row’s Swap: the same list, the row now holds the new card with the old one marked Replaced, the other rows unchanged, the card put in no longer offered elsewhere', swp.found && swp.popup === swp.cut && swp.want && swp.want.inDeck && swp.want.same && swp.want.row && swp.want.others && swp.want.chip && swp.other && swp.other.same && swp.other.gone && swp.fix && swp.fix.same && swp.fix.inDeck && swp.fix.rowKept, JSON.stringify(swp));
 } catch (e) { QUIET = false; T('UI-SWAP-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-FIXREF-01')) { try { if (SHARD) await RESET();
+// Owner, 22 Nov ("Fix it until Regenerate"; UP.fixRef): the Apex build the power bar is measured against is worked out once with
+// the upgrade list and kept while swaps are made (a row's Swap, the card pop-up's Swap in, a Fix swap), so the Apex score and the
+// reference stay the same object; cards changed by hand or Regenerate work it out again from the deck as it then is.
+const fr = await page.evaluate(async () => { const out = {}, sv = UP.fixRef; UP.fixRef = 1;
+  try {
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  d.tier = 'apex'; S.manaOK = true;
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
+  const settle = async () => { await new Promise(r => setTimeout(r, 150)); $('#modal').hidden = true; render(); await recsReady(d); render(); };
+  const SR0 = strengthRef(d), A0 = strRefParts(d, SR0).apex, pin0 = JSON.stringify(d.refPin && d.refPin.cards);
+  out.pinned = !!d.refPin && pin0 === JSON.stringify(d.cards.map(e => [e.n, e.q]));
+  const bar = () => (document.querySelector('.tmeter') || {getAttribute: () => ''}).getAttribute('aria-label');
+  out.steps = [];
+  const check = tag => { const SR = strengthRef(d); out.steps.push({tag, same: SR === SR0, apex: strRefParts(d, SR).apex === A0, pin: JSON.stringify(d.refPin && d.refPin.cards) === pin0, bar: !!bar()}); };
+  // 1. a row's Swap
+  let R = recsFor(d), i = R.paths.findIndex(L => L.opts.apex && !hasCard(d, L.opts.apex.add));
+  if (i >= 0) { handleAct('swap', i + '|apex'); await settle(); check('row'); }
+  // 2. the card pop-up's Swap in
+  R = recsFor(d); const L2 = R.paths.find(L => !L.applied && L.opts.apex && !hasCard(d, L.opts.apex.add) && entryOf(d, L.cut));
+  if (L2) { const c2 = L2.cut, a2 = L2.opts.apex.add; S.rowCut = c2; openCard(a2); handleAct('want', c2, a2); await settle(); check('popup'); }
+  // 3. a Fix menu swap
+  for (const k of ['Removal', 'Draw', 'Ramp']) { openFix([k]); const g = (S.fixG || []).find(x => x.k === k), j = g ? g.L.findIndex(p => entryOf(d, p.cut) && !hasCard(d, p.add)) : -1; if (j >= 0) { handleAct('fix-swap', k + '|' + j); await settle(); check('fix'); break; } }
+  // 4. a card changed by hand: the reference is worked out again from the deck as it is
+  const sp = d.cards.find(e => { const c = find(e.n); return c && !tags(c).land && c.n !== d.commander && !e.l; }), lib = LIB.find(c => !hasCard(d, c.n) && legalIn(c, 'commander') && c.ci.every(z => ctxOf(d).ident.includes(z)) && !tags(c).land && !isBasic(c.n));
+  cutCard(d, sp.n, 1); addCard(d, lib.n, 1); touch(); render(); await recsReady(d); render();
+  out.hand = {repinned: JSON.stringify(d.refPin && d.refPin.cards) === JSON.stringify(d.cards.map(e => [e.n, e.q])), newRef: strengthRef(d) !== SR0};
+  // 5. Regenerate: worked out again too (the pin is set from the deck as it is)
+  const SR1 = strengthRef(d); handleAct('swap', '0|apex'); await settle(); const SR2 = strengthRef(d);
+  out.kept2 = SR2 === SR1;
+  await doRegen(); await settle(); out.regen = {repinned: JSON.stringify(d.refPin && d.refPin.cards) === JSON.stringify(d.cards.map(e => [e.n, e.q])), newRef: strengthRef(d) !== SR2};
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render();
+  } finally { UP.fixRef = sv; }
+  return out; });
+T('UI-FIXREF-01', 'Owner, 22 Nov ("Fix it until Regenerate"): the Apex build the power bar measures against stays the same through a row Swap, a pop-up Swap in and a Fix swap; a card changed by hand or Regenerate works it out again from the deck as it is',
+  fr.pinned && fr.steps.length >= 3 && fr.steps.every(x => x.same && x.apex && x.pin && x.bar) && fr.hand && fr.hand.repinned && fr.hand.newRef && fr.kept2 && fr.regen && fr.regen.repinned && fr.regen.newRef, JSON.stringify(fr).slice(0, 600));
+} catch (e) { QUIET = false; T('UI-FIXREF-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
+if (RUN('UI-ONEM-01')) { try { if (SHARD) await RESET();
+// Owner, 22 Nov ("If a card tells me it's an upgrade, it should be an upgrade to everything"; UP.oneM): every swap the app calls
+// an upgrade raises the power bar by the amount its chip shows: each pick on every row and tier, after a swap (the kept list is
+// measured again), the Fix menu's swaps and the card pop-up's chip. Measured on the bar's own scale (barGainFn: the deck scored
+// with the swap as a share of the Apex build's score).
+const om = await page.evaluate(async () => { const out = {}, sv = UP.oneM; UP.oneM = UP.oneM || 1;
+  try {
+  await loadPreconLive('turtle-power', 'Turtle Power'); const d = S.draft; S.profile.decks.unshift(d); S.draft = null; S.deckId = d.id; touch(); await loadEdh(d.commander);
+  d.tier = 'apex'; S.manaOK = true;
+  for (let i = 0; i < 100 && !apexFor(d); i++) await new Promise(r => setTimeout(r, 100));
+  S.view = 'decks'; S.open = true; S.tab = 'up'; S.upView = 'list'; recsFor.k = null; render(); await recsReady(d); render();
+  const settle = async () => { await new Promise(r => setTimeout(r, 150)); $('#modal').hidden = true; render(); await recsReady(d); render(); };
+  const sc = () => { const e = evalFor(d), P = strRefParts(d, strengthRef(d)); return 100 * e.exact / P.apex; };
+  // every offered pick, measured directly: the deck with the swap scored on the deck's games against the same reference
+  const direct = (cut, add) => { const u = Object.assign({}, d, {cards: d.cards.map(e => Object.assign({}, e))}); delete u.refPin; cutCard(u, cut, 1); addCard(u, add, 1);
+    const lc = n => !!(find(n) && tags(find(n)).land), e0 = evalFor(d), SR = strengthRef(d); return 100 * (evaluateDeck(u, {sim: lc(cut) !== lc(add) ? undefined : e0.sim, games: 300, str: true, strRef: SR}).exact - e0.exact) / strRefParts(d, SR).apex; };
+  const audit = () => { const R = recsFor(d), bad = []; let n = 0;
+    R.paths.forEach(L => ['apex', 'mid', 'budget'].forEach(t => { const p = L.opts[t]; if (!p || L.applied && t === L.applied.t) return; n++; const g = direct(p.cut || L.cut, p.add), shown = powGain(d, p.cut || L.cut, p.add, p.q || 1);
+      if (!(g >= 0.05 - 1e-9) || Math.abs(g - shown) > 0.01) bad.push([L.cut, t, p.add, +g.toFixed(2), shown && +shown.toFixed(2)]); }));
+    return {n, bad}; };
+  out.a0 = audit();
+  // swap the first row, then audit the kept list again (every remaining pick re-measured on the deck as it now is)
+  const s0 = sc(); let R = recsFor(d), i = R.paths.findIndex(L => L.opts.apex && !hasCard(d, L.opts.apex.add)); const ch = R.paths[i].opts.apex.dScore;
+  handleAct('swap', i + '|apex'); await settle(); out.rise = +(sc() - s0).toFixed(2); out.chip = +ch.toFixed(2);
+  out.a1 = audit();
+  // the chips drawn on the page show the same numbers
+  out.chipsOk = [...document.querySelectorAll('.chip.good')].length > 0;
+  // Fix menu swaps: each raises the bar
+  out.fix = [];
+  for (const k of ['Removal', 'Draw', 'Ramp']) { openFix([k]); const g = (S.fixG || []).find(x => x.k === k); if (g) g.L.forEach(p => { if (p.str) out.fix.push(+direct(p.cut, p.add).toFixed(2)); }); $('#modal').hidden = true; }
+  // the card pop-up's chip is the same number as the row's
+  R = recsFor(d); const L2 = R.paths.find(L => !L.applied && L.opts.apex && !hasCard(d, L.opts.apex.add));
+  if (L2) { S.rowCut = L2.cut; openCard(L2.opts.apex.add); for (let k = 0; k < 50 && !document.querySelector('#modal [data-act="want"]'); k++) await new Promise(r => setTimeout(r, 100));
+    const txt = ([...document.querySelectorAll('#modal .chip')].find(x => / power/.test(x.textContent)) || {}).textContent || ''; out.pop = {txt, want: strChip(powGain(d, L2.cut, L2.opts.apex.add, 1)).replace(/<[^>]+>/g, '')}; $('#modal').hidden = true; S.rowCut = null; }
+  S.profile.decks = S.profile.decks.filter(x => x !== d); S.view = 'home'; render();
+  } finally { UP.oneM = sv; }
+  return out; });
+T('UI-ONEM-01', 'Owner, 22 Nov ("an upgrade to everything"): every offered pick raises the power bar by what its chip shows, before and after a swap (the kept list is measured again); Fix swaps raise it; the card pop-up shows the row’s number',
+  om.a0 && om.a0.n > 3 && !om.a0.bad.length && om.a1 && !om.a1.bad.length && om.rise > 0 && om.chipsOk && om.fix.every(v => v >= 0.05 - 1e-9) && om.pop && om.pop.txt === om.pop.want, JSON.stringify(om).slice(0, 700));
+} catch (e) { QUIET = false; T('UI-ONEM-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-B196-01')) { try { if (SHARD) await RESET();
 // Build 196 (owner, 8 Nov): the tokens a deck makes are listed at the very bottom of the decklist, one per card that makes each
 // kind, and they don't count toward the deck's 100.
