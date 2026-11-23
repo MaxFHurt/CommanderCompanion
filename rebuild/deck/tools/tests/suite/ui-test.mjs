@@ -1162,7 +1162,8 @@ T('UI-B127-01', 'Upgrade sheets: four cards (your card, Budget, Mid, Apex) with 
 if (RUN('UI-B129-01')) { try { if (SHARD) await RESET();
 // 78. Build 129: Apex is the strongest pick on each row: no Mid or Budget pick raises the deck score more than the row's Apex pick.
 const b129 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); const R = await recsReady(d);
-  const rows = R.paths.filter(L => L.opts.apex && L.opts.apex.dScore != null), bad = rows.filter(L => ['mid', 'budget'].some(t => L.opts[t] && L.opts[t].dScore != null && L.opts[t].dScore > L.opts.apex.dScore + SCORE_MIN)).map(L => L.cut);
+  /* one measure (UP.oneM 1, owner 22-23 Nov): the strength builds still choose, so "strongest" is the strength gain (sGain); a pick's chip (dScore) is its own change to the bar, which a cheaper pick can exceed */ const sv = p => p.bar && p.sGain != null ? p.sGain : p.dScore;
+  const rows = R.paths.filter(L => L.opts.apex && L.opts.apex.dScore != null), bad = rows.filter(L => ['mid', 'budget'].some(t => L.opts[t] && L.opts[t].dScore != null && sv(L.opts[t]) > sv(L.opts.apex) + SCORE_MIN)).map(L => L.cut);
   return {rows:rows.length, bad}; });
 T('UI-B129-01', 'Apex is the strongest pick on each row: no Mid or Budget pick raises the deck score more than the Apex pick', b129.rows > 0 && !b129.bad.length, JSON.stringify(b129));
 } catch (e) { QUIET = false; T('UI-B129-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
@@ -1171,7 +1172,8 @@ if (RUN('UI-B130-01')) { try { if (SHARD) await RESET();
 // Apex pick replaces stays first among the alternatives marked Most played; the buy list remembers the printing you chose.
 const b130 = await page.evaluate(async () => { const d = S.profile.decks.find(x => /Wakanda/i.test(x.name)); S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; render(); const R = await recsReady(d), out = {};
   const pops = R.paths.filter(L => L.pop && L.pop.apex); out.pops = pops.length; out.mostFirst = pops.every(L => L.alts && L.alts.apex && L.alts.apex[0] && L.alts.apex[0].most && L.alts.apex[0].n === L.pop.apex.add);
-  out.apexStrongest = R.paths.every(L => !L.opts.apex || ['mid', 'budget'].every(t => !L.opts[t] || L.opts[t].dScore == null || L.opts.apex.dScore == null || L.opts[t].dScore <= L.opts.apex.dScore + SCORE_MIN));
+  const sv = p => p.bar && p.sGain != null ? p.sGain : p.dScore; /* strength gain under the one measure (UP.oneM 1, owner 22-23 Nov), as in UI-B129-01 */
+  out.apexStrongest = R.paths.every(L => !L.opts.apex || ['mid', 'budget'].every(t => !L.opts[t] || L.opts[t].dScore == null || L.opts.apex.dScore == null || sv(L.opts[t]) <= sv(L.opts.apex) + SCORE_MIN));
   S.modalCard = 'Sol Ring'; S.pick = {id:'pp1', set:'Fancy Foil Edition', p:9.99}; const keep = JSON.stringify(d.want || []); d.want = []; addWant(d, 'Sol Ring', pickPrint(find('Sol Ring')));
   const w = d.want[0]; out.kept = !!w && w.ps === 'Fancy Foil Edition' && w.pp === 9.99; S.view = 'buy'; S.buySel = null; render(); const t = document.querySelector('#main').textContent; out.shown = /Fancy Foil Edition/.test(t) && /\$9\.99/.test(t);
   out.plainExport = buyAllText().split('\n').includes('1 Sol Ring'); d.want = JSON.parse(keep); S.pick = null; S.view = 'decks'; render(); return out; });
@@ -1219,10 +1221,10 @@ const b134 = await page.evaluate(async () => { const out = {found:false}; S.sync
   for (const list of [decks, null]) { if (out.found) break; for (const d of (list || await more())){ S.deckId = d.id; S.view = 'decks'; S.open = true; S.tab = 'up'; recsFor.k = null; render(); const R = await recsReady(d);
     R.paths.forEach((L, i) => ['apex', 'mid', 'budget'].forEach(t => ((L.alts || {})[t] || []).forEach(a => { if (a.unpop && !out.found){ out.found = true; out.i = i; out.t = t; out.n = a.n; out.vs = a.vs; out.vsInc = a.vsInc; out.inc = a.inc; } })));
     if (out.found){ handleAct('unpop', out.i + '|' + out.t, out.n); const m = document.querySelector('#modal'); out.text = m ? m.textContent : ''; out.both = new RegExp(Math.round(out.vsInc * 100) + '% of decks play').test(out.text) && /only \d+% of/.test(out.text); m.hidden = true; break; } } }
-  /* 0.9.59: with card strength on, every pick is the strongest card for its slot, so no alternative out-scores it and no Unpopular pick chip is due: checked on every deck visited instead */
-  out.str = decks.every(d => strengthOn(d)) && (!fresh || strengthOn(fresh)); if (out.str) { out.beats = 0; out.altsSeen = 0; for (const d of decks.concat(fresh ? [fresh] : [])) { S.deckId = d.id; recsFor.k = null; const R = await recsReady(d); R.paths.forEach(L => ['apex', 'mid', 'budget'].forEach(t => { const tp = L.opts[t]; ((L.alts || {})[t] || []).forEach(a => { out.altsSeen++; if (a.unpop || (tp && a.dScore > tp.dScore + 1e-9)) out.beats++; }); })); } }
+  /* 0.9.59: with card strength on, the strength builds choose the picks, so no Unpopular pick chip is due: checked on every deck visited instead. One measure (UP.oneM 1, owner 22-23 Nov): a pick is the strength build's card and its chip is its real change to the power bar, so an alternative may now show a bigger bar change than the pick (counted in outscore, not a failure); the alternatives' half-the-pick rule stays in UI-B81-03 */
+  out.str = decks.every(d => strengthOn(d)) && (!fresh || strengthOn(fresh)); if (out.str) { out.beats = 0; out.altsSeen = 0; for (const d of decks.concat(fresh ? [fresh] : [])) { S.deckId = d.id; recsFor.k = null; const R = await recsReady(d); R.paths.forEach(L => ['apex', 'mid', 'budget'].forEach(t => { const tp = L.opts[t]; ((L.alts || {})[t] || []).forEach(a => { out.altsSeen++; if (a.unpop) out.beats++; if (tp && a.dScore > tp.dScore + 1e-9) out.outscore = (out.outscore || 0) + 1; }); })); } }
   if (fresh) S.profile.decks = S.profile.decks.filter(x => x !== fresh); render(); return out; });
-T('UI-B134-01', 'Unpopular pick shows only for a big gap (much higher score, far fewer players), never for a small edge; its pop-up gives the play rates of both cards (with card strength on: no alternative out-scores its pick)', (b134.str ? b134.altsSeen > 0 && b134.beats === 0 : b134.found && b134.both) && !b81c.unpopBad, JSON.stringify(b134).slice(0, 400) + ' quietSmallEdges=' + (b81c.unpopQuiet || 0));
+T('UI-B134-01', 'Unpopular pick shows only for a big gap (much higher score, far fewer players), never for a small edge; its pop-up gives the play rates of both cards (with card strength on: no Unpopular pick chip at all; an alternative may out-score its pick on the bar, UP.oneM 1)', (b134.str ? b134.altsSeen > 0 && b134.beats === 0 : b134.found && b134.both) && !b81c.unpopBad, JSON.stringify(b134).slice(0, 400) + ' quietSmallEdges=' + (b81c.unpopQuiet || 0));
 } catch (e) { QUIET = false; T('UI-B134-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 // Split in two (owner, 31 Oct: the longest test, about 55 s): each half checks every other deck, so the side-by-side groups
 // finish more evenly; the second half also checks that a held swap is never left out.
@@ -1833,6 +1835,9 @@ if (RUN('UI-APEX-01')) { try { if (SHARD) await RESET();
 // Build 100 (owner, 12 Nov: "I generated an apex deck with heroes in a half shell. It says it's deck power 66 with 28 cards on the
 // upgrade page"): a deck generated at a price level is that level's strength build, the scale its power is measured on: Apex at
 // power 100 with no Apex swaps left; Mid at the Mid build's mark.
+// Owner, 22-23 Nov (one measure, UP.oneRef): the reference builds are made with the one measure and the generator's finish takes
+// only swaps that raise the deck score, so a generated deck is no longer exactly its own reference: the bar (capped at 100) reads
+// 97-100 for a generated deck (sweep 23 Nov) and the reference's remaining swaps are score-checked in order, so "swaps left" is not 0.
 const ap1 = await page.evaluate(async () => { const out = {}, wait = ms => new Promise(r => setTimeout(r, ms));
   const name = 'Heroes in a Half Shell';
   for (const t of ['apex', 'mid']) {
@@ -1845,7 +1850,7 @@ const ap1 = await page.evaluate(async () => { const out = {}, wait = ms => new P
     S.profile.decks = S.profile.decks.filter(x => x !== d);
   }
   S.view = 'home'; render(); return out; });
-T('UI-APEX-01', 'Build 100: a generated Apex deck is its own Apex build (power 100, no Apex swaps left; the strip agrees) and a generated Mid deck sits at its Mid mark', ap1.apex.power >= 99 && ap1.apex.left === 0 && ap1.apex.strip >= 99 && ap1.apex.cards === 99 && ap1.mid.cards === 99 && Math.abs(ap1.mid.power - ap1.mid.mid) <= 3 && ap1.mid.left === 0, JSON.stringify(ap1));
+T('UI-APEX-01', 'Build 100: a generated Apex deck is its own Apex build (power about 100, the strip reads 97-100 and agrees; owner 22-23 Nov one measure) and a generated Mid deck sits at its Mid mark', ap1.apex.power >= 99 && ap1.apex.strip >= 97 && ap1.apex.strip <= 100 && ap1.apex.cards === 99 && ap1.mid.cards === 99 && Math.abs(ap1.mid.power - ap1.mid.mid) <= 3 && ap1.mid.strip >= 97 && ap1.mid.strip <= 100, JSON.stringify(ap1));
 } catch (e) { QUIET = false; T('UI-APEX-01', 'threw before finishing', false, String(e && e.message || e).slice(0, 300)); } }
 if (RUN('UI-TAB-01')) { try { if (SHARD) await RESET();
 // Build 101 (owner, 12 Nov: "I don't know why the upgrade tab displays the number on the tab. It never matches the number of cards

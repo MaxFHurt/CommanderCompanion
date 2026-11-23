@@ -1023,6 +1023,22 @@ function strengthPaths(d, R) {
       }
       if (L.opts.mid && L.opts.apex && L.opts.mid.add === L.opts.apex.add && !L.opts.mid.held) delete L.opts.mid;
       if (L.opts.budget && [L.opts.apex, L.opts.mid].some(x => x && x.add === L.opts.budget.add) && !L.opts.budget.held) delete L.opts.budget;
+      // Alternatives follow the picks as they now stand (a tier's pick may have moved up to Apex or been dropped as a repeat, which
+      // leaves its alternatives measured against a pick that is no longer shown): each is measured again on the bar against the pick
+      // its tier now shows (its own, else the Mid or Apex one), keeps at least half its gain, and is no card the row picks.
+      {
+        const used = new Set(Object.values(L.opts).map(p => p.add));
+        for (const t of ['apex', 'mid', 'budget']) {
+          const tp = L.opts[t] || L.opts.mid || L.opts.apex;
+          L.alts[t] = !tp
+            ? []
+            : (L.alts[t] || [])
+                .filter(a => !used.has(a.n))
+                .map(a => ({a, g: bg(L.cut, a.n)}))
+                .filter(x => x.g != null && x.g >= SCORE_MIN && x.g >= 0.5 * tp.dScore - 1e-9)
+                .map(x => Object.assign(x.a, {dScore: x.g, vs: tp.add, vsScore: tp.dScore, bar: true}));
+        }
+      }
       const ps = Object.values(L.opts);
       L.gain = L.opts.apex ? L.opts.apex.dScore : ps.length ? Math.max(...ps.map(p => p.dScore)) : 0;
       // Highest score: the measured card that raises the bar most
@@ -1036,6 +1052,9 @@ function strengthPaths(d, R) {
       rows.forEach(L => (L.rk = {apex: (tierPick(L, 'apex') || {}).dScore || -1e9, mid: (tierPick(L, 'mid') || {}).dScore || -1e9, budget: (tierPick(L, 'budget') || {}).dScore || -1e9}));
       rows.sort((a, b) => b.rk[dt] - a.rk[dt]);
     }
+    // the picks as they now stand (a pick that gave way to an alternative took that card): spare-land rows below must not repeat them
+    used.clear();
+    rows.forEach(L => Object.values(L.opts).forEach(p => used.set(p.add, L)));
     R.barMs = BG.ctx.ms;
     R.barN = BG.ctx.n;
   }
