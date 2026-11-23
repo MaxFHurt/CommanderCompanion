@@ -311,6 +311,52 @@ function strBuild(d, cap, casual, pool, core) {
   }
   return {list, done};
 }
+// A strength build with every swap checked on the deck score (UP.oneRef): its swaps in the build's order, each kept only when the
+// deck with it scores higher (the deck's own practice games, card strength against the reference R); a swap that doesn't is
+// replaced by the next strongest card for that slot (price cap, same rules as the build) that does, else the slot stays.
+function strChecked(d, B, R, pool, core, cap, casual) {
+  const orig = strSlots(d),
+    first = new Map();
+  B.done.forEach((s, k) => s.i != null && !first.has(s.i) && first.set(s.i, k));
+  const idx = B.list.map((c, i) => i).filter(i => orig[i] && B.list[i] !== orig[i] && B.list[i].n !== orig[i].n).sort((a, b) => (first.has(a) ? first.get(a) : 1e6) - (first.has(b) ? first.get(b) : 1e6));
+  const u = Object.assign({}, d, {cards: d.cards.map(e => Object.assign({}, e))});
+  delete u.plan;
+  delete u.refPin;
+  const sim = strBasisSim(d, R),
+    sc = x => evaluateDeck(x, {sim, str: true, strRef: R}).exact,
+    A0 = analyze(d),
+    vv = c => strValue(c, d, casual),
+    need = Object.fromEntries(STR_ROLES.map(r => [r, UP.strKeepJobs ? A0.roles[r] : Math.min(A0.T[r], A0.roles[r])])),
+    winJob = c => isFinisher(c) || tags(c).roles.has('protect');
+  let cur = sc(u);
+  const list = orig.slice(),
+    done = [],
+    K = UP.oneRefK == null ? 3 : UP.oneRefK;
+  for (const i of idx) {
+    const cut = orig[i],
+      have = new Set(list.map(c => c.n)),
+      rc = Object.fromEntries(STR_ROLES.map(r => [r, list.filter(c => tags(c).roles.has(r)).length])),
+      fits = c =>
+        !have.has(c.n) && !!tags(c).land === !!tags(cut).land && (cap == null || (c.p != null && c.p <= cap)) && vv(c) > vv(cut) &&
+        !STR_ROLES.some(r => tags(cut).roles.has(r) && !tags(c).roles.has(r) && rc[r] - 1 < need[r]) && !(UP.strKeepJobs && winJob(cut) && !winJob(c));
+    const cands = [B.list[i]].concat(K ? pool.filter(c => c !== B.list[i] && fits(c)).sort((a, b) => vv(b) - vv(a)).slice(0, K) : []);
+    for (const c of cands) {
+      if (have.has(c.n)) continue;
+      const w = Object.assign({}, u, {cards: u.cards.map(e => Object.assign({}, e))});
+      cutCard(w, cut.n, 1);
+      addCard(w, c.n, 1);
+      const v = sc(w);
+      if (v - cur >= SCORE_MIN) {
+        u.cards = w.cards;
+        cur = v;
+        list[i] = c;
+        done.push({cut: cut.n, add: c.n, i});
+        break;
+      }
+    }
+  }
+  return {list, done, checked: true};
+}
 const STR_REF = new Map();
 // The three builds and the replacement level for a deck (kept per deck settings and card data).
 // UP.fixRef (owner, 22 Nov: "Fix it until Regenerate"): the builds the power bar measures against are worked out once, from the
@@ -329,7 +375,7 @@ function strengthRef(d0) {
   if (!strengthOn(d0)) return null;
   const d = strBasis(d0);
   const ctx = ctxOf(d),
-    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0, UP.sPow || 0, UP.sSpd || 0, UP.sInt || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
+    k = apexKey(d) + '|' + STRENGTH.date + '|' + STRENGTH.cmd.size + '|' + JSON.stringify([UP.strFit, UP.strExp, UP.strLand, UP.strInc, UP.strPopW, strAimW(d), strTm(d), UP.chain || 0, UP.sPow || 0, UP.sSpd || 0, UP.sInt || 0, UP.oneRef || 0, UP.oneM || 0, UP.oneRefK || 0]) + '|' + JSON.stringify(d.cards.map(e => [e.n, e.q]));
   if (STR_REF.has(k)) return STR_REF.get(k);
   const legal = c => legalIn(c, 'commander') && c.ci.every(z => ctx.ident.includes(z)) && c.n !== d.commander && c.n !== d.partner && !isBasic(c.n),
     pool = LIB.filter(legal)
@@ -349,6 +395,18 @@ function strengthRef(d0) {
     nS = slots.filter(c => !tags(c).land).length,
     floor = slots.length ? (nS * r0) / slots.length : 0;
   const R = {key: k, core, pool, apex, mid, budget, floor, top: strMean(d, apex.list), basis: JSON.stringify(d.cards.map(e => [e.n, e.q]))};
+  // UP.oneRef (owner, 23 Nov: "Yes, rebuild Apex"): the Apex, Mid and Budget builds the bar measures against are made with the
+  // one measure too: each of the strength build's swaps goes in only when it raises the deck score (else the next strongest
+  // card for that slot that does, up to UP.oneRefK tried), as the upgrade list and the generator's finish take them. The
+  // score's own anchors (quality's 100 = the strength build's mean, the synergy reading) stay the strength build's.
+  if (UP.oneRef && UP.oneM) {
+    strTopSpell(d, R);
+    const t0 = Date.now();
+    R.apex = strChecked(d, apex, R, pool, core, null, false);
+    R.mid = strChecked(d, mid, R, pool, core, 12, true);
+    R.budget = strChecked(d, budget, R, pool, core, 3, true);
+    R.checkMs = Date.now() - t0;
+  }
   STR_REF.set(k, R);
   if (STR_REF.size > 6) STR_REF.delete(STR_REF.keys().next().value);
   return R;
@@ -372,11 +430,24 @@ function strRefParts(d, SR) {
     delete u.plan;
     u.tier = t;
     u.cards = [...cnt].map(([n, q]) => ({n, q, l: false}));
-    const e = evaluateDeck(u, {games: 100, str: true, strRef: SR});
+    // UP.oneRef: on the reference deck's own practice games, as the builds were checked (so the Apex build never scores below
+    // the deck it was made from)
+    const e = evaluateDeck(u, SR.apex && SR.apex.checked ? {sim: strBasisSim(d, SR), str: true, strRef: SR} : {games: 100, str: true, strRef: SR});
     out[t] = +e.exact.toFixed(2);
     out.parts[t] = e.parts;
   }
   return (SR.parts = out);
+}
+function strBasisSim(d, SR) {
+  if (!SR.bsim) {
+    const cnt = new Map();
+    JSON.parse(SR.basis).forEach(([n, q]) => cnt.set(n, q));
+    const u = Object.assign({}, d, {cards: [...cnt].map(([n, q]) => ({n, q, l: false}))});
+    delete u.plan;
+    delete u.refPin;
+    SR.bsim = simulate(u, 300, 7);
+  }
+  return SR.bsim;
 }
 function strMean(d, list) {
   return list.length ? list.reduce((a, c) => a + strValue(c, d, false, false, true), 0) / list.length : 0;

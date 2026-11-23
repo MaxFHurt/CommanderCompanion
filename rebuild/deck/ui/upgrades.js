@@ -2753,7 +2753,9 @@ function statsHtml(d, A, R, mode) {
     T0r = SRP || (apexFor(d) || {}).tot,
     GR = T0r,
     T0 = refOrder(T0r),
-    pw = e && T0 && T0.apex > 0 ? (100 * e.exact) / T0.apex : null,
+    // UP.oneRef (owner, 23 Nov): the Apex build is made with the same measure, so 100 is the ceiling; a deck past it after swaps
+    // (a different practice-game draw, a card from outside the list) reads 100, Apex level
+    pw = e && T0 && T0.apex > 0 ? (UP.oneRef && UP.oneM ? Math.min(100, (100 * e.exact) / T0.apex) : (100 * e.exact) / T0.apex) : null,
     // deck power is the deck score as a share of this deck's Apex build's score (owner, 30 Oct: "comparing the deck's power to
     // the apex deck's power"; "appear to make progress, not be a belittling or demeaning stat", and no false information).
     // The Budget and Mid builds are marked the same way. (Before: Budget 70, Mid 85, Apex 100 with a steep curve below Budget.)
