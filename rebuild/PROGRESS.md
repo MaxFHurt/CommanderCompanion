@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.120 (Deck Builder 0.9.77, build 222)
+- **Live build:** 1.0.0-rebuild.121 (Deck Builder 0.9.78, build 223)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -51,6 +51,14 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 121 — 23 Nov 2026 (app 1.0.0-rebuild.121; Deck Builder 0.9.78, build 223): one power measure, swap fix, lands helper, smarter score, rules batch 7
+- **One measure** (owner, 23 Nov: "any time I see the word power it should be referring to the deck's overall power on a unified scale"): every "+x power" is the real change to the power bar (UP.oneM 1); the bar's benchmark is fixed until Regenerate (UP.fixRef 1); the reference builds use the same measure, so the bar tops out at 100 (UP.oneRef 1); tiers: Apex picks its biggest bar gain, Mid/Budget keep their picks lifted by a cheaper card that gains more, so Apex >= Mid >= Budget on every row (UP.oneBest 3, owner's "(b) for Apex only"). "Raw power" filter renamed "Strongest cards".
+- **Swaps keep the upgrade list** (owner report): card pop-up, Fix menus, I don't have this card, price-capped list and Make every swap no longer regenerate the list; Replaced / In your deck chips kept.
+- **Lands helper** (owner report): several complete fixes (basics split by colour, ramp from the commander's set first, a mix), each naming the cards to pull; ramp counts at the land formula's 0.32; every Fix swap row offers "Or pull instead".
+- **Smarter score 6.1** (approved): power floor, mana speed, cost of an answer (UP.sPow 0.7, sSpd 0.2, sInt 0.1), score and shown power only. 7f.5 and 7f.3 closed after the audit.
+- **Rules batch 7:** "If X, …" conditional riders (effects-b113.js): 315 newly automatic, 148 verified by behaviour tests, 0 regressions, 6 misreads fixed. Card work then paused by the owner (23 Nov) until the system is fixed. Ledger tools in tools/longtail (ledger.mjs). Forge-derived trigger test removed from the repo (owner: Forge offline only).
+- **Tests:** UI 155/156 (UI-TAB-01 flaky, 3/3 alone); semantics 61/2, claims 128, accept 39 x2, scheck bad 2, cisweep 0, edge throws 0 (baselines); tourney 60/58%; genstrong 0.423/0.76; bench test A/M/B 0.171/0.185/0.152, tuneall 0.117/0.147/0.127 (owner-approved trade-off); holdout agreement@5 0.196/0.247/0.222; all node suites, soak 3x40 (0 problems), browser suites pass, align_check 0 misaligned.
 
 ### Build 120 — 22 Nov 2026 (app 1.0.0-rebuild.120; Deck Builder 0.9.77, build 222): game-plan chains in score and generator, synergy cap fix, iPhone log housing
 - **6b batch E** (owner approved 0.5 / on / keep guard): UP.chainSyn 0.5, spells on a working chain get deck-score synergy; UP.chainGen 2, the generator keeps chains whole and fills a thin side; the strength finish skips chain-breaking swaps.
