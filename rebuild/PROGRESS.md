@@ -7,7 +7,7 @@ tests are in `tests/node/catalog.mjs`. See HANDOFF.md for architecture and relea
 
 ## Deck Builder roles both ways (28 Nov, branch wt/roles, not live)
 
-UP.roles2 (reading.js roles2Fix): 417 cards change role, mostly draw -192 and protect -92/+30. Switch on in the branch, awaiting the owner's approval; see deck/tools/readers-report.md.
+UP.roles2 (reading.js roles2Fix): 417 cards change role, mostly draw -192 and protect -92/+30. Approved by the owner, 28 Nov; symmetric draw engines on permanents (Howling Mine, Temple Bell, Nekusar, Dictate of Kruphix ...) keep draw, one-shot wheels and opponent-only draws stay dropped (draw now -167 in the sweep); see deck/tools/readers-report.md.
 
 ## Where it stands
 

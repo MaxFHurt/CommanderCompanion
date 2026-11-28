@@ -327,8 +327,14 @@ function roles2Fix(c, o, t, roles) {
       /\b(?:each|every) (?:other )?(?:player|opponent)\b[^.]*\bdraws?\b|\b(?:target opponent|that player|defending player|its controller|that creature's controller|they|an opponent|the player) draws?\b/i;
     const FROM_ELSEWHERE =
       /\b(?:cast|play) [^.]*\bfrom (?:your |a |each |their |an opponent's |target |any )?(?:graveyard|graveyards|exile)\b|\byou may (?:cast|play) (?:cards?|spells?|lands?|permanents?|those cards?|that card|them|it)[^.]*\b(?:exiled|remain exiled)\b|\byou may (?:cast|play) [^.]*cards? exiled (?:with|this way|by)\b|\bexile each card [^.]*search|\b(?:target|choose) [^.]*\bcards? (?:in|from) (?:your|a|an opponent's) graveyard\b/i;
+    // a draw ENGINE (owner, 28 Nov): a permanent that makes every player draw extra, each turn or on an event (Howling Mine, Temple
+    // Bell, Nekusar, Dictate of Kruphix), repeats; it keeps the draw job. A one-shot (a spell, an enters trigger, a sacrifice) does not.
+    const permanent = !/\b(?:Instant|Sorcery)\b/.test(t);
+    const SYM = /\b(?:each player|each player's|every player|players)\b[^.]*\bdraws?\b|\bthat player draws\b[^.]*\badditional\b|\bat the beginning of each (?:player's|upkeep|turn)[^.]*\bdraws?\b/i;
+    const REPEAT = /^(?:At the beginning of|Whenever|Each time|\{[^}]*\}[^:]*:)/i;
+    const engine = x => permanent && SYM.test(x) && REPEAT.test(x) && !/\bdiscards? (?:their|his or her|your) hand\b|\bexiles? (?:their|his or her) hand\b|^[^:]*\bsacrifice\b[^:]*:|\bcards? in their hand on the bottom\b|\benchanted\b|\beach opponent's\b|\ban opponent's\b/i.test(x) && !/\bexile this card from your graveyard\b/i.test(x);
     const kept = sents.filter(x => {
-      const mine = /\byou (?:may )?draw\b|\bthen you draw\b|:\s*draw\b|^draw\b|, draw\b/i.test(x);
+      const mine = /\byou (?:may )?draw\b|\bthen you draw\b|:\s*draw\b|^draw\b|, draw\b/i.test(x) || engine(x);
       if (OTHERS_DRAW.test(x) && !mine) return false;
       if (FROM_ELSEWHERE.test(x) && !/\bdraws?\b|exile the top|top (?:card|\w+ cards) of (?:your|target) library/i.test(x)) return false;
       return true;
