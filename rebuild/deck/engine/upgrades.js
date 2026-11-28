@@ -2202,6 +2202,7 @@ const UP = {
   staples: 1, // Sol Ring and Arcane Signet in every generated Commander deck (buildPlanG, STAPLES)
   aimText: 1, // a plan's core pieces fit its EDHREC theme by their text (matchAim, AIM_TEXT)
   bs: 1,
+  roles2: 1, // roles read both ways (reading.js roles2Fix): misses added, over-reads dropped (wheels, graveyard casts, divided damage, self-only protection ...). Awaiting the owner's approval (28 Nov, option B); 0 = the old roles
   bsF: 0.5,
   bsP: 9,
   starve: 0.08,

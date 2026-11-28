@@ -88,3 +88,13 @@ C. Replace pattern reading with the engine's compiled effects where it compiles 
    largest change and least predictable; the engine misreads wipes and protection itself (its mapping needed rules above), so not advised
    before the judgement step.
 Whichever is chosen changes scores, the generator and Fix picks, so run the benchmark first.
+
+## Option B built (28 Nov, switch UP.roles2, awaiting the owner's approval)
+`roles2Fix` (engine/reading.js, called last in tags()) adds the misses and drops the over-reads by general patterns; a job is dropped
+only when a clause of a known kind is on the card and nothing else on it shows the job. Cards changed (417 in all): draw -192
+(wheels and "each player draws", opponent draws and Gift, cast/play from graveyard or exile), removal +31 / -49 (+14 real misses,
++17 divided-damage cards moved from wipe; -49 damage to a player or planeswalker only), wipe -26 (divided damage, planeswalker
+ultimates, own-token exile, 2nd/3rd-resolution riders), protect +30 / -92 (type-restricted groups added; self-only hexproof, phasing,
+damage prevention on itself and locks on an opponent's permanent dropped), tutor -16 (transmute, typecycling). Ramp and counter 0.
+Left as they were: Urza, Lord High Artificer (draw), Traverse the Ulvenwald (its delirium line is a real creature-or-land fetch),
+Ashling, Flame Dancer (draw is its rummage), Dawn's Truce keeps protect. Nothing else was touched.

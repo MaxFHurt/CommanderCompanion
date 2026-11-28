@@ -263,6 +263,160 @@ function effectsOf(c) {
   c._fxSrc = c.o;
   return (c._fx = out);
 }
+// ----- roles 2 (UP.roles2, roadmap 5.0 option B, owner 28 Nov): the jobs a card is given, corrected both ways -----
+// tags() calls this last, after the patterns, the game engine's list and the rules reading have all had their say. It adds the
+// few jobs they miss (removal: "non-X" targets, shuffled into the library, locked down; protect: a creature type you control
+// gains hexproof) and takes away jobs they over-read. A job is only taken away when a clause of a known kind is on the card and
+// nothing else on it shows the job (the text with those clauses cut out has no evidence left), so no other card is touched.
+// Kept on purpose (Deck Builder rules): cost reducers as ramp, impulse draw / Clues / connive as card flow, edicts as removal,
+// umbra armor as protection. Report and card lists: tools/readers-report.md.
+const R2_SELF = /\b(this (creature|permanent|artifact|vehicle|enchantment|land|equipment)|it|~)\b/i;
+const R2_OTHERS =
+  /\btarget\b|\b(each|all|other|another|enchanted|equipped|those|these|opponents?)\b|\bcreatures?\b|\bpermanents\b|\byou (gain|have)\b|\bplayers?\b|\byou control\b/i;
+const R2_REM = /\([^()]*\)/g;
+function r2Sentences(o) {
+  return o
+    .replace(/\((?:[^()]|\([^()]*\))*\)/g, m => (/^\((?:You may promise|Discard this card: Search|\{[^}]*\}, Discard this card: Search)/.test(m) ? '' : m))
+    .split(/(?<=\.)\s+|\n|•/)
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+function roles2Fix(c, o, t, roles) {
+  const name = c.n.split(' // ')[0],
+    flat = o.split(name).join('~'),
+    bare = flat.replace(R2_REM, ' '),
+    sents = r2Sentences(flat),
+    has = r => roles.has(r);
+  const planeswalker = /Planeswalker/.test(t);
+  // ---- misses ----
+  // removal: "destroy/exile target non-Angel, non-Demon creature" (the removal pattern skips every "non-" target)
+  if (
+    !has('removal') &&
+    sents.some(
+      x =>
+        /\b(?:destroy|exile)s? (?:x |up to (?:one|two|three|x) |one |two |three )?(?:other |another )?target (?:non-?[\w']+,? (?:(?:and|or) )?)+(?:creatures?|permanents?|artifacts?|enchantments?|planeswalkers?|battles?)\b(?! card)/i.test(x) &&
+        !/\byou (?:control|own)\b|\bfrom (?:a |your |their )?graveyard\b/i.test(x)
+    )
+  )
+    roles.add('removal');
+  // removal: the owner shuffles it into the library (Unravel the Aether, Deglamer)
+  if (
+    !has('removal') &&
+    (/\btarget (?:artifact|enchantment|creature|permanent|planeswalker|nonland permanent|artifact or enchantment|creature or planeswalker)\b(?![^.]*\byou (?:control|own)\b)[^.]*\.\s*(?:Its|Their|That (?:creature|permanent)'s) (?:owner|controller) shuffles (?:it|that \w+) into (?:their|its owner's|his or her) library/i.test(bare) ||
+      /\bshuffles? (?:target|that) (?:creature|permanent|artifact|enchantment|planeswalker|nonland permanent)[^.]* into (?:its owner's|their owner's|their|his or her) library/i.test(bare))
+  )
+    roles.add('removal');
+  // removal: lock-down, a creature tapped that stays tapped for as long as you control the source (Icefall Regent)
+  if (
+    !has('removal') &&
+    /\btap target (?:creature|artifact|permanent|nonland permanent)[^.]*\.\s*(?:That \w+|It) doesn't untap during (?:its|their) controller's untap step for as long as you control\b/i.test(bare)
+  )
+    roles.add('removal');
+  // protect: "Humans you control gain hexproof and indestructible", "other Heroes you control have hexproof"
+  if (
+    !has('protect') &&
+    /\b[A-Z][a-z]+s?(?:(?:,| and|, and| or) (?:other )?[A-Z][a-z]+s?)* you control (?:also )?(?:gain|gains|have|has)\b[^.]{0,40}\b(?:hexproof|indestructible|shroud|protection from|ward)\b/.test(bare.replace(/\b(?:Target|Creatures|Permanents|Artifacts|Enchantments|Lands|Equipment|Other|Each|All|Nonland|Noncreature|Nonartifact|Nonblack|Nonwhite|Nonred|Nongreen|Nonblue)\b/g, ' '))
+  )
+    roles.add('protect');
+
+  // ---- over-reads ----
+  // draw: a wheel or any "each player draws", what an opponent draws (a gift), and casting or playing from the graveyard or from
+  // exile, are not card draw for you. Cut those sentences out; if no draw (or impulse, monarch, Clue ...) is left, the job goes.
+  if (has('draw')) {
+    const OTHERS_DRAW =
+      /\b(?:each|every) (?:other )?(?:player|opponent)\b[^.]*\bdraws?\b|\b(?:target opponent|that player|defending player|its controller|that creature's controller|they|an opponent|the player) draws?\b/i;
+    const FROM_ELSEWHERE =
+      /\b(?:cast|play) [^.]*\bfrom (?:your |a |each |their |an opponent's |target |any )?(?:graveyard|graveyards|exile)\b|\byou may (?:cast|play) (?:cards?|spells?|lands?|permanents?|those cards?|that card|them|it)[^.]*\b(?:exiled|remain exiled)\b|\byou may (?:cast|play) [^.]*cards? exiled (?:with|this way|by)\b|\bexile each card [^.]*search|\b(?:target|choose) [^.]*\bcards? (?:in|from) (?:your|a|an opponent's) graveyard\b/i;
+    const kept = sents.filter(x => {
+      const mine = /\byou (?:may )?draw\b|\bthen you draw\b|:\s*draw\b|^draw\b|, draw\b/i.test(x);
+      if (OTHERS_DRAW.test(x) && !mine) return false;
+      if (FROM_ELSEWHERE.test(x) && !/\bdraws?\b|exile the top|top (?:card|\w+ cards) of (?:your|target) library/i.test(x)) return false;
+      return true;
+    });
+    // a gift promised to an opponent ("they draw a card" in the Gift reminder) is cut out before the sentences are made
+    if (kept.length < sents.length || /\(You may promise an opponent a gift[^)]*\bthey draw\b/.test(flat)) {
+      const rest = kept.join('\n');
+      if (!/\bdraws?\b|monarch|initiative|investigate|\bClues?\b|connive|exile the top|exile [^.]*from the top of your library|top (?:card|\w+ cards) of (?:your|target) library|look at the top|\bexplores?\b|collect evidence/i.test(rest))
+        roles.delete('draw');
+    }
+  }
+  // wipe: damage divided as you choose among chosen targets is removal (Fury, Fire Covenant, Atarka); a planeswalker's ultimate
+  // (minus 5 or more), "exile all other Nightmare tokens you control" (own tokens) and a damage rider on the second or third
+  // resolution of a trigger (Ashling) are not wipes
+  if (has('wipe')) {
+    const DIVIDED = /\bdamage (?:divided|dealt|split) as you choose among\b[^.]*\btargets?\b|\bdamage divided as you choose among (?:one|two|three|any number)[^.]*\btargets?\b|\bdivide (?:that|\w+) damage as you choose among\b/i,
+      OWN = /\b(?:exile|destroy) all other [A-Z][a-z]+ tokens you control\b|\b(?:second|third) time\b/i;
+    let lines = flat.split('\n'),
+      ult = false;
+    if (planeswalker) {
+      ult = lines.some(l => /^[−-](?:[5-9]|\d\d):/.test(l.trim()));
+      lines = lines.filter(l => !/^[−-](?:[5-9]|\d\d):/.test(l.trim()));
+    }
+    const kept = r2Sentences(lines.join('\n')).filter(x => !DIVIDED.test(x) && !OWN.test(x));
+    const div = sents.some(x => DIVIDED.test(x)),
+      touched = ult || div || sents.some(x => OWN.test(x));
+    if (touched) {
+      const WIPE_EV =
+        /\b(?:destroy|exile|sacrifice|sacrifices|return|deals?|put|gets?|get)\b[^.]*\b(?:all|each|every)\b[^.]*\b(?:creatures?|permanents?|nonland|artifacts?|enchantments?|planeswalkers?|tokens?)\b|\beach (?:other )?(?:player|opponent) sacrifices\b|\b(?:all|each) (?:other )?creatures?\b[^.]*\bget\b|\bOverload\b|damage to each\b/i;
+      const left = kept.some(x => (ROLE_RE.wipe.test(x) && !/\b(?:exile|destroy) all other cards\b|\bcards? (?:revealed|exiled) this way\b/i.test(x)) || WIPE_EV.test(x));
+      if (!left) {
+        roles.delete('wipe');
+        if (div) roles.add('removal');
+      }
+    }
+  }
+  // protect: a job done for the card itself only (Paradise Druid and Invisible Stalker have hexproof, Fog Bank prevents damage to
+  // and by itself), or damage prevented on a permanent an opponent controls (Kiora, Dovin: a lock, not protection)
+  if (has('protect') && !/\bumbra armor\b|\bBestow\b/.test(o)) {
+    const PROT = /\b(?:hexproof|indestructible|shroud|protection from|ward|phases? out|prevent all|regenerate|can't be the targets?|returns? (?:it|that card) to the battlefield|totem armor)\b/i;
+    const KEYLINE = /^(?:(?:Flying|Vigilance|Defender|Reach|First strike|Trample|Flash|Haste|Lifelink|Deathtouch|Menace|Hexproof|Shroud|Indestructible|Protection from [\w ]+|Ward[^,.]*)(?:,\s*)?)+\.?$/i;
+    const selfOnly = (x, prev) => {
+      const y = x.replace(R2_REM, ' ').trim();
+      if (KEYLINE.test(y)) return true;
+      // equipment and auras give it to another creature, a fog or "damage dealt to you" protects more than this card
+      if (/\b(?:equipped|enchanted)\b|\bto you\b|\byou (?:and|have|gain)\b|\bdamage that would be dealt (?:this turn|to (?:a|an|each|target)\b)|\bdamage that would be dealt\.?$|\bsource of your choice would deal\b|\bsource would deal\b/i.test(y)) return false;
+      // a lock on an opponent's permanent (Kiora, Dovin), not protection
+      if (/prevent all (?:combat )?damage that would be dealt to (?:and dealt by )?target (?:permanent|creature)[^.]*an opponent controls/i.test(y)) return true;
+      // "it" after a target sentence is that target (Fleeting Flight, Slip Out the Back): a trick on a creature, which protects
+      if (/\b(?:it|that creature)\b/i.test(y) && /\btarget\b/i.test(prev || '')) return false;
+      const z = y
+        .replace(/^(?:As long as|During|If)\b[^,]*,\s*/i, '')
+        .replace(/\bas long as [^.]*$/i, '')
+        .replace(/\bprevent all\b/gi, ' ')
+        .replace(/\bby (?:creatures|a creature|artifact creatures|enchanted creatures|artifact sources|creatures with first strike|creatures it's blocking|creatures blocking it|target creature|Walls|Deserts)\b/gi, ' ')
+        .replace(/\bthis (?:creature|permanent|artifact|vehicle)\b/gi, ' ')
+        .replace(/\b(?:it|~)\b/gi, ' ');
+      return R2_SELF.test(y) && !R2_OTHERS.test(z);
+    };
+    const sn = sents.map(x => x.replace(R2_REM, ' ').trim()),
+      ps = sn.filter(x => PROT.test(x));
+    if (ps.length && ps.every(x => selfOnly(x, sn.slice(0, sn.indexOf(x)).join(' ')))) roles.delete('protect');
+  }
+  // tutor: transmute, typecycling (wizardcycling, landcycling) and a basic land fetched into the hand are not tutors
+  if (has('tutor')) {
+    const LANDW = '(?:basic )?(?:lands?|plains|island|swamp|mountain|forest|snow-covered \\w+|gates?)';
+    const landFetch = new RegExp('\\bsearch your library for (?:a|an|up to \\w+|two|three|x) ' + LANDW + '[^.]*?\\binto your hand\\b', 'i');
+    const kept = sents.filter(x => !/^(?:Transmute|\w+cycling)\b/i.test(x) && !landFetch.test(x));
+    const dropped = kept.length < sents.length || /\bTransmute\b|cycling\b/i.test(o);
+    if (dropped) {
+      const rest = kept.join('\n');
+      // evidence left: the tutor pattern, or any other search of a library for something that is not just lands
+      const search = kept.some(x => /\bsearch(?:es)? (?:your|their|target (?:player|opponent)'s|its owner's) library\b/i.test(x) && !/\b(?:lands?|plains|island|swamp|mountain|forest)\b[^.]*\bonto the battlefield\b/i.test(x));
+      if (!ROLE_RE.tutor.test(rest) && !search) roles.delete('tutor');
+    }
+  }
+  // removal: damage to a player or planeswalker only (Boros Charm) is not removal; a card with a creature target keeps it
+  if (has('removal')) {
+    const PW = /\bdamage to target (?:player|opponent)(?: or planeswalker| or battle)?\b|\bdamage to each opponent\b/i,
+      NOTPW = x => PW.test(x) && !/\b(?:any target|creature|permanent)\b/i.test(x);
+    if (sents.some(NOTPW)) {
+      const rest = sents.filter(x => !NOTPW(x)).join('\n');
+      const EV =
+        /\b(?:destroy|exile)s? [^.]*\btarget\b|\bfights?\b|\bgets? -\d|-\d+\/-\d+|\bdamage to (?:any target|(?:up to \w+ )?(?:other |another )?target (?:creature|permanent|attacking|blocking|tapped|nonland))|\bdamage equal to\b[^.]*\bto (?:any target|target (?:creature|permanent))|\breturn [^.]*target [^.]*to (?:its|their) owner's hand|\bsacrifices? (?:a|an|two|that many)\b|\bshuffles?\b|\btap target\b|\bgain control\b|-1\/-1 counter|\bdeals? (?:\d+|x|that much) damage to (?:each|all)\b|\bcan't (?:attack|block)\b/i;
+      if (!ROLE_RE.removal.test(rest) && !EV.test(rest)) roles.delete('removal');
+    }
+  }
+}
 // What a card depends on to work, read from its text: creature tokens, non-Human creatures, artifact spells, a creature
 // type, land discards, instants and sorceries, +1/+1 counters, equipment. Each need says how to count support in a deck.
 const NEEDS = {
