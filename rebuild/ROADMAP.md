@@ -43,6 +43,7 @@ Tried first: the Cloudflare free plan (10 ms CPU) cut off heavier requests, so i
 ## Order of work (owner, 13 Nov: "All judgement tools should come last on actual changes, right before the code
 - **Owner, 22 Nov:** when only card corrections (card data, rules long tail, batch 6) are left, do NOT start them without consulting the owner first.
 - **Owner, 23 Nov: "Stop all card work until the system is fixed."** All card work (verifier wt/verify1, long tail, batch 6) is paused until the Deck Builder scoring/swap system is fixed (one measure, fixed benchmark). Resume only when the owner says so.
+- **Owner, 28 Nov:** "No more card updates for the game side right now. Finish every other task." Game-side card work (rules long tail, verifier, batch 6) stays paused; all other roadmap work continues.
 - **Forge (owner, 22 Nov):** MTG Forge card scripts (GPL-3.0) are an OFFLINE check only: the clone and translator stay outside the repo (/home/user/dc-runs/forge); never commit or ship anything Forge-derived; only our own fixes go in. Each card batch compares our readings with Forge's to catch misreads.
 optimization. That way we don't have to rework anything later due to new mechanics.")
 
