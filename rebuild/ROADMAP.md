@@ -336,7 +336,7 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
 2. Sign-in and automatic saving: dropped (owner, 10 Nov: "If it's already transferable by profile key, then none of this is
    necessary"). The profile key already backs a linked device up automatically. Offered instead, not decided: a warning on a
    device that is not linked (its data lives only there) and a reminder to keep the key safe.
-3. **Recovery email (owner, 10 Nov: "We should tie the profile to an email or phone number also"):** a player can add an email
+3. **(Superseded: replaced by Accounts, sign in with an emailed code, live since Build 110.)** **Recovery email (owner, 10 Nov: "We should tie the profile to an email or phone number also"):** a player can add an email
    to the profile (optional, prompted on the profile page); a lost key is recovered with a sign-in link sent to that email
    (Supabase on the owner's project; free at this volume). Phone (SMS) later if wanted: it needs a paid SMS service. The key
    keeps working as now; the email only finds the profile again. Checks: both apps' tests, recovery tried on a second device.
