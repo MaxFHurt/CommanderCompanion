@@ -11,7 +11,7 @@ UP.roles2 (reading.js roles2Fix): 417 cards change role, mostly draw -192 and pr
 
 ## Where it stands
 
-- **Live build:** 1.0.0-rebuild.121 (Deck Builder 0.9.78, build 223)
+- **Live build:** 1.0.0-rebuild.122 (Deck Builder 0.9.79, build 224)
 - **Top 1,000:** 1,000 run by themselves (all done).
 - **Whole catalog:** 22,630 of 32,300 (about 70%; Scryfall oracle file of 12 Nov 2026; build 103, long-tail batch 2).
   Build 101: 21,958. About 9,670 still need something done by hand, each wording now covering only a
@@ -55,6 +55,11 @@ The complete roadmap of every open change across the app is `ROADMAP.md`.
 
 - The separate /test preview uses articulated WebGL meshes for six monsters and three heroes on the Commander Companion battlefield. Climb contacts, carried panels, projectile impacts, and multi-hit fights use continuous motion. A software renderer draws the same moving meshes on browsers without WebGL.
 - Validated 18 pairings, planted grips, panel attachment through release, full destruction, and start, pause, resume and wake. Production idle integration is still pending.
+
+### Build 122 — 28 Nov 2026 (app 1.0.0-rebuild.122; Deck Builder 0.9.79, build 224): agreement fix, card roles fix
+- **Agreement** (owner, 28 Nov: "Can we make this better and agree more while following the rules?"): UP.agPop 3, each commander's 3 most-played cards join every slot's bar shortlist; no one-measure rule bent. Near-tie and Mid/Budget popularity rules tried and dropped (worse on test).
+- **Card roles** (owner, 28 Nov, option B after the reader comparison, roadmap 5.0): UP.roles2, 417 cards' Deck Builder roles corrected (wheels, opponent draws and casting from graveyard/exile no longer draw; divided damage is removal, not a wipe; player-only damage not removal; self-only protection dropped; transmute/typecycling not tutors; non-X removal and group hexproof added). Owner: symmetric draw engines (Howling Mine, Temple Bell, Nekusar …, 25 cards) still count as draw.
+- **Tests:** bench agreement@5 A/M/B test 0.171/0.185/0.152 -> 0.191/0.191/0.156, tuneall 0.117/0.147/0.127 -> 0.117/0.144/0.129, holdout 0.196/0.247/0.222 -> 0.198/0.254/0.219; semantics 61/2, claims 128 -> 126, accept 39 x2, scheck bad 2, cisweep 0, edge 0, tourney 60/58%, genstrong 0.423 -> 0.421; UI 155/156 (UI-TAB-01 flaky, passes alone 2/2). Only Deck Builder files changed, so no game-app suites were due.
 
 ### Build 121 — 23 Nov 2026 (app 1.0.0-rebuild.121; Deck Builder 0.9.78, build 223): one power measure, swap fix, lands helper, smarter score, rules batch 7
 - **One measure** (owner, 23 Nov: "any time I see the word power it should be referring to the deck's overall power on a unified scale"): every "+x power" is the real change to the power bar (UP.oneM 1); the bar's benchmark is fixed until Regenerate (UP.fixRef 1); the reference builds use the same measure, so the bar tops out at 100 (UP.oneRef 1); tiers: Apex picks its biggest bar gain, Mid/Budget keep their picks lifted by a cheaper card that gains more, so Apex >= Mid >= Budget on every row (UP.oneBest 3, owner's "(b) for Apex only"). "Raw power" filter renamed "Strongest cards".

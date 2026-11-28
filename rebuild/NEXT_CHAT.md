@@ -3,26 +3,16 @@
 Read `CLAUDE.md` (working rules) first, then this file. Find code through `rebuild/INDEX.md`. Answers to the owner: short.
 
 ## Where things stand
-- **Live:** Build 121 (app 1.0.0-rebuild.121, Deck Builder 0.9.78 / build 223) on `main`.
-- **Release branch** `claude/vibrant-faraday-9fv5in` (commit d865cec, pushed) holds the **Build 122 batch**, not live yet:
-  1. Agreement fix `UP.agPop 3` (each commander's 3 most-played cards join every slot's shortlist; owner approved 28 Nov).
-     Bench test Apex 0.171 -> 0.181, Mid/Budget unchanged.
-  2. Card roles fix `UP.roles2` (deck/engine/reading.js `roles2Fix`; owner approved 28 Nov, option B): 417 cards'
-     Deck Builder roles corrected (wheels/opponent draws/casting from graveyard no longer draw; divided damage removal not
-     wipe; self-only protection dropped; non-X removal and group hexproof added). Owner: symmetric draw ENGINES (Howling
-     Mine, Temple Bell, Nekusar, Rites of Flourishing …) still count as draw (25 cards); one-shot wheels don't.
-     Teferi's Puzzle Box and Righteous Authority left off draw by judgement (tell the owner if asked).
-- **Next step:** the full suite run for Build 122 was started in the old chat; it does not carry over. Run it again:
-  `cd rebuild/.. && git fetch origin main && sh rebuild/tools/suites.sh origin/main run > <scratch>/suites-b122.txt`
-  (30-40 min, run it alone). Compare with Build 121's numbers below; if clean, release with the `release` skill
-  (`release.sh 122 224 0.9.79`, PROGRESS/HANDOFF notes, `run.sh quick`, push branch + `HEAD:main`, poll
-  `https://maxfhurt.github.io/CommanderCompanion/rebuild/deck/version.json`).
+- **Live:** Build 122 (app 1.0.0-rebuild.122, Deck Builder 0.9.79 / build 224) on `main`: agreement fix and card roles fix (released 28 Nov).
+- **Release branch** `claude/vibrant-faraday-9fv5in` = live. Build 122 contains the agreement fix `UP.agPop 3` and the
+  card roles fix `UP.roles2` (417 cards; symmetric draw engines like Howling Mine keep draw, one-shot wheels don't;
+  Teferi's Puzzle Box and Righteous Authority left off draw by judgement).
+- **Next step:** item 2 of "Open work" below.
 
-## Build 121 baselines (suites-b121c)
-- Bench agreement@5 A/M/B: test 0.171/0.185/0.152, tuneall 0.117/0.147/0.127, holdout 0.196/0.247/0.222.
-  Expected in 122: test about 0.18/0.19/0.156 (agPop + roles2); tuneall may dip slightly (roles2 measured 0.108/0.138/0.127).
-- semantics 61/2, claims 128 (roles2: 126), accept 39 x2, scheck bad 2, cisweep 0, edge throws 0, tourney 60/58%,
-  genstrong 0.423/0.76. UI suite 155/156 (UI-TAB-01 flaky: passes alone 3/3). Every node/browser suite passed.
+## Build 122 baselines
+- Bench agreement@5 A/M/B: test 0.191/0.191/0.156, tuneall 0.117/0.144/0.129, holdout 0.198/0.254/0.219.
+- semantics 61/2, claims 126, accept 39 x2, scheck bad 2, cisweep 0, edge throws 0, tourney 60/58%,
+  genstrong 0.421/0.76. UI suite 155/156 (UI-TAB-01 flaky: passes alone 3/3). Every node/browser suite passed.
 - Known flaky UI tests: UI-ASYNC-01, UI-B197-02, UI-PLAN-03, UI-TAB-01. Pass `PORT=89xx` to `run.sh` when agents run.
 
 ## Owner's standing decisions (this chat)
@@ -36,7 +26,6 @@ Read `CLAUDE.md` (working rules) first, then this file. Find code through `rebui
 - Ask the owner before anything that changes scores, picks or benchmarks; decide wording/layout yourself.
 
 ## Open work (non-card), in order
-1. Release Build 122 (above).
 2. **Paired practice games** (same shuffle per card) to cut the power bar's ±0.13-0.3 noise (ROADMAP 6.1b "Open").
 3. **Apex decks closer to tournament lists** (generator picks; paused agent work in worktree `wt/genpick`, uncommitted,
    predates one measure: rebase/redo on the release branch). Measure bench, tourney, genstrong; owner chooses.
