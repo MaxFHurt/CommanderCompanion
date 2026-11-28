@@ -211,7 +211,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
    we miss fetch lands, original duals, fast mana, free interaction, tutors and win cards; we include protection equipment,
    slow rocks, wipes and big creatures they never play). Must be measured against the upgrade benchmark and the tournament
    comparison before and after. (deck/ROADMAP.md "Queue", Large 3)
-   - **Built on wt/score61 (22 Nov), switches ON awaiting the owner's approval:** UP.sPow 0.7 (a card's Apex value is at least 0.7 x
+   - **Built on wt/score61 (22 Nov), approved by the owner, 22 Nov; live in Build 121:** UP.sPow 0.7 (a card's Apex value is at least 0.7 x
      its strength, so a much stronger card is not buried by a low play rate), UP.sSpd 0.2 (mana speed from text and the practice
      reading: Sol Ring, Vault, Moxen, Ancient Tomb up; 3-mana rocks, Cultivate, tapped lands down), UP.sInt 0.1 (free/1-mana answers
      up, 3-mana and soft counters down). The score's reading only (UP.sPick 0). Sweep: Mana Vault swap +0.54 -> +1.29 (power -0.1 ->
@@ -240,7 +240,7 @@ Today the Deck Builder has its own simple card reader (`deck/engine/reading.js`)
      Generated Apex/Mid decks (10 commanders) 97.0-100.0 (before 97.8-107.3); precon Apex scores +0.3..+3.2, precon bar 81.5-97.9;
      bench and finished-deck numbers unchanged (-0.003/0.136/0.190; tourney match 61.7%). Reference build +~1 s once per pin on a
      4x-slowed CPU (1.3 -> 2.3 s).
-   - **"Apex = biggest gain", UP.oneBest (owner, 23 Nov), built, OFF pending the owner:** 1 = each tier picks the biggest bar gain
+   - **"Apex = biggest gain", UP.oneBest (owner, 23 Nov), approved by the owner, 23 Nov; live in Build 121:** 1 = each tier picks the biggest bar gain
      among its own and the cheaper tiers' strength shortlists (pick, alternatives, next oneK strongest); 2 = lift only (strength
      pick stays unless a cheaper pick on the row gains more, which then shows there too). Both give Apex >= Mid >= Budget on every
      row (10 precons x 3 tiers: rows with a cheaper tier ahead 2 + 9 Budget>Mid -> 0). Bench agreement@5 tune/tuneall/test:
@@ -307,20 +307,20 @@ triggers), so plans, synergy, upgrade reasons, Fix menus and generation follow t
    of deck/tools/tests/suite/plans/LABELS.md. Next: B Fix menus, C plans list, D upgrade value, E score and generator.
    Batch C built (branch wt/6b-c, 22 Nov): strong chains offered as plans ('plan:<id>' aims) in Build analysis and the
    Mechanics list, leading the suggested build only for commanders with little or no play data; switch UP.planList (1,
-   awaiting the owner's approval; 0 = suggestions before). Bench and tourney identical (no test-set commander is thin).
+   approved by the owner; live in Build 119; 0 = suggestions before). Bench and tourney identical (no test-set commander is thin).
    Batch D built (branch wt/6b-d, 22 Nov): upgrade value: a spell that fills the thin side of a detected chain (its own
    text, not its type line) adds UP.chain to its card value (strength.js strValue, plans.js chainBonus); the deck score's
-   synergy part reads the value without it (batch E). Switch UP.chain 0.03 (awaiting the owner's approval; 0 = picks before).
+   synergy part reads the value without it (batch E). Switch UP.chain 0.03 (approved by the owner; live in Build 119; 0 = picks before).
    Sweep 0 / 0.03 / 0.06 / 0.1: bench test 0.211 / 0.220 / 0.220 / 0.217, tuneall 0.168 / 0.167 / 0.160 / 0.158.
    Batch E built (branch wt/6b-e, 22 Nov): deck score synergy takes UP.chainSyn of a spell's synergy from the chains when
    higher (plans.js chainSyn: own-text side weight x how full the other side is); the generator keeps kept chains (4+ on the
    weaker side, or the commander on a side) whole at every cut (plans.js chainCutOk in buildPlanG, polishDeckG, strFinish),
    prefers same-side stand-ins, and fills a thin side with up to UP.chainGen cards. Switches UP.chainSyn 0.5, UP.chainGen 2
-   (awaiting the owner's approval; 0 = before). Bench tune/tuneall/test identical at every setting (picks come from the
+   (approved by the owner, 22 Nov; live in Build 120; 0 = before). Bench tune/tuneall/test identical at every setting (picks come from the
    strength list); tourney match/core 59/58% -> 58/57% combined; holdout still sealed.
    Synergy cap (branch wt/syncap, 22 Nov; owner approved fixing it): synergy saturated at 0.72 raw, so most decks showed 100.
    Now UP.synCap 0.9 (saturates later) and UP.synPlan 0.3 (30% of the part is how full the best chain's two sides are,
-   plans.js chainFull, 8 weight = full); awaiting the owner's approval, both 0 = before. Synergy 100: precons 6 -> 2 of 10,
+   plans.js chainFull, 8 weight = full); approved by the owner, 22 Nov; live in Build 120; both 0 = before. Synergy 100: precons 6 -> 2 of 10,
    generated decks 60 -> 16 of 60; bench identical; tourney 58/57 -> 60/58%; genstrong 0.405/0.71 -> 0.423/0.76.
 
 ## 7. Look and layout

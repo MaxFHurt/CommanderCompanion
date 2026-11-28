@@ -184,7 +184,7 @@ LF3. ☐ "Make this change" on Add basics: a confirm opens; accept → the deck 
 W1. ☐ iPhone and iPad, a precon on Upgrades: tap a row's card, then Swap in from the card window → expect the list to stay as it was (no Thinking…), that row to show the new card as In your deck and the old one with the red Replaced chip, its dearer picks still offered.
 W2. ☐ Same deck: open a card from Card Search, Swap in with an Or take out instead card, and make a swap from a Fix menu → expect the list kept each time, and the card put in no longer offered on other rows.
 
-## One measure for upgrades (owner, 22 Nov; UP.fixRef on, UP.oneM awaiting approval)
+## One measure for upgrades (owner, 22 Nov; UP.fixRef and UP.oneM approved 23 Nov; live in Build 121)
 X1. ☐ iPhone and iPad, a precon on Upgrades: note the power bar and its Budget / Mid marks, make three swaps from rows, the card window and a Fix menu → expect the marks not to move and the bar to rise by about each swap's "+x power" chip (a chip is the bar change on the deck's own practice games; the bar replays them, so ±0.3 is normal). Regenerate → the marks may move once.
 X2. ☐ Same deck (with UP.oneM on): every row, the card window and the Fix menus show only green "+x power" chips, and after a swap no row still offered shows a red one; the list's checking note clears within a few seconds on the phone.
 
