@@ -1032,15 +1032,18 @@ function strengthPaths(d, R) {
     // of the biggest bar gain (not "meaningfully more powerful"), the one this commander's players run most is chosen
     const popOf = n => inc(find(n)),
       popC = (C, t) => (UP.agPop ? C.filter(x => priceOk(x.c, t) && popOf(x.c.n) > 0).sort((a, b) => popOf(b.c.n) - popOf(a.c.n) || b.g - a.g).slice(0, UP.agPop).map(x => x.c.n) : []),
-      near = m => {
+      // UP.agRes: a near tie never takes a card another row picks before this pass (its strength pick), so a later row keeps it
+      own0 = new Map(),
+      near = (m, L) => {
         // m sorted by bar gain, biggest first; the near-tie winner (or the biggest gain)
         if (!UP.agM || !m.length) return m[0];
         const lo = m[0].g - UP.agM;
-        return m.filter(x => x.g >= lo - 1e-9).sort((a, b) => fitOf(b) - fitOf(a) || b.g - a.g)[0];
+        return m.filter(x => x === m[0] || (x.g >= lo - 1e-9 && !(UP.agRes && own0.has(x.n) && own0.get(x.n) !== L))).sort((a, b) => fitOf(b) - fitOf(a) || b.g - a.g)[0];
       },
       // how well a card fits: this commander's play rate (UP.agBy 0) or its gain on the strength scale, the card value the
       // builds use (1: 70% play rate, 30% strength)
       fitOf = x => (UP.agBy ? x.s : popOf(x.n));
+    rows.forEach(L => Object.values(L.opts).forEach(p => own0.has(p.add) || own0.set(p.add, L)));
     if (BEST)
       rows.forEach(L => {
         const C = L._C || [];
@@ -1067,7 +1070,7 @@ function strengthPaths(d, R) {
         const m = names.map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)})).filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN));
         if (UP.oneM === 2 || bestT(t)) m.sort((a, b) => b.g - a.g);
         // UP.agMB (Mid / Budget): the tier's own pick unless a card of its shortlist within UP.agM of it is played more
-        let b = bestT(t) ? near(m) : m[0];
+        let b = bestT(t) ? near(m, L) : m[0];
         if (UP.agMB && !bestT(t) && b && b.n === p.add) {
           const w = m.filter(x => x.g >= b.g - UP.agM - 1e-9 && fitOf(x) > fitOf(b)).sort((x, y) => fitOf(y) - fitOf(x) || y.g - x.g)[0];
           if (w) b = w;
@@ -1100,7 +1103,7 @@ function strengthPaths(d, R) {
             .map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)}))
             .filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN))
             .sort((a, b) => b.g - a.g),
-          b = near(m);
+          b = near(m, L);
         if (!b) return;
         if (L.opts.apex && L.opts.apex.add !== b.n && ![L.opts.mid, L.opts.budget].some(x => x && x.add === L.opts.apex.add)) taken.delete(L.opts.apex.add);
         L.opts.apex = Object.assign(pick(L.cut, b.n, 'apex'), {dScore: b.g, gain: b.g, sGain: b.s, bar: true});
