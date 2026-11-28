@@ -355,6 +355,7 @@ function tags(c) {
       else if (UP.v2 === 1 && !only) roles.delete(o);
     }
   }
+  if (UP.roles2 && !land) roles2Fix(c, o, t, roles); // roles corrected both ways (reading.js, owner 28 Nov: option B)
   return (c._t = {land, th, roles});
 }
 // ----- Card readings kept between launches (roadmap 6.2, speed) -----
