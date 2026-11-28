@@ -754,6 +754,18 @@ function barRecheck(d, R, G) {
         .map(a => ({a, g: G(o.cut || L.cut, a.n, 1)}))
         .filter(x => x.g != null && x.g >= SCORE_MIN);
       if (UP.oneM === 2 || UP.oneBest === 1 || (UP.oneBest === 3 && t === 'apex')) m.sort((x, y) => y.g - x.g);
+      // UP.agM: Apex's near-tie rule, as in strengthPaths
+      if (UP.agM && UP.oneBest === 3 && t === 'apex' && m.length > 1) {
+        const E = strCtx(d).E,
+          pop = n => {
+            const x = E && E.map && edhOf(E.map, find(n));
+            return x ? x.inc : 0;
+          },
+          SG = UP.agBy ? strGainFn(d, strengthRef(d)) : null,
+          fit = x => (SG ? SG(o.cut || L.cut, x.a.n) : pop(x.a.n)),
+          lo = m[0].g - UP.agM;
+        m.unshift(m.filter(x => x.g >= lo - 1e-9).sort((x, y) => fit(y) - fit(x) || y.g - x.g)[0]);
+      }
       if (m[0]) {
         L.opts[t] = Object.assign({}, o, {add: m[0].a.n, dScore: m[0].g, gain: m[0].g, held: false, why: strWhy(m[0].a.n), q: 1});
         L.alts[t] = L.alts[t].filter(a => a.n !== m[0].a.n);
@@ -1015,12 +1027,26 @@ function strengthPaths(d, R) {
       APEX3 = LIFT && UP.oneBest === 3 && dt !== 'apex',
       bestT = t => BEST && (UP.oneBest !== 3 || (t === 'apex' && dt === 'apex')),
       tierS = ['apex', 'mid', 'budget'];
+    // UP.agPop: the slot's cards this commander's players run most (that fit and raise power on the strength scale) join each
+    // tier's shortlist, so a popular card that also raises the bar can win; UP.agM: among the cards within this many power points
+    // of the biggest bar gain (not "meaningfully more powerful"), the one this commander's players run most is chosen
+    const popOf = n => inc(find(n)),
+      popC = (C, t) => (UP.agPop ? C.filter(x => priceOk(x.c, t) && popOf(x.c.n) > 0).sort((a, b) => popOf(b.c.n) - popOf(a.c.n) || b.g - a.g).slice(0, UP.agPop).map(x => x.c.n) : []),
+      near = m => {
+        // m sorted by bar gain, biggest first; the near-tie winner (or the biggest gain)
+        if (!UP.agM || !m.length) return m[0];
+        const lo = m[0].g - UP.agM;
+        return m.filter(x => x.g >= lo - 1e-9).sort((a, b) => fitOf(b) - fitOf(a) || b.g - a.g)[0];
+      },
+      // how well a card fits: this commander's play rate (UP.agBy 0) or its gain on the strength scale, the card value the
+      // builds use (1: 70% play rate, 30% strength)
+      fitOf = x => (UP.agBy ? x.s : popOf(x.n));
     if (BEST)
       rows.forEach(L => {
         const C = L._C || [];
         L._S = {};
         for (const t of tierS)
-          L._S[t] = (L.opts[t] ? [L.opts[t].add] : []).concat((L.alts[t] || []).map(a => a.n), C.filter(x => priceOk(x.c, t)).slice(0, UP.oneK || 6).map(x => x.c.n));
+          L._S[t] = (L.opts[t] ? [L.opts[t].add] : []).concat((L.alts[t] || []).map(a => a.n), C.filter(x => priceOk(x.c, t)).slice(0, UP.oneK || 6).map(x => x.c.n), popC(C, t));
       });
     for (const t of tOrder)
       rows.forEach(L => {
@@ -1037,9 +1063,15 @@ function strengthPaths(d, R) {
         if (UP.oneM === 2) names = names.concat(C.filter(x => priceOk(x.c, t)).slice(0, UP.oneK || 6).map(x => x.c.n));
         if (bestT(t)) names = [].concat(...tierS.slice(tierS.indexOf(t)).map(x => L._S[x]));
         names = [...new Set(names)].filter(n => free(L, n) && find(n) && priceOk(find(n), t));
+        if (UP.agMB && !bestT(t) && UP.oneM === 1 && LIFT) names = [...new Set(names.concat(popC(L._C || [], t)))].filter(n => free(L, n) && find(n) && priceOk(find(n), t));
         const m = names.map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)})).filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN));
         if (UP.oneM === 2 || bestT(t)) m.sort((a, b) => b.g - a.g);
-        const b = m[0];
+        // UP.agMB (Mid / Budget): the tier's own pick unless a card of its shortlist within UP.agM of it is played more
+        let b = bestT(t) ? near(m) : m[0];
+        if (UP.agMB && !bestT(t) && b && b.n === p.add) {
+          const w = m.filter(x => x.g >= b.g - UP.agM - 1e-9 && fitOf(x) > fitOf(b)).sort((x, y) => fitOf(y) - fitOf(x) || y.g - x.g)[0];
+          if (w) b = w;
+        }
         if (!b) {
           delete L.opts[t];
           return;
@@ -1068,7 +1100,7 @@ function strengthPaths(d, R) {
             .map(n => ({n, g: bg(L.cut, n), s: gain(L.cut, n)}))
             .filter(x => x.g != null && x.g >= (UP.oneMin != null ? UP.oneMin : SCORE_MIN))
             .sort((a, b) => b.g - a.g),
-          b = m[0];
+          b = near(m);
         if (!b) return;
         if (L.opts.apex && L.opts.apex.add !== b.n && ![L.opts.mid, L.opts.budget].some(x => x && x.add === L.opts.apex.add)) taken.delete(L.opts.apex.add);
         L.opts.apex = Object.assign(pick(L.cut, b.n, 'apex'), {dScore: b.g, gain: b.g, sGain: b.s, bar: true});
@@ -1134,6 +1166,15 @@ function strengthPaths(d, R) {
       const all = ps.map(p => ({n: p.add, g: p.dScore})).concat(...Object.values(L.alts).map(A => A.map(a => ({n: a.n, g: a.dScore})))),
         tp = all.sort((a, b) => b.g - a.g)[0];
       L.top = tp ? {n: tp.n, p: find(tp.n).p, dScore: tp.g, inc: inc(find(tp.n))} : null;
+      if (UP.dbgC) {
+        // measurement only (bench probes): every card measured on the bar for this row
+        L._dbg = [];
+        for (const [k, g] of BG.ctx.memo) {
+          const [c, n, q] = k.split('>');
+          if (c === L.cut && q === '1' && g != null) L._dbg.push({n, g, s: gain(L.cut, n)});
+        }
+        L._dbg.sort((a, b) => b.g - a.g);
+      }
       delete L._C;
       delete L._S;
     });
